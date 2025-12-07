@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Search } from 'lucide-react';
 
 import SelectCustomerModal from './SelectCustomerModal';
 import SelectWorkOrderModal from './SelectWorkOrderModal';
@@ -602,24 +602,46 @@ export default function AppointmentForm({
                   </div>
                 </div>
 
-                {/* Technician Selection */}
-                <div className="space-y-2">
-                  <Label>Technician *</Label>
-                  <Select
-                    value={formData.employee_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select technician..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {employees && employees.map(emp => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.first_name} {emp.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Technician and Status - Two Columns */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Technician *</Label>
+                    <Select
+                      value={formData.employee_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select technician..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees && employees.map(emp => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.first_name} {emp.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Status *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Scheduled">Scheduled</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        <SelectItem value="No Show">No Show</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {/* Date and Time */}
