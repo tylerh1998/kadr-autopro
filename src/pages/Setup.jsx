@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { User } from "@/entities/Employee";
+import { Employee, User } from "@/entities/Employee";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Users, Settings, Wrench, DollarSign, Save, FileText, Upload, Download } from "lucide-react";
 import { createPageUrl } from "@/utils";
 
 import TechDirectory from "../components/setup/TechDirectory";
+import TechForm from "../components/setup/TechForm";
 import SalesClassManager from "../components/setup/SalesClassManager";
 import TagAlongManager from "../components/setup/TagAlongManager";
 import OtherChargesManager from "../components/setup/OtherChargesManager";
@@ -39,13 +43,23 @@ export default function SetupPage() {
             <h1 className="text-3xl font-bold text-slate-900">Setup</h1>
             <p className="text-slate-600 mt-1">Configure your shop settings and manage users</p>
           </div>
-          <Button 
-            onClick={() => window.location.href = createPageUrl('BatchUploader')}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Batch Uploader
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => window.open('https://drive.google.com/uc?export=download&id=1-APT_Tt8xlAxBChlmvU1KftO5h83ViKP', '_blank')}
+              variant="outline"
+              className="bg-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Template
+            </Button>
+            <Button 
+              onClick={() => window.location.href = createPageUrl('BatchUploader')}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Batch Uploader
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
