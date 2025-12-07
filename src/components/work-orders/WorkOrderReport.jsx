@@ -215,22 +215,21 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
         </table>
       </div>
 
-      {/* Default Message - Always prints */}
-      {defaultMessage && (
+      {/* Notes to Customer - Only prints if user added something */}
+      {workOrder.notes_to_customer && (
         <div className="mb-3">
-          <h3 className="font-bold mb-1 text-sm">Notes</h3>
+          <h3 className="font-bold mb-1 text-sm">Notes to Customer</h3>
           <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
-            {defaultMessage}
+            {workOrder.notes_to_customer}
           </div>
         </div>
       )}
 
-      {/* Notes to Customer - Only prints if user added something */}
-      {workOrder.notes_to_customer && (
+      {/* Default Message - Always prints, no header */}
+      {defaultMessage && (
         <div className="mb-3">
-          <h3 className="font-bold mb-1 text-sm">Additional Notes</h3>
           <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
-            {workOrder.notes_to_customer}
+            {defaultMessage}
           </div>
         </div>
       )}
