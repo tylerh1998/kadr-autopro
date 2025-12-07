@@ -121,6 +121,7 @@ export default function SchedulePage() {
       setEmployees(availableTechs);
       setWorkOrders(workOrdersData);
       setCustomers(customersData);
+      setVehicles(vehiclesData);
 
       if (appointmentIdToSelect) {
         const appointmentToEdit = formattedEvents.find(e => e.id === appointmentIdToSelect);
