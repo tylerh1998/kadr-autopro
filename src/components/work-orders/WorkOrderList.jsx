@@ -72,6 +72,13 @@ function WorkOrderList({
     }
   };
 
+  // Parse YYYY-MM-DD as Mountain Time (local date, no timezone shift)
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const getStageDate = (workOrder) => {
     if (workOrder.stage === 'estimate' && workOrder.est_date) {
       return { label: 'Est', date: workOrder.est_date };
@@ -185,20 +192,26 @@ function WorkOrderList({
                             <Car className="w-4 h-4" />
                             <span>{vehicle.year} {vehicle.make} {vehicle.model}</span>
                           </div>
-                          {stageDate && stageDate.date && !isNaN(new Date(stageDate.date).getTime()) && (
-                            <span className="text-slate-400">
-                              • {stageDate.label}: {format(new Date(stageDate.date), 'MMM d, yyyy')}
-                            </span>
-                          )}
+                          {stageDate && stageDate.date && (() => {
+                            const parsedDate = parseLocalDate(stageDate.date);
+                            return parsedDate && !isNaN(parsedDate.getTime()) && (
+                              <span className="text-slate-400">
+                                • {stageDate.label}: {format(parsedDate, 'MMM d, yyyy')}
+                              </span>
+                            );
+                          })()}
                         </div>
                       )}
                       
-                      {workOrder.scheduled_date && !isNaN(new Date(workOrder.scheduled_date).getTime()) && (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>Sched: {format(new Date(workOrder.scheduled_date), 'MMM d, yyyy')}</span>
-                        </div>
-                      )}
+                      {workOrder.scheduled_date && (() => {
+                        const parsedDate = parseLocalDate(workOrder.scheduled_date);
+                        return parsedDate && !isNaN(parsedDate.getTime()) && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>Sched: {format(parsedDate, 'MMM d, yyyy')}</span>
+                          </div>
+                        );
+                      })()}
                       
                       {workOrder.technician && (
                         <div className="flex items-center gap-1">
