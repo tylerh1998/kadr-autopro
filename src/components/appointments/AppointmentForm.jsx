@@ -673,27 +673,6 @@ export default function AppointmentForm({
                   </div>
                 </div>
 
-                {/* Status */}
-                <div className="space-y-2">
-                  <Label>Status *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Scheduled">Scheduled</SelectItem>
-                      <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                      <SelectItem value="No Show">No Show</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Reminders Section */}
                 <div className="space-y-3 border-t pt-4">
                   <Label className="text-base font-semibold">Reminders</Label>
