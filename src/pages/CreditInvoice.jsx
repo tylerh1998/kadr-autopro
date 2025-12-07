@@ -295,9 +295,17 @@ export default function CreditInvoicePage() {
           .print-only {
             display: block !important;
           }
-          body {
+          body, html {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background-color: white !important;
+            background: white !important;
+          }
+          * {
+            background-color: transparent !important;
+            background: transparent !important;
+          }
+          .print-only, .print-only * {
             background-color: white !important;
           }
         }
@@ -475,16 +483,14 @@ export default function CreditInvoicePage() {
       )}
 
       {isPrinting && (
-        <div className="print-only bg-white">
-          <WorkOrderReport
-            workOrder={workOrder}
-            customer={customer}
-            vehicle={vehicle}
-            lineItems={lineItems.filter((_, index) => selectedLines[index])}
-            wipLegal={wipLegal}
-            defaultMessage={defaultMessage}
-          />
-        </div>
+        <WorkOrderReport
+          workOrder={workOrder}
+          customer={customer}
+          vehicle={vehicle}
+          lineItems={lineItems.filter((_, index) => selectedLines[index])}
+          wipLegal={wipLegal}
+          defaultMessage={defaultMessage}
+        />
       )}
 
       {showWorkPROModal && (
