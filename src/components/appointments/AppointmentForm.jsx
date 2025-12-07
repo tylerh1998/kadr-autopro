@@ -25,6 +25,8 @@ export default function AppointmentForm({
   employees,
   workOrders,
   customers,
+  vehicles,
+  onDataRefresh,
   workOrderForNew, // New prop
   customerForNew,   // New prop
   vehicleForNew,    // New prop
