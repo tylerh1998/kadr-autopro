@@ -91,20 +91,26 @@ Deno.serve(async (req) => {
     // Line items snapshot (from work order's line_items field)
     const lineItemsSnapshot = workOrder.line_items || '[]';
 
-    // Determine ref_number based on stage
+    // Determine ref_number and ref_date based on stage
     let refNumber;
+    let refDate;
     const stage = workOrder.stage || 'work_order';
     if (stage === 'estimate' && workOrder.est_number) {
       refNumber = workOrder.est_number;
+      refDate = workOrder.est_date || '';
     } else if (stage === 'work_order' && workOrder.wo_number) {
       refNumber = workOrder.wo_number;
+      refDate = workOrder.wo_date || '';
     } else if (stage === 'invoice' && workOrder.inv_number) {
       refNumber = workOrder.inv_number;
+      refDate = workOrder.invoice_date || '';
     } else if (stage === 'credit_invoice' && workOrder.crinv_number) {
       refNumber = workOrder.crinv_number;
+      refDate = workOrder.invoice_date || '';
     } else {
       // Fallback to ro_number
       refNumber = workOrder.ro_number || '';
+      refDate = workOrder.wo_date || workOrder.est_date || '';
     }
 
     // Create the CustomerPortalWorkOrder record
@@ -112,6 +118,7 @@ Deno.serve(async (req) => {
       original_work_order_id: workOrder.id,
       cp_id: cpId,
       ref_number: refNumber,
+      ref_date: refDate,
       snapshot_date: new Date().toISOString(),
       notes_to_customer: workOrder.notes_to_customer || '',
       customer_snapshot: customerSnapshot,
