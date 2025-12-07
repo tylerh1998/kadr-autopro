@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { 
+  User, 
   Car, 
   Calendar, 
   Clock,
@@ -42,7 +44,8 @@ function WorkOrderList({
   loading, 
   onSelect,
   onEdit,   
-  onStatusUpdate
+  onStatusUpdate,
+  currentUser
 }) {
   // Helper function to get customer display name
   const getCustomerName = (customerId) => {
@@ -57,8 +60,16 @@ function WorkOrderList({
 
   const handleEditClick = (workOrder) => {
     const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-    const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
-    window.open(url, '_blank', windowFeatures);
+    
+    // Check user's OpenNewWindow preference
+    if (currentUser?.OpenNewWindow === false) {
+      // Open in same tab
+      window.location.href = url;
+    } else {
+      // Open in new window (default behavior)
+      const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+      window.open(url, '_blank', windowFeatures);
+    }
   };
 
   const getStageDate = (workOrder) => {

@@ -998,6 +998,7 @@ export default function WorkOrdersPage() {
                       onSelect={handleEdit}
                       onEdit={handleEdit}
                       onStatusUpdate={handleStatusUpdate}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
 
@@ -1016,6 +1017,7 @@ export default function WorkOrdersPage() {
                       onSelect={handleEdit}
                       onEdit={handleEdit}
                       onStatusUpdate={handleStatusUpdate}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
 
@@ -1031,6 +1033,7 @@ export default function WorkOrdersPage() {
                       onSelect={handleEdit}
                       onEdit={handleEdit}
                       onStatusUpdate={handleStatusUpdate}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
 
@@ -1046,6 +1049,7 @@ export default function WorkOrdersPage() {
                       onSelect={handleEdit}
                       onEdit={handleEdit}
                       onStatusUpdate={handleStatusUpdate}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                 </Tabs>
