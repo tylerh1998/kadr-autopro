@@ -63,6 +63,15 @@ export default function SchedulePage() {
     return `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer';
   };
 
+  const loadCustomersAndVehicles = useCallback(async () => {
+    const [customersData, vehiclesData] = await Promise.all([
+      Customer.list(),
+      Vehicle.list(),
+    ]);
+    setCustomers(customersData);
+    setVehicles(vehiclesData);
+  }, []);
+
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
     setLoading(true);
     try {
