@@ -14,6 +14,7 @@ export default function ConfirmCreditInvoiceModal({
   onConfirmCreditInvoice 
 }) {
   const [refundSource, setRefundSource] = useState('');
+  const [cashDrawerPaymentType, setCashDrawerPaymentType] = useState('');
 
   // Get the selected line items for display
   const selectedLineItems = lineItems.filter((_, index) => selectedLines[index]);
@@ -27,12 +28,18 @@ export default function ConfirmCreditInvoiceModal({
       return;
     }
 
-    // Call the callback with the refund source
-    onConfirmCreditInvoice(refundSource);
+    if (refundSource === 'cash_drawer' && !cashDrawerPaymentType) {
+      alert('Please select a payment type for cash drawer refund.');
+      return;
+    }
+
+    // Call the callback with the refund source and payment type
+    onConfirmCreditInvoice(refundSource, cashDrawerPaymentType);
   };
 
   const handleCancel = () => {
     setRefundSource('');
+    setCashDrawerPaymentType('');
     onClose();
   };
 
@@ -96,7 +103,10 @@ export default function ConfirmCreditInvoiceModal({
             <Label htmlFor="refund-source" className="text-base font-semibold">
               Refund Payment Source <span className="text-red-500">*</span>
             </Label>
-            <Select value={refundSource} onValueChange={setRefundSource}>
+            <Select value={refundSource} onValueChange={(value) => {
+              setRefundSource(value);
+              setCashDrawerPaymentType('');
+            }}>
               <SelectTrigger id="refund-source" className="w-full">
                 <SelectValue placeholder="Select refund payment source..." />
               </SelectTrigger>
@@ -110,6 +120,25 @@ export default function ConfirmCreditInvoiceModal({
               Select how the customer will receive their refund
             </p>
           </div>
+
+          {/* Cash Drawer Payment Type */}
+          {refundSource === 'cash_drawer' && (
+            <div className="space-y-2">
+              <Label htmlFor="payment-type" className="text-base font-semibold">
+                Payment Type <span className="text-red-500">*</span>
+              </Label>
+              <Select value={cashDrawerPaymentType} onValueChange={setCashDrawerPaymentType}>
+                <SelectTrigger id="payment-type" className="w-full">
+                  <SelectValue placeholder="Select payment type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="debit">Debit</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Warning Message */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -133,7 +162,7 @@ export default function ConfirmCreditInvoiceModal({
           <Button 
             onClick={handleConfirm}
             className="bg-green-600 hover:bg-green-700"
-            disabled={!refundSource}
+            disabled={!refundSource || (refundSource === 'cash_drawer' && !cashDrawerPaymentType)}
           >
             Confirm & Save Credit Invoice
           </Button>
