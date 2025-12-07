@@ -205,7 +205,7 @@ export default function InvoiceConversion() {
             console.log('=== Creating customer portal snapshot ===');
             try {
               const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
-                ro_number: roNumber
+                work_order_id: wo.id
               });
               
               if (snapshotResponse.data && snapshotResponse.data.cp_id) {
