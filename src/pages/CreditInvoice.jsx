@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText } from 'lucide-react';
@@ -196,7 +197,27 @@ export default function CreditInvoicePage() {
       
       const createdCreditInvoice = await WorkOrder.create(creditInvoiceData);
       console.log('Created credit invoice:', createdCreditInvoice);
-      
+
+      // Invoke GL function to create accounting entries for the credit invoice
+      const systemSettingsData = await SystemSettings.list();
+      const currentSystemSettings = systemSettingsData && systemSettingsData.length > 0 ? systemSettingsData[0] : {};
+
+      const glResponse = await base44.functions.invoke('handleCreditInvoiceGL', {
+        workOrder: createdCreditInvoice,
+        lineItems: JSON.parse(createdCreditInvoice.line_items),
+        payments: JSON.parse(createdCreditInvoice.payments),
+        systemSettings: currentSystemSettings
+      });
+
+      if (glResponse.data.success) {
+        await WorkOrder.update(createdCreditInvoice.id, {
+          accounting_details: glResponse.data.accounting_details
+        });
+        console.log('GL transactions for credit invoice recorded successfully.');
+      } else {
+        console.error('Failed to record GL transactions for credit invoice:', glResponse.data.error);
+      }
+
       for (const line of selectedLineItems) {
         if (line.inventory_item_id) {
           try {
