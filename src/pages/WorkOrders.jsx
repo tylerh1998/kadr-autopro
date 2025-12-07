@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { WorkOrder, Customer, Vehicle, Appointment, User } from "@/entities/all";
+import { WorkOrder, Customer, Vehicle, TagAlong, Appointment, User } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, FileText, Calendar, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon } from "lucide-react";
+import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { base44 } from "@/api/base44Client";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -591,9 +592,17 @@ export default function WorkOrdersPage() {
       
       setTimeout(() => {
         const url = `/WorkOrderEdit?id=${createdWorkOrder.ro_number}`;
-        const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         console.log('Opening work order at:', url);
-        window.open(url, '_blank', windowFeatures);
+        
+        // Check user's OpenNewWindow preference
+        if (currentUser?.OpenNewWindow === false) {
+          // Open in same tab
+          window.location.href = url;
+        } else {
+          // Open in new window (default behavior)
+          const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+          window.open(url, '_blank', windowFeatures);
+        }
       }, 500);
       
     } catch (error) {
@@ -604,8 +613,16 @@ export default function WorkOrdersPage() {
 
   const handleEdit = (workOrder) => {
     const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-    const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
-    window.open(url, '_blank', windowFeatures);
+    
+    // Check user's OpenNewWindow preference
+    if (currentUser?.OpenNewWindow === false) {
+      // Open in same tab
+      window.location.href = url;
+    } else {
+      // Open in new window (default behavior)
+      const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+      window.open(url, '_blank', windowFeatures);
+    }
   };
 
   const handleStatusUpdate = async (workOrderId, newStatus) => {
@@ -714,9 +731,17 @@ export default function WorkOrdersPage() {
       
       setTimeout(() => {
         const url = `/WorkOrderEdit?id=${createdWorkOrder.ro_number}`;
-        const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
         console.log('Opening counter sale work order at:', url);
-        window.open(url, '_blank', windowFeatures);
+        
+        // Check user's OpenNewWindow preference
+        if (currentUser?.OpenNewWindow === false) {
+          // Open in same tab
+          window.location.href = url;
+        } else {
+          // Open in new window (default behavior)
+          const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+          window.open(url, '_blank', windowFeatures);
+        }
       }, 500);
       
     } catch (error) {
