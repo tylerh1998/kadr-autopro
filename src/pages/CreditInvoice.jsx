@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User, WorkOrder, InventoryItem, InventoryTxs } from '@/entities/all';
+import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings } from '@/entities/all';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Printer, X, User as UserIcon, Car, Phone, Mail, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +34,8 @@ export default function CreditInvoicePage() {
   const [selectedLines, setSelectedLines] = useState([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [wipLegal, setWipLegal] = useState('');
+  const [defaultMessage, setDefaultMessage] = useState('');
 
   // Parse date string as local date (no timezone conversion)
   const parseLocalDate = (dateStr) => {
@@ -53,6 +56,21 @@ export default function CreditInvoicePage() {
       }
     };
     loadUser();
+  }, []);
+
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      try {
+        const settings = await SystemSettings.list();
+        if (settings && settings.length > 0) {
+          setWipLegal(settings[0].wip_legal || '');
+          setDefaultMessage(settings[0].default_message || '');
+        }
+      } catch (error) {
+        console.error('Error loading system settings:', error);
+      }
+    };
+    loadSystemSettings();
   }, []);
 
   // Initialize selectedLines when lineItems load
@@ -280,6 +298,7 @@ export default function CreditInvoicePage() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background-color: white !important;
           }
         }
         .print-only {
@@ -456,12 +475,14 @@ export default function CreditInvoicePage() {
       )}
 
       {isPrinting && (
-        <div className="print-only">
+        <div className="print-only bg-white">
           <WorkOrderReport
             workOrder={workOrder}
             customer={customer}
             vehicle={vehicle}
             lineItems={lineItems.filter((_, index) => selectedLines[index])}
+            wipLegal={wipLegal}
+            defaultMessage={defaultMessage}
           />
         </div>
       )}
