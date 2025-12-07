@@ -76,11 +76,12 @@ export default function SchedulePage() {
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
     setLoading(true);
     try {
-      const [appointmentsData, employeesData, workOrdersData, customersData] = await Promise.all([
+      const [appointmentsData, employeesData, workOrdersData, customersData, vehiclesData] = await Promise.all([
         Appointment.list(),
         Employee.list(),
         WorkOrder.list(),
         Customer.list(),
+        Vehicle.list(),
       ]);
 
       const techMap = new Map(employeesData.map(e => [e.id, e]));
