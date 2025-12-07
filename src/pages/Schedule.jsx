@@ -362,6 +362,8 @@ export default function SchedulePage() {
           employees={employees}
           workOrders={workOrders}
           customers={customers}
+          vehicles={vehicles}
+          onDataRefresh={loadCustomersAndVehicles}
         />
 
         <CustomCalendar
