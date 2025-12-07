@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, WorkOrder, SystemSettings } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, Briefcase, Send, FileText } from 'lucide-react';
+import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
@@ -53,6 +53,7 @@ export default function WorkOrderViewPage() {
   const [selectedLineForWarranty, setSelectedLineForWarranty] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
+  const [defaultMessage, setDefaultMessage] = useState('');
 
   useEffect(() => {
     const loadUser = async () => {
@@ -74,6 +75,7 @@ export default function WorkOrderViewPage() {
         const settings = await SystemSettings.list();
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
+          setDefaultMessage(settings[0].default_message || '');
         }
       } catch (error) {
         console.error('Error loading system settings:', error);
@@ -332,6 +334,7 @@ export default function WorkOrderViewPage() {
                   vehicle={vehicle}
                   lineItems={lineItems}
                   wipLegal={wipLegal}
+                  defaultMessage={defaultMessage}
                 />
               </div>
             )}

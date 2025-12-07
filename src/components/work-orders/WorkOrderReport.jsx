@@ -2,23 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { SystemSettings } from '@/entities/all';
 
-export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '' }) {
-  const [defaultMessage, setDefaultMessage] = useState('');
-
-  // Load default message from SystemSettings
-  useEffect(() => {
-    const loadDefaultMessage = async () => {
-      try {
-        const settings = await SystemSettings.list();
-        if (settings && settings.length > 0) {
-          setDefaultMessage(settings[0].default_message || '');
-        }
-      } catch (error) {
-        console.error('Error loading default message:', error);
-      }
-    };
-    loadDefaultMessage();
-  }, []);
+export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
 
   // Parse payments from JSON string
   let payments = [];
