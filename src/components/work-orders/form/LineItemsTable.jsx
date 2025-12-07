@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -32,8 +33,12 @@ import {
   Hash,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-
-
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import SerialNumberModal from '../SerialNumberModal';
 
 export default function LineItemsTable({
@@ -458,7 +463,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'qty', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-16 h-8 text-center text-sm ${isBold ? 'font-bold' : ''}`}
+                className={`w-16 h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -472,7 +477,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'hrs', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-16 h-8 text-center text-sm ${isBold ? 'font-bold' : ''}`}
+                className={`w-16 h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -487,7 +492,7 @@ export default function LineItemsTable({
                   onFocus={(e) => handleFieldInteraction(index, e)}
                   onClick={(e) => handleFieldInteraction(index, e)}
                   maxLength={MAX_DESCRIPTION_LENGTH}
-                  className={`w-full text-sm resize-none overflow-hidden ${isBold ? 'font-bold' : ''}`}
+                  className={`w-full text-sm resize-none overflow-hidden bg-white ${isBold ? 'font-bold' : ''}`}
                   rows={1}
                   style={{
                     height: 'auto',
@@ -539,7 +544,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'parts_ea', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-20 h-8 text-right text-sm ${isBold ? 'font-bold' : ''}`}
+                className={`w-20 h-8 text-right text-sm bg-white ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -554,7 +559,7 @@ export default function LineItemsTable({
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
                 disabled={isLocked}
-                className={`h-8 text-center text-sm ${isBold ? 'font-bold' : ''}`}
+                className={`h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
                 maxLength={5}
                 data-line-index={index}
               />
@@ -573,7 +578,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'labour', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-20 h-8 text-right text-sm ${isBold ? 'font-bold' : ''}`}
+                className={`w-20 h-8 text-right text-sm bg-white ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
