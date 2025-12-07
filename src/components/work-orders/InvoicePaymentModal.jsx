@@ -37,6 +37,7 @@ export default function InvoicePaymentModal({
   });
   const [loading, setLoading] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [invoiceDateLocked, setInvoiceDateLocked] = useState(false);
 
   // Helper to get customer display name
   const getCustomerDisplayName = () => {
@@ -56,8 +57,16 @@ export default function InvoicePaymentModal({
         ...prev,
         cheque_name: getCustomerDisplayName()
       }));
+      // Check if invoice date already exists on work order
+      if (workOrder?.invoice_date) {
+        setInvoiceDate(workOrder.invoice_date);
+        setInvoiceDateLocked(true);
+      } else {
+        setInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
+        setInvoiceDateLocked(false);
+      }
     }
-  }, [open, existingPayments, customer]); // Dependency on existingPayments prop and customer
+  }, [open, existingPayments, customer, workOrder]); // Dependency on existingPayments prop, customer, and workOrder
 
   const { totalPaid, balanceDue } = useMemo(() => {
     // totalAmount is now passed as a prop, no need to calculate it here from line_items
@@ -329,7 +338,7 @@ export default function InvoicePaymentModal({
                 value={invoiceDate}
                 onChange={(e) => setInvoiceDate(e.target.value)}
                 className="w-40"
-                disabled={loading}
+                disabled={loading || invoiceDateLocked}
               />
             </div>
             <div className="flex gap-2">
