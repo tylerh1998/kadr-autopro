@@ -1,0 +1,275 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CustomerPayments, CustomerARAdjustment, WorkOrder, Customer } from '@/entities/all';
+import { format, parseISO } from 'date-fns';
+import { Loader2, FileText, Mail } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import ARPaymentEmailModal from './ARPaymentEmailModal';
+
+export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) {
+  const [appliedToDetails, setAppliedToDetails] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+
+  useEffect(() => {
+    const loadAppliedToDetails = async () => {
+      if (!paymentRecord || !open) return;
+      
+      setLoading(true);
+      try {
+        // Fetch customer email
+        if (paymentRecord.customer_id) {
+          try {
+            const customer = await Customer.get(paymentRecord.customer_id);
+            setCustomerEmail(customer?.email || null);
+          } catch (e) {
+            console.warn('Could not fetch customer:', e);
+            setCustomerEmail(null);
+          }
+        }
+
+        const arApplyTo = paymentRecord.ar_applyto || '';
+        
+        console.log('Loading details for payment:', paymentRecord);
+        console.log('ar_applyto string:', arApplyTo);
+        
+        if (!arApplyTo) {
+          setAppliedToDetails([]);
+          setLoading(false);
+          return;
+        }
+
+        // Parse ar_applyto string: "id1:amount1,id2:amount2,..."
+        const entries = arApplyTo.split(',').filter(e => e.trim());
+        const details = [];
+
+        for (const entry of entries) {
+          const [recordId, amountStr] = entry.split(':');
+          const amount = parseFloat(amountStr);
+
+          if (!recordId || isNaN(amount)) continue;
+
+          // Try to fetch as CustomerPayments (invoice)
+          try {
+            const payment = await CustomerPayments.get(recordId);
+            if (payment) {
+              // Fetch work order for description
+              let description = payment.notes || 'Invoice';
+              if (payment.work_order_id) {
+                try {
+                  const wo = await WorkOrder.get(payment.work_order_id);
+                  if (wo) description = wo.description || description;
+                } catch (e) {
+                  console.warn('Could not fetch work order:', e);
+                }
+              }
+
+              details.push({
+                id: recordId,
+                type: 'Invoice',
+                reference: payment.invoice_number || '',
+                date: payment.payment_date,
+                description: description,
+                amountApplied: amount
+              });
+              continue;
+            }
+          } catch (e) {
+            // Not a payment, try adjustment
+          }
+
+          // Try to fetch as CustomerARAdjustment
+          try {
+            const adjustment = await CustomerARAdjustment.get(recordId);
+            if (adjustment) {
+              details.push({
+                id: recordId,
+                type: adjustment.amount > 0 ? 'Charge' : 'Credit',
+                reference: adjustment.reference || '',
+                date: adjustment.adjustment_date,
+                description: adjustment.description || 'Adjustment',
+                amountApplied: amount
+              });
+            }
+          } catch (e) {
+            console.warn('Could not fetch record:', recordId, e);
+          }
+        }
+
+        console.log('Loaded applied to details:', details);
+        setAppliedToDetails(details);
+      } catch (error) {
+        console.error('Error loading payment details:', error);
+        setAppliedToDetails([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAppliedToDetails();
+  }, [paymentRecord, open]);
+
+  const totalApplied = appliedToDetails.reduce((sum, detail) => sum + detail.amountApplied, 0);
+
+  // Format payment method to be user-friendly
+  const formatPaymentMethod = (method) => {
+    if (!method) return 'Unknown';
+    return method.replace(/_/g, ' ').split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
+  const handleGenerateReceipt = async () => {
+    if (!paymentRecord || !paymentRecord.id) return;
+    
+    setGeneratingPDF(true);
+    try {
+      const response = await base44.functions.invoke('generateARReceiptPDF', {
+        paymentId: paymentRecord.id
+      });
+
+      if (response.data) {
+        // Create blob and open in new tab
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      alert('Failed to generate receipt. Please try again.');
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
+  const handleEmailReceipt = () => {
+    if (!paymentRecord || !paymentRecord.id) return;
+    if (!customerEmail) {
+      alert('No email address found for this customer. Please update the customer record with an email address.');
+      return;
+    }
+    setShowEmailModal(true);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Payment Application Details</DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {paymentRecord && (
+              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-semibold">Payment Date:</span>
+                  <span>{format(parseISO(paymentRecord.payment_date), 'MMM d, yyyy')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold">Payment Method:</span>
+                  <span>{formatPaymentMethod(paymentRecord.payment_method)}</span>
+                </div>
+                {paymentRecord.reference && (
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Reference:</span>
+                    <span>{paymentRecord.reference}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="font-semibold">Total Payment:</span>
+                  <span className="font-bold">${(paymentRecord.amount || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h3 className="font-semibold mb-2">Applied To:</h3>
+              {appliedToDetails.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Amount Applied</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {appliedToDetails.map((detail, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{detail.type}</TableCell>
+                          <TableCell>{detail.reference}</TableCell>
+                          <TableCell>{format(parseISO(detail.date), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{detail.description}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            ${detail.amountApplied.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="font-bold bg-slate-50">
+                        <TableCell colSpan={4} className="text-right">Total Applied:</TableCell>
+                        <TableCell className="text-right">${totalApplied.toFixed(2)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  No payment application details available.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="flex gap-2">
+          <Button
+            onClick={handleEmailReceipt}
+            disabled={!paymentRecord || !customerEmail}
+            variant="outline"
+            title={!customerEmail ? 'No email address for this customer' : `Send to ${customerEmail}`}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email Receipt
+          </Button>
+          <Button
+            onClick={handleGenerateReceipt}
+            disabled={!paymentRecord || generatingPDF}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {generatingPDF ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4 mr-2" />
+                Receipt
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+      {showEmailModal && paymentRecord && customerEmail && (
+        <ARPaymentEmailModal
+          open={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          paymentRecord={paymentRecord}
+          customerEmail={customerEmail}
+        />
+      )}
+    </Dialog>
+  );
+}

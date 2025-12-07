@@ -1,0 +1,334 @@
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
+import { Customer, Vehicle, SystemSettings } from "@/entities/all"; // Added SystemSettings
+import CustomerForm from "../customers/CustomerForm";
+import VehicleForm from "../vehicles/VehicleForm";
+import { format } from "date-fns";
+
+export default function NewWorkOrderModal({
+  open,
+  onClose,
+  onCreateWorkOrder
+}) {
+  const [localCustomers, setLocalCustomers] = useState([]);
+  const [localVehicles, setLocalVehicles] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [step, setStep] = useState(1);
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const searchInputRef = React.useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      const fetchData = async () => {
+        try {
+          const [customersData, vehiclesData] = await Promise.all([
+            Customer.list(),
+            Vehicle.list()
+          ]);
+          setLocalCustomers(customersData || []);
+          setLocalVehicles(vehiclesData || []);
+        } catch (error) {
+          console.error("Failed to fetch customers and vehicles:", error);
+          setLocalCustomers([]);
+          setLocalVehicles([]);
+        }
+      };
+      fetchData();
+      
+      // Focus search input when modal opens
+      setTimeout(() => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [open]);
+
+  const filteredCustomers = (localCustomers || []).filter(customer => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Check org_name first
+    if (customer.org_name && customer.org_name.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+    
+    // Then check first/last name
+    const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase();
+
+    return !searchTerm ||
+      fullName.includes(searchLower) ||
+      customer.phone?.toLowerCase().includes(searchLower) ||
+      customer.email?.toLowerCase().includes(searchLower);
+  });
+
+  const customerVehicles = (localVehicles || []).filter(v => v.customer_id === selectedCustomer?.id);
+
+  const getCustomerDisplayName = (customer) => {
+    if (customer.org_name && customer.org_name.trim() !== '') {
+      return customer.org_name;
+    }
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+  };
+
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomer(customer);
+    setSelectedVehicle(null);
+    setStep(2);
+  };
+
+  const handleVehicleSelect = (vehicle) => {
+    setSelectedVehicle(vehicle);
+  };
+
+  const generateRandomString = (length) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const generateNumbers = async (stage) => {
+    // Fetch next RO number from SystemSettings
+    const settings = await SystemSettings.list();
+    const systemSettings = settings && settings.length > 0 ? settings[0] : null;
+    
+    const nextRo = systemSettings?.next_ro_number || 1001;
+    
+    // Increment and save back to SystemSettings
+    if (systemSettings) {
+      await SystemSettings.update(systemSettings.id, {
+        next_ro_number: nextRo + 1
+      });
+    } else {
+      await SystemSettings.create({
+        next_ro_number: nextRo + 1
+      });
+    }
+
+    const numbers = {
+      ro_number: `RO${nextRo}`,
+      cp_id: generateRandomString(10),
+    };
+
+    switch(stage) {
+      case 'estimate':
+        numbers.est_number = `EST${nextRo}`;
+        break;
+      case 'work_order':
+        numbers.wo_number = `WO${nextRo}`;
+        break;
+      case 'invoice':
+        numbers.inv_number = `INV${nextRo}`;
+        break;
+    }
+
+    return numbers;
+  };
+
+  const handleCreate = async (stage) => {
+    if (!selectedCustomer || !selectedVehicle) {
+      alert("Please select both a customer and a vehicle.");
+      return;
+    }
+
+    const numbers = await generateNumbers(stage);
+
+    // Fetch default message from SystemSettings
+    let defaultMessage = "";
+    try {
+      const settings = await SystemSettings.list();
+      if (settings && settings.length > 0) {
+        defaultMessage = settings[0].default_message || "";
+      }
+    } catch (error) {
+      console.error("Error fetching default message:", error);
+    }
+
+    const newWorkOrder = {
+      ro_number: numbers.ro_number,
+      wo_number: stage === 'work_order' ? numbers.wo_number || '' : '',
+      est_number: stage === 'estimate' ? numbers.est_number || '' : '',
+      inv_number: '',
+      cp_id: numbers.cp_id,
+      customer_id: selectedCustomer.id,
+      vehicle_id: selectedVehicle.id,
+      status: "Open",
+      priority: "medium",
+      stage: stage,
+      description: "New Work Order",
+      customer_complaint: "",
+      estimated_hours: null,
+      labor_rate: 120,
+      total_amount: 0,
+      scheduled_date: "",
+      technician: "",
+      line_items: "[]",
+      notes_to_customer: defaultMessage, // Applied default message here
+      amount_paid: 0,
+      payments: "[]",
+      approval: 'pending',
+      est_date: stage === 'estimate' ? format(new Date(), 'yyyy-MM-dd') : null,
+      wo_date: stage === 'work_order' ? format(new Date(), 'yyyy-MM-dd') : null,
+      default_taxable: selectedCustomer.default_taxable || false,
+    };
+
+    onCreateWorkOrder(newWorkOrder);
+    handleClose();
+  };
+
+  const handleClose = () => {
+    setSearchTerm("");
+    setSelectedCustomer(null);
+    setSelectedVehicle(null);
+    setStep(1);
+    onClose();
+  };
+
+  const goBack = () => {
+    if (step === 2) {
+      setSelectedVehicle(null);
+      setStep(1);
+    }
+  };
+
+  const handleNewCustomerSubmit = async (customerData) => {
+    try {
+      const newCustomer = await Customer.create(customerData);
+      setLocalCustomers(prev => [newCustomer, ...prev]);
+      handleCustomerSelect(newCustomer);
+      setShowCustomerForm(false);
+    } catch (error) {
+      console.error("Failed to create customer:", error);
+      alert("Failed to create customer.");
+    }
+  };
+
+  const handleNewVehicleSubmit = async (vehicleData) => {
+    try {
+      const newVehicle = await Vehicle.create(vehicleData);
+      setLocalVehicles(prev => [newVehicle, ...prev]);
+      handleVehicleSelect(newVehicle);
+      setShowVehicleForm(false);
+    } catch (error) {
+      console.error("Failed to create vehicle:", error);
+      alert("Failed to create vehicle.");
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Create New Work Order
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-4 my-6">
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 1 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <User className="w-4 h-4" />1. Select Customer
+              </div>
+              <div className="flex-1 h-px bg-gray-200"></div>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 2 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <Car className="w-4 h-4" />2. Select Vehicle
+              </div>
+          </div>
+
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-slate-900">Select Customer</h3>
+                <Button variant="outline" onClick={() => setShowCustomerForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> New Customer
+                </Button>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input ref={searchInputRef} placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
+                {filteredCustomers.map((customer) => (
+                  <Card key={customer.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleCustomerSelect(customer)}>
+                    <CardContent className="p-4">
+                        <h4 className="font-semibold">{getCustomerDisplayName(customer)}</h4>
+                        {customer.org_name && customer.first_name && (
+                          <p className="text-xs text-slate-500">Contact: {customer.first_name} {customer.last_name}</p>
+                        )}
+                        <p className="text-sm text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3"/>{customer.phone}</p>
+                        <p className="text-sm text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3"/>{customer.email}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && selectedCustomer && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Select Vehicle</h3>
+                  <p className="text-sm text-slate-600">Customer: {getCustomerDisplayName(selectedCustomer)}</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={goBack}>Change Customer</Button>
+                    <Button variant="outline" onClick={() => setShowVehicleForm(true)}><Plus className="w-4 h-4 mr-2" /> New Vehicle</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
+                {customerVehicles.map((vehicle) => (
+                  <Card key={vehicle.id} className={`cursor-pointer transition-all border-2 ${selectedVehicle?.id === vehicle.id ? 'border-blue-500 bg-blue-50' : 'hover:border-blue-200'}`} onClick={() => handleVehicleSelect(vehicle)}>
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</h4>
+                      <p className="text-sm text-slate-500">License: {vehicle.license_plate}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between pt-4 border-t">
+            <Button variant="outline" onClick={handleClose}>Cancel</Button>
+            <div className="flex gap-2">
+              <Button onClick={() => handleCreate('estimate')} disabled={!selectedCustomer || !selectedVehicle} className="bg-yellow-500 hover:bg-yellow-600">Create Estimate</Button>
+              <Button onClick={() => handleCreate('work_order')} disabled={!selectedCustomer || !selectedVehicle} className="bg-green-600 hover:bg-green-700">Create Work Order</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Form Modal */}
+      <Dialog open={showCustomerForm} onOpenChange={setShowCustomerForm}>
+        <DialogContent className="max-w-3xl">
+          <CustomerForm
+            onSubmit={handleNewCustomerSubmit}
+            onCancel={() => setShowCustomerForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Vehicle Form Modal */}
+      <Dialog open={showVehicleForm} onOpenChange={setShowVehicleForm}>
+        <DialogContent className="max-w-3xl">
+          <VehicleForm
+            customers={[selectedCustomer]}
+            vehicle={{ customer_id: selectedCustomer?.id }}
+            onSubmit={handleNewVehicleSubmit}
+            onCancel={() => setShowVehicleForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

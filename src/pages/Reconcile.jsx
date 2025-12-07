@@ -1,0 +1,467 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { BankAccount, BankTransaction, BankReconciliation } from '@/entities/all';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  DollarSign,
+  Save,
+  ArrowLeft,
+  Landmark,
+  History,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { createPageUrl } from '../utils';
+
+export default function ReconcilePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const bankAccountId = searchParams.get('bank_account_id');
+
+  const [bankAccount, setBankAccount] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
+  
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const fromDate = format(oneYearAgo, 'yyyy-MM-dd');
+  const toDate = format(new Date(), 'yyyy-MM-dd');
+  const [statementBalance, setStatementBalance] = useState('');
+  const [selectedTransactions, setSelectedTransactions] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [showScrollButtons, setShowScrollButtons] = useState(false);
+
+  const applyDateFilter = useCallback((allTxs) => {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const to = new Date();
+    to.setHours(23, 59, 59, 999);
+
+    return allTxs.filter(tx => {
+      const txDate = new Date(tx.transaction_date);
+      return txDate >= oneYearAgo && txDate <= to;
+    });
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!bankAccountId) {
+        navigate(createPageUrl('Bank'));
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const account = await BankAccount.get(bankAccountId);
+        setBankAccount(account);
+
+        const allTransactions = await BankTransaction.list('transaction_date');
+        
+        const accountTransactions = allTransactions.filter(
+          tx => tx.bank_account_id === bankAccountId && 
+          (tx.reconciled === false || tx.reconciled === null || tx.reconciled === undefined)
+        );
+
+        setTransactions(accountTransactions);
+        const filtered = applyDateFilter(accountTransactions);
+        setFilteredTransactions(filtered);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        alert('Failed to load bank account data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+    }, [bankAccountId, navigate, applyDateFilter]);
+
+  const toggleTransaction = (txId) => {
+    setSelectedTransactions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(txId)) {
+        newSet.delete(txId);
+      } else {
+        newSet.add(txId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedTransactions.size === filteredTransactions.length) {
+      setSelectedTransactions(new Set());
+    } else {
+      setSelectedTransactions(new Set(filteredTransactions.map(tx => tx.id)));
+    }
+  };
+
+  const calculateTotals = useCallback(() => {
+    const selectedTxs = filteredTransactions.filter(tx => selectedTransactions.has(tx.id));
+    
+    const totalCredits = selectedTxs.reduce((sum, tx) => sum + (tx.credit_amount || 0), 0);
+    const totalDebits = selectedTxs.reduce((sum, tx) => sum + (tx.debit_amount || 0), 0);
+    
+    let startingBalance = 0;
+    if (filteredTransactions.length > 0) {
+      const allDisplayedBalance = filteredTransactions.reduce(
+        (sum, tx) => sum + (tx.credit_amount || 0) - (tx.debit_amount || 0), 
+        0
+      );
+      startingBalance = (bankAccount?.current_balance || 0) - allDisplayedBalance;
+    }
+
+    const clearedBalance = startingBalance + totalCredits - totalDebits;
+    
+    return {
+      totalCredits,
+      totalDebits,
+      clearedBalance,
+      startingBalance
+    };
+  }, [filteredTransactions, selectedTransactions, bankAccount]);
+
+  const handleSaveReconciliation = async () => {
+    if (!statementBalance || statementBalance === '') {
+      alert('Please enter the statement ending balance');
+      return;
+    }
+
+    const parsedBalance = parseFloat(statementBalance);
+    if (isNaN(parsedBalance)) {
+      alert('Please enter a valid statement balance');
+      return;
+    }
+
+    if (selectedTransactions.size === 0) {
+      alert('Please select at least one transaction to reconcile');
+      return;
+    }
+
+    const totals = calculateTotals();
+    const difference = parsedBalance - totals.clearedBalance;
+
+    if (Math.abs(difference) > 0.01) {
+      const confirmProceed = window.confirm(
+        `There is a difference of $${difference.toFixed(2)} between the statement balance and cleared transactions. Do you want to proceed anyway?`
+      );
+      if (!confirmProceed) return;
+    }
+
+    setSaving(true);
+    try {
+      const reconciliationId = `RECON-${Date.now()}`;
+      const reconciliationDate = new Date().toISOString();
+
+      const updatePromises = Array.from(selectedTransactions).map(txId => {
+        return BankTransaction.update(txId, {
+          reconciled: true,
+          reconciliation_id: reconciliationId,
+          cleared: true
+        });
+      });
+
+      await Promise.all(updatePromises);
+
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      const reconciliationRecord = {
+        bank_account_id: bankAccountId,
+        reconciliation_id: reconciliationId,
+        reconciliation_date: reconciliationDate,
+        period_start_date: format(oneYearAgo, 'yyyy-MM-dd'),
+        period_end_date: format(new Date(), 'yyyy-MM-dd'),
+        statement_ending_balance: parsedBalance,
+        cleared_balance_at_reconciliation: totals.clearedBalance,
+        difference: difference,
+        starting_balance: totals.startingBalance,
+        total_credits: totals.totalCredits,
+        total_debits: totals.totalDebits
+      };
+
+      await BankReconciliation.create(reconciliationRecord);
+
+      alert('Reconciliation saved successfully!');
+      navigate(`${createPageUrl('ReconcileReport')}?id=${reconciliationId}`);
+      
+    } catch (error) {
+      console.error('Error saving reconciliation:', error);
+      alert('Failed to save reconciliation. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totals = !loading ? calculateTotals() : { totalCredits: 0, totalDebits: 0, clearedBalance: 0, startingBalance: 0 };
+  const parsedStatementBalance = parseFloat(statementBalance) || 0;
+  const difference = parsedStatementBalance - totals.clearedBalance;
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButtons(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToBottom = () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  };
+
+  const transactionsWithBalance = useMemo(() => {
+    let runningBalance = 0;
+    return filteredTransactions.map(tx => {
+      runningBalance += (tx.credit_amount || 0) - (tx.debit_amount || 0);
+      return {
+        ...tx,
+        calculatedBalance: runningBalance
+      };
+    });
+  }, [filteredTransactions]);
+
+  return (
+    <div className="p-6 min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate(createPageUrl('Bank'))}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Bank Accounts
+            </Button>
+            <h1 className="text-3xl font-bold text-slate-900">Reconcile Bank Account</h1>
+          </div>
+        </div>
+
+        {loading ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-slate-600">Loading bank account data...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Landmark className="w-5 h-5" />
+                    {bankAccount?.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-slate-600">Bank Name</p>
+                      <p className="font-semibold">{bankAccount?.bank_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">Account Type</p>
+                      <p className="font-semibold">{bankAccount?.account_type || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">Current Balance</p>
+                      <p className="text-xl font-bold text-slate-900">
+                        ${(bankAccount?.current_balance || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <p className="text-sm text-slate-600">Showing unreconciled transactions from last 365 days</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Reconciliation Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <Label htmlFor="statement-balance">Statement Ending Balance</Label>
+                        <Input
+                          id="statement-balance"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={statementBalance}
+                          onChange={(e) => setStatementBalance(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Starting Balance:</span>
+                        <span className="font-semibold">
+                          ${totals.startingBalance.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-green-600">
+                        <span>Total Credits (Selected):</span>
+                        <span className="font-semibold">
+                          +${totals.totalCredits.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-red-600">
+                        <span>Total Debits (Selected):</span>
+                        <span className="font-semibold">
+                          -${totals.totalDebits.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-semibold">Cleared Balance:</span>
+                        <span className="font-bold text-lg">
+                          ${totals.clearedBalance.toFixed(2)}
+                        </span>
+                      </div>
+                      {statementBalance && (
+                        <div className="flex justify-between border-t pt-2">
+                          <span className="font-semibold">Difference:</span>
+                          <span className={`font-bold text-lg ${
+                            Math.abs(difference) < 0.01
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}>
+                            ${difference.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t pt-4 mt-4">
+                      <Button
+                        onClick={handleSaveReconciliation}
+                        disabled={saving || selectedTransactions.size === 0 || !statementBalance}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Reconciliation'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <History className="w-5 h-5" />
+                    Unreconciled Transactions
+                  </span>
+                  <Badge variant="outline">
+                    {selectedTransactions.size} of {filteredTransactions.length} selected
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {filteredTransactions.length === 0 ? (
+                  <p className="text-center text-slate-500 py-8">
+                    No unreconciled transactions found for the selected date range.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-slate-100">
+                          <th className="text-left p-3 cursor-pointer hover:bg-slate-50" onClick={toggleAll}>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
+                                onCheckedChange={toggleAll}
+                              />
+                              <span className="text-sm font-medium">Select All</span>
+                            </div>
+                          </th>
+                          <th className="text-left p-3 font-medium">Date</th>
+                          <th className="text-left p-3 font-medium">Description</th>
+                          <th className="text-left p-3 font-medium">Reference</th>
+                          <th className="text-right p-3 font-medium">Debit</th>
+                          <th className="text-right p-3 font-medium">Credit</th>
+                          <th className="text-right p-3 font-medium">Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactionsWithBalance.map((tx) => (
+                          <tr 
+                            key={tx.id} 
+                            className="border-b hover:bg-slate-50 cursor-pointer"
+                            onClick={() => toggleTransaction(tx.id)}
+                          >
+                            <td className="p-3">
+                              <Checkbox
+                                checked={selectedTransactions.has(tx.id)}
+                                onCheckedChange={() => toggleTransaction(tx.id)}
+                              />
+                            </td>
+                            <td className="p-3">
+                              {format(new Date(tx.transaction_date), 'MMM d, yyyy')}
+                            </td>
+                            <td className="p-3">{tx.description}</td>
+                            <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
+                            <td className="p-3 text-right text-red-600">
+                              {tx.debit_amount > 0 ? `$${tx.debit_amount.toFixed(2)}` : '-'}
+                            </td>
+                            <td className="p-3 text-right text-green-600">
+                              {tx.credit_amount > 0 ? `$${tx.credit_amount.toFixed(2)}` : '-'}
+                            </td>
+                            <td className="p-3 text-right font-semibold">
+                              ${tx.calculatedBalance.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {showScrollButtons && (
+              <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
+                <Button
+                  onClick={scrollToTop}
+                  size="icon"
+                  className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
+                >
+                  <ArrowUp className="h-5 w-5" />
+                </Button>
+                <Button
+                  onClick={scrollToBottom}
+                  size="icon"
+                  className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
+                >
+                  <ArrowDown className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

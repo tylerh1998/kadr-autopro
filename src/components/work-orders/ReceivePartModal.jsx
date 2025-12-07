@@ -1,0 +1,184 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { base44 } from '@/api/base44Client';
+import { Package, TrendingDown, AlertCircle } from 'lucide-react';
+
+export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem, workOrderId, onReceive }) {
+  const [quantityToReceive, setQuantityToReceive] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open && lineItem && inventoryItem) {
+      // Calculate the default quantity to receive
+      // It should be the minimum of:
+      // 1. Current QOH (what's available in inventory)
+      // 2. qty_on_order (what's expected on this work order line)
+      const currentQOH = inventoryItem.quantity_on_hand || 0;
+      const qtyOnOrder = lineItem.qty_on_order || 0;
+      const defaultQty = Math.min(currentQOH, qtyOnOrder);
+      
+      setQuantityToReceive(defaultQty > 0 ? defaultQty.toString() : '');
+      setError('');
+    }
+  }, [open, lineItem, inventoryItem]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!lineItem || !inventoryItem) {
+      setError('Missing line item or inventory item information.');
+      return;
+    }
+
+    const qtyToReceive = parseFloat(quantityToReceive);
+    
+    if (isNaN(qtyToReceive) || qtyToReceive <= 0) {
+      setError('Please enter a valid quantity greater than 0.');
+      return;
+    }
+
+    const currentQOH = inventoryItem.quantity_on_hand || 0;
+    const qtyOnOrder = lineItem.qty_on_order || 0;
+
+    // Validation: Can't receive more than what's on order
+    if (qtyToReceive > qtyOnOrder) {
+      setError(`Cannot receive more than what's on order (${qtyOnOrder}).`);
+      return;
+    }
+
+    // Validation: Can't receive more than what's available in inventory
+    if (qtyToReceive > currentQOH) {
+      setError(`Cannot receive more than what's available in inventory (${currentQOH}).`);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Call the backend function to handle all updates atomically
+      const response = await base44.functions.invoke('processWorkOrderPartReceive', {
+        workOrderId: workOrderId,
+        lineItemId: lineItem.id,
+        receivedQuantity: qtyToReceive
+      });
+
+      if (response.data.error) {
+        setError(response.data.error);
+        setLoading(false);
+        return;
+      }
+
+      // Call the parent callback to trigger UI refresh
+      onReceive(lineItem, qtyToReceive);
+
+      // Close modal
+      onClose();
+    } catch (error) {
+      console.error('Error receiving part:', error);
+      setError(error.message || 'Failed to process part receipt. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!lineItem || !inventoryItem) {
+    return null;
+  }
+
+  const currentQOH = inventoryItem.quantity_on_hand || 0;
+  const qtyOnOrder = lineItem.qty_on_order || 0;
+  const maxReceivable = Math.min(currentQOH, qtyOnOrder);
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Receive Part from Inventory
+          </DialogTitle>
+          <DialogDescription>
+            Transfer part from inventory to this work order
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Part Information */}
+          <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Part Number</p>
+              <p className="text-lg font-semibold">{lineItem.part_number}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-700">Description</p>
+              <p className="text-sm text-slate-600">{lineItem.description}</p>
+            </div>
+          </div>
+
+          {/* Inventory Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-xs text-blue-600 font-medium mb-1">Available in Inventory</p>
+              <p className="text-2xl font-bold text-blue-700">{currentQOH}</p>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <p className="text-xs text-purple-600 font-medium mb-1">On Order (WO)</p>
+              <p className="text-2xl font-bold text-purple-700">{qtyOnOrder}</p>
+            </div>
+          </div>
+
+          {/* Quantity Input */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="quantity">Quantity to Receive</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="0"
+                max={maxReceivable}
+                step="0.01"
+                value={quantityToReceive}
+                onChange={(e) => setQuantityToReceive(e.target.value)}
+                placeholder="Enter quantity"
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Maximum receivable: {maxReceivable} (limited by available inventory)
+              </p>
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            {/* Info Box */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-800">
+                <TrendingDown className="w-4 h-4 inline mr-1" />
+                This will reduce inventory QOH and the on-order quantity for this work order.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading || maxReceivable <= 0}>
+                {loading ? 'Processing...' : 'Receive Part'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

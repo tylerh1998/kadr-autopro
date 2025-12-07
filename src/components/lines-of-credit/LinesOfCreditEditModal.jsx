@@ -1,0 +1,169 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChartOfAccount } from '@/entities/all';
+
+export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, onSubmit }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    institution_name: '',
+    account_number: '',
+    credit_limit: '',
+    current_balance: '',
+    interest_rate: '',
+    gl_account: '',
+    is_active: true,
+    notes: ''
+  });
+  const [accounts, setAccounts] = useState([]);
+
+  useEffect(() => {
+    const loadAccounts = async () => {
+      // Fetch 'Liability' type accounts for GL Account selection
+      const accountsData = await ChartOfAccount.filter({ account_type: 'Liability' }, 'account_number');
+      setAccounts(accountsData);
+    };
+    if (open) {
+      loadAccounts();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (lineOfCredit) {
+      setFormData({
+        name: lineOfCredit.name || '',
+        institution_name: lineOfCredit.institution_name || '',
+        account_number: lineOfCredit.account_number || '',
+        credit_limit: lineOfCredit.credit_limit || '',
+        current_balance: lineOfCredit.current_balance || '',
+        interest_rate: lineOfCredit.interest_rate || '',
+        gl_account: lineOfCredit.gl_account || '',
+        is_active: lineOfCredit.is_active !== undefined ? lineOfCredit.is_active : true,
+        notes: lineOfCredit.notes || ''
+      });
+    } else {
+      setFormData({
+        name: '',
+        institution_name: '',
+        account_number: '',
+        credit_limit: '',
+        current_balance: '',
+        interest_rate: '',
+        gl_account: '',
+        is_active: true,
+        notes: ''
+      });
+    }
+  }, [lineOfCredit, open]);
+
+  const handleChange = (e) => {
+    const { id, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSelectChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.institution_name.trim() || !formData.credit_limit) {
+      alert('Account name, institution name, and credit limit are required.');
+      return;
+    }
+    
+    const submitData = {
+      ...formData,
+      credit_limit: parseFloat(formData.credit_limit) || 0,
+      current_balance: parseFloat(formData.current_balance) || 0,
+      interest_rate: parseFloat(formData.interest_rate) || 0
+    };
+    
+    // Calculate available credit
+    submitData.available_credit = submitData.credit_limit - submitData.current_balance;
+    
+    onSubmit(submitData);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{lineOfCredit ? 'Edit Line of Credit' : 'Add New Line of Credit'}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Account Name *</Label>
+              <Input id="name" value={formData.name} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="institution_name">Institution Name *</Label>
+              <Input id="institution_name" value={formData.institution_name} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="account_number">Account Number</Label>
+              <Input id="account_number" value={formData.account_number} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="credit_limit">Credit Limit *</Label>
+              <Input id="credit_limit" type="number" step="0.01" value={formData.credit_limit} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="current_balance">Current Balance</Label>
+              <Input id="current_balance" type="number" step="0.01" value={formData.current_balance} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="interest_rate">Interest Rate (%)</Label>
+              <Input id="interest_rate" type="number" step="0.01" value={formData.interest_rate} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gl_account">GL Account</Label>
+              <Select value={formData.gl_account} onValueChange={(value) => handleSelectChange('gl_account', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a GL account..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.account_number}>
+                      {account.account_number} - {account.account_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2 pt-6">
+                <input 
+                  type="checkbox" 
+                  id="is_active" 
+                  checked={formData.is_active}
+                  onChange={handleChange}
+                  className="rounded border-slate-300"
+                />
+                <Label htmlFor="is_active">Active Account</Label>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea id="notes" value={formData.notes} onChange={handleChange} rows={3} />
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit">Save Account</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
