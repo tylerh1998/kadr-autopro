@@ -78,7 +78,10 @@ Deno.serve(async (req) => {
             return `${hours}:${minutesStr} ${ampm}`;
         };
 
-        let sentCount = 0;
+        // Build all email messages and create log entries
+        const emailBatch = [];
+        const logIdMap = new Map(); // Maps batch index to log ID
+
         for (const appt of remindersToSend) {
             const customer = customerMap.get(appt.customer_id);
             const vehicle = vehicleMap.get(appt.vehicle_id);
@@ -101,7 +104,6 @@ Deno.serve(async (req) => {
             // Create tracking ID and log entry
             const tracking_id = crypto.randomUUID();
             
-            let logIdToUpdate = null;
             try {
                 const createdLog = await base44.asServiceRole.entities.SentEmailLog.create({
                     to_email: recipientEmail,
@@ -115,7 +117,6 @@ Deno.serve(async (req) => {
                     appointment_id: appt.id,
                     tracking_id,
                 });
-                logIdToUpdate = createdLog.id;
 
                 // Build HTML body with tracking pixel
                 const appUrl = new URL(req.url).origin;
@@ -159,42 +160,82 @@ Deno.serve(async (req) => {
                     </div>
                 `;
 
-                // Send email via Resend
-                const response = await fetch('https://api.resend.com/emails', {
+                // Add to batch array
+                emailBatch.push({
+                    from: `Ken's Auto & Diesel Repair <${fromEmail}>`,
+                    to: [recipientEmail],
+                    subject: subject,
+                    html: htmlBody
+                });
+
+                // Map this batch index to the log ID
+                logIdMap.set(emailBatch.length - 1, createdLog.id);
+
+            } catch (logError) {
+                console.error(`Failed to create log for appointment ${appt.id}:`, logError.message);
+                // Skip this email if we can't create a log entry
+                continue;
+            }
+        }
+
+        console.log(`Prepared ${emailBatch.length} emails for batch sending.`);
+
+        if (emailBatch.length === 0) {
+            return Response.json({ success: true, message: 'No valid emails to send.' });
+        }
+
+        // Send emails in batches of 100
+        let sentCount = 0;
+        const BATCH_SIZE = 100;
+        
+        for (let i = 0; i < emailBatch.length; i += BATCH_SIZE) {
+            const batch = emailBatch.slice(i, i + BATCH_SIZE);
+            console.log(`Sending batch ${Math.floor(i / BATCH_SIZE) + 1} with ${batch.length} emails...`);
+
+            try {
+                const response = await fetch('https://api.resend.com/emails/batch', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${resendApiKey}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        from: `Ken's Auto & Diesel Repair <${fromEmail}>`,
-                        to: [recipientEmail],
-                        subject: subject,
-                        html: htmlBody
-                    })
+                    body: JSON.stringify(batch)
                 });
 
                 const result = await response.json();
 
                 if (!response.ok) {
-                    console.error('Resend API error:', result);
-                    throw new Error(result.message || 'Failed to send email via Resend');
+                    console.error('Resend Batch API error:', result);
+                    throw new Error(result.message || 'Failed to send batch via Resend');
                 }
 
-                // Update log to sent status
-                await base44.asServiceRole.entities.SentEmailLog.update(logIdToUpdate, { status: 'sent' });
+                // Update log entries to sent status
+                // result.data is an array of {id: string} for each sent email
+                if (result.data && Array.isArray(result.data)) {
+                    for (let j = 0; j < result.data.length; j++) {
+                        const batchIndex = i + j;
+                        const logId = logIdMap.get(batchIndex);
+                        if (logId) {
+                            await base44.asServiceRole.entities.SentEmailLog.update(logId, { status: 'sent' });
+                            sentCount++;
+                        }
+                    }
+                }
+
+                console.log(`Successfully sent batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+            } catch (batchError) {
+                console.error(`Failed to send batch starting at index ${i}:`, batchError.message);
                 
-                sentCount++;
-                console.log(`Successfully sent reminder for appointment ${appt.id} to ${recipientEmail}`);
-            } catch (emailError) {
-                console.error(`Failed to send reminder for appointment ${appt.id}:`, emailError.message);
-                
-                // Update log to failed status if log was created
-                if (logIdToUpdate) {
-                    await base44.asServiceRole.entities.SentEmailLog.update(logIdToUpdate, {
-                        status: 'failed',
-                        status_message: emailError.message || 'Unknown error',
-                    }).catch(e => console.error("Failed to update log on error:", e.message));
+                // Update all logs in this failed batch to failed status
+                for (let j = 0; j < batch.length; j++) {
+                    const batchIndex = i + j;
+                    const logId = logIdMap.get(batchIndex);
+                    if (logId) {
+                        await base44.asServiceRole.entities.SentEmailLog.update(logId, {
+                            status: 'failed',
+                            status_message: batchError.message || 'Batch send failed',
+                        }).catch(e => console.error("Failed to update log on batch error:", e.message));
+                    }
                 }
             }
         }
