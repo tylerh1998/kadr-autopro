@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -142,37 +142,22 @@ export default function NewWorkOrderModal({
 
     const numbers = await generateNumbers(stage);
 
-    // Fetch default message from SystemSettings
-    let defaultMessage = "";
-    try {
-      const settings = await SystemSettings.list();
-      if (settings && settings.length > 0) {
-        defaultMessage = settings[0].default_message || "";
-      }
-    } catch (error) {
-      console.error("Error fetching default message:", error);
-    }
-
     const newWorkOrder = {
       ro_number: numbers.ro_number,
       wo_number: stage === 'work_order' ? numbers.wo_number || '' : '',
       est_number: stage === 'estimate' ? numbers.est_number || '' : '',
       inv_number: '',
-      cp_id: numbers.cp_id,
       customer_id: selectedCustomer.id,
       vehicle_id: selectedVehicle.id,
       status: "Open",
       priority: "medium",
       stage: stage,
       description: "New Work Order",
-      customer_complaint: "",
-      estimated_hours: null,
+      internal_notes: "",
       labor_rate: 120,
       total_amount: 0,
-      scheduled_date: "",
-      technician: "",
       line_items: "[]",
-      notes_to_customer: defaultMessage, // Applied default message here
+      notes_to_customer: "",
       amount_paid: 0,
       payments: "[]",
       approval: 'pending',

@@ -1,7 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { SystemSettings } from '@/entities/all';
 
 export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '' }) {
+  const [defaultMessage, setDefaultMessage] = useState('');
+
+  // Load default message from SystemSettings
+  useEffect(() => {
+    const loadDefaultMessage = async () => {
+      try {
+        const settings = await SystemSettings.list();
+        if (settings && settings.length > 0) {
+          setDefaultMessage(settings[0].default_message || '');
+        }
+      } catch (error) {
+        console.error('Error loading default message:', error);
+      }
+    };
+    loadDefaultMessage();
+  }, []);
 
   // Parse payments from JSON string
   let payments = [];
@@ -198,10 +215,20 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
         </table>
       </div>
 
-      {/* Notes to Customer */}
-      {workOrder.notes_to_customer && (
+      {/* Default Message - Always prints */}
+      {defaultMessage && (
         <div className="mb-3">
           <h3 className="font-bold mb-1 text-sm">Notes</h3>
+          <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
+            {defaultMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Notes to Customer - Only prints if user added something */}
+      {workOrder.notes_to_customer && (
+        <div className="mb-3">
+          <h3 className="font-bold mb-1 text-sm">Additional Notes</h3>
           <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
             {workOrder.notes_to_customer}
           </div>
