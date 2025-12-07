@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { WorkOrder, Customer, Vehicle, SystemSettings } from '@/entities/all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Copy, Printer, ExternalLink, Loader2, X, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
 
@@ -199,6 +200,28 @@ export default function InvoiceConversion() {
             
             // Update local work order state with accounting_details
             updatedWorkOrder.accounting_details = glResponse.data.accounting_details;
+            
+            // Create portal snapshot after GL conversion
+            console.log('=== Creating customer portal snapshot ===');
+            try {
+              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
+                ro_number: roNumber
+              });
+              
+              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
+                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
+                const portalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+                setPortalUrl(portalUrl);
+                
+                // Update work order with cp_id
+                await WorkOrder.update(wo.id, { cp_id: snapshotResponse.data.cp_id });
+                updatedWorkOrder.cp_id = snapshotResponse.data.cp_id;
+              } else {
+                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+              }
+            } catch (snapshotError) {
+              console.error('Error creating portal snapshot:', snapshotError);
+            }
           } else {
             console.error('GL function returned error:', glResponse.data?.error);
             setError(`Accounting posting warning: ${glResponse.data?.error || 'Unknown error'}. Invoice was created but GL transactions may not have been posted correctly.`);
