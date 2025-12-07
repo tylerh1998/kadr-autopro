@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -281,7 +282,11 @@ export default function InvoicePaymentModal({
                           <p className="font-medium">${Number(payment.amount).toFixed(2)}</p>
                           <p className="text-xs text-muted-foreground capitalize">
                             {(payment.payment_method || payment.method)?.replace(/_/g, ' ')}
-                            {payment.payment_date && ` - ${format(new Date(payment.payment_date), 'MMM d, yyyy')}`}
+                            {payment.payment_date && (() => {
+                              const [year, month, day] = payment.payment_date.split('-').map(Number);
+                              const localDate = new Date(year, month - 1, day);
+                              return ` - ${format(localDate, 'MMM d, yyyy')}`;
+                            })()}
                           </p>
                         </div>
                       </div>
