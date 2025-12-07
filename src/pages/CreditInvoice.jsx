@@ -242,6 +242,30 @@ export default function CreditInvoicePage() {
       });
       
       console.log('Updated original work order line items with credit reference');
+
+      // Create CustomerPayment record for the refund
+      if (refundSource === 'cash_drawer' || refundSource === 'on_account') {
+        const { CustomerPayments } = await import('@/entities/all');
+        
+        let paymentMethod;
+        if (refundSource === 'cash_drawer') {
+          paymentMethod = cashDrawerPaymentType; // 'cash', 'debit', or 'credit'
+        } else if (refundSource === 'on_account') {
+          paymentMethod = 'on_account';
+        }
+
+        await CustomerPayments.create({
+          customer_id: workOrder.customer_id,
+          work_order_id: workOrder.id,
+          payment_date: format(new Date(), 'yyyy-MM-dd'),
+          amount: -Math.abs(creditTotalAmount),
+          payment_method: paymentMethod,
+          notes: `Refund for credit invoice ${creditInvoiceNumber}`,
+          cash_drawer: refundSource === 'cash_drawer'
+        });
+
+        console.log('Created CustomerPayment refund record');
+      }
       
       alert(`Credit invoice ${creditInvoiceNumber} created successfully!`);
       
