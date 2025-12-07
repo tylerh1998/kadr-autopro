@@ -7,7 +7,7 @@ import { Save, X, FileText } from 'lucide-react';
 
 export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewOnly = false }) {
   const [formData, setFormData] = useState({
-    customer_complaint: '',
+    internal_notes: '',
     notes_to_customer: ''
   });
   const [hasChanges, setHasChanges] = useState(false);
@@ -15,7 +15,7 @@ export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewO
   useEffect(() => {
     if (workOrder && open) {
       setFormData({
-        customer_complaint: workOrder.customer_complaint || '',
+        internal_notes: workOrder.internal_notes || '',
         notes_to_customer: workOrder.notes_to_customer || ''
       });
       setHasChanges(false);
@@ -59,20 +59,20 @@ export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewO
 
         <div className="py-4 space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="customer_complaint" className="text-base font-semibold text-slate-900">
-              Customer Complaint
+            <Label htmlFor="internal_notes" className="text-base font-semibold text-slate-900">
+              Internal Notes
             </Label>
             <Textarea
-              id="customer_complaint"
-              value={formData.customer_complaint}
-              onChange={(e) => handleChange('customer_complaint', e.target.value)}
-              placeholder="Enter the customer's description of the issue or concern..."
+              id="internal_notes"
+              value={formData.internal_notes}
+              onChange={(e) => handleChange('internal_notes', e.target.value)}
+              placeholder="Enter internal notes for staff use only..."
               className="h-32 resize-none"
               readOnly={viewOnly}
               disabled={viewOnly}
             />
             <p className="text-sm text-slate-500">
-              Record the customer's original complaint or description of the problem.
+              Internal notes for staff use only - not visible to customers.
             </p>
           </div>
 
