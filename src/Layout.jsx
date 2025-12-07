@@ -19,6 +19,7 @@ import {
   Receipt,
   Plus,
   RotateCcw,
+  CalendarPlus,
   Truck,
   BookOpen,
   Wallet,
@@ -29,6 +30,8 @@ import {
   BookCopy,
   CalendarClock,
   Network,
+  MailCheck,
+  Send,
   BarChart3,
   LogOut,
   Mail,
@@ -111,6 +114,16 @@ function LayoutContent({ children, currentPageName }) {
       await base44.auth.updateMe({ dark_mode: newDarkMode });
     } catch (error) {
       console.error("Failed to save dark mode preference", error);
+    }
+  };
+
+  const handleToggleOpenNewWindow = async () => {
+    const newOpenNewWindow = !user?.OpenNewWindow;
+    try {
+      await base44.auth.updateMe({ OpenNewWindow: newOpenNewWindow });
+      setUser({ ...user, OpenNewWindow: newOpenNewWindow });
+    } catch (error) {
+      console.error("Failed to save OpenNewWindow preference", error);
     }
   };
 
@@ -662,7 +675,7 @@ const navigationItems = [
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                        <a href="https://email.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                        <a href="https://p3plzcpnl507860.prod.phx3.secureserver.net:2096/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
                           <Mail className="mr-2 h-4 w-4" />
                           <span>KADR Email</span>
                         </a>
@@ -674,11 +687,17 @@ const navigationItems = [
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
-                    {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                    <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
+                      {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                      <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                      </DropdownMenuItem>
+                      {user?.role === 'admin' && (
+                      <DropdownMenuItem onClick={handleToggleOpenNewWindow} className="cursor-pointer">
+                      <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
+                      <span>Open New Windows</span>
+                      </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
