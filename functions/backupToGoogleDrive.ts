@@ -7,11 +7,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
 
     try {
-        const user = await base44.auth.me();
-        if (!user) {
-            return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
+        // No user authentication required - designed to be triggered by cron jobs
         console.log('Fetching Google Drive access token...');
         const accessToken = await base44.asServiceRole.connectors.getAccessToken('googledrive');
 
