@@ -100,7 +100,7 @@ export default function CreditInvoicePage() {
     setShowConfirmModal(true);
   };
 
-  const handleConfirmCreditInvoice = async (refundSource) => {
+  const handleConfirmCreditInvoice = async (refundSource, cashDrawerPaymentType) => {
     console.log('=== DEBUG: handleConfirmCreditInvoice called ===');
     console.log('Refund source:', refundSource);
     console.log('Selected lines:', selectedLines);
