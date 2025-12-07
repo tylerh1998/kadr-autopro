@@ -122,6 +122,9 @@ Deno.serve(async (req) => {
       shop_supply_total: workOrder.shop_supply_total || 0,
       tax_amount: workOrder.tax_amount || 0,
       total_amount: workOrder.total_amount || 0,
+      payments: workOrder.payments || '[]',
+      amount_paid: workOrder.amount_paid || 0,
+      po_number: workOrder.po_number || '',
       stage: stage,
       approval: 'pending'
     });
