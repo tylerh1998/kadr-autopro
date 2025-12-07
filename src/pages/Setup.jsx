@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Users, Settings, Wrench, DollarSign, Save, FileText, Upload, Download } from "lucide-react";
+import { Plus, Users, Settings, Wrench, DollarSign, Save, FileText, Upload, Download, Cloud } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 
 import TechDirectory from "../components/setup/TechDirectory";
 import TechForm from "../components/setup/TechForm";
@@ -18,6 +20,7 @@ import WIPSettings from "../components/setup/WIPSettings";
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState("sales");
   const [currentUser, setCurrentUser] = useState(null);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -29,6 +32,33 @@ export default function SetupPage() {
       setCurrentUser(user);
     } catch (error) {
       console.error('Error loading current user:', error);
+    }
+  };
+
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const response = await base44.functions.invoke('backupToGoogleDrive');
+      if (response.data.success) {
+        toast.success('Backup completed successfully!', {
+          description: `${response.data.filename} uploaded to Google Drive`,
+          action: {
+            label: 'View',
+            onClick: () => window.open(response.data.fileUrl, '_blank')
+          }
+        });
+      } else {
+        toast.error('Backup failed', {
+          description: response.data.error || 'Unknown error'
+        });
+      }
+    } catch (error) {
+      console.error('Backup error:', error);
+      toast.error('Backup failed', {
+        description: error.message || 'Failed to create backup'
+      });
+    } finally {
+      setBackupLoading(false);
     }
   };
 
@@ -58,6 +88,14 @@ export default function SetupPage() {
             >
               <Upload className="w-4 h-4 mr-2" />
               Batch Uploader
+            </Button>
+            <Button 
+              onClick={handleBackup}
+              disabled={backupLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Cloud className="w-4 h-4 mr-2" />
+              {backupLoading ? 'Backing up...' : 'Backup AutoPRO'}
             </Button>
           </div>
         </div>
