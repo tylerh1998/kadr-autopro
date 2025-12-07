@@ -352,7 +352,11 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     try {
       const newCustomer = await Customer.create(customerData);
-      // handleCustomerSelect now also updates formData.customer_id and other related fields
+      // Refresh customer and vehicle data from parent
+      if (onDataRefresh) {
+        await onDataRefresh();
+      }
+      // Now select the customer with fresh data
       await handleCustomerSelect(newCustomer.id); 
       setShowAddCustomer(false);
     } catch (error) {
