@@ -12,6 +12,7 @@ export default function SchedulePage() {
   const [employees, setEmployees] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
