@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Appointment, Employee, WorkOrder, Customer } from '@/entities/all';
+import { Appointment, Employee, WorkOrder, Customer, Vehicle } from '@/entities/all';
 import AppointmentForm from '../components/appointments/AppointmentForm';
 import CustomCalendar from '../components/appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
