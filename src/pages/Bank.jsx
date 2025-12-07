@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Landmark,
   Edit3,
   DollarSign,
+  Calendar,
   Printer,
   History,
   CheckCircle2,
@@ -25,7 +27,7 @@ import BankTransactionModal from '../components/bank/BankTransactionModal';
 import DepositDetailsModal from '../components/bank/DepositDetailsModal';
 import ReconciliationHistoryModal from '../components/bank/ReconciliationHistoryModal';
 import BankTransferModal from '../components/bank/BankTransferModal'; // Added BankTransferModal import
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 
 // Helper function to parse YYYY-MM-DD date strings
@@ -534,7 +536,7 @@ export default function BankPage() {
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }

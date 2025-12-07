@@ -16,7 +16,8 @@ import {
   Landmark
 } from 'lucide-react';
 import { format, subMonths, subDays } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
 import {
   BarChart,
   Bar,
@@ -146,7 +147,7 @@ export default function FinancialDashboard() {
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }

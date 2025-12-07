@@ -29,6 +29,7 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
+  ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
   MoreHorizontal,
@@ -257,7 +258,7 @@ export default function InventoryListPage() {
   
   return (
     <>
-      <style jsx global>{`
+      <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }

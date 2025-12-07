@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Printer, Loader2, AlertTriangle } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 
 export default function StockReorderReport() {
   const [loading, setLoading] = useState(true);
@@ -86,7 +87,7 @@ export default function StockReorderReport() {
 
   return (
     <>
-      <style jsx global>{`
+      <style>{`
         @media print {
           .no-print {
             display: none !important;

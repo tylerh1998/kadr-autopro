@@ -189,7 +189,7 @@ export default function PayrollPage() {
 
   return (
     <>
-      <style jsx global>{`
+      <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }

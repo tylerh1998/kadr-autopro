@@ -185,7 +185,7 @@ export default function InventoryReturnsPage() {
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }

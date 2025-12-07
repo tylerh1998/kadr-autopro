@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Supplier, SupplierInvoiceLine, SupplierPayment } from '@/entities/all';
-import { Card, CardContent } from '@/components/ui/card';
+import { Supplier, SupplierInvoiceLine, SupplierPayment, BankAccount, LinesOfCredit } from '@/entities/all';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Printer, Calendar as CalendarIcon, DollarSign, FileText } from 'lucide-react';
-import { format, subMonths, endOfMonth, differenceInDays } from 'date-fns';
+import { format, subMonths, endOfMonth, differenceInDays, parseISO, isValid } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils'; // Corrected import
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
@@ -205,7 +211,7 @@ export default function APSummaryPage() {
 
   return (
     <>
-       <style jsx global>{`
+       <style>{`
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
