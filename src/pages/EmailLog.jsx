@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Mail, Search, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
 
@@ -68,11 +68,20 @@ export default function EmailLogPage() {
   const StatusBadge = ({ status }) => {
     switch (status) {
       case 'sent':
-        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
+      case 'delivered':
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Delivered</Badge>;
+      case 'bounced':
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Bounced</Badge>;
+      case 'complained':
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200"><AlertTriangle className="w-3 h-3 mr-1" />Complained</Badge>;
+      case 'delivery_delayed':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
       case 'failed':
-        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><Ban className="w-3 h-3 mr-1" />Failed</Badge>;
+      case 'pending':
       default:
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
     }
   };
 

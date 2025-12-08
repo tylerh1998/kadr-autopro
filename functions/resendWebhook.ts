@@ -49,21 +49,22 @@ Deno.serve(async (req) => {
                 break;
 
             case 'email.delivered':
-                updates.status = 'sent';
+                updates.status = 'delivered';
                 updates.status_message = 'Email delivered successfully';
                 break;
 
             case 'email.bounced':
-                updates.status = 'failed';
+                updates.status = 'bounced';
                 updates.status_message = `Bounced: ${data?.bounce?.type || 'Unknown'} - ${data?.bounce?.reason || 'No reason provided'}`;
                 break;
 
             case 'email.complained':
-                updates.status = 'failed';
+                updates.status = 'complained';
                 updates.status_message = `Spam complaint received from recipient`;
                 break;
 
             case 'email.delivery_delayed':
+                updates.status = 'delivery_delayed';
                 updates.status_message = `Delivery delayed: ${data?.delay?.reason || 'Unknown reason'}`;
                 break;
 
