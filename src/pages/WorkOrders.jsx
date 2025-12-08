@@ -1519,6 +1519,7 @@ export default function WorkOrdersPage() {
                                 <Card 
                                   key={wo.id} 
                                   className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                                  style={{ maxWidth: '232px' }}
                                   onClick={() => handleEdit(wo)}
                                 >
                                   <div className="space-y-2">
