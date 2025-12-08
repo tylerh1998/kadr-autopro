@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
@@ -17,6 +17,8 @@ export default function EmailLogPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 25;
 
   const fetchData = async () => {
     setLoading(true);
@@ -66,6 +68,11 @@ export default function EmailLogPage() {
       customerName.toLowerCase().includes(searchLower)
     );
   });
+
+  const totalPages = Math.ceil(filteredLogs.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
   
   const StatusBadge = ({ status }) => {
     switch (status) {
@@ -76,7 +83,7 @@ export default function EmailLogPage() {
       case 'opened':
         return <Badge className="bg-cyan-100 text-cyan-800 border-cyan-200"><Eye className="w-3 h-3 mr-1" />Opened</Badge>;
       case 'clicked':
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-200"><MousePointerClick className="w-3 h-3 mr-1" />Clicked</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><MousePointerClick className="w-3 h-3 mr-1" />Clicked</Badge>;
       case 'bounced':
         return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Bounced</Badge>;
       case 'complained':
@@ -145,8 +152,8 @@ export default function EmailLogPage() {
                         <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
                       </TableRow>
                     ))
-                  ) : filteredLogs.length > 0 ? (
-                    filteredLogs.map(log => (
+                  ) : paginatedLogs.length > 0 ? (
+                    paginatedLogs.map(log => (
                       <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer hover:bg-slate-100 transition-colors">
                         <TableCell><StatusBadge status={log.status} /></TableCell>
                         <TableCell>{format(new Date(log.sent_date), 'MMM d, yyyy h:mm a')}</TableCell>
@@ -165,6 +172,36 @@ export default function EmailLogPage() {
                 </TableBody>
               </Table>
             </div>
+            {filteredLogs.length > recordsPerPage && (
+              <div className="flex items-center justify-between px-4 py-4 border-t">
+                <div className="text-sm text-slate-600">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} emails
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center px-3 text-sm text-slate-600">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
