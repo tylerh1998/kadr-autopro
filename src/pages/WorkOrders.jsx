@@ -1431,177 +1431,163 @@ export default function WorkOrdersPage() {
 
             <TabsContent value="board">
               <div className="space-y-6">
-                {/* Grid Layout */}
-                <div className="flex gap-6 overflow-x-auto pb-4">
+                {/* CSS Grid Layout */}
+                <div className="grid gap-6 overflow-x-auto pb-4" style={{ 
+                  gridTemplateColumns: 'repeat(auto-fit, 280px)',
+                  gridAutoFlow: 'column',
+                  gridTemplateRows: 'auto auto'
+                }}>
                   {(() => {
-                    // Group statuses by column position
-                    const columnGroups = {};
-                    workOrderStatuses.forEach(statusObj => {
-                      const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top', columnPosition: 1 };
-                      if (config.visible === false) return;
-                      
-                      const colPos = config.columnPosition || 1;
-                      if (!columnGroups[colPos]) {
-                        columnGroups[colPos] = { top: null, bottom: null, both: null };
-                      }
-                      
-                      if (config.row === 'both') {
-                        columnGroups[colPos].both = statusObj;
-                      } else if (config.row === 'bottom') {
-                        columnGroups[colPos].bottom = statusObj;
-                      } else {
-                        columnGroups[colPos].top = statusObj;
-                      }
-                    });
-                    
-                    // Sort by column position
-                    const sortedColumns = Object.keys(columnGroups)
-                      .map(Number)
-                      .sort((a, b) => a - b);
-                    
-                    return sortedColumns.map(colPos => {
-                      const group = columnGroups[colPos];
-                      
-                      // Render helper
-                      const renderStatusColumn = (statusObj, heightOverride = null) => {
-                        if (!statusObj) return null;
-                        
-                        const status = statusObj.name;
-                        const statusWorkOrders = filteredWorkOrders.filter(wo => 
-                          wo.status === status && 
-                          (wo.stage === 'estimate' || wo.stage === 'work_order')
-                        );
+                    // Calculate col_span based on width
+                    const getColSpan = (width) => {
+                      if (width > 600) return 3;
+                      if (width > 300) return 2;
+                      return 1;
+                    };
 
-                        const getColorClass = (color) => {
-                          const colorMap = {
-                            slate: 'bg-slate-100 border-slate-300',
-                            gray: 'bg-gray-100 border-gray-300',
-                            red: 'bg-red-50 border-red-300',
-                            orange: 'bg-orange-50 border-orange-300',
-                            amber: 'bg-amber-50 border-amber-300',
-                            yellow: 'bg-yellow-50 border-yellow-300',
-                            lime: 'bg-lime-50 border-lime-300',
-                            green: 'bg-green-50 border-green-300',
-                            emerald: 'bg-emerald-50 border-emerald-300',
-                            teal: 'bg-teal-50 border-teal-300',
-                            cyan: 'bg-cyan-50 border-cyan-300',
-                            sky: 'bg-sky-50 border-sky-300',
-                            blue: 'bg-blue-50 border-blue-300',
-                            indigo: 'bg-indigo-50 border-indigo-300',
-                            violet: 'bg-violet-50 border-violet-300',
-                            purple: 'bg-purple-50 border-purple-300',
-                            fuchsia: 'bg-fuchsia-50 border-fuchsia-300',
-                            pink: 'bg-pink-50 border-pink-300',
-                            rose: 'bg-rose-50 border-rose-300',
-                          };
-                          return colorMap[color?.toLowerCase()] || colorMap.slate;
+                    // Render helper
+                    const renderStatusColumn = (statusObj) => {
+                      if (!statusObj) return null;
+
+                      const status = statusObj.name;
+                      const config = kanbanColumnSizes[status] || { visible: true, row: 'top', columnPosition: 1, width: 280, height: 600 };
+                      if (config.visible === false) return null;
+
+                      const statusWorkOrders = filteredWorkOrders.filter(wo => 
+                        wo.status === status && 
+                        (wo.stage === 'estimate' || wo.stage === 'work_order')
+                      );
+
+                      const getColorClass = (color) => {
+                        const colorMap = {
+                          slate: 'bg-slate-100 border-slate-300',
+                          gray: 'bg-gray-100 border-gray-300',
+                          red: 'bg-red-50 border-red-300',
+                          orange: 'bg-orange-50 border-orange-300',
+                          amber: 'bg-amber-50 border-amber-300',
+                          yellow: 'bg-yellow-50 border-yellow-300',
+                          lime: 'bg-lime-50 border-lime-300',
+                          green: 'bg-green-50 border-green-300',
+                          emerald: 'bg-emerald-50 border-emerald-300',
+                          teal: 'bg-teal-50 border-teal-300',
+                          cyan: 'bg-cyan-50 border-cyan-300',
+                          sky: 'bg-sky-50 border-sky-300',
+                          blue: 'bg-blue-50 border-blue-300',
+                          indigo: 'bg-indigo-50 border-indigo-300',
+                          violet: 'bg-violet-50 border-violet-300',
+                          purple: 'bg-purple-50 border-purple-300',
+                          fuchsia: 'bg-fuchsia-50 border-fuchsia-300',
+                          pink: 'bg-pink-50 border-pink-300',
+                          rose: 'bg-rose-50 border-rose-300',
                         };
+                        return colorMap[color?.toLowerCase()] || colorMap.slate;
+                      };
 
-                        const colorClass = getColorClass(statusObj.color);
-                        const columnSize = kanbanColumnSizes[status] || { width: 280, height: 600 };
-                        const displayHeight = heightOverride || columnSize.height;
+                      const colorClass = getColorClass(statusObj.color);
+                      const colSpan = getColSpan(config.width);
+                      const rowSpan = config.row === 'both' ? 2 : 1;
+                      const gridRow = config.row === 'bottom' ? 2 : (config.row === 'both' ? 'span 2' : 1);
 
-                        return (
-                          <Card 
-                            key={status} 
-                            className={`${colorClass} border-2`}
-                            style={{ 
-                              width: `${columnSize.width}px`,
-                              height: `${displayHeight}px`
-                            }}
-                          >
-                            <CardHeader>
-                              <CardTitle className="text-sm font-medium text-slate-700 uppercase tracking-wide">
-                                {status}
-                                <Badge variant="outline" className="ml-2 bg-white">
-                                  {statusWorkOrders.length}
-                                </Badge>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 overflow-y-auto" style={{ maxHeight: `${displayHeight - 80}px` }}>
-                              {statusWorkOrders.map(wo => {
-                                const customer = getCustomer(wo.customer_id);
-                                const vehicle = getVehicle(wo.vehicle_id);
-                                const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
-                                const relevantDate = wo.stage === 'estimate' ? wo.est_date : wo.wo_date;
-                                const cardFields = kanbanColumnSizes.cardFields || {};
-                                
-                                return (
-                                  <Card 
-                                    key={wo.id} 
-                                    className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                                    onClick={() => handleEdit(wo)}
-                                  >
-                                    <div className="space-y-2">
-                                      {(cardFields.showCustomer !== false) && (
-                                        <div className="flex justify-between items-start">
-                                          <p className="font-semibold text-sm">
-                                            {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
-                                          </p>
-                                        </div>
-                                      )}
-                                      {(cardFields.showDescription !== false) && (
-                                        <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
-                                      )}
-                                      {(cardFields.showWONumber !== false) && displayNumber && (
-                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                          <FileText className="w-3 h-3" />
-                                          {displayNumber}
+                      return (
+                        <Card 
+                          key={status} 
+                          className={`${colorClass} border-2`}
+                          style={{ 
+                            gridColumn: `span ${colSpan}`,
+                            gridRow: gridRow,
+                            width: `${config.width}px`,
+                            height: `${config.height}px`
+                          }}
+                        >
+                          <CardHeader>
+                            <CardTitle className="text-sm font-medium text-slate-700 uppercase tracking-wide">
+                              {status}
+                              <Badge variant="outline" className="ml-2 bg-white">
+                                {statusWorkOrders.length}
+                              </Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 overflow-y-auto" style={{ maxHeight: `${config.height - 80}px` }}>
+                            {statusWorkOrders.map(wo => {
+                              const customer = getCustomer(wo.customer_id);
+                              const vehicle = getVehicle(wo.vehicle_id);
+                              const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
+                              const relevantDate = wo.stage === 'estimate' ? wo.est_date : wo.wo_date;
+                              const cardFields = kanbanColumnSizes.cardFields || {};
+
+                              return (
+                                <Card 
+                                  key={wo.id} 
+                                  className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                                  onClick={() => handleEdit(wo)}
+                                >
+                                  <div className="space-y-2">
+                                    {(cardFields.showCustomer !== false) && (
+                                      <div className="flex justify-between items-start">
+                                        <p className="font-semibold text-sm">
+                                          {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {(cardFields.showDescription !== false) && (
+                                      <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
+                                    )}
+                                    {(cardFields.showWONumber !== false) && displayNumber && (
+                                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                                        <FileText className="w-3 h-3" />
+                                        {displayNumber}
+                                      </p>
+                                    )}
+                                    {(cardFields.showVehicle !== false) && vehicle && (
+                                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                                        <Car className="w-3 h-3" />
+                                        {vehicle.year} {vehicle.make} {vehicle.model}
+                                      </p>
+                                    )}
+                                    {(cardFields.showDate !== false) && relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
+                                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        {format(new Date(relevantDate), 'MMM d, yyyy')}
+                                      </p>
+                                    )}
+                                    <div className="flex justify-between items-center pt-2">
+                                      {(cardFields.showAmount !== false) && (
+                                        <p className="text-xs font-semibold text-slate-900">
+                                          ${(wo.total_amount || 0).toFixed(2)}
                                         </p>
                                       )}
-                                      {(cardFields.showVehicle !== false) && vehicle && (
-                                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                                          <Car className="w-3 h-3" />
-                                          {vehicle.year} {vehicle.make} {vehicle.model}
-                                        </p>
-                                      )}
-                                      {(cardFields.showDate !== false) && relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
+                                      {(cardFields.showScheduledDate !== false) && wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
                                         <p className="text-xs text-slate-500 flex items-center gap-1">
                                           <Calendar className="w-3 h-3" />
-                                          {format(new Date(relevantDate), 'MMM d, yyyy')}
+                                          {format(new Date(wo.scheduled_date), 'MMM d')}
                                         </p>
                                       )}
-                                      <div className="flex justify-between items-center pt-2">
-                                        {(cardFields.showAmount !== false) && (
-                                          <p className="text-xs font-semibold text-slate-900">
-                                            ${(wo.total_amount || 0).toFixed(2)}
-                                          </p>
-                                        )}
-                                        {(cardFields.showScheduledDate !== false) && wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
-                                          <p className="text-xs text-slate-500 flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            {format(new Date(wo.scheduled_date), 'MMM d')}
-                                          </p>
-                                        )}
-                                      </div>
                                     </div>
-                                  </Card>
-                                );
-                              })}
-                            </CardContent>
-                          </Card>
-                        );
-                      };
-                      
-                      if (group.both) {
-                        // Render "both" column that spans both rows
-                        const columnSize = kanbanColumnSizes[group.both.name] || { width: 280, height: 600 };
-                        const displayHeight = columnSize.height * 2 + 24;
-                        return (
-                          <div key={`col-${colPos}`} className="flex-shrink-0">
-                            {renderStatusColumn(group.both, displayHeight)}
-                          </div>
-                        );
-                      } else {
-                        // Render stacked top and bottom
-                        return (
-                          <div key={`col-${colPos}`} className="flex flex-col gap-6 flex-shrink-0">
-                            {renderStatusColumn(group.top)}
-                            {renderStatusColumn(group.bottom)}
-                          </div>
-                        );
-                      }
-                    });
+                                  </div>
+                                </Card>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
+                      );
+                    };
+
+                    // Render all visible statuses sorted by column position
+                    return workOrderStatuses
+                      .map(statusObj => {
+                        const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top', columnPosition: 1 };
+                        return { statusObj, config };
+                      })
+                      .filter(({ config }) => config.visible !== false)
+                      .sort((a, b) => {
+                        const posA = a.config.columnPosition || 1;
+                        const posB = b.config.columnPosition || 1;
+                        if (posA !== posB) return posA - posB;
+                        // Within same column position, top before bottom
+                        const rowOrder = { top: 0, both: 1, bottom: 2 };
+                        return (rowOrder[a.config.row] || 0) - (rowOrder[b.config.row] || 0);
+                      })
+                      .map(({ statusObj }) => renderStatusColumn(statusObj));
                   })()}
                 </div>
               </div>
