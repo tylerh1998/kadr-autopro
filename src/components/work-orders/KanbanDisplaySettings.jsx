@@ -63,8 +63,9 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
     }));
   };
 
-  const handleSave = () => {
-    onSave({ ...localSizes, cardFields });
+  const handleSave = async () => {
+    const settingsToSave = { ...localSizes, cardFields };
+    await onSave(settingsToSave);
     onClose();
   };
 
