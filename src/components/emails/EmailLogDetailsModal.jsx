@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from 'date-fns';
-import { Mail, User, FileText, Calendar, CheckCircle, XCircle, Eye, EyeOff, Hash, Copy } from 'lucide-react';
+import { Mail, User, FileText, Calendar, CheckCircle, XCircle, Copy } from 'lucide-react';
 
 export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
   if (!log) return null;
@@ -20,19 +20,7 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
     }
   };
 
-  const ReadStatusBadge = ({ status, readDate }) => {
-    switch (status) {
-      case 'read':
-        return (
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-            <Eye className="w-3 h-3 mr-1" />Read
-            {readDate && <span className="ml-2 text-xs">({format(new Date(readDate), 'MMM d, h:mm a')})</span>}
-          </Badge>
-        );
-      default:
-        return <Badge variant="outline"><EyeOff className="w-3 h-3 mr-1" />Unread</Badge>;
-    }
-  };
+
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -55,7 +43,6 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
             <div className="space-y-3">
               <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-500" /> <strong>Sent:</strong> <span>{log.sent_date ? format(new Date(log.sent_date), 'MMM d, yyyy h:mm a') : 'N/A'}</span></div>
               <div className="flex items-center gap-2"><StatusBadge status={log.status} /></div>
-              <div className="flex items-center gap-2"><ReadStatusBadge status={log.read_status} readDate={log.read_date} /></div>
             </div>
           </div>
           
@@ -94,14 +81,15 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <h3 className="font-semibold">Metadata</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 bg-slate-50 rounded-md border">
-              {log.work_order_id && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-slate-500" /> <strong>WO Number:</strong> <span>{log.work_order_id}</span></div>}
-              {log.tracking_id && <div className="flex items-center gap-2"><Hash className="w-4 h-4 text-slate-500" /> <strong>Tracking ID:</strong> <span className="text-xs truncate">{log.tracking_id}</span></div>}
-              {log.status === 'failed' && log.status_message && <div className="col-span-2 text-red-600"><strong>Error:</strong> {log.status_message}</div>}
+          {(log.work_order_id || (log.status === 'failed' && log.status_message)) && (
+            <div className="space-y-2">
+              <h3 className="font-semibold">Metadata</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 bg-slate-50 rounded-md border">
+                {log.work_order_id && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-slate-500" /> <strong>WO Number:</strong> <span>{log.work_order_id}</span></div>}
+                {log.status === 'failed' && log.status_message && <div className="col-span-2 text-red-600"><strong>Error:</strong> {log.status_message}</div>}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <DialogFooter>
