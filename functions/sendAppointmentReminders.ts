@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 
         // Build all email messages and create log entries
         const emailBatch = [];
-        const logIdMap = new Map(); // Maps batch index to log ID
+        const logIdMap = new Map(); // Maps batch index to log DB ID
 
         for (const appt of remindersToSend) {
             const customer = customerMap.get(appt.customer_id);
@@ -100,11 +100,9 @@ Deno.serve(async (req) => {
             
             // Build vehicle description
             const vehicleDesc = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'N/A';
-
-            // Create tracking ID and log entry
-            const tracking_id = crypto.randomUUID();
             
             try {
+                // Create log entry without tracking_id (will be set after Resend responds)
                 const createdLog = await base44.asServiceRole.entities.SentEmailLog.create({
                     to_email: recipientEmail,
                     from_email: fromEmail,
@@ -115,13 +113,10 @@ Deno.serve(async (req) => {
                     sent_date: new Date().toISOString(),
                     customer_id: appt.customer_id || null,
                     appointment_id: appt.id,
-                    tracking_id,
+                    tracking_id: null,
                 });
 
-                // Build HTML body with tracking pixel
-                const appUrl = new URL(req.url).origin;
-                const trackingPixelUrl = `${appUrl}/functions/emailTrackingPixel?tracking_id=${tracking_id}`;
-
+                // Build HTML body
                 const htmlBody = `
                     <div style="font-family: sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; color: #1e293b;">
                         <p style="font-size: 16px; margin-bottom: 20px;">Hello ${customer?.first_name || 'Valued Customer'},</p>
@@ -155,8 +150,6 @@ Deno.serve(async (req) => {
                         <p style="font-size: 16px; margin-top: 20px;">If you need to reschedule, please call us at <strong style="color: #2563eb;">780-847-3002</strong>.</p>
                         
                         <p style="font-size: 16px; margin-top: 30px; color: #64748b;">Thank you,<br><strong style="color: #1e293b;">Ken's Auto & Diesel Repair</strong></p>
-                        
-                        <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display: none;" />
                     </div>
                 `;
 
@@ -168,7 +161,7 @@ Deno.serve(async (req) => {
                     html: htmlBody
                 });
 
-                // Map this batch index to the log ID
+                // Map this batch index to the log DB ID
                 logIdMap.set(emailBatch.length - 1, createdLog.id);
 
             } catch (logError) {
@@ -209,14 +202,17 @@ Deno.serve(async (req) => {
                     throw new Error(result.message || 'Failed to send batch via Resend');
                 }
 
-                // Update log entries to sent status
+                // Update log entries with sent status and Resend's message IDs
                 // result.data is an array of {id: string} for each sent email
                 if (result.data && Array.isArray(result.data)) {
                     for (let j = 0; j < result.data.length; j++) {
                         const batchIndex = i + j;
                         const logId = logIdMap.get(batchIndex);
-                        if (logId) {
-                            await base44.asServiceRole.entities.SentEmailLog.update(logId, { status: 'sent' });
+                        if (logId && result.data[j]?.id) {
+                            await base44.asServiceRole.entities.SentEmailLog.update(logId, { 
+                                status: 'sent',
+                                tracking_id: result.data[j].id
+                            });
                             sentCount++;
                         }
                     }
