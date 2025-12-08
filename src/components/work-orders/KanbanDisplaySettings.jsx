@@ -5,10 +5,20 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings } from "lucide-react";
 
 export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses, columnSizes, onSave }) {
   const [localSizes, setLocalSizes] = useState({});
+  const [cardFields, setCardFields] = useState({
+    showCustomer: true,
+    showDescription: true,
+    showWONumber: true,
+    showVehicle: true,
+    showDate: true,
+    showAmount: true,
+    showScheduledDate: true
+  });
 
   useEffect(() => {
     if (open) {
@@ -23,6 +33,17 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
         };
       });
       setLocalSizes(initialSizes);
+      
+      // Initialize card fields
+      setCardFields(columnSizes.cardFields || {
+        showCustomer: true,
+        showDescription: true,
+        showWONumber: true,
+        showVehicle: true,
+        showDate: true,
+        showAmount: true,
+        showScheduledDate: true
+      });
     }
   }, [open, workOrderStatuses, columnSizes]);
 
@@ -41,8 +62,15 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
   };
 
   const handleSave = () => {
-    onSave(localSizes);
+    onSave({ ...localSizes, cardFields });
     onClose();
+  };
+
+  const handleCardFieldChange = (field, checked) => {
+    setCardFields(prev => ({
+      ...prev,
+      [field]: checked
+    }));
   };
 
   const handleVisibilityChange = (statusName, checked) => {
@@ -65,6 +93,15 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
       defaultSizes[status.name] = { width: 280, height: 600, visible: true, row: 'top' };
     });
     setLocalSizes(defaultSizes);
+    setCardFields({
+      showCustomer: true,
+      showDescription: true,
+      showWONumber: true,
+      showVehicle: true,
+      showDate: true,
+      showAmount: true,
+      showScheduledDate: true
+    });
   };
 
   return (
@@ -77,7 +114,13 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <Tabs defaultValue="sections" className="py-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="sections">Sections</TabsTrigger>
+            <TabsTrigger value="cards">Cards</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="sections" className="space-y-6 mt-4">
           {workOrderStatuses.map(status => (
             <div key={status.name} className="space-y-4 p-4 border border-slate-200 rounded-lg">
               <div className="flex items-center justify-between">
@@ -140,10 +183,83 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+            </TabsContent>
 
-        <DialogFooter className="gap-2">
+            <TabsContent value="cards" className="space-y-6 mt-4">
+            <div className="space-y-4 p-4 border border-slate-200 rounded-lg">
+            <h3 className="font-semibold text-slate-900 mb-4">Card Fields</h3>
+            <p className="text-sm text-slate-600 mb-4">Choose which fields to display on work order cards</p>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showCustomer"
+                  checked={cardFields.showCustomer}
+                  onCheckedChange={(checked) => handleCardFieldChange('showCustomer', checked)}
+                />
+                <Label htmlFor="showCustomer" className="cursor-pointer">Customer Name</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showDescription"
+                  checked={cardFields.showDescription}
+                  onCheckedChange={(checked) => handleCardFieldChange('showDescription', checked)}
+                />
+                <Label htmlFor="showDescription" className="cursor-pointer">Description</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showWONumber"
+                  checked={cardFields.showWONumber}
+                  onCheckedChange={(checked) => handleCardFieldChange('showWONumber', checked)}
+                />
+                <Label htmlFor="showWONumber" className="cursor-pointer">WO Number</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showVehicle"
+                  checked={cardFields.showVehicle}
+                  onCheckedChange={(checked) => handleCardFieldChange('showVehicle', checked)}
+                />
+                <Label htmlFor="showVehicle" className="cursor-pointer">Vehicle</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showDate"
+                  checked={cardFields.showDate}
+                  onCheckedChange={(checked) => handleCardFieldChange('showDate', checked)}
+                />
+                <Label htmlFor="showDate" className="cursor-pointer">Date</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showAmount"
+                  checked={cardFields.showAmount}
+                  onCheckedChange={(checked) => handleCardFieldChange('showAmount', checked)}
+                />
+                <Label htmlFor="showAmount" className="cursor-pointer">Amount</Label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="showScheduledDate"
+                  checked={cardFields.showScheduledDate}
+                  onCheckedChange={(checked) => handleCardFieldChange('showScheduledDate', checked)}
+                />
+                <Label htmlFor="showScheduledDate" className="cursor-pointer">Scheduled Date</Label>
+              </div>
+            </div>
+            </div>
+            </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="gap-2">
           <Button variant="outline" onClick={handleReset}>
             Reset to Defaults
           </Button>

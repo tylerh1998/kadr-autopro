@@ -1496,6 +1496,7 @@ export default function WorkOrdersPage() {
                           const vehicle = getVehicle(wo.vehicle_id);
                           const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
                           const relevantDate = wo.stage === 'estimate' ? wo.est_date : wo.wo_date;
+                          const cardFields = kanbanColumnSizes.cardFields || {};
                           
                           return (
                             <Card 
@@ -1504,35 +1505,41 @@ export default function WorkOrdersPage() {
                               onClick={() => handleEdit(wo)}
                             >
                               <div className="space-y-2">
-                                <div className="flex justify-between items-start">
-                                  <p className="font-semibold text-sm">
-                                    {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
-                                  </p>
-                                </div>
-                                <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
-                                {displayNumber && (
+                                {(cardFields.showCustomer !== false) && (
+                                  <div className="flex justify-between items-start">
+                                    <p className="font-semibold text-sm">
+                                      {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
+                                    </p>
+                                  </div>
+                                )}
+                                {(cardFields.showDescription !== false) && (
+                                  <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
+                                )}
+                                {(cardFields.showWONumber !== false) && displayNumber && (
                                   <p className="text-xs text-slate-500 flex items-center gap-1">
                                     <FileText className="w-3 h-3" />
                                     {displayNumber}
                                   </p>
                                 )}
-                                {vehicle && (
+                                {(cardFields.showVehicle !== false) && vehicle && (
                                   <p className="text-xs text-slate-500 flex items-center gap-1">
                                     <Car className="w-3 h-3" />
                                     {vehicle.year} {vehicle.make} {vehicle.model}
                                   </p>
                                 )}
-                                {relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
+                                {(cardFields.showDate !== false) && relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
                                   <p className="text-xs text-slate-500 flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
                                     {format(new Date(relevantDate), 'MMM d, yyyy')}
                                   </p>
                                 )}
                                 <div className="flex justify-between items-center pt-2">
-                                  <p className="text-xs font-semibold text-slate-900">
-                                    ${(wo.total_amount || 0).toFixed(2)}
-                                  </p>
-                                  {wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
+                                  {(cardFields.showAmount !== false) && (
+                                    <p className="text-xs font-semibold text-slate-900">
+                                      ${(wo.total_amount || 0).toFixed(2)}
+                                    </p>
+                                  )}
+                                  {(cardFields.showScheduledDate !== false) && wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
                                     <p className="text-xs text-slate-500 flex items-center gap-1">
                                       <Calendar className="w-3 h-3" />
                                       {format(new Date(wo.scheduled_date), 'MMM d')}
@@ -1616,6 +1623,7 @@ export default function WorkOrdersPage() {
                               const vehicle = getVehicle(wo.vehicle_id);
                               const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
                               const relevantDate = wo.stage === 'estimate' ? wo.est_date : wo.wo_date;
+                              const cardFields = kanbanColumnSizes.cardFields || {};
                               
                               return (
                                 <Card 
@@ -1624,35 +1632,41 @@ export default function WorkOrdersPage() {
                                   onClick={() => handleEdit(wo)}
                                 >
                                   <div className="space-y-2">
-                                    <div className="flex justify-between items-start">
-                                      <p className="font-semibold text-sm">
-                                        {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
-                                      </p>
-                                    </div>
-                                    <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
-                                    {displayNumber && (
+                                    {(cardFields.showCustomer !== false) && (
+                                      <div className="flex justify-between items-start">
+                                        <p className="font-semibold text-sm">
+                                          {customer ? getCustomerName(customer.id) : 'Customer Not Found'}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {(cardFields.showDescription !== false) && (
+                                      <p className="text-xs text-slate-600 line-clamp-2">{wo.description}</p>
+                                    )}
+                                    {(cardFields.showWONumber !== false) && displayNumber && (
                                       <p className="text-xs text-slate-500 flex items-center gap-1">
                                         <FileText className="w-3 h-3" />
                                         {displayNumber}
                                       </p>
                                     )}
-                                    {vehicle && (
+                                    {(cardFields.showVehicle !== false) && vehicle && (
                                       <p className="text-xs text-slate-500 flex items-center gap-1">
                                         <Car className="w-3 h-3" />
                                         {vehicle.year} {vehicle.make} {vehicle.model}
                                       </p>
                                     )}
-                                    {relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
+                                    {(cardFields.showDate !== false) && relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
                                       <p className="text-xs text-slate-500 flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
                                         {format(new Date(relevantDate), 'MMM d, yyyy')}
                                       </p>
                                     )}
                                     <div className="flex justify-between items-center pt-2">
-                                      <p className="text-xs font-semibold text-slate-900">
-                                        ${(wo.total_amount || 0).toFixed(2)}
-                                      </p>
-                                      {wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
+                                      {(cardFields.showAmount !== false) && (
+                                        <p className="text-xs font-semibold text-slate-900">
+                                          ${(wo.total_amount || 0).toFixed(2)}
+                                        </p>
+                                      )}
+                                      {(cardFields.showScheduledDate !== false) && wo.scheduled_date && !isNaN(new Date(wo.scheduled_date).getTime()) && (
                                         <p className="text-xs text-slate-500 flex items-center gap-1">
                                           <Calendar className="w-3 h-3" />
                                           {format(new Date(wo.scheduled_date), 'MMM d')}
