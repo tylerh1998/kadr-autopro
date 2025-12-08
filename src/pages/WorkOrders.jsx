@@ -1431,7 +1431,7 @@ export default function WorkOrdersPage() {
 
             <TabsContent value="board">
               <div className="space-y-6">
-                {/* Top Row */}
+                {/* Combined Row Layout */}
                 <div className="flex gap-6 overflow-x-auto pb-4">
                   {workOrderStatuses
                     .filter(statusObj => {
@@ -1479,6 +1479,12 @@ export default function WorkOrdersPage() {
 
                   const colorClass = getColorClass(statusObj.color);
                   const columnSize = kanbanColumnSizes[status] || { width: 280, height: 600 };
+                  const config = kanbanColumnSizes[status] || { row: 'top' };
+                  
+                  // If row is "both", double the height plus gap
+                  const displayHeight = config.row === 'both' 
+                    ? columnSize.height * 2 + 24 
+                    : columnSize.height;
 
                   return (
                     <Card 
@@ -1486,7 +1492,7 @@ export default function WorkOrdersPage() {
                       className={`${colorClass} border-2 flex-shrink-0`}
                       style={{ 
                         width: `${columnSize.width}px`,
-                        height: `${columnSize.height}px`
+                        height: `${displayHeight}px`
                       }}
                     >
                       <CardHeader>
@@ -1566,13 +1572,13 @@ export default function WorkOrdersPage() {
                 {/* Bottom Row */}
                 {workOrderStatuses.some(statusObj => {
                   const config = kanbanColumnSizes[statusObj.name];
-                  return config && config.visible !== false && (config.row === 'bottom' || config.row === 'both');
+                  return config && config.visible !== false && config.row === 'bottom';
                 }) && (
                   <div className="flex gap-6 overflow-x-auto pb-4">
                     {workOrderStatuses
                       .filter(statusObj => {
                         const config = kanbanColumnSizes[statusObj.name];
-                        return config && config.visible !== false && (config.row === 'bottom' || config.row === 'both');
+                        return config && config.visible !== false && config.row === 'bottom';
                       })
                       .sort((a, b) => {
                         const posA = kanbanColumnSizes[a.name]?.columnPosition || 0;
