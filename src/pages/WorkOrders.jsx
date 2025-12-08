@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { WorkOrder, Customer, Vehicle, TagAlong, Appointment, User } from "@/entities/all";
+import { WorkOrder, Customer, Vehicle, TagAlong, Appointment, User, WorkOrderStatus } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -76,6 +76,9 @@ export default function WorkOrdersPage() {
   
   // Track active tab for list view (estimates, wip, completed, invoices)
   const [activeTab, setActiveTab] = useState("work_in_progress");
+
+  // Work order statuses from setup
+  const [workOrderStatuses, setWorkOrderStatuses] = useState([]);
   
   // Sort state for each tab
   const [estimatesSort, setEstimatesSort] = useState("customer_az");
@@ -86,7 +89,26 @@ export default function WorkOrdersPage() {
   useEffect(() => {
     loadData(true);
     loadCurrentUser();
+    loadWorkOrderStatuses();
   }, []);
+
+  const loadWorkOrderStatuses = async () => {
+    try {
+      const statuses = await WorkOrderStatus.filter({ is_active: true });
+      const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      setWorkOrderStatuses(sortedStatuses);
+    } catch (error) {
+      console.error('Error loading work order statuses:', error);
+      // Fallback to default statuses
+      setWorkOrderStatuses([
+        { name: 'Open', display_order: 1, color: 'slate' },
+        { name: 'Parts On Order', display_order: 2, color: 'slate' },
+        { name: 'Scheduled', display_order: 3, color: 'slate' },
+        { name: 'On Hold', display_order: 4, color: 'slate' },
+        { name: 'Completed', display_order: 5, color: 'slate' }
+      ]);
+    }
+  };
 
   // Auto-refresh data every 20 seconds when tab is visible
   useEffect(() => {
@@ -1391,19 +1413,51 @@ export default function WorkOrdersPage() {
             </TabsContent>
 
             <TabsContent value="board">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {['Open', 'Parts On Order', 'Scheduled', 'On Hold', 'Completed'].map(status => {
+              <div className="grid gap-6" style={{ 
+                gridTemplateColumns: `repeat(${workOrderStatuses.length}, minmax(200px, 1fr))`,
+                overflowX: 'auto'
+              }}>
+                {workOrderStatuses.map(statusObj => {
+                  const status = statusObj.name;
                   const statusWorkOrders = filteredWorkOrders.filter(wo => 
                     wo.status === status && 
                     (wo.stage === 'estimate' || wo.stage === 'work_order')
                   );
 
+                  // Helper to get color classes
+                  const getColorClass = (color) => {
+                    const colorMap = {
+                      slate: 'bg-slate-100 border-slate-300',
+                      gray: 'bg-gray-100 border-gray-300',
+                      red: 'bg-red-50 border-red-300',
+                      orange: 'bg-orange-50 border-orange-300',
+                      amber: 'bg-amber-50 border-amber-300',
+                      yellow: 'bg-yellow-50 border-yellow-300',
+                      lime: 'bg-lime-50 border-lime-300',
+                      green: 'bg-green-50 border-green-300',
+                      emerald: 'bg-emerald-50 border-emerald-300',
+                      teal: 'bg-teal-50 border-teal-300',
+                      cyan: 'bg-cyan-50 border-cyan-300',
+                      sky: 'bg-sky-50 border-sky-300',
+                      blue: 'bg-blue-50 border-blue-300',
+                      indigo: 'bg-indigo-50 border-indigo-300',
+                      violet: 'bg-violet-50 border-violet-300',
+                      purple: 'bg-purple-50 border-purple-300',
+                      fuchsia: 'bg-fuchsia-50 border-fuchsia-300',
+                      pink: 'bg-pink-50 border-pink-300',
+                      rose: 'bg-rose-50 border-rose-300',
+                    };
+                    return colorMap[color?.toLowerCase()] || colorMap.slate;
+                  };
+
+                  const colorClass = getColorClass(statusObj.color);
+
                   return (
-                    <Card key={status} className="min-h-[500px]">
+                    <Card key={status} className={`min-h-[500px] ${colorClass} border-2`}>
                       <CardHeader>
-                        <CardTitle className="text-sm font-medium text-slate-600 uppercase tracking-wide">
+                        <CardTitle className="text-sm font-medium text-slate-700 uppercase tracking-wide">
                           {status}
-                          <Badge variant="outline" className="ml-2">
+                          <Badge variant="outline" className="ml-2 bg-white">
                             {statusWorkOrders.length}
                           </Badge>
                         </CardTitle>
