@@ -20,8 +20,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Missing required fields: to, subject, body' }, { status: 400 });
         }
 
-        // Create tracking ID and log entry
-        const tracking_id = crypto.randomUUID();
+        // Create log entry without tracking_id (will be set after Resend responds)
         const createdLog = await base44.asServiceRole.entities.SentEmailLog.create({
             to_email: to,
             from_email: fromEmail,
@@ -32,19 +31,15 @@ Deno.serve(async (req) => {
             sent_date: new Date().toISOString(),
             customer_id: customer_id || null,
             work_order_id: work_order_id || null,
-            tracking_id,
+            tracking_id: null,
             portal_url: portal_url || null,
         });
         logIdToUpdate = createdLog.id;
 
-        // Build HTML body with tracking pixel
-        const appUrl = new URL(req.url).origin;
-        const trackingPixelUrl = `${appUrl}/functions/emailTrackingPixel?tracking_id=${tracking_id}`;
-
+        // Build HTML body
         const htmlBody = `
             <div style="font-family: sans-serif; line-height: 1.6;">
                 ${body}
-                <img src="${trackingPixelUrl}" width="1" height="1" alt="" style="display: none;" />
             </div>
         `;
 
@@ -71,8 +66,11 @@ Deno.serve(async (req) => {
             throw new Error(result.message || 'Failed to send email via Resend');
         }
 
-        // Update log to sent status
-        await base44.asServiceRole.entities.SentEmailLog.update(logIdToUpdate, { status: 'sent' });
+        // Update log with sent status and Resend's message ID
+        await base44.asServiceRole.entities.SentEmailLog.update(logIdToUpdate, { 
+            status: 'sent',
+            tracking_id: result.id
+        });
 
         return Response.json({ status: 'success', message: 'Email sent successfully', id: result.id });
     } catch (error) {
