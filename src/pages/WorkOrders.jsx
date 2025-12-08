@@ -24,6 +24,7 @@ import EditApptViaWoModal from "../components/work-orders/EditApptViaWoModal";
 import SchedulerViaWoModal from "../components/work-orders/SchedulerViaWoModal";
 import NewWorkPROModal from "../components/work-orders/NewWorkPROModal";
 import TechTimeModal from "../components/work-orders/TechTimeModal";
+import KanbanDisplaySettings from "../components/work-orders/KanbanDisplaySettings";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -66,10 +67,14 @@ export default function WorkOrdersPage() {
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const [showNewWorkPROModal, setShowNewWorkPROModal] = useState(false);
   const [showTechTimeModal, setShowTechTimeModal] = useState(false);
+  const [showKanbanSettings, setShowKanbanSettings] = useState(false);
   const { openTechClockStatusModal } = useTechClockStatus();
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedProjectWorkOrder, setSelectedProjectWorkOrder] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  
+  // Kanban column sizes (local state, not persisted)
+  const [kanbanColumnSizes, setKanbanColumnSizes] = useState({});
   
   // Track active main tab (list, workpro, board)
   const [mainTab, setMainTab] = useState("list");
@@ -961,11 +966,23 @@ export default function WorkOrdersPage() {
           <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
             {/* Tabs with Search and Filter inline */}
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white p-4 rounded-lg border border-slate-200">
-              <TabsList className="grid grid-cols-3 w-full lg:w-auto">
-                <TabsTrigger value="list">Work Order List</TabsTrigger>
-                <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
-                <TabsTrigger value="board">Kanban Board</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center gap-2">
+                <TabsList className="grid grid-cols-3 w-full lg:w-auto">
+                  <TabsTrigger value="list">Work Order List</TabsTrigger>
+                  <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
+                  <TabsTrigger value="board">Kanban Board</TabsTrigger>
+                </TabsList>
+                {mainTab === 'board' && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowKanbanSettings(true)}
+                    className="shrink-0"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
 
               {/* Search and Sort Controls */}
               <div className="flex gap-3 items-center w-full lg:w-auto">
@@ -1413,10 +1430,7 @@ export default function WorkOrdersPage() {
             </TabsContent>
 
             <TabsContent value="board">
-              <div className="grid gap-6" style={{ 
-                gridTemplateColumns: `repeat(${workOrderStatuses.length}, minmax(200px, 1fr))`,
-                overflowX: 'auto'
-              }}>
+              <div className="flex gap-6 overflow-x-auto pb-4">
                 {workOrderStatuses.map(statusObj => {
                   const status = statusObj.name;
                   const statusWorkOrders = filteredWorkOrders.filter(wo => 
@@ -1451,9 +1465,17 @@ export default function WorkOrdersPage() {
                   };
 
                   const colorClass = getColorClass(statusObj.color);
+                  const columnSize = kanbanColumnSizes[status] || { width: 280, height: 600 };
 
                   return (
-                    <Card key={status} className={`min-h-[500px] ${colorClass} border-2`}>
+                    <Card 
+                      key={status} 
+                      className={`${colorClass} border-2 flex-shrink-0`}
+                      style={{ 
+                        width: `${columnSize.width}px`,
+                        height: `${columnSize.height}px`
+                      }}
+                    >
                       <CardHeader>
                         <CardTitle className="text-sm font-medium text-slate-700 uppercase tracking-wide">
                           {status}
@@ -1462,7 +1484,7 @@ export default function WorkOrdersPage() {
                           </Badge>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="space-y-3 overflow-y-auto" style={{ maxHeight: `${columnSize.height - 80}px` }}>
                         {statusWorkOrders.map(wo => {
                           const customer = getCustomer(wo.customer_id);
                           const vehicle = getVehicle(wo.vehicle_id);
@@ -1617,6 +1639,14 @@ export default function WorkOrdersPage() {
         open={showTechTimeModal}
         onClose={() => setShowTechTimeModal(false)}
         project={selectedProject}
+      />
+
+      <KanbanDisplaySettings
+        open={showKanbanSettings}
+        onClose={() => setShowKanbanSettings(false)}
+        workOrderStatuses={workOrderStatuses}
+        columnSizes={kanbanColumnSizes}
+        onSave={setKanbanColumnSizes}
       />
 
       </div>
