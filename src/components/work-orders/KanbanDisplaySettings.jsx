@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { Settings } from "lucide-react";
 
 export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses, columnSizes, onSave }) {
@@ -24,12 +25,13 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
     if (open) {
       // Initialize with current sizes or defaults
       const initialSizes = {};
-      workOrderStatuses.forEach(status => {
+      workOrderStatuses.forEach((status, index) => {
         initialSizes[status.name] = columnSizes[status.name] || { 
           width: 280, 
           height: 600, 
           visible: true, 
-          row: 'top' 
+          row: 'top',
+          columnPosition: index + 1
         };
       });
       setLocalSizes(initialSizes);
@@ -87,10 +89,17 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
     }));
   };
 
+  const handleColumnPositionChange = (statusName, value) => {
+    setLocalSizes(prev => ({
+      ...prev,
+      [statusName]: { ...prev[statusName], columnPosition: parseInt(value) || 1 }
+    }));
+  };
+
   const handleReset = () => {
     const defaultSizes = {};
-    workOrderStatuses.forEach(status => {
-      defaultSizes[status.name] = { width: 280, height: 600, visible: true, row: 'top' };
+    workOrderStatuses.forEach((status, index) => {
+      defaultSizes[status.name] = { width: 280, height: 600, visible: true, row: 'top', columnPosition: index + 1 };
     });
     setLocalSizes(defaultSizes);
     setCardFields({
@@ -150,8 +159,20 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
                     <SelectContent>
                       <SelectItem value="top">Top Row</SelectItem>
                       <SelectItem value="bottom">Bottom Row</SelectItem>
+                      <SelectItem value="both">Both Rows</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-slate-600">Column Position</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={localSizes[status.name]?.columnPosition || 1}
+                    onChange={(e) => handleColumnPositionChange(status.name, e.target.value)}
+                    className="mt-2"
+                  />
                 </div>
 
                 <div>
@@ -162,7 +183,7 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
                     value={[localSizes[status.name]?.width || 280]}
                     onValueChange={(value) => handleWidthChange(status.name, value)}
                     min={200}
-                    max={500}
+                    max={800}
                     step={10}
                     className="mt-2"
                   />
@@ -176,7 +197,7 @@ export default function KanbanDisplaySettings({ open, onClose, workOrderStatuses
                     value={[localSizes[status.name]?.height || 600]}
                     onValueChange={(value) => handleHeightChange(status.name, value)}
                     min={400}
-                    max={1000}
+                    max={1500}
                     step={50}
                     className="mt-2"
                   />
