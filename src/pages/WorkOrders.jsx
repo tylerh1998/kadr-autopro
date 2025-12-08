@@ -1507,7 +1507,7 @@ export default function WorkOrdersPage() {
                               </Badge>
                             </CardTitle>
                           </CardHeader>
-                          <CardContent className="flex flex-wrap gap-6 overflow-y-auto" style={{ maxHeight: `${config.height - 80}px` }}>
+                          <CardContent className="flex flex-wrap gap-6 overflow-y-auto px-12 py-6" style={{ maxHeight: `${config.height - 80}px` }}>
                             {statusWorkOrders.map(wo => {
                               const customer = getCustomer(wo.customer_id);
                               const vehicle = getVehicle(wo.vehicle_id);
@@ -1518,8 +1518,8 @@ export default function WorkOrdersPage() {
                               return (
                                 <Card 
                                   key={wo.id} 
-                                  className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                                  style={{ maxWidth: '232px' }}
+                                  className="p-3 cursor-pointer hover:shadow-md transition-shadow flex-grow"
+                                  style={{ minWidth: '200px', maxWidth: '232px' }}
                                   onClick={() => handleEdit(wo)}
                                 >
                                   <div className="space-y-2">
