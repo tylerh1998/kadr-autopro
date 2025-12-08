@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useWorkOrder } from '../components/hooks/useWorkOrder';
 import { useShopData } from '../components/hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, InventoryItem, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings } from '@/entities/all';
+import { WorkOrder, Customer, Vehicle, Appointment, InventoryItem, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import WorkOrderForm from '../components/work-orders/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client'; // NEW: Added base44 import
@@ -9,17 +9,30 @@ import {
   Save,
   Printer,
   Send,
+  Wrench,
   DollarSign,
   CalendarDays,
+  FileCheck,
+  ClipboardList,
+  Clock,
   BarChart3,
   Eye,
+  Briefcase,
+  ClipboardCheck,
+  UserCheck,
   Loader2,
   FileText,
   RefreshCw,
   X,
+  ExternalLink,
 } from 'lucide-react';
-
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -126,6 +139,9 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
 
   // State for wip_legal from SystemSettings
   const [wipLegal, setWipLegal] = useState('');
+
+  // NEW: State for work order statuses
+  const [workOrderStatuses, setWorkOrderStatuses] = useState([]);
 
   // State for all modals
   const [modals, setModals] = useState({
@@ -287,6 +303,28 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
       }
     };
     loadSystemSettings();
+  }, []);
+
+  // NEW: Load WorkOrderStatus settings
+  useEffect(() => {
+    const loadWorkOrderStatuses = async () => {
+      try {
+        const statuses = await WorkOrderStatus.filter({ is_active: true });
+        const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        setWorkOrderStatuses(sortedStatuses);
+      } catch (error) {
+        console.error('Error loading work order statuses:', error);
+        // Fallback to default statuses if fetch fails
+        setWorkOrderStatuses([
+          { name: 'Open', display_order: 1, color: 'slate' },
+          { name: 'Parts On Order', display_order: 2, color: 'slate' },
+          { name: 'Scheduled', display_order: 3, color: 'slate' },
+          { name: 'On Hold', display_order: 4, color: 'slate' },
+          { name: 'Completed', display_order: 5, color: 'slate' }
+        ]);
+      }
+    };
+    loadWorkOrderStatuses();
   }, []);
 
   // Lock management - Acquire lock when work order and user are ready
@@ -1421,7 +1459,32 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
     );
   }
 
-  const statuses = ["Open", "Parts On Order", "Scheduled", "On Hold", "Completed"];
+  // Helper function to get Tailwind color classes based on color name
+  const getColorClasses = (color, isActive) => {
+    const colorMap = {
+      slate: isActive ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-200',
+      gray: isActive ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-200',
+      zinc: isActive ? 'bg-zinc-700 text-white' : 'text-zinc-600 hover:bg-zinc-200',
+      red: isActive ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-100',
+      orange: isActive ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-100',
+      amber: isActive ? 'bg-amber-600 text-white' : 'text-amber-600 hover:bg-amber-100',
+      yellow: isActive ? 'bg-yellow-600 text-white' : 'text-yellow-600 hover:bg-yellow-100',
+      lime: isActive ? 'bg-lime-600 text-white' : 'text-lime-600 hover:bg-lime-100',
+      green: isActive ? 'bg-green-600 text-white' : 'text-green-600 hover:bg-green-100',
+      emerald: isActive ? 'bg-emerald-600 text-white' : 'text-emerald-600 hover:bg-emerald-100',
+      teal: isActive ? 'bg-teal-600 text-white' : 'text-teal-600 hover:bg-teal-100',
+      cyan: isActive ? 'bg-cyan-600 text-white' : 'text-cyan-600 hover:bg-cyan-100',
+      sky: isActive ? 'bg-sky-600 text-white' : 'text-sky-600 hover:bg-sky-100',
+      blue: isActive ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100',
+      indigo: isActive ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-100',
+      violet: isActive ? 'bg-violet-600 text-white' : 'text-violet-600 hover:bg-violet-100',
+      purple: isActive ? 'bg-purple-600 text-white' : 'text-purple-600 hover:bg-purple-100',
+      fuchsia: isActive ? 'bg-fuchsia-600 text-white' : 'text-fuchsia-600 hover:bg-fuchsia-100',
+      pink: isActive ? 'bg-pink-600 text-white' : 'text-pink-600 hover:bg-pink-100',
+      rose: isActive ? 'bg-rose-600 text-white' : 'text-rose-600 hover:bg-rose-100',
+    };
+    return colorMap[color?.toLowerCase()] || colorMap.slate;
+  };
 
   const stages = [
     {
@@ -1574,17 +1637,21 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-                  {statuses.map(status => (
-                    <Button
-                      key={status}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleStatusChange(status)}
-                      className={`transition-all duration-200 text-xs font-bold ${workOrder?.status === status ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
-                    >
-                      {status}
-                    </Button>
-                  ))}
+                  {workOrderStatuses.map(status => {
+                    const isActive = workOrder?.status === status.name;
+                    const colorClasses = getColorClasses(status.color, isActive);
+                    return (
+                      <Button
+                        key={status.name}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleStatusChange(status.name)}
+                        className={`transition-all duration-200 text-xs font-bold ${colorClasses}`}
+                      >
+                        {status.name}
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 <div className="w-px h-6 bg-slate-300"></div>
