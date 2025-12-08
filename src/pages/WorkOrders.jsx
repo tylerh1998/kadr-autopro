@@ -73,8 +73,9 @@ export default function WorkOrdersPage() {
   const [selectedProjectWorkOrder, setSelectedProjectWorkOrder] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   
-  // Kanban column sizes (local state, not persisted)
+  // Kanban column sizes (persisted in SystemSettings)
   const [kanbanColumnSizes, setKanbanColumnSizes] = useState({});
+  const [systemSettings, setSystemSettings] = useState(null);
   
   // Track active main tab (list, workpro, board)
   const [mainTab, setMainTab] = useState("list");
