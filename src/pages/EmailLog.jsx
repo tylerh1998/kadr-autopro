@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Search, CheckCircle, XCircle, EyeOff, Eye } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
 
@@ -76,14 +76,7 @@ export default function EmailLogPage() {
     }
   };
 
-  const ReadStatusBadge = ({ status }) => {
-    switch (status) {
-      case 'read':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><Eye className="w-3 h-3 mr-1" />Read</Badge>;
-      default:
-        return <Badge variant="outline"><EyeOff className="w-3 h-3 mr-1" />Unread</Badge>;
-    }
-  };
+
 
   return (
     <div className="p-6 min-h-screen">
@@ -114,7 +107,6 @@ export default function EmailLogPage() {
                 <TableHeader className="bg-slate-50">
                   <TableRow>
                     <TableHead>Status</TableHead>
-                    <TableHead>Read</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Recipient</TableHead>
                     <TableHead>Customer</TableHead>
@@ -125,14 +117,13 @@ export default function EmailLogPage() {
                   {loading ? (
                     Array(5).fill(0).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
+                        <TableCell colSpan={5}><Skeleton className="h-6 w-full" /></TableCell>
                       </TableRow>
                     ))
                   ) : filteredLogs.length > 0 ? (
                     filteredLogs.map(log => (
                       <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer hover:bg-slate-100 transition-colors">
                         <TableCell><StatusBadge status={log.status} /></TableCell>
-                        <TableCell><ReadStatusBadge status={log.read_status} /></TableCell>
                         <TableCell>{format(new Date(log.sent_date), 'MMM d, yyyy h:mm a')}</TableCell>
                         <TableCell>{log.to_email}</TableCell>
                         <TableCell>{customers[log.customer_id] ? `${customers[log.customer_id].first_name} ${customers[log.customer_id].last_name}` : 'N/A'}</TableCell>
@@ -141,7 +132,7 @@ export default function EmailLogPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center h-24 text-slate-500">
+                      <TableCell colSpan={5} className="text-center h-24 text-slate-500">
                         No email logs found.
                       </TableCell>
                     </TableRow>
