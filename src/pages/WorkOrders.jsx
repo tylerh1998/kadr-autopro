@@ -1507,7 +1507,7 @@ export default function WorkOrdersPage() {
                               </Badge>
                             </CardTitle>
                           </CardHeader>
-                          <CardContent className="space-y-3 overflow-y-auto" style={{ maxHeight: `${config.height - 80}px` }}>
+                          <CardContent className="flex flex-wrap gap-6 overflow-y-auto" style={{ maxHeight: `${config.height - 80}px` }}>
                             {statusWorkOrders.map(wo => {
                               const customer = getCustomer(wo.customer_id);
                               const vehicle = getVehicle(wo.vehicle_id);
