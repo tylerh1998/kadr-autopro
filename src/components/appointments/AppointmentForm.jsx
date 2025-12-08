@@ -592,81 +592,24 @@ export default function AppointmentForm({
                   </div>
                 </div>
 
-                {/* Bay and Reminders - Two Columns */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Bay Selection - Modern Toggle */}
-                  <div className="space-y-2">
-                    <Label>Bay *</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {bayOptions.map(bay => (
-                        <button
-                          key={bay}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, bay }))}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            formData.bay === bay
-                              ? 'bg-slate-900 text-white shadow-md'
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          }`}
-                        >
-                          {bay}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Reminders Section */}
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Reminders</Label>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="reminders_email"
-                        checked={formData.reminders_email}
-                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_email: checked }))}
-                      />
-                      <Label htmlFor="reminders_email" className="font-normal cursor-pointer">
-                        Send email reminder
-                      </Label>
-                    </div>
-
-                    {formData.reminders_email && (
-                      <div className="space-y-2">
-                        <Label htmlFor="reminder_email">Email Address</Label>
-                        <Input
-                          id="reminder_email"
-                          type="email"
-                          value={formData.reminder_email_address}
-                          onChange={(e) => setFormData(prev => ({ ...prev, reminder_email_address: e.target.value }))}
-                          placeholder="customer@example.com"
-                        />
-                      </div>
-                    )}
-
-                    {/* Text reminders disabled - feature planned for post-release */}
-                    <div className="flex items-center space-x-2 opacity-50">
-                      <Checkbox
-                        id="reminders_text"
-                        checked={false}
-                        disabled
-                      />
-                      <Label htmlFor="reminders_text" className="font-normal cursor-not-allowed">
-                        Send text reminder <span className="text-xs text-slate-500 italic">(Coming soon)</span>
-                      </Label>
-                    </div>
-
-                    {(formData.reminders_email || formData.reminders_text) && (
-                      <div className="space-y-2">
-                        <Label htmlFor="reminder_days">Days before appointment</Label>
-                        <Input
-                          id="reminder_days"
-                          type="number"
-                          min="0"
-                          value={formData.reminder_days_before}
-                          onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
-                        />
-                      </div>
-                    )}
+                {/* Bay Selection - Modern Toggle */}
+                <div className="space-y-2">
+                  <Label>Bay *</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {bayOptions.map(bay => (
+                      <button
+                        key={bay}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, bay }))}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                          formData.bay === bay
+                            ? 'bg-slate-900 text-white shadow-md'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {bay}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -742,16 +685,72 @@ export default function AppointmentForm({
                 </div>
               </div>
 
-              {/* Right Column - Notes */}
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Add any notes about this appointment..."
-                  className="h-[calc(100%-2rem)] min-h-[300px] resize-none"
-                />
+              {/* Right Column - Notes and Reminders */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Add any notes about this appointment..."
+                    className="resize-none h-[380px]"
+                  />
+                </div>
+
+                {/* Reminders Section */}
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-base font-semibold">Reminders</Label>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="reminders_email"
+                      checked={formData.reminders_email}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_email: checked }))}
+                    />
+                    <Label htmlFor="reminders_email" className="font-normal cursor-pointer">
+                      Send email reminder
+                    </Label>
+                  </div>
+
+                  {formData.reminders_email && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reminder_email">Email Address</Label>
+                      <Input
+                        id="reminder_email"
+                        type="email"
+                        value={formData.reminder_email_address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, reminder_email_address: e.target.value }))}
+                        placeholder="customer@example.com"
+                      />
+                    </div>
+                  )}
+
+                  {/* Text reminders disabled - feature planned for post-release */}
+                  <div className="flex items-center space-x-2 opacity-50">
+                    <Checkbox
+                      id="reminders_text"
+                      checked={false}
+                      disabled
+                    />
+                    <Label htmlFor="reminders_text" className="font-normal cursor-not-allowed">
+                      Send text reminder <span className="text-xs text-slate-500 italic">(Coming soon)</span>
+                    </Label>
+                  </div>
+
+                  {(formData.reminders_email || formData.reminders_text) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reminder_days">Days before appointment</Label>
+                      <Input
+                        id="reminder_days"
+                        type="number"
+                        min="0"
+                        value={formData.reminder_days_before}
+                        onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
