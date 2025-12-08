@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon } from "lucide-react";
+import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
