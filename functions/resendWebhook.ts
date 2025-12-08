@@ -11,6 +11,7 @@ Deno.serve(async (req) => {
 
         const eventType = payload.type;
         const data = payload.data;
+        const timestamp = payload.created_at;
 
         // Extract email_id from Resend webhook payload
         const trackingId = data?.email_id;
@@ -41,41 +42,58 @@ Deno.serve(async (req) => {
         const emailLog = emailLogs[0];
         const updates = {};
 
+        // Helper function to format timestamp in Mountain Time
+        const formatMountainTime = (isoTimestamp) => {
+            if (!isoTimestamp) return '';
+            const date = new Date(isoTimestamp);
+            // Mountain Time is UTC-7 (MST) or UTC-6 (MDT)
+            const mtOffset = -7 * 60; // MST offset in minutes
+            const localDate = new Date(date.getTime() + mtOffset * 60 * 1000);
+            const month = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(localDate.getUTCDate()).padStart(2, '0');
+            const year = localDate.getUTCFullYear();
+            const hours = String(localDate.getUTCHours()).padStart(2, '0');
+            const minutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+            return ` (${month}/${day}/${year} ${hours}:${minutes} MT)`;
+        };
+
+        const timeStr = formatMountainTime(timestamp);
+
         // Map Resend webhook events to status updates
         switch (eventType) {
             case 'email.sent':
                 updates.status = 'sent';
-                updates.status_message = 'Email successfully sent';
+                updates.status_message = `Email successfully sent${timeStr}`;
                 break;
 
             case 'email.delivered':
                 updates.status = 'delivered';
-                updates.status_message = 'Email delivered successfully';
+                updates.status_message = `Email delivered successfully${timeStr}`;
                 break;
 
             case 'email.bounced':
                 updates.status = 'bounced';
-                updates.status_message = `Bounced: ${data?.bounce?.type || 'Unknown'} - ${data?.bounce?.reason || 'No reason provided'}`;
+                updates.status_message = `Bounced: ${data?.bounce?.type || 'Unknown'} - ${data?.bounce?.reason || 'No reason provided'}${timeStr}`;
                 break;
 
             case 'email.complained':
                 updates.status = 'complained';
-                updates.status_message = `Spam complaint received from recipient`;
+                updates.status_message = `Spam complaint received from recipient${timeStr}`;
                 break;
 
             case 'email.delivery_delayed':
                 updates.status = 'delivery_delayed';
-                updates.status_message = `Delivery delayed: ${data?.delay?.reason || 'Unknown reason'}`;
+                updates.status_message = `Delivery delayed: ${data?.delay?.reason || 'Unknown reason'}${timeStr}`;
                 break;
 
             case 'email.opened':
                 updates.status = 'opened';
-                updates.status_message = 'Email opened by recipient';
+                updates.status_message = `Email opened by recipient${timeStr}`;
                 break;
 
             case 'email.clicked':
                 updates.status = 'clicked';
-                updates.status_message = 'Link clicked by recipient';
+                updates.status_message = `Link clicked by recipient${timeStr}`;
                 break;
 
             default:

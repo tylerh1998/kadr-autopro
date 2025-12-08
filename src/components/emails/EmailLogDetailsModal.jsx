@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from 'date-fns';
-import { Mail, User, FileText, Calendar, CheckCircle, XCircle, Copy } from 'lucide-react';
+import { Mail, User, FileText, Calendar, CheckCircle, XCircle, Copy, AlertTriangle, Clock, Ban, Eye, MousePointerClick } from 'lucide-react';
 
 export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
   if (!log) return null;
@@ -12,11 +12,24 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
   const StatusBadge = ({ status }) => {
     switch (status) {
       case 'sent':
-        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
+      case 'delivered':
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Delivered</Badge>;
+      case 'opened':
+        return <Badge className="bg-cyan-100 text-cyan-800 border-cyan-200"><Eye className="w-3 h-3 mr-1" />Opened</Badge>;
+      case 'clicked':
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><MousePointerClick className="w-3 h-3 mr-1" />Clicked</Badge>;
+      case 'bounced':
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Bounced</Badge>;
+      case 'complained':
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200"><AlertTriangle className="w-3 h-3 mr-1" />Complained</Badge>;
+      case 'delivery_delayed':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
       case 'failed':
-        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><Ban className="w-3 h-3 mr-1" />Failed</Badge>;
+      case 'pending':
       default:
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
     }
   };
 
@@ -43,6 +56,7 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
             <div className="space-y-3">
               <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-500" /> <strong>Sent:</strong> <span>{log.sent_date ? format(new Date(log.sent_date), 'MMM d, yyyy h:mm a') : 'N/A'}</span></div>
               <div className="flex items-center gap-2"><StatusBadge status={log.status} /></div>
+              {log.status_message && <div className="text-sm text-slate-600 italic">{log.status_message}</div>}
             </div>
           </div>
           
@@ -81,12 +95,12 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
             </div>
           )}
 
-          {(log.work_order_id || (log.status === 'failed' && log.status_message)) && (
+          {(log.work_order_id || log.tracking_id) && (
             <div className="space-y-2">
               <h3 className="font-semibold">Metadata</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 bg-slate-50 rounded-md border">
                 {log.work_order_id && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-slate-500" /> <strong>WO Number:</strong> <span>{log.work_order_id}</span></div>}
-                {log.status === 'failed' && log.status_message && <div className="col-span-2 text-red-600"><strong>Error:</strong> {log.status_message}</div>}
+                {log.tracking_id && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-500" /> <strong>Tracking ID:</strong> <span className="font-mono text-xs">{log.tracking_id}</span></div>}
               </div>
             </div>
           )}
