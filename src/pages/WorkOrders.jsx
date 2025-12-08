@@ -119,7 +119,6 @@ export default function WorkOrdersPage() {
 
   const loadSystemSettings = async () => {
     try {
-      const { SystemSettings } = await import('@/entities/all');
       const settings = await SystemSettings.list();
       const systemSetting = settings && settings.length > 0 ? settings[0] : null;
       setSystemSettings(systemSetting);
