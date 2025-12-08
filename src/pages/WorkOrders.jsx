@@ -1723,7 +1723,6 @@ export default function WorkOrdersPage() {
           setKanbanColumnSizes(newSettings);
           // Save to SystemSettings
           try {
-            const { SystemSettings } = await import('@/entities/all');
             if (systemSettings) {
               await SystemSettings.update(systemSettings.id, {
                 kanban_view_1: JSON.stringify(newSettings)
