@@ -5,8 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
 
 export default function EmailLogPage() {
@@ -17,29 +18,30 @@ export default function EmailLogPage() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [logsData, customersData] = await Promise.all([
+        SentEmailLog.list('-sent_date', 200), // Get latest 200 logs
+        Customer.list()
+      ]);
+      
+      setLogs(logsData);
+
+      const customerMap = customersData.reduce((acc, customer) => {
+        acc[customer.id] = customer;
+        return acc;
+      }, {});
+      setCustomers(customerMap);
+
+    } catch (error) {
+      console.error("Failed to load email logs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [logsData, customersData] = await Promise.all([
-          SentEmailLog.list('-sent_date', 200), // Get latest 200 logs
-          Customer.list()
-        ]);
-        
-        setLogs(logsData);
-
-        const customerMap = customersData.reduce((acc, customer) => {
-          acc[customer.id] = customer;
-          return acc;
-        }, {});
-        setCustomers(customerMap);
-
-      } catch (error) {
-        console.error("Failed to load email logs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -99,14 +101,24 @@ export default function EmailLogPage() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Sent Emails</CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Search by recipient, subject, customer..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search by recipient, subject, customer..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={fetchData}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
               </div>
             </div>
           </CardHeader>
