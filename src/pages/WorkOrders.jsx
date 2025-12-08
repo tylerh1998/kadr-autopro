@@ -1720,7 +1720,26 @@ export default function WorkOrdersPage() {
         onClose={() => setShowKanbanSettings(false)}
         workOrderStatuses={workOrderStatuses}
         columnSizes={kanbanColumnSizes}
-        onSave={setKanbanColumnSizes}
+        onSave={async (newSettings) => {
+          setKanbanColumnSizes(newSettings);
+          // Save to SystemSettings
+          try {
+            const { SystemSettings } = await import('@/entities/all');
+            if (systemSettings) {
+              await SystemSettings.update(systemSettings.id, {
+                kanban_view_1: JSON.stringify(newSettings)
+              });
+            } else {
+              const created = await SystemSettings.create({
+                kanban_view_1: JSON.stringify(newSettings)
+              });
+              setSystemSettings(created);
+            }
+          } catch (error) {
+            console.error('Error saving kanban settings:', error);
+            alert('Failed to save settings. Please try again.');
+          }
+        }}
       />
 
       </div>
