@@ -69,13 +69,13 @@ Deno.serve(async (req) => {
                 break;
 
             case 'email.opened':
-                // Don't update status for opens, just log it
-                console.log(`Email ${trackingId} was opened`);
+                updates.status = 'opened';
+                updates.status_message = 'Email opened by recipient';
                 break;
 
             case 'email.clicked':
-                // Don't update status for clicks, just log it
-                console.log(`Email ${trackingId} was clicked`);
+                updates.status = 'clicked';
+                updates.status_message = 'Link clicked by recipient';
                 break;
 
             default:
