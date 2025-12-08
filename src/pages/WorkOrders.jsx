@@ -96,6 +96,7 @@ export default function WorkOrdersPage() {
     loadData(true);
     loadCurrentUser();
     loadWorkOrderStatuses();
+    loadSystemSettings();
   }, []);
 
   const loadWorkOrderStatuses = async () => {
