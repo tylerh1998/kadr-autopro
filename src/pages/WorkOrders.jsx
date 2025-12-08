@@ -117,6 +117,27 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const loadSystemSettings = async () => {
+    try {
+      const { SystemSettings } = await import('@/entities/all');
+      const settings = await SystemSettings.list();
+      const systemSetting = settings && settings.length > 0 ? settings[0] : null;
+      setSystemSettings(systemSetting);
+      
+      // Load kanban settings if they exist
+      if (systemSetting?.kanban_view_1) {
+        try {
+          const savedSettings = JSON.parse(systemSetting.kanban_view_1);
+          setKanbanColumnSizes(savedSettings);
+        } catch (error) {
+          console.error('Error parsing kanban settings:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading system settings:', error);
+    }
+  };
+
   // Auto-refresh data every 20 seconds when tab is visible
   useEffect(() => {
     let refreshInterval;
