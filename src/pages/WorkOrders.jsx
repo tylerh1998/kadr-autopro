@@ -1434,8 +1434,9 @@ export default function WorkOrdersPage() {
                 {/* Top Row */}
                 <div className="flex gap-6 overflow-x-auto pb-4">
                   {workOrderStatuses.filter(statusObj => {
-                    const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top' };
-                    return config.visible !== false && config.row === 'top';
+                    const config = kanbanColumnSizes[statusObj.name];
+                    if (!config) return true; // Show by default if no config
+                    return config.visible !== false && (config.row === 'top' || !config.row);
                   }).map(statusObj => {
                   const status = statusObj.name;
                   const statusWorkOrders = filteredWorkOrders.filter(wo => 
@@ -1550,13 +1551,13 @@ export default function WorkOrdersPage() {
 
                 {/* Bottom Row */}
                 {workOrderStatuses.some(statusObj => {
-                  const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top' };
-                  return config.visible !== false && config.row === 'bottom';
+                  const config = kanbanColumnSizes[statusObj.name];
+                  return config && config.visible !== false && config.row === 'bottom';
                 }) && (
                   <div className="flex gap-6 overflow-x-auto pb-4">
                     {workOrderStatuses.filter(statusObj => {
-                      const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top' };
-                      return config.visible !== false && config.row === 'bottom';
+                      const config = kanbanColumnSizes[statusObj.name];
+                      return config && config.visible !== false && config.row === 'bottom';
                     }).map(statusObj => {
                       const status = statusObj.name;
                       const statusWorkOrders = filteredWorkOrders.filter(wo => 
