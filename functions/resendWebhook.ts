@@ -12,14 +12,14 @@ Deno.serve(async (req) => {
         const eventType = payload.type;
         const data = payload.data;
 
-        // Extract tracking_id from email tags or headers
-        const trackingId = data?.tags?.tracking_id || data?.headers?.['X-Tracking-ID'];
+        // Extract email_id from Resend webhook payload
+        const trackingId = data?.email_id;
         
         if (!trackingId) {
-            console.log('No tracking_id found in webhook payload');
+            console.log('No email_id found in webhook payload');
             return Response.json({ 
                 success: false, 
-                message: 'No tracking_id found' 
+                message: 'No email_id found' 
             }, { status: 400 });
         }
 
