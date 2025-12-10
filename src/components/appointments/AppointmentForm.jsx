@@ -847,7 +847,7 @@ export default function AppointmentForm({
                     value={formData.notes}
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any notes about this appointment..."
-                    className="resize-none h-[330px]"
+                    className="resize-none h-[310px]"
                   />
                 </div>
 
