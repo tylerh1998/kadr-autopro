@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, X, Car, Loader2 } from "lucide-react";
 import { base44 } from '@/api/base44Client'; // Added base44 import
 
-export default function VehicleForm({ vehicle, customers, onSubmit, onCancel }) {
+export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, isSubmitting }) {
   const [formData, setFormData] = useState({
     customer_id: vehicle?.customer_id || "",
     year: vehicle?.year || "",
@@ -251,12 +250,12 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel }) 
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
               <X className="w-4 h-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit">
-              <Save className="w-4 h-4 mr-2" />
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               {vehicle ? 'Update' : 'Create'} Vehicle
             </Button>
           </div>
