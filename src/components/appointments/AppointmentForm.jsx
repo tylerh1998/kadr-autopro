@@ -836,8 +836,22 @@ export default function AppointmentForm({
                     <button type="button" onClick={() => handleDurationClick(480)} className="hover:underline">Full Day (8hrs)</button>
                   </div>
                 </div>
+              </div>
 
-                {/* Reminders Section - Moved up to align with Bay */}
+              {/* Right Column - Notes and Reminders */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Add any notes about this appointment..."
+                    className="resize-none h-[240px]"
+                  />
+                </div>
+
+                {/* Reminders Section */}
                 <div className="space-y-3 border-t pt-4">
                   <Label className="text-base font-semibold">Reminders</Label>
                   
@@ -889,20 +903,6 @@ export default function AppointmentForm({
                       />
                     </div>
                   )}
-                </div>
-              </div>
-
-              {/* Right Column - Notes */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Add any notes about this appointment..."
-                    className="resize-none h-[240px]"
-                  />
                 </div>
               </div>
             </div>
