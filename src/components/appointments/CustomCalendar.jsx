@@ -751,69 +751,69 @@ export default function CustomCalendar({
                       {format(slotTime, 'h:mm a')}
                     </td>
                     {days.map(day => {
-                    const dayKey = day.toISOString();
-                    
-                    // Check if this cell is covered by a previous rowSpan
-                    if (coveredCells[dayKey][timeString]) {
-                      return null;
-                    }
-
-                    const cellSlotTime = parseTimeString(timeString, day);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
-                    const cellEvents = getEventsForCellSlot(day, timeString);
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-
-                    let rowSpan = 1;
-                    let cellContent = null;
-
-                    if (eventsStartingHere.length > 1) {
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
+                      const dayKey = day.toISOString();
                       
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = slotIndex + i;
-                        if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[dayKey][nextTimeString] = true;
-                        }
+                      // Check if this cell is covered by a previous rowSpan
+                      if (coveredCells[dayKey][timeString]) {
+                        return null;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                          colorClass={getBayColorClass(event.bayId)}
-                        />
-                      );
-                    }
 
-                    return (
-                      <td
-                        key={day.toISOString()}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, day)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+                      const cellSlotTime = parseTimeString(timeString, day);
+                      const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
+                      const cellEvents = getEventsForCellSlot(day, timeString);
+                      const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
+
+                      let rowSpan = 1;
+                      let cellContent = null;
+
+                      if (eventsStartingHere.length > 1) {
+                        cellContent = (
+                          <OverlapSummaryCard 
+                            cellEvents={cellEvents} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null);
+                            }}
+                          />
+                        );
+                      } else if (eventsStartingHere.length === 1) {
+                        const event = eventsStartingHere[0];
+                        rowSpan = calculateEventSlotSpan(event);
+                        
+                        for (let i = 1; i < rowSpan; i++) {
+                          const nextSlotIndex = slotIndex + i;
+                          if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
+                            const nextTimeString = timeSlots[nextSlotIndex];
+                            coveredCells[dayKey][nextTimeString] = true;
+                          }
+                        }
+                        
+                        cellContent = (
+                          <SingleAppointmentCard 
+                            event={event}
+                            colorClass={getBayColorClass(event.bayId)}
+                          />
+                        );
+                      }
+
+                      return (
+                        <td
+                          key={day.toISOString()}
+                          rowSpan={rowSpan}
+                          className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, timeString, day)}
+                          onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null)}
+                        >
+                          <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
+                            {cellContent}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
 
             <tr style={{ height: '60px' }}>
               <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">
