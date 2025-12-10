@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2 } from 'lucide-react';
 
-export default function CustomerForm({ customer, onSubmit, onCancel }) {
+export default function CustomerForm({ customer, onSubmit, onCancel, isSubmitting }) {
   const [formData, setFormData] = useState({
     org_name: '',
     first_name: '',
@@ -248,10 +249,11 @@ export default function CustomerForm({ customer, onSubmit, onCancel }) {
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           {customer ? 'Update Customer' : 'Create Customer'}
         </Button>
       </div>
