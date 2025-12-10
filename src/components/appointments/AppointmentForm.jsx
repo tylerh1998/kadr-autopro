@@ -619,24 +619,80 @@ export default function AppointmentForm({
                   </div>
                 </div>
 
-                {/* Bay Selection - Modern Toggle */}
-                <div className="space-y-2">
-                  <Label>Bay *</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {bayOptions.map(bay => (
-                      <button
-                        key={bay}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, bay }))}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                          formData.bay === bay
-                            ? 'bg-slate-900 text-white shadow-md'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        {bay}
-                      </button>
-                    ))}
+                {/* Bay and Reminders - Two Columns */}
+                <div className="grid grid-cols-2 gap-6">
+                  {/* Bay Selection */}
+                  <div className="space-y-2">
+                    <Label>Bay *</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {bayOptions.map(bay => (
+                        <button
+                          key={bay}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, bay }))}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                            formData.bay === bay
+                              ? 'bg-slate-900 text-white shadow-md'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {bay}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reminders Section */}
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Reminders</Label>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="reminders_email"
+                        checked={formData.reminders_email}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_email: checked }))}
+                      />
+                      <Label htmlFor="reminders_email" className="font-normal cursor-pointer">
+                        Send email reminder
+                      </Label>
+                    </div>
+
+                    {formData.reminders_email && (
+                      <div className="space-y-2">
+                        <Label htmlFor="reminder_email">Email Address</Label>
+                        <Input
+                          id="reminder_email"
+                          type="email"
+                          value={formData.reminder_email_address}
+                          onChange={(e) => setFormData(prev => ({ ...prev, reminder_email_address: e.target.value }))}
+                          placeholder="customer@example.com"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-2 opacity-50">
+                      <Checkbox
+                        id="reminders_text"
+                        checked={false}
+                        disabled
+                      />
+                      <Label htmlFor="reminders_text" className="font-normal cursor-not-allowed">
+                        Send text reminder <span className="text-xs text-slate-500 italic">(Coming soon)</span>
+                      </Label>
+                    </div>
+
+                    {(formData.reminders_email || formData.reminders_text) && (
+                      <div className="space-y-2">
+                        <Label htmlFor="reminder_days">Days before appointment</Label>
+                        <Input
+                          id="reminder_days"
+                          type="number"
+                          min="0"
+                          value={formData.reminder_days_before}
+                          onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -683,157 +739,161 @@ export default function AppointmentForm({
                 </div>
 
                 {/* Date and Time */}
-                <div className="space-y-4">
-                  {/* Start Date & Time */}
-                  <div className="space-y-2">
-                    <Label>Start Date & Time *</Label>
-                    <div className="flex gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="flex-1 justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.start_time ? format(new Date(formData.start_time), 'EEE, MMM d, yyyy') : 'Select date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={getDateFromISO(formData.start_time)}
-                            onSelect={(date) => {
-                              if (date) {
-                                const hour = getHourFromISO(formData.start_time) || '8';
-                                const minute = getMinuteFromISO(formData.start_time) || '00';
-                                setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Select
-                        value={getHourFromISO(formData.start_time)}
-                        onValueChange={(hour) => {
-                          const date = getDateFromISO(formData.start_time) || new Date();
-                          const minute = getMinuteFromISO(formData.start_time) || '00';
-                          setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Hr" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
-                            <SelectItem key={hour} value={String(hour)}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={getMinuteFromISO(formData.start_time)}
-                        onValueChange={(minute) => {
-                          const date = getDateFromISO(formData.start_time) || new Date();
-                          const hour = getHourFromISO(formData.start_time) || '8';
-                          setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Min" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {['00', '15', '30', '45'].map(minute => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Start Date & Time */}
+                    <div className="space-y-2">
+                      <Label>Start Date & Time *</Label>
+                      <div className="flex gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="flex-1 justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {formData.start_time ? format(new Date(formData.start_time), 'EEE, MMM d, yyyy') : 'Select date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={getDateFromISO(formData.start_time)}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const hour = getHourFromISO(formData.start_time) || '8';
+                                  const minute = getMinuteFromISO(formData.start_time) || '00';
+                                  setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <Select
+                          value={getHourFromISO(formData.start_time)}
+                          onValueChange={(hour) => {
+                            const date = getDateFromISO(formData.start_time) || new Date();
+                            const minute = getMinuteFromISO(formData.start_time) || '00';
+                            setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-20">
+                            <SelectValue placeholder="Hr" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
+                              <SelectItem key={hour} value={String(hour)}>
+                                {hour}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getMinuteFromISO(formData.start_time)}
+                          onValueChange={(minute) => {
+                            const date = getDateFromISO(formData.start_time) || new Date();
+                            const hour = getHourFromISO(formData.start_time) || '8';
+                            setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-20">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['00', '15', '30', '45'].map(minute => (
+                              <SelectItem key={minute} value={minute}>
+                                {minute}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* End Date & Time */}
+                    <div className="space-y-2">
+                      <Label>End Date & Time *</Label>
+                      <div className="flex gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="flex-1 justify-start text-left font-normal"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {formData.end_time ? format(new Date(formData.end_time), 'EEE, MMM d, yyyy') : 'Select date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={getDateFromISO(formData.end_time)}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const hour = getHourFromISO(formData.end_time) || '17';
+                                  const minute = getMinuteFromISO(formData.end_time) || '00';
+                                  setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <Select
+                          value={getHourFromISO(formData.end_time)}
+                          onValueChange={(hour) => {
+                            const date = getDateFromISO(formData.end_time) || new Date();
+                            const minute = getMinuteFromISO(formData.end_time) || '00';
+                            setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-20">
+                            <SelectValue placeholder="Hr" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
+                              <SelectItem key={hour} value={String(hour)}>
+                                {hour}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getMinuteFromISO(formData.end_time)}
+                          onValueChange={(minute) => {
+                            const date = getDateFromISO(formData.end_time) || new Date();
+                            const hour = getHourFromISO(formData.end_time) || '8';
+                            setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-20">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['00', '15', '30', '45'].map(minute => (
+                              <SelectItem key={minute} value={minute}>
+                                {minute}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-
-                  {/* End Date & Time */}
-                  <div className="space-y-2">
-                    <Label>End Date & Time *</Label>
-                    <div className="flex gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="flex-1 justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.end_time ? format(new Date(formData.end_time), 'EEE, MMM d, yyyy') : 'Select date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={getDateFromISO(formData.end_time)}
-                            onSelect={(date) => {
-                              if (date) {
-                                const hour = getHourFromISO(formData.end_time) || '17';
-                                const minute = getMinuteFromISO(formData.end_time) || '00';
-                                setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Select
-                        value={getHourFromISO(formData.end_time)}
-                        onValueChange={(hour) => {
-                          const date = getDateFromISO(formData.end_time) || new Date();
-                          const minute = getMinuteFromISO(formData.end_time) || '00';
-                          setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Hr" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
-                            <SelectItem key={hour} value={String(hour)}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={getMinuteFromISO(formData.end_time)}
-                        onValueChange={(minute) => {
-                          const date = getDateFromISO(formData.end_time) || new Date();
-                          const hour = getHourFromISO(formData.end_time) || '8';
-                          setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Min" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {['00', '15', '30', '45'].map(minute => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-3 text-sm text-blue-600 mt-2">
-                      <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
-                      <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
-                      <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
-                      <button type="button" onClick={() => handleDurationClick(240)} className="hover:underline">Half Day (4hrs)</button>
-                      <button type="button" onClick={() => handleDurationClick(480)} className="hover:underline">Full Day (8hrs)</button>
-                    </div>
+                  
+                  {/* Duration Presets */}
+                  <div className="flex gap-3 text-sm text-blue-600">
+                    <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
+                    <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
+                    <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
+                    <button type="button" onClick={() => handleDurationClick(240)} className="hover:underline">Half Day (4hrs)</button>
+                    <button type="button" onClick={() => handleDurationClick(480)} className="hover:underline">Full Day (8hrs)</button>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column - Notes and Reminders */}
+              {/* Right Column - Notes */}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
@@ -842,62 +902,8 @@ export default function AppointmentForm({
                     value={formData.notes}
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     placeholder="Add any notes about this appointment..."
-                    className="resize-none h-[380px]"
+                    className="resize-none h-[480px]"
                   />
-                </div>
-
-                {/* Reminders Section */}
-                <div className="space-y-3 border-t pt-4">
-                  <Label className="text-base font-semibold">Reminders</Label>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="reminders_email"
-                      checked={formData.reminders_email}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_email: checked }))}
-                    />
-                    <Label htmlFor="reminders_email" className="font-normal cursor-pointer">
-                      Send email reminder
-                    </Label>
-                  </div>
-
-                  {formData.reminders_email && (
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder_email">Email Address</Label>
-                      <Input
-                        id="reminder_email"
-                        type="email"
-                        value={formData.reminder_email_address}
-                        onChange={(e) => setFormData(prev => ({ ...prev, reminder_email_address: e.target.value }))}
-                        placeholder="customer@example.com"
-                      />
-                    </div>
-                  )}
-
-                  {/* Text reminders disabled - feature planned for post-release */}
-                  <div className="flex items-center space-x-2 opacity-50">
-                    <Checkbox
-                      id="reminders_text"
-                      checked={false}
-                      disabled
-                    />
-                    <Label htmlFor="reminders_text" className="font-normal cursor-not-allowed">
-                      Send text reminder <span className="text-xs text-slate-500 italic">(Coming soon)</span>
-                    </Label>
-                  </div>
-
-                  {(formData.reminders_email || formData.reminders_text) && (
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder_days">Days before appointment</Label>
-                      <Input
-                        id="reminder_days"
-                        type="number"
-                        min="0"
-                        value={formData.reminder_days_before}
-                        onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
