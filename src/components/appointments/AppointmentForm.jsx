@@ -1008,7 +1008,10 @@ export default function AppointmentForm({
       </Dialog>
 
       {/* Add Vehicle Dialog */}
-      <Dialog open={showAddVehicle} onOpenChange={setShowAddVehicle}>
+      <Dialog open={showAddVehicle} onOpenChange={(open) => {
+        setShowAddVehicle(open);
+        // Don't clear customer when closing the dialog
+      }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Add New Vehicle</DialogTitle>

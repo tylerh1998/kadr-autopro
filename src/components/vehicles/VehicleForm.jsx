@@ -106,7 +106,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Car className="w-5 h-5" />
-          {vehicle ? 'Edit Vehicle' : 'New Vehicle'}
+          {vehicle?.id ? 'Edit Vehicle' : 'New Vehicle'}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -256,7 +256,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {vehicle ? 'Update' : 'Create'} Vehicle
+              {vehicle?.id ? 'Update' : 'Create'} Vehicle
             </Button>
           </div>
         </form>
