@@ -719,26 +719,26 @@ export default function CustomCalendar({
               ))}
             </colgroup>
             <thead className="sticky top-0 bg-white z-10">
-            <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
-              {days.map(day => (
-                <th
-                  key={day.toISOString()}
-                  onClick={() => {
-                    setCurrentDate(day);
-                    setView('day');
-                  }}
-                  className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${
-                    isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900 hover:bg-blue-200' : 'text-slate-700'
-                  }`}
-                >
-                  <div>{format(day, 'EEE')}</div>
-                  <div className="text-lg">{format(day, 'd')}</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+              <tr>
+                <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
+                {days.map(day => (
+                  <th
+                    key={day.toISOString()}
+                    onClick={() => {
+                      setCurrentDate(day);
+                      setView('day');
+                    }}
+                    className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${
+                      isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900 hover:bg-blue-200' : 'text-slate-700'
+                    }`}
+                  >
+                    <div>{format(day, 'EEE')}</div>
+                    <div className="text-lg">{format(day, 'd')}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
             {timeSlots.filter(t => {
               const hour = parseInt(t.split(':')[0]);
               return hour < 12;
