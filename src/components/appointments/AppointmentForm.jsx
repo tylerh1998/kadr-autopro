@@ -351,6 +351,14 @@ export default function AppointmentForm({
       }
     }
 
+    // Warn if email reminder is not enabled
+    if (!formData.reminders_email) {
+      const confirmed = window.confirm('This appointment will NOT send an email reminder. Do you want to continue?');
+      if (!confirmed) {
+        return;
+      }
+    }
+
     console.log('Calling onSubmit with formData');
     onSubmit(formData);
   };
