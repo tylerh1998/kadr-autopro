@@ -696,21 +696,7 @@ export default function CustomCalendar({
     });
 
     return (
-      <div className="space-y-4">
-        {/* Bay Legend */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-          <span className="text-xs font-semibold text-slate-600">Bays:</span>
-          <div className="flex items-center gap-3 flex-wrap">
-            {bayOptions.map(bay => (
-              <div key={bay} className="flex items-center gap-1.5">
-                <div className={`w-3 h-3 rounded border-2 ${getBayColorClass(bay)}`}></div>
-                <span className="text-xs text-slate-700">{bay}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
           <table className="w-full border-collapse table-fixed">
             <colgroup>
               <col style={{ width: '80px' }} />
