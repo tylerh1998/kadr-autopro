@@ -739,18 +739,18 @@ export default function CustomCalendar({
               </tr>
             </thead>
             <tbody>
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour < 12;
-            }).map((timeString, slotIndex) => {
-              const slotTime = parseTimeString(timeString, currentDate);
+              {timeSlots.filter(t => {
+                const hour = parseInt(t.split(':')[0]);
+                return hour < 12;
+              }).map((timeString, slotIndex) => {
+                const slotTime = parseTimeString(timeString, currentDate);
 
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
-                  {days.map(day => {
+                return (
+                  <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                    <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
+                      {format(slotTime, 'h:mm a')}
+                    </td>
+                    {days.map(day => {
                     const dayKey = day.toISOString();
                     
                     // Check if this cell is covered by a previous rowSpan
