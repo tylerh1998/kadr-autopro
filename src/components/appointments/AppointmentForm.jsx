@@ -55,6 +55,8 @@ export default function AppointmentForm({
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showSelectWorkOrder, setShowSelectWorkOrder] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
 
   // Bay options with new names
   const bayOptions = ['Floor', 'Main Hoist', 'North Hoist', 'Outside', 'Other'];
@@ -370,6 +372,7 @@ export default function AppointmentForm({
   };
 
   const handleCreateCustomer = async (customerData) => {
+    setIsCreatingCustomer(true);
     try {
       const newCustomer = await Customer.create(customerData);
       
@@ -400,10 +403,13 @@ export default function AppointmentForm({
     } catch (error) {
       console.error('Error creating customer:', error);
       alert('Failed to create customer');
+    } finally {
+      setIsCreatingCustomer(false);
     }
   };
 
   const handleCreateVehicle = async (vehicleData) => {
+    setIsCreatingVehicle(true);
     try {
       const newVehicle = await Vehicle.create(vehicleData);
       
@@ -427,6 +433,8 @@ export default function AppointmentForm({
     } catch (error) {
       console.error('Error creating vehicle:', error);
       alert('Failed to create vehicle');
+    } finally {
+      setIsCreatingVehicle(false);
     }
   };
 
@@ -994,6 +1002,7 @@ export default function AppointmentForm({
           <CustomerForm
             onSubmit={handleCreateCustomer}
             onCancel={() => setShowAddCustomer(false)}
+            isSubmitting={isCreatingCustomer}
           />
         </DialogContent>
       </Dialog>
@@ -1009,6 +1018,7 @@ export default function AppointmentForm({
             vehicle={{ customer_id: formData.customer_id }}
             onSubmit={handleCreateVehicle}
             onCancel={() => setShowAddVehicle(false)}
+            isSubmitting={isCreatingVehicle}
           />
         </DialogContent>
       </Dialog>
