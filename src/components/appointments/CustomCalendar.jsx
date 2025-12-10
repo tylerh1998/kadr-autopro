@@ -713,12 +713,12 @@ export default function CustomCalendar({
         <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
           <table className="w-full border-collapse table-fixed">
             <colgroup>
-            <col style={{ width: '80px' }} />
-            {days.map((day, index) => (
-              <col key={index} style={{ width: columnWidthPercent + '%' }} />
-            ))}
-          </colgroup>
-          <thead className="sticky top-0 bg-white z-10">
+              <col style={{ width: '80px' }} />
+              {days.map((day, index) => (
+                <col key={index} style={{ width: columnWidthPercent + '%' }} />
+              ))}
+            </colgroup>
+            <thead className="sticky top-0 bg-white z-10">
             <tr>
               <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
               {days.map(day => (
