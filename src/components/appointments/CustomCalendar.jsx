@@ -899,8 +899,8 @@ export default function CustomCalendar({
                 </tr>
               );
             })}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
         </div>
       </div>
     );
