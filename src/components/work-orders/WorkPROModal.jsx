@@ -443,6 +443,19 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
     return project.inspection_results[key] || null;
   };
 
+  // Parse inspection comments from JSON string
+  const getInspectionComments = () => {
+    if (!project?.inspection_comments) return {};
+    try {
+      return typeof project.inspection_comments === 'string' 
+        ? JSON.parse(project.inspection_comments) 
+        : project.inspection_comments;
+    } catch (error) {
+      console.error('Error parsing inspection comments:', error);
+      return {};
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -866,46 +879,57 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
                         <h3 className="text-sm font-semibold text-slate-900 mb-3">Inspection Results</h3>
                         
                         <div className="space-y-4">
-                          {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => (
-                            <div key={section.section_name}>
-                              <h4 className="text-xs font-semibold text-slate-700 mb-2">{section.section_name}</h4>
-                              <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                                <table className="w-full text-xs">
-                                  <thead>
-                                    <tr className="bg-slate-100 border-b border-slate-200">
-                                      <th className="text-left p-2 font-medium text-slate-700">Item</th>
-                                      <th className="text-center p-2 font-medium text-slate-700 w-16">Good</th>
-                                      <th className="text-center p-2 font-medium text-slate-700 w-16">Fair</th>
-                                      <th className="text-center p-2 font-medium text-slate-700 w-16">Poor</th>
-                                      <th className="text-center p-2 font-medium text-slate-700 w-16">N/A</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {section.inspection_items.map((item) => {
-                                      const result = getInspectionResult(section.section_name, item);
-                                      return (
-                                        <tr key={item} className="border-b border-slate-100 last:border-0">
-                                          <td className="p-2 text-slate-900">{item}</td>
-                                          <td className="p-2 text-center">
-                                            {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 mx-auto" />}
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
+                          {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => {
+                            const comments = getInspectionComments();
+                            const sectionComment = comments[section.section_name];
+                            
+                            return (
+                              <div key={section.section_name}>
+                                <h4 className="text-xs font-semibold text-slate-700 mb-2">{section.section_name}</h4>
+                                <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="text-left p-2 font-medium text-slate-700">Item</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Good</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Fair</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Poor</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 w-16">N/A</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {section.inspection_items.map((item) => {
+                                        const result = getInspectionResult(section.section_name, item);
+                                        return (
+                                          <tr key={item} className="border-b border-slate-100 last:border-0">
+                                            <td className="p-2 text-slate-900">{item}</td>
+                                            <td className="p-2 text-center">
+                                              {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 mx-auto" />}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                {sectionComment && (
+                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700">
+                                    <span className="font-medium">Comments: </span>
+                                    {sectionComment}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </CardContent>
                     </Card>
