@@ -683,170 +683,161 @@ export default function AppointmentForm({
                 </div>
 
                 {/* Date and Time */}
-                <div className="space-y-4">
-                  {/* Start Date & Time */}
-                  <div className="space-y-2">
-                    <Label>Start Date & Time *</Label>
-                    <div className="flex gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="flex-1 justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.start_time ? format(new Date(formData.start_time), 'EEE, MMM d, yyyy') : 'Select date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={getDateFromISO(formData.start_time)}
-                            onSelect={(date) => {
-                              if (date) {
-                                const hour = getHourFromISO(formData.start_time) || '8';
-                                const minute = getMinuteFromISO(formData.start_time) || '00';
-                                setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Select
-                        value={getHourFromISO(formData.start_time)}
-                        onValueChange={(hour) => {
-                          const date = getDateFromISO(formData.start_time) || new Date();
-                          const minute = getMinuteFromISO(formData.start_time) || '00';
-                          setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Hr" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
-                            <SelectItem key={hour} value={String(hour)}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={getMinuteFromISO(formData.start_time)}
-                        onValueChange={(minute) => {
-                          const date = getDateFromISO(formData.start_time) || new Date();
-                          const hour = getHourFromISO(formData.start_time) || '8';
-                          setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Min" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {['00', '15', '30', '45'].map(minute => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="space-y-3">
+                  {/* Start and End Date/Time on one line */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Start Date & Time */}
+                    <div className="space-y-2">
+                      <Label>Start Date & Time *</Label>
+                      <div className="flex gap-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="flex-1 justify-start text-left font-normal text-xs px-2"
+                            >
+                              <CalendarIcon className="mr-1 h-3 w-3" />
+                              {formData.start_time ? format(new Date(formData.start_time), 'EEE, MMM d') : 'Select'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={getDateFromISO(formData.start_time)}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const hour = getHourFromISO(formData.start_time) || '8';
+                                  const minute = getMinuteFromISO(formData.start_time) || '00';
+                                  setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <Select
+                          value={getHourFromISO(formData.start_time)}
+                          onValueChange={(hour) => {
+                            const date = getDateFromISO(formData.start_time) || new Date();
+                            const minute = getMinuteFromISO(formData.start_time) || '00';
+                            setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-14">
+                            <SelectValue placeholder="Hr" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
+                              <SelectItem key={hour} value={String(hour)}>
+                                {hour}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getMinuteFromISO(formData.start_time)}
+                          onValueChange={(minute) => {
+                            const date = getDateFromISO(formData.start_time) || new Date();
+                            const hour = getHourFromISO(formData.start_time) || '8';
+                            setFormData(prev => ({ ...prev, start_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-14">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['00', '15', '30', '45'].map(minute => (
+                              <SelectItem key={minute} value={minute}>
+                                {minute}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* End Date & Time */}
+                    <div className="space-y-2">
+                      <Label>End Date & Time *</Label>
+                      <div className="flex gap-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="flex-1 justify-start text-left font-normal text-xs px-2"
+                            >
+                              <CalendarIcon className="mr-1 h-3 w-3" />
+                              {formData.end_time ? format(new Date(formData.end_time), 'EEE, MMM d') : 'Select'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={getDateFromISO(formData.end_time)}
+                              onSelect={(date) => {
+                                if (date) {
+                                  const hour = getHourFromISO(formData.end_time) || '17';
+                                  const minute = getMinuteFromISO(formData.end_time) || '00';
+                                  setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <Select
+                          value={getHourFromISO(formData.end_time)}
+                          onValueChange={(hour) => {
+                            const date = getDateFromISO(formData.end_time) || new Date();
+                            const minute = getMinuteFromISO(formData.end_time) || '00';
+                            setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-14">
+                            <SelectValue placeholder="Hr" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
+                              <SelectItem key={hour} value={String(hour)}>
+                                {hour}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getMinuteFromISO(formData.end_time)}
+                          onValueChange={(minute) => {
+                            const date = getDateFromISO(formData.end_time) || new Date();
+                            const hour = getHourFromISO(formData.end_time) || '8';
+                            setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
+                          }}
+                        >
+                          <SelectTrigger className="w-14">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['00', '15', '30', '45'].map(minute => (
+                              <SelectItem key={minute} value={minute}>
+                                {minute}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-
-                  {/* End Date & Time */}
-                  <div className="space-y-2">
-                    <Label>End Date & Time *</Label>
-                    <div className="flex gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="flex-1 justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {formData.end_time ? format(new Date(formData.end_time), 'EEE, MMM d, yyyy') : 'Select date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={getDateFromISO(formData.end_time)}
-                            onSelect={(date) => {
-                              if (date) {
-                                const hour = getHourFromISO(formData.end_time) || '17';
-                                const minute = getMinuteFromISO(formData.end_time) || '00';
-                                setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <Select
-                        value={getHourFromISO(formData.end_time)}
-                        onValueChange={(hour) => {
-                          const date = getDateFromISO(formData.end_time) || new Date();
-                          const minute = getMinuteFromISO(formData.end_time) || '00';
-                          setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Hr" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
-                            <SelectItem key={hour} value={String(hour)}>
-                              {hour}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={getMinuteFromISO(formData.end_time)}
-                        onValueChange={(minute) => {
-                          const date = getDateFromISO(formData.end_time) || new Date();
-                          const hour = getHourFromISO(formData.end_time) || '8';
-                          setFormData(prev => ({ ...prev, end_time: combineDateTime(date, hour, minute) }));
-                        }}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Min" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {['00', '15', '30', '45'].map(minute => (
-                            <SelectItem key={minute} value={minute}>
-                              {minute}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex gap-3 text-sm text-blue-600 mt-2">
-                      <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
-                      <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
-                      <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
-                      <button type="button" onClick={() => handleDurationClick(240)} className="hover:underline">Half Day (4hrs)</button>
-                      <button type="button" onClick={() => handleDurationClick(480)} className="hover:underline">Full Day (8hrs)</button>
-                    </div>
+                  
+                  {/* Duration Links Below */}
+                  <div className="flex gap-3 text-sm text-blue-600">
+                    <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
+                    <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
+                    <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
+                    <button type="button" onClick={() => handleDurationClick(240)} className="hover:underline">Half Day (4hrs)</button>
+                    <button type="button" onClick={() => handleDurationClick(480)} className="hover:underline">Full Day (8hrs)</button>
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column - Notes and Reminders */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Add any notes about this appointment..."
-                    className="resize-none h-[380px]"
-                  />
-                </div>
-
-                {/* Reminders Section */}
+                {/* Reminders Section - Moved up to align with Bay */}
                 <div className="space-y-3 border-t pt-4">
                   <Label className="text-base font-semibold">Reminders</Label>
                   
@@ -898,6 +889,20 @@ export default function AppointmentForm({
                       />
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Right Column - Notes */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Add any notes about this appointment..."
+                    className="resize-none h-[240px]"
+                  />
                 </div>
               </div>
             </div>
