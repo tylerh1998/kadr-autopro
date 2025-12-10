@@ -712,7 +712,7 @@ export default function CustomCalendar({
 
         <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
           <table className="w-full border-collapse table-fixed">
-          <colgroup>
+            <colgroup>
             <col style={{ width: '80px' }} />
             {days.map((day, index) => (
               <col key={index} style={{ width: columnWidthPercent + '%' }} />
