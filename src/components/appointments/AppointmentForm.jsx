@@ -340,7 +340,17 @@ export default function AppointmentForm({
       alert('Status is required');
       return;
     }
-    
+
+    // Validate end time is not before start time
+    if (formData.start_time && formData.end_time) {
+      const startDate = new Date(formData.start_time);
+      const endDate = new Date(formData.end_time);
+      if (endDate <= startDate) {
+        alert('End date/time must be after start date/time');
+        return;
+      }
+    }
+
     console.log('Calling onSubmit with formData');
     onSubmit(formData);
   };
