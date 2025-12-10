@@ -862,7 +862,7 @@ export default function CustomCalendar({
                       cellContent = (
                         <SingleAppointmentCard 
                           event={event}
-                          colorClass={getWeekViewColorForAppointment(event.id, day)}
+                          colorClass={getBayColorClass(event.bayId)}
                         />
                       );
                     }
