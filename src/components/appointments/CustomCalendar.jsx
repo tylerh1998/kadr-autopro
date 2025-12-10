@@ -901,6 +901,7 @@ export default function CustomCalendar({
             })}
           </tbody>
         </table>
+        </div>
       </div>
     );
   };
