@@ -372,12 +372,30 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     try {
       const newCustomer = await Customer.create(customerData);
+      
       // Refresh customer and vehicle data from parent
       if (onDataRefresh) {
         await onDataRefresh();
       }
-      // Now select the customer with fresh data
-      await handleCustomerSelect(newCustomer.id); 
+      
+      // Load vehicles for the new customer
+      try {
+        const allVehicles = await Vehicle.list();
+        const customerVehicles = allVehicles.filter(v => v.customer_id === newCustomer.id);
+        setAvailableVehicles(customerVehicles || []);
+      } catch (error) {
+        console.error('Error loading vehicles:', error);
+        setAvailableVehicles([]);
+      }
+      
+      // Auto-select the new customer
+      setFormData(prev => ({
+        ...prev,
+        customer_id: newCustomer.id,
+        reminder_email_address: newCustomer.email || prev.reminder_email_address,
+        vehicle_id: '',
+      }));
+      
       setShowAddCustomer(false);
     } catch (error) {
       console.error('Error creating customer:', error);
@@ -388,15 +406,22 @@ export default function AppointmentForm({
   const handleCreateVehicle = async (vehicleData) => {
     try {
       const newVehicle = await Vehicle.create(vehicleData);
+      
       // Refresh customer and vehicle data from parent
       if (onDataRefresh) {
         await onDataRefresh();
       }
-      // Refresh available vehicles for the current customer with fresh data
-      const allVehicles = vehicles || await Vehicle.list();
-      const customerVehicles = allVehicles.filter(v => v.customer_id === formData.customer_id);
-      setAvailableVehicles(customerVehicles);
-      // Select the new vehicle
+      
+      // Refresh available vehicles for the current customer
+      try {
+        const allVehicles = await Vehicle.list();
+        const customerVehicles = allVehicles.filter(v => v.customer_id === formData.customer_id);
+        setAvailableVehicles(customerVehicles);
+      } catch (error) {
+        console.error('Error loading vehicles:', error);
+      }
+      
+      // Auto-select the new vehicle
       setFormData(prev => ({ ...prev, vehicle_id: newVehicle.id }));
       setShowAddVehicle(false);
     } catch (error) {
