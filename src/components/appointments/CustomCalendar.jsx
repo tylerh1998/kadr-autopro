@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users } from 'lucide-react';
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, differenceInMinutes, addMinutes } from 'date-fns';
 import CellAppointmentsModal from './CellAppointmentsModal';
+import WorkPROModal from '../work-orders/WorkPROModal';
 
 // Constants for layout
 const SLOT_DURATION_MINUTES = 30;
@@ -36,6 +37,10 @@ export default function CustomCalendar({
   const [showCellAppointmentsModal, setShowCellAppointmentsModal] = useState(false);
   const [selectedCellAppointments, setSelectedCellAppointments] = useState([]);
   const [selectedCellSlotInfo, setSelectedCellSlotInfo] = useState(null);
+
+  // State for WorkPRO Modal
+  const [showWorkPROModal, setShowWorkPROModal] = useState(false);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
 
   // Color palette for week view appointments
   const weekViewColors = [
@@ -274,6 +279,14 @@ export default function CustomCalendar({
   const handleContextOpenWorkOrder = () => {
     if (contextMenu?.event?.workOrder) {
       onOpenWorkOrder(contextMenu.event.workOrder.ro_number);
+      setContextMenu(null);
+    }
+  };
+
+  const handleContextOpenWorkPRO = () => {
+    if (contextMenu?.event?.workOrder) {
+      setSelectedWorkOrder(contextMenu.event.workOrder);
+      setShowWorkPROModal(true);
       setContextMenu(null);
     }
   };
@@ -1349,17 +1362,30 @@ export default function CustomCalendar({
             Move Appointment
           </button>
           {contextMenu.event.workOrder && (
-            <button
-              className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
-              onClick={handleContextOpenWorkOrder}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                <path d="M19.5 6.75A3 3 0 0016.5 3H7.5A3 3 0 004.5 6.75v10.5A3 3 0 007.5 20.25h9A3 3 0 0019.5 17.25V6.75zM17.25 9a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V6.75a.75.75 0 01.75-.75H16.5a.75.75 0 01.75.75V9z" />
-                <path fillRule="evenodd" d="M12 11.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V12a.75.75 0 01.75-.75z" clipRule="evenodd" />
-                <path fillRule="evenodd" d="M13.253 11.854a.75.75 0 00-1.06 0l-.75.75a.75.75 0 101.06 1.06l.75-.75a.75.75 0 000-1.06z" clipRule="evenodd" />
-              </svg>
-              Open Work Order
-            </button>
+            <>
+              <button
+                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={handleContextOpenWorkOrder}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M19.5 6.75A3 3 0 0016.5 3H7.5A3 3 0 004.5 6.75v10.5A3 3 0 007.5 20.25h9A3 3 0 0019.5 17.25V6.75zM17.25 9a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V6.75a.75.75 0 01.75-.75H16.5a.75.75 0 01.75.75V9z" />
+                  <path fillRule="evenodd" d="M12 11.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V12a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M13.253 11.854a.75.75 0 00-1.06 0l-.75.75a.75.75 0 101.06 1.06l.75-.75a.75.75 0 000-1.06z" clipRule="evenodd" />
+                </svg>
+                Open Work Order
+              </button>
+              {contextMenu.event.workOrder.workpro_project_id && (
+                <button
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                  onClick={handleContextOpenWorkPRO}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                  </svg>
+                  WorkPRO Project
+                </button>
+              )}
+            </>
           )}
           <button 
             className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
@@ -1385,6 +1411,15 @@ export default function CustomCalendar({
         getEventStyle={getEventStyle}
         handleAppointmentClick={handleAppointmentClick}
       />
-    </div>
-  );
-}
+
+      <WorkPROModal
+        open={showWorkPROModal}
+        onClose={() => {
+          setShowWorkPROModal(false);
+          setSelectedWorkOrder(null);
+        }}
+        workOrder={selectedWorkOrder}
+      />
+      </div>
+      );
+      }
