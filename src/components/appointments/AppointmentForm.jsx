@@ -649,19 +649,17 @@ export default function AppointmentForm({
                   <div className="flex gap-2">
                     <Button
                       type="button"
-                      variant="outline"
                       onClick={() => handleCreateWorkOrder('estimate')}
                       disabled={!formData.customer_id || !formData.vehicle_id || !!formData.work_order_id}
-                      className="flex-1"
+                      className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
                     >
                       Create Estimate
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
                       onClick={() => handleCreateWorkOrder('work_order')}
                       disabled={!formData.customer_id || !formData.vehicle_id || !!formData.work_order_id}
-                      className="flex-1"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Create Work Order
                     </Button>
