@@ -413,22 +413,18 @@ export default function AppointmentForm({
     try {
       const newVehicle = await Vehicle.create(vehicleData);
       
-      // Refresh customer and vehicle data from parent
-      if (onDataRefresh) {
-        await onDataRefresh();
-      }
-      
-      // Refresh available vehicles for the current customer
+      // Update local available vehicles list
       try {
         const allVehicles = await Vehicle.list();
         const customerVehicles = allVehicles.filter(v => v.customer_id === formData.customer_id);
         setAvailableVehicles(customerVehicles);
+        
+        // Auto-select the new vehicle
+        setFormData(prev => ({ ...prev, vehicle_id: newVehicle.id }));
       } catch (error) {
         console.error('Error loading vehicles:', error);
       }
       
-      // Auto-select the new vehicle
-      setFormData(prev => ({ ...prev, vehicle_id: newVehicle.id }));
       setShowAddVehicle(false);
     } catch (error) {
       console.error('Error creating vehicle:', error);
