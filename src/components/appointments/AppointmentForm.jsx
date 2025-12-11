@@ -419,8 +419,10 @@ export default function AppointmentForm({
         const customerVehicles = allVehicles.filter(v => v.customer_id === formData.customer_id);
         setAvailableVehicles(customerVehicles);
         
-        // Auto-select the new vehicle
-        setFormData(prev => ({ ...prev, vehicle_id: newVehicle.id }));
+        // Auto-select the new vehicle after state update completes
+        setTimeout(() => {
+          setFormData(prev => ({ ...prev, vehicle_id: newVehicle.id }));
+        }, 0);
       } catch (error) {
         console.error('Error loading vehicles:', error);
       }
