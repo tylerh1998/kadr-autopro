@@ -336,7 +336,7 @@ export default function GLJournalPage() {
                   placeholder="Account, description, ref..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-56"
+                  className="pl-10 w-56 bg-white"
                 />
               </div>
             </div>
@@ -348,7 +348,7 @@ export default function GLJournalPage() {
                 value={daysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
                 placeholder="365"
-                className="w-24"
+                className="w-24 bg-white"
               />
             </div>
             <div className="space-y-1">
@@ -358,7 +358,7 @@ export default function GLJournalPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
+                className="w-40 bg-white"
               />
             </div>
             <div className="space-y-1">
@@ -368,7 +368,7 @@ export default function GLJournalPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
+                className="w-40 bg-white"
               />
             </div>
             <Button onClick={handleApplyDateRange} className="bg-blue-600 hover:bg-blue-700" size="sm">
@@ -412,8 +412,8 @@ export default function GLJournalPage() {
                     <th className="text-left p-3 font-semibold text-slate-700">Date</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Account</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -451,13 +451,13 @@ export default function GLJournalPage() {
                           </div>
                         </td>
                         <td className="p-3 text-right">
-                          {tx.credit_amount > 0 && (
-                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
+                          {tx.debit_amount > 0 && (
+                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          {tx.debit_amount > 0 && (
-                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                          {tx.credit_amount > 0 && (
+                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
                           )}
                         </td>
                       </tr>

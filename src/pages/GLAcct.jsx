@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -413,7 +413,7 @@ export default function GLAcctPage() {
                 value={daysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
                 placeholder="365"
-                className="w-24"
+                className="w-24 bg-white"
               />
             </div>
             <div className="space-y-1">
@@ -423,7 +423,7 @@ export default function GLAcctPage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
+                className="w-40 bg-white"
               />
             </div>
             <div className="space-y-1">
@@ -433,7 +433,7 @@ export default function GLAcctPage() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
+                className="w-40 bg-white"
               />
             </div>
             <Button onClick={handleApplyDateRange} className="bg-blue-600 hover:bg-blue-700" size="sm">
@@ -468,8 +468,8 @@ export default function GLAcctPage() {
                   <tr>
                     <th className="text-left p-3 font-semibold text-slate-700">Date</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Balance</th>
                   </tr>
                 </thead>
@@ -497,13 +497,13 @@ export default function GLAcctPage() {
                           </div>
                         </td>
                         <td className="p-3 text-right">
-                          {tx.credit_amount > 0 && (
-                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
+                          {tx.debit_amount > 0 && (
+                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          {tx.debit_amount > 0 && (
-                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                          {tx.credit_amount > 0 && (
+                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
                           )}
                         </td>
                         <td className="p-3 text-right font-semibold text-slate-900">
