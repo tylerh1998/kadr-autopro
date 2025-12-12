@@ -922,6 +922,7 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
           deposited: false,
           gl_posted: false,
           ar_pmt: false, // This is a direct WO payment, not AR-specific
+          advance_pmt: payload.advance_pmt || false, // Mark as advance payment
           invoice_number: workOrder.inv_number || '' // Include invoice number if available
         };
 
