@@ -946,7 +946,8 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
           payment_method: createdPayment.payment_method,
           payment_date: createdPayment.payment_date,
           reference: createdPayment.reference,
-          notes: createdPayment.notes
+          notes: createdPayment.notes,
+          advance_pmt: createdPayment.advance_pmt || false
         };
 
         currentPayments.push(paymentForJson);
