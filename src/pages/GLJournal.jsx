@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BookOpen, Calendar, Printer, Search } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 
@@ -11,6 +12,7 @@ export default function GLJournalPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [accountsMap, setAccountsMap] = useState({});
 
   const urlParams = new URLSearchParams(window.location.search);
   const urlStartDate = urlParams.get('startDate');
@@ -34,6 +36,14 @@ export default function GLJournalPage() {
     try {
       console.log('Loading all GL transactions');
       console.log('Date range:', appliedStartDate, 'to', appliedEndDate);
+      
+      // Fetch chart of accounts for tooltips
+      const accounts = await base44.entities.ChartOfAccount.list();
+      const accountMap = {};
+      accounts.forEach(acc => {
+        accountMap[acc.account_number] = acc.account_name;
+      });
+      setAccountsMap(accountMap);
       
       // Fetch all transactions within date range
       const allTransactions = await base44.entities.GLTransaction.list();
@@ -441,7 +451,18 @@ export default function GLJournalPage() {
                       .map((tx) => (
                       <tr key={tx.id} className="border-b hover:bg-slate-50">
                         <td className="p-3">{formatTransactionDate(tx.transaction_date)}</td>
-                        <td className="p-3 font-medium text-slate-900">{tx.account_number}</td>
+                        <td className="p-3 font-medium text-slate-900">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{tx.account_number}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{accountsMap[tx.account_number] || 'Unknown Account'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </td>
                         <td className="p-3">
                           <div>
                             <span className="font-medium text-slate-900">{tx.description}</span>
