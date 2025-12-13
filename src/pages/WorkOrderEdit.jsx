@@ -888,10 +888,9 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
 
       if (showAlertOnSuccess) {
         alert('Work order saved successfully!');
+        // Only refetch when showing success alert (full save operation)
+        await refetchWorkOrder();
       }
-
-      // Refetch to ensure UI is in sync with database
-      await refetchWorkOrder();
 
     } catch (error) {
       console.error('=== SAVE: Error saving work order:', error);
