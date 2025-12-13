@@ -573,8 +573,7 @@ export default function LineItemsTable({
             {/* Labour Column */}
             <TableCell className="w-24 p-1 align-top"> {/* Width adjusted to outline's suggestion */}
               <Input
-                type="number"
-                step="0.01"
+                type="text"
                 value={line.labour ?? ''}
                 onChange={(e) => handleFieldChange(index, 'labour', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
