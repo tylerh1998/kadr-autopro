@@ -1250,6 +1250,9 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
   const handleCustomerUpdate = async (customerData) => {
     try {
       if (customer) {
+        // Save work order first to preserve any unsaved changes
+        await handleSave({}, false);
+        
         await Customer.update(customer.id, customerData);
         refetchWorkOrder();
         closeModal('editCustomer');
@@ -1264,6 +1267,9 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
   const handleVehicleUpdate = async (vehicleData) => {
     try {
       if (vehicle) {
+        // Save work order first to preserve any unsaved changes
+        await handleSave({}, false);
+        
         await Vehicle.update(vehicle.id, vehicleData);
         refetchWorkOrder();
         closeModal('editVehicle');
