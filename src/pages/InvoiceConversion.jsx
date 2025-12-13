@@ -16,6 +16,7 @@ export default function InvoiceConversion() {
   const [error, setError] = useState(null);
   const [portalUrl, setPortalUrl] = useState('');
   const [accountingSummary, setAccountingSummary] = useState(null);
+  const [wipLegal, setWipLegal] = useState('');
 
   useEffect(() => {
     const convertToInvoice = async () => {
@@ -93,6 +94,7 @@ export default function InvoiceConversion() {
         console.log('Fetching system settings');
         const systemSettingsList = await SystemSettings.list();
         const systemSettings = systemSettingsList && systemSettingsList.length > 0 ? systemSettingsList[0] : {};
+        setWipLegal(systemSettings?.wip_legal || '');
 
         // Parse payments (lineItems already parsed and stored in state)
         console.log('Parsing payments');
@@ -508,6 +510,7 @@ export default function InvoiceConversion() {
           customer={customer}
           vehicle={vehicle}
           lineItems={lineItems}
+          wipLegal={wipLegal}
         />
       )}
     </div>
