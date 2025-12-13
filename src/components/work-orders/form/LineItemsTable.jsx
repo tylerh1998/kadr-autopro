@@ -159,15 +159,15 @@ export default function LineItemsTable({
       if (field !== 'labour') {
           item.labour = hrs * (workOrder?.labor_rate || 120);
       }
-      // Ensure labour is always a number
-      item.labour = parseFloat(item.labour) || 0;
+      // Note: labour is kept as entered (text) to allow decimal input like "10."
 
       // 5. Calculate total for the line item
+      const labour = parseFloat(item.labour) || 0; // Parse labour for calculation
       if (item.is_other_charge) {
           item.total = oc_total; // For other charges, total is just oc_total
       } else {
           // For regular line items, total is sum of parts, labour, and any other charges associated with it
-          item.total = item.tot_parts + item.labour + oc_total;
+          item.total = item.tot_parts + labour + oc_total;
       }
       // --- END RECALCULATION ---
 
