@@ -1254,7 +1254,6 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
         await handleSave({}, false);
         
         await Customer.update(customer.id, customerData);
-        refetchWorkOrder();
         closeModal('editCustomer');
         alert('Customer updated successfully!');
       }
@@ -1271,7 +1270,6 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
         await handleSave({}, false);
         
         await Vehicle.update(vehicle.id, vehicleData);
-        refetchWorkOrder();
         closeModal('editVehicle');
         alert('Vehicle updated successfully!');
       }
