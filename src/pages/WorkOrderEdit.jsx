@@ -436,6 +436,27 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  // Ctrl+N keyboard shortcut for Receive Part
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey && event.key === 'n') {
+        event.preventDefault();
+        if (selectedLineIndex !== null && lineItems[selectedLineIndex]) {
+          const selectedLine = lineItems[selectedLineIndex];
+          if (selectedLine.qty_on_order > 0) {
+            // Trigger receive part modal for selected line
+            // This will be handled by WorkOrderForm which has the modal state
+            console.log('Ctrl+N pressed for line:', selectedLineIndex);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedLineIndex, lineItems]);
+
   // Lock management - Release lock on unmount and window close
   useEffect(() => {
     // Capture values needed for releaseLock that might become null on unmount
