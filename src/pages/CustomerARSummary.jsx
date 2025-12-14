@@ -28,6 +28,7 @@ export default function CustomerARSummaryPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
+  const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(true);
 
   const navigate = useNavigate();
 
@@ -36,7 +37,8 @@ export default function CustomerARSummaryPage() {
     try {
       // Fetch AR summary data from backend
       const response = await base44.functions.invoke('getCustomerARSummary', { 
-        searchTerm 
+        searchTerm,
+        showOnlyWithBalance
       });
 
       if (response.data.success) {
@@ -56,7 +58,7 @@ export default function CustomerARSummaryPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+    }, [searchTerm, showOnlyWithBalance]);
 
   useEffect(() => {
     loadData();
@@ -168,7 +170,22 @@ export default function CustomerARSummaryPage() {
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle>Customer Balances</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <CardTitle>Customer Balances</CardTitle>
+                    <div className="flex items-center gap-2 no-print">
+                      <Checkbox 
+                        id="show-only-balance"
+                        checked={showOnlyWithBalance}
+                        onCheckedChange={setShowOnlyWithBalance}
+                      />
+                      <label 
+                        htmlFor="show-only-balance"
+                        className="text-sm text-slate-600 cursor-pointer"
+                      >
+                        Only display customers with a balance
+                      </label>
+                    </div>
+                  </div>
                   <div className="relative no-print">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <Input

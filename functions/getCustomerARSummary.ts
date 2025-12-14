@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchTerm = '' } = await req.json();
+    const { searchTerm = '', showOnlyWithBalance = true } = await req.json();
 
     // Fetch all necessary data
     const [allCustomers, allPayments, allAdjustments] = await Promise.all([
