@@ -109,17 +109,17 @@ Deno.serve(async (req) => {
         // Company Header
         doc.setFontSize(18);
         doc.setFont(undefined, 'bold');
-        doc.text("Ken's Auto & Diesel Repair", margin, yPosition);
+        doc.text("Ken's Auto & Diesel Repair", pageWidth / 2, yPosition, { align: 'center' });
         yPosition += 6;
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
-        doc.text("5002 49 Ave • PO Box 160", margin, yPosition);
+        doc.text("5002 49 Ave - PO Box 160", pageWidth / 2, yPosition, { align: 'center' });
         yPosition += 5;
-        doc.text("Dewberry, AB T0B 1G0", margin, yPosition);
+        doc.text("Dewberry, AB T0B 1G0", pageWidth / 2, yPosition, { align: 'center' });
         yPosition += 5;
-        doc.text("Phone: 780-847-3002 | Fax: 780-847-3004", margin, yPosition);
+        doc.text("Phone: 780-847-3002 | Fax: 780-847-3004", pageWidth / 2, yPosition, { align: 'center' });
         yPosition += 5;
-        doc.text("Email: Shop@kensauto.ca | Website: www.kensauto.ca", margin, yPosition);
+        doc.text("Email: Shop@kensauto.ca | Website: www.kensauto.ca", pageWidth / 2, yPosition, { align: 'center' });
         yPosition += 15;
 
         // Two-column layout: Customer Info (left) and Payment Summary (right)
@@ -253,7 +253,12 @@ Deno.serve(async (req) => {
                 }
 
                 doc.text(detail.type, margin + 2, yPosition);
-                doc.text(detail.reference, margin + 25, yPosition);
+                
+                // Truncate reference if too long
+                const referenceWidth = 25;
+                const referenceLines = doc.splitTextToSize(detail.reference, referenceWidth);
+                doc.text(referenceLines[0], margin + 25, yPosition);
+                
                 doc.text(format(new Date(detail.date), 'MMM d, yyyy'), margin + 55, yPosition);
                 
                 // Wrap description if too long
