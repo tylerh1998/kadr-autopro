@@ -687,13 +687,15 @@ export default function CustomerARTransactionsPage() {
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            <div className="text-right mr-4">
-              <p className="text-sm text-slate-600">Current Balance</p>
-              <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-red-600' : currentBalance < 0 ? 'text-green-600' : 'text-slate-900'}`}>
-                ${Math.abs(currentBalance).toFixed(2)}
-                {currentBalance < 0 && ' CR'}
-              </p>
-            </div>
+            <Card className="mr-2">
+              <CardContent className="p-4">
+                <p className="text-sm text-slate-600">Current Balance</p>
+                <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-red-600' : currentBalance < 0 ? 'text-green-600' : 'text-slate-900'}`}>
+                  ${Math.abs(currentBalance).toFixed(2)}
+                  {currentBalance < 0 && ' CR'}
+                </p>
+              </CardContent>
+            </Card>
             <Button variant="outline" onClick={() => setShowStatementModal(true)}>
               <Printer className="w-4 h-4 mr-2" />
               Statement
