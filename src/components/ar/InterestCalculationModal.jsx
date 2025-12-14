@@ -1,13 +1,12 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CustomerPayments, CustomerARAdjustment } from '@/entities/all';
-import { differenceInMonths, addDays, format } from 'date-fns';
+import { Customer, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { differenceInDays, differenceInMonths, addDays, format } from 'date-fns';
 import { Calculator, DollarSign, AlertTriangle } from 'lucide-react';
 
 export default function InterestCalculationModal({ open, onClose, customers, onInterestCalculated }) {
@@ -15,6 +14,16 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
   const [interestCalculations, setInterestCalculations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
+
+  // Helper function to format customer name
+  const formatCustomerName = (customer) => {
+    if (!customer) return '';
+    if (customer.org_name) {
+      const contactName = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+      return contactName ? `${customer.org_name} (${contactName})` : customer.org_name;
+    }
+    return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+  };
 
   const calculateInterest = useCallback(async () => {
     setCalculating(true);
@@ -296,7 +305,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                             <TableCell>
                               <div>
                                 <p className="font-medium">
-                                  {calc.customer.first_name} {calc.customer.last_name}
+                                  {formatCustomerName(calc.customer)}
                                 </p>
                                 <p className="text-sm text-slate-500">{calc.customer.phone}</p>
                               </div>
