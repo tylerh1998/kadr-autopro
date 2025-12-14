@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Customer } from "@/entities/all";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, User, Phone, Mail, DollarSign, History, Copy, Pencil, MapPin } from "lucide-react";
+import { Plus, Search, User, Phone, Mail, DollarSign, Edit, History, Copy, FileText, Pencil, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -18,18 +19,29 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
+  const searchInputRef = React.useRef(null);
   
   const navigate = useNavigate();
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    if (!loading && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [loading]);
 
   const loadCustomers = async () => {
     setLoading(true);
     try {
-      const customersData = await Customer.list('-created_date');
-      setCustomers(customersData);
+      const response = await base44.functions.invoke('searchCustomers', { searchTerm });
+      if (response.data.success) {
+        setCustomers(response.data.customers);
+      } else {
+        console.error('Search failed:', response.data.error);
+      }
     } catch (error) {
       console.error('Error loading customers:', error);
     } finally {
@@ -106,17 +118,8 @@ export default function CustomersPage() {
     return fullName || 'No Name';
   };
   
-  const filteredCustomers = customers.filter(customer => {
-    const searchLower = searchTerm.toLowerCase();
-    const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase();
-    const orgName = (customer.org_name || '').toLowerCase();
-    
-    return !searchTerm || 
-      fullName.includes(searchLower) ||
-      orgName.includes(searchLower) ||
-      customer.phone?.toLowerCase().includes(searchLower) ||
-      customer.email?.toLowerCase().includes(searchLower);
-  });
+  // Customers are now filtered by the backend function
+  const filteredCustomers = customers;
 
   return (
     <div className="p-6 min-h-screen">
@@ -161,6 +164,7 @@ export default function CustomersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
+                ref={searchInputRef}
                 placeholder="Search customers by name, organization, phone, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
