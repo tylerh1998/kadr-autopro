@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment, GLTransaction } from '@/entities/all';
+import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment, GLTransaction, FiscalPeriod } from '@/entities/all';
+import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -408,20 +409,73 @@ export default function CustomerARTransactionsPage() {
     if (!adjustmentToDelete) return;
 
     try {
-      // Find and delete associated GL transactions
-      const allGLTransactions = await GLTransaction.filter({
-        source_type: 'adjustment',
-        source_id: adjustmentToDelete.id
-      });
+      // Check fiscal period status
+      const allFiscalPeriods = await FiscalPeriod.list();
+      const periodStatus = checkFiscalPeriodStatus(adjustmentToDelete.adjustment_date, allFiscalPeriods);
+      
+      if (periodStatus === 'closed') {
+        alert('Cannot delete this adjustment as it was created in a closed fiscal period. You can record a new adjustment to reverse it if needed.');
+        return;
+      }
 
-      for (const glTx of allGLTransactions) {
-        await GLTransaction.delete(glTx.id);
+      // Create reversing GL transactions
+      const amount = Math.abs(adjustmentToDelete.amount);
+      const isCharge = adjustmentToDelete.amount > 0;
+      const glDescription = `Reversal: ${adjustmentToDelete.description}`;
+      const reference = `REV-${adjustmentToDelete.reference || adjustmentToDelete.id}`;
+
+      if (isCharge) {
+        // Original was: Debit 1100, Credit gl_account
+        // Reversal: Debit gl_account, Credit 1100
+        await GLTransaction.create({
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          account_number: adjustmentToDelete.gl_account,
+          description: glDescription,
+          debit_amount: amount,
+          credit_amount: 0,
+          reference: reference,
+          source_type: 'adjustment',
+          source_id: adjustmentToDelete.id
+        });
+        await GLTransaction.create({
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          account_number: '1100',
+          description: glDescription,
+          debit_amount: 0,
+          credit_amount: amount,
+          reference: reference,
+          source_type: 'adjustment',
+          source_id: adjustmentToDelete.id
+        });
+      } else {
+        // Original was: Debit gl_account, Credit 1100
+        // Reversal: Debit 1100, Credit gl_account
+        await GLTransaction.create({
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          account_number: '1100',
+          description: glDescription,
+          debit_amount: amount,
+          credit_amount: 0,
+          reference: reference,
+          source_type: 'adjustment',
+          source_id: adjustmentToDelete.id
+        });
+        await GLTransaction.create({
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          account_number: adjustmentToDelete.gl_account,
+          description: glDescription,
+          debit_amount: 0,
+          credit_amount: amount,
+          reference: reference,
+          source_type: 'adjustment',
+          source_id: adjustmentToDelete.id
+        });
       }
 
       // Delete the adjustment
       await CustomerARAdjustment.delete(adjustmentToDelete.id);
 
-      console.log('Adjustment and GL transactions deleted successfully:', adjustmentToDelete.id);
+      console.log('Adjustment deleted with reversing GL transactions:', adjustmentToDelete.id);
 
       setShowDeleteAdjustmentConfirm(false);
       setAdjustmentToDelete(null);
