@@ -176,9 +176,20 @@ export default function CustomerARSummaryPage() {
       const searchLower = searchTerm.toLowerCase();
       const firstName = item.customer?.first_name?.toLowerCase() || '';
       const lastName = item.customer?.last_name?.toLowerCase() || '';
-      return firstName.includes(searchLower) || lastName.includes(searchLower);
+      const orgName = item.customer?.org_name?.toLowerCase() || '';
+      return firstName.includes(searchLower) || lastName.includes(searchLower) || orgName.includes(searchLower);
     });
   }, [arSummaryData, searchTerm]);
+
+  // Helper function to format customer name
+  const formatCustomerName = (customer) => {
+    if (!customer) return '';
+    if (customer.org_name) {
+      const contactName = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+      return contactName ? `${customer.org_name} (${contactName})` : customer.org_name;
+    }
+    return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+  };
 
   // NEW: Calculate totals for the summary
   const totals = useMemo(() => {
@@ -377,7 +388,7 @@ export default function CustomerARSummaryPage() {
                             <ContextMenu key={customer.id} onOpenChange={() => handleContextMenuOpen(customer)}>
                               <ContextMenuTrigger asChild>
                                 <TableRow className="cursor-pointer hover:bg-slate-50" onClick={() => handleRowClick(customer)}>
-                                  <TableCell className="font-medium">{customer.first_name} {customer.last_name}</TableCell>
+                                  <TableCell className="font-medium">{formatCustomerName(customer)}</TableCell>
                                   <TableCell className="text-right">${balance_0_30.toFixed(2)}</TableCell>
                                   <TableCell className="text-right text-yellow-600">${balance_31_60.toFixed(2)}</TableCell>
                                   <TableCell className="text-right text-red-600">${balance_60_plus.toFixed(2)}</TableCell>

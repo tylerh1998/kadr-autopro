@@ -4,6 +4,7 @@ import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment, GLTransact
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
   DollarSign,
@@ -15,7 +16,7 @@ import {
   Calendar as CalendarIcon,
   Trash2, // Added Trash2 icon
 } from 'lucide-react';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, differenceInDays, subDays } from 'date-fns';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -522,6 +523,16 @@ export default function CustomerARTransactionsPage() {
     ).join(' ');
   };
 
+  // Helper function to format customer name
+  const formatCustomerName = (customer) => {
+    if (!customer) return '';
+    if (customer.org_name) {
+      const contactName = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+      return contactName ? `${customer.org_name} (${contactName})` : customer.org_name;
+    }
+    return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -689,7 +700,7 @@ export default function CustomerARTransactionsPage() {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-slate-900">
-                A/R Transactions for {customer ? `${customer.first_name} ${customer.last_name}` : '...'}
+                A/R Transactions for {customer ? formatCustomerName(customer) : '...'}
               </h1>
               <div className="flex items-center gap-4 mt-2">
                 <p className="text-slate-600">{customer.phone}</p>
