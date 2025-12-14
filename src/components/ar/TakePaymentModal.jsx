@@ -55,9 +55,9 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
             }
           });
 
-        // Add positive adjustments (charges)
+        // Add positive adjustments (charges, excluding overpayment adjustments)
         allAdjustments
-          .filter(adj => adj.amount > 0)
+          .filter(adj => adj.amount > 0 && !adj.overpayment)
           .forEach(adj => {
             const balance = adj.amount - (adj.ar_paid || 0);
             if (balance > 0.01) {

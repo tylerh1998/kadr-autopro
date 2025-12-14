@@ -70,9 +70,9 @@ Deno.serve(async (req) => {
         });
       });
 
-    // Add adjustments
+    // Add adjustments (excluding overpayment adjustments from balance calculations)
     allAdjustments.forEach(adj => {
-      if (!adj) return;
+      if (!adj || adj.overpayment) return; // Skip overpayment adjustments
       
       const adjAmount = adj.amount || 0;
       const arPaid = adj.ar_paid || 0;
