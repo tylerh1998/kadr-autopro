@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
 import { Customer, Vehicle, SystemSettings } from "@/entities/all"; // Added SystemSettings
+import { base44 } from "@/api/base44Client";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
 import { format } from "date-fns";
@@ -22,22 +23,28 @@ export default function NewWorkOrderModal({
   const [step, setStep] = useState(1);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [loading, setLoading] = useState(false);
   const searchInputRef = React.useRef(null);
 
   useEffect(() => {
     if (open) {
       const fetchData = async () => {
+        setLoading(true);
         try {
-          const [customersData, vehiclesData] = await Promise.all([
-            Customer.list(),
-            Vehicle.list()
-          ]);
-          setLocalCustomers(customersData || []);
+          const vehiclesData = await Vehicle.list();
           setLocalVehicles(vehiclesData || []);
+          
+          // Load customers using search function
+          const response = await base44.functions.invoke('searchCustomers', { searchTerm: '' });
+          if (response.data.success) {
+            setLocalCustomers(response.data.customers || []);
+          }
         } catch (error) {
           console.error("Failed to fetch customers and vehicles:", error);
           setLocalCustomers([]);
           setLocalVehicles([]);
+        } finally {
+          setLoading(false);
         }
       };
       fetchData();
@@ -51,22 +58,27 @@ export default function NewWorkOrderModal({
     }
   }, [open]);
 
-  const filteredCustomers = (localCustomers || []).filter(customer => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Check org_name first
-    if (customer.org_name && customer.org_name.toLowerCase().includes(searchLower)) {
-      return true;
+  useEffect(() => {
+    if (open && searchTerm !== '') {
+      const searchCustomers = async () => {
+        setLoading(true);
+        try {
+          const response = await base44.functions.invoke('searchCustomers', { searchTerm });
+          if (response.data.success) {
+            setLocalCustomers(response.data.customers || []);
+          }
+        } catch (error) {
+          console.error("Failed to search customers:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      searchCustomers();
     }
-    
-    // Then check first/last name
-    const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase();
+  }, [searchTerm, open]);
 
-    return !searchTerm ||
-      fullName.includes(searchLower) ||
-      customer.phone?.toLowerCase().includes(searchLower) ||
-      customer.email?.toLowerCase().includes(searchLower);
-  });
+  // Customers are now filtered by the backend function
+  const filteredCustomers = localCustomers || [];
 
   const customerVehicles = (localVehicles || []).filter(v => v.customer_id === selectedCustomer?.id);
 
