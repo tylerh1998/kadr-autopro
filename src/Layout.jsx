@@ -360,11 +360,10 @@ const navigationItems = [
     title: "Customers",
     icon: Users,
     defaultUrl: createPageUrl("Customers"),
-    activePaths: ["/Customers", "/EmailLog", "/CustomerHistory", "/CustomerARSummary", "/CustomerARTransactions"],
+    activePaths: ["/Customers", "/EmailLog", "/CustomerARSummary", "/CustomerARTransactions"],
     dropdown: [
       { title: "Create", action: "createCustomer", icon: UserCheck },
       { title: "List", url: createPageUrl("Customers"), icon: List },
-      { title: "History", url: createPageUrl("CustomerHistory"), icon: History },
       { title: "Account Receivables", url: createPageUrl("CustomerARSummary"), icon: Receipt },
       { title: "Email Log", url: createPageUrl("EmailLog"), icon: Mail },
     ]
@@ -373,11 +372,10 @@ const navigationItems = [
     title: "Vehicles",
     icon: Car,
     defaultUrl: createPageUrl("Vehicles"),
-    activePaths: ["/Vehicles", "/VehicleHistory"],
+    activePaths: ["/Vehicles"],
     dropdown: [
       { title: "Add", action: "addVehicle", icon: PlusCircle },
       { title: "List", url: createPageUrl("Vehicles"), icon: List },
-      { title: "History", url: createPageUrl("VehicleHistory"), icon: History },
     ]
   },
   {

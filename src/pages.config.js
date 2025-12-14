@@ -5,10 +5,8 @@ import WorkOrderEdit from './pages/WorkOrderEdit';
 import Customers from './pages/Customers';
 import Setup from './pages/Setup';
 import InventoryList from './pages/InventoryList';
-import CustomerHistory from './pages/CustomerHistory';
 import CustomerARTransactions from './pages/CustomerARTransactions';
 import CustomerARSummary from './pages/CustomerARSummary';
-import VehicleHistory from './pages/VehicleHistory';
 import Suppliers from './pages/Suppliers';
 import APSummary from './pages/APSummary';
 import LinesOfCredit from './pages/LinesOfCredit';
@@ -53,10 +51,8 @@ export const PAGES = {
     "Customers": Customers,
     "Setup": Setup,
     "InventoryList": InventoryList,
-    "CustomerHistory": CustomerHistory,
     "CustomerARTransactions": CustomerARTransactions,
     "CustomerARSummary": CustomerARSummary,
-    "VehicleHistory": VehicleHistory,
     "Suppliers": Suppliers,
     "APSummary": APSummary,
     "LinesOfCredit": LinesOfCredit,
