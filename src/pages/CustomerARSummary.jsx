@@ -14,6 +14,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 
 import TakePaymentModal from '@/components/ar/TakePaymentModal';
 import StatementModal from '@/components/ar/StatementModal';

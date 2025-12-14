@@ -59,8 +59,9 @@ Deno.serve(async (req) => {
       // Net balance
       const total_balance = totalCharges - totalCredits;
       
-      if (total_balance <= 0.01) {
-        continue; // Skip customers with no balance
+      // Skip customers with no balance if filter is enabled
+      if (showOnlyWithBalance && total_balance <= 0.01) {
+        continue;
       }
 
       // Calculate aging - distribute the remaining balance across age buckets
