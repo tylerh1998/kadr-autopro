@@ -165,10 +165,16 @@ Deno.serve(async (req) => {
         doc.setFont(undefined, 'normal');
         yPosition += 6;
         
-        const customerName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+        const customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
         doc.setFontSize(10);
         doc.text(customerName, leftColumnX + 5, yPosition);
         yPosition += 6;
+        
+        if (customer.org_name && (customer.first_name || customer.last_name)) {
+            const contactName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+            doc.text(`Contact: ${contactName}`, leftColumnX + 5, yPosition);
+            yPosition += 6;
+        }
         
         if (customer.address) {
             doc.text(customer.address, leftColumnX + 5, yPosition);
