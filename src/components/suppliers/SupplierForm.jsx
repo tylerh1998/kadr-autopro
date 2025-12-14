@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +30,13 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
     const loadGLAccounts = async () => {
       try {
         const accounts = await ChartOfAccount.list();
-        setGlAccounts(accounts || []);
+        // Sort accounts by account_number (smallest to largest)
+        const sortedAccounts = (accounts || []).sort((a, b) => {
+          const numA = parseInt(a.account_number);
+          const numB = parseInt(b.account_number);
+          return numA - numB;
+        });
+        setGlAccounts(sortedAccounts);
       } catch (error) {
         console.error('Error loading GL accounts:', error);
         setGlAccounts([]);
