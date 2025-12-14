@@ -10,6 +10,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartOfAccount } from '@/entities/all';
+import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
+import { AlertTriangle } from 'lucide-react';
 
 export default function RecordAdjustmentModal({ open, onClose, customer, onRecordAdjustment }) {
   const [adjustmentDate, setAdjustmentDate] = useState(new Date());
@@ -19,12 +21,20 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
   const [description, setDescription] = useState('');
   const [reference, setReference] = useState('');
   const [glAccounts, setGlAccounts] = useState([]);
+  const [periodError, setPeriodError] = useState('');
 
   useEffect(() => {
     if (open) {
       loadGLAccounts();
+      checkPeriodStatus(adjustmentDate);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && adjustmentDate) {
+      checkPeriodStatus(adjustmentDate);
+    }
+  }, [adjustmentDate, open]);
 
   const loadGLAccounts = async () => {
     try {
@@ -36,7 +46,26 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
     }
   };
 
+  const checkPeriodStatus = async (date) => {
+    try {
+      const status = await checkFiscalPeriodStatus(format(date, 'yyyy-MM-dd'));
+      if (!status.isValid) {
+        setPeriodError(status.message);
+      } else {
+        setPeriodError('');
+      }
+    } catch (error) {
+      console.error('Error checking fiscal period:', error);
+      setPeriodError('Error checking fiscal period status.');
+    }
+  };
+
   const handleSubmit = () => {
+    if (periodError) {
+      alert('Cannot record adjustment: ' + periodError);
+      return;
+    }
+
     const adjustmentAmount = parseFloat(amount);
     
     if (isNaN(adjustmentAmount) || adjustmentAmount === 0) {
@@ -84,6 +113,12 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
                 <Calendar mode="single" selected={adjustmentDate} onSelect={setAdjustmentDate} initialFocus />
               </PopoverContent>
             </Popover>
+            {periodError && (
+              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-800">{periodError}</p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -149,7 +184,7 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
         
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={!!periodError}>
             <FileText className="w-4 h-4 mr-2" />
             Record Adjustment
           </Button>
