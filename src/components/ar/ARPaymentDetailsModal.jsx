@@ -86,13 +86,15 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           try {
             const adjustment = await CustomerARAdjustment.get(recordId);
             if (adjustment) {
+              const isOverpayment = adjustment.amount < 0 && adjustment.reference && adjustment.reference.startsWith('OVERPMT');
               details.push({
                 id: recordId,
-                type: adjustment.amount > 0 ? 'Charge' : 'Credit',
+                type: isOverpayment ? 'Overpayment Credit' : (adjustment.amount > 0 ? 'Charge' : 'Credit'),
                 reference: adjustment.reference || '',
                 date: adjustment.adjustment_date,
                 description: adjustment.description || 'Adjustment',
-                amountApplied: amount
+                amountApplied: amount,
+                isOverpayment: isOverpayment
               });
             }
           } catch (e) {
@@ -207,13 +209,16 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                     </TableHeader>
                     <TableBody>
                       {appliedToDetails.map((detail, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{detail.type}</TableCell>
+                        <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
+                          <TableCell className={detail.isOverpayment ? 'font-semibold text-green-700' : ''}>
+                            {detail.type}
+                          </TableCell>
                           <TableCell>{detail.reference}</TableCell>
                           <TableCell>{format(parseISO(detail.date), 'MMM d, yyyy')}</TableCell>
                           <TableCell>{detail.description}</TableCell>
-                          <TableCell className="text-right font-semibold">
+                          <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700' : ''}`}>
                             ${detail.amountApplied.toFixed(2)}
+                            {detail.isOverpayment && <span className="ml-2 text-xs">(Available Credit)</span>}
                           </TableCell>
                         </TableRow>
                       ))}
