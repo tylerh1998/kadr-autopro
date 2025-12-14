@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Supplier, SupplierInvoiceLine, SupplierPayment } from '@/entities/all';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { Supplier, SupplierInvoiceLine, SupplierPayment, ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Loader2, FileText, Calculator, ArrowUp, ArrowDown } from 'lucide-react';
-import { format, subDays, parseISO } from 'date-fns';
+import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Receipt, Printer, Loader2, FileText, Calculator, ArrowUp, ArrowDown } from 'lucide-react';
+import { format, subDays, parseISO, differenceInDays } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
 import {
@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import SupplierForm from "../components/suppliers/SupplierForm";
 import LineEditModal from '../components/suppliers/LineEditModal';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from "@/components/ui/badge";
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
 const GST_RATE = 0.05; // 5% GST
@@ -1546,7 +1547,7 @@ export default function SupplierTxPage() {
                                     type="number"
                                     value={pendingDaysBack}
                                     onChange={(e) => handlePendingDaysBackChange(e.target.value)}
-                                    className="w-20"
+                                    className="w-20 bg-white"
                                     disabled={isLockedByOtherUser || !lockAcquired}
                                 />
                             </div>
@@ -1587,7 +1588,7 @@ export default function SupplierTxPage() {
                                     placeholder="Search invoice #, description, or amount..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-64"
+                                    className="w-64 bg-white"
                                     disabled={isLockedByOtherUser || !lockAcquired}
                                 />
                             </div>
