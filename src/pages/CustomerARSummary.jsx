@@ -115,74 +115,7 @@ export default function CustomerARSummaryPage() {
     }
   };
 
-  // NEW: Fetch and process transaction data for the selected customer (same logic as CustomerARTransactions)
-  const getTransactionDataForStatement = useMemo(() => {
-    if (!selectedCustomer) return [];
 
-    const allCustomerPayments = customerPayments.filter(p => p.customer_id === selectedCustomer.id);
-    const customerAdj = adjustments.filter(adj => adj.customer_id === selectedCustomer.id);
-
-    // Filter payments to only include On Account or those from AR module
-    const payments = allCustomerPayments.filter(p => p.payment_method === 'on_account' || p.ar_pmt);
-
-    const allTransactions = [];
-    
-    payments.forEach(payment => {
-      if (payment.payment_method === 'on_account') {
-        allTransactions.push({
-          id: `payment-${payment.id}`,
-          date: payment.payment_date,
-          type: 'On Account Charge',
-          description: 'Invoice Charged',
-          reference: payment.invoice_number || payment.reference || '',
-          charge: payment.amount || 0,
-          payment: 0,
-          source: 'payment',
-          sourceId: payment.id
-        });
-      } else {
-        allTransactions.push({
-          id: `payment-${payment.id}`,
-          date: payment.payment_date,
-          type: 'Payment',
-          description: payment.notes || `${payment.payment_method.replace('_', ' ')} Payment`,
-          reference: payment.reference || '',
-          charge: 0,
-          payment: payment.amount || 0,
-          source: 'payment',
-          sourceId: payment.id
-        });
-      }
-    });
-    
-    customerAdj.forEach(adjustment => {
-      allTransactions.push({
-        id: `adjustment-${adjustment.id}`,
-        date: adjustment.adjustment_date,
-        type: adjustment.amount > 0 ? 'Charge Adjustment' : 'Credit Adjustment',
-        description: adjustment.description,
-        reference: adjustment.reference || '',
-        charge: adjustment.amount > 0 ? adjustment.amount : 0,
-        payment: adjustment.amount < 0 ? Math.abs(adjustment.amount) : 0,
-        source: 'adjustment',
-        sourceId: adjustment.id
-      });
-    });
-    
-    allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    // Calculate running balances
-    let runningBalance = 0;
-    const transactionsWithBalance = [...allTransactions].reverse().map(transaction => {
-      runningBalance += (transaction.charge - transaction.payment);
-      return {
-        ...transaction,
-        balance: runningBalance
-      };
-    }).reverse();
-
-    return transactionsWithBalance;
-  }, [selectedCustomer, customerPayments, adjustments]);
 
   const handlePrint = () => {
     window.print();
