@@ -44,10 +44,9 @@ import { // Added AlertDialog components
 
 export default function CustomerARTransactionsPage() {
   const [customer, setCustomer] = useState(null);
-  const [allPayments, setAllPayments] = useState([]);
-  const [allAdjustments, setAllAdjustments] = useState([]);
-  const [allWorkOrders, setAllWorkOrders] = useState([]); // New state for work orders
-  const [customers, setCustomers] = useState([]);
+  const [transactionsTabData, setTransactionsTabData] = useState([]);
+  const [paymentsTabData, setPaymentsTabData] = useState([]);
+  const [currentBalance, setCurrentBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
@@ -92,26 +91,31 @@ export default function CustomerARTransactionsPage() {
     
     setLoading(true);
     try {
-      const [customerData, customersData, paymentsData, adjustmentsData, workOrdersData] = await Promise.all([
-        Customer.get(customerId),
-        Customer.list(),
-        CustomerPayments.list(),
-        CustomerARAdjustment.list(),
-        WorkOrder.filter({ customer_id: customerId }) // Fetch work orders for this customer
-      ]);
-
+      const customerData = await Customer.get(customerId);
       setCustomer(customerData);
-      setCustomers(customersData);
-      setAllPayments(paymentsData || []);
-      setAllAdjustments(adjustmentsData || []);
-      setAllWorkOrders(workOrdersData || []); // Set work orders
+
+      // Call backend function to get transactions
+      const response = await base44.functions.invoke('getCustomerARTransactions', {
+        customerId,
+        dateFrom: dateRange.from ? dateRange.from.toISOString() : null,
+        dateTo: dateRange.to ? dateRange.to.toISOString() : null,
+        searchTerm: searchTerm
+      });
+
+      if (response.data.success) {
+        setTransactionsTabData(response.data.transactionsTab);
+        setPaymentsTabData(response.data.paymentsTab);
+        setCurrentBalance(response.data.allTimeBalance);
+      } else {
+        console.error('Failed to load transactions:', response.data.error);
+      }
       
     } catch (error) {
       console.error('Error loading customer AR transactions:', error);
     } finally {
       setLoading(false);
     }
-  }, [customerId]);
+  }, [customerId, dateRange, searchTerm]);
 
   useEffect(() => {
     loadData();
@@ -142,6 +146,7 @@ export default function CustomerARTransactionsPage() {
   const handleApplyDateFilter = () => {
     setDaysBack(pendingDaysBack);
     setDateRange(pendingDateRange);
+    // loadData will be triggered by useEffect watching dateRange
   };
 
   const handleViewInvoice = async (transaction) => {
@@ -150,20 +155,25 @@ export default function CustomerARTransactionsPage() {
 
       // Try to get work order by ID first (most reliable)
       if (transaction.workOrderId) {
-        workOrder = await WorkOrder.get(transaction.workOrderId);
-      } 
-      // Fall back to searching by invoice number
-      else if (transaction.reference && transaction.reference.startsWith('INV')) {
-        const workOrders = await WorkOrder.filter({ inv_number: transaction.reference });
-        if (workOrders && workOrders.length > 0) {
-          workOrder = workOrders[0];
+        try {
+          workOrder = await WorkOrder.get(transaction.workOrderId);
+        } catch (e) {
+          console.log('Work order not found by ID, trying reference');
         }
-      }
-      // Fall back to searching by RO number
-      else if (transaction.reference) {
-        const workOrders = await WorkOrder.filter({ ro_number: transaction.reference });
-        if (workOrders && workOrders.length > 0) {
-          workOrder = workOrders[0];
+      } 
+      
+      // Fall back to searching by reference
+      if (!workOrder && transaction.reference) {
+        if (transaction.reference.startsWith('INV')) {
+          const workOrders = await WorkOrder.filter({ inv_number: transaction.reference });
+          if (workOrders && workOrders.length > 0) {
+            workOrder = workOrders[0];
+          }
+        } else {
+          const workOrders = await WorkOrder.filter({ ro_number: transaction.reference });
+          if (workOrders && workOrders.length > 0) {
+            workOrder = workOrders[0];
+          }
         }
       }
 
@@ -375,170 +385,7 @@ export default function CustomerARTransactionsPage() {
     }
   };
 
-  const transactionsForCustomer = useMemo(() => {
-    if (!customer || !customer.id) return [];
-    
-    const buildTransactionsForCustomer = (customerId) => {
-      const transactions = [];
-
-      // Filter payments and adjustments for this customer - with null safety
-      const customerPayments = (allPayments || []).filter(p => p && p.customer_id === customerId);
-      const customerAdjustments = (allAdjustments || []).filter(a => a && a.customer_id === customerId);
-
-      // Add 'On Account' charges (these create AR balance)
-      customerPayments
-        .filter(payment => payment && payment.payment_method === 'on_account')
-        .forEach(payment => {
-          if (!payment) return;
-          
-          const amount = payment.amount || 0;
-          const arPaid = payment.ar_paid || 0;
-          
-          // Find matching work order for description
-          const workOrder = (allWorkOrders || []).find(wo => wo && wo.id === payment.work_order_id);
-          const description = workOrder?.description || payment.notes || `Invoice ${payment.invoice_number || ''}`;
-          
-          transactions.push({
-            date: payment.payment_date || new Date().toISOString(),
-            type: 'Invoice',
-            description: description,
-            reference: workOrder?.inv_number || payment.invoice_number || workOrder?.ro_number || '',
-            amount: amount,
-            payment: arPaid,
-            balance: amount - arPaid, // Initial balance for this invoice line item
-            source: 'on_account',
-            sourceId: payment.id || 'unknown',
-            workOrderId: workOrder?.id || null,
-            ar_pmt: payment.ar_pmt || false, // Add ar_pmt flag for filtering
-            payment_method: payment.payment_method || ''
-          });
-        });
-
-      // Add actual AR payments (ar_pmt = true, method != on_account)
-      customerPayments
-        .filter(payment => payment && payment.ar_pmt === true && payment.payment_method !== 'on_account')
-        .forEach(payment => {
-          if (!payment) return;
-          
-          transactions.push({
-            date: payment.payment_date || new Date().toISOString(),
-            type: 'Payment',
-            description: payment.notes || `${(payment.payment_method || 'unknown').replace('_', ' ').toUpperCase()} Payment`,
-            reference: payment.reference || '',
-            amount: 0, // A payment reduces AR, not adds to it, so 'charge' amount is 0
-            payment: payment.amount || 0, // This is the amount of payment
-            balance: 0, // Individual payments don't have an "outstanding balance" themselves
-            source: 'payment',
-            sourceId: payment.id || 'unknown',
-            ar_pmt: true,
-            originalPaymentRecord: payment, // Store the original payment object for details modal
-            payment_method: payment.payment_method || ''
-          });
-        });
-
-      // Add adjustments (both charges and credits)
-      customerAdjustments.forEach(adj => {
-        if (!adj) return;
-        
-        const adjAmount = adj.amount || 0;
-        const arPaid = adj.ar_paid || 0; // Amount applied to this adjustment, if any
-        const isCharge = adjAmount > 0;
-        
-        transactions.push({
-          date: adj.adjustment_date || new Date().toISOString(),
-          type: isCharge ? 'Charge' : 'Credit',
-          description: adj.description || 'Adjustment',
-          reference: adj.reference || '',
-          amount: isCharge ? adjAmount : 0, // Charge amount
-          payment: isCharge ? arPaid : Math.abs(adjAmount), // For credits, 'payment' is the absolute value of the credit amount
-          balance: isCharge ? (adjAmount - arPaid) : adjAmount, // For credit, balance is the negative credit amount
-          source: 'adjustment',
-          sourceId: adj.id || 'unknown',
-          ar_pmt: false,
-          payment_method: ''
-        });
-      });
-
-      // Sort by date (handle invalid dates) - oldest first
-      transactions.sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-        return dateA - dateB;
-      });
-
-      return transactions;
-    };
-    
-    return buildTransactionsForCustomer(customer.id);
-  }, [customer, allPayments, allAdjustments, allWorkOrders]);
-
-  const transactionsWithBalance = useMemo(() => {
-    // Each transaction's balance is simply amount - payment (no running balance)
-    // The balance here will reflect the net effect of the transaction on the AR.
-    // For invoices/charges: (amount - amount_paid_on_invoice) -> remaining invoice balance
-    // For AR Payments: 0 - payment_amount -> negative payment amount
-    // For Credits: 0 - credit_amount -> negative credit amount
-    return transactionsForCustomer.map(transaction => {
-      const netEffect = (transaction.amount || 0) - (transaction.payment || 0);
-      return {
-        ...transaction,
-        balance: netEffect
-      };
-    });
-  }, [transactionsForCustomer]);
-
-  const filteredTransactions = useMemo(() => {
-    let filtered = transactionsWithBalance;
-
-    // Apply date filter
-    if (dateRange.from || dateRange.to) {
-      const fromDate = dateRange.from ? new Date(dateRange.from) : null;
-      if (fromDate) fromDate.setHours(0, 0, 0, 0);
-
-      const toDate = dateRange.to ? new Date(dateRange.to) : null;
-      if (toDate) toDate.setHours(23, 59, 59, 999);
-      
-      filtered = filtered.filter(t => {
-          const transactionDate = parseISO(t.date);
-          return (!fromDate || transactionDate >= fromDate) && (!toDate || transactionDate <= toDate);
-      });
-    }
-
-    // Apply search filter
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(t => {
-        const referenceMatch = (t.reference || '').toLowerCase().includes(searchLower);
-        const descriptionMatch = (t.description || '').toLowerCase().includes(searchLower);
-        const amountMatch = (t.amount || 0).toFixed(2).includes(searchLower) || 
-                           (t.payment || 0).toFixed(2).includes(searchLower) ||
-                           (t.balance || 0).toFixed(2).includes(searchLower);
-        return referenceMatch || descriptionMatch || amountMatch;
-      });
-    }
-
-    return filtered;
-  }, [transactionsWithBalance, dateRange, searchTerm]);
-
-  // NEW: Split transactions for the two tabs
-  const transactionsTabData = useMemo(() => {
-    return filteredTransactions.filter(t => {
-      // Transactions tab: show everything where ar_pmt is NOT true
-      return t.ar_pmt !== true;
-    });
-  }, [filteredTransactions]);
-
-  const paymentsTabData = useMemo(() => {
-    return filteredTransactions.filter(t => {
-      // Payments tab: show everything where ar_pmt IS true
-      return t.ar_pmt === true;
-    });
-  }, [filteredTransactions]);
-
-  // Current balance is the sum of all balances from transactions tab only
-  const currentBalance = transactionsTabData.reduce((total, t) => total + (t.balance || 0), 0);
+  // All transaction processing now handled by backend
 
   const formatPaymentMethod = (method) => {
     if (!method) return '';
@@ -841,21 +688,25 @@ export default function CustomerARTransactionsPage() {
         </Card>
       </div>
 
-      <TakePaymentModal
-        open={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        customer={customer}
-        invoices={[]}
-        onTakePayment={handleTakePayment}
-        onPaymentComplete={handlePaymentComplete}
-      />
+      {customer && (
+        <TakePaymentModal
+          open={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          customer={customer}
+          invoices={[]}
+          onTakePayment={handleTakePayment}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
 
-      <RecordAdjustmentModal
-        open={showAdjustmentModal}
-        onClose={() => setShowAdjustmentModal(false)}
-        customer={customer}
-        onRecordAdjustment={handleRecordAdjustment}
-      />
+      {customer && (
+        <RecordAdjustmentModal
+          open={showAdjustmentModal}
+          onClose={() => setShowAdjustmentModal(false)}
+          customer={customer}
+          onRecordAdjustment={handleRecordAdjustment}
+        />
+      )}
 
       {showStatementModal && (
         <StatementModal
