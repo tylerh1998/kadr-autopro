@@ -193,7 +193,12 @@ export default function StatementModal({ open, onClose, customer }) {
             {/* Second Row: Customer Info and Account Summary */}
             <div className="flex justify-between items-start mb-8">
               <div className="w-1/2 pr-4">
-                <h2 className="text-xl font-bold">{customer.first_name} {customer.last_name}</h2>
+                <h2 className="text-xl font-bold">
+                  {customer.org_name || `${customer.first_name} ${customer.last_name}`}
+                </h2>
+                {customer.org_name && (
+                  <p className="text-sm">Contact: {customer.first_name} {customer.last_name}</p>
+                )}
                 <p>{customer.address}</p>
                 <p>{customer.city}, {customer.state} {customer.zip_code}</p>
                 <p>{customer.phone}</p>
