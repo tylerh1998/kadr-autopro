@@ -335,7 +335,8 @@ export default function APSummaryPage() {
               setSelectedSupplier(null);
             }}
             supplier={selectedSupplier}
-            onPaymentMade={handlePaymentMade}
+            invoiceLines={selectedSupplier ? lines.filter(l => l.supplier_id === selectedSupplier.id) : []}
+            onPaymentComplete={handlePaymentMade}
           />
         </div>
       </div>
