@@ -265,7 +265,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           amount: -overpaymentAmount,
           gl_account: '2100',
           description: 'Overpayment',
-          ar_paid: 0
+          ar_paid: 0,
+          overpayment: true
         });
 
         // Create GL entries for overpayment: Debit 1100 (AR), Credit 2100 (Payments in Advance)

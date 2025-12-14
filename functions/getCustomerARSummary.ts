@@ -46,14 +46,20 @@ Deno.serve(async (req) => {
       const onAccountCharges = customerPayments.filter(p => p.payment_method === 'on_account');
       const actualPayments = customerPayments.filter(p => p.ar_pmt && p.payment_method !== 'on_account');
       
-      // Calculate total charges: sum of 'On Account' payments + positive adjustments
+      // Calculate total charges: sum of 'On Account' payments + positive adjustments (excluding overpayment adjustments)
       const totalOnAccountCharges = onAccountCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
-      const totalChargeAdjustments = customerAdj.reduce((sum, adj) => sum + (adj.amount > 0 ? adj.amount : 0), 0);
+      const totalChargeAdjustments = customerAdj.reduce((sum, adj) => {
+        if (adj.overpayment) return sum; // Exclude overpayment adjustments
+        return sum + (adj.amount > 0 ? adj.amount : 0);
+      }, 0);
       const totalCharges = totalOnAccountCharges + totalChargeAdjustments;
       
-      // Calculate total credits: sum of actual AR payments + negative adjustments
+      // Calculate total credits: sum of actual AR payments + negative adjustments (excluding overpayment adjustments)
       const totalActualPayments = actualPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const totalCreditAdjustments = customerAdj.reduce((sum, adj) => sum + (adj.amount < 0 ? Math.abs(adj.amount) : 0), 0);
+      const totalCreditAdjustments = customerAdj.reduce((sum, adj) => {
+        if (adj.overpayment) return sum; // Exclude overpayment adjustments
+        return sum + (adj.amount < 0 ? Math.abs(adj.amount) : 0);
+      }, 0);
       const totalCredits = totalActualPayments + totalCreditAdjustments;
       
       // Net balance
@@ -85,9 +91,9 @@ Deno.serve(async (req) => {
         }
       });
       
-      // Add positive adjustments
+      // Add positive adjustments (excluding overpayment adjustments)
       customerAdj.forEach(adj => {
-        if (adj.amount > 0) {
+        if (adj.amount > 0 && !adj.overpayment) {
           const adjDate = new Date(adj.adjustment_date);
           const daysOld = Math.floor((today.getTime() - adjDate.getTime()) / (1000 * 60 * 60 * 24));
           chargeItems.push({
