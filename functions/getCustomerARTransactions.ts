@@ -70,9 +70,9 @@ Deno.serve(async (req) => {
         });
       });
 
-    // Add adjustments (excluding overpayment adjustments from balance calculations)
+    // Add adjustments (overpayment adjustments display but don't affect balance)
     allAdjustments.forEach(adj => {
-      if (!adj || adj.overpayment) return; // Skip overpayment adjustments
+      if (!adj) return;
       
       const adjAmount = adj.amount || 0;
       const arPaid = adj.ar_paid || 0;
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
         reference: adj.reference || '',
         amount: isCharge ? adjAmount : 0,
         payment: isCharge ? arPaid : Math.abs(adjAmount),
-        balance: isCharge ? (adjAmount - arPaid) : adjAmount,
+        balance: adj.overpayment ? 0 : (isCharge ? (adjAmount - arPaid) : adjAmount),
         source: 'adjustment',
         sourceId: adj.id || 'unknown',
         ar_pmt: false,
