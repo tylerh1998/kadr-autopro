@@ -36,8 +36,11 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     loadCurrentUser();
-    loadSuppliers();
   }, []);
+
+  useEffect(() => {
+    loadSuppliers();
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!loading && searchInputRef.current) {
@@ -57,17 +60,12 @@ export default function SuppliersPage() {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const data = await Supplier.list();
-      // Sort suppliers: pinned first (A-Z), then unpinned (A-Z)
-      const sortedData = data.sort((a, b) => {
-        // First, sort by pin_to_top (true comes before false)
-        if (a.pin_to_top && !b.pin_to_top) return -1;
-        if (!a.pin_to_top && b.pin_to_top) return 1;
-        
-        // Then sort by name alphabetically
-        return (a.name || '').localeCompare(b.name || '');
-      });
-      setSuppliers(sortedData);
+      const response = await base44.functions.invoke('searchSuppliers', { searchTerm });
+      if (response.data.success) {
+        setSuppliers(response.data.suppliers);
+      } else {
+        console.error('Search failed:', response.data.error);
+      }
     } catch (error) {
       console.error('Error loading suppliers:', error);
     } finally {
@@ -121,9 +119,8 @@ export default function SuppliersPage() {
     }
   };
 
-  const filteredSuppliers = suppliers.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Suppliers are now filtered by the backend function
+  const filteredSuppliers = suppliers;
 
   const isLockedByOtherUser = (supplier) => {
     if (!supplier.LockedByUser || !currentUser) return false;
