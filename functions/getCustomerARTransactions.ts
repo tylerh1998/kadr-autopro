@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
         });
       });
 
-    // Add adjustments (overpayment adjustments display but don't affect balance)
+    // Add adjustments (overpayment adjustments show as available credit)
     allAdjustments.forEach(adj => {
       if (!adj) return;
       
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
         reference: adj.reference || '',
         amount: isCharge ? adjAmount : 0,
         payment: isCharge ? arPaid : Math.abs(adjAmount),
-        balance: adj.overpayment ? 0 : (isCharge ? (adjAmount - arPaid) : adjAmount),
+        balance: adj.overpayment ? adjAmount : (isCharge ? (adjAmount - arPaid) : adjAmount),
         source: 'adjustment',
         sourceId: adj.id || 'unknown',
         ar_pmt: false,
