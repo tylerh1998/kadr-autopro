@@ -410,10 +410,9 @@ export default function CustomerARTransactionsPage() {
 
     try {
       // Check fiscal period status
-      const allFiscalPeriods = await FiscalPeriod.list();
-      const periodStatus = checkFiscalPeriodStatus(adjustmentToDelete.adjustment_date, allFiscalPeriods);
+      const periodStatus = await checkFiscalPeriodStatus(adjustmentToDelete.adjustment_date);
       
-      if (periodStatus === 'closed') {
+      if (!periodStatus.isValid) {
         alert('Cannot delete this adjustment as it was created in a closed fiscal period. You can record a new adjustment to reverse it if needed.');
         return;
       }
