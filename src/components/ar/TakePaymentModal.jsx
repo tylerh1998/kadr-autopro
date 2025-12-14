@@ -264,8 +264,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
           amount: -overpaymentAmount,
           gl_account: '2100',
-          description: `Overpayment Credit from Payment ${newPaymentRecord.id.substring(0, 8)}`,
-          reference: `OVERPMT-${newPaymentRecord.id.substring(0, 8)}`,
+          description: 'Overpayment',
           ar_paid: 0
         });
 
@@ -276,7 +275,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
           debit_amount: overpaymentAmount,
           credit_amount: 0,
-          reference: overpaymentAdjustment.reference,
+          reference: '',
           source_type: 'adjustment',
           source_id: overpaymentAdjustment.id
         });
@@ -287,7 +286,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
           debit_amount: 0,
           credit_amount: overpaymentAmount,
-          reference: overpaymentAdjustment.reference,
+          reference: '',
           source_type: 'adjustment',
           source_id: overpaymentAdjustment.id
         });
