@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -232,6 +233,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       }
 
       // Step 4: Apply payment to each charge and build ar_applyto string
+      let totalApplied = 0;
       for (const charge of chargesToPay) {
         const amountToApply = activeTab === 'pay_invoices' ? charge.balance : (charge.amountToApply || charge.balance);
         const newArPaid = (charge.ar_paid || 0) + amountToApply;
@@ -249,8 +251,51 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
         // Add to ar_applyto string
         applyToEntries.push(`${charge.id}:${amountToApply.toFixed(2)}`);
-        
+        totalApplied += amountToApply;
+
         console.log(`Applied $${amountToApply.toFixed(2)} to ${charge.type} ${charge.id}, new ar_paid: ${newArPaid}`);
+      }
+
+      // Step 4b: Handle overpayment - create credit adjustment for unapplied amount
+      const overpaymentAmount = paymentAmount - totalApplied;
+      if (overpaymentAmount > 0.01) {
+        const overpaymentAdjustment = await CustomerARAdjustment.create({
+          customer_id: customer.id,
+          adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
+          amount: -overpaymentAmount,
+          gl_account: '1100',
+          description: `Overpayment Credit from Payment ${newPaymentRecord.id.substring(0, 8)}`,
+          reference: `OVERPMT-${newPaymentRecord.id.substring(0, 8)}`,
+          ar_paid: 0
+        });
+
+        // Create GL entries for overpayment: Debit 1100 (AR), Credit 2050 (Customer Deposits)
+        await GLTransaction.create({
+          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
+          account_number: '1100',
+          description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
+          debit_amount: overpaymentAmount,
+          credit_amount: 0,
+          reference: overpaymentAdjustment.reference,
+          source_type: 'adjustment',
+          source_id: overpaymentAdjustment.id
+        });
+
+        await GLTransaction.create({
+          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
+          account_number: '2050',
+          description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
+          debit_amount: 0,
+          credit_amount: overpaymentAmount,
+          reference: overpaymentAdjustment.reference,
+          source_type: 'adjustment',
+          source_id: overpaymentAdjustment.id
+        });
+
+        // Add overpayment to ar_applyto
+        applyToEntries.push(`${overpaymentAdjustment.id}:${overpaymentAmount.toFixed(2)}`);
+
+        console.log(`Created overpayment credit adjustment: $${overpaymentAmount.toFixed(2)}`);
       }
 
       // Step 5: Update the payment record with ar_applyto
