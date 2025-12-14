@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Search, Phone, Mail, Truck, Lock, FileText, RotateCcw } from 'lucide-react';
+import { Plus, Search, Phone, Mail, Truck, Lock, FileText, RotateCcw, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -133,6 +133,13 @@ export default function SuppliersPage() {
               <p className="text-slate-600 mt-1">Manage your parts and service suppliers</p>
             </div>
             <div className="flex gap-2">
+              <Button
+                onClick={loadSuppliers}
+                variant="outline"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
               <Button
                 onClick={() => navigate(createPageUrl('APSummary'))}
                 variant="outline"
