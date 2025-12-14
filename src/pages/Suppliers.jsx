@@ -199,32 +199,28 @@ export default function SuppliersPage() {
                           <Truck className="w-6 h-6 text-blue-600" />
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold text-slate-900 hover:underline">
-                              {supplier.name}
-                            </h3>
-                            {isLockedByOtherUser(supplier) && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center">
-                                    <Lock className="w-4 h-4 text-yellow-600" />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Locked by: {supplier.LockedByUser}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                          <p className="text-sm text-slate-500">{supplier.contact_person || 'No contact specified'}</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-slate-900 hover:underline">
+                            {supplier.name}
+                          </h3>
+                          {isLockedByOtherUser(supplier) && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center">
+                                  <Lock className="w-4 h-4 text-yellow-600" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Locked by: {supplier.LockedByUser}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
-                      </div>
-                      <div className="space-y-2 text-sm">
+                        </div>
+                        </div>
+                        <div className="space-y-2 text-sm">
                         {supplier.phone && <p className="flex items-center gap-2 text-slate-700"><Phone className="w-4 h-4 text-slate-400" /> {supplier.phone}</p>}
                         {supplier.email && <p className="flex items-center gap-2 text-slate-700"><Mail className="w-4 h-4 text-slate-400" /> {supplier.email}</p>}
-                        <p className="flex items-center gap-2 text-slate-700">
-                          <span className="text-slate-400">GL Account:</span> {supplier.default_gl_account}
-                        </p>
                         <div className="flex gap-2 flex-wrap">
                           {supplier.inventory_supplier && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
