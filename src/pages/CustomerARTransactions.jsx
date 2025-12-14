@@ -59,8 +59,10 @@ export default function CustomerARTransactionsPage() {
   const [pendingDaysBack, setPendingDaysBack] = useState(120);
   const [pendingDateRange, setPendingDateRange] = useState({ from: subDays(new Date(), 120), to: new Date() });
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // New state
-  const [paymentToDelete, setPaymentToDelete] = useState(null); // New state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [showDeleteAdjustmentConfirm, setShowDeleteAdjustmentConfirm] = useState(false);
+  const [adjustmentToDelete, setAdjustmentToDelete] = useState(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -524,13 +526,13 @@ export default function CustomerARTransactionsPage() {
                         </span>
                       </td>
                     )}
-                    {showPaymentDetails && ( // New Actions column for payments tab
+                    {showPaymentDetails && (
                       <td className="p-3 text-center">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
-                            e.stopPropagation(); // Prevent row click from opening details modal
+                            e.stopPropagation();
                             handleDeletePayment(transaction);
                           }}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -542,10 +544,16 @@ export default function CustomerARTransactionsPage() {
                   </tr>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  {transaction.reference && (
+                  {transaction.reference && transaction.source !== 'adjustment' && (
                     <ContextMenuItem onClick={() => handleViewInvoice(transaction)}>
                       <Eye className="w-4 h-4 mr-2" />
                       View {transaction.reference}
+                    </ContextMenuItem>
+                  )}
+                  {transaction.source === 'adjustment' && (
+                    <ContextMenuItem onClick={() => handleDeleteAdjustment(transaction)} className="text-red-600">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Adjustment
                     </ContextMenuItem>
                   )}
                 </ContextMenuContent>
@@ -751,6 +759,33 @@ export default function CustomerARTransactionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
+
+      <AlertDialog open={showDeleteAdjustmentConfirm} onOpenChange={setShowDeleteAdjustmentConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Adjustment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the adjustment and reverse all associated GL transactions. This action cannot be undone.
+              {adjustmentToDelete && (
+                <div className="mt-4 p-3 bg-slate-100 rounded">
+                  <p className="font-semibold">Amount: ${Math.abs(adjustmentToDelete.amount || 0).toFixed(2)}</p>
+                  <p>Date: {format(parseISO(adjustmentToDelete.adjustment_date), 'MMM d, yyyy')}</p>
+                  <p>Description: {adjustmentToDelete.description}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAdjustmentToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteAdjustment}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Adjustment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </div>
+      );
+      }
