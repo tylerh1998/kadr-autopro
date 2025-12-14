@@ -1,29 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { Statement, WorkOrder, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import StatementEmailModal from './StatementEmailModal';
 
-export default function StatementModal({ open, onClose, customer, transactions }) {
+export default function StatementModal({ open, onClose, customer }) {
+  const [transactions, setTransactions] = useState([]);
   const [agedBalances, setAgedBalances] = useState({ current: 0, '30': 0, '60': 0, '90+': 0, total: 0 });
   const [statementPortalId, setStatementPortalId] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const createStatementRecord = async () => {
-      if (open && customer && transactions) {
+      if (open && customer) {
         try {
-          // 1. Fetch all raw data needed for calculations
+          // 1. Fetch all transactions using backend function (no date filters for statement)
+          const transactionsResponse = await base44.functions.invoke('getCustomerARTransactions', {
+            customerId: customer.id,
+            dateFrom: null,
+            dateTo: null,
+            searchTerm: ''
+          });
+
+          if (!transactionsResponse.data.success) {
+            console.error('Failed to load transactions:', transactionsResponse.data.error);
+            return;
+          }
+
+          // Combine both tabs for complete transaction list
+          const allTransactions = [
+            ...transactionsResponse.data.transactionsTab,
+            ...transactionsResponse.data.paymentsTab
+          ];
+          setTransactions(allTransactions);
+
+          // 2. Fetch additional data needed for calculations and cp_id mapping
           const [allWorkOrders, allCustomerPayments, customerAdj] = await Promise.all([
             WorkOrder.filter({ customer_id: customer.id }),
             CustomerPayments.filter({ customer_id: customer.id }),
             CustomerARAdjustment.filter({ customer_id: customer.id })
           ]);
 
-          // 2. Calculate aged balances using logic from AR Summary
+          // 3. Calculate aged balances using logic from AR Summary
           const today = new Date();
           const onAccountCharges = allCustomerPayments.filter(p => p.payment_method === 'on_account');
           const actualPayments = allCustomerPayments.filter(p => p.ar_pmt && p.payment_method !== 'on_account');
@@ -59,7 +81,7 @@ export default function StatementModal({ open, onClose, customer, transactions }
           calculatedAgedBalances.total = calculatedAgedBalances.current + calculatedAgedBalances['30'] + calculatedAgedBalances['60'] + calculatedAgedBalances['90+'];
           setAgedBalances(calculatedAgedBalances);
 
-          // 3. Create a comprehensive work order mapping for cp_id lookup
+          // 4. Create a comprehensive work order mapping for cp_id lookup
           const workOrderMap = {};
           allWorkOrders.forEach(wo => {
             if (wo.inv_number && wo.cp_id) {
@@ -67,7 +89,7 @@ export default function StatementModal({ open, onClose, customer, transactions }
             }
           });
 
-          // 4. Enrich transactions with cp_id for portal linking and filter out fully paid
+          // 5. Enrich transactions with cp_id for portal linking and filter out fully paid
           const enrichedTransactions = transactions
             .map(transaction => {
               if (transaction.type === 'On Account Charge' && transaction.reference) {
@@ -84,7 +106,7 @@ export default function StatementModal({ open, onClose, customer, transactions }
               return Math.abs(roundedBalance) > 0;
             });
 
-          // 5. Create the Statement record
+          // 6. Create the Statement record
           const generateRandomString = (length) => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let result = '';
@@ -113,10 +135,10 @@ export default function StatementModal({ open, onClose, customer, transactions }
       }
     };
     
-    if (open && customer && transactions) {
+    if (open && customer) {
       createStatementRecord();
     }
-  }, [open, customer, transactions]);
+  }, [open, customer]);
   
   const handlePrint = () => {
     const printContents = document.getElementById('statement-print-area').innerHTML;
