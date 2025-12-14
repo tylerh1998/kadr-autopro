@@ -193,7 +193,7 @@ export default function CustomerARSummaryPage() {
                       placeholder="Search Customers..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 w-96"
                     />
                   </div>
                 </div>
