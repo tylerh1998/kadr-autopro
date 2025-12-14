@@ -352,7 +352,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                   <div className="text-xs text-slate-500 space-y-1">
                     <p>• Interest starts accruing 30 days after invoice/transaction date</p>
                     <p>• 24% Annual Percentage Rate, compounded monthly (2% per month)</p>
-                    <p>• Interest will be posted to GL Account 4100</p>
+                    <p>• Interest will be posted to GL Account 4010</p>
                   </div>
                 </>
               )}
