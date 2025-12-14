@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -708,14 +709,11 @@ export default function CustomerARTransactionsPage() {
         />
       )}
 
-      {showStatementModal && (
+      {showStatementModal && customer && (
         <StatementModal
             open={showStatementModal}
             onClose={() => setShowStatementModal(false)}
             customer={customer}
-            // Pass transactions that contribute to the AR balance for the statement
-            // This would typically be transactionsTabData or a similar filtered list
-            transactions={transactionsTabData} 
         />
       )}
 
