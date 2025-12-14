@@ -149,7 +149,7 @@ export default function CustomersPage() {
             <Button 
               onClick={() => {
                 setEditingCustomer(null);
-                setShowForm(true);
+                setShowEditDialog(true);
               }}
               className="bg-blue-600 hover:bg-blue-700"
             >
