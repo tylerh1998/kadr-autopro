@@ -160,6 +160,56 @@ export default function APSummaryPage() {
     }, { balance_0_30: 0, balance_31_60: 0, balance_60_plus: 0, total_balance: 0 });
   }, [summaryData]);
 
+  // Create conceptual invoices for the selected supplier
+  const conceptualInvoicesForSupplier = useMemo(() => {
+    if (!selectedSupplier) return [];
+    
+    const supplierLines = lines.filter(l => l.supplier_id === selectedSupplier.id);
+    const supplierPayments = payments.filter(p => p.supplier_id === selectedSupplier.id);
+    
+    // Group lines by invoice
+    const invoiceMap = {};
+    supplierLines.forEach(line => {
+      const key = `${line.supplier_id}_${line.invoice_number}_${line.invoice_date}`;
+      
+      if (!invoiceMap[key]) {
+        invoiceMap[key] = {
+          supplier_id: line.supplier_id,
+          invoice_number: line.invoice_number,
+          invoice_date: line.invoice_date,
+          lines: [],
+          subtotal: 0,
+          tax_amount: 0,
+          total_amount: 0,
+          amount_paid: 0,
+          balance_due: 0
+        };
+      }
+      
+      invoiceMap[key].lines.push(line);
+      invoiceMap[key].subtotal += parseFloat(line.purchase_amount) || 0;
+      invoiceMap[key].tax_amount += parseFloat(line.gst_amount) || 0;
+      invoiceMap[key].total_amount += (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
+    });
+    
+    // Apply payments
+    supplierPayments.forEach(payment => {
+      const matchingInvoice = Object.values(invoiceMap).find(inv => 
+        inv.invoice_number === payment.invoice_number
+      );
+      
+      if (matchingInvoice) {
+        matchingInvoice.amount_paid += parseFloat(payment.amount) || 0;
+      }
+    });
+    
+    // Calculate balance_due
+    return Object.values(invoiceMap).map(invoice => ({
+      ...invoice,
+      balance_due: invoice.total_amount - invoice.amount_paid
+    }));
+  }, [selectedSupplier, lines, payments]);
+
   const handleApplyDate = () => {
     setAsOfDate(pendingAsOfDate);
   };
@@ -335,7 +385,7 @@ export default function APSummaryPage() {
               setSelectedSupplier(null);
             }}
             supplier={selectedSupplier}
-            invoiceLines={selectedSupplier ? lines.filter(l => l.supplier_id === selectedSupplier.id) : []}
+            invoiceLines={conceptualInvoicesForSupplier}
             onPaymentComplete={handlePaymentMade}
           />
         </div>
