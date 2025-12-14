@@ -150,10 +150,6 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
   const handleEmailReceipt = () => {
     if (!paymentRecord || !paymentRecord.id) return;
-    if (!customerEmail) {
-      alert('No email address found for this customer. Please update the customer record with an email address.');
-      return;
-    }
     setShowEmailModal(true);
   };
 
@@ -241,9 +237,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         <DialogFooter className="flex gap-2">
           <Button
             onClick={handleEmailReceipt}
-            disabled={!paymentRecord || !customerEmail}
+            disabled={!paymentRecord}
             variant="outline"
-            title={!customerEmail ? 'No email address for this customer' : `Send to ${customerEmail}`}
           >
             <Mail className="w-4 h-4 mr-2" />
             Email Receipt
@@ -267,12 +262,12 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           </Button>
         </DialogFooter>
       </DialogContent>
-      {showEmailModal && paymentRecord && customerEmail && (
+      {showEmailModal && paymentRecord && (
         <ARPaymentEmailModal
           open={showEmailModal}
           onClose={() => setShowEmailModal(false)}
           paymentRecord={paymentRecord}
-          customerEmail={customerEmail}
+          customerEmail={customerEmail || ''}
         />
       )}
     </Dialog>
