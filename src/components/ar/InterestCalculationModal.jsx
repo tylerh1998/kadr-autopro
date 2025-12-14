@@ -293,34 +293,38 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {interestCalculations.map((calc) => (
-                          <TableRow key={calc.customer.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={!!selectedCustomers[calc.customer.id]}
-                                onCheckedChange={(checked) => handleCustomerSelect(calc.customer.id, checked)}
-                                className="h-4 w-4"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div>
+                        {interestCalculations.map((calc) => {
+                          const isSelected = !!selectedCustomers[calc.customer.id];
+                          return (
+                            <TableRow 
+                              key={calc.customer.id}
+                              onClick={() => handleCustomerSelect(calc.customer.id, !isSelected)}
+                              className={`cursor-pointer ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                            >
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => handleCustomerSelect(calc.customer.id, checked)}
+                                  className="h-4 w-4"
+                                />
+                              </TableCell>
+                              <TableCell>
                                 <p className="font-medium">
                                   {formatCustomerName(calc.customer)}
                                 </p>
-                                <p className="text-sm text-slate-500">{calc.customer.phone}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              ${calc.currentBalance.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-red-600">
-                              ${calc.totalInterest.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="outline">{calc.interestDetails.length}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                ${calc.currentBalance.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right font-bold text-red-600">
+                                ${calc.totalInterest.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline">{calc.interestDetails.length}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </ScrollArea>
