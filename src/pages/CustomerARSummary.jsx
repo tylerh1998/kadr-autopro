@@ -19,167 +19,49 @@ import StatementModal from '@/components/ar/StatementModal';
 import InterestCalculationModal from '@/components/ar/InterestCalculationModal'; // Added import for InterestCalculationModal
 
 export default function CustomerARSummaryPage() {
-  const [customers, setCustomers] = useState([]);
+  const [arSummaryData, setArSummaryData] = useState([]);
   const [workOrders, setWorkOrders] = useState([]); // Keep for context menu on Statement
-  const [customerPayments, setCustomerPayments] = useState([]);
-  const [adjustments, setAdjustments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
-  const [showInterestModal, setShowInterestModal] = useState(false); // New state for interest modal
+  const [showInterestModal, setShowInterestModal] = useState(false);
 
   const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [customersData, workOrdersData, paymentsData, adjustmentsData] = await Promise.all([
-        Customer.list(),
-        WorkOrder.filter({ stage: 'invoice' }),
-        CustomerPayments.list(),
-        CustomerARAdjustment.list(),
-      ]);
-      
-      setCustomers(customersData);
+      // Fetch AR summary data from backend
+      const response = await base44.functions.invoke('getCustomerARSummary', { 
+        searchTerm 
+      });
+
+      if (response.data.success) {
+        setArSummaryData(response.data.arSummaryData);
+      } else {
+        console.error('Failed to load AR summary:', response.data.error);
+        setArSummaryData([]);
+      }
+
+      // Still need work orders for statement/payment modals
+      const workOrdersData = await WorkOrder.filter({ stage: 'invoice' });
       setWorkOrders(workOrdersData);
-      setCustomerPayments(paymentsData);
-      setAdjustments(adjustmentsData);
 
     } catch (error) {
       console.error('Error loading A/R data:', error);
+      setArSummaryData([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchTerm]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const arSummaryData = useMemo(() => {
-    if (loading) return [];
-
-    const today = new Date();
-    
-    return customers.map(customer => {
-      // Get all payments and adjustments for this customer
-      const allCustomerPayments = customerPayments.filter(p => p.customer_id === customer.id);
-      const customerAdj = adjustments.filter(adj => adj.customer_id === customer.id);
-
-      // Separate payments into charges ('on_account') and actual payments
-      // The logic from CustomerARTransactions shows that only 'on_account' and 'ar_pmt' are relevant for AR.
-      const onAccountCharges = allCustomerPayments.filter(p => p.payment_method === 'on_account');
-      const actualPayments = allCustomerPayments.filter(p => p.ar_pmt && p.payment_method !== 'on_account');
-      
-      // Calculate total charges: sum of 'On Account' payments + positive adjustments
-      const totalOnAccountCharges = onAccountCharges.reduce((sum, charge) => sum + (charge.amount || 0), 0);
-      const totalChargeAdjustments = customerAdj.reduce((sum, adj) => sum + (adj.amount > 0 ? adj.amount : 0), 0);
-      const totalCharges = totalOnAccountCharges + totalChargeAdjustments;
-      
-      // Calculate total credits: sum of actual AR payments + negative adjustments
-      const totalActualPayments = actualPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const totalCreditAdjustments = customerAdj.reduce((sum, adj) => sum + (adj.amount < 0 ? Math.abs(adj.amount) : 0), 0);
-      const totalCredits = totalActualPayments + totalCreditAdjustments;
-      
-      // Net balance
-      const total_balance = totalCharges - totalCredits;
-      
-      if (total_balance <= 0.01) {
-        return {
-          customer: { ...customer },
-          balance_0_30: 0,
-          balance_31_60: 0,
-          balance_60_plus: 0,
-          total_balance: 0,
-        };
-      }
-
-      // Now calculate aging - distribute the remaining balance across age buckets
-      // The charge items should be 'on_account' payments and positive adjustments
-      let balance_0_30 = 0;
-      let balance_31_60 = 0;
-      let balance_60_plus = 0;
-
-      // Create a list of all charge items with their dates
-      const chargeItems = [];
-            
-      // Add on_account charges
-      onAccountCharges.forEach(charge => {
-        if (charge.payment_date) {
-          const chargeDate = new Date(charge.payment_date);
-          const daysOld = differenceInDays(today, chargeDate);
-          chargeItems.push({
-            date: chargeDate,
-            daysOld,
-            amount: charge.amount || 0
-          });
-        }
-      });
-      
-      // Add positive adjustments
-      customerAdj.forEach(adj => {
-        if (adj.amount > 0) {
-            const adjDate = new Date(adj.adjustment_date);
-            const daysOld = differenceInDays(today, adjDate);
-            chargeItems.push({
-                date: adjDate,
-                daysOld,
-                amount: adj.amount || 0
-            });
-        }
-      });
-      
-      // Sort by date (oldest first) to apply payments correctly for aging
-      chargeItems.sort((a, b) => a.date.getTime() - b.date.getTime());
-      
-      // This part is tricky. A simple aging calculation based on charge item dates is needed.
-      // We will distribute the total balance based on the age of the remaining charges.
-      let tempCreditsToApply = totalCredits;
-
-      // Apply credits to oldest charges first
-      for (const charge of chargeItems) {
-        if (tempCreditsToApply > 0) {
-            const paidAmount = Math.min(tempCreditsToApply, charge.amount);
-            charge.amount -= paidAmount; // Reduce the charge's outstanding amount
-            tempCreditsToApply -= paidAmount;
-        }
-      }
-      
-      // Distribute remaining charge amounts across age buckets
-      chargeItems.forEach(item => {
-        if (item.amount <= 0) return; // Only consider remaining positive amounts
-        
-        if (item.daysOld <= 30) {
-          balance_0_30 += item.amount;
-        } else if (item.daysOld <= 60) {
-          balance_31_60 += item.amount;
-        } else {
-          balance_60_plus += item.amount;
-        }
-      });
-
-      return {
-        customer: { ...customer },
-        balance_0_30: balance_0_30,
-        balance_31_60: balance_31_60,
-        balance_60_plus: balance_60_plus,
-        total_balance: total_balance,
-      };
-    }).filter(c => c.total_balance > 0.01);
-
-  }, [customers, customerPayments, adjustments, loading]);
-
-  const filteredData = useMemo(() => {
-    return arSummaryData.filter(item => {
-      const searchLower = searchTerm.toLowerCase();
-      const firstName = item.customer?.first_name?.toLowerCase() || '';
-      const lastName = item.customer?.last_name?.toLowerCase() || '';
-      const orgName = item.customer?.org_name?.toLowerCase() || '';
-      return firstName.includes(searchLower) || lastName.includes(searchLower) || orgName.includes(searchLower);
-    });
-  }, [arSummaryData, searchTerm]);
+  const filteredData = arSummaryData; // Backend already handles filtering by searchTerm
 
   // Helper function to format customer name
   const formatCustomerName = (customer) => {
@@ -191,9 +73,8 @@ export default function CustomerARSummaryPage() {
     return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
   };
 
-  // NEW: Calculate totals for the summary
   const totals = useMemo(() => {
-    return filteredData.reduce((acc, item) => {
+    return arSummaryData.reduce((acc, item) => {
       acc.balance_0_30 += item.balance_0_30;
       acc.balance_31_60 += item.balance_31_60;
       acc.balance_60_plus += item.balance_60_plus;
@@ -205,7 +86,7 @@ export default function CustomerARSummaryPage() {
       balance_60_plus: 0,
       total_balance: 0
     });
-  }, [filteredData]);
+  }, [arSummaryData]);
 
   // handleTakePayment is now simplified, as the modal will handle the payment creation
   // and then call this to refresh the data.
@@ -382,9 +263,9 @@ export default function CustomerARSummaryPage() {
                         <TableRow>
                           <TableCell colSpan={5} className="text-center p-4 text-slate-500">Loading...</TableCell>
                         </TableRow>
-                      ) : filteredData.length > 0 ? (
+                      ) : arSummaryData.length > 0 ? (
                         <>
-                          {filteredData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }) => (
+                            {arSummaryData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }) => (
                             <ContextMenu key={customer.id} onOpenChange={() => handleContextMenuOpen(customer)}>
                               <ContextMenuTrigger asChild>
                                 <TableRow className="cursor-pointer hover:bg-slate-50" onClick={() => handleRowClick(customer)}>
@@ -458,9 +339,9 @@ export default function CustomerARSummaryPage() {
         <InterestCalculationModal
           open={showInterestModal}
           onClose={() => setShowInterestModal(false)}
-          customers={customers}
+          customers={arSummaryData.map(item => item.customer)}
           onInterestCalculated={handleInterestCalculated}
-        />
+          />
       </div>
     </>
   );
