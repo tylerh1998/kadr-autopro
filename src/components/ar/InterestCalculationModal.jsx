@@ -205,7 +205,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
           customer_id: calc.customer.id,
           adjustment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: calc.totalInterest,
-          gl_account: '4100',
+          gl_account: '4010',
           description: `Interest charge - 24% APR (${calc.interestDetails.length} item(s))`,
           reference: `INT-${format(new Date(), 'yyyyMMdd')}-${calc.customer.id.substring(0, 6)}`
         };
@@ -227,7 +227,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
         
         await GLTransaction.create({
           transaction_date: adjustmentData.adjustment_date,
-          account_number: '4100',
+          account_number: '4010',
           description: `Interest - ${formatCustomerName(calc.customer)}`,
           debit_amount: 0,
           credit_amount: calc.totalInterest,
