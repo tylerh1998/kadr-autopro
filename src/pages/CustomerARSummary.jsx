@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -264,7 +265,6 @@ export default function CustomerARSummaryPage() {
               setSelectedCustomer(null);
             }}
             customer={selectedCustomer}
-            transactions={getTransactionDataForStatement}
           />
         )}
 
