@@ -263,13 +263,13 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           customer_id: customer.id,
           adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
           amount: -overpaymentAmount,
-          gl_account: '1100',
+          gl_account: '2100',
           description: `Overpayment Credit from Payment ${newPaymentRecord.id.substring(0, 8)}`,
           reference: `OVERPMT-${newPaymentRecord.id.substring(0, 8)}`,
           ar_paid: 0
         });
 
-        // Create GL entries for overpayment: Debit 1100 (AR), Credit 2050 (Customer Deposits)
+        // Create GL entries for overpayment: Debit 1100 (AR), Credit 2100 (Payments in Advance)
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
           account_number: '1100',
@@ -283,7 +283,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-          account_number: '2050',
+          account_number: '2100',
           description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
           debit_amount: 0,
           credit_amount: overpaymentAmount,
