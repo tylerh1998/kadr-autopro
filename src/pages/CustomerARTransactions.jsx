@@ -388,6 +388,50 @@ export default function CustomerARTransactionsPage() {
     }
   };
 
+  const handleDeleteAdjustment = async (transaction) => {
+    if (transaction.source !== 'adjustment') {
+      alert('This is not an adjustment and cannot be deleted from here.');
+      return;
+    }
+
+    try {
+      const adjustment = await CustomerARAdjustment.get(transaction.sourceId);
+      setAdjustmentToDelete(adjustment);
+      setShowDeleteAdjustmentConfirm(true);
+    } catch (error) {
+      console.error('Error fetching adjustment for deletion:', error);
+      alert('Could not load adjustment details for deletion.');
+    }
+  };
+
+  const confirmDeleteAdjustment = async () => {
+    if (!adjustmentToDelete) return;
+
+    try {
+      // Find and delete associated GL transactions
+      const allGLTransactions = await GLTransaction.filter({
+        source_type: 'adjustment',
+        source_id: adjustmentToDelete.id
+      });
+
+      for (const glTx of allGLTransactions) {
+        await GLTransaction.delete(glTx.id);
+      }
+
+      // Delete the adjustment
+      await CustomerARAdjustment.delete(adjustmentToDelete.id);
+
+      console.log('Adjustment and GL transactions deleted successfully:', adjustmentToDelete.id);
+
+      setShowDeleteAdjustmentConfirm(false);
+      setAdjustmentToDelete(null);
+      await loadData();
+    } catch (error) {
+      console.error('Error deleting adjustment:', error);
+      alert(`Failed to delete adjustment: ${error.message}`);
+    }
+  };
+
   // All transaction processing now handled by backend
 
   const formatPaymentMethod = (method) => {
