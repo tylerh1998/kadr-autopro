@@ -673,7 +673,7 @@ export default function CustomerARTransactionsPage() {
                   {transaction.reference && (
                     <ContextMenuItem onClick={() => handleViewInvoice(transaction)}>
                       <Eye className="w-4 h-4 mr-2" />
-                      View Work Order {transaction.reference}
+                      View {transaction.reference}
                     </ContextMenuItem>
                   )}
                 </ContextMenuContent>
