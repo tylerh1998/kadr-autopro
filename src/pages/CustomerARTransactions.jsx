@@ -161,7 +161,7 @@ export default function CustomerARTransactionsPage() {
 
       if (workOrder && workOrder.ro_number) {
         const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-        window.open(url, '_blank');
+        window.open(url, '_blank', 'width=1600,height=1000');
       } else {
         alert("Could not find the associated work order.");
       }
