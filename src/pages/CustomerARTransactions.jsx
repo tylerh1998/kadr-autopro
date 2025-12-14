@@ -394,7 +394,7 @@ export default function CustomerARTransactionsPage() {
             date: payment.payment_date || new Date().toISOString(),
             type: 'Invoice',
             description: description,
-            reference: payment.invoice_number || workOrder?.ro_number || '',
+            reference: workOrder?.inv_number || payment.invoice_number || workOrder?.ro_number || '',
             amount: amount,
             payment: arPaid,
             balance: amount - arPaid, // Initial balance for this invoice line item
