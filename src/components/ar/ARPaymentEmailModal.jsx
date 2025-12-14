@@ -13,12 +13,12 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && paymentRecord && customerEmail) {
+    if (open && paymentRecord) {
       const paymentDate = format(new Date(paymentRecord.payment_date), 'MMMM d, yyyy');
       const paymentAmount = `$${paymentRecord.amount.toFixed(2)}`;
 
       setEmailData({
-        to: customerEmail,
+        to: customerEmail || '',
         subject: `Payment Receipt - ${paymentAmount} - Ken's Auto`,
         body: `Hello,
 
