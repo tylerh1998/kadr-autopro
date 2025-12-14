@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Customer, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { Customer, CustomerPayments, CustomerARAdjustment, GLTransaction } from '@/entities/all';
 import { differenceInDays, differenceInMonths, addDays, format } from 'date-fns';
 import { Calculator, DollarSign, AlertTriangle } from 'lucide-react';
 
@@ -199,22 +199,42 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
 
     setLoading(true);
     try {
-      const adjustments = [];
-      
+      // Create interest adjustments and GL transactions for each selected customer
       for (const calc of selectedCalculations) {
-        adjustments.push({
+        const adjustmentData = {
           customer_id: calc.customer.id,
           adjustment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: calc.totalInterest,
           gl_account: '4100',
           description: `Interest charge - 24% APR (${calc.interestDetails.length} item(s))`,
-          reference: `INT-${format(new Date(), 'yyyyMMdd')}`
+          reference: `INT-${format(new Date(), 'yyyyMMdd')}-${calc.customer.id.substring(0, 6)}`
+        };
+        
+        // Create the CustomerARAdjustment
+        const adjustment = await CustomerARAdjustment.create(adjustmentData);
+        
+        // Create GL transactions: Debit 1100 (AR), Credit 4100 (Interest Income)
+        await GLTransaction.create({
+          transaction_date: adjustmentData.adjustment_date,
+          account_number: '1100',
+          description: `Interest - ${formatCustomerName(calc.customer)}`,
+          debit_amount: calc.totalInterest,
+          credit_amount: 0,
+          reference: adjustmentData.reference,
+          source_type: 'adjustment',
+          source_id: adjustment.id
         });
-      }
-
-      // Create all interest adjustments
-      for (const adjustment of adjustments) {
-        await CustomerARAdjustment.create(adjustment);
+        
+        await GLTransaction.create({
+          transaction_date: adjustmentData.adjustment_date,
+          account_number: '4100',
+          description: `Interest - ${formatCustomerName(calc.customer)}`,
+          debit_amount: 0,
+          credit_amount: calc.totalInterest,
+          reference: adjustmentData.reference,
+          source_type: 'adjustment',
+          source_id: adjustment.id
+        });
       }
 
       alert(`Successfully applied interest charges to ${selectedCalculations.length} customer(s).`);
