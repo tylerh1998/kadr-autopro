@@ -106,50 +106,21 @@ Deno.serve(async (req) => {
         const margin = 20;
         let yPosition = 20;
 
-        // Company Header Image
-        let imageLoaded = false;
-        try {
-            const companyImageUrl = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/b49b16d53_KensAutoDieselRepair1.jpg';
-            const imageResponse = await fetch(companyImageUrl);
-            
-            if (imageResponse.ok) {
-                const imageBuffer = await imageResponse.arrayBuffer();
-                const bytes = new Uint8Array(imageBuffer);
-                
-                // Convert to base64 using a loop to avoid call stack issues
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                const base64Image = btoa(binary);
-                
-                // Add image
-                doc.addImage(`data:image/jpeg;base64,${base64Image}`, 'JPEG', margin, yPosition, 170, 30);
-                yPosition += 40;
-                imageLoaded = true;
-                console.log('Company image loaded successfully');
-            }
-        } catch (error) {
-            console.error('Error loading company image:', error);
-        }
-
-        // Fallback to text if image didn't load
-        if (!imageLoaded) {
-            doc.setFontSize(18);
-            doc.setFont(undefined, 'bold');
-            doc.text("Ken's Auto & Diesel Repair", margin, yPosition);
-            yPosition += 6;
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text("5002 49 Ave • PO Box 160", margin, yPosition);
-            yPosition += 5;
-            doc.text("Dewberry, AB T0B 1G0", margin, yPosition);
-            yPosition += 5;
-            doc.text("Phone: 780-847-3002 | Fax: 780-847-3004", margin, yPosition);
-            yPosition += 5;
-            doc.text("Email: Shop@kensauto.ca | Website: www.kensauto.ca", margin, yPosition);
-            yPosition += 15;
-        }
+        // Company Header
+        doc.setFontSize(18);
+        doc.setFont(undefined, 'bold');
+        doc.text("Ken's Auto & Diesel Repair", margin, yPosition);
+        yPosition += 6;
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text("5002 49 Ave • PO Box 160", margin, yPosition);
+        yPosition += 5;
+        doc.text("Dewberry, AB T0B 1G0", margin, yPosition);
+        yPosition += 5;
+        doc.text("Phone: 780-847-3002 | Fax: 780-847-3004", margin, yPosition);
+        yPosition += 5;
+        doc.text("Email: Shop@kensauto.ca | Website: www.kensauto.ca", margin, yPosition);
+        yPosition += 15;
 
         // Two-column layout: Customer Info (left) and Payment Summary (right)
         const columnStartY = yPosition;
