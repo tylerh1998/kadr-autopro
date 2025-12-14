@@ -56,6 +56,9 @@ export default function CustomerARTransactionsPage() {
   const [selectedPaymentForDetails, setSelectedPaymentForDetails] = useState(null);
   const [daysBack, setDaysBack] = useState(120);
   const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 120), to: new Date() });
+  const [pendingDaysBack, setPendingDaysBack] = useState(120);
+  const [pendingDateRange, setPendingDateRange] = useState({ from: subDays(new Date(), 120), to: new Date() });
+  const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // New state
   const [paymentToDelete, setPaymentToDelete] = useState(null); // New state
 
@@ -117,23 +120,28 @@ export default function CustomerARTransactionsPage() {
   const handleDaysBackChange = (days) => {
     const numDays = parseInt(days, 10);
     if (!isNaN(numDays) && numDays >= 0) {
-        setDaysBack(numDays);
-        setDateRange({ from: subDays(new Date(), numDays), to: new Date() });
+        setPendingDaysBack(numDays);
+        setPendingDateRange({ from: subDays(new Date(), numDays), to: new Date() });
     } else if (days === '') {
-        setDaysBack('');
+        setPendingDaysBack('');
     }
   };
 
   const handleDateRangeChange = (range) => {
     if (range?.from) {
-      setDateRange(range);
+      setPendingDateRange(range);
       if (range.from && range.to) {
-        setDaysBack('');
+        setPendingDaysBack('');
       }
     } else {
-      setDateRange({ from: undefined, to: undefined });
-      setDaysBack(120);
+      setPendingDateRange({ from: undefined, to: undefined });
+      setPendingDaysBack(120);
     }
+  };
+
+  const handleApplyDateFilter = () => {
+    setDaysBack(pendingDaysBack);
+    setDateRange(pendingDateRange);
   };
 
   const handleViewInvoice = async (transaction) => {
@@ -482,21 +490,37 @@ export default function CustomerARTransactionsPage() {
   }, [transactionsForCustomer]);
 
   const filteredTransactions = useMemo(() => {
-    if (!dateRange.from && !dateRange.to) {
-        return transactionsWithBalance;
-    }
-    
-    const fromDate = dateRange.from ? new Date(dateRange.from) : null;
-    if (fromDate) fromDate.setHours(0, 0, 0, 0);
+    let filtered = transactionsWithBalance;
 
-    const toDate = dateRange.to ? new Date(dateRange.to) : null;
-    if (toDate) toDate.setHours(23, 59, 59, 999);
-    
-    return transactionsWithBalance.filter(t => {
-        const transactionDate = parseISO(t.date);
-        return (!fromDate || transactionDate >= fromDate) && (!toDate || transactionDate <= toDate);
-    });
-  }, [transactionsWithBalance, dateRange]);
+    // Apply date filter
+    if (dateRange.from || dateRange.to) {
+      const fromDate = dateRange.from ? new Date(dateRange.from) : null;
+      if (fromDate) fromDate.setHours(0, 0, 0, 0);
+
+      const toDate = dateRange.to ? new Date(dateRange.to) : null;
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      
+      filtered = filtered.filter(t => {
+          const transactionDate = parseISO(t.date);
+          return (!fromDate || transactionDate >= fromDate) && (!toDate || transactionDate <= toDate);
+      });
+    }
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(t => {
+        const referenceMatch = (t.reference || '').toLowerCase().includes(searchLower);
+        const descriptionMatch = (t.description || '').toLowerCase().includes(searchLower);
+        const amountMatch = (t.amount || 0).toFixed(2).includes(searchLower) || 
+                           (t.payment || 0).toFixed(2).includes(searchLower) ||
+                           (t.balance || 0).toFixed(2).includes(searchLower);
+        return referenceMatch || descriptionMatch || amountMatch;
+      });
+    }
+
+    return filtered;
+  }, [transactionsWithBalance, dateRange, searchTerm]);
 
   // NEW: Split transactions for the two tabs
   const transactionsTabData = useMemo(() => {
@@ -739,7 +763,7 @@ export default function CustomerARTransactionsPage() {
               <Input
                 id="days-back"
                 type="number"
-                value={daysBack}
+                value={pendingDaysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
                 className="w-24"
               />
@@ -753,14 +777,14 @@ export default function CustomerARTransactionsPage() {
                     className="w-[280px] justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange.from ? (
-                      dateRange.to ? (
+                    {pendingDateRange.from ? (
+                      pendingDateRange.to ? (
                         <>
-                          {format(dateRange.from, "LLL dd, y")} -{" "}
-                          {format(dateRange.to, "LLL dd, y")}
+                          {format(pendingDateRange.from, "LLL dd, y")} -{" "}
+                          {format(pendingDateRange.to, "LLL dd, y")}
                         </>
                       ) : (
-                        format(dateRange.from, "LLL dd, y")
+                        format(pendingDateRange.from, "LLL dd, y")
                       )
                     ) : (
                       <span>Pick a date</span>
@@ -771,13 +795,25 @@ export default function CustomerARTransactionsPage() {
                   <Calendar
                     initialFocus
                     mode="range"
-                    defaultMonth={dateRange.from || new Date()}
-                    selected={dateRange}
+                    defaultMonth={pendingDateRange.from || new Date()}
+                    selected={pendingDateRange}
                     onSelect={handleDateRangeChange}
                     numberOfMonths={2}
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+            <Button onClick={handleApplyDateFilter}>Apply</Button>
+            <div className="flex items-center gap-2 flex-1">
+              <Label htmlFor="search">Search</Label>
+              <Input
+                id="search"
+                type="text"
+                placeholder="Search by reference, description, or amount..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1"
+              />
             </div>
           </CardContent>
         </Card>
