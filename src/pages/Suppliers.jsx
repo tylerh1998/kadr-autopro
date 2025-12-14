@@ -32,11 +32,18 @@ export default function SuppliersPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [editingSupplier, setEditingSupplier] = useState(null);
   const navigate = useNavigate();
+  const searchInputRef = React.useRef(null);
 
   useEffect(() => {
     loadCurrentUser();
     loadSuppliers();
   }, []);
+
+  useEffect(() => {
+    if (!loading && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [loading]);
 
   const loadCurrentUser = async () => {
     try {
@@ -176,6 +183,7 @@ export default function SuppliersPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
+                  ref={searchInputRef}
                   placeholder="Search suppliers by name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
