@@ -19,16 +19,19 @@ import {
   Plus,
   ArrowUp,
   ArrowDown,
-  ArrowLeftRight // Added ArrowLeftRight icon
+  ArrowLeftRight,
+  Unlock,
+  Lock
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import BankAccountEditModal from '../components/bank/BankAccountEditModal';
 import BankTransactionModal from '../components/bank/BankTransactionModal';
 import DepositDetailsModal from '../components/bank/DepositDetailsModal';
 import ReconciliationHistoryModal from '../components/bank/ReconciliationHistoryModal';
-import BankTransferModal from '../components/bank/BankTransferModal'; // Added BankTransferModal import
+import BankTransferModal from '../components/bank/BankTransferModal';
 import { useNavigate, Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
+import { checkBankAccountLock } from '../components/utils/mountainTimeUtils';
 
 // Helper function to parse YYYY-MM-DD date strings
 const parseLocalDate = (dateString) => {
@@ -56,9 +59,24 @@ export default function BankPage() {
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false); // Added showTransferModal state
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [flushingLocks, setFlushingLocks] = useState(false);
 
   const navigate = useNavigate();
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // New function to load all initial data, including balance recalculation
   const loadData = useCallback(async () => {
@@ -165,6 +183,11 @@ export default function BankPage() {
 
   const selectedAccount = bankAccounts.find(acc => acc.id === selectedAccountId);
 
+  // Check if selected account is locked
+  const accountLockStatus = useMemo(() => {
+    if (!selectedAccount || !currentUser) return { isLocked: false };
+    return checkBankAccountLock(selectedAccount, currentUser.email);
+  }, [selectedAccount, currentUser]);
 
 
 
@@ -251,6 +274,28 @@ export default function BankPage() {
       alert('Failed to refresh balance. Please try again.');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleFlushLocks = async () => {
+    if (!confirm('Are you sure you want to flush all bank account locks? This will allow all users to access any bank account.')) {
+      return;
+    }
+
+    setFlushingLocks(true);
+    try {
+      const response = await base44.functions.invoke('flushBankLocks');
+      const result = response.data || response;
+      
+      alert(result.message || 'Locks flushed successfully!');
+      
+      // Reload bank accounts to reflect unlocked status
+      await loadBankAccounts();
+    } catch (error) {
+      console.error('Error flushing locks:', error);
+      alert('Failed to flush locks. Please try again.');
+    } finally {
+      setFlushingLocks(false);
     }
   };
 
@@ -446,11 +491,33 @@ export default function BankPage() {
     setShowDepositModal(true);
   };
 
-  const handleReconcile = () => {
-    if (selectedAccountId) {
-      navigate(`${createPageUrl('Reconcile')}?bank_account_id=${selectedAccountId}`);
-    } else {
+  const handleReconcile = async () => {
+    if (!selectedAccountId || !currentUser) {
       alert('Please select a bank account to reconcile.');
+      return;
+    }
+
+    try {
+      // Fetch the latest account data
+      const account = await BankAccount.get(selectedAccountId);
+      const lockStatus = checkBankAccountLock(account, currentUser.email);
+
+      if (lockStatus.isLocked) {
+        alert(`This bank account is currently locked by ${lockStatus.lockedByUser}. Please try again later.`);
+        return;
+      }
+
+      // Acquire lock
+      await BankAccount.update(selectedAccountId, {
+        locked_by_user: currentUser.email,
+        locked_timestamp: new Date().toISOString()
+      });
+
+      // Navigate to reconcile page
+      navigate(`${createPageUrl('Reconcile')}?bank_account_id=${selectedAccountId}`);
+    } catch (error) {
+      console.error('Error acquiring lock for reconcile:', error);
+      alert('Failed to lock bank account. Please try again.');
     }
   };
 
@@ -550,7 +617,15 @@ export default function BankPage() {
               <h1 className="text-3xl font-bold text-slate-900">Bank Accounts</h1>
               <p className="text-slate-600 mt-1">Manage bank transactions and reconciliation</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <Button 
+                variant="outline"
+                onClick={handleFlushLocks}
+                disabled={flushingLocks}
+              >
+                <Unlock className="w-4 h-4 mr-2" />
+                {flushingLocks ? 'Flushing...' : 'Flush Locks'}
+              </Button>
               <Button 
                 variant="outline"
                 onClick={() => setShowHistoryModal(true)}
@@ -562,7 +637,7 @@ export default function BankPage() {
               <Button
                 onClick={handleReconcile}
                 className="bg-green-600 hover:bg-green-700"
-                disabled={!selectedAccountId}
+                disabled={!selectedAccountId || accountLockStatus.isLocked}
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 Reconcile
@@ -577,6 +652,19 @@ export default function BankPage() {
               </Button>
             </div>
           </div>
+
+          {/* Lock Status Indicator */}
+          {accountLockStatus.isLocked && selectedAccount && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3 no-print">
+              <Lock className="w-5 h-5 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-900">Account Locked</p>
+                <p className="text-sm text-amber-700">
+                  This bank account is currently being edited by {accountLockStatus.lockedByUser}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Controls */}
           <Card className="no-print">
@@ -704,13 +792,13 @@ export default function BankPage() {
                     <Landmark className="w-5 h-5" />
                     Bank Transactions ({transactions.length})
                   </CardTitle>
-                  <div className="flex items-center gap-2"> {/* Grouping buttons */}
+                  <div className="flex items-center gap-2">
                     <Button 
                       onClick={() => setShowTransferModal(true)} 
                       size="sm" 
                       variant="outline"
                       className="bg-white"
-                      disabled={!selectedAccountId || bankAccounts.length < 2} // Disable if less than 2 accounts
+                      disabled={!selectedAccountId || bankAccounts.length < 2}
                     >
                       <ArrowLeftRight className="w-4 h-4 mr-2" />
                       Transfer Funds
@@ -849,8 +937,10 @@ export default function BankPage() {
           setEditingTransaction(null);
         }}
         bankAccountId={selectedAccountId}
+        bankAccount={selectedAccount}
         transaction={editingTransaction}
         onSubmit={handleSaveTransaction}
+        currentUser={currentUser}
       />
 
       <DepositDetailsModal
@@ -873,6 +963,7 @@ export default function BankPage() {
         onClose={() => setShowTransferModal(false)}
         bankAccounts={bankAccounts}
         onSubmit={handleTransfer}
+        currentUser={currentUser}
       />
     </>
   );
