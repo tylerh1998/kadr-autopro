@@ -165,33 +165,7 @@ export default function BankPage() {
 
   const selectedAccount = bankAccounts.find(acc => acc.id === selectedAccountId);
 
-  // Calculate running balances on the frontend for display
-  const transactionsWithBalance = useMemo(() => {
-    // We need the starting balance of the account for accurate running balance calculation.
-    // However, the `transactions` array itself doesn't contain it.
-    // If we assume `transactions` are always from the beginning of time for this display,
-    // or if the `balance` field on each transaction is the running balance *after* that transaction,
-    // then the original logic might be intended differently.
-    // Given the previous `tx.balance || 0`, it seems the `balance` property was expected on the transaction itself.
-    // Let's assume for now that if we start from a filtered set, we can't reliably get an accurate historical running balance.
-    // If the backend `calculateBankBalances` is correct, `selectedAccount?.current_balance` is the true current balance.
-    // The `transactionsWithBalance` will calculate a running balance *within the displayed date range*.
-    // For a true running balance, we'd need all transactions up to the start date.
-    // For now, I will calculate running balance based on the transactions *currently loaded and displayed*.
-    // The previous implementation for `balance` column also used `tx.balance || 0`.
-    // To match the original intent of a "running balance" within the visible transactions:
-    let runningBalance = 0; // This will start from 0 or an initial balance if provided.
-    // If we need the actual historical running balance, we'd need to fetch transactions
-    // from the account's inception up to `toDate` and then filter for display.
-    // For this change, I will calculate running balance for the *displayed* transactions.
-    return transactions.map(tx => {
-      runningBalance += (tx.credit_amount || 0) - (tx.debit_amount || 0);
-      return {
-        ...tx,
-        calculatedBalance: runningBalance
-      };
-    });
-  }, [transactions]);
+
 
 
   const handleApply = () => {
@@ -757,7 +731,6 @@ export default function BankPage() {
                         <th className="text-left p-3 font-semibold text-slate-700">Description</th>
                         <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
                         <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Balance</th>
                         <th className="text-center p-3 font-semibold text-slate-700">Cleared</th>
                       </tr>
                     </thead>
@@ -769,12 +742,11 @@ export default function BankPage() {
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-8"></div></td>
                           </tr>
                         ))
-                      ) : transactionsWithBalance.length > 0 ? (
-                        transactionsWithBalance.map((tx, index) => (
+                      ) : transactions.length > 0 ? (
+                        transactions.map((tx, index) => (
                           <tr key={tx.id} className="border-b hover:bg-slate-50">
                             <td className="p-3">{format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}</td>
                             <td className="p-3">
@@ -809,9 +781,6 @@ export default function BankPage() {
                                 </button>
                               )}
                             </td>
-                            <td className="p-3 text-right font-semibold text-slate-900">
-                              ${tx.calculatedBalance.toFixed(2)}
-                            </td>
                             <td className="p-3 text-center">
                               {tx.cleared ? (
                                 <Badge className="bg-green-100 text-green-800">Cleared</Badge>
@@ -823,7 +792,7 @@ export default function BankPage() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="6" className="p-12 text-center">
+                          <td colSpan="5" className="p-12 text-center">
                             <div className="text-slate-400 mb-4">
                               <Landmark className="w-12 h-12 mx-auto" />
                             </div>

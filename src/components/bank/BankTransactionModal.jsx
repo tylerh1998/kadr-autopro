@@ -25,7 +25,6 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, tra
     gl_account: ''
   });
 
-  const [calculatedBalance, setCalculatedBalance] = useState(0);
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
 
   useEffect(() => {
@@ -78,53 +77,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, tra
     }
   };
 
-  // Calculate balance whenever amounts or date change
-  useEffect(() => {
-    const calculateBalance = async () => {
-      if (!bankAccountId || !formData.transaction_date) {
-        setCalculatedBalance(0); // Reset if necessary data is missing
-        return;
-      }
 
-      try {
-        // Get all transactions for this bank account up to (but not including) this transaction date
-        const allTransactions = await BankTransaction.filter(
-          { bank_account_id: bankAccountId },
-          'transaction_date'
-        );
-
-        // Filter transactions before this date
-        const transactionsBeforeThis = allTransactions.filter(tx => {
-          // Exclude the current transaction being edited
-          if (transaction && tx.id === transaction.id) return false;
-          return new Date(tx.transaction_date) < new Date(formData.transaction_date);
-        });
-
-        // Sort by date to ensure proper order
-        transactionsBeforeThis.sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
-
-        // Calculate the balance up to this point
-        let runningBalance = 0;
-        for (const tx of transactionsBeforeThis) {
-          runningBalance += (parseFloat(tx.credit_amount) || 0) - (parseFloat(tx.debit_amount) || 0);
-        }
-
-        // Add the current transaction's amounts
-        const creditAmount = parseFloat(formData.credit_amount) || 0;
-        const debitAmount = parseFloat(formData.debit_amount) || 0;
-        const newBalance = runningBalance + creditAmount - debitAmount;
-
-        setCalculatedBalance(newBalance);
-      } catch (error) {
-        console.error('Error calculating balance:', error);
-        setCalculatedBalance(0); // Reset on error
-      }
-    };
-
-    if (open && bankAccountId) {
-      calculateBalance();
-    }
-  }, [formData.transaction_date, formData.credit_amount, formData.debit_amount, bankAccountId, open, transaction]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -201,7 +154,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, tra
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="debit_amount" className="text-red-600">Debit Amount</Label>
               <Input
@@ -228,17 +181,6 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, tra
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="balance">Expected Balance</Label>
-              <Input
-                id="balance"
-                type="number"
-                step="0.01"
-                value={calculatedBalance.toFixed(2)}
-                readOnly
-                className="bg-slate-100"
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
