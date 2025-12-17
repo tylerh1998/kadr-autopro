@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryItem, Supplier, SalesClass, TagAlong } from '@/entities/all';
+import { InventoryItem, Supplier, SalesClass, TagAlong, InventoryLocation } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, Trash2, Loader2, Lock } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
@@ -125,6 +126,7 @@ export default function InventoryAddPage() {
     const [salesClasses, setSalesClasses] = useState([]);
     const [inventoryItems, setInventoryItems] = useState([]);
     const [tagAlongs, setTagAlongs] = useState([]);
+    const [inventoryLocations, setInventoryLocations] = useState([]);
     const [selectedSupplier, setSelectedSupplier] = useState('');
     const [supplierLockStatus, setSupplierLockStatus] = useState({ checking: false, locked: false, lockedBy: null });
     const [addToBatchError, setAddToBatchError] = useState('');
@@ -156,16 +158,18 @@ export default function InventoryAddPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [suppliersData, salesClassesData, inventoryData, tagAlongsData] = await Promise.all([
+                const [suppliersData, salesClassesData, inventoryData, tagAlongsData, locationsData] = await Promise.all([
                     Supplier.filter({ inventory_supplier: true }, 'name'),
                     SalesClass.list(),
                     InventoryItem.list(),
-                    TagAlong.list()
+                    TagAlong.list(),
+                    InventoryLocation.list()
                 ]);
                 setSuppliers(suppliersData);
                 setSalesClasses(salesClassesData);
                 setInventoryItems(inventoryData);
                 setTagAlongs(tagAlongsData);
+                setInventoryLocations(locationsData);
             } catch (error) {
                 console.error('Error loading data:', error);
             }
@@ -864,11 +868,22 @@ export default function InventoryAddPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="location">Location (Optional)</Label>
-                                    <Input
-                                        id="location"
+                                    <Select
                                         value={currentItem.location}
-                                        onChange={(e) => handleItemFieldChange('location', e.target.value)}
-                                    />
+                                        onValueChange={(val) => handleItemFieldChange('location', val === 'none' ? '' : val)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select location..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            {inventoryLocations.map(loc => (
+                                                <SelectItem key={loc.id} value={loc.location_name}>
+                                                    {loc.location_name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         )}
