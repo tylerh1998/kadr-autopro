@@ -130,9 +130,9 @@ export default function APSummaryPage() {
       };
     });
 
-    // 4. Aggregate by supplier
+    // 4. Aggregate by supplier (include credits)
     const supplierSummary = suppliers.map(supplier => {
-      const supplierInvoices = invoiceOwings.filter(inv => inv.supplier_id === supplier.id && inv.owing > 0.01);
+      const supplierInvoices = invoiceOwings.filter(inv => inv.supplier_id === supplier.id && Math.abs(inv.owing) > 0.01);
       
       let balance_0_30 = 0;
       let balance_31_60 = 0;
