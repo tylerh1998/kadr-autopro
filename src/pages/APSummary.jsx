@@ -1,27 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Supplier, SupplierInvoiceLine, SupplierPayment, BankAccount, LinesOfCredit } from '@/entities/all';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Supplier } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Printer, Calendar as CalendarIcon, DollarSign, FileText } from 'lucide-react';
-import { format, subMonths, endOfMonth, differenceInDays, parseISO, isValid } from 'date-fns';
+import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils'; // Corrected import
+import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
 
 export default function APSummaryPage() {
   const [suppliers, setSuppliers] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [supplierInvoicesMap, setSupplierInvoicesMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [asOfDate, setAsOfDate] = useState(() => {
     // Default to last day of previous month
@@ -44,14 +38,42 @@ export default function APSummaryPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [suppliersData, linesData, paymentsData] = await Promise.all([
-          Supplier.list(),
-          SupplierInvoiceLine.list(),
-          SupplierPayment.list(),
-        ]);
+        const suppliersData = await Supplier.list();
         setSuppliers(suppliersData);
-        setLines(linesData);
-        setPayments(paymentsData);
+
+        // Fetch all supplier transactions in parallel
+        const allSupplierData = await Promise.all(
+          suppliersData.map(async (supplier) => {
+            try {
+              const response = await base44.functions.invoke('getSupplierTransactions', {
+                supplierId: supplier.id,
+                dateRange: {
+                  from: new Date(0).toISOString(), // Beginning of time
+                  to: new Date().toISOString() // Today
+                }
+              });
+
+              if (response.data.success) {
+                return {
+                  supplierId: supplier.id,
+                  allConceptualInvoices: response.data.data.allConceptualInvoices || []
+                };
+              }
+              return { supplierId: supplier.id, allConceptualInvoices: [] };
+            } catch (error) {
+              console.error(`Error loading data for supplier ${supplier.name}:`, error);
+              return { supplierId: supplier.id, allConceptualInvoices: [] };
+            }
+          })
+        );
+
+        // Build map of supplier ID to their conceptual invoices
+        const invoicesMap = new Map();
+        allSupplierData.forEach(data => {
+          invoicesMap.set(data.supplierId, data.allConceptualInvoices);
+        });
+        setSupplierInvoicesMap(invoicesMap);
+
       } catch (error) {
         console.error('Error loading AP data:', error);
       } finally {
@@ -62,90 +84,34 @@ export default function APSummaryPage() {
   }, []);
 
   const summaryData = useMemo(() => {
-    if (loading || !suppliers.length) return [];
+    if (loading || !suppliers.length || supplierInvoicesMap.size === 0) return [];
     
-    // 1. Group lines by (supplier_id, invoice_number, invoice_date) to create conceptual invoices
-    const invoiceMap = {};
-    
-    lines.forEach(line => {
-      const key = `${line.supplier_id}_${line.invoice_number}_${line.invoice_date}`;
-      
-      if (!invoiceMap[key]) {
-        invoiceMap[key] = {
-          supplier_id: line.supplier_id,
-          invoice_number: line.invoice_number,
-          invoice_date: line.invoice_date,
-          lines: [],
-          total_amount: 0,
-          amount_paid: 0,
-          owing: 0
-        };
-      }
-      
-      // Add line to invoice
-      invoiceMap[key].lines.push(line);
-      
-      // Calculate total (purchase_amount + gst_amount)
-      invoiceMap[key].total_amount += (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
-    });
-
-    // Convert to array
-    const conceptualInvoices = Object.values(invoiceMap);
-
-    // 2. Match payments to conceptual invoices
-    payments.forEach(payment => {
-      // Parse the invoice_number JSON string to get applied invoice details
-      let appliedInvoices = [];
-      try {
-        if (typeof payment.invoice_number === 'string') {
-          appliedInvoices = JSON.parse(payment.invoice_number);
-        }
-      } catch (error) {
-        console.warn('Failed to parse payment invoice_number:', payment.invoice_number);
-      }
-
-      // Apply each portion of the payment to the corresponding invoice
-      appliedInvoices.forEach(applied => {
-        const matchingInvoice = conceptualInvoices.find(inv => 
-          inv.supplier_id === payment.supplier_id && 
-          inv.invoice_number === applied.invoice_number
-        );
-        
-        if (matchingInvoice) {
-          matchingInvoice.amount_paid += parseFloat(applied.amount_applied) || 0;
-        }
-      });
-    });
-
-    // 3. Calculate owing and daysOld for each conceptual invoice
-    const invoiceOwings = conceptualInvoices.map(invoice => {
-      const owing = Math.round((invoice.total_amount - invoice.amount_paid) * 100) / 100;
-      const invoiceDate = new Date(invoice.invoice_date);
-      const daysOld = differenceInDays(asOfDate, invoiceDate);
-
-      return {
-        supplier_id: invoice.supplier_id,
-        owing,
-        daysOld,
-      };
-    });
-
-    // 4. Aggregate by supplier (include credits)
+    // Aggregate by supplier using conceptual invoices from backend
     const supplierSummary = suppliers.map(supplier => {
-      const supplierInvoices = invoiceOwings.filter(inv => inv.supplier_id === supplier.id && Math.abs(inv.owing) > 0.01);
+      const conceptualInvoices = supplierInvoicesMap.get(supplier.id) || [];
       
       let balance_0_30 = 0;
       let balance_31_60 = 0;
       let balance_60_plus = 0;
 
-      supplierInvoices.forEach(inv => {
-        // Credits (negative owing) should reduce the aged balances
-        if (inv.daysOld <= 30) {
-          balance_0_30 += inv.owing;
-        } else if (inv.daysOld <= 60) {
-          balance_31_60 += inv.owing;
+      conceptualInvoices.forEach(invoice => {
+        // Use the pre-calculated balance_due from backend
+        const owing = invoice.balance_due;
+        
+        // Skip if balance is essentially zero
+        if (Math.abs(owing) <= 0.01) return;
+        
+        // Calculate days old based on asOfDate
+        const invoiceDate = parseISO(invoice.invoice_date);
+        const daysOld = differenceInDays(asOfDate, invoiceDate);
+
+        // Age the balance (credits reduce aged balances)
+        if (daysOld <= 30) {
+          balance_0_30 += owing;
+        } else if (daysOld <= 60) {
+          balance_31_60 += owing;
         } else {
-          balance_60_plus += inv.owing;
+          balance_60_plus += owing;
         }
       });
 
@@ -160,9 +126,9 @@ export default function APSummaryPage() {
       };
     });
 
-    // 5. Filter out suppliers with no balance (include suppliers with credits)
+    // Filter out suppliers with no balance
     return supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01);
-  }, [suppliers, lines, payments, loading, asOfDate]);
+  }, [suppliers, supplierInvoicesMap, loading, asOfDate]);
 
   const totals = useMemo(() => {
     return summaryData.reduce((acc, curr) => {
@@ -174,70 +140,11 @@ export default function APSummaryPage() {
     }, { balance_0_30: 0, balance_31_60: 0, balance_60_plus: 0, total_balance: 0 });
   }, [summaryData]);
 
-  // Create conceptual invoices for the selected supplier
+  // Get conceptual invoices for the selected supplier
   const conceptualInvoicesForSupplier = useMemo(() => {
     if (!selectedSupplier) return [];
-    
-    const supplierLines = lines.filter(l => l.supplier_id === selectedSupplier.id);
-    const supplierPayments = payments.filter(p => p.supplier_id === selectedSupplier.id);
-    
-    // Group lines by invoice
-    const invoiceMap = {};
-    supplierLines.forEach(line => {
-      const key = `${line.supplier_id}_${line.invoice_number}_${line.invoice_date}`;
-      
-      if (!invoiceMap[key]) {
-        invoiceMap[key] = {
-          supplier_id: line.supplier_id,
-          invoice_number: line.invoice_number,
-          invoice_date: line.invoice_date,
-          lines: [],
-          subtotal: 0,
-          tax_amount: 0,
-          total_amount: 0,
-          amount_paid: 0,
-          balance_due: 0
-        };
-      }
-      
-      invoiceMap[key].lines.push(line);
-      invoiceMap[key].subtotal += parseFloat(line.purchase_amount) || 0;
-      invoiceMap[key].tax_amount += parseFloat(line.gst_amount) || 0;
-      invoiceMap[key].total_amount += (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
-    });
-    
-    // Apply payments
-    supplierPayments.forEach(payment => {
-      // Parse the invoice_number JSON string to get applied invoice details
-      let appliedInvoices = [];
-      try {
-        if (typeof payment.invoice_number === 'string') {
-          appliedInvoices = JSON.parse(payment.invoice_number);
-        }
-      } catch (error) {
-        console.warn('Failed to parse payment invoice_number:', payment.invoice_number);
-      }
-
-      // Apply each portion of the payment to the corresponding invoice
-      appliedInvoices.forEach(applied => {
-        const matchingInvoice = Object.values(invoiceMap).find(inv => 
-          inv.invoice_number === applied.invoice_number
-        );
-        
-        if (matchingInvoice) {
-          matchingInvoice.amount_paid += parseFloat(applied.amount_applied) || 0;
-        }
-      });
-    });
-    
-    // Calculate balance_due and filter out paid invoices (but include credits)
-    return Object.values(invoiceMap)
-      .map(invoice => ({
-        ...invoice,
-        balance_due: Math.round((invoice.total_amount - invoice.amount_paid) * 100) / 100
-      }))
-      .filter(invoice => Math.abs(invoice.balance_due) > 0.01);
-  }, [selectedSupplier, lines, payments]);
+    return supplierInvoicesMap.get(selectedSupplier.id) || [];
+  }, [selectedSupplier, supplierInvoicesMap]);
 
   const handleApplyDate = () => {
     setAsOfDate(pendingAsOfDate);
@@ -247,28 +154,53 @@ export default function APSummaryPage() {
     window.print();
   };
 
-  const handlePaymentMade = () => {
+  const handlePaymentMade = async () => {
     // Reload data after payment is made
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [suppliersData, linesData, paymentsData] = await Promise.all([
-          Supplier.list(),
-          SupplierInvoiceLine.list(),
-          SupplierPayment.list(),
-        ]);
-        setSuppliers(suppliersData);
-        setLines(linesData);
-        setPayments(paymentsData);
-      } catch (error) {
-        console.error('Error loading AP data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
+    setLoading(true);
     setShowPaymentModal(false);
-    setSelectedSupplier(null);
+    
+    try {
+      const suppliersData = await Supplier.list();
+      setSuppliers(suppliersData);
+
+      // Fetch all supplier transactions in parallel
+      const allSupplierData = await Promise.all(
+        suppliersData.map(async (supplier) => {
+          try {
+            const response = await base44.functions.invoke('getSupplierTransactions', {
+              supplierId: supplier.id,
+              dateRange: {
+                from: new Date(0).toISOString(),
+                to: new Date().toISOString()
+              }
+            });
+
+            if (response.data.success) {
+              return {
+                supplierId: supplier.id,
+                allConceptualInvoices: response.data.data.allConceptualInvoices || []
+              };
+            }
+            return { supplierId: supplier.id, allConceptualInvoices: [] };
+          } catch (error) {
+            console.error(`Error loading data for supplier ${supplier.name}:`, error);
+            return { supplierId: supplier.id, allConceptualInvoices: [] };
+          }
+        })
+      );
+
+      const invoicesMap = new Map();
+      allSupplierData.forEach(data => {
+        invoicesMap.set(data.supplierId, data.allConceptualInvoices);
+      });
+      setSupplierInvoicesMap(invoicesMap);
+
+    } catch (error) {
+      console.error('Error loading AP data:', error);
+    } finally {
+      setLoading(false);
+      setSelectedSupplier(null);
+    }
   };
 
   const handleContextMenu = (supplier) => {
