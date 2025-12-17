@@ -119,7 +119,7 @@ export default function APSummaryPage() {
 
     // 3. Calculate owing and daysOld for each conceptual invoice
     const invoiceOwings = conceptualInvoices.map(invoice => {
-      const owing = invoice.total_amount - invoice.amount_paid;
+      const owing = Math.round((invoice.total_amount - invoice.amount_paid) * 100) / 100;
       const invoiceDate = new Date(invoice.invoice_date);
       const daysOld = differenceInDays(asOfDate, invoiceDate);
 
@@ -234,7 +234,7 @@ export default function APSummaryPage() {
     return Object.values(invoiceMap)
       .map(invoice => ({
         ...invoice,
-        balance_due: invoice.total_amount - invoice.amount_paid
+        balance_due: Math.round((invoice.total_amount - invoice.amount_paid) * 100) / 100
       }))
       .filter(invoice => Math.abs(invoice.balance_due) > 0.01);
   }, [selectedSupplier, lines, payments]);
