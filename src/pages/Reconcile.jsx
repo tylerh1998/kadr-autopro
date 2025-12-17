@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BankAccount, BankTransaction, BankReconciliation } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
+  CheckCircle2,
   DollarSign,
+  Calendar,
   Save,
   ArrowLeft,
   Landmark,
@@ -27,6 +30,7 @@ export default function ReconcilePage() {
   const [bankAccount, setBankAccount] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -48,6 +52,19 @@ export default function ReconcilePage() {
       const txDate = new Date(tx.transaction_date);
       return txDate >= oneYearAgo && txDate <= to;
     });
+  }, []);
+
+  // Fetch current user on mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
   }, []);
 
   useEffect(() => {
@@ -82,6 +99,34 @@ export default function ReconcilePage() {
 
     loadData();
     }, [bankAccountId, navigate, applyDateFilter]);
+
+  // Release lock when navigating away or closing page
+  useEffect(() => {
+    const releaseLock = async () => {
+      if (bankAccountId && currentUser) {
+        try {
+          await BankAccount.update(bankAccountId, {
+            locked_by_user: null,
+            locked_timestamp: null
+          });
+        } catch (error) {
+          console.error('Error releasing lock:', error);
+        }
+      }
+    };
+
+    // Release lock on page unload/navigation
+    const handleBeforeUnload = () => {
+      releaseLock();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      releaseLock();
+    };
+  }, [bankAccountId, currentUser]);
 
   const toggleTransaction = (txId) => {
     setSelectedTransactions(prev => {
@@ -189,6 +234,14 @@ export default function ReconcilePage() {
 
       await BankReconciliation.create(reconciliationRecord);
 
+      // Release lock before navigating away
+      if (bankAccountId && currentUser) {
+        await BankAccount.update(bankAccountId, {
+          locked_by_user: null,
+          locked_timestamp: null
+        });
+      }
+
       alert('Reconciliation saved successfully!');
       navigate(`${createPageUrl('ReconcileReport')}?id=${reconciliationId}`);
       
@@ -239,7 +292,16 @@ export default function ReconcilePage() {
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
-              onClick={() => navigate(createPageUrl('Bank'))}
+              onClick={async () => {
+                // Release lock before navigating back
+                if (bankAccountId && currentUser) {
+                  await BankAccount.update(bankAccountId, {
+                    locked_by_user: null,
+                    locked_timestamp: null
+                  });
+                }
+                navigate(createPageUrl('Bank'));
+              }}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
