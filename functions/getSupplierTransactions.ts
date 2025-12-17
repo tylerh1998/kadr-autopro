@@ -109,8 +109,8 @@ Deno.serve(async (req) => {
             invoice.balance_due = Math.round(invoice.balance_due * 100) / 100;
         });
 
-        // Calculate total current balance (sum of all balance_due)
-        const currentBalance = conceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0);
+        // Calculate total current balance (sum of all balance_due, with final rounding)
+        const currentBalance = Math.round(conceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0) * 100) / 100;
 
         // Filter conceptual invoices by date range if provided
         let invoicesInDateRange = conceptualInvoices;
