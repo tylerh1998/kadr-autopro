@@ -8,6 +8,7 @@ import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
+import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import DepositDetailsModal from './DepositDetailsModal';
 
 const ITEMS_PER_PAGE = 5;
@@ -84,7 +85,27 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
     }
   }, [open, loadDeposits]);
 
-  const handleReverseDeposit = useCallback(async (depositId) => {
+  const handleReverseDeposit = useCallback(async (depositId, bankAccountId) => {
+    // Check if bank account is locked before confirming
+    try {
+      const account = await BankAccount.get(bankAccountId);
+      
+      // Check if any lock exists that is not expired
+      if (account.locked_by_user && account.locked_timestamp) {
+        const lockStatus = checkBankAccountLock(account, '');
+        
+        // If lock is not expired, show error
+        if (!lockStatus.isExpired) {
+          alert(`This bank account is currently locked by ${account.locked_by_user}. Please wait until the lock is released before reversing this deposit.`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking bank account lock:', error);
+      alert('Failed to verify bank account status. Please try again.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to reverse this deposit? This action cannot be undone.')) {
       return;
     }
@@ -188,7 +209,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleReverseDeposit(deposit.id)}
+                                onClick={() => handleReverseDeposit(deposit.id, deposit.bank_account_id)}
                                 disabled={loading}
                               >
                                 <Undo2 className="w-4 h-4" />
