@@ -14,6 +14,8 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
+import { checkBankAccountLock } from '../utils/mountainTimeUtils';
+import { BankAccount } from '@/entities/all';
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const [loading, setLoading] = useState(false);
@@ -27,6 +29,19 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [nextChequeNumber, setNextChequeNumber] = useState(1);
   const [processingCheque, setProcessingCheque] = useState(false);
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const [paymentData, setPaymentData] = useState({
     payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -161,6 +176,34 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     if (paymentData.payment_method !== 'Cash' && !paymentData.from_account_id) {
       alert('Please select a source account');
       return;
+    }
+
+    // Check if bank account is locked (for Bank Account, Cheque, or Line of Credit)
+    if (paymentData.payment_method !== 'Cash') {
+      try {
+        let accountToCheck;
+        
+        if (paymentData.payment_method === 'Line of Credit') {
+          // For LOC, we don't check bank account locks
+          // LOC has its own locking mechanism if needed
+        } else {
+          // For Bank Account or Cheque, check the bank account lock
+          accountToCheck = await BankAccount.get(paymentData.from_account_id);
+          
+          if (accountToCheck.locked_by_user && accountToCheck.locked_timestamp) {
+            const lockStatus = checkBankAccountLock(accountToCheck, currentUser?.email || '');
+            
+            if (!lockStatus.isExpired) {
+              alert(`This bank account is currently locked by ${accountToCheck.locked_by_user}. Please wait until the lock is released before making a payment.`);
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking bank account lock:', error);
+        alert('Failed to verify bank account status. Please try again.');
+        return;
+      }
     }
 
     if (paymentData.payment_method === 'Cheque') {
@@ -488,7 +531,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                         ))
                       : bankAccounts.map((bank) => (
                           <SelectItem key={bank.id} value={bank.id}>
-                            {bank.name} (Balance: ${bank.current_balance?.toFixed(2) || '0.00'})
+                            {bank.name}
                           </SelectItem>
                         ))}
                   </SelectContent>
