@@ -54,8 +54,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
 
   // Calculate total balance owing (sum of all balances, including credits as negative)
   const totalBalanceOwing = useMemo(() => {
-    return outstandingInvoices
-      .reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+    const total = outstandingInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0);
+    return Math.round(total * 100) / 100;
   }, [outstandingInvoices]);
 
   useEffect(() => {
