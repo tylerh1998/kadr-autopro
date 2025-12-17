@@ -73,6 +73,7 @@ export function checkBankAccountLock(account, currentUserEmail) {
 
 /**
  * Check if an entity (Supplier, BankAccount, etc.) is locked by another user
+ * Works with or without locked_timestamp field
  * @param {Object} entity - Entity object with lock fields
  * @param {string} currentUserEmail - Current user's email
  * @returns {Object} { isLocked: boolean, lockedByUser: string|null, isExpired: boolean }
@@ -91,14 +92,19 @@ export function checkEntityLock(entity, currentUserEmail) {
     return { isLocked: false, lockedByUser: null, isExpired: false };
   }
   
-  // Check if lock is expired
-  const isExpired = isLockExpired(locked_timestamp);
-  
-  // Locked by current user or expired
-  if (locked_by_user === currentUserEmail || isExpired) {
-    return { isLocked: false, lockedByUser: locked_by_user, isExpired };
+  // If locked by current user, not considered locked
+  if (locked_by_user === currentUserEmail) {
+    return { isLocked: false, lockedByUser: locked_by_user, isExpired: false };
   }
   
-  // Locked by another user
+  // Check if lock is expired (only if timestamp exists)
+  if (locked_timestamp) {
+    const isExpired = isLockExpired(locked_timestamp);
+    if (isExpired) {
+      return { isLocked: false, lockedByUser: locked_by_user, isExpired: true };
+    }
+  }
+  
+  // Locked by another user (timestamp either doesn't exist or hasn't expired)
   return { isLocked: true, lockedByUser: locked_by_user, isExpired: false };
 }
