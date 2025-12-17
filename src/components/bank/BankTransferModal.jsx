@@ -52,7 +52,12 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
             locked_timestamp: new Date().toISOString()
           });
           
-          setLocksAcquired(prev => [...prev, accountId]);
+          setLocksAcquired(prev => {
+            if (!prev.includes(accountId)) {
+              return [...prev, accountId];
+            }
+            return prev;
+          });
           setLockedAccounts(prev => {
             const newSet = new Set(prev);
             newSet.delete(accountId);
