@@ -118,30 +118,12 @@ export default function SupplierTxViewPage() {
             setSupplier(supplierData);
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date)));
             
-            // Calculate current balance from all invoices (not just date range)
-            const allInvoicesFormatted = (allInvoicesData || []).map(invoice => ({
-                ...invoice,
-                balance_due: Math.round(invoice.balance_due * 100) / 100
-            }));
-            const recalculatedBalance = allInvoicesFormatted.reduce((sum, inv) => sum + inv.balance_due, 0);
-            setCurrentBalance(recalculatedBalance);
+            // Calculate current balance by summing all invoice balance_due values (same as APSummary)
+            const calculatedBalance = (allInvoicesData || []).reduce((sum, inv) => sum + inv.balance_due, 0);
+            setCurrentBalance(calculatedBalance);
 
-            const formattedConceptualInvoices = invoicesInRange.map(invoice => ({
-                ...invoice,
-                subtotal: Math.round(invoice.subtotal * 100) / 100,
-                tax_amount: Math.round(invoice.tax_amount * 100) / 100,
-                total_amount: Math.round(invoice.total_amount * 100) / 100,
-                amount_paid: Math.round(invoice.amount_paid * 100) / 100,
-                balance_due: Math.round(invoice.balance_due * 100) / 100,
-                lines: invoice.lines.map(line => ({
-                    ...line,
-                    charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
-                    gst: typeof line.gst_amount === 'number' ? Math.round(line.gst_amount * 100) / 100 : line.gst_amount,
-                    line_total: typeof line.purchase_amount === 'number' && typeof line.gst_amount === 'number' ? Math.round((line.purchase_amount + line.gst_amount) * 100) / 100 : line.line_total,
-                    gst_override: line.gst_override || false
-                }))
-            }));
-            setConceptualInvoices(formattedConceptualInvoices);
+            // Use backend's invoicesInRange directly (already rounded by backend)
+            setConceptualInvoices(invoicesInRange);
 
         } catch (error) {
             console.error('Error loading supplier data:', error);
