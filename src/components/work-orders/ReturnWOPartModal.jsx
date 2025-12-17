@@ -20,9 +20,6 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         try {
           const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
           setReasons(reasonData);
-          if (reasonData.length > 0) {
-            setReturnReason(reasonData[0].reason);
-          }
         } catch (error) {
           console.error("Failed to fetch return reasons:", error);
         }
