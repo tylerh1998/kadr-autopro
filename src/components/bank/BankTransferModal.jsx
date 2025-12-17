@@ -21,63 +21,58 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   });
 
   const [validationError, setValidationError] = useState('');
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockMessage, setLockMessage] = useState('');
+  const [lockedAccounts, setLockedAccounts] = useState(new Set());
   const [locksAcquired, setLocksAcquired] = useState([]);
 
+  // Check locks whenever an account is selected
   useEffect(() => {
-    const handleModalOpen = async () => {
-      if (open && formData.fromAccountId && formData.toAccountId && currentUser) {
-        try {
-          // Always fetch the latest account data to check lock status
-          const fromAccount = await BankAccount.get(formData.fromAccountId);
-          const toAccount = await BankAccount.get(formData.toAccountId);
-
-          if (!fromAccount || !toAccount) return;
-
-          const fromLockStatus = checkBankAccountLock(fromAccount, currentUser.email);
-          const toLockStatus = checkBankAccountLock(toAccount, currentUser.email);
-
-          if (fromLockStatus.isLocked) {
-            setIsLocked(true);
-            setLockMessage(`Source account is locked by ${fromLockStatus.lockedByUser}. Please try again later.`);
-            return;
-          }
-
-          if (toLockStatus.isLocked) {
-            setIsLocked(true);
-            setLockMessage(`Destination account is locked by ${toLockStatus.lockedByUser}. Please try again later.`);
-            return;
-          }
-
-          // Acquire locks on both accounts
-          const locks = [];
+    const checkAccountLock = async (accountId) => {
+      if (!accountId || !currentUser) return;
+      
+      try {
+        const account = await BankAccount.get(accountId);
+        const lockStatus = checkBankAccountLock(account, currentUser.email);
+        
+        if (lockStatus.isLocked) {
+          // Account is locked by someone else
+          setLockedAccounts(prev => new Set([...prev, accountId]));
+          alert(`${account.name} is currently locked by ${lockStatus.lockedByUser}. Please select a different account.`);
           
-          await BankAccount.update(formData.fromAccountId, {
+          // Clear the selection
+          if (formData.fromAccountId === accountId) {
+            setFormData(prev => ({ ...prev, fromAccountId: '' }));
+          }
+          if (formData.toAccountId === accountId) {
+            setFormData(prev => ({ ...prev, toAccountId: '' }));
+          }
+        } else {
+          // Account is available - acquire lock
+          await BankAccount.update(accountId, {
             locked_by_user: currentUser.email,
             locked_timestamp: new Date().toISOString()
           });
-          locks.push(formData.fromAccountId);
-
-          await BankAccount.update(formData.toAccountId, {
-            locked_by_user: currentUser.email,
-            locked_timestamp: new Date().toISOString()
+          
+          setLocksAcquired(prev => [...prev, accountId]);
+          setLockedAccounts(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(accountId);
+            return newSet;
           });
-          locks.push(formData.toAccountId);
-
-          setLocksAcquired(locks);
-          setIsLocked(false);
-          setLockMessage('');
-        } catch (error) {
-          console.error('Error checking/acquiring locks:', error);
-          setIsLocked(true);
-          setLockMessage('Failed to acquire locks on bank accounts. Please try again.');
         }
+      } catch (error) {
+        console.error('Error checking lock for account:', accountId, error);
+        alert('Failed to check account lock status. Please try again.');
       }
     };
 
-    handleModalOpen();
-  }, [open, formData.fromAccountId, formData.toAccountId, bankAccounts, currentUser]);
+    if (open && formData.fromAccountId && !locksAcquired.includes(formData.fromAccountId)) {
+      checkAccountLock(formData.fromAccountId);
+    }
+    
+    if (open && formData.toAccountId && !locksAcquired.includes(formData.toAccountId)) {
+      checkAccountLock(formData.toAccountId);
+    }
+  }, [open, formData.fromAccountId, formData.toAccountId, currentUser, locksAcquired]);
 
   // Release locks on close
   useEffect(() => {
@@ -210,13 +205,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
           </DialogTitle>
         </DialogHeader>
 
-        {isLocked ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{lockMessage}</AlertDescription>
-          </Alert>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
             {validationError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -358,13 +347,12 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLocked}>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
                 Transfer Funds
               </Button>
             </DialogFooter>
           </form>
-        )}
       </DialogContent>
     </Dialog>
   );
