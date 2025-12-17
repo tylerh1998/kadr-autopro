@@ -154,6 +154,7 @@ export default function InventoryAddPage() {
         location: '',
     });
     const navigate = useNavigate();
+    const supplierTriggerRef = React.useRef(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -170,6 +171,10 @@ export default function InventoryAddPage() {
                 setInventoryItems(inventoryData);
                 setTagAlongs(tagAlongsData);
                 setInventoryLocations(locationsData);
+                
+                setTimeout(() => {
+                    supplierTriggerRef.current?.focus();
+                }, 100);
             } catch (error) {
                 console.error('Error loading data:', error);
             }
@@ -659,7 +664,7 @@ export default function InventoryAddPage() {
                         <div className="space-y-2">
                             <Label htmlFor="supplier">Supplier *</Label>
                             <Select value={selectedSupplier} onValueChange={handleSupplierChange}>
-                                <SelectTrigger>
+                                <SelectTrigger ref={supplierTriggerRef}>
                                     <SelectValue placeholder="Select supplier..." />
                                 </SelectTrigger>
                                 <SelectContent>
