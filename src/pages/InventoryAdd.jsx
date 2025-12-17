@@ -184,7 +184,7 @@ export default function InventoryAddPage() {
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (batchItems.length > 0) {
+            if (batchItems.length > 0 && !saving) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -192,7 +192,7 @@ export default function InventoryAddPage() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [batchItems]);
+    }, [batchItems, saving]);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
