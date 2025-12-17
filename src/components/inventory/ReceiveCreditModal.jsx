@@ -148,13 +148,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       const supplierIdToCheck = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
       const supplierEntity = await Supplier.get(supplierIdToCheck);
       
-      if (supplierEntity.LockedByUser && supplierEntity.locked_timestamp) {
-        const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
-        if (!lockStatus.isExpired) {
-          alert(`This supplier is currently locked by ${supplierEntity.LockedByUser}. Please wait until the lock is released.`);
-          setLoading(false);
-          return;
-        }
+      const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
+      if (lockStatus.isLocked) {
+        alert(`This supplier is currently locked by ${lockStatus.lockedByUser}. Please wait until the lock is released.`);
+        setLoading(false);
+        return;
       }
     } catch (error) {
       console.error('Error checking supplier lock:', error);
