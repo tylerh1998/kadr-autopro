@@ -97,6 +97,7 @@ export default function APSummaryPage() {
           total_balance += invoice.balance_due;
         }
       });
+      total_balance = Math.round(total_balance * 100) / 100;
 
       // SECOND: Calculate aging buckets for display breakdown
       let not_due = 0;
@@ -141,7 +142,7 @@ export default function APSummaryPage() {
   }, [suppliers, supplierInvoicesMap, loading, asOfDate]);
 
   const totals = useMemo(() => {
-    return summaryData.reduce((acc, curr) => {
+    const result = summaryData.reduce((acc, curr) => {
       acc.not_due += curr.not_due;
       acc.balance_0_30 += curr.balance_0_30;
       acc.balance_31_60 += curr.balance_31_60;
@@ -149,6 +150,9 @@ export default function APSummaryPage() {
       acc.total_balance += curr.total_balance;
       return acc;
     }, { not_due: 0, balance_0_30: 0, balance_31_60: 0, balance_60_plus: 0, total_balance: 0 });
+    
+    result.total_balance = Math.round(result.total_balance * 100) / 100;
+    return result;
   }, [summaryData]);
 
   // Get conceptual invoices for the selected supplier
