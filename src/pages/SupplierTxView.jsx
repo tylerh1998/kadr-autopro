@@ -255,7 +255,7 @@ export default function SupplierTxViewPage() {
                     <div className="flex gap-6">
                         <div className="text-right">
                             <p className="text-sm text-slate-500">Total Balance Owing</p>
-                            <p className="text-lg font-bold text-red-600">${currentBalance.toFixed(2)}</p>
+                            <p className="text-lg font-bold text-red-600">${currentBalance}</p>
                         </div>
                     </div>
                 </div>

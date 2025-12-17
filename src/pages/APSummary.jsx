@@ -322,7 +322,7 @@ export default function APSummaryPage() {
                                 <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
                                 <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
                                 <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
-                                <td className="p-3 text-right font-semibold">${supplier.total_balance.toFixed(2)}</td>
+                                <td className="p-3 text-right font-semibold">${supplier.total_balance}</td>
                               </tr>
                             </ContextMenuTrigger>
                             <ContextMenuContent>
@@ -348,7 +348,7 @@ export default function APSummaryPage() {
                          <td className="p-3 text-right">${totals.balance_0_30.toFixed(2)}</td>
                          <td className="p-3 text-right">${totals.balance_31_60.toFixed(2)}</td>
                          <td className="p-3 text-right">${totals.balance_60_plus.toFixed(2)}</td>
-                         <td className="p-3 text-right text-blue-700">${totals.total_balance.toFixed(2)}</td>
+                         <td className="p-3 text-right text-blue-700">${totals.total_balance}</td>
                        </tr>
                     </tfoot>
                   </table>
