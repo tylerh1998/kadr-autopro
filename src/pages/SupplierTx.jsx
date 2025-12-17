@@ -438,20 +438,12 @@ export default function SupplierTxPage() {
             }));
             setConceptualInvoices(formattedConceptualInvoices);
 
-            // Format all conceptual invoices (for payment modal)
-            const formattedAllConceptualInvoices = (allInvoicesData || []).map(invoice => ({
-                ...invoice,
-                subtotal: Math.round(invoice.subtotal * 100) / 100,
-                tax_amount: Math.round(invoice.tax_amount * 100) / 100,
-                total_amount: Math.round(invoice.total_amount * 100) / 100,
-                amount_paid: Math.round(invoice.amount_paid * 100) / 100,
-                balance_due: Math.round(invoice.balance_due * 100) / 100,
-            }));
-            setAllConceptualInvoices(formattedAllConceptualInvoices);
+            // Use backend's allConceptualInvoices directly (already rounded by backend)
+            setAllConceptualInvoices(allInvoicesData || []);
 
-            // Recalculate current balance from allConceptualInvoices to ensure consistency
-            const recalculatedBalance = formattedAllConceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0);
-            setCurrentBalance(recalculatedBalance);
+            // Calculate current balance by summing all invoice balance_due values (same as APSummary)
+            const calculatedBalance = (allInvoicesData || []).reduce((sum, inv) => sum + inv.balance_due, 0);
+            setCurrentBalance(calculatedBalance);
 
             // Apply rounding to all loaded lines to ensure proper GST display
             const roundedLines = enrichedLines.map(line => ({
