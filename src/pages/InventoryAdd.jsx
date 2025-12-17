@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -611,12 +611,18 @@ export default function InventoryAddPage() {
 
     return (
         <div className="container mx-auto p-6 max-w-4xl">
-            <div className="flex items-center gap-4 mb-6">
-                <Button variant="outline" onClick={() => navigate(createPageUrl('InventoryList'))}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Inventory
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" onClick={() => navigate(createPageUrl('InventoryList'))}>
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Inventory
+                    </Button>
+                    <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
+                </div>
+                <Button variant="outline" onClick={() => navigate(createPageUrl('Suppliers'))}>
+                    <Truck className="w-4 h-4 mr-2" />
+                    Suppliers
                 </Button>
-                <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
             </div>
 
             <Card>
