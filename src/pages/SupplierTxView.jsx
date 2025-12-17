@@ -253,10 +253,6 @@ export default function SupplierTxViewPage() {
                         </div>
                     </div>
                     <div className="flex gap-6">
-                        <div className="text-right">
-                            <p className="text-sm text-slate-500">Total Balance Owing</p>
-                            <p className="text-lg font-bold text-red-600">${currentBalance}</p>
-                        </div>
                     </div>
                 </div>
 
