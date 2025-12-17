@@ -118,9 +118,8 @@ export default function SupplierTxViewPage() {
             setSupplier(supplierData);
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date)));
             
-            // Calculate current balance by summing all invoice balance_due values (same as APSummary)
-            const calculatedBalance = (allInvoicesData || []).reduce((sum, inv) => sum + inv.balance_due, 0);
-            setCurrentBalance(calculatedBalance);
+            // Use backend's currentBalance directly (single source of truth)
+            setCurrentBalance(currentBalance);
 
             // Use backend's invoicesInRange directly (already rounded by backend)
             setConceptualInvoices(invoicesInRange);

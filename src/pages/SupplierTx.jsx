@@ -438,12 +438,9 @@ export default function SupplierTxPage() {
             }));
             setConceptualInvoices(formattedConceptualInvoices);
 
-            // Use backend's allConceptualInvoices directly (already rounded by backend)
+            // Use backend's allConceptualInvoices and currentBalance directly
             setAllConceptualInvoices(allInvoicesData || []);
-
-            // Calculate current balance by summing all invoice balance_due values (same as APSummary)
-            const calculatedBalance = (allInvoicesData || []).reduce((sum, inv) => sum + inv.balance_due, 0);
-            setCurrentBalance(calculatedBalance);
+            setCurrentBalance(totalBalance);
 
             // Apply rounding to all loaded lines to ensure proper GST display
             const roundedLines = enrichedLines.map(line => ({
