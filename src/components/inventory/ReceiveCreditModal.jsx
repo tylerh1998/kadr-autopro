@@ -70,6 +70,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         console.log('Inventory suppliers loaded:', suppliersData);
         setSuppliers(suppliersData);
 
+        // Set default supplier after suppliers are loaded
+        if (returnItem?.supplier) {
+          setToAccount(returnItem.supplier);
+        }
+
       } catch (error) {
         console.error("Failed to load account data:", error);
         alert('Error loading credit modal data. Please try again.');
@@ -77,26 +82,25 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     };
 
     if (open) {
-      loadData();
       setInvoiceNumber('');
       setInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
       setAdjustmentAmount(0);
       setAdjustmentReason('');
-      setGlAccount('5004'); // Default to Inventory Price Adjustment account
+      setGlAccount('5004');
       setRefundCreditTo('Supplier AP');
-      setToAccount(returnItem?.supplier || ''); // Default to returnItem supplier
       setIsAdjustmentOpen(false);
+      loadData();
     }
   }, [open, returnItem]);
 
   useEffect(() => {
     // When refund type changes, reset toAccount to default values
-    if (refundCreditTo === 'Supplier AP') {
-      setToAccount(returnItem?.supplier || '');
-    } else {
+    if (refundCreditTo === 'Supplier AP' && returnItem?.supplier) {
+      setToAccount(returnItem.supplier);
+    } else if (refundCreditTo !== 'Supplier AP') {
       setToAccount('');
     }
-  }, [refundCreditTo, returnItem]);
+  }, [refundCreditTo]);
 
   const subtotal = returnItem?.total_cost || 0;
   const gst = subtotal * 0.05;
