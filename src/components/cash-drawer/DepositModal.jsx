@@ -4,10 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload } from 'lucide-react';
+import { Upload, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
+import { BankAccount } from '@/entities/all';
+import { checkBankAccountLock } from '../utils/mountainTimeUtils';
+import { base44 } from '@/api/base44Client';
 
 export default function DepositModal({ open, onClose, bankAccounts, totalAmount, forDepositItems, onSubmit }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
   const [formData, setFormData] = useState({
     bankAccountId: '',
     depositDate: format(new Date(), 'yyyy-MM-dd'),
@@ -24,12 +40,33 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
     }
   }, [open, bankAccounts]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.bankAccountId) {
       alert('Please select a bank account.');
       return;
     }
+
+    // Check if bank account is locked
+    try {
+      const account = await BankAccount.get(formData.bankAccountId);
+      
+      // Check if any lock exists (even for current user) that is not expired
+      if (account.locked_by_user && account.locked_timestamp) {
+        const lockStatus = checkBankAccountLock(account, currentUser?.email || '');
+        
+        // If lock is not expired, show error (regardless of who owns it)
+        if (!lockStatus.isExpired) {
+          alert(`This bank account is currently locked by ${account.locked_by_user}. Please wait until the lock is released before making a deposit.`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking bank account lock:', error);
+      alert('Failed to verify bank account status. Please try again.');
+      return;
+    }
+
     onSubmit(formData);
   };
 
