@@ -224,7 +224,7 @@ function LayoutContent({ children, currentPageName }) {
           body: JSON.stringify({
             clock_out_time: clockOutTime,
             total_hours: Math.round(totalHours * 100) / 100,
-            status: 'completed'
+            status: 'clocked_out'
           })
         });
 
@@ -249,7 +249,7 @@ function LayoutContent({ children, currentPageName }) {
           body: JSON.stringify({
             employee_name: user.full_name,
             clock_in_time: clockInTime,
-            status: 'active',
+            status: 'clocked_in',
             total_hours: 0,
             pto_hours: 0,
             stat_hours: 0
