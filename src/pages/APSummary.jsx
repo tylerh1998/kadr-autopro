@@ -139,6 +139,7 @@ export default function APSummaryPage() {
       let balance_60_plus = 0;
 
       supplierInvoices.forEach(inv => {
+        // Credits (negative owing) should reduce the aged balances
         if (inv.daysOld <= 30) {
           balance_0_30 += inv.owing;
         } else if (inv.daysOld <= 60) {
@@ -159,8 +160,8 @@ export default function APSummaryPage() {
       };
     });
 
-    // 5. Filter out suppliers with no balance
-    return supplierSummary.filter(s => s.total_balance > 0.01);
+    // 5. Filter out suppliers with no balance (include suppliers with credits)
+    return supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01);
   }, [suppliers, lines, payments, loading, asOfDate]);
 
   const totals = useMemo(() => {
@@ -229,11 +230,13 @@ export default function APSummaryPage() {
       });
     });
     
-    // Calculate balance_due
-    return Object.values(invoiceMap).map(invoice => ({
-      ...invoice,
-      balance_due: invoice.total_amount - invoice.amount_paid
-    }));
+    // Calculate balance_due and filter out paid invoices (but include credits)
+    return Object.values(invoiceMap)
+      .map(invoice => ({
+        ...invoice,
+        balance_due: invoice.total_amount - invoice.amount_paid
+      }))
+      .filter(invoice => Math.abs(invoice.balance_due) > 0.01);
   }, [selectedSupplier, lines, payments]);
 
   const handleApplyDate = () => {
