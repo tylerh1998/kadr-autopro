@@ -12,6 +12,7 @@ import { base44 } from '@/api/base44Client';
 
 export default function DepositModal({ open, onClose, bankAccounts, totalAmount, forDepositItems, onSubmit }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(false);
   
   useEffect(() => {
     const fetchUser = async () => {
@@ -47,8 +48,9 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
       return;
     }
 
-    // Check if bank account is locked
+    setLoading(true);
     try {
+      // Check if bank account is locked
       const account = await BankAccount.get(formData.bankAccountId);
       
       // Check if any lock exists (even for current user) that is not expired
@@ -58,16 +60,18 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
         // If lock is not expired, show error (regardless of who owns it)
         if (!lockStatus.isExpired) {
           alert(`This bank account is currently locked by ${account.locked_by_user}. Please wait until the lock is released before making a deposit.`);
+          setLoading(false);
           return;
         }
       }
-    } catch (error) {
-      console.error('Error checking bank account lock:', error);
-      alert('Failed to verify bank account status. Please try again.');
-      return;
-    }
 
-    onSubmit(formData);
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Error processing deposit:', error);
+      alert('Failed to process deposit. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedBankAccount = bankAccounts.find(acc => acc.id === formData.bankAccountId);
@@ -193,10 +197,19 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700">
-              <Upload className="w-4 h-4 mr-2" />
-              Process Deposit
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={loading}>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Process Deposit
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
