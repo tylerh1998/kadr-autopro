@@ -71,7 +71,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         setSuppliers(suppliersData);
 
         // Set default supplier after suppliers are loaded
-        if (returnItem?.supplier) {
+        if (returnItem?.supplier && refundCreditTo === 'Supplier AP') {
+          console.log('Setting default supplier to:', returnItem.supplier);
           setToAccount(returnItem.supplier);
         }
 
@@ -88,19 +89,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       setAdjustmentReason('');
       setGlAccount('5004');
       setRefundCreditTo('Supplier AP');
+      setToAccount('');
       setIsAdjustmentOpen(false);
       loadData();
     }
   }, [open, returnItem]);
 
   useEffect(() => {
-    // When refund type changes, reset toAccount to default values
-    if (refundCreditTo === 'Supplier AP' && returnItem?.supplier) {
+    // When refund type changes, reset toAccount appropriately
+    if (refundCreditTo === 'Supplier AP' && returnItem?.supplier && suppliers.length > 0) {
+      console.log('Refund type changed to Supplier AP, setting supplier:', returnItem.supplier);
       setToAccount(returnItem.supplier);
     } else if (refundCreditTo !== 'Supplier AP') {
       setToAccount('');
     }
-  }, [refundCreditTo]);
+  }, [refundCreditTo, suppliers]);
 
   const subtotal = returnItem?.total_cost || 0;
   const gst = subtotal * 0.05;
