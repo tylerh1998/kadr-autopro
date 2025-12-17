@@ -189,6 +189,24 @@ export default function InventoryAddPage() {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [batchItems]);
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                handleAddToBatch();
+            }
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                if (batchItems.length > 0 && !saving) {
+                    handleSaveAndFinish();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [batchItems, saving, currentItem, selectedSupplier, invoiceNumber, dateError]);
+
     const checkSupplierLock = async (supplierId) => {
         if (!supplierId) {
             setSupplierLockStatus({ checking: false, locked: false, lockedBy: null });
@@ -925,7 +943,8 @@ export default function InventoryAddPage() {
                             </div>
                         )}
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end items-center gap-2">
+                            <span className="text-xs text-slate-500">Ctrl + A</span>
                             <Button onClick={handleAddToBatch} className="bg-black text-white hover:bg-gray-800">
                                 <Plus className="w-4 h-4 mr-2" />
                                 Add to Batch
@@ -979,19 +998,22 @@ export default function InventoryAddPage() {
                         <Button type="button" variant="outline" onClick={() => handleNavigateAway(createPageUrl('InventoryList'))} disabled={saving}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSaveAndFinish} disabled={batchItems.length === 0 || saving} className="bg-gray-600 text-white hover:bg-gray-700">
-                            {saving ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Save Batch to Inventory
-                                </>
-                            )}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Ctrl + S</span>
+                            <Button onClick={handleSaveAndFinish} disabled={batchItems.length === 0 || saving} className="bg-gray-600 text-white hover:bg-gray-700">
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4 mr-2" />
+                                        Save Batch to Inventory
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
