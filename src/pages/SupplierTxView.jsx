@@ -124,7 +124,7 @@ export default function SupplierTxViewPage() {
                 balance_due: Math.round(invoice.balance_due * 100) / 100
             }));
             const recalculatedBalance = allInvoicesFormatted.reduce((sum, inv) => sum + inv.balance_due, 0);
-            setCurrentBalance(Math.round(recalculatedBalance * 100) / 100);
+            setCurrentBalance(recalculatedBalance);
 
             const formattedConceptualInvoices = invoicesInRange.map(invoice => ({
                 ...invoice,
