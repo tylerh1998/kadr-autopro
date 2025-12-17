@@ -20,9 +20,6 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         try {
           const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
           setReasons(reasonData);
-          if (reasonData.length > 0) {
-            setReturnReason(reasonData[0].reason);
-          }
 
           // Fetch suppliers to get their names for transaction records
           const supplierData = await Supplier.filter({ is_active: true });
