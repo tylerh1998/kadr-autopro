@@ -166,6 +166,7 @@ export default function SupplierTxPage() {
     const [invoiceLines, setInvoiceLines] = useState([]);
     const [allInvoiceLines, setAllInvoiceLines] = useState([]); // All lines for payment history and old value lookup
     const [conceptualInvoices, setConceptualInvoices] = useState([]);
+    const [allConceptualInvoices, setAllConceptualInvoices] = useState([]); // All invoices regardless of date range
     const [payments, setPayments] = useState([]); // Raw payments array
     const [chartOfAccounts, setChartOfAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -409,7 +410,8 @@ export default function SupplierTxPage() {
                 conceptualInvoices: invoicesInRange,
                 invoiceLines: enrichedLines,
                 allInvoiceLines: allEnrichedLines,
-                currentBalance: totalBalance
+                currentBalance: totalBalance,
+                allConceptualInvoices: allInvoicesData
             } = response.data.data;
 
             setSupplier(supplierData);
@@ -435,6 +437,17 @@ export default function SupplierTxPage() {
                 }))
             }));
             setConceptualInvoices(formattedConceptualInvoices);
+
+            // Format all conceptual invoices (for payment modal)
+            const formattedAllConceptualInvoices = (allInvoicesData || []).map(invoice => ({
+                ...invoice,
+                subtotal: Math.round(invoice.subtotal * 100) / 100,
+                tax_amount: Math.round(invoice.tax_amount * 100) / 100,
+                total_amount: Math.round(invoice.total_amount * 100) / 100,
+                amount_paid: Math.round(invoice.amount_paid * 100) / 100,
+                balance_due: Math.round(invoice.balance_due * 100) / 100,
+            }));
+            setAllConceptualInvoices(formattedAllConceptualInvoices);
 
             // Apply rounding to all loaded lines to ensure proper GST display
             const roundedLines = enrichedLines.map(line => ({
@@ -2156,7 +2169,7 @@ export default function SupplierTxPage() {
                 open={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
                 supplier={supplier}
-                invoiceLines={conceptualInvoices}
+                invoiceLines={allConceptualInvoices}
                 onPaymentComplete={handlePaymentComplete}
             />
         </>
