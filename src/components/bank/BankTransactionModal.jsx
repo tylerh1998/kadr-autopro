@@ -37,8 +37,8 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
     const handleModalOpen = async () => {
       if (open && currentUser && bankAccountId) {
         try {
-          // Check lock status
-          const account = bankAccount || await BankAccount.get(bankAccountId);
+          // Always fetch the latest account data to check lock status
+          const account = await BankAccount.get(bankAccountId);
           const lockStatus = checkBankAccountLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {

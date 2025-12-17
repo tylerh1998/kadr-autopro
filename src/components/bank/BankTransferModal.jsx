@@ -29,9 +29,9 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
     const handleModalOpen = async () => {
       if (open && formData.fromAccountId && formData.toAccountId && currentUser) {
         try {
-          // Check both accounts
-          const fromAccount = bankAccounts.find(acc => acc.id === formData.fromAccountId);
-          const toAccount = bankAccounts.find(acc => acc.id === formData.toAccountId);
+          // Always fetch the latest account data to check lock status
+          const fromAccount = await BankAccount.get(formData.fromAccountId);
+          const toAccount = await BankAccount.get(formData.toAccountId);
 
           if (!fromAccount || !toAccount) return;
 
