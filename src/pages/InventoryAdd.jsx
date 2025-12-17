@@ -609,17 +609,27 @@ export default function InventoryAddPage() {
         return supplier ? supplier.name : 'Unknown Supplier';
     };
 
+    const handleNavigateAway = (destination) => {
+        if (batchItems.length > 0) {
+            if (window.confirm('You have unsaved items in your batch. Are you sure you want to leave? All batch items will be lost.')) {
+                navigate(destination);
+            }
+        } else {
+            navigate(destination);
+        }
+    };
+
     return (
         <div className="container mx-auto p-6 max-w-4xl">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" onClick={() => navigate(createPageUrl('InventoryList'))}>
+                    <Button variant="outline" onClick={() => handleNavigateAway(createPageUrl('InventoryList'))}>
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back to Inventory
                     </Button>
                     <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
                 </div>
-                <Button variant="outline" onClick={() => navigate(createPageUrl('Suppliers'))}>
+                <Button variant="outline" onClick={() => handleNavigateAway(createPageUrl('Suppliers'))}>
                     <Truck className="w-4 h-4 mr-2" />
                     Suppliers
                 </Button>
@@ -966,7 +976,7 @@ export default function InventoryAddPage() {
                     )}
 
                     <div className="flex justify-between pt-6 border-t mt-6">
-                        <Button type="button" variant="outline" onClick={() => navigate(createPageUrl('InventoryList'))} disabled={saving}>
+                        <Button type="button" variant="outline" onClick={() => handleNavigateAway(createPageUrl('InventoryList'))} disabled={saving}>
                             Cancel
                         </Button>
                         <Button onClick={handleSaveAndFinish} disabled={batchItems.length === 0 || saving} className="bg-gray-600 text-white hover:bg-gray-700">
