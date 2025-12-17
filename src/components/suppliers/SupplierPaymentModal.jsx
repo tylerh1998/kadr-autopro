@@ -332,9 +332,9 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               </TabsList>
 
               <TabsContent value="pay_invoices" className="space-y-4">
-                <div className="border rounded-lg">
+                <div className="border rounded-lg max-h-[400px] overflow-y-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
                         <TableHead className="w-12"></TableHead>
                         <TableHead>Invoice #</TableHead>
