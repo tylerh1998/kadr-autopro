@@ -90,12 +90,21 @@ export default function APSummaryPage() {
     const supplierSummary = suppliers.map(supplier => {
       const conceptualInvoices = supplierInvoicesMap.get(supplier.id) || [];
       
+      // FIRST: Calculate total balance from ALL invoices (ignoring dates)
+      let total_balance = 0;
+      conceptualInvoices.forEach(invoice => {
+        if (Math.abs(invoice.balance_due) > 0.01) {
+          total_balance += invoice.balance_due;
+        }
+      });
+
+      // SECOND: Calculate aging buckets for display breakdown
+      let not_due = 0;
       let balance_0_30 = 0;
       let balance_31_60 = 0;
       let balance_60_plus = 0;
 
       conceptualInvoices.forEach(invoice => {
-        // Use the pre-calculated balance_due from backend
         const owing = invoice.balance_due;
         
         // Skip if balance is essentially zero
@@ -106,7 +115,9 @@ export default function APSummaryPage() {
         const daysOld = differenceInDays(asOfDate, invoiceDate);
 
         // Age the balance (credits reduce aged balances)
-        if (daysOld <= 30) {
+        if (daysOld < 0) {
+          not_due += owing;
+        } else if (daysOld <= 30) {
           balance_0_30 += owing;
         } else if (daysOld <= 60) {
           balance_31_60 += owing;
@@ -115,10 +126,9 @@ export default function APSummaryPage() {
         }
       });
 
-      const total_balance = balance_0_30 + balance_31_60 + balance_60_plus;
-
       return {
         ...supplier,
+        not_due,
         balance_0_30,
         balance_31_60,
         balance_60_plus,
@@ -132,12 +142,13 @@ export default function APSummaryPage() {
 
   const totals = useMemo(() => {
     return summaryData.reduce((acc, curr) => {
+      acc.not_due += curr.not_due;
       acc.balance_0_30 += curr.balance_0_30;
       acc.balance_31_60 += curr.balance_31_60;
       acc.balance_60_plus += curr.balance_60_plus;
       acc.total_balance += curr.total_balance;
       return acc;
-    }, { balance_0_30: 0, balance_31_60: 0, balance_60_plus: 0, total_balance: 0 });
+    }, { not_due: 0, balance_0_30: 0, balance_31_60: 0, balance_60_plus: 0, total_balance: 0 });
   }, [summaryData]);
 
   // Get conceptual invoices for the selected supplier
@@ -287,6 +298,7 @@ export default function APSummaryPage() {
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="text-left p-3 font-semibold text-slate-700">Supplier</th>
+                        <th className="text-right p-3 font-semibold text-slate-700">Not Due</th>
                         <th className="text-right p-3 font-semibold text-slate-700">0-30 Days</th>
                         <th className="text-right p-3 font-semibold text-slate-700">31-60 Days</th>
                         <th className="text-right p-3 font-semibold text-slate-700">60+ Days</th>
@@ -295,13 +307,14 @@ export default function APSummaryPage() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="5" className="p-6 text-center">Loading...</td></tr>
+                        <tr><td colSpan="6" className="p-6 text-center">Loading...</td></tr>
                       ) : summaryData.length > 0 ? (
                         summaryData.map(supplier => (
                           <ContextMenu key={supplier.id} onOpenChange={() => handleContextMenu(supplier)}>
                             <ContextMenuTrigger asChild>
                               <tr className="border-b hover:bg-slate-50 cursor-pointer">
                                 <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
+                                <td className="p-3 text-right">${supplier.not_due.toFixed(2)}</td>
                                 <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
                                 <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
                                 <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
@@ -321,12 +334,13 @@ export default function APSummaryPage() {
                           </ContextMenu>
                         ))
                       ) : (
-                        <tr><td colSpan="5" className="p-12 text-center text-slate-500">No outstanding payables found.</td></tr>
+                        <tr><td colSpan="6" className="p-12 text-center text-slate-500">No outstanding payables found.</td></tr>
                       )}
                     </tbody>
                     <tfoot className="bg-slate-100 font-bold">
                        <tr>
                          <td className="p-3 text-right">Total</td>
+                         <td className="p-3 text-right">${totals.not_due.toFixed(2)}</td>
                          <td className="p-3 text-right">${totals.balance_0_30.toFixed(2)}</td>
                          <td className="p-3 text-right">${totals.balance_31_60.toFixed(2)}</td>
                          <td className="p-3 text-right">${totals.balance_60_plus.toFixed(2)}</td>
