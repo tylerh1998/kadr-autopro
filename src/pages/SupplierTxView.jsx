@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Supplier, SupplierPayment } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ArrowLeft, Calendar as CalendarIcon, Search, ChevronDown, ChevronRight, Loader2, FileText } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import { createPageUrl } from '@/utils';
+import { Badge } from "@/components/ui/badge";
 
 const GST_RATE = 0.05; // 5% GST
 
@@ -110,12 +112,19 @@ export default function SupplierTxViewPage() {
                 supplier: supplierData,
                 payments: paymentsData,
                 conceptualInvoices: invoicesInRange,
-                currentBalance: totalBalance
+                allConceptualInvoices: allInvoicesData
             } = response.data.data;
 
             setSupplier(supplierData);
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date)));
-            setCurrentBalance(totalBalance);
+            
+            // Calculate current balance from all invoices (not just date range)
+            const allInvoicesFormatted = (allInvoicesData || []).map(invoice => ({
+                ...invoice,
+                balance_due: Math.round(invoice.balance_due * 100) / 100
+            }));
+            const recalculatedBalance = allInvoicesFormatted.reduce((sum, inv) => sum + inv.balance_due, 0);
+            setCurrentBalance(Math.round(recalculatedBalance * 100) / 100);
 
             const formattedConceptualInvoices = invoicesInRange.map(invoice => ({
                 ...invoice,

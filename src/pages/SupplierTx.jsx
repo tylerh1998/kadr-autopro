@@ -449,6 +449,10 @@ export default function SupplierTxPage() {
             }));
             setAllConceptualInvoices(formattedAllConceptualInvoices);
 
+            // Recalculate current balance from allConceptualInvoices to ensure consistency
+            const recalculatedBalance = formattedAllConceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0);
+            setCurrentBalance(Math.round(recalculatedBalance * 100) / 100);
+
             // Apply rounding to all loaded lines to ensure proper GST display
             const roundedLines = enrichedLines.map(line => ({
                 ...line,
