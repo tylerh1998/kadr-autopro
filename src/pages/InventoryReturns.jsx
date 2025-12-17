@@ -286,7 +286,10 @@ export default function InventoryReturnsPage() {
                                   </td>
                                   <td className="p-3"><span className="font-semibold text-slate-900">${(returnItem.total_cost || 0).toFixed(2)}</span></td>
                                   <td className="p-3"><span className="text-slate-600">{returnItem.return_date ? format(new Date(returnItem.return_date), 'MMM d, yyyy') : 'N/A'}</span></td>
-                                  <td className="p-3"><span className="text-slate-600">{returnItem.sent_back && returnItem.sent_back !== 'N/A' ? format(new Date(returnItem.sent_back), 'MMM d, yyyy') : 'N/A'}</span></td>
+                                  <td className="p-3"><span className="text-slate-600">{returnItem.sent_back && returnItem.sent_back !== 'N/A' ? (() => {
+                                    const [year, month, day] = returnItem.sent_back.split('-').map(Number);
+                                    return format(new Date(year, month - 1, day), 'MMM d, yyyy');
+                                  })() : 'N/A'}</span></td>
                                   <td className="p-3">
                                     <TooltipProvider><Tooltip>
                                       <TooltipTrigger asChild>
