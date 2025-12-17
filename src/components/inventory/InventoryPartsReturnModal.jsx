@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,8 +9,8 @@ import { Package, RotateCcw } from 'lucide-react';
 
 export default function InventoryPartsReturnModal({ open, onClose, item, onUpdate, source, onReturnWorkOrderPart, workOrderNumber, workOrderId }) {
   const [returnQuantity, setReturnQuantity] = useState('1');
-  const [returnType, setReturnType] = useState('return');
   const [returnReason, setReturnReason] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
   const [reasons, setReasons] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
@@ -19,7 +18,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
     if (open) {
       const fetchReasonsAndSuppliers = async () => {
         try {
-          const reasonData = await ReturnReason.filter({ is_active: true });
+          const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
           setReasons(reasonData);
           if (reasonData.length > 0) {
             setReturnReason(reasonData[0].reason);
@@ -92,13 +91,13 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         description: item.description,
         supplier: item.supplier_id,
         quantity_returned: qtyReturned,
-        return_type: returnType,
+        return_type: 'return',
         return_reason: returnReason,
         cost_per_unit: item.cost,
         total_cost: item.cost * qtyReturned,
         return_date: new Date().toISOString(),
         status: 'On-site',
-        notes: `Returned from general inventory.`
+        notes: returnNotes || ''
       };
       const createdReturn = await InventoryReturn.create(returnData);
 
@@ -160,20 +159,6 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           </div>
 
           <div>
-            <Label htmlFor="returnType">Return Type</Label>
-            <Select value={returnType} onValueChange={setReturnType}>
-              <SelectTrigger id="returnType">
-                <SelectValue placeholder="Select a type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="return">Return</SelectItem>
-                <SelectItem value="core">Core</SelectItem>
-                <SelectItem value="warranty">Warranty</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <Label htmlFor="returnReason">Reason for Return</Label>
             <Select value={returnReason} onValueChange={setReturnReason}>
               <SelectTrigger id="returnReason">
@@ -187,6 +172,17 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="returnNotes">Notes (Optional)</Label>
+            <Input
+              id="returnNotes"
+              type="text"
+              value={returnNotes}
+              onChange={(e) => setReturnNotes(e.target.value)}
+              placeholder="Additional notes..."
+            />
           </div>
 
           <DialogFooter>
