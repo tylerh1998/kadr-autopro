@@ -9,7 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, SupplierInvoiceLine, InventoryReturn, GLTransaction, BankAccount } from '@/entities/all';
+import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, SupplierInvoiceLine, InventoryReturn, GLTransaction, BankAccount, Supplier } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { checkEntityLock } from '../utils/mountainTimeUtils';
 
 export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate }) {
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -22,7 +24,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [linesOfCredit, setLinesOfCredit] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [isAdjustmentOpen, setIsAdjustmentOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -49,6 +65,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         }
         setLinesOfCredit(linesOfCreditData);
 
+        // Load inventory suppliers
+        const suppliersData = await Supplier.filter({ inventory_supplier: true });
+        console.log('Inventory suppliers loaded:', suppliersData);
+        setSuppliers(suppliersData);
+
       } catch (error) {
         console.error("Failed to load account data:", error);
         alert('Error loading credit modal data. Please try again.');
@@ -63,14 +84,19 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       setAdjustmentReason('');
       setGlAccount('5004'); // Default to Inventory Price Adjustment account
       setRefundCreditTo('Supplier AP');
-      setToAccount('');
+      setToAccount(returnItem?.supplier || ''); // Default to returnItem supplier
       setIsAdjustmentOpen(false);
     }
-  }, [open]);
+  }, [open, returnItem]);
 
   useEffect(() => {
-    setToAccount('');
-  }, [refundCreditTo]);
+    // When refund type changes, reset toAccount to default values
+    if (refundCreditTo === 'Supplier AP') {
+      setToAccount(returnItem?.supplier || '');
+    } else {
+      setToAccount('');
+    }
+  }, [refundCreditTo, returnItem]);
 
   const subtotal = returnItem?.total_cost || 0;
   const gst = subtotal * 0.05;
@@ -81,6 +107,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   const getToAccountOptions = () => {
     switch (refundCreditTo) {
+      case 'Supplier AP':
+        return suppliers.map(s => ({ value: s.id, label: s.name }));
       case 'Cash Drawer':
         return ['Cash', 'Cheque', 'Card', 'Etransfer'].map(o => ({ value: o, label: o }));
       case 'Line of Credit':
@@ -90,14 +118,19 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     }
   };
 
-  const isToAccountDisabled = refundCreditTo === 'Supplier AP';
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Validation for To Account when required
-    if (!isToAccountDisabled && !toAccount) {
+    // Validate current user is available
+    if (!currentUser) {
+      alert('User not authenticated. Please log in again.');
+      setLoading(false);
+      return;
+    }
+
+    // Validation for To Account
+    if (!toAccount) {
       alert('Please select a To Account.');
       setLoading(false);
       return;
@@ -110,11 +143,33 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       return;
     }
 
+    // Check if the selected supplier is locked (live check on submit)
+    try {
+      const supplierIdToCheck = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
+      const supplierEntity = await Supplier.get(supplierIdToCheck);
+      
+      if (supplierEntity.LockedByUser && supplierEntity.locked_timestamp) {
+        const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
+        if (!lockStatus.isExpired) {
+          alert(`This supplier is currently locked by ${supplierEntity.LockedByUser}. Please wait until the lock is released.`);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking supplier lock:', error);
+      alert('Failed to check supplier lock status. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
       // 1. Create SupplierInvoiceLine for the parts credit
       const creditLineDescription = `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`;
+      const supplierIdForInvoice = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
+      
       await SupplierInvoiceLine.create({
-        supplier_id: returnItem.supplier,
+        supplier_id: supplierIdForInvoice,
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
         description: creditLineDescription,
@@ -128,7 +183,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       if (adj !== 0) {
         const adjustmentDescription = `Adjustment: ${adjustmentReason || 'Miscellaneous'}`;
         await SupplierInvoiceLine.create({
-          supplier_id: returnItem.supplier,
+          supplier_id: supplierIdForInvoice,
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           description: adjustmentDescription,
@@ -352,14 +407,15 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to-account">To Account</Label>
+                <Label htmlFor="to-account">
+                  {refundCreditTo === 'Supplier AP' ? 'Supplier' : 'To Account'}
+                </Label>
                 <Select
                   value={toAccount}
                   onValueChange={setToAccount}
-                  disabled={isToAccountDisabled}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={isToAccountDisabled ? "N/A (Supplier AP)" : "Select account"} />
+                    <SelectValue placeholder="Select account" />
                   </SelectTrigger>
                   <SelectContent>
                     {getToAccountOptions().map(option => (
