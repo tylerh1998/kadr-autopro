@@ -9,8 +9,8 @@ import { Package, RotateCcw } from 'lucide-react';
 
 export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
   const [returnQuantity, setReturnQuantity] = useState('1');
-  const [returnType, setReturnType] = useState('return');
   const [returnReason, setReturnReason] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
   const [reasons, setReasons] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +18,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     if (open) {
       const fetchReasons = async () => {
         try {
-          const reasonData = await ReturnReason.filter({ is_active: true });
+          const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
           setReasons(reasonData);
           if (reasonData.length > 0) {
             setReturnReason(reasonData[0].reason);
@@ -88,7 +88,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         quantity_ordered_change: 0,
         ro_number: workOrder?.ro_number || '',
         source_record_id: workOrder?.id || '',
-        description: `Part ${lineItem.part_number} returned from Work Order ${workOrder?.ro_number || 'Unknown'} to general inventory.`
+        description: `Part ${lineItem.part_number} returned from Work Order ${workOrder?.ro_number || 'Unknown'} to general inventory. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
       };
       console.log('Creating InventoryTxs 1:', txData1);
       await InventoryTxs.create(txData1);
@@ -100,7 +100,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         description: lineItem.description || '',
         supplier: supplier?.id || inventoryItem?.supplier_id || 'UNKNOWN',
         quantity_returned: qtyReturned,
-        return_type: returnType,
+        return_type: 'return',
         return_reason: returnReason,
         cost_per_unit: inventoryItem?.cost || lineItem.cost_ea || 0,
         total_cost: (inventoryItem?.cost || lineItem.cost_ea || 0) * qtyReturned,
@@ -108,7 +108,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         status: 'On-site',
         work_order_id: workOrder?.id || '',
         inventory_item_id: inventoryItem?.id || null,
-        notes: `Returned from Work Order ${workOrder?.ro_number || 'Unknown'}. ${returnReason}`
+        notes: returnNotes || `Returned from Work Order ${workOrder?.ro_number || 'Unknown'}. ${returnReason}`
       };
       console.log('Creating InventoryReturn:', returnData);
       const createdInventoryReturn = await InventoryReturn.create(returnData);
@@ -126,7 +126,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         ro_number: workOrder?.ro_number || '',
         source_record_id: createdInventoryReturn?.id || '',
         supplier_name: supplier?.name || 'Unknown Supplier',
-        description: `Part ${lineItem.part_number} shipped to supplier ${supplier?.name || 'Unknown Supplier'} for credit, from WO ${workOrder?.ro_number || 'Unknown'}. Reason: ${returnReason}.`
+        description: `Part ${lineItem.part_number} shipped to supplier ${supplier?.name || 'Unknown Supplier'} for credit, from WO ${workOrder?.ro_number || 'Unknown'}. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
       };
       console.log('Creating InventoryTxs 2:', txData2);
       await InventoryTxs.create(txData2);
@@ -134,7 +134,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
       console.log('=== DEBUG: Phase 6 - Return process complete ===');
 
       // Step 5: Call parent handler to update the line item in the UI
-      onReturn(qtyReturned, returnType, returnReason);
+      onReturn(qtyReturned, 'return', returnReason);
       onClose();
 
     } catch (error) {
@@ -185,20 +185,6 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
           </div>
 
           <div>
-            <Label htmlFor="returnType">Return Type</Label>
-            <Select value={returnType} onValueChange={setReturnType} disabled={loading}>
-              <SelectTrigger id="returnType">
-                <SelectValue placeholder="Select a type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="return">Return</SelectItem>
-                <SelectItem value="core">Core</SelectItem>
-                <SelectItem value="warranty">Warranty</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <Label htmlFor="returnReason">Reason for Return</Label>
             <Select value={returnReason} onValueChange={setReturnReason} disabled={loading}>
               <SelectTrigger id="returnReason">
@@ -212,6 +198,18 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="returnNotes">Notes (Optional)</Label>
+            <Input
+              id="returnNotes"
+              type="text"
+              value={returnNotes}
+              onChange={(e) => setReturnNotes(e.target.value)}
+              placeholder="Additional notes..."
+              disabled={loading}
+            />
           </div>
 
           <DialogFooter>
