@@ -80,8 +80,9 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
 
       if (invoiceLines && Array.isArray(invoiceLines)) {
         // Create a unique key for each invoice since conceptual invoices might not have unique IDs
+        // Only show invoices with positive balances (exclude paid and overpaid invoices)
         const outstanding = invoiceLines
-          .filter(inv => Math.abs(inv.balance_due) > 0.01)
+          .filter(inv => inv.balance_due > 0.01)
           .map((inv, index) => ({
             ...inv,
             uniqueKey: `${inv.supplier_id}_${inv.invoice_number}_${inv.invoice_date}_${index}`

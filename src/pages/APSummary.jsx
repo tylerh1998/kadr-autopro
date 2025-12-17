@@ -94,14 +94,27 @@ export default function APSummaryPage() {
 
     // 2. Match payments to conceptual invoices
     payments.forEach(payment => {
-      const matchingInvoice = conceptualInvoices.find(inv => 
-        inv.supplier_id === payment.supplier_id && 
-        inv.invoice_number === payment.invoice_number
-      );
-      
-      if (matchingInvoice) {
-        matchingInvoice.amount_paid += parseFloat(payment.amount) || 0;
+      // Parse the invoice_number JSON string to get applied invoice details
+      let appliedInvoices = [];
+      try {
+        if (typeof payment.invoice_number === 'string') {
+          appliedInvoices = JSON.parse(payment.invoice_number);
+        }
+      } catch (error) {
+        console.warn('Failed to parse payment invoice_number:', payment.invoice_number);
       }
+
+      // Apply each portion of the payment to the corresponding invoice
+      appliedInvoices.forEach(applied => {
+        const matchingInvoice = conceptualInvoices.find(inv => 
+          inv.supplier_id === payment.supplier_id && 
+          inv.invoice_number === applied.invoice_number
+        );
+        
+        if (matchingInvoice) {
+          matchingInvoice.amount_paid += parseFloat(applied.amount_applied) || 0;
+        }
+      });
     });
 
     // 3. Calculate owing and daysOld for each conceptual invoice
@@ -194,13 +207,26 @@ export default function APSummaryPage() {
     
     // Apply payments
     supplierPayments.forEach(payment => {
-      const matchingInvoice = Object.values(invoiceMap).find(inv => 
-        inv.invoice_number === payment.invoice_number
-      );
-      
-      if (matchingInvoice) {
-        matchingInvoice.amount_paid += parseFloat(payment.amount) || 0;
+      // Parse the invoice_number JSON string to get applied invoice details
+      let appliedInvoices = [];
+      try {
+        if (typeof payment.invoice_number === 'string') {
+          appliedInvoices = JSON.parse(payment.invoice_number);
+        }
+      } catch (error) {
+        console.warn('Failed to parse payment invoice_number:', payment.invoice_number);
       }
+
+      // Apply each portion of the payment to the corresponding invoice
+      appliedInvoices.forEach(applied => {
+        const matchingInvoice = Object.values(invoiceMap).find(inv => 
+          inv.invoice_number === applied.invoice_number
+        );
+        
+        if (matchingInvoice) {
+          matchingInvoice.amount_paid += parseFloat(applied.amount_applied) || 0;
+        }
+      });
     });
     
     // Calculate balance_due
