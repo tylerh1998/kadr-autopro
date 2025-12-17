@@ -112,14 +112,15 @@ export default function SupplierTxViewPage() {
                 supplier: supplierData,
                 payments: paymentsData,
                 conceptualInvoices: invoicesInRange,
-                allConceptualInvoices: allInvoicesData
+                allConceptualInvoices: allInvoicesData,
+                currentBalance: totalBalance
             } = response.data.data;
 
             setSupplier(supplierData);
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date)));
             
             // Use backend's currentBalance directly (single source of truth)
-            setCurrentBalance(currentBalance);
+            setCurrentBalance(totalBalance);
 
             // Use backend's invoicesInRange directly (already rounded by backend)
             setConceptualInvoices(invoicesInRange);
