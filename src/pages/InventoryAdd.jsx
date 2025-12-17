@@ -177,6 +177,18 @@ export default function InventoryAddPage() {
         loadData();
     }, []);
 
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (batchItems.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [batchItems]);
+
     const checkSupplierLock = async (supplierId) => {
         if (!supplierId) {
             setSupplierLockStatus({ checking: false, locked: false, lockedBy: null });
