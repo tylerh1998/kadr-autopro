@@ -763,21 +763,58 @@ export default function InventoryAddPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                             <div className="space-y-2">
                                 <Label htmlFor="part_number_input">Part # (Search or Create New) *</Label>
-                                <Input
-                                    id="part_number_input"
-                                    placeholder="Select or type part #..."
-                                    list="part-numbers-list"
-                                    value={currentItem.part_number}
-                                    onChange={(e) => handlePartNumberSelect(e.target.value)}
-                                    required
-                                />
-                                <datalist id="part-numbers-list">
-                                    {inventoryItems.map(item => (
-                                        <option key={item.id} value={item.part_number}>
-                                            {item.description}
-                                        </option>
-                                    ))}
-                                </datalist>
+                                <Popover open={partSearchOpen} onOpenChange={setPartSearchOpen}>
+                                    <PopoverTrigger asChild>
+                                        <div className="relative">
+                                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                                            <Input
+                                                id="part_number_input"
+                                                placeholder="Search or type part #..."
+                                                value={currentItem.part_number}
+                                                onChange={(e) => {
+                                                    handlePartNumberSelect(e.target.value);
+                                                    setPartSearchOpen(true);
+                                                }}
+                                                onFocus={() => setPartSearchOpen(true)}
+                                                className="pl-8"
+                                                required
+                                                autoComplete="off"
+                                            />
+                                        </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                                            {filteredInventory.length === 0 ? (
+                                                <div className="py-6 text-center text-sm text-slate-500">
+                                                    No existing parts found.
+                                                    <br />
+                                                    Continue typing to create new.
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    {filteredInventory.map((item) => (
+                                                        <div
+                                                            key={item.id}
+                                                            onClick={() => {
+                                                                handlePartNumberSelect(item.part_number);
+                                                                setPartSearchOpen(false);
+                                                            }}
+                                                            className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                                                        >
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-slate-900">{item.part_number}</span>
+                                                                <span className="text-xs text-slate-500">{item.description}</span>
+                                                            </div>
+                                                            {item.part_number === currentItem.part_number && (
+                                                                <Check className="h-4 w-4 text-green-600" />
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                             <div className="space-y-2 col-span-1 md:col-span-2 grid grid-cols-3 gap-2">
                                 <div className="space-y-2 col-span-2">
