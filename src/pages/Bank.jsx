@@ -861,12 +861,18 @@ export default function BankPage() {
                             </td>
                             <td className="p-3 text-right">
                               {tx.credit_amount > 0 && (
-                                <button
-                                  onClick={() => handleDepositClick(tx)}
-                                  className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
-                                >
-                                  ${tx.credit_amount.toFixed(2)}
-                                </button>
+                                tx.source_type === 'deposit' ? (
+                                  <button
+                                    onClick={() => handleDepositClick(tx)}
+                                    className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
+                                  >
+                                    ${tx.credit_amount.toFixed(2)}
+                                  </button>
+                                ) : (
+                                  <span className="font-medium text-green-600">
+                                    ${tx.credit_amount.toFixed(2)}
+                                  </span>
+                                )
                               )}
                             </td>
                             <td className="p-3 text-center">
