@@ -1453,9 +1453,15 @@ export default function SupplierTxPage() {
         return account ? `${account.account_number} - ${account.account_name}` : 'N/A';
     }, [chartOfAccounts]);
 
-    const dateRangeTotal = invoiceLines
-        .filter(l => l.invoice_number && typeof l.line_total === 'number')
-        .reduce((sum, line) => sum + parseFloat(line.line_total || 0), 0);
+    const dateRangeTotal = useMemo(() => {
+        const totalInvoiced = invoiceLines
+            .filter(l => l.invoice_number && typeof l.line_total === 'number')
+            .reduce((sum, line) => sum + (parseFloat(line.line_total) || 0), 0);
+            
+        const totalPaid = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+        
+        return totalInvoiced - totalPaid;
+    }, [invoiceLines, payments]);
 
     const handleScrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
