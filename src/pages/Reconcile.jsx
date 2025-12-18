@@ -521,6 +521,26 @@ export default function ReconcilePage() {
                 </Button>
               </div>
             )}
+
+            {/* Floating Cleared Balance Box */}
+            <div className="fixed bottom-6 left-6 z-50 bg-white rounded-lg shadow-xl border border-slate-200 p-4 min-w-[200px] animate-in slide-in-from-bottom-5">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-slate-500">Cleared Balance</span>
+                <span className="text-2xl font-bold text-slate-900">
+                  ${totals.clearedBalance.toFixed(2)}
+                </span>
+                {statementBalance && (
+                  <div className="flex justify-between items-center border-t pt-2 mt-1">
+                    <span className="text-xs text-slate-500">Difference</span>
+                    <span className={`text-sm font-bold ${
+                      Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      ${difference.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
       </div>
