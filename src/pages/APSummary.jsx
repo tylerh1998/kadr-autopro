@@ -291,13 +291,13 @@ export default function APSummaryPage() {
                               </tr>
                             </ContextMenuTrigger>
                             <ContextMenuContent>
-                              <ContextMenuItem onClick={handleMakePayment}>
-                                <DollarSign className="w-4 h-4 mr-2" />
-                                Make Payment
-                              </ContextMenuItem>
                               <ContextMenuItem onClick={handleViewTransactions}>
                                 <FileText className="w-4 h-4 mr-2" />
                                 View Transactions
+                              </ContextMenuItem>
+                              <ContextMenuItem onClick={handleMakePayment}>
+                                <DollarSign className="w-4 h-4 mr-2" />
+                                Make Payment
                               </ContextMenuItem>
                             </ContextMenuContent>
                           </ContextMenu>
