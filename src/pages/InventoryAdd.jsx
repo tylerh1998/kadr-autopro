@@ -155,6 +155,32 @@ export default function InventoryAddPage() {
     });
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
+    const [partSearchOpen, setPartSearchOpen] = useState(false);
+
+    const filteredInventory = useMemo(() => {
+        if (!currentItem.part_number || currentItem.part_number.trim() === '') return [];
+        const searchLower = currentItem.part_number.toLowerCase();
+        
+        return inventoryItems
+            .map(item => {
+                const partNumber = (item.part_number || '').toLowerCase();
+                const description = (item.description || '').toLowerCase();
+                const manufacturer = (item.manufacturer || '').toLowerCase();
+                
+                let score = 0;
+                if (partNumber === searchLower) score = 100;
+                else if (partNumber.startsWith(searchLower)) score = 80;
+                else if (partNumber.includes(searchLower)) score = 60;
+                else if (description.startsWith(searchLower)) score = 40;
+                else if (description.includes(searchLower)) score = 20;
+                else if (manufacturer.includes(searchLower)) score = 10;
+                
+                return { ...item, _score: score };
+            })
+            .filter(item => item._score > 0)
+            .sort((a, b) => b._score - a._score)
+            .slice(0, 50);
+    }, [currentItem.part_number, inventoryItems]);
 
     useEffect(() => {
         const loadData = async () => {
