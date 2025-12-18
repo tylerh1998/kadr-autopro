@@ -1,7 +1,6 @@
 import APSummary from './pages/APSummary';
 import BalanceSheet from './pages/BalanceSheet';
 import Bank from './pages/Bank';
-import BatchUploader from './pages/BatchUploader';
 import CashDrawer from './pages/CashDrawer';
 import ChartOfAccounts from './pages/ChartOfAccounts';
 import ChequeRegister from './pages/ChequeRegister';
@@ -41,6 +40,7 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
+import LankarImport from './pages/LankarImport';
 import __Layout from './Layout.jsx';
 
 
@@ -48,7 +48,6 @@ export const PAGES = {
     "APSummary": APSummary,
     "BalanceSheet": BalanceSheet,
     "Bank": Bank,
-    "BatchUploader": BatchUploader,
     "CashDrawer": CashDrawer,
     "ChartOfAccounts": ChartOfAccounts,
     "ChequeRegister": ChequeRegister,
@@ -88,6 +87,7 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
+    "LankarImport": LankarImport,
 }
 
 export const pagesConfig = {

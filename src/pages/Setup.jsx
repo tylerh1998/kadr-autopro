@@ -83,11 +83,11 @@ export default function SetupPage() {
               Download Template
             </Button>
             <Button 
-              onClick={() => window.location.href = createPageUrl('BatchUploader')}
+              onClick={() => window.location.href = createPageUrl('LankarImport')}
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Batch Uploader
+              Lankar Import
             </Button>
             <Button 
               onClick={handleBackup}
