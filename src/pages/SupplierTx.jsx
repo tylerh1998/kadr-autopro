@@ -156,9 +156,9 @@ const parseAndValidateDateInput = (inputDate) => {
 
 // Helper function to determine if a line should be locked from editing
 const isLineLocked = (line) => {
-    // A line is locked if it's an inventory line (read-only)
-    // or if it has a non-zero paid_amount, meaning it's been partially or fully paid.
-    return line.inventory === true || (typeof line.paid_amount === 'number' && line.paid_amount !== 0);
+    // A line is locked if it has a non-zero paid_amount, meaning it's been partially or fully paid.
+    // Inventory lines are handled separately in the UI to allow GST editing.
+    return (typeof line.paid_amount === 'number' && line.paid_amount !== 0);
 };
 
 export default function SupplierTxPage() {
@@ -527,6 +527,16 @@ export default function SupplierTxPage() {
                 if (line.id !== lineId) return line;
                 if (isLineLocked(line)) return line; // Prevent changes to locked lines
 
+                // For inventory lines, only allow GST-related changes
+                if (line.inventory) {
+                    if (field !== 'gst' && field !== 'gst_override') {
+                        return line;
+                    }
+                    if (field === 'gst' && !line.gst_override) {
+                        return line;
+                    }
+                }
+
                 const updatedLine = { ...line };
 
                 // Handle date field - store raw value during typing, clear error
@@ -614,7 +624,7 @@ export default function SupplierTxPage() {
 
     const handleDateBlur = async (lineId, value) => {
         const line = invoiceLines.find(l => l.id === lineId);
-        if (isLineLocked(line)) return;
+        if (isLineLocked(line) || line.inventory) return;
 
         const parseResult = parseAndValidateDateInput(value);
         
@@ -660,6 +670,7 @@ export default function SupplierTxPage() {
     const handleValueBlur = (lineId, field, value) => {
         const line = invoiceLines.find(l => l.id === lineId);
         if (isLineLocked(line)) return; // Prevent blur actions on locked lines
+        if (line.inventory && field !== 'gst') return; // Only allow GST blur for inventory lines
 
         if (field === 'charge' || field === 'gst' || field === 'line_total') {
             const numValue = parseFloat(value);
@@ -783,10 +794,9 @@ export default function SupplierTxPage() {
         try {
             const linesToSave = invoiceLines.filter(line => {
                 // Only consider saving lines that are new OR existing lines that might have content
-                // Skip empty new lines and existing inventory lines (which are read-only and not edited here)
+                // Skip empty new lines
                 if ((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) return false;
-                if (line.inventory && !line.isNew && !line.id.startsWith('temp_')) return false;
-
+                
                 // Ensure existing lines are included if they have content or were simply fetched
                 const hasContent = line.invoice_number || line.description ||
                                    (typeof line.charge === 'number' && line.charge !== 0) ||
@@ -892,10 +902,9 @@ export default function SupplierTxPage() {
 
             // Process saves
             for (const line of linesToSave) {
-                // Skip completely empty new lines or inventory lines (which are read-only)
+                // Skip completely empty new lines
                 if ((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) continue;
-                if (line.inventory && !line.isNew && !line.id.startsWith('temp_')) continue;
-
+                
                 // If line is locked by payment, it should not be possible to change amounts or GL.
                 // Other fields (invoice number, description, date) *could* theoretically be changed,
                 // but for simplicity and robustness, if a line is locked, we assume it's entirely read-only through this interface.
@@ -1232,7 +1241,7 @@ export default function SupplierTxPage() {
         if (!line) return;
 
         const locked = isLineLocked(line);
-        if (locked) {
+        if (locked || line.inventory) {
             alert('This line cannot be deleted because it has a payment applied or is an inventory line.');
             return;
         }
@@ -1673,8 +1682,8 @@ export default function SupplierTxPage() {
                                                                     value={line.invoice_number || ''} 
                                                                     onChange={(e) => !isDisabled && handleLineChange(line.id, 'invoice_number', e.target.value)}
                                                                     onFocus={() => setSelectedLineId(line.id)}
-                                                                    readOnly={isDisabled}
-                                                                    className={isDisabled ? 'cursor-not-allowed' : ''}
+                                                                    readOnly={isDisabled || line.inventory}
+                                                                    className={isDisabled || line.inventory ? 'cursor-not-allowed' : ''}
                                                                 />
                                                             </TableCell>
                                                             <TableCell>
@@ -1686,8 +1695,8 @@ export default function SupplierTxPage() {
                                                                         onBlur={(e) => !isDisabled && handleDateBlur(line.id, e.target.value)}
                                                                         onFocus={() => setSelectedLineId(line.id)}
                                                                         placeholder="MM/DD/YYYY"
-                                                                        className={`w-32 ${line.dateError ? 'text-red-600 border-red-500' : ''} ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                                                                        readOnly={isDisabled}
+                                                                        className={`w-32 ${line.dateError ? 'text-red-600 border-red-500' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}
+                                                                        readOnly={isDisabled || line.inventory}
                                                                         title={line.dateError || ''}
                                                                     />
                                                                     <Popover>
@@ -1695,7 +1704,7 @@ export default function SupplierTxPage() {
                                                                             <Button 
                                                                                 variant="outline" 
                                                                                 size="icon"
-                                                                                disabled={isDisabled}
+                                                                                disabled={isDisabled || line.inventory}
                                                                                 className="h-10 w-10"
                                                                             >
                                                                                 <CalendarIcon className="h-4 w-4" />
@@ -1737,8 +1746,8 @@ export default function SupplierTxPage() {
                                                                     onChange={(e) => !isDisabled && handleLineChange(line.id, 'description', e.target.value)} 
                                                                     onFocus={() => setSelectedLineId(line.id)}
                                                                     rows={2} 
-                                                                    className={`resize-none ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                                                                    readOnly={isDisabled}
+                                                                    className={`resize-none ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}
+                                                                    readOnly={isDisabled || line.inventory}
                                                                 />
                                                             </TableCell>
                                                             <TableCell className={ (typeof line.charge === 'number' && line.charge < 0) || (typeof line.charge === 'string' && line.charge !== '' && isNaN(parseFloat(line.charge))) ? 'text-red-600' : ''}>
@@ -1748,8 +1757,8 @@ export default function SupplierTxPage() {
                                                                     onChange={(e) => !isDisabled && handleLineChange(line.id, 'charge', e.target.value)}
                                                                     onBlur={(e) => !isDisabled && handleValueBlur(line.id, 'charge', e.target.value)}
                                                                     onFocus={() => setSelectedLineId(line.id)}
-                                                                    className={`text-right ${typeof line.charge === 'string' && line.charge !== '' && isNaN(parseFloat(line.charge)) ? 'text-red-600 border-red-300' : ''} ${isDisabled ? 'cursor-not-allowed' : ''}`}
-                                                                    readOnly={isDisabled}
+                                                                    className={`text-right ${typeof line.charge === 'string' && line.charge !== '' && isNaN(parseFloat(line.charge)) ? 'text-red-600 border-red-300' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}
+                                                                    readOnly={isDisabled || line.inventory}
                                                                 />
                                                             </TableCell>
                                                             <TableCell className={ (typeof line.gst === 'number' && line.gst < 0) || (typeof line.gst === 'string' && line.gst !== '' && isNaN(parseFloat(line.gst))) ? 'text-red-600' : ''}>
@@ -1775,9 +1784,9 @@ export default function SupplierTxPage() {
                                                                 <Select
                                                                     value={line.gl_account || ''}
                                                                     onValueChange={(value) => { !isDisabled && handleLineChange(line.id, 'gl_account', value); setSelectedLineId(line.id); }}
-                                                                    disabled={isDisabled}
+                                                                    disabled={isDisabled || line.inventory}
                                                                 >
-                                                                    <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isDisabled ? 'cursor-not-allowed' : ''}`}>
+                                                                    <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}>
                                                                         <SelectValue placeholder="Select GL Account *">
                                                                             {line.gl_account ? (() => {
                                                                                 const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
@@ -1797,7 +1806,7 @@ export default function SupplierTxPage() {
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 <div className="flex items-center justify-center gap-2">
-                                                                    {locked ? (
+                                                                    {locked || line.inventory ? (
                                                                         <TooltipProvider>
                                                                             <Tooltip>
                                                                                 <TooltipTrigger asChild>
@@ -1842,7 +1851,7 @@ export default function SupplierTxPage() {
                                                     <ContextMenuContent>
                                                         <ContextMenuItem
                                                             onClick={() => handleEditLineClick(line)}
-                                                            disabled={isLockedByOtherUser || !lockAcquired || locked}
+                                                            disabled={isLockedByOtherUser || !lockAcquired || locked || line.inventory}
                                                         >
                                                             Edit Line
                                                         </ContextMenuItem>
@@ -1852,7 +1861,7 @@ export default function SupplierTxPage() {
                                                         <ContextMenuItem onClick={() => handleAddLineBelow(line.id)} disabled={isLockedByOtherUser || !lockAcquired}>
                                                             Add Line Below
                                                         </ContextMenuItem>
-                                                        {!locked && (
+                                                        {!locked && !line.inventory && (
                                                             <ContextMenuItem 
                                                                 onClick={() => handleDeleteLine(line.id)} 
                                                                 disabled={isLockedByOtherUser || !lockAcquired}
