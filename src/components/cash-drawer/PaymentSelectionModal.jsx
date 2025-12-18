@@ -61,6 +61,30 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
     );
   };
 
+  // Helper to safely format YYYY-MM-DD dates without timezone shifts
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      // If it looks like YYYY-MM-DD, parse manually to avoid UTC conversion
+      if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        });
+      }
+      // Fallback for other formats
+      return new Date(dateStr).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
@@ -129,7 +153,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                         </div>
                       )}
                       <div className="text-xs text-gray-500 mt-1">
-                        {payment.date ? new Date(payment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                        {formatDate(payment.date)}
                         {payment.reference && ` • Ref: ${payment.reference}`}
                       </div>
                       {payment.notes && (
