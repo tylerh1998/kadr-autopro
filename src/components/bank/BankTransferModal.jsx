@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeftRight, AlertCircle } from 'lucide-react';
+import { ArrowLeftRight, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { BankAccount } from '@/entities/all';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
@@ -24,6 +24,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   const [locksAcquired, setLocksAcquired] = useState([]);
   const [prevAccounts, setPrevAccounts] = useState({ from: '', to: '' });
   const [lockedByOthers, setLockedByOthers] = useState({}); // { accountId: lockedByUser }
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Helper to release lock
   const releaseLock = async (accountId) => {
@@ -203,20 +204,27 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
     return true;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    onSubmit({
-      fromAccountId: formData.fromAccountId,
-      toAccountId: formData.toAccountId,
-      amount: parseFloat(formData.amount),
-      transferDate: formData.transferDate,
-      description: formData.description || 'Bank Transfer'
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        fromAccountId: formData.fromAccountId,
+        toAccountId: formData.toAccountId,
+        amount: parseFloat(formData.amount),
+        transferDate: formData.transferDate,
+        description: formData.description || 'Bank Transfer'
+      });
+    } catch (error) {
+      console.error("Transfer error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
@@ -417,16 +425,25 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 className="bg-blue-600 hover:bg-blue-700"
-                disabled={Object.keys(lockedByOthers).length > 0}
+                disabled={Object.keys(lockedByOthers).length > 0 || isSubmitting}
               >
-                <ArrowLeftRight className="w-4 h-4 mr-2" />
-                Transfer Funds
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                    Transfer Funds
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
