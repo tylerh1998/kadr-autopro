@@ -295,7 +295,7 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
               <Input
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={(e) => handleInputChange('description', e.target.value.replace(/\b\w/g, l => l.toUpperCase()))}
                 required
               />
             </div>

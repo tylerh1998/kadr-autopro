@@ -830,7 +830,7 @@ export default function InventoryAddPage() {
                                     <Input
                                         id="description"
                                         value={currentItem.description}
-                                        onChange={(e) => handleItemFieldChange('description', e.target.value)}
+                                        onChange={(e) => handleItemFieldChange('description', e.target.value.replace(/\b\w/g, l => l.toUpperCase()))}
                                         required
                                     />
                                 </div>
