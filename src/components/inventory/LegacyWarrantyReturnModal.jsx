@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { InventoryItem, InventoryReturn, Supplier } from '@/entities/all';
 
@@ -28,6 +28,32 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [existingPart, setExistingPart] = useState(null);
+  const [partSearchOpen, setPartSearchOpen] = useState(false);
+
+  const filteredInventory = useMemo(() => {
+    if (!formData.part_number || formData.part_number.trim() === '') return [];
+    const searchLower = formData.part_number.toLowerCase();
+    
+    return inventoryItems
+        .map(item => {
+            const partNumber = (item.part_number || '').toLowerCase();
+            const description = (item.description || '').toLowerCase();
+            const manufacturer = (item.manufacturer || '').toLowerCase();
+            
+            let score = 0;
+            if (partNumber === searchLower) score = 100;
+            else if (partNumber.startsWith(searchLower)) score = 80;
+            else if (partNumber.includes(searchLower)) score = 60;
+            else if (description.startsWith(searchLower)) score = 40;
+            else if (description.includes(searchLower)) score = 20;
+            else if (manufacturer.includes(searchLower)) score = 10;
+            
+            return { ...item, _score: score };
+        })
+        .filter(item => item._score > 0)
+        .sort((a, b) => b._score - a._score)
+        .slice(0, 50);
+  }, [formData.part_number, inventoryItems]);
 
   useEffect(() => {
     if (open) {
