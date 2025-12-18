@@ -421,9 +421,16 @@ export default function SupplierTxPage() {
 
             // The conceptualInvoices from backend functions already contains the grouped lines
             // Ensure they are correctly formatted and rounded
-            const formattedConceptualInvoices = invoicesInRange.map(invoice => ({
-                ...invoice,
-                subtotal: Math.round(invoice.subtotal * 100) / 100,
+            const formattedConceptualInvoices = invoicesInRange
+                .sort((a, b) => {
+                    const dateA = new Date(a.invoice_date);
+                    const dateB = new Date(b.invoice_date);
+                    if (dateA - dateB !== 0) return dateA - dateB;
+                    return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
+                })
+                .map(invoice => ({
+                    ...invoice,
+                    subtotal: Math.round(invoice.subtotal * 100) / 100,
                 tax_amount: Math.round(invoice.tax_amount * 100) / 100,
                 total_amount: Math.round(invoice.total_amount * 100) / 100,
                 amount_paid: Math.round(invoice.amount_paid * 100) / 100,
@@ -443,9 +450,16 @@ export default function SupplierTxPage() {
             setCurrentBalance(totalBalance);
 
             // Apply rounding to all loaded lines to ensure proper GST display
-            const roundedLines = enrichedLines.map(line => ({
-                ...line,
-                charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
+            const roundedLines = enrichedLines
+                .sort((a, b) => {
+                    const dateA = new Date(a.invoice_date);
+                    const dateB = new Date(b.invoice_date);
+                    if (dateA - dateB !== 0) return dateA - dateB;
+                    return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
+                })
+                .map(line => ({
+                    ...line,
+                    charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
                 gst: typeof line.gst_amount === 'number' ? Math.round(line.gst_amount * 100) / 100 : line.gst_amount,
                 line_total: typeof line.purchase_amount === 'number' && typeof line.gst_amount === 'number' ? Math.round((line.purchase_amount + line.gst_amount) * 100) / 100 : line.line_total,
                 gst_override: line.gst_override || false, // Ensure gst_override is set
