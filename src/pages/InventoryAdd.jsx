@@ -510,6 +510,11 @@ export default function InventoryAddPage() {
             maximum_quantity: '0',
             location: '',
         });
+        
+        // Autofocus back to part # field
+        setTimeout(() => {
+            partNumberRef.current?.focus();
+        }, 100);
     };
 
     const handleRemoveItem = (groupIndex, itemId) => {
