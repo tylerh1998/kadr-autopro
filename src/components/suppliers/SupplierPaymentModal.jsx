@@ -131,10 +131,19 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   }, [activeTab, selectedInvoices, outstandingInvoices, paymentData.amount]);
 
   const handlePaymentMethodChange = (method) => {
+    let defaultAccountId = '';
+    
+    if (method === 'Bank Account' || method === 'Cheque') {
+      const primaryAccount = bankAccounts.find(acc => acc.primary);
+      if (primaryAccount) {
+        defaultAccountId = primaryAccount.id;
+      }
+    }
+    
     setPaymentData(prev => ({
       ...prev,
       payment_method: method,
-      from_account_id: ''
+      from_account_id: defaultAccountId
     }));
   };
 

@@ -33,8 +33,9 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
 
   useEffect(() => {
     if (open) {
+      const primaryAccount = bankAccounts.find(acc => acc.primary);
       setFormData({
-        bankAccountId: bankAccounts[0]?.id || '',
+        bankAccountId: primaryAccount?.id || bankAccounts[0]?.id || '',
         depositDate: format(new Date(), 'yyyy-MM-dd'),
         notes: ''
       });

@@ -48,6 +48,12 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
           setBankAccounts(bankAccountsData);
           
+          // Set primary account as default if available
+          const primaryAccount = bankAccountsData.find(acc => acc.primary);
+          if (primaryAccount) {
+            setPaymentData(prev => ({ ...prev, from_account_id: primaryAccount.id }));
+          }
+
           // Filter out the current line of credit from other options
           setOtherLinesOfCredit(otherLOCData.filter(loc => loc.id !== lineOfCredit.id));
 
