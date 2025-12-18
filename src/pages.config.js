@@ -22,6 +22,7 @@ import InventoryReturns from './pages/InventoryReturns';
 import InventoryValuation from './pages/InventoryValuation';
 import InvoiceConversion from './pages/InvoiceConversion';
 import JournalEntries from './pages/JournalEntries';
+import LankarImport from './pages/LankarImport';
 import LinesOfCredit from './pages/LinesOfCredit';
 import PLReport from './pages/PLReport';
 import Payroll from './pages/Payroll';
@@ -40,7 +41,6 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
-import LankarImport from './pages/LankarImport';
 import __Layout from './Layout.jsx';
 
 
@@ -69,6 +69,7 @@ export const PAGES = {
     "InventoryValuation": InventoryValuation,
     "InvoiceConversion": InvoiceConversion,
     "JournalEntries": JournalEntries,
+    "LankarImport": LankarImport,
     "LinesOfCredit": LinesOfCredit,
     "PLReport": PLReport,
     "Payroll": Payroll,
@@ -87,7 +88,6 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
-    "LankarImport": LankarImport,
 }
 
 export const pagesConfig = {

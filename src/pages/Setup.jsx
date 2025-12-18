@@ -82,13 +82,15 @@ export default function SetupPage() {
               <Download className="w-4 h-4 mr-2" />
               Download Template
             </Button>
-            <Button 
-              onClick={() => window.location.href = createPageUrl('LankarImport')}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Lankar Import
-            </Button>
+            {currentUser?.role === 'admin' && (
+              <Button 
+                onClick={() => window.location.href = createPageUrl('LankarImport')}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Lankar Import
+              </Button>
+            )}
             <Button 
               onClick={handleBackup}
               disabled={backupLoading}

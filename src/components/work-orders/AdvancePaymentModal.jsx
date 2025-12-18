@@ -39,7 +39,16 @@ export default function AdvancePaymentModal({
             ...payment,
             payment_method: payment.payment_method || payment.method || 'Unknown',
             amount: parseFloat(payment.amount) || 0,
-            payment_date: payment.payment_date || payment.date ? new Date(payment.payment_date || payment.date) : new Date(),
+            payment_date: (() => {
+              const rawDate = payment.payment_date || payment.date;
+              if (!rawDate) return new Date();
+              // Fix for date-only strings being interpreted as UTC midnight (which shows as previous day in US timezones)
+              // If it's a YYYY-MM-DD string, append T12:00:00Z to put it in the middle of the day UTC (5am-ish MT)
+              if (typeof rawDate === 'string' && rawDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                return new Date(`${rawDate}T12:00:00Z`);
+              }
+              return new Date(rawDate);
+            })(),
           }));
         }
       } catch (e) {
