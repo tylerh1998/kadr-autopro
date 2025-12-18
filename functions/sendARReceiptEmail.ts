@@ -48,10 +48,15 @@ Deno.serve(async (req) => {
           const customerPayment = await base44.asServiceRole.entities.CustomerPayments.get(recordId);
           if (customerPayment) {
             let description = customerPayment.notes || 'Invoice';
+            let reference = customerPayment.invoice_number || '';
+            
             if (customerPayment.work_order_id) {
                 try {
                     const wo = await base44.asServiceRole.entities.WorkOrder.get(customerPayment.work_order_id);
-                    if (wo) description = wo.description || description;
+                    if (wo) {
+                        description = wo.description || description;
+                        reference = wo.inv_number || customerPayment.invoice_number || wo.ro_number || '';
+                    }
                 } catch (e) {
                     console.warn('Could not fetch work order:', e);
                 }
@@ -59,7 +64,7 @@ Deno.serve(async (req) => {
 
             appliedDetails.push({
               type: 'Invoice',
-              reference: customerPayment.invoice_number || '',
+              reference: reference,
               description: description,
               amountApplied: amount,
               date: customerPayment.payment_date

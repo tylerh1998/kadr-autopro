@@ -57,12 +57,17 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           try {
             const payment = await CustomerPayments.get(recordId);
             if (payment) {
-              // Fetch work order for description
+              // Fetch work order for description and reference
               let description = payment.notes || 'Invoice';
+              let reference = payment.invoice_number || '';
+              
               if (payment.work_order_id) {
                 try {
                   const wo = await WorkOrder.get(payment.work_order_id);
-                  if (wo) description = wo.description || description;
+                  if (wo) {
+                    description = wo.description || description;
+                    reference = wo.inv_number || payment.invoice_number || wo.ro_number || '';
+                  }
                 } catch (e) {
                   console.warn('Could not fetch work order:', e);
                 }
@@ -71,7 +76,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
               details.push({
                 id: recordId,
                 type: 'Invoice',
-                reference: payment.invoice_number || '',
+                reference: reference,
                 date: payment.payment_date,
                 description: description,
                 amountApplied: amount
@@ -92,7 +97,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                 type: isOverpayment ? 'Overpayment Credit' : (adjustment.amount > 0 ? 'Charge' : 'Credit'),
                 reference: adjustment.reference || '',
                 date: adjustment.adjustment_date,
-                description: adjustment.description || 'Adjustment',
+                description: adjustment.description || '',
                 amountApplied: amount,
                 isOverpayment: isOverpayment
               });
@@ -101,6 +106,9 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
             console.warn('Could not fetch record:', recordId, e);
           }
         }
+
+        // Sort details by date, oldest first
+        details.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         console.log('Loaded applied to details:', details);
         setAppliedToDetails(details);
@@ -196,7 +204,6 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Type</TableHead>
                         <TableHead>Reference</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Description</TableHead>
@@ -206,9 +213,6 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                     <TableBody>
                       {appliedToDetails.map((detail, index) => (
                         <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
-                          <TableCell className={detail.isOverpayment ? 'font-semibold text-green-700' : ''}>
-                            {detail.type}
-                          </TableCell>
                           <TableCell>{detail.reference}</TableCell>
                           <TableCell>{format(parseISO(detail.date), 'MMM d, yyyy')}</TableCell>
                           <TableCell>{detail.description}</TableCell>
@@ -219,7 +223,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                         </TableRow>
                       ))}
                       <TableRow className="font-bold bg-slate-50">
-                        <TableCell colSpan={4} className="text-right">Total Applied:</TableCell>
+                        <TableCell colSpan={3} className="text-right">Total Applied:</TableCell>
                         <TableCell className="text-right">${totalApplied.toFixed(2)}</TableCell>
                       </TableRow>
                     </TableBody>
