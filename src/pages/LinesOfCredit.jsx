@@ -561,7 +561,6 @@ export default function LinesOfCreditPage() {
                         <th className="text-right p-3 font-semibold text-slate-700">Charges</th>
                         <th className="text-right p-3 font-semibold text-slate-700">Credits</th>
                         <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Balance</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -574,7 +573,6 @@ export default function LinesOfCreditPage() {
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                             <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                           </tr>
                         ))
                       ) : displayedTransactions.length > 0 ? (
@@ -584,13 +582,6 @@ export default function LinesOfCreditPage() {
                             <td className="p-3">
                               <div>
                                 <span className="font-medium text-slate-900">{tx.description}</span>
-                                <div className="text-xs text-slate-500">
-                                  {tx.source_type && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {tx.source_type.replace('_', ' ')}
-                                    </Badge>
-                                  )}
-                                </div>
                               </div>
                             </td>
                             <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
@@ -609,14 +600,11 @@ export default function LinesOfCreditPage() {
                                 <span className="font-medium text-green-600">${tx.payment_amount.toFixed(2)}</span>
                               )}
                             </td>
-                            <td className="p-3 text-right font-semibold text-slate-900">
-                              ${tx.calculatedBalance.toFixed(2)}
-                            </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="7" className="p-12 text-center">
+                          <td colSpan="6" className="p-12 text-center">
                             <div className="text-slate-400 mb-4">
                               <CreditCard className="w-12 h-12 mx-auto" />
                             </div>
