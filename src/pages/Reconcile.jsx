@@ -471,7 +471,7 @@ export default function ReconcilePage() {
                         {transactionsWithBalance.map((tx) => (
                           <tr 
                             key={tx.id} 
-                            className="border-b hover:bg-slate-50 cursor-pointer"
+                            className={`border-b cursor-pointer transition-colors ${selectedTransactions.has(tx.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
                             onClick={() => toggleTransaction(tx.id)}
                           >
                             <td className="p-3">
