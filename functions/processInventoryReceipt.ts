@@ -869,6 +869,8 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
       console.log(`Step 4: Updating InventoryTxs ${inventoryTxId}`);
       await base44.asServiceRole.entities.InventoryTxs.update(inventoryTxId, {
         quantity_change: newQuantity,
+        supplier_inv: newInvoiceNumber,
+        tx_date: new Date(newInvoiceDate).toISOString(),
         description: `Edited: Received from supplier invoice ${newInvoiceNumber} (was ${originalQuantity}, now ${newQuantity})`
       });
       results.updated_inventory_tx_id = inventoryTxId;

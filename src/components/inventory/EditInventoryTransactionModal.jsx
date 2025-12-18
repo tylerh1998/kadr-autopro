@@ -8,6 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Save, X, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { Supplier } from '@/entities/Supplier';
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
@@ -126,9 +127,29 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
   const [dateError, setDateError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [supplierLocked, setSupplierLocked] = useState(false);
+  const [lockedByUser, setLockedByUser] = useState(null);
 
   // Populate form when transaction changes
   useEffect(() => {
+    const checkLock = async () => {
+      if (transaction?.supplier_id) {
+        try {
+          const supplier = await Supplier.get(transaction.supplier_id);
+          if (supplier?.LockedByUser) {
+            setSupplierLocked(true);
+            setLockedByUser(supplier.LockedByUser);
+            setError(`This supplier is currently locked by ${supplier.LockedByUser}. You cannot make changes.`);
+          } else {
+            setSupplierLocked(false);
+            setLockedByUser(null);
+          }
+        } catch (err) {
+          console.error('Error checking supplier lock:', err);
+        }
+      }
+    };
+
     if (transaction && isOpen) {
       setFormData({
         invoice_number: transaction.invoice_number || '',
@@ -139,6 +160,9 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
       setInvoiceDateInput(formatDateForInput(transaction.invoice_date));
       setDateError(null);
       setError(null);
+      setSupplierLocked(false);
+      setLockedByUser(null);
+      checkLock();
     } else {
       // Reset form when closed
       setFormData({
@@ -151,6 +175,8 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
       setDateError(null);
       setError(null);
       setSaving(false);
+      setSupplierLocked(false);
+      setLockedByUser(null);
     }
   }, [transaction, isOpen]);
 
@@ -398,7 +424,7 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
           <Button 
             onClick={handleSave}
             className="bg-blue-600 hover:bg-blue-700"
-            disabled={saving || !formData.invoice_number || !formData.invoice_date || !formData.quantity || !formData.amount_per_unit || dateError}
+            disabled={saving || supplierLocked || !formData.invoice_number || !formData.invoice_date || !formData.quantity || !formData.amount_per_unit || dateError}
           >
             {saving ? (
               <>
