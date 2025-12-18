@@ -106,11 +106,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
   }, [refundCreditTo, suppliers]);
 
   const subtotal = returnItem?.total_cost || 0;
-  const gst = subtotal * 0.05;
+  const gst = Math.round(subtotal * 0.05 * 100) / 100;
   const adj = parseFloat(adjustmentAmount) || 0;
-  const adjGst = adj * 0.05;
-  const adjTotal = adj + adjGst;
-  const grandTotal = subtotal + gst + adj + adjGst;
+  const adjGst = Math.round(adj * 0.05 * 100) / 100;
+  const adjTotal = Math.round((adj + adjGst) * 100) / 100;
+  const grandTotal = Math.round((subtotal + gst + adj + adjGst) * 100) / 100;
 
   const getToAccountOptions = () => {
     switch (refundCreditTo) {
@@ -178,8 +178,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
         description: creditLineDescription,
-        purchase_amount: -subtotal,
-        gst_amount: -gst,
+        purchase_amount: Math.round(-subtotal * 100) / 100,
+        gst_amount: Math.round(-gst * 100) / 100,
         gl_account: '1200',
         inventory: true
       });
@@ -192,8 +192,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           description: adjustmentDescription,
-          purchase_amount: adj,
-          gst_amount: adjGst,
+          purchase_amount: Math.round(adj * 100) / 100,
+          gst_amount: Math.round(adjGst * 100) / 100,
           gl_account: glAccount,
           inventory: false
         });

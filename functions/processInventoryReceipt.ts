@@ -339,8 +339,9 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
         results.created_inventory_items.push(newRecord.id);
       }
 
-      // Create supplier invoice line for the part
-      const lineAmount = parseFloat(item.cost) * quantityReceived;
+      // Create supplier invoice line for the part with forced 2 decimal rounding
+      const lineAmount = Math.round(parseFloat(item.cost) * quantityReceived * 100) / 100;
+      const lineGst = Math.round(lineAmount * 0.05 * 100) / 100;
       invoiceLinesToCreate.push({
         supplier_id: supplier.id,
         invoice_number: invoice_number,
@@ -348,14 +349,15 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
         inventory_item_id: inventoryRecordId,
         description: `AddPart/x${quantityReceived}/${item.part_number}`,
         purchase_amount: lineAmount,
-        gst_amount: lineAmount * 0.05,
+        gst_amount: lineGst,
         gl_account: '1200',
         inventory: true
       });
 
-      // If core item, create additional invoice line for core deposit
+      // If core item, create additional invoice line for core deposit with forced 2 decimal rounding
       if (item.core && parseFloat(item.core_cost || 0) > 0) {
-        const coreDepositAmount = parseFloat(item.core_cost) * quantityReceived;
+        const coreDepositAmount = Math.round(parseFloat(item.core_cost) * quantityReceived * 100) / 100;
+        const coreGst = Math.round(coreDepositAmount * 0.05 * 100) / 100;
         invoiceLinesToCreate.push({
           supplier_id: supplier.id,
           invoice_number: invoice_number,
@@ -363,7 +365,7 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
           inventory_item_id: inventoryRecordId,
           description: `AddCore/x${quantityReceived}/${item.part_number}`,
           purchase_amount: coreDepositAmount,
-          gst_amount: coreDepositAmount * 0.05,
+          gst_amount: coreGst,
           gl_account: '1200',
           inventory: true
         });
@@ -833,7 +835,7 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
 
     // 10. Update the SupplierInvoiceLine record with new values
     console.log(`Step 2: Updating SupplierInvoiceLine ${originalLine.id}`);
-    const newGstAmount = newPurchaseAmount * 0.05;
+    const newGstAmount = Math.round(newPurchaseAmount * 0.05 * 100) / 100;
     
     // Extract part number from original description
     const partNumberMatch = originalLine.description?.match(/\/([^/]+)$/);
@@ -849,8 +851,8 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
       invoice_number: newInvoiceNumber,
       invoice_date: newInvoiceDate,
       description: newDescription,
-      purchase_amount: newPurchaseAmount,
-      gst_amount: newGstAmount
+      purchase_amount: Math.round(newPurchaseAmount * 100) / 100,
+      gst_amount: Math.round(newGstAmount * 100) / 100
     });
     results.updated_line_id = updatedLine.id;
     console.log(`Updated line: ${newDescription}, Amount: $${newPurchaseAmount.toFixed(2)}`);
