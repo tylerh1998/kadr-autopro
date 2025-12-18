@@ -1117,6 +1117,31 @@ export default function SupplierTxPage() {
         loadData();
     }, [loadData]);
 
+    const handleCancelPayment = async (payment) => {
+        if (!window.confirm('Are you sure you want to cancel this payment? This action cannot be undone and will reverse all associated transactions.')) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await base44.functions.invoke('cancelSupplierPayment', {
+                paymentId: payment.id
+            });
+
+            if (response.data.success) {
+                alert('Payment cancelled successfully.');
+                loadData();
+            } else {
+                alert(`Failed to cancel payment: ${response.data.error}`);
+            }
+        } catch (error) {
+            console.error('Error cancelling payment:', error);
+            alert('An error occurred while cancelling the payment.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleEditLineClick = (line) => {
         setEditingLine(line);
         setShowLineEditModal(true);
@@ -2024,6 +2049,7 @@ export default function SupplierTxPage() {
                                           <TableHead className="font-semibold">Method</TableHead>
                                           <TableHead className="font-semibold">Reference</TableHead>
                                           <TableHead className="font-semibold text-right">Amount</TableHead>
+                                          <TableHead className="w-[50px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -2095,11 +2121,26 @@ export default function SupplierTxPage() {
                                                 <TableCell className="text-right font-semibold text-slate-900">
                                                   ${payment.amount.toFixed(2)}
                                                 </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleCancelPayment(payment);
+                                                        }}
+                                                        disabled={isLockedByOtherUser || !lockAcquired}
+                                                        title="Cancel Payment"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </TableCell>
                                               </TableRow>
 
                                               {isExpanded && appliedInvoices.length > 0 && (
                                                 <TableRow>
-                                                  <TableCell colSpan={5} className="bg-slate-50 p-0">
+                                                  <TableCell colSpan={6} className="bg-slate-50 p-0">
                                                     <div className="p-4 pl-12">
                                                       <h4 className="text-sm font-semibold text-slate-700 mb-2">Invoices Paid:</h4>
                                                       <div className="bg-white rounded border">
@@ -2129,7 +2170,7 @@ export default function SupplierTxPage() {
 
                                               {isExpanded && appliedInvoices.length === 0 && payment.invoice_number === 'On Account' && (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} className="bg-slate-50 p-0">
+                                                    <TableCell colSpan={6} className="bg-slate-50 p-0">
                                                         <div className="p-4 pl-12 text-sm text-slate-600">
                                                             This payment was applied "On Account" and not allocated to specific invoices.
                                                         </div>
