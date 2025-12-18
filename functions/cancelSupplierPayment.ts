@@ -107,28 +107,43 @@ Deno.serve(async (req) => {
     for (const appliedDetail of appliedInvoices) {
         if (appliedDetail.invoice_number === 'On Account') continue;
 
+        // Ensure invoice_number is treated as string for query consistency
+        const targetInvoiceNumber = String(appliedDetail.invoice_number);
+
         const lines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
             supplier_id: payment.supplier_id,
-            invoice_number: appliedDetail.invoice_number
+            invoice_number: targetInvoiceNumber
         });
+
+        console.log(`Cancel Payment: Found ${lines ? lines.length : 0} lines for invoice ${targetInvoiceNumber}`);
 
         if (lines && lines.length > 0) {
              const invoiceTotal = lines.reduce((sum, line) => {
-                const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
-                return sum + lineTotal;
+                // Ensure numeric addition
+                const p = parseFloat(line.purchase_amount) || 0;
+                const g = parseFloat(line.gst_amount) || 0;
+                return sum + p + g;
             }, 0);
 
             for (const line of lines) {
-                const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
+                const p = parseFloat(line.purchase_amount) || 0;
+                const g = parseFloat(line.gst_amount) || 0;
+                const lineTotal = p + g;
+                
                 const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
                 // Subtract the applied amount
                 const reduceBy = appliedDetail.amount_applied * proportion;
-                const newPaidAmount = Math.max(0, (line.paid_amount || 0) - reduceBy);
+                const currentPaid = parseFloat(line.paid_amount) || 0;
+                const newPaidAmount = Math.max(0, currentPaid - reduceBy);
+
+                console.log(`Cancel Payment: Updating line ${line.id}. Old Paid: ${currentPaid}, Reduce By: ${reduceBy}, New Paid: ${newPaidAmount}`);
 
                 await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
                     paid_amount: Math.round(newPaidAmount * 100) / 100
                 });
             }
+        } else {
+            console.warn(`Cancel Payment: No lines found for invoice ${targetInvoiceNumber} (Supplier: ${payment.supplier_id})`);
         }
     }
 

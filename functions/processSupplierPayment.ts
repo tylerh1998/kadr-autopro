@@ -67,21 +67,30 @@ Deno.serve(async (req) => {
       for (const appliedDetail of appliedInvoices) {
         if (appliedDetail.invoice_number === 'On Account') continue;
 
+        // Ensure invoice_number is string
+        const targetInvoiceNumber = String(appliedDetail.invoice_number);
+
         const invoiceLinesForThisInvoice = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
           supplier_id: supplierId,
-          invoice_number: appliedDetail.invoice_number
+          invoice_number: targetInvoiceNumber
         });
 
         if (invoiceLinesForThisInvoice && invoiceLinesForThisInvoice.length > 0) {
           const invoiceTotal = invoiceLinesForThisInvoice.reduce((sum, line) => {
-            const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
-            return sum + lineTotal;
+            // Ensure numeric addition
+            const p = parseFloat(line.purchase_amount) || 0;
+            const g = parseFloat(line.gst_amount) || 0;
+            return sum + p + g;
           }, 0);
 
           for (const line of invoiceLinesForThisInvoice) {
-            const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
+            const p = parseFloat(line.purchase_amount) || 0;
+            const g = parseFloat(line.gst_amount) || 0;
+            const lineTotal = p + g;
+            
             const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
-            const newPaidAmount = (line.paid_amount || 0) + (appliedDetail.amount_applied * proportion);
+            const currentPaid = parseFloat(line.paid_amount) || 0;
+            const newPaidAmount = currentPaid + (appliedDetail.amount_applied * proportion);
 
             await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
               paid_amount: Math.round(newPaidAmount * 100) / 100
