@@ -38,41 +38,23 @@ export default function APSummaryPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const suppliersData = await Supplier.list();
-        setSuppliers(suppliersData);
+        // Call new optimized backend function
+        const response = await base44.functions.invoke('getAPSummary', {});
 
-        // Fetch all supplier transactions in parallel
-        const allSupplierData = await Promise.all(
-          suppliersData.map(async (supplier) => {
-            try {
-              const response = await base44.functions.invoke('getSupplierTransactions', {
-                supplierId: supplier.id,
-                dateRange: {
-                  from: new Date(0).toISOString(), // Beginning of time
-                  to: new Date().toISOString() // Today
-                }
-              });
+        if (response.data.success) {
+          const suppliersWithInvoices = response.data.data;
+          
+          // Extract suppliers list
+          const suppliersData = suppliersWithInvoices.map(item => item.supplier);
+          setSuppliers(suppliersData);
 
-              if (response.data.success) {
-                return {
-                  supplierId: supplier.id,
-                  allConceptualInvoices: response.data.data.allConceptualInvoices || []
-                };
-              }
-              return { supplierId: supplier.id, allConceptualInvoices: [] };
-            } catch (error) {
-              console.error(`Error loading data for supplier ${supplier.name}:`, error);
-              return { supplierId: supplier.id, allConceptualInvoices: [] };
-            }
-          })
-        );
-
-        // Build map of supplier ID to their conceptual invoices
-        const invoicesMap = new Map();
-        allSupplierData.forEach(data => {
-          invoicesMap.set(data.supplierId, data.allConceptualInvoices);
-        });
-        setSupplierInvoicesMap(invoicesMap);
+          // Build map of supplier ID to their conceptual invoices
+          const invoicesMap = new Map();
+          suppliersWithInvoices.forEach(item => {
+            invoicesMap.set(item.supplier.id, item.conceptualInvoices);
+          });
+          setSupplierInvoicesMap(invoicesMap);
+        }
 
       } catch (error) {
         console.error('Error loading AP data:', error);
@@ -175,40 +157,23 @@ export default function APSummaryPage() {
     setShowPaymentModal(false);
     
     try {
-      const suppliersData = await Supplier.list();
-      setSuppliers(suppliersData);
+      // Call new optimized backend function
+      const response = await base44.functions.invoke('getAPSummary', {});
 
-      // Fetch all supplier transactions in parallel
-      const allSupplierData = await Promise.all(
-        suppliersData.map(async (supplier) => {
-          try {
-            const response = await base44.functions.invoke('getSupplierTransactions', {
-              supplierId: supplier.id,
-              dateRange: {
-                from: new Date(0).toISOString(),
-                to: new Date().toISOString()
-              }
-            });
+      if (response.data.success) {
+        const suppliersWithInvoices = response.data.data;
+        
+        // Extract suppliers list
+        const suppliersData = suppliersWithInvoices.map(item => item.supplier);
+        setSuppliers(suppliersData);
 
-            if (response.data.success) {
-              return {
-                supplierId: supplier.id,
-                allConceptualInvoices: response.data.data.allConceptualInvoices || []
-              };
-            }
-            return { supplierId: supplier.id, allConceptualInvoices: [] };
-          } catch (error) {
-            console.error(`Error loading data for supplier ${supplier.name}:`, error);
-            return { supplierId: supplier.id, allConceptualInvoices: [] };
-          }
-        })
-      );
-
-      const invoicesMap = new Map();
-      allSupplierData.forEach(data => {
-        invoicesMap.set(data.supplierId, data.allConceptualInvoices);
-      });
-      setSupplierInvoicesMap(invoicesMap);
+        // Build map of supplier ID to their conceptual invoices
+        const invoicesMap = new Map();
+        suppliersWithInvoices.forEach(item => {
+          invoicesMap.set(item.supplier.id, item.conceptualInvoices);
+        });
+        setSupplierInvoicesMap(invoicesMap);
+      }
 
     } catch (error) {
       console.error('Error loading AP data:', error);
