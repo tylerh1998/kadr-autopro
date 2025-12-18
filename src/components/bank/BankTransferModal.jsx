@@ -25,62 +25,55 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   const [lockMessage, setLockMessage] = useState('');
   const [locksAcquired, setLocksAcquired] = useState([]);
 
-  // Check locks when modal opens and accounts are selected
+  // Check locks when modal opens
   useEffect(() => {
-    const checkAndAcquireLocks = async () => {
-      if (!open || !currentUser) return;
-      
-      const accountsToCheck = [];
-      if (formData.fromAccountId && !locksAcquired.includes(formData.fromAccountId)) {
-        accountsToCheck.push(formData.fromAccountId);
-      }
-      if (formData.toAccountId && !locksAcquired.includes(formData.toAccountId)) {
-        accountsToCheck.push(formData.toAccountId);
-      }
-      
-      if (accountsToCheck.length === 0) return;
-      
-      try {
-        const lockMessages = [];
-        
-        for (const accountId of accountsToCheck) {
-          const account = await BankAccount.get(accountId);
-          const lockStatus = checkBankAccountLock(account, currentUser.email);
-          
-          if (lockStatus.isLocked) {
-            lockMessages.push(`${account.name} is locked by ${lockStatus.lockedByUser}`);
-          } else {
-            // Acquire lock
-            await BankAccount.update(accountId, {
-              locked_by_user: currentUser.email,
-              locked_timestamp: new Date().toISOString()
-            });
-            
-            setLocksAcquired(prev => {
-              if (!prev.includes(accountId)) {
-                return [...prev, accountId];
-              }
-              return prev;
-            });
+    const handleModalOpen = async () => {
+      if (open && currentUser && (formData.fromAccountId || formData.toAccountId)) {
+        try {
+          const accountsToCheck = [];
+          if (formData.fromAccountId) accountsToCheck.push(formData.fromAccountId);
+          if (formData.toAccountId && formData.toAccountId !== formData.fromAccountId) {
+            accountsToCheck.push(formData.toAccountId);
           }
-        }
-        
-        if (lockMessages.length > 0) {
+          
+          const lockMessages = [];
+          const acquiredLocks = [];
+          
+          for (const accountId of accountsToCheck) {
+            const account = await BankAccount.get(accountId);
+            const lockStatus = checkBankAccountLock(account, currentUser.email);
+            
+            if (lockStatus.isLocked) {
+              lockMessages.push(`${account.name} is locked by ${lockStatus.lockedByUser}`);
+            } else {
+              // Acquire lock
+              await BankAccount.update(accountId, {
+                locked_by_user: currentUser.email,
+                locked_timestamp: new Date().toISOString()
+              });
+              acquiredLocks.push(accountId);
+            }
+          }
+          
+          setLocksAcquired(acquiredLocks);
+          
+          if (lockMessages.length > 0) {
+            setIsLocked(true);
+            setLockMessage(lockMessages.join('. ') + '. Please try again later.');
+          } else {
+            setIsLocked(false);
+            setLockMessage('');
+          }
+        } catch (error) {
+          console.error('Error checking/acquiring locks:', error);
           setIsLocked(true);
-          setLockMessage(lockMessages.join('. ') + '. Please try again later.');
-        } else {
-          setIsLocked(false);
-          setLockMessage('');
+          setLockMessage('Failed to acquire locks on bank accounts. Please try again.');
         }
-      } catch (error) {
-        console.error('Error checking/acquiring locks:', error);
-        setIsLocked(true);
-        setLockMessage('Failed to acquire locks on bank accounts. Please try again.');
       }
     };
 
-    checkAndAcquireLocks();
-  }, [open, formData.fromAccountId, formData.toAccountId, currentUser, locksAcquired]);
+    handleModalOpen();
+  }, [open, formData.fromAccountId, formData.toAccountId, currentUser]);
 
   // Release locks on close
   useEffect(() => {
