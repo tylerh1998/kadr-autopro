@@ -483,6 +483,81 @@ export default function BankPage() {
     } catch (error) {
       console.error('Error saving transaction:', error);
       alert('Failed to save transaction.');
+      throw error;
+    }
+  };
+
+  const handleDeleteTransaction = async (transaction) => {
+    try {
+      // Get bank account details for GL posting
+      const bankAccount = await BankAccount.get(selectedAccountId);
+
+      if (bankAccount.gl_account && transaction.gl_account) {
+        // Reverse GL entries
+        if (transaction.credit_amount > 0) {
+          // Old was a credit (deposit), reverse it
+          await GLTransaction.create({
+            account_number: bankAccount.gl_account,
+            transaction_date: transaction.transaction_date,
+            description: `REVERSAL: ${transaction.description}`,
+            reference: `Bank TX Reversal - ${transaction.reference || ''}`,
+            debit_amount: 0,
+            credit_amount: transaction.credit_amount,
+            source_type: 'manual',
+            source_id: selectedAccountId
+          });
+
+          await GLTransaction.create({
+            account_number: transaction.gl_account,
+            transaction_date: transaction.transaction_date,
+            description: `REVERSAL: ${transaction.description}`,
+            reference: `Bank TX Reversal - ${transaction.reference || ''}`,
+            debit_amount: transaction.credit_amount,
+            credit_amount: 0,
+            source_type: 'manual',
+            source_id: selectedAccountId
+          });
+        } else if (transaction.debit_amount > 0) {
+          // Old was a debit (withdrawal), reverse it
+          await GLTransaction.create({
+            account_number: bankAccount.gl_account,
+            transaction_date: transaction.transaction_date,
+            description: `REVERSAL: ${transaction.description}`,
+            reference: `Bank TX Reversal - ${transaction.reference || ''}`,
+            debit_amount: transaction.debit_amount,
+            credit_amount: 0,
+            source_type: 'manual',
+            source_id: selectedAccountId
+          });
+
+          await GLTransaction.create({
+            account_number: transaction.gl_account,
+            transaction_date: transaction.transaction_date,
+            description: `REVERSAL: ${transaction.description}`,
+            reference: `Bank TX Reversal - ${transaction.reference || ''}`,
+            debit_amount: 0,
+            credit_amount: transaction.debit_amount,
+            source_type: 'manual',
+            source_id: selectedAccountId
+          });
+        }
+      }
+
+      await BankTransaction.delete(transaction.id);
+
+      // Trigger balance recalculation
+      await base44.functions.invoke('calculateBankBalances', {
+        bankAccountId: selectedAccountId
+      });
+
+      setShowTransactionModal(false);
+      setEditingTransaction(null);
+      loadTransactions();
+      loadBankAccounts();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('Failed to delete transaction.');
+      throw error;
     }
   };
 
@@ -962,6 +1037,7 @@ export default function BankPage() {
         bankAccount={selectedAccount}
         transaction={editingTransaction}
         onSubmit={handleSaveTransaction}
+        onDelete={handleDeleteTransaction}
         currentUser={currentUser}
       />
 

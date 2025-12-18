@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { BankTransaction, BankAccount, ChartOfAccount } from '@/entities/all';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
-export default function BankTransactionModal({ open, onClose, bankAccountId, bankAccount, transaction, onSubmit, currentUser }) {
+export default function BankTransactionModal({ open, onClose, bankAccountId, bankAccount, transaction, onSubmit, onDelete, currentUser }) {
   const [formData, setFormData] = useState({
     bank_account_id: '',
     transaction_date: format(new Date(), 'yyyy-MM-dd'),
@@ -32,6 +32,8 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const handleModalOpen = async () => {
@@ -134,7 +136,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.description.trim()) {
@@ -159,7 +161,29 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
       debit_amount: parseFloat(formData.debit_amount) || 0
     };
 
-    onSubmit(submitData);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(submitData);
+    } catch (error) {
+      // Error handling is done in parent, but we need to stop loading
+    } finally {
+      if (open) setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this transaction? This action will reverse any associated GL entries.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await onDelete(transaction);
+    } catch (error) {
+      // Error handling is done in parent
+    } finally {
+      if (open) setIsDeleting(false);
+    }
   };
 
   const handleClose = () => {
@@ -315,11 +339,40 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
               </div>
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button type="submit" disabled={isLocked}>
-                {transaction ? 'Update' : 'Create'} Transaction
-              </Button>
+            <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+              {transaction && (
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleDelete}
+                  disabled={isLocked || isSubmitting || isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              )}
+              <div className="flex gap-2 ml-auto">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting || isDeleting}>Cancel</Button>
+                <Button type="submit" disabled={isLocked || isSubmitting || isDeleting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {transaction ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    <>{transaction ? 'Update' : 'Create'} Transaction</>
+                  )}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         )}
