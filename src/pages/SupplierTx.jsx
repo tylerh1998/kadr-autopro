@@ -1904,7 +1904,7 @@ export default function SupplierTxPage() {
                                                                        <ChevronRight className="w-5 h-5" />
                                                                    )}
                                                                </div>
-                                                               <div className="flex-1 grid grid-cols-7 gap-4">
+                                                               <div className="flex-1 grid grid-cols-8 gap-4">
                                                                    <div>
                                                                        <p className="text-sm text-slate-500">Invoice #</p>
                                                                        <p className="font-medium text-slate-900">{invoice.invoice_number}</p>
@@ -1930,6 +1930,10 @@ export default function SupplierTxPage() {
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Total Amount</p>
                                                                        <p className="font-medium text-slate-900">${invoice.total_amount.toFixed(2)}</p>
+                                                                   </div>
+                                                                   <div className="text-right">
+                                                                       <p className="text-sm text-slate-500">Payments</p>
+                                                                       <p className="font-medium text-green-600">${invoice.amount_paid.toFixed(2)}</p>
                                                                    </div>
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Balance</p>
