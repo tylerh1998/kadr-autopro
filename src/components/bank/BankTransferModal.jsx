@@ -108,8 +108,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
         description: ''
       });
       setValidationError('');
-      setIsLocked(false);
-      setLockMessage('');
+      setLockedAccounts(new Set());
     }
   }, [open]);
 
