@@ -155,6 +155,7 @@ export default function InventoryAddPage() {
     });
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
+    const partNumberRef = React.useRef(null);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
 
     const filteredInventory = useMemo(() => {
