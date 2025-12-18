@@ -856,7 +856,16 @@ export default function BankPage() {
                             </td>
                             <td className="p-3 text-right">
                               {tx.debit_amount > 0 && (
-                                <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                                ['manual', 'fee', 'interest'].includes(tx.source_type) ? (
+                                  <button
+                                    onClick={() => handleEditTransaction(tx)}
+                                    className="font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                                  >
+                                    ${tx.debit_amount.toFixed(2)}
+                                  </button>
+                                ) : (
+                                  <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                                )
                               )}
                             </td>
                             <td className="p-3 text-right">
@@ -864,6 +873,13 @@ export default function BankPage() {
                                 tx.source_type === 'deposit' ? (
                                   <button
                                     onClick={() => handleDepositClick(tx)}
+                                    className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
+                                  >
+                                    ${tx.credit_amount.toFixed(2)}
+                                  </button>
+                                ) : ['manual', 'fee', 'interest'].includes(tx.source_type) ? (
+                                  <button
+                                    onClick={() => handleEditTransaction(tx)}
                                     className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
                                   >
                                     ${tx.credit_amount.toFixed(2)}
