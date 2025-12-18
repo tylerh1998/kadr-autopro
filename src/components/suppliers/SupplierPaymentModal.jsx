@@ -141,10 +141,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const handleAmountChange = (value) => {
     const numValue = parseFloat(value);
     
-    // If it's a positive payment and exceeds balance owing, show error and don't update
-    if (!isNaN(numValue) && numValue > 0 && numValue > totalBalanceOwing + 0.01) {
-      alert(`Payment amount cannot exceed the total balance owing of $${totalBalanceOwing.toFixed(2)}`);
-      return;
+    const totalPositiveOwing = outstandingInvoices.filter(inv => inv.balance_due > 0).reduce((sum, inv) => sum + inv.balance_due, 0);
+    const totalCreditAvailable = outstandingInvoices.filter(inv => inv.balance_due < 0).reduce((sum, inv) => sum + inv.balance_due, 0);
+
+    if (!isNaN(numValue)) {
+      if (numValue > 0 && numValue > totalPositiveOwing + 0.01) {
+        alert(`Payment amount ($${numValue.toFixed(2)}) cannot exceed the total outstanding invoices ($${totalPositiveOwing.toFixed(2)})`);
+        return;
+      } else if (numValue < 0 && numValue < totalCreditAvailable - 0.01) {
+        alert(`Refund amount ($${numValue.toFixed(2)}) cannot exceed the total credit available ($${Math.abs(totalCreditAvailable).toFixed(2)})`);
+        return;
+      }
     }
     
     setPaymentData(prev => ({
@@ -255,28 +262,52 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       } else {
         paymentAmount = parseFloat(paymentData.amount);
         
-        const sortedInvoices = [...outstandingInvoices]
-          .filter(inv => inv.balance_due > 0)
-          .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+        let remainingAmount = paymentAmount;
 
-        let remainingPayment = paymentAmount;
-        
-        for (const invoice of sortedInvoices) {
-          if (remainingPayment <= 0) break;
+        if (paymentAmount > 0) {
+          // Payment - apply to positive balances (invoices) oldest first
+          const sortedInvoices = [...outstandingInvoices]
+            .filter(inv => inv.balance_due > 0)
+            .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+
+          for (const invoice of sortedInvoices) {
+            if (remainingAmount <= 0) break;
+            const amountToApply = Math.min(remainingAmount, invoice.balance_due);
+            appliedInvoicesDetails.push({
+              invoice_number: invoice.invoice_number,
+              amount_applied: amountToApply
+            });
+            remainingAmount -= amountToApply;
+          }
           
-          const amountToApply = Math.min(remainingPayment, invoice.balance_due);
-          appliedInvoicesDetails.push({
-            invoice_number: invoice.invoice_number,
-            amount_applied: amountToApply
-          });
-          remainingPayment -= amountToApply;
-        }
+          if (remainingAmount > 0.01) {
+            appliedInvoicesDetails.push({
+              invoice_number: 'On Account',
+              amount_applied: remainingAmount
+            });
+          }
+        } else if (paymentAmount < 0) {
+          // Refund - apply to negative balances (credits) oldest first
+          const sortedCreditNotes = [...outstandingInvoices]
+            .filter(inv => inv.balance_due < 0)
+            .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
 
-        if (remainingPayment > 0.01) {
-          appliedInvoicesDetails.push({
-            invoice_number: 'On Account',
-            amount_applied: remainingPayment
-          });
+          for (const creditNote of sortedCreditNotes) {
+            if (remainingAmount >= 0) break;
+            const amountToApply = Math.max(remainingAmount, creditNote.balance_due);
+            appliedInvoicesDetails.push({
+              invoice_number: creditNote.invoice_number,
+              amount_applied: amountToApply
+            });
+            remainingAmount -= amountToApply;
+          }
+          
+          if (remainingAmount < -0.01) {
+            appliedInvoicesDetails.push({
+              invoice_number: 'On Account',
+              amount_applied: remainingAmount
+            });
+          }
         }
       }
 
@@ -417,7 +448,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                 Cancel
               </Button>
               <Button onClick={handleProceedToPaymentDetails} disabled={loading || totalSelectedAmount === 0}>
-                Next: Payment Details (${Math.abs(totalSelectedAmount).toFixed(2)})
+                Next: Payment Details (${totalSelectedAmount.toFixed(2)})
               </Button>
             </div>
           </div>
@@ -432,7 +463,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           <div className="space-y-4">
             <div className="p-3 bg-slate-50 rounded-lg">
               <p className="text-sm text-slate-600">Payment Amount:</p>
-              <p className="text-xl font-bold">${Math.abs(totalSelectedAmount).toFixed(2)}</p>
+              <p className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</p>
             </div>
 
             <div className="space-y-4">
