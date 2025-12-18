@@ -4,14 +4,60 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Banknote, Building, Calendar, FileText } from 'lucide-react';
+import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban } from 'lucide-react';
 import { format } from 'date-fns';
-import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder } from '@/entities/all';
+import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder, BankAccount } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
+import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
-export default function DepositDetailsModal({ open, onClose, deposit, bankAccountName }) {
+export default function DepositDetailsModal({ open, onClose, deposit, bankAccountName, onReverseSuccess }) {
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState([]);
   const [adjustments, setAdjustments] = useState([]);
+  const [isReversible, setIsReversible] = useState(false);
+  const [reversalReason, setReversalReason] = useState('');
+  const [processingReverse, setProcessingReverse] = useState(false);
+
+  useEffect(() => {
+    const checkReversible = async () => {
+      if (!deposit) return;
+
+      if (deposit.cleared) {
+        setIsReversible(false);
+        setReversalReason('Cleared');
+        return;
+      } 
+      
+      if (deposit.reconciled) {
+        setIsReversible(false);
+        setReversalReason('Reconciled');
+        return;
+      }
+
+      try {
+        const periodStatus = await checkFiscalPeriodStatus(deposit.transaction_date);
+        if (periodStatus === 'closed') {
+          setIsReversible(false);
+          setReversalReason('Fiscal Period Closed');
+        } else if (periodStatus === 'none') {
+          setIsReversible(false);
+          setReversalReason('No Fiscal Period');
+        } else {
+          setIsReversible(true);
+          setReversalReason('');
+        }
+      } catch (error) {
+        console.error('Error checking fiscal period status:', error);
+        setIsReversible(false);
+        setReversalReason('Fiscal Period Check Error');
+      }
+    };
+
+    if (open && deposit) {
+      checkReversible();
+    }
+  }, [open, deposit]);
 
   useEffect(() => {
     const loadDetails = async () => {
@@ -103,6 +149,54 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
 
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const totalAdjustments = adjustments.reduce((sum, a) => sum + (a.amount || 0), 0);
+
+  const handleReverseDeposit = async () => {
+    if (!deposit || !deposit.id || !deposit.bank_account_id) return;
+
+    // Check if bank account is locked before confirming
+    try {
+      const account = await BankAccount.get(deposit.bank_account_id);
+      
+      // Check if any lock exists that is not expired
+      if (account.locked_by_user && account.locked_timestamp) {
+        const lockStatus = checkBankAccountLock(account, '');
+        
+        // If lock is not expired, show error
+        if (!lockStatus.isExpired) {
+          alert(`This bank account is currently locked by ${account.locked_by_user}. Please wait until the lock is released before reversing this deposit.`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking bank account lock:', error);
+      alert('Failed to verify bank account status. Please try again.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to reverse this deposit? This action cannot be undone.')) {
+      return;
+    }
+
+    setProcessingReverse(true);
+    try {
+      const response = await base44.functions.invoke('reverseDeposit', { bankTransactionId: deposit.id });
+      if (response.data.success) {
+        alert('Deposit reversed successfully!');
+        if (onReverseSuccess) {
+          onReverseSuccess();
+        } else {
+          onClose();
+        }
+      } else {
+        alert(`Failed to reverse deposit: ${response.data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error reversing deposit:', error);
+      alert(`Failed to reverse deposit: ${error.message || 'Unknown error'}`);
+    } finally {
+      setProcessingReverse(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -254,8 +348,34 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Close</Button>
+        <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+          <div>
+            {isReversible ? (
+              <Button
+                variant="destructive"
+                onClick={handleReverseDeposit}
+                disabled={processingReverse || loading}
+              >
+                {processingReverse ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Reversing...
+                  </>
+                ) : (
+                  <>
+                    <Undo2 className="w-4 h-4 mr-2" />
+                    Reverse Deposit
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="flex items-center text-amber-600 text-sm font-medium" title={reversalReason}>
+                <Ban className="w-4 h-4 mr-2" />
+                Cannot Reverse: {reversalReason}
+              </div>
+            )}
+          </div>
+          <Button variant="outline" onClick={onClose} disabled={processingReverse}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
