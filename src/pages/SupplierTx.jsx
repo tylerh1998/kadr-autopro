@@ -1329,9 +1329,13 @@ export default function SupplierTxPage() {
     };
 
     const handleBackNavigation = useCallback(async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromPage = urlParams.get('from');
+        const targetPage = fromPage === 'apsummary' ? 'APSummary' : 'Suppliers';
+        
         if (hasUnsavedChanges) {
-            const message = 'You have unsaved changes. Would you like to save them before returning to Suppliers?\n\n' +
-                           'Click "OK" to save changes and return to Suppliers.\n' +
+            const message = `You have unsaved changes. Would you like to save them before returning to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}?\n\n` +
+                           `Click "OK" to save changes and return to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}.\n` +
                            'Click "Cancel" to stay on this page, or click "Cancel" again to discard.';
 
             const userWantsToSave = window.confirm(message);
@@ -1344,10 +1348,10 @@ export default function SupplierTxPage() {
                     if (lockAcquired && supplierId && currentUser) {
                         await releaseLock(currentUser);
                     }
-                    navigate(createPageUrl('Suppliers'));
+                    navigate(createPageUrl(targetPage));
                 }
             } else {
-                const discardMessage = 'Do you want to discard your changes and return to Suppliers?\n\n' +
+                const discardMessage = `Do you want to discard your changes and return to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}?\n\n` +
                                       'Click "OK" to discard changes and leave.\n' +
                                       'Click "Cancel" to stay on this page.';
 
@@ -1357,14 +1361,14 @@ export default function SupplierTxPage() {
                     if (lockAcquired && supplierId && currentUser) {
                         await releaseLock(currentUser);
                     }
-                    navigate(createPageUrl('Suppliers'));
+                    navigate(createPageUrl(targetPage));
                 }
             }
         } else {
             if (lockAcquired && supplierId && currentUser) {
                 await releaseLock(currentUser);
             }
-            navigate(createPageUrl('Suppliers'));
+            navigate(createPageUrl(targetPage));
         }
     }, [hasUnsavedChanges, supplierId, lockAcquired, currentUser, releaseLock, navigate, handleSaveAll]);
 
