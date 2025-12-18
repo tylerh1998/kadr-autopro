@@ -59,9 +59,10 @@ Deno.serve(async (req) => {
 
             appliedDetails.push({
               type: 'Invoice',
-              reference: customerPayment.invoice_number || 'N/A',
+              reference: customerPayment.invoice_number || '',
               description: description,
-              amountApplied: amount
+              amountApplied: amount,
+              date: customerPayment.payment_date
             });
             continue;
           }
@@ -74,9 +75,10 @@ Deno.serve(async (req) => {
           if (adjustment) {
             appliedDetails.push({
               type: adjustment.amount > 0 ? 'Charge' : 'Credit',
-              reference: adjustment.reference || 'Adjustment',
+              reference: adjustment.reference || '',
               description: adjustment.description || '',
-              amountApplied: amount
+              amountApplied: amount,
+              date: adjustment.adjustment_date
             });
           }
         } catch (e) {
@@ -84,6 +86,9 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // Sort transactions by date, oldest at top
+    appliedDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const formatPaymentMethod = (method) => {
       if (!method) return 'Unknown';
@@ -98,14 +103,12 @@ Deno.serve(async (req) => {
       appliedItemsHtml = `
         <table style="width: 100%; border-collapse: collapse; margin: 0;">
           <tr style="background-color: #f0f0f0;">
-            <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Type</th>
             <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Reference</th>
             <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Description</th>
             <th style="padding: 4px 6px; text-align: right; border: 1px solid #ddd; font-size: 12px;">Amount Applied</th>
           </tr>
           ${appliedDetails.map(d => `
             <tr>
-              <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.type}</td>
               <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.reference}</td>
               <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.description}</td>
               <td style="padding: 4px 6px; text-align: right; border: 1px solid #ddd; font-size: 12px;">$${d.amountApplied.toFixed(2)}</td>

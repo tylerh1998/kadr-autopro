@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
                             type: adjustment.amount > 0 ? 'Charge' : 'Credit',
                             reference: adjustment.reference || '',
                             date: adjustment.adjustment_date,
-                            description: adjustment.description || 'Adjustment',
+                            description: adjustment.description || '',
                             amountApplied: amount
                         });
                     }
@@ -92,6 +92,9 @@ Deno.serve(async (req) => {
                 }
             }
         }
+
+        // Sort transactions by date, oldest at top
+        appliedDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         console.log('generateARReceiptPDF: Applied details:', appliedDetails);
 
@@ -234,10 +237,10 @@ Deno.serve(async (req) => {
             
             doc.setFontSize(9);
             doc.setFont(undefined, 'bold');
-            doc.text("Type", margin + 2, yPosition);
-            doc.text("Reference", margin + 25, yPosition);
-            doc.text("Date", margin + 55, yPosition);
-            doc.text("Description", margin + 85, yPosition);
+            // Shifted columns: Reference, Date, Description, Amount
+            doc.text("Reference", margin + 2, yPosition);
+            doc.text("Date", margin + 40, yPosition);
+            doc.text("Description", margin + 70, yPosition);
             doc.text("Amount Applied", pageWidth - margin - 35, yPosition);
             
             yPosition += 8;
@@ -252,20 +255,20 @@ Deno.serve(async (req) => {
                     yPosition = 20;
                 }
 
-                doc.text(detail.type, margin + 2, yPosition);
-                
-                // Truncate reference if too long
-                const referenceWidth = 25;
+                // Reference
+                const referenceWidth = 35;
                 const referenceLines = doc.splitTextToSize(detail.reference, referenceWidth);
-                doc.text(referenceLines[0], margin + 25, yPosition);
+                doc.text(referenceLines[0], margin + 2, yPosition);
                 
-                doc.text(format(new Date(detail.date), 'MMM d, yyyy'), margin + 55, yPosition);
+                // Date
+                doc.text(format(new Date(detail.date), 'MMM d, yyyy'), margin + 40, yPosition);
                 
-                // Wrap description if too long
-                const descriptionWidth = 60;
+                // Description
+                const descriptionWidth = 70;
                 const descriptionLines = doc.splitTextToSize(detail.description, descriptionWidth);
-                doc.text(descriptionLines[0], margin + 85, yPosition);
+                doc.text(descriptionLines[0], margin + 70, yPosition);
                 
+                // Amount
                 doc.text(`$${detail.amountApplied.toFixed(2)}`, pageWidth - margin - 2, yPosition, { align: 'right' });
                 
                 totalApplied += detail.amountApplied;
