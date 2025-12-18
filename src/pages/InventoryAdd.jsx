@@ -769,6 +769,7 @@ export default function InventoryAddPage() {
                                         <div className="relative">
                                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
                                             <Input
+                                                ref={partNumberRef}
                                                 id="part_number_input"
                                                 placeholder="Search or type part #..."
                                                 value={currentItem.part_number}
