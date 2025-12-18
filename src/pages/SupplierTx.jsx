@@ -1150,14 +1150,8 @@ export default function SupplierTxPage() {
     // New: handleLineUpdate function for LineEditModal to save changes
     const handleLineUpdate = useCallback(async (updatedLineData) => {
         if (!updatedLineData || !updatedLineData.id) return;
-
-        if (isLockedByOtherUser || !lockAcquired) {
-            alert('Cannot save: Supplier is locked by another user or you do not have the lock.');
-            return;
-        }
-
         if (isLineLocked(updatedLineData)) { // Prevent update if line is locked
-            alert('This line cannot be updated because it has a payment applied.');
+            alert('This line cannot be updated because it has a payment applied or is an inventory line.');
             return;
         }
 
@@ -1218,21 +1212,6 @@ export default function SupplierTxPage() {
                 await SupplierInvoiceLine.update(updatedLineData.id, lineDataForAPI);
                 savedLine = { ...lineDataForAPI, id: updatedLineData.id };
                 glAction = 'update';
-
-                // Update associated InventoryTxs if found
-                try {
-                    const linkedTxs = await base44.entities.InventoryTxs.filter({ source_record_id: updatedLineData.id });
-                    if (linkedTxs && linkedTxs.length > 0) {
-                        for (const tx of linkedTxs) {
-                            await base44.entities.InventoryTxs.update(tx.id, {
-                                supplier_inv: updatedLineData.invoice_number,
-                                tx_date: parseResult.date // Use the validated ISO date
-                            });
-                        }
-                    }
-                } catch (txError) {
-                    console.error('Error updating linked InventoryTxs:', txError);
-                }
             }
 
             try {
@@ -1903,7 +1882,7 @@ export default function SupplierTxPage() {
                                                     <ContextMenuContent>
                                                         <ContextMenuItem
                                                             onClick={() => handleEditLineClick(line)}
-                                                            disabled={isLockedByOtherUser || !lockAcquired || locked}
+                                                            disabled={isLockedByOtherUser || !lockAcquired || locked || line.inventory}
                                                         >
                                                             Edit Line
                                                         </ContextMenuItem>
