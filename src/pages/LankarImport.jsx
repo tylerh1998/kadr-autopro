@@ -4,13 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Upload, Package, Users, Car, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Upload, Package, Users, Car, Loader2, CheckCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { InventoryItem, TagAlong } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import LankarImportReturnModal from '@/components/inventory/LankarImportReturnModal';
 
 export default function LankarImport() {
   const [selectedType, setSelectedType] = useState('inventory');
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [tagAlongs, setTagAlongs] = useState([]);
@@ -146,9 +148,29 @@ export default function LankarImport() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Setup
         </Button>
-        <h1 className="text-3xl font-bold text-slate-900">Lankar Import</h1>
-        <p className="text-slate-600 mt-1">Import data in bulk from CSV files</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Lankar Import</h1>
+            <p className="text-slate-600 mt-1">Import data in bulk from CSV files</p>
+          </div>
+          <Button 
+            onClick={() => setShowReturnModal(true)}
+            variant="outline"
+            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Add Legacy Return
+          </Button>
+        </div>
       </div>
+
+      <LankarImportReturnModal 
+        open={showReturnModal} 
+        onClose={() => setShowReturnModal(false)}
+        onUpdate={() => {
+          // Optional: handle any post-update logic if needed
+        }}
+      />
 
       <div className="space-y-6">
         {/* Database Type Selection */}
