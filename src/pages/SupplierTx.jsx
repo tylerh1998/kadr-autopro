@@ -1764,7 +1764,13 @@ export default function SupplierTxPage() {
                                                                     disabled={isDisabled}
                                                                 >
                                                                     <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isDisabled ? 'cursor-not-allowed' : ''}`}>
-                                                                        <SelectValue placeholder="Select GL Account *" />
+                                                                        <SelectValue placeholder="Select GL Account *">
+                                                                            {line.gl_account ? (() => {
+                                                                                const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
+                                                                                const fullText = account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
+                                                                                return fullText.length > 25 ? fullText.substring(0, 25) + '...' : fullText;
+                                                                            })() : 'Select GL Account *'}
+                                                                        </SelectValue>
                                                                     </SelectTrigger>
                                                                     <SelectContent>
                                                                         {chartOfAccounts.filter(account => !account.controlled || account.account_number === line.gl_account).map(account => (
