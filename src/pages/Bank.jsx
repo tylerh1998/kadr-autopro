@@ -957,6 +957,14 @@ export default function BankPage() {
         }}
         deposit={selectedDeposit}
         bankAccountName={selectedAccount?.name}
+        onReverseSuccess={() => {
+          setShowDepositModal(false);
+          setSelectedDeposit(null);
+          loadData();
+          if (selectedAccountId) {
+            loadTransactions();
+          }
+        }}
       />
 
       <ReconciliationHistoryModal

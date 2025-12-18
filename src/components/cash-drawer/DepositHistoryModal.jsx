@@ -279,6 +279,12 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
         }}
         deposit={selectedDeposit}
         bankAccountName={selectedDeposit ? bankAccountsMap[selectedDeposit.bank_account_id] : ''}
+        onReverseSuccess={() => {
+          setShowDetailsModal(false);
+          setSelectedDeposit(null);
+          loadDeposits();
+          if (onDepositReversed) onDepositReversed();
+        }}
       />
     </Dialog>
   );
