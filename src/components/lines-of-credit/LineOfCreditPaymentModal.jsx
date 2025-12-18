@@ -230,73 +230,72 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           </Alert>
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="pay_charges">Pay Specific Charges</TabsTrigger> {/* Reordered */}
-            <TabsTrigger value="pay_balance">Pay Amount</TabsTrigger> {/* Reordered */}
-          </TabsList>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="pay_charges">Pay Specific Charges</TabsTrigger>
+              <TabsTrigger value="pay_balance">Pay Amount</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="pay_charges" className="py-4 space-y-4"> {/* Reordered */}
-            <div className="border rounded-md max-h-64 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Days Old</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {outstandingCharges.length > 0 ? outstandingCharges.map((charge, index) => {
-                    const isSelected = !!selectedCharges[charge.id];
-                    return (
-                      <TableRow 
-                        key={charge.id}
-                        className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (index % 2 === 1 ? 'bg-slate-50' : '')} hover:bg-blue-100`}
-                        onClick={() => handleSelectCharge(charge.id, !isSelected)}
-                      >
-                        <TableCell onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectCharge(charge.id, checked)}
-                          />
-                        </TableCell>
-                        <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{charge.description}</TableCell>
-                        <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
-                        <TableCell className="text-right">${charge.charge_amount.toFixed(2)}</TableCell>
-                      </TableRow>
-                    );
-                  }) : (
+            <TabsContent value="pay_charges" className="py-4 space-y-4">
+              <div className="border rounded-md max-h-64 overflow-y-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center h-24">No outstanding charges.</TableCell>
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Days Old</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
-              <span className="font-semibold">Selected Amount:</span>
-              <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
-            </div>
-          </TabsContent>
+                  </TableHeader>
+                  <TableBody>
+                    {outstandingCharges.length > 0 ? outstandingCharges.map((charge, index) => {
+                      const isSelected = !!selectedCharges[charge.id];
+                      return (
+                        <TableRow 
+                          key={charge.id}
+                          className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (index % 2 === 1 ? 'bg-slate-50' : '')} hover:bg-blue-100`}
+                          onClick={() => handleSelectCharge(charge.id, !isSelected)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectCharge(charge.id, checked)}
+                            />
+                          </TableCell>
+                          <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{charge.description}</TableCell>
+                          <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
+                          <TableCell className="text-right">${charge.charge_amount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      );
+                    }) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24">No outstanding charges.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                <span className="font-semibold">Selected Amount:</span>
+                <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
+              </div>
+            </TabsContent>
 
-          <TabsContent value="pay_balance" className="py-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Payment Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                placeholder={`Current balance: $${(lineOfCredit?.current_balance || 0).toFixed(2)}`}
-                required
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="pay_balance" className="py-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Payment Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  placeholder={`Current balance: $${(lineOfCredit?.current_balance || 0).toFixed(2)}`}
+                  required
+                />
+              </div>
+            </TabsContent>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
