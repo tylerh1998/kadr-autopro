@@ -26,7 +26,7 @@ import {
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import BankAccountEditModal from '../components/bank/BankAccountEditModal';
 import BankTransactionModal from '../components/bank/BankTransactionModal';
-import DepositDetailsModal from '../components/bank/DepositDetailsModal';
+import DepositDetailsModal from '../components/cash-drawer/DepositDetailsModal';
 import ReconciliationHistoryModal from '../components/bank/ReconciliationHistoryModal';
 import BankTransferModal from '../components/bank/BankTransferModal';
 import { useNavigate, Link } from 'react-router-dom';
@@ -950,6 +950,7 @@ export default function BankPage() {
           setSelectedDeposit(null);
         }}
         deposit={selectedDeposit}
+        bankAccountName={selectedAccount?.name}
       />
 
       <ReconciliationHistoryModal
