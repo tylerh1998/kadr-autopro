@@ -230,7 +230,7 @@ export default function APSummaryPage() {
 
   const handleViewTransactions = () => {
     if (selectedSupplier) {
-      const url = createPageUrl('SupplierTx') + `?id=${selectedSupplier.id}`;
+      const url = createPageUrl('SupplierTx') + `?id=${selectedSupplier.id}&from=apsummary`;
       navigate(url);
     }
   };

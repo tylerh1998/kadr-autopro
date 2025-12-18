@@ -167,7 +167,14 @@ export default function SupplierTxViewPage() {
     };
 
     const handleBackNavigation = useCallback(() => {
-        navigate(createPageUrl('Suppliers'));
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromPage = urlParams.get('from');
+
+        if (fromPage === 'apsummary') {
+            navigate(createPageUrl('APSummary'));
+        } else {
+            navigate(createPageUrl('Suppliers'));
+        }
     }, [navigate]);
 
     const handlePrintCheque = useCallback((chequeReference) => {
