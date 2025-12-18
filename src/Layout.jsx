@@ -452,6 +452,7 @@ const navigationItems = [
   };
 
   const getUserInitials = (user) => {
+    if (user?.Initials) return user.Initials;
     if (!user || !user.full_name) return "?";
     const names = user.full_name.split(' ');
     if (names.length > 1) {
@@ -664,7 +665,7 @@ const navigationItems = [
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user?.full_name || 'My Account'}</DropdownMenuLabel>
+                  <DropdownMenuLabel>{user?.User_name || user?.full_name || 'My Account'}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <a href="https://workpro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
@@ -682,6 +683,12 @@ const navigationItems = [
                         <a href="https://paypro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
                           <DollarSign className="mr-2 h-4 w-4" />
                           <span>KADR PayPRO</span>
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <a href="https://registry-pos-tracker-b5793593.base44.app/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                          <FileText className="mr-2 h-4 w-4" />
+                          <span>Registries POS</span>
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
