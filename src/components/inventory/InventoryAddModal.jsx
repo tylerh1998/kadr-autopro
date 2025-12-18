@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -234,7 +233,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                             <Input
                                 id="part_number"
                                 value={formData.part_number}
-                                onChange={(e) => handleInputChange("part_number", e.target.value)}
+                                onChange={(e) => handleInputChange("part_number", e.target.value.toUpperCase())}
                                 required
                             />
                         </div>

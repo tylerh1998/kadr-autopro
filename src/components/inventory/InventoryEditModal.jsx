@@ -327,7 +327,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                             <Input
                                 id="part_number"
                                 value={formData.part_number}
-                                onChange={(e) => handleInputChange("part_number", e.target.value)}
+                                onChange={(e) => handleInputChange("part_number", e.target.value.toUpperCase())}
                                 required
                             />
                         </div>
