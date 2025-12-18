@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Cannot reverse deposit. No fiscal period exists for the deposit date.' }, { status: 403 });
         }
 
-        const depositBatchId = bankTransaction.reference;
+        const depositBatchId = bankTransaction.source_id || bankTransaction.reference;
         const transactionDate = bankTransaction.transaction_date;
         const bankAccountId = bankTransaction.bank_account_id;
 
