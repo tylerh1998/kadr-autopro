@@ -20,9 +20,7 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
       setEmailData({
         to: customerEmail || '',
         subject: `Payment Receipt - ${paymentAmount} - Ken's Auto`,
-        body: `Hello,
-
-Thank you for your recent payment of ${paymentAmount} on ${paymentDate}.`
+        body: `Thank you for your recent payment.`
       });
     }
   }, [open, paymentRecord, customerEmail]);

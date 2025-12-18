@@ -47,9 +47,20 @@ Deno.serve(async (req) => {
         try {
           const customerPayment = await base44.asServiceRole.entities.CustomerPayments.get(recordId);
           if (customerPayment) {
+            let description = customerPayment.notes || 'Invoice';
+            if (customerPayment.work_order_id) {
+                try {
+                    const wo = await base44.asServiceRole.entities.WorkOrder.get(customerPayment.work_order_id);
+                    if (wo) description = wo.description || description;
+                } catch (e) {
+                    console.warn('Could not fetch work order:', e);
+                }
+            }
+
             appliedDetails.push({
               type: 'Invoice',
               reference: customerPayment.invoice_number || 'N/A',
+              description: description,
               amountApplied: amount
             });
             continue;
@@ -63,7 +74,8 @@ Deno.serve(async (req) => {
           if (adjustment) {
             appliedDetails.push({
               type: adjustment.amount > 0 ? 'Charge' : 'Credit',
-              reference: adjustment.reference || adjustment.description || 'Adjustment',
+              reference: adjustment.reference || 'Adjustment',
+              description: adjustment.description || '',
               amountApplied: amount
             });
           }
@@ -88,18 +100,22 @@ Deno.serve(async (req) => {
           <tr style="background-color: #f0f0f0;">
             <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Type</th>
             <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Reference</th>
+            <th style="padding: 4px 6px; text-align: left; border: 1px solid #ddd; font-size: 12px;">Description</th>
             <th style="padding: 4px 6px; text-align: right; border: 1px solid #ddd; font-size: 12px;">Amount Applied</th>
           </tr>
           ${appliedDetails.map(d => `
             <tr>
               <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.type}</td>
               <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.reference}</td>
+              <td style="padding: 4px 6px; border: 1px solid #ddd; font-size: 12px;">${d.description}</td>
               <td style="padding: 4px 6px; text-align: right; border: 1px solid #ddd; font-size: 12px;">$${d.amountApplied.toFixed(2)}</td>
             </tr>
           `).join('')}
         </table>
       `;
     }
+
+    const customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
 
     // Build HTML email body using the user-provided body as the intro
     const htmlBody = `
@@ -109,6 +125,7 @@ Deno.serve(async (req) => {
           <p style="margin: 0; font-size: 12px;">Ken's Auto & Diesel Repair</p>
         </div>
         <div style="padding: 8px; background-color: #f9fafb;">
+          <p style="margin: 0 0 6px 0; font-size: 13px;">Hello ${customerName},</p>
           <p style="margin: 0 0 6px 0; font-size: 13px;">${body.replace(/\n\n+/g, '<br>').replace(/\n/g, ' ')}</p>
           <div style="background-color: white; padding: 6px 8px; border-radius: 4px; margin: 0 0 6px 0;">
             <table style="width: 100%; border-collapse: collapse;">
