@@ -138,7 +138,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           amount: creditCardFeeAmount,
           gl_account: '4009',
           description: 'Credit Card Processing Fee (3%)',
-          reference: feeReference,
+          reference: '',
           ar_paid: creditCardFeeAmount // Immediately paid by this payment
         });
 
@@ -149,7 +149,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: `Credit Card Fee - ${customer.first_name} ${customer.last_name}`,
           debit_amount: creditCardFeeAmount,
           credit_amount: 0,
-          reference: feeReference,
+          reference: '',
           source_type: 'customer_ar_adjustment',
           source_id: feeAdjustment.id
         });
@@ -160,7 +160,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: `Credit Card Fee - ${customer.first_name} ${customer.last_name}`,
           debit_amount: 0,
           credit_amount: creditCardFeeAmount,
-          reference: feeReference,
+          reference: '',
           source_type: 'customer_ar_adjustment',
           source_id: feeAdjustment.id
         });
