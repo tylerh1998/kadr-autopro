@@ -15,17 +15,18 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
 
   useEffect(() => {
     const loadDetails = async () => {
-      if (!open || !deposit?.reference) return;
+      const batchId = deposit?.source_id || deposit?.reference;
+      if (!open || !batchId) return;
       
       setLoading(true);
       try {
         // Fetch payments for this deposit batch
         const allPayments = await CustomerPayments.list();
-        const batchPayments = allPayments.filter(p => p.deposit_batch_id === deposit.reference);
+        const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
 
         // Fetch adjustments for this deposit batch
         const allAdjustments = await CashDrawerAdjustment.list();
-        const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === deposit.reference);
+        const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === batchId);
 
         // Get customer names
         const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];

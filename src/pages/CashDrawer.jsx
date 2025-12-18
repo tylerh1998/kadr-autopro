@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   DollarSign,
   CreditCard,
   Banknote,
+  Calendar,
   Upload,
   RefreshCw,
   ArrowLeftRight,
@@ -334,7 +338,8 @@ export default function CashDrawerPage() {
         reference: depositBatchId,
         credit_amount: totalAmount,
         debit_amount: 0,
-        source_type: 'deposit'
+        source_type: 'deposit',
+        source_id: depositBatchId
       });
 
       // Trigger balance recalculation for the bank account
@@ -490,7 +495,8 @@ export default function CashDrawerPage() {
       const selectedBankAccount = bankAccounts.find(acc => acc.id === deposit.bank_account_id);
 
       // Try to fetch existing breakdown
-      const existingBreakdowns = await DepositSlipBreakdown.filter({ deposit_batch_id: deposit.reference });
+      const batchId = deposit.source_id || deposit.reference;
+      const existingBreakdowns = await DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
       const savedBreakdown = existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
 
       // If we have a saved breakdown, use it
@@ -542,10 +548,10 @@ export default function CashDrawerPage() {
 
       // Fallback: Fetch from CustomerPayments and CashDrawerAdjustments
       const allPayments = await CustomerPayments.list();
-      const batchPayments = allPayments.filter(p => p.deposit_batch_id === deposit.reference);
+      const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
 
       const allAdjustments = await CashDrawerAdjustment.list();
-      const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === deposit.reference);
+      const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === batchId);
 
       // Get customer names for the payments
       const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
