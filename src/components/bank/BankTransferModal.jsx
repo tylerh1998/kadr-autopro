@@ -218,7 +218,9 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
         toAccountId: formData.toAccountId,
         amount: parseFloat(formData.amount),
         transferDate: formData.transferDate,
-        description: formData.description || 'Bank Transfer'
+        description: formData.description && formData.description.trim() 
+          ? `Bank Transfer - ${formData.description.trim()}` 
+          : 'Bank Transfer'
       });
     } catch (error) {
       console.error("Transfer error:", error);
