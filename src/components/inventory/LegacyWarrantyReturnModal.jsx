@@ -228,22 +228,60 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Label htmlFor="part_number">Part # *</Label>
-              <Input
-                id="part_number"
-                placeholder="Search or enter new part number..."
-                list="lankar-parts-list"
-                value={formData.part_number}
-                onChange={(e) => handlePartNumberChange(e.target.value)}
-                required
-              />
-              <datalist id="lankar-parts-list">
-                {inventoryItems.map(item => (
-                  <option key={item.id} value={item.part_number}>
-                    {item.description}
-                  </option>
-                ))}
-              </datalist>
+              <Label htmlFor="part_number">Part # (Search or Create New) *</Label>
+              <Popover open={partSearchOpen} onOpenChange={setPartSearchOpen}>
+                  <PopoverTrigger asChild>
+                      <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                          <Input
+                              id="part_number"
+                              placeholder="Search or type part #..."
+                              value={formData.part_number}
+                              onChange={(e) => {
+                                  const upperValue = e.target.value.toUpperCase();
+                                  handlePartNumberChange(upperValue);
+                                  setPartSearchOpen(true);
+                              }}
+                              onFocus={() => setPartSearchOpen(true)}
+                              className="pl-8 uppercase"
+                              required
+                              autoComplete="off"
+                          />
+                      </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                          {filteredInventory.length === 0 ? (
+                              <div className="py-6 text-center text-sm text-slate-500">
+                                  No existing parts found.
+                                  <br />
+                                  Continue typing to create new.
+                              </div>
+                          ) : (
+                              <div className="space-y-1">
+                                  {filteredInventory.map((item) => (
+                                      <div
+                                          key={item.id}
+                                          onClick={() => {
+                                              handlePartNumberChange(item.part_number);
+                                              setPartSearchOpen(false);
+                                          }}
+                                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                                      >
+                                          <div className="flex flex-col">
+                                              <span className="font-medium text-slate-900">{item.part_number}</span>
+                                              <span className="text-xs text-slate-500">{item.description}</span>
+                                          </div>
+                                          {item.part_number === formData.part_number && (
+                                              <Check className="h-4 w-4 text-green-600" />
+                                          )}
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+                  </PopoverContent>
+              </Popover>
               {existingPart && (
                 <p className="text-xs text-green-600 mt-1">✓ Existing part found - data pre-filled</p>
               )}
