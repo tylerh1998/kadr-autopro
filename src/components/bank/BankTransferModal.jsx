@@ -21,30 +21,39 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   });
 
   const [validationError, setValidationError] = useState('');
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockMessage, setLockMessage] = useState('');
   const [locksAcquired, setLocksAcquired] = useState([]);
   const [prevAccounts, setPrevAccounts] = useState({ from: '', to: '' });
+  const [lockedByOthers, setLockedByOthers] = useState({}); // { accountId: lockedByUser }
 
   // Helper to release lock
   const releaseLock = async (accountId) => {
     if (!accountId || !currentUser) return;
-    try {
-      await BankAccount.update(accountId, {
-        locked_by_user: null,
-        locked_timestamp: null
-      });
-      setLocksAcquired(prev => prev.filter(id => id !== accountId));
-    } catch (error) {
-      console.error('Error releasing lock:', error);
+
+    // Remove from lockedByOthers if applicable
+    setLockedByOthers(prev => {
+      const next = { ...prev };
+      delete next[accountId];
+      return next;
+    });
+
+    if (locksAcquired.includes(accountId)) {
+      try {
+        await BankAccount.update(accountId, {
+          locked_by_user: null,
+          locked_timestamp: null
+        });
+        setLocksAcquired(prev => prev.filter(id => id !== accountId));
+      } catch (error) {
+        console.error('Error releasing lock:', error);
+      }
     }
   };
 
   // Helper to acquire lock
-  const acquireLock = async (accountId, fieldName) => {
+  const acquireLock = async (accountId) => {
     if (!accountId || !currentUser) return;
     
-    // Check if we already have the lock (e.g. from prev selection or double fire)
+    // Check if we already have the lock
     if (locksAcquired.includes(accountId)) return;
 
     try {
@@ -53,12 +62,20 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
       const lockStatus = checkBankAccountLock(account, currentUser.email);
       
       if (lockStatus.isLocked) {
-        alert(`${account.name} is currently locked by ${lockStatus.lockedByUser}. Please select a different account.`);
-        
-        // Clear selection
-        setFormData(prev => ({ ...prev, [fieldName]: '' }));
+        // Update lockedByOthers
+        setLockedByOthers(prev => ({
+          ...prev,
+          [accountId]: lockStatus.lockedByUser
+        }));
         return;
       }
+
+      // If it was previously locked by other, remove from lockedByOthers
+      setLockedByOthers(prev => {
+        const next = { ...prev };
+        delete next[accountId];
+        return next;
+      });
 
       // Acquire lock
       await BankAccount.update(accountId, {
@@ -69,8 +86,6 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
       setLocksAcquired(prev => [...prev, accountId]);
     } catch (error) {
       console.error('Error acquiring lock:', error);
-      alert('Failed to acquire lock. Please try again.');
-      setFormData(prev => ({ ...prev, [fieldName]: '' }));
     }
   };
 
@@ -81,26 +96,14 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
     const handleSelectionChange = async () => {
       // Handle 'From' account changes
       if (formData.fromAccountId !== prevAccounts.from) {
-        // Release old
-        if (prevAccounts.from) {
-          await releaseLock(prevAccounts.from);
-        }
-        // Acquire new
-        if (formData.fromAccountId) {
-          await acquireLock(formData.fromAccountId, 'fromAccountId');
-        }
+        if (prevAccounts.from) await releaseLock(prevAccounts.from);
+        if (formData.fromAccountId) await acquireLock(formData.fromAccountId);
       }
 
       // Handle 'To' account changes
       if (formData.toAccountId !== prevAccounts.to) {
-        // Release old
-        if (prevAccounts.to) {
-          await releaseLock(prevAccounts.to);
-        }
-        // Acquire new
-        if (formData.toAccountId) {
-          await acquireLock(formData.toAccountId, 'toAccountId');
-        }
+        if (prevAccounts.to) await releaseLock(prevAccounts.to);
+        if (formData.toAccountId) await acquireLock(formData.toAccountId);
       }
 
       // Update prev state
@@ -153,8 +156,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
         description: ''
       });
       setValidationError('');
-      setIsLocked(false);
-      setLockMessage('');
+      setLockedByOthers({});
       // locksAcquired is cleared in the other useEffect when open becomes false
     }
   }, [open]);
@@ -395,11 +397,34 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
               </div>
             )}
 
+            {Object.keys(lockedByOthers).length > 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  The following accounts are locked:
+                  <ul className="list-disc pl-5 mt-1">
+                    {Object.entries(lockedByOthers).map(([id, user]) => {
+                      const acc = bankAccounts.find(a => a.id === id);
+                      return (
+                        <li key={id}>
+                          {acc ? acc.name : 'Account'} is locked by {user}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={Object.keys(lockedByOthers).length > 0}
+              >
                 <ArrowLeftRight className="w-4 h-4 mr-2" />
                 Transfer Funds
               </Button>
