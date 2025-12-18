@@ -14,8 +14,8 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
-import { checkBankAccountLock } from '../utils/mountainTimeUtils';
-import { BankAccount } from '@/entities/all';
+import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
+import { BankAccount, LinesOfCredit } from '@/entities/all';
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const [loading, setLoading] = useState(false);
@@ -200,8 +200,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         let accountToCheck;
         
         if (paymentData.payment_method === 'Line of Credit') {
-          // For LOC, we don't check bank account locks
-          // LOC has its own locking mechanism if needed
+          // For LOC, check LOC lock
+          accountToCheck = await LinesOfCredit.get(paymentData.from_account_id);
+          
+          if (accountToCheck.locked_by_user && accountToCheck.locked_timestamp) {
+            const lockStatus = checkEntityLock(accountToCheck, currentUser?.email || '');
+            
+            if (lockStatus.isLocked) {
+              alert(`This line of credit account is currently locked by ${accountToCheck.locked_by_user}. Please wait until the lock is released before making a payment.`);
+              return;
+            }
+          }
         } else {
           // For Bank Account or Cheque, check the bank account lock
           accountToCheck = await BankAccount.get(paymentData.from_account_id);
