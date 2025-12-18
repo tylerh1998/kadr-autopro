@@ -176,16 +176,7 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
             />
           </div>
 
-          {selectedBankAccount && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>GL Account:</strong> {selectedBankAccount.gl_account || 'Not set'}
-              </p>
-              <p className="text-sm text-blue-600 mt-1">
-                This will move ${totalAmount.toFixed(2)} from Cash Drawer (1010) to {selectedBankAccount.gl_account || 'Bank Account'}.
-              </p>
-            </div>
-          )}
+          {/* GL Account info removed from UI */}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
