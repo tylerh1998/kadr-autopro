@@ -157,7 +157,143 @@ export default function InventoryReturnsPage() {
   });
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    
+    let htmlContent = `
+      <html>
+        <head>
+          <title>Inventory Returns Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #111; }
+            h1 { text-align: center; margin-bottom: 5px; font-size: 24px; }
+            .date { text-align: center; margin-bottom: 30px; color: #666; font-size: 14px; }
+            .supplier-section { margin-bottom: 30px; page-break-inside: avoid; }
+            .supplier-header { 
+              background-color: #f3f4f6; 
+              padding: 10px 15px; 
+              font-weight: bold; 
+              font-size: 16px;
+              border: 1px solid #e5e7eb;
+              border-bottom: none;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; vertical-align: top; }
+            th { background-color: #f9fafb; font-weight: 600; color: #374151; }
+            .text-right { text-align: right; }
+            .badge { 
+              padding: 2px 8px; 
+              border-radius: 9999px; 
+              font-size: 10px; 
+              font-weight: 600;
+              display: inline-block;
+              text-transform: uppercase;
+            }
+            .badge-core { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+            .badge-warranty { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+            .badge-return { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+            .status-returned { color: #15803d; font-weight: 600; }
+            .status-onsite { color: #a16207; font-weight: 600; }
+            tr:nth-child(even) { background-color: #f9fafb; }
+            @media print {
+              .no-print { display: none; }
+              body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .supplier-section { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Inventory Returns Report</h1>
+          <div class="date">Generated on ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+    `;
+
+    if (sortedSupplierNames.length === 0) {
+      htmlContent += `<div style="text-align:center; color: #666; margin-top: 50px; font-style: italic;">No returns found matching your criteria.</div>`;
+    } else {
+      sortedSupplierNames.forEach(supplierName => {
+        const supplierReturns = returnsBySupplier[supplierName];
+        const totalValue = supplierReturns.reduce((sum, item) => sum + (item.total_cost || 0), 0);
+        
+        htmlContent += `
+          <div class="supplier-section">
+            <div class="supplier-header">
+              <span>${supplierName} <span style="font-weight:normal; font-size: 0.9em; color: #555;">(${supplierReturns.length} items)</span></span>
+              <span>Total: $${totalValue.toFixed(2)}</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 15%">Part #</th>
+                  <th style="width: 25%">Description</th>
+                  <th style="width: 8%">Type</th>
+                  <th style="width: 5%">Qty</th>
+                  <th style="width: 15%">Reason</th>
+                  <th style="width: 10%" class="text-right">Cost</th>
+                  <th style="width: 10%">Return Date</th>
+                  <th style="width: 10%">Sent Back</th>
+                  <th style="width: 8%">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        supplierReturns.forEach(item => {
+          const typeClass = item.return_type ? `badge-${item.return_type.toLowerCase()}` : '';
+          const statusClass = item.status === 'Returned' ? 'status-returned' : 'status-onsite';
+          
+          // Format dates using simple logic to match the main view
+          const returnDate = item.return_date ? new Date(item.return_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+          
+          let sentBackDate = 'N/A';
+          if (item.sent_back && item.sent_back !== 'N/A') {
+             // Try to parse YYYY-MM-DD
+             const parts = item.sent_back.split('-');
+             if (parts.length === 3) {
+                const d = new Date(parts[0], parts[1]-1, parts[2]);
+                sentBackDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+             } else {
+                sentBackDate = item.sent_back;
+             }
+          }
+
+          htmlContent += `
+            <tr>
+              <td><strong>${item.part_number || ''}</strong></td>
+              <td>${item.description || ''}</td>
+              <td><span class="badge ${typeClass}">${(item.return_type || '').toUpperCase()}</span></td>
+              <td style="text-align: center">${item.quantity_returned}</td>
+              <td>${item.return_reason || ''}${item.notes ? `<div style="font-size:10px; color:#666; font-style:italic; margin-top:2px;">${item.notes}</div>` : ''}</td>
+              <td class="text-right">$${(item.total_cost || 0).toFixed(2)}</td>
+              <td>${returnDate}</td>
+              <td>${sentBackDate}</td>
+              <td class="${statusClass}">${item.status || ''}</td>
+            </tr>
+          `;
+        });
+
+        htmlContent += `
+              </tbody>
+            </table>
+          </div>
+        `;
+      });
+    }
+
+    htmlContent += `
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    
+    // Wait for content to load before printing
+    printWindow.onload = function() {
+      printWindow.focus();
+      printWindow.print();
+    };
   };
 
   const getReturnTypeIcon = (type) => {
