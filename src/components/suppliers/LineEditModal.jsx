@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -90,8 +89,9 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
         if (field === 'charge') {
           const numericCharge = getNumericValue(value);
           if (!isNaN(parseFloat(value)) && value !== '') {
-            const calculatedGst = numericCharge * 0.05;
-            updated.gst = String(Math.round(calculatedGst * 100) / 100);
+            // Force GST to exactly 2 decimal places
+            const calculatedGst = Math.round(numericCharge * 0.05 * 100) / 100;
+            updated.gst = String(calculatedGst);
             updated.line_total = String(Math.round((numericCharge + getNumericValue(updated.gst)) * 100) / 100);
           } else {
             updated.gst = '';
@@ -156,10 +156,10 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
     const dataToSave = {
       ...line, // Keep original line properties
       ...formData, // Overwrite with new formData
-      // Ensure numeric fields are properly formatted (number or 0) before saving
-      charge: chargeVal || 0,
-      gst: gstVal || 0,
-      line_total: lineTotalVal || 0,
+      // Ensure numeric fields are properly formatted and rounded to 2 decimals before saving
+      charge: Math.round((chargeVal || 0) * 100) / 100,
+      gst: Math.round((gstVal || 0) * 100) / 100,
+      line_total: Math.round((lineTotalVal || 0) * 100) / 100,
     };
 
     onSave(dataToSave);
@@ -274,8 +274,9 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                     if (!checked) {
                       const numericCharge = getNumericValue(updated.charge);
                       if (!isNaN(parseFloat(updated.charge)) && updated.charge !== '') {
-                        const calculatedGst = numericCharge * 0.05;
-                        updated.gst = String(Math.round(calculatedGst * 100) / 100);
+                        // Force GST to exactly 2 decimal places
+                        const calculatedGst = Math.round(numericCharge * 0.05 * 100) / 100;
+                        updated.gst = String(calculatedGst);
                         updated.line_total = String(Math.round((numericCharge + getNumericValue(updated.gst)) * 100) / 100);
                       } else {
                         updated.gst = '';
