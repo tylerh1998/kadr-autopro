@@ -46,6 +46,19 @@ export default function LinesOfCreditPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('transactions'); // 'transactions' or 'payments'
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // New function to load all initial data, including balance recalculation
   const loadData = useCallback(async () => {
@@ -651,6 +664,7 @@ export default function LinesOfCreditPage() {
         }}
         lineOfCredit={editingAccount}
         onSubmit={handleSaveAccount}
+        currentUser={currentUser}
       />
 
       <LineOfCreditPaymentModal
@@ -658,6 +672,7 @@ export default function LinesOfCreditPage() {
         onClose={() => setShowPaymentModal(false)}
         lineOfCredit={selectedAccount}
         onPaymentMade={handlePaymentMade}
+        currentUser={currentUser}
       />
 
       <LineOfCreditTransactionModal
@@ -665,6 +680,7 @@ export default function LinesOfCreditPage() {
         onClose={() => setShowTransactionModal(false)}
         lineOfCredit={selectedAccount}
         onTransactionMade={handleTransactionMade}
+        currentUser={currentUser}
       />
     </>
   );
