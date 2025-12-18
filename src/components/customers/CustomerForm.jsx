@@ -19,7 +19,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     state: '',
     zip_code: '',
     notes: '',
-    default_taxable: false,
+    default_taxable: true,
   });
 
   // Format phone number as XXX XXX XXXX
