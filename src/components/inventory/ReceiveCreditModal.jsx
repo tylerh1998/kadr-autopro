@@ -161,9 +161,20 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         setLoading(false);
         return;
       }
+
+      // Check if Line of Credit is locked (if selected)
+      if (refundCreditTo === 'Line of Credit' && toAccount) {
+        const locEntity = await LinesOfCredit.get(toAccount);
+        const locLockStatus = checkEntityLock(locEntity, currentUser.email);
+        if (locLockStatus.isLocked) {
+          alert(`This line of credit account is currently locked by ${locLockStatus.lockedByUser}. Please wait until the lock is released.`);
+          setLoading(false);
+          return;
+        }
+      }
     } catch (error) {
-      console.error('Error checking supplier lock:', error);
-      alert('Failed to check supplier lock status. Please try again.');
+      console.error('Error checking locks:', error);
+      alert('Failed to check lock status. Please try again.');
       setLoading(false);
       return;
     }
