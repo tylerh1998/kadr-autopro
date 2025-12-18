@@ -25,7 +25,15 @@ import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBrea
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 
-const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer'];
+const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
+
+const displayMethods = [
+  { id: 'cash', label: 'Cash', methods: ['cash'] },
+  { id: 'cards', label: 'Cards (Debit & Credit)', methods: ['credit_card', 'debit'] },
+  { id: 'cheque', label: 'Cheque', methods: ['cheque'] },
+  { id: 'e_transfer', label: 'E-Transfer', methods: ['e_transfer'] },
+  { id: 'other', label: 'Other', methods: ['other'] }
+];
 const CASH_DRAWER_GL_ACCOUNT = '1010'; // Cash Drawer GL Account
 
 export default function CashDrawerPage() {
@@ -202,52 +210,56 @@ export default function CashDrawerPage() {
       return { valid: true, message: '' };
     }
 
+    // Special case: Credit Card and Debit can be combined
+    if (methodsInBatch.size === 2 && methodsInBatch.has('credit_card') && methodsInBatch.has('debit')) {
+      return { valid: true, message: '' };
+    }
+
     // Any other combination is invalid
     const methodList = Array.from(methodsInBatch).map(m => m.replace('_', ' ')).join(', ');
     return { 
       valid: false, 
-      message: `Cannot deposit multiple payment methods together (${methodList}). Only Cash and Cheque can be combined.` 
+      message: `Cannot deposit multiple payment methods together (${methodList}). Only Cash and Cheque can be combined, or Debit and Credit Cards.` 
     };
   };
 
-  const handleOpenPaymentModal = (method, type) => {
-    setSelectedPaymentMethod(method);
+  // Stores the list of payment methods currently being viewed in the modal (e.g., ['credit_card', 'debit'] for Cards)
+  const [modalPaymentMethods, setModalPaymentMethods] = useState([]);
+
+  const handleOpenPaymentModal = (displayMethodId, type, methods) => {
+    setSelectedPaymentMethod(displayMethodId); // e.g., 'cards' or 'cash'
+    setModalPaymentMethods(methods);
     setModalType(type);
     setShowPaymentModal(true);
   };
 
   const handleMovePayments = (selectedPaymentIds) => {
     const sourceItems = modalType === 'cash_drawer' ? cashDrawerItems : forDepositItems;
-    const targetItems = modalType === 'cash_drawer' ? forDepositItems : cashDrawerItems;
+    
+    // We need to iterate over all involved methods (e.g. credit_card and debit)
+    const newCashDrawerItems = { ...cashDrawerItems };
+    const newForDepositItems = { ...forDepositItems };
 
-    const itemsToMove = sourceItems[selectedPaymentMethod].filter(item =>
-      selectedPaymentIds.includes(item.id)
-    );
+    modalPaymentMethods.forEach(method => {
+      const currentSourceList = modalType === 'cash_drawer' ? newCashDrawerItems[method] : newForDepositItems[method];
+      const currentTargetList = modalType === 'cash_drawer' ? newForDepositItems[method] : newCashDrawerItems[method];
 
-    const remainingItems = sourceItems[selectedPaymentMethod].filter(item =>
-      !selectedPaymentIds.includes(item.id)
-    );
+      const itemsToMove = currentSourceList.filter(item => selectedPaymentIds.includes(item.id));
+      const remainingItems = currentSourceList.filter(item => !selectedPaymentIds.includes(item.id));
 
-    if (modalType === 'cash_drawer') {
-      setCashDrawerItems(prev => ({
-        ...prev,
-        [selectedPaymentMethod]: remainingItems
-      }));
-      setForDepositItems(prev => ({
-        ...prev,
-        [selectedPaymentMethod]: [...(prev[selectedPaymentMethod] || []), ...itemsToMove]
-      }));
-    } else {
-      setForDepositItems(prev => ({
-        ...prev,
-        [selectedPaymentMethod]: remainingItems
-      }));
-      setCashDrawerItems(prev => ({
-        ...prev,
-        [selectedPaymentMethod]: [...(prev[selectedPaymentMethod] || []), ...itemsToMove]
-      }));
-    }
+      if (itemsToMove.length > 0) {
+        if (modalType === 'cash_drawer') {
+          newCashDrawerItems[method] = remainingItems;
+          newForDepositItems[method] = [...(currentTargetList || []), ...itemsToMove];
+        } else {
+          newForDepositItems[method] = remainingItems;
+          newCashDrawerItems[method] = [...(currentTargetList || []), ...itemsToMove];
+        }
+      }
+    });
 
+    setCashDrawerItems(newCashDrawerItems);
+    setForDepositItems(newForDepositItems);
     setShowPaymentModal(false);
   };
 
@@ -341,6 +353,7 @@ export default function CashDrawerPage() {
         if (method === 'credit_card') return 'Credit Cards';
         if (method === 'debit') return 'Debit';
         if (method === 'e_transfer') return 'E-Transfers';
+        if (method === 'other') return 'Other';
         return method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
       };
 
@@ -495,13 +508,31 @@ export default function CashDrawerPage() {
         return <CreditCard className="w-5 h-5 text-blue-600" />;
       case 'debit':
         return <CreditCard className="w-5 h-5 text-purple-600" />;
+      case 'cards':
+        return <CreditCard className="w-5 h-5 text-blue-600" />;
       case 'cheque':
         return <Banknote className="w-5 h-5 text-orange-600" />;
       case 'e_transfer':
         return <ArrowLeftRight className="w-5 h-5 text-indigo-600" />;
+      case 'other':
+        return <DollarSign className="w-5 h-5 text-gray-600" />;
       default:
         return <DollarSign className="w-5 h-5 text-gray-600" />;
     }
+  };
+
+  // Helper to get total for a display group (which might contain multiple payment methods)
+  const getDisplayGroupCashDrawerTotal = (displayGroup) => {
+    return displayGroup.methods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0);
+  };
+
+  const getDisplayGroupForDepositTotal = (displayGroup) => {
+    return displayGroup.methods.reduce((sum, method) => sum + getForDepositTotal(method), 0);
+  };
+
+  const getDisplayGroupItemCount = (displayGroup, type) => {
+    const itemsObj = type === 'cash_drawer' ? cashDrawerItems : forDepositItems;
+    return displayGroup.methods.reduce((count, method) => count + (itemsObj[method] || []).length, 0);
   };
 
   const depositBatchStatus = isDepositBatchValid();
@@ -744,38 +775,45 @@ export default function CashDrawerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paymentMethods.map((method) => (
-                      <tr key={method} className="border-b hover:bg-slate-50">
-                        <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            {getPaymentIcon(method)}
-                            <span className="font-medium capitalize">{method.replace('_', ' ')}</span>
-                          </div>
-                        </td>
-                        <td 
-                          className="p-4 text-center cursor-pointer hover:bg-blue-50 transition-colors"
-                          onClick={() => getCashDrawerTotal(method) > 0 && handleOpenPaymentModal(method, 'cash_drawer')}
-                        >
-                          <div className={`${getCashDrawerTotal(method) > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
-                            ${getCashDrawerTotal(method).toFixed(2)}
-                            <div className="text-xs text-gray-500">
-                              ({(cashDrawerItems[method] || []).length} items)
+                    {displayMethods.map((displayGroup) => {
+                      const cdTotal = getDisplayGroupCashDrawerTotal(displayGroup);
+                      const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
+                      const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
+                      const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
+
+                      return (
+                        <tr key={displayGroup.id} className="border-b hover:bg-slate-50">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              {getPaymentIcon(displayGroup.id)}
+                              <span className="font-medium capitalize">{displayGroup.label}</span>
                             </div>
-                          </div>
-                        </td>
-                        <td 
-                          className="p-4 text-center cursor-pointer hover:bg-green-50 transition-colors"
-                          onClick={() => getForDepositTotal(method) > 0 && handleOpenPaymentModal(method, 'for_deposit')}
-                        >
-                          <div className={`${getForDepositTotal(method) > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
-                            ${getForDepositTotal(method).toFixed(2)}
-                            <div className="text-xs text-gray-500">
-                              ({(forDepositItems[method] || []).length} items)
+                          </td>
+                          <td 
+                            className="p-4 text-center cursor-pointer hover:bg-blue-50 transition-colors"
+                            onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
+                          >
+                            <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
+                              ${cdTotal.toFixed(2)}
+                              <div className="text-xs text-gray-500">
+                                ({cdCount} items)
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td 
+                            className="p-4 text-center cursor-pointer hover:bg-green-50 transition-colors"
+                            onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
+                          >
+                            <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
+                              ${fdTotal.toFixed(2)}
+                              <div className="text-xs text-gray-500">
+                                ({fdCount} items)
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     <tr className="border-t-2 bg-gray-50 font-semibold">
                       <td className="p-4">Total</td>
                       <td className="p-4 text-center text-lg">
@@ -804,7 +842,10 @@ export default function CashDrawerPage() {
         open={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         paymentMethod={selectedPaymentMethod}
-        payments={modalType === 'cash_drawer' ? (cashDrawerItems[selectedPaymentMethod] || []) : (forDepositItems[selectedPaymentMethod] || [])}
+        payments={modalPaymentMethods.reduce((acc, method) => {
+          const list = modalType === 'cash_drawer' ? (cashDrawerItems[method] || []) : (forDepositItems[method] || []);
+          return [...acc, ...list];
+        }, [])}
         title={modalType === 'cash_drawer' ? 'Move to For Deposit' : 'Move to Cash Drawer'}
         onMove={handleMovePayments}
       />
