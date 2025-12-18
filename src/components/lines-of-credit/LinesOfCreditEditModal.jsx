@@ -5,9 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount } from '@/entities/all';
+import { ChartOfAccount, LinesOfCredit } from '@/entities/all';
+import { checkEntityLock } from '../utils/mountainTimeUtils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
-export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, onSubmit }) {
+export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, onSubmit, currentUser }) {
   const [formData, setFormData] = useState({
     name: '',
     institution_name: '',
@@ -20,17 +23,79 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
     notes: ''
   });
   const [accounts, setAccounts] = useState([]);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('');
+  const [lockAcquired, setLockAcquired] = useState(false);
 
   useEffect(() => {
-    const loadAccounts = async () => {
-      // Fetch 'Liability' type accounts for GL Account selection
-      const accountsData = await ChartOfAccount.filter({ account_type: 'Liability' }, 'account_number');
-      setAccounts(accountsData);
+    const handleModalOpen = async () => {
+      if (open && currentUser) {
+        if (lineOfCredit) {
+          try {
+            // Always fetch the latest account data to check lock status
+            const account = await LinesOfCredit.get(lineOfCredit.id);
+            const lockStatus = checkEntityLock(account, currentUser.email);
+
+            if (lockStatus.isLocked) {
+              setIsLocked(true);
+              setLockMessage(`This account is currently locked by ${lockStatus.lockedByUser}. Please try again later.`);
+              return;
+            }
+
+            // Acquire lock
+            await LinesOfCredit.update(lineOfCredit.id, {
+              locked_by_user: currentUser.email,
+              locked_timestamp: new Date().toISOString()
+            });
+            
+            setLockAcquired(true);
+            setIsLocked(false);
+            setLockMessage('');
+          } catch (error) {
+            console.error('Error checking/acquiring lock:', error);
+            setIsLocked(true);
+            setLockMessage('Failed to acquire lock on account. Please try again.');
+          }
+        }
+        
+        // Load GL accounts
+        const accountsData = await ChartOfAccount.filter({ account_type: 'Liability' }, 'account_number');
+        setAccounts(accountsData);
+      }
     };
-    if (open) {
-      loadAccounts();
+
+    handleModalOpen();
+  }, [open, lineOfCredit, currentUser]);
+
+  // Release lock on close
+  useEffect(() => {
+    return () => {
+      if (!open && lockAcquired && currentUser && lineOfCredit) {
+        // Release lock when modal closes
+        LinesOfCredit.update(lineOfCredit.id, {
+          locked_by_user: null,
+          locked_timestamp: null
+        }).catch(error => {
+          console.error('Error releasing lock:', error);
+        });
+        setLockAcquired(false);
+      }
+    };
+  }, [open, lockAcquired, currentUser, lineOfCredit]);
+
+  const handleClose = () => {
+    // Release lock before closing
+    if (lockAcquired && currentUser && lineOfCredit) {
+      LinesOfCredit.update(lineOfCredit.id, {
+        locked_by_user: null,
+        locked_timestamp: null
+      }).catch(error => {
+        console.error('Error releasing lock on close:', error);
+      });
+      setLockAcquired(false);
     }
-  }, [open]);
+    onClose();
+  };
 
   useEffect(() => {
     if (lineOfCredit) {
@@ -93,12 +158,18 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{lineOfCredit ? 'Edit Line of Credit' : 'Add New Line of Credit'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        {isLocked ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{lockMessage}</AlertDescription>
+          </Alert>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Account Name *</Label>
@@ -158,11 +229,12 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
             <Textarea id="notes" value={formData.notes} onChange={handleChange} rows={3} />
           </div>
           
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">Save Account</Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button type="submit" disabled={isLocked}>Save Account</Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
