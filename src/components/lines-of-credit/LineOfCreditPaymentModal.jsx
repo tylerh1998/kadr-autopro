@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LinesOfCreditTransaction, BankAccount, LinesOfCredit } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { checkEntityLock } from '../utils/mountainTimeUtils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, DollarSign, Loader2 } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
-export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, onPaymentMade }) {
+export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, onPaymentMade, currentUser }) {
   const [paymentData, setPaymentData] = useState({
     payment_method: 'bank_account',
     from_account_id: '',
@@ -28,11 +31,34 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const [selectedCharges, setSelectedCharges] = useState({});
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('');
+  const [lockAcquired, setLockAcquired] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      if (open && lineOfCredit) {
+      if (open && lineOfCredit && currentUser) {
         try {
+          // Always fetch the latest account data to check lock status
+          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const lockStatus = checkEntityLock(account, currentUser.email);
+
+          if (lockStatus.isLocked) {
+            setIsLocked(true);
+            setLockMessage(`This account is currently locked by ${lockStatus.lockedByUser}. Please try again later.`);
+            return;
+          }
+
+          // Acquire lock
+          await LinesOfCredit.update(lineOfCredit.id, {
+            locked_by_user: currentUser.email,
+            locked_timestamp: new Date().toISOString()
+          });
+          
+          setLockAcquired(true);
+          setIsLocked(false);
+          setLockMessage('');
+
           // Reset state when opening
           setPaymentData({ payment_method: 'bank_account', from_account_id: '', payment_date: new Date() });
           setAmount('');
@@ -71,7 +97,37 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       }
     };
     loadData();
-  }, [open, lineOfCredit]);
+  }, [open, lineOfCredit, currentUser]);
+
+  // Release lock on close
+  useEffect(() => {
+    return () => {
+      if (!open && lockAcquired && currentUser && lineOfCredit) {
+        // Release lock when modal closes
+        LinesOfCredit.update(lineOfCredit.id, {
+          locked_by_user: null,
+          locked_timestamp: null
+        }).catch(error => {
+          console.error('Error releasing lock:', error);
+        });
+        setLockAcquired(false);
+      }
+    };
+  }, [open, lockAcquired, currentUser, lineOfCredit]);
+
+  const handleClose = () => {
+    // Release lock before closing
+    if (lockAcquired && currentUser && lineOfCredit) {
+      LinesOfCredit.update(lineOfCredit.id, {
+        locked_by_user: null,
+        locked_timestamp: null
+      }).catch(error => {
+        console.error('Error releasing lock on close:', error);
+      });
+      setLockAcquired(false);
+    }
+    onClose();
+  };
 
   const totalSelectedAmount = useMemo(() => {
     return outstandingCharges
@@ -157,7 +213,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Make Payment - {lineOfCredit?.name}</DialogTitle>
@@ -167,7 +223,13 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+        {isLocked ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{lockMessage}</AlertDescription>
+          </Alert>
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pay_charges">Pay Specific Charges</TabsTrigger> {/* Reordered */}
             <TabsTrigger value="pay_balance">Pay Amount</TabsTrigger> {/* Reordered */}
@@ -236,15 +298,17 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           </TabsContent>
         </Tabs>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button 
-            onClick={handleProceedToPaymentDetails} 
-            disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
-          >
-            Next: Payment Details (${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)})
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+              <Button 
+                onClick={handleProceedToPaymentDetails} 
+                disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
+              >
+                Next: Payment Details (${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)})
+              </Button>
+            </DialogFooter>
+          </Tabs>
+        )}
       </DialogContent>
 
       <Dialog open={showPaymentDetailsDialog} onOpenChange={(open) => { if (!open) setShowPaymentDetailsDialog(false); }}>
