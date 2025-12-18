@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
