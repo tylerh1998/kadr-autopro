@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
+import { ChartOfAccount, LinesOfCredit } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { checkEntityLock } from '../utils/mountainTimeUtils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function LineOfCreditTransactionModal({ open, onClose, lineOfCredit, onTransactionMade }) {
+export default function LineOfCreditTransactionModal({ open, onClose, lineOfCredit, onTransactionMade, currentUser }) {
   const [formData, setFormData] = useState({
     transaction_date: format(new Date(), 'yyyy-MM-dd'),
     description: '',
@@ -23,10 +25,45 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState('');
+  const [lockAcquired, setLockAcquired] = useState(false);
 
   useEffect(() => {
+    const handleModalOpen = async () => {
+      if (open && currentUser && lineOfCredit) {
+        try {
+          // Always fetch the latest account data to check lock status
+          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const lockStatus = checkEntityLock(account, currentUser.email);
+
+          if (lockStatus.isLocked) {
+            setIsLocked(true);
+            setLockMessage(`This account is currently locked by ${lockStatus.lockedByUser}. Please try again later.`);
+            return;
+          }
+
+          // Acquire lock
+          await LinesOfCredit.update(lineOfCredit.id, {
+            locked_by_user: currentUser.email,
+            locked_timestamp: new Date().toISOString()
+          });
+          
+          setLockAcquired(true);
+          setIsLocked(false);
+          setLockMessage('');
+          
+          loadChartOfAccounts();
+        } catch (error) {
+          console.error('Error checking/acquiring lock:', error);
+          setIsLocked(true);
+          setLockMessage('Failed to acquire lock on account. Please try again.');
+        }
+      }
+    };
+
     if (open) {
-      loadChartOfAccounts();
+      handleModalOpen();
       // Reset form when opening
       setFormData({
         transaction_date: format(new Date(), 'yyyy-MM-dd'),
@@ -38,7 +75,37 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       });
       setError(null);
     }
-  }, [open]);
+  }, [open, lineOfCredit, currentUser]);
+
+  // Release lock on close
+  useEffect(() => {
+    return () => {
+      if (!open && lockAcquired && currentUser && lineOfCredit) {
+        // Release lock when modal closes
+        LinesOfCredit.update(lineOfCredit.id, {
+          locked_by_user: null,
+          locked_timestamp: null
+        }).catch(error => {
+          console.error('Error releasing lock:', error);
+        });
+        setLockAcquired(false);
+      }
+    };
+  }, [open, lockAcquired, currentUser, lineOfCredit]);
+
+  const handleClose = () => {
+    // Release lock before closing
+    if (lockAcquired && currentUser && lineOfCredit) {
+      LinesOfCredit.update(lineOfCredit.id, {
+        locked_by_user: null,
+        locked_timestamp: null
+      }).catch(error => {
+        console.error('Error releasing lock on close:', error);
+      });
+      setLockAcquired(false);
+    }
+    onClose();
+  };
 
   const loadChartOfAccounts = async () => {
     try {
@@ -114,13 +181,19 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   };
 
   return (
-    <Dialog open={open} onOpenChange={loading ? undefined : onClose}>
+    <Dialog open={open} onOpenChange={loading ? undefined : handleClose}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Add Manual Transaction</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        {isLocked ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{lockMessage}</AlertDescription>
+          </Alert>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 py-4">
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
@@ -247,26 +320,27 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit"
-              disabled={loading || !formData.description || !formData.amount || !formData.offset_gl_account}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                'Create Transaction'
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={loading || !formData.description || !formData.amount || !formData.offset_gl_account || isLocked}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Create Transaction'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
