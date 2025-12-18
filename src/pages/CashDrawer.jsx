@@ -335,7 +335,7 @@ export default function CashDrawerPage() {
         bank_account_id: selectedBankAccount.id,
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit - ${format(new Date(depositData.depositDate), 'MMM d, yyyy')}`,
-        reference: depositBatchId,
+        reference: '',
         credit_amount: totalAmount,
         debit_amount: 0,
         source_type: 'deposit',
