@@ -330,11 +330,30 @@ export default function CashDrawerPage() {
         source_id: selectedBankAccount.id
       });
 
+      // Determine description based on payment methods
+      const activeMethods = paymentMethods.filter(method => 
+        forDepositItems[method] && forDepositItems[method].length > 0
+      );
+      
+      const formatMethodNameForDescription = (method) => {
+        if (method === 'cash') return 'Cash';
+        if (method === 'cheque') return 'Cheques';
+        if (method === 'credit_card') return 'Credit Cards';
+        if (method === 'debit') return 'Debit';
+        if (method === 'e_transfer') return 'E-Transfers';
+        return method.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      };
+
+      const descriptionParts = activeMethods.map(formatMethodNameForDescription);
+      const depositDescription = descriptionParts.length > 0 
+        ? `Deposit - ${descriptionParts.join(' & ')}`
+        : `Deposit`;
+
       // Create Bank Transaction
       const bankTransaction = await BankTransaction.create({
         bank_account_id: selectedBankAccount.id,
         transaction_date: depositData.depositDate,
-        description: `Cash Drawer Deposit - ${format(new Date(depositData.depositDate), 'MMM d, yyyy')}`,
+        description: depositDescription,
         reference: '',
         credit_amount: totalAmount,
         debit_amount: 0,
