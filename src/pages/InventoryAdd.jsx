@@ -772,11 +772,12 @@ export default function InventoryAddPage() {
                                                 placeholder="Search or type part #..."
                                                 value={currentItem.part_number}
                                                 onChange={(e) => {
-                                                    handlePartNumberSelect(e.target.value);
+                                                    const upperValue = e.target.value.toUpperCase();
+                                                    handlePartNumberSelect(upperValue);
                                                     setPartSearchOpen(true);
                                                 }}
                                                 onFocus={() => setPartSearchOpen(true)}
-                                                className="pl-8"
+                                                className="pl-8 uppercase"
                                                 required
                                                 autoComplete="off"
                                             />
