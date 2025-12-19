@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -123,6 +122,12 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
                 onChange={(e) => setOdometer(e.target.value)}
                 disabled={isLoading}
                 className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleContinue();
+                  }
+                }}
               />
               <Button
                 variant="outline"

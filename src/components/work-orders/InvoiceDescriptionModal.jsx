@@ -59,6 +59,12 @@ export default function InvoiceDescriptionModal({ open, onClose, onSubmit, workO
               onChange={(e) => setDescription(e.target.value)}
               disabled={isLoading}
               className="h-32 resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleContinue();
+                }
+              }}
             />
             <p className="text-sm text-muted-foreground">
               This description summarizes the work performed and will appear in vehicle service history.
