@@ -15,7 +15,8 @@ export default function AdvancePaymentModal({
   workOrder,
   payments: initialPayments,
   onProcessPayment,
-  totalOwing: propTotalOwing
+  totalOwing: propTotalOwing,
+  viewOnly = false
 }) {
   const [payments, setPayments] = useState([]);
   const [amount, setAmount] = useState('');
@@ -218,75 +219,77 @@ export default function AdvancePaymentModal({
           <DialogTitle>Take Payment for RO #{workOrder?.ro_number}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-6">
-          {/* Add Payment Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Add New Payment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input
-                  type="number"
-                  placeholder="Amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={isInvoiceUI || processing}
-                />
-                <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={isInvoiceUI || processing}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Payment Method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="debit">Debit</SelectItem>
-                    <SelectItem value="credit_card">Credit Card</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                    <SelectItem value="e_transfer">E-Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Reference #"
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                  disabled={isInvoiceUI || processing}
-                />
-              </div>
-              
-              {isInvoiceUI && (
-                <div className="p-3 mt-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2">
-                  <Lock className="h-4 w-4 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold">Payments are locked for invoices.</p>
-                    <p className="text-xs">To make changes, revert this document to Work Order stage.</p>
-                  </div>
-                </div>
-              )}
-              
-            </CardContent>
-            <DialogFooter className="p-4 bg-slate-50 rounded-b-lg">
-              <div className="flex items-center gap-2 w-full">
-                <div className="flex-1">
-                  <Label htmlFor="paymentDate" className="text-xs text-slate-600">Payment Date</Label>
+          {/* Add Payment Form - Hide in View Only */}
+          {!viewOnly && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Add New Payment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input
-                    id="paymentDate"
-                    type="date"
-                    value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
+                    type="number"
+                    placeholder="Amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
                     disabled={isInvoiceUI || processing}
-                    className="mt-1"
+                  />
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod} disabled={isInvoiceUI || processing}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Payment Method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="debit">Debit</SelectItem>
+                      <SelectItem value="credit_card">Credit Card</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                      <SelectItem value="e_transfer">E-Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Reference #"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    disabled={isInvoiceUI || processing}
                   />
                 </div>
-                <Button 
-                  onClick={handleAddPayment}
-                  disabled={isInvoiceUI || processing}
-                  className="mt-5"
-                >
-                  {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                  {processing ? 'Processing...' : 'Apply Payment'}
-                </Button>
-              </div>
-            </DialogFooter>
-          </Card>
+                
+                {isInvoiceUI && (
+                  <div className="p-3 mt-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md text-sm flex items-center gap-2">
+                    <Lock className="h-4 w-4 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold">Payments are locked for invoices.</p>
+                      <p className="text-xs">To make changes, revert this document to Work Order stage.</p>
+                    </div>
+                  </div>
+                )}
+                
+              </CardContent>
+              <DialogFooter className="p-4 bg-slate-50 rounded-b-lg">
+                <div className="flex items-center gap-2 w-full">
+                  <div className="flex-1">
+                    <Label htmlFor="paymentDate" className="text-xs text-slate-600">Payment Date</Label>
+                    <Input
+                      id="paymentDate"
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      disabled={isInvoiceUI || processing}
+                      className="mt-1"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleAddPayment}
+                    disabled={isInvoiceUI || processing}
+                    className="mt-5"
+                  >
+                    {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                    {processing ? 'Processing...' : 'Apply Payment'}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </Card>
+          )}
 
           {/* Existing Payments List */}
           {payments.length > 0 ? (
@@ -305,7 +308,7 @@ export default function AdvancePaymentModal({
                         {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'Unknown Date'}
                       </div>
                     </div>
-                    {payment.id && (
+                    {payment.id && !viewOnly && (
                       <Button
                         variant="outline"
                         size="sm"

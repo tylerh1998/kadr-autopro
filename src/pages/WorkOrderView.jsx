@@ -18,6 +18,7 @@ import WorkPROViewModal from '../components/work-orders/WorkPROViewModal';
 import WarrantyReturnModal from '../components/work-orders/WarrantyReturnModal';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WONotesModal from '../components/work-orders/WONotesModal';
+import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -50,6 +51,7 @@ export default function WorkOrderViewPage() {
   const [showWarrantyModal, setShowWarrantyModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedLineForWarranty, setSelectedLineForWarranty] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
@@ -320,6 +322,7 @@ export default function WorkOrderViewPage() {
                     tagAlongs={tagAlongs}
                     otherCharges={otherCharges}
                     upcomingAppointment={upcomingAppointment}
+                    onPaymentsClick={() => setShowPaymentModal(true)}
                   />
                 </div>
               </div>
@@ -391,6 +394,15 @@ export default function WorkOrderViewPage() {
         onClose={() => setShowNotesModal(false)}
         workOrder={workOrder}
         viewOnly={true}
+      />
+
+      {/* Advance Payment Modal (View Only) */}
+      <AdvancePaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        workOrder={workOrder}
+        viewOnly={true}
+        totalOwing={workOrder?.total_amount || 0}
       />
     </>
   );

@@ -2,14 +2,17 @@ import React, { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
 // A small sub-component for consistently styled financial figures
-const FinancialItem = ({ label, value, className = '' }) => (
-  <div className={`text-center px-4 py-2 rounded-lg ${className}`}>
+const FinancialItem = ({ label, value, className = '', onClick }) => (
+  <div 
+    className={`text-center px-4 py-2 rounded-lg ${className} ${onClick ? 'cursor-pointer hover:bg-opacity-80 transition-all active:scale-95' : ''}`}
+    onClick={onClick}
+  >
     <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
     <p className="text-xl font-bold text-slate-800">{value}</p>
   </div>
 );
 
-export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrder = {} }) {
+export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrder = {}, onPaymentsClick }) {
   // Calculate charge totals from line items with GST logic
   const { partsTotal, laborTotal, otherChargesTotal, shopSupplyTotal, taxAmount, grandTotal } = useMemo(() => {
     const parts = lineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
@@ -78,7 +81,12 @@ export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrde
         <div className="w-px h-10 bg-slate-200 hidden md:block" />
 
         <FinancialItem label="Total" value={`$${grandTotal.toFixed(2)}`} className="bg-slate-100" />
-        <FinancialItem label="Payments" value={`$${amountPaid.toFixed(2)}`} className="text-green-700" />
+        <FinancialItem 
+          label="Payments" 
+          value={`$${amountPaid.toFixed(2)}`} 
+          className="text-green-700 hover:bg-green-50" 
+          onClick={onPaymentsClick}
+        />
         <FinancialItem label="Amount Owing" value={`$${balanceDue.toFixed(2)}`} className={`font-extrabold ${balanceDue > 0.005 ? 'text-red-700' : 'text-slate-900'}`} />
       </CardContent>
     </Card>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import WorkOrderViewHeaderInfo from './form/WorkOrderViewHeaderInfo';
 import WorkOrderViewFinancialSummary from './form/WorkOrderViewFinancialSummary';
@@ -20,7 +19,8 @@ export default function WorkOrderViewForm({
   customer,
   vehicle,
   lineItems,
-  onOpenWorkPRO, // NEW: Add this prop
+  onOpenWorkPRO,
+  onPaymentsClick, // NEW: Add this prop
 }) {
   return (
     <div className="space-y-6">
@@ -28,7 +28,7 @@ export default function WorkOrderViewForm({
         workOrder={workOrder}
         customer={customer}
         vehicle={vehicle}
-        onOpenWorkPRO={onOpenWorkPRO} // Pass it through
+        onOpenWorkPRO={onOpenWorkPRO}
       />
       
       <WorkOrderViewLineItemsTable
@@ -38,6 +38,7 @@ export default function WorkOrderViewForm({
       <WorkOrderViewFinancialSummary 
         lineItems={lineItems} 
         workOrder={workOrder} 
+        onPaymentsClick={onPaymentsClick}
       />
     </div>
   );
