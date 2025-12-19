@@ -180,6 +180,10 @@ export default function SupplierTxPage() {
     const [currentActiveTab, setCurrentActiveTab] = useState('invoice-lines');
     const [showEditSupplierModal, setShowEditSupplierModal] = useState(false);
 
+    // Change tracking state
+    const [modifiedLineIds, setModifiedLineIds] = useState(new Set());
+    const [deletedLineIds, setDeletedLineIds] = useState(new Set());
+
     // New state for LineEditModal
     const [showLineEditModal, setShowLineEditModal] = useState(false);
     const [editingLine, setEditingLine] = useState(null);
@@ -479,6 +483,8 @@ export default function SupplierTxPage() {
 
             setInvoiceLines(ensureEmptyLine(roundedLines, supplierData?.default_gl_account));
             setAllInvoiceLines(roundedAllLines);
+            setModifiedLineIds(new Set());
+            setDeletedLineIds(new Set());
 
         } catch (error) {
             console.error('Error loading supplier data:', error);
@@ -619,6 +625,9 @@ export default function SupplierTxPage() {
             return ensureEmptyLine(updatedLines, supplier?.default_gl_account);
         });
 
+        if (!lineId.startsWith('temp_')) {
+            setModifiedLineIds(prev => new Set(prev).add(lineId));
+        }
         setHasUnsavedChanges(true);
     };
 
@@ -664,6 +673,9 @@ export default function SupplierTxPage() {
                 dateError: null
             };
         }));
+        if (!lineId.startsWith('temp_')) {
+            setModifiedLineIds(prev => new Set(prev).add(lineId));
+        }
         setHasUnsavedChanges(true); // Blurring and parsing is also a change
     };
 
@@ -732,6 +744,10 @@ export default function SupplierTxPage() {
 
                     return updatedLine;
                 }));
+                if (!lineId.startsWith('temp_')) {
+                    setModifiedLineIds(prev => new Set(prev).add(lineId));
+                }
+                setHasUnsavedChanges(true);
             }
             // If numValue is NaN, do nothing on blur.
             // The input field will retain its current (invalid) string or 'Error' state.
@@ -774,6 +790,9 @@ export default function SupplierTxPage() {
             return updatedLine;
         }));
 
+        if (!lineId.startsWith('temp_')) {
+            setModifiedLineIds(prev => new Set(prev).add(lineId));
+        }
         setHasUnsavedChanges(true);
     };
 
@@ -1173,73 +1192,25 @@ export default function SupplierTxPage() {
             return;
         }
 
-        setLoading(true);
-        try {
-            const isNew = updatedLineData.id.startsWith('temp_');
-            const lineDataForAPI = {
-                supplier_id: supplierId,
-                invoice_number: updatedLineData.invoice_number,
-                invoice_date: parseResult.date, // Use the validated ISO date
-                description: updatedLineData.description,
-                purchase_amount: parseFloat(updatedLineData.charge),
-                gst_amount: parseFloat(updatedLineData.gst),
-                gl_account: updatedLineData.gl_account,
-                gst_override: updatedLineData.gst_override // Pass gst_override
+        setInvoiceLines(prev => prev.map(l => {
+            if (l.id !== updatedLineData.id) return l;
+            return {
+                ...updatedLineData,
+                invoice_date: parseResult.date, // Use validated ISO date
+                charge: parseFloat(updatedLineData.charge) || 0,
+                gst: parseFloat(updatedLineData.gst) || 0,
+                line_total: parseFloat(updatedLineData.line_total) || 0,
             };
+        }));
 
-            let savedLine = null;
-            let glAction = '';
-            let oldValues = null;
-
-            if (isNew) {
-                savedLine = await SupplierInvoiceLine.create(lineDataForAPI);
-                glAction = 'create';
-            } else {
-                const existingLine = allInvoiceLines.find(l => l.id === updatedLineData.id);
-                if (existingLine) {
-                    oldValues = {
-                        id: existingLine.id,
-                        supplier_id: existingLine.supplier_id,
-                        invoice_number: existingLine.invoice_number,
-                        invoice_date: existingLine.invoice_date,
-                        description: existingLine.description,
-                        purchase_amount: existingLine.purchase_amount,
-                        gst_amount: existingLine.gst_amount,
-                        gl_account: existingLine.gl_account,
-                        gst_override: existingLine.gst_override
-                    };
-                }
-                await SupplierInvoiceLine.update(updatedLineData.id, lineDataForAPI);
-                savedLine = { ...lineDataForAPI, id: updatedLineData.id };
-                glAction = 'update';
-            }
-
-            try {
-                const glResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                    supplierInvoiceLine: savedLine,
-                    action: glAction,
-                    oldValues: oldValues
-                });
-
-                if (!glResponse.data.success) {
-                    console.error('GL posting failed:', glResponse.data);
-                    alert(`Warning: GL transactions may not have been posted correctly for line: ${updatedLineData.description}`);
-                }
-            } catch (glError) {
-                console.error('Error posting GL transactions:', glError);
-                alert(`Warning: Failed to post GL transactions for line: ${updatedLineData.description}`);
-            }
-
-            loadData();
-            setShowLineEditModal(false);
-            setEditingLine(null);
-        } catch (error) {
-                console.error('Error updating invoice line:', error);
-            alert('Failed to update invoice line. Please try again.');
-        } finally {
-            setLoading(false);
+        if (!updatedLineData.id.startsWith('temp_')) {
+            setModifiedLineIds(prev => new Set(prev).add(updatedLineData.id));
         }
-    }, [supplierId, allInvoiceLines, loadData]);
+        
+        setHasUnsavedChanges(true);
+        setShowLineEditModal(false);
+        setEditingLine(null);
+    }, []);
 
 
     const handleTabChange = async (newTab) => {
@@ -1271,50 +1242,14 @@ export default function SupplierTxPage() {
             return;
         }
 
-        if (line.isNew || line.id.startsWith('temp_')) {
-            setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account));
-            setHasUnsavedChanges(true);
-        } else {
-            if (window.confirm("Are you sure you want to permanently delete this line? This cannot be undone.")) {
-                setLoading(true);
-                try {
-                    const lineToDelete = {
-                        id: line.id,
-                        supplier_id: supplierId,
-                        invoice_number: line.invoice_number,
-                        invoice_date: line.invoice_date,
-                        description: line.description,
-                        purchase_amount: parseFloat(line.charge),
-                        gst_amount: parseFloat(line.gst),
-                        gl_account: line.gl_account,
-                        gst_override: line.gst_override
-                    };
-
-                    await SupplierInvoiceLine.delete(line.id);
-
-                    try {
-                        const glResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                            supplierInvoiceLine: lineToDelete,
-                            action: 'delete'
-                        });
-
-                        if (!glResponse.data.success) {
-                            console.error('GL reversal failed:', glResponse.data);
-                            alert('Warning: GL transactions may not have been reversed correctly.');
-                        }
-                    } catch (glError) {
-                        console.error('Error reversing GL transactions:', glError);
-                        alert('Warning: Failed to reverse GL transactions for deleted line.');
-                    }
-
-                    // Reload all data after successful delete and GL reversal
-                    await loadData();
-                } catch(error) {
-                    console.error("Error deleting line:", error);
-                    alert("Failed to delete line.");
-                    setLoading(false);
-                }
+        if (window.confirm("Are you sure you want to delete this line?")) {
+            if (line.isNew || line.id.startsWith('temp_')) {
+                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account));
+            } else {
+                setDeletedLineIds(prev => new Set(prev).add(lineId));
+                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account));
             }
+            setHasUnsavedChanges(true);
         }
     };
 
