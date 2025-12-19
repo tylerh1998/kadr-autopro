@@ -6,6 +6,7 @@ import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriang
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
+import SESEmailModal from '../components/work-orders/SESEmailModal';
 
 export default function InvoiceConversion() {
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,8 @@ export default function InvoiceConversion() {
   const [portalUrl, setPortalUrl] = useState('');
   const [accountingSummary, setAccountingSummary] = useState(null);
   const [wipLegal, setWipLegal] = useState('');
+  const [defaultMessage, setDefaultMessage] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const convertToInvoice = async () => {
@@ -95,6 +98,7 @@ export default function InvoiceConversion() {
         const systemSettingsList = await SystemSettings.list();
         const systemSettings = systemSettingsList && systemSettingsList.length > 0 ? systemSettingsList[0] : {};
         setWipLegal(systemSettings?.wip_legal || '');
+        setDefaultMessage(systemSettings?.default_message || '');
 
         // Parse payments (lineItems already parsed and stored in state)
         console.log('Parsing payments');
@@ -489,6 +493,18 @@ export default function InvoiceConversion() {
               <Printer className="w-5 h-5" />
               Print Invoice
             </Button>
+
+            <Button
+              onClick={() => setShowEmailModal(true)}
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              disabled={!workOrder}
+            >
+              <Mail className="w-5 h-5" />
+              Send Email
+            </Button>
+
             <Button
               onClick={handleExit}
               size="lg"
@@ -511,9 +527,20 @@ export default function InvoiceConversion() {
           vehicle={vehicle}
           lineItems={lineItems}
           wipLegal={wipLegal}
+          defaultMessage={defaultMessage}
         />
       )}
     </div>
+
+    {/* Email Modal */}
+    <SESEmailModal
+      open={showEmailModal}
+      onClose={() => setShowEmailModal(false)}
+      workOrder={workOrder}
+      customer={customer}
+      vehicle={vehicle}
+      lineItems={lineItems}
+    />
   </>
   );
 }
