@@ -799,285 +799,117 @@ export default function SupplierTxPage() {
     const handleSaveAll = useCallback(async () => {
         if (isLockedByOtherUser || !lockAcquired) {
             alert('Cannot save: Supplier is locked by another user or you do not have the lock.');
-            return false; // Indicate save failed
+            return false;
         }
 
-        // Check for date errors before saving
+        // Check for date errors
         const linesWithDateErrors = invoiceLines.filter(line => line.dateError);
         if (linesWithDateErrors.length > 0) {
             alert(`Cannot save: Please correct all invalid dates before saving. Found ${linesWithDateErrors.length} errors.`);
-            return false; // Indicate save failed
+            return false;
         }
 
         setIsSaving(true);
         try {
+            // Identify lines to save
             const linesToSave = invoiceLines.filter(line => {
-                // Only consider saving lines that are new OR existing lines that might have content
-                // Skip empty new lines
+                // Skip completely empty new lines
                 if ((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) return false;
                 
-                // Ensure existing lines are included if they have content or were simply fetched
-                const hasContent = line.invoice_number || line.description ||
-                                   (typeof line.charge === 'number' && line.charge !== 0) ||
-                                   (typeof line.gst === 'number' && line.gst !== 0) ||
-                                   line.charge === 'Error' || line.gst === 'Error' || line.line_total === 'Error';
-                return hasContent || (line.id && !line.id.startsWith('temp_'));
+                // Include lines that are new or marked as modified
+                return line.id.startsWith('temp_') || modifiedLineIds.has(line.id);
             });
 
-            // PHASE 2: Validate numeric fields before saving
+            // PHASE 2: Validate numeric fields
             const invalidNumericFields = [];
             linesToSave.forEach((line, index) => {
-                // Skip validation for lines that are locked from editing amounts
-                if (isLineLocked(line)) {
-                    return;
-                }
+                if (isLineLocked(line)) return;
 
-                // Check if any numeric field contains 'Error'
-                if (line.charge === 'Error') {
-                    invalidNumericFields.push({
-                        lineNumber: index + 1,
-                        field: 'Charge',
-                        invoice: line.invoice_number || 'New Line'
-                    });
-                }
-                if (line.gst === 'Error') {
-                    invalidNumericFields.push({
-                        lineNumber: index + 1,
-                        field: 'GST',
-                        invoice: line.invoice_number || 'New Line'
-                    });
-                }
-                if (line.line_total === 'Error') {
-                    invalidNumericFields.push({
-                        lineNumber: index + 1,
-                        field: 'Line Total',
-                        invoice: line.invoice_number || 'New Line'
-                    });
-                }
+                if (line.charge === 'Error') invalidNumericFields.push({ lineNumber: index + 1, field: 'Charge', invoice: line.invoice_number || 'New Line' });
+                if (line.gst === 'Error') invalidNumericFields.push({ lineNumber: index + 1, field: 'GST', invoice: line.invoice_number || 'New Line' });
+                if (line.line_total === 'Error') invalidNumericFields.push({ lineNumber: index + 1, field: 'Line Total', invoice: line.invoice_number || 'New Line' });
 
-                // Check if numeric fields are actually numeric (and not empty strings that would become NaN)
-                // Only if they aren't already marked 'Error'
                 if (line.charge !== 'Error') {
-                    const chargeValue = line.charge === '' ? 0 : parseFloat(line.charge);
-                    if (isNaN(chargeValue) && line.charge !== '') {
-                        invalidNumericFields.push({
-                            lineNumber: index + 1,
-                            field: 'Charge',
-                            value: line.charge,
-                            invoice: line.invoice_number || 'New Line'
-                        });
-                    }
+                    const val = line.charge === '' ? 0 : parseFloat(line.charge);
+                    if (isNaN(val) && line.charge !== '') invalidNumericFields.push({ lineNumber: index + 1, field: 'Charge', value: line.charge, invoice: line.invoice_number || 'New Line' });
                 }
                 if (line.gst !== 'Error') {
-                    const gstValue = line.gst === '' ? 0 : parseFloat(line.gst);
-                    if (isNaN(gstValue) && line.gst !== '') {
-                        invalidNumericFields.push({
-                            lineNumber: index + 1,
-                            field: 'GST',
-                            value: line.gst,
-                            invoice: line.invoice_number || 'New Line'
-                        });
-                    }
+                    const val = line.gst === '' ? 0 : parseFloat(line.gst);
+                    if (isNaN(val) && line.gst !== '') invalidNumericFields.push({ lineNumber: index + 1, field: 'GST', value: line.gst, invoice: line.invoice_number || 'New Line' });
                 }
                 if (line.line_total !== 'Error') {
-                    const lineTotalValue = line.line_total === '' ? 0 : parseFloat(line.line_total);
-                    if (isNaN(lineTotalValue) && line.line_total !== '') {
-                        invalidNumericFields.push({
-                            lineNumber: index + 1,
-                            field: 'Line Total',
-                            value: line.line_total,
-                            invoice: line.invoice_number || 'New Line'
-                        });
-                    }
+                    const val = line.line_total === '' ? 0 : parseFloat(line.line_total);
+                    if (isNaN(val) && line.line_total !== '') invalidNumericFields.push({ lineNumber: index + 1, field: 'Line Total', value: line.line_total, invoice: line.invoice_number || 'New Line' });
                 }
             });
 
-            // If there are invalid lines, show error and stop
             if (invalidNumericFields.length > 0) {
                 const errorMessage = invalidNumericFields.length === 1
                     ? `Invalid value in ${invalidNumericFields[0].field} field for invoice "${invalidNumericFields[0].invoice}".\n\nPlease correct the value before saving.`
-                    : `Found ${invalidNumericFields.length} invalid numeric values:\n\n` +
-                      invalidNumericFields.map(line => `• Invoice "${line.invoice}" - ${line.field}`).join('\n') +
-                      '\n\nPlease correct these values before saving.';
-
+                    : `Found ${invalidNumericFields.length} invalid numeric values:\n\n` + invalidNumericFields.map(line => `• Invoice "${line.invoice}" - ${line.field}`).join('\n') + '\n\nPlease correct these values before saving.';
                 alert(errorMessage);
                 setIsSaving(false);
-                return false; // Indicate save failed
+                return false;
             }
 
-            // Existing validation for GL accounts
+            // Validate GL accounts
             const invalidGLLines = linesToSave.filter(line =>
-                (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0) || line.charge !== 0 || line.gst !== 0) && // Check if any meaningful content is present
-                !line.gl_account?.trim() && !line.inventory && !isLineLocked(line) // Do not validate GL for inventory lines or lines locked by payment
+                (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0) || line.charge !== 0 || line.gst !== 0) &&
+                !line.gl_account?.trim() && !line.inventory && !isLineLocked(line)
             );
 
             if (invalidGLLines.length > 0) {
                 alert('Please select a GL Account for all new or modified invoice lines before saving.');
                 setIsSaving(false);
-                return false; // Indicate save failed
+                return false;
             }
 
-            let anyExistingLineAmountChanged = false; // Flag to track if existing line amounts were changed
+            // Segregate lines
+            const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({
+                invoice_number: line.invoice_number,
+                invoice_date: line.invoice_date,
+                description: line.description,
+                purchase_amount: parseFloat(line.charge) || 0,
+                gst_amount: parseFloat(line.gst) || 0,
+                gl_account: line.gl_account,
+                gst_override: line.gst_override
+            }));
 
-            // Process saves
-            for (const line of linesToSave) {
-                // Skip completely empty new lines
-                if ((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) continue;
-                
-                // If line is locked by payment, it should not be possible to change amounts or GL.
-                // Other fields (invoice number, description, date) *could* theoretically be changed,
-                // but for simplicity and robustness, if a line is locked, we assume it's entirely read-only through this interface.
-                // The `handleLineChange` already prevents this, so this check primarily protects the backend.
-                if (isLineLocked(line) && !line.isNew && !line.id.startsWith('temp_')) {
-                    // Only update non-amount/GL fields if specifically requested, or skip if only amounts are different.
-                    // For now, if line is locked, its amounts should not be passed as changed.
-                    // The UI disables these fields, so current `line.charge` etc. will be original values.
-                }
+            const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({
+                id: line.id,
+                invoice_number: line.invoice_number,
+                invoice_date: line.invoice_date,
+                description: line.description,
+                purchase_amount: parseFloat(line.charge) || 0,
+                gst_amount: parseFloat(line.gst) || 0,
+                gl_account: line.gl_account,
+                gst_override: line.gst_override
+            }));
 
-                const lineData = {
-                    supplier_id: supplierId,
-                    invoice_number: line.invoice_number,
-                    invoice_date: line.invoice_date, // This should already be validated ISO format
-                    description: line.description,
-                    purchase_amount: parseFloat(line.charge) || 0, // Should be safe now after validation
-                    gst_amount: parseFloat(line.gst) || 0,         // Should be safe now after validation
-                    gl_account: line.gl_account,
-                    gst_override: line.gst_override
-                };
+            // Call backend function
+            const response = await base44.functions.invoke('saveSupplierInvoiceTransactions', {
+                supplierId,
+                addedLines,
+                modifiedLines,
+                deletedLineIds: Array.from(deletedLineIds)
+            });
 
-                let savedLine = null;
-                let glAction = '';
-                let oldValues = null;
-
-                if (line.id.startsWith('temp_') || line.isNew) {
-                    savedLine = await SupplierInvoiceLine.create(lineData);
-                    glAction = 'create';
-                } else {
-                    // Check if existing line's amounts have changed
-                    const existingLineOriginal = allInvoiceLines.find(l => l.id === line.id);
-                    if (existingLineOriginal) {
-                        const currentPurchaseAmount = parseFloat(line.charge) || 0;
-                        const currentGstAmount = parseFloat(line.gst) || 0;
-                        const oldPurchaseAmount = existingLineOriginal.purchase_amount || 0;
-                        const oldGstAmount = existingLineOriginal.gst_amount || 0;
-
-                        if (currentPurchaseAmount !== oldPurchaseAmount || currentGstAmount !== oldGstAmount) {
-                            anyExistingLineAmountChanged = true;
-                        }
-                    }
-
-                    oldValues = {
-                        id: existingLineOriginal.id,
-                        supplier_id: existingLineOriginal.supplier_id,
-                        invoice_number: existingLineOriginal.invoice_number,
-                        invoice_date: existingLineOriginal.invoice_date,
-                        description: existingLineOriginal.description,
-                        purchase_amount: existingLineOriginal.purchase_amount,
-                        gst_amount: existingLineOriginal.gst_amount,
-                        gl_account: existingLineOriginal.gl_account,
-                        gst_override: existingLineOriginal.gst_override
-                    };
-                    await SupplierInvoiceLine.update(line.id, lineData);
-                    savedLine = { ...lineData, id: line.id };
-                    glAction = 'update';
-                }
-
-                try {
-                    const glResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                        supplierInvoiceLine: savedLine,
-                        action: glAction,
-                        oldValues: oldValues
-                    });
-
-                    if (!glResponse.data.success) {
-                        console.error('GL posting failed:', glResponse.data);
-                        alert(`Warning: GL transactions may not have been posted correctly for line: ${line.description}`);
-                    }
-                } catch (glError) {
-                    console.error('Error posting GL transactions:', glError);
-                    alert(`Warning: Failed to post GL transactions for line: ${line.description}`);
-                }
-
-                // REMOVED: await new Promise(resolve => setTimeout(resolve, 100));
+            if (response.data.success) {
+                await loadData();
+                alert('Changes saved successfully!');
+                return true;
+            } else {
+                throw new Error(response.data.error || 'Unknown error');
             }
-
-            // --- Start of payment recalculation logic after line saves ---
-            if (anyExistingLineAmountChanged) {
-                console.log("Existing invoice line amounts changed. Reallocating payments proportionally across lines.");
-                const paymentsToProcess = await SupplierPayment.filter({ supplier_id: supplierId });
-
-                for (const payment of paymentsToProcess) {
-                    let appliedInvoices = [];
-                    try {
-                        const parsed = JSON.parse(payment.invoice_number || '[]');
-                        if (Array.isArray(parsed)) {
-                            appliedInvoices = parsed;
-                        } else if (payment.invoice_number) { // If it parsed to a string or some non-array type, treat as old format
-                            appliedInvoices = [{
-                                invoice_number: payment.invoice_number,
-                                amount_applied: payment.amount
-                            }];
-                        }
-                    } catch (error) {
-                        // JSON.parse failed, assume it's a plain string that was not valid JSON
-                        if (payment.invoice_number && typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
-                            appliedInvoices = [{
-                                invoice_number: payment.invoice_number,
-                                amount_applied: payment.amount
-                            }];
-                        } else {
-                            appliedInvoices = [];
-                        }
-                    }
-
-                    for (const appliedDetail of appliedInvoices) {
-                        if (appliedDetail.invoice_number === "On Account") {
-                            continue;
-                        }
-
-                        // Fetch the latest lines for this invoice after all previous line updates are committed
-                        const invoiceLinesForPayment = await SupplierInvoiceLine.filter({
-                            supplier_id: supplierId,
-                            invoice_number: appliedDetail.invoice_number
-                        });
-
-                        if (invoiceLinesForPayment && invoiceLinesForPayment.length > 0) {
-                            const invoiceTotal = invoiceLinesForPayment.reduce((sum, line) => {
-                                const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
-                                return sum + lineTotal;
-                            }, 0);
-
-                            for (const line of invoiceLinesForPayment) {
-                                const lineTotal = (line.purchase_amount || 0) + (line.gst_amount || 0);
-                                const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
-                                const newPaidAmount = appliedDetail.amount_applied * proportion;
-
-                                await SupplierInvoiceLine.update(line.id, {
-                                    paid_amount: Math.round(newPaidAmount * 100) / 100
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            // --- End of payment recalculation logic ---
-
-
-            // Reload data after save
-            // The existing `loadData()` call will refresh all related states.
-            await loadData();
-            alert('Changes saved successfully!');
-            return true; // Indicate save successful
-
 
         } catch (error) {
             console.error('Error saving changes:', error);
-            alert('Failed to save changes. Please try again.');
-            return false; // Indicate save failed
+            alert(`Failed to save changes: ${error.message}`);
+            return false;
         } finally {
             setIsSaving(false);
         }
-    }, [isLockedByOtherUser, lockAcquired, invoiceLines, allInvoiceLines, supplierId, loadData]);
+    }, [isLockedByOtherUser, lockAcquired, invoiceLines, modifiedLineIds, deletedLineIds, supplierId, loadData]);
 
     // Keyboard shortcuts
     useEffect(() => {
