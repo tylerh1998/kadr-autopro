@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, X, ChevronRight } from "lucide-react";
+import { Save, X, ChevronRight, Loader2 } from "lucide-react";
 
 export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate }) {
   const [newQOH, setNewQOH] = useState("");
   const [notes, setNotes] = useState("");
   const [nextPartNumber, setNextPartNumber] = useState("");
+  const [loading, setLoading] = useState(false);
   const newQOHInputRef = useRef(null);
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       return;
     }
     
+    setLoading(true);
     try {
       const targetQOH = parseFloat(newQOH);
       
@@ -63,6 +65,8 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     } catch (error) {
       console.error('Error updating QOH:', error);
       alert('Failed to update QOH. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,6 +78,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       return;
     }
     
+    setLoading(true);
     try {
       const targetQOH = parseFloat(newQOH);
       
@@ -107,6 +112,8 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     } catch (error) {
       console.error('Error updating QOH:', error);
       alert('Failed to update QOH. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -147,6 +154,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
                   onChange={(e) => setNewQOH(e.target.value)}
                   placeholder="Enter new quantity on hand"
                   required
+                  disabled={loading}
                 />
               </div>
 
@@ -169,6 +177,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Reason for adjustment..."
                   rows={2}
+                  disabled={loading}
                 />
               </div>
 
@@ -179,20 +188,21 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
                   value={nextPartNumber}
                   onChange={(e) => setNextPartNumber(e.target.value)}
                   placeholder="Enter next part number for rapid entry"
+                  disabled={loading}
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={loading}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 flex-1">
-                  <Save className="w-4 h-4 mr-2" />
-                  Update
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 flex-1" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  {loading ? 'Updating...' : 'Update'}
                 </Button>
                 {nextPartNumber && (
-                  <Button type="button" onClick={handleSaveAndNext} className="bg-green-600 hover:bg-green-700">
-                    <ChevronRight className="w-4 h-4" />
+                  <Button type="button" onClick={handleSaveAndNext} className="bg-green-600 hover:bg-green-700" disabled={loading}>
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                   </Button>
                 )}
               </div>
