@@ -55,7 +55,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { createPageUrl } from './utils';
-import NewWorkOrderModal from './components/work-orders/NewWorkOrderModal';
 import ReportModal from './components/reports/ReportModal';
 import FindPartModal from './components/work-orders/FindPartModal';
 import NewCustomerModal from './components/customers/NewCustomerModal';
@@ -65,7 +64,6 @@ import TechClockStatusModal from './components/work-orders/TechClockStatusModal'
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
 
 function LayoutContent({ children, currentPageName }) {
-  const [showNewWorkOrderModal, setShowNewWorkOrderModal] = useState(false);
   const [showFindPartModal, setShowFindPartModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
@@ -301,10 +299,6 @@ function LayoutContent({ children, currentPageName }) {
         console.log('✅ Opening Search WIP Modal');
         setShowOpenROModal(true);
         break;
-      case 'createWorkOrder':
-        console.log('✅ Opening Create Work Order Modal');
-        setShowNewWorkOrderModal(true);
-        break;
       case 'FindPartModal':
         console.log('✅ Opening Find Part Modal');
         setShowFindPartModal(true);
@@ -349,9 +343,8 @@ const navigationItems = [
     defaultUrl: createPageUrl("WorkOrders"),
     activePaths: ["/WorkOrders", "/WorkOrderEdit", "/WorkOrderView", "/CreditInvoice", "/InvoiceConversion"],
     dropdown: [
-      { title: "Search WIP", action: "openSearchWIPModal", icon: Search },
-      { title: "Create", action: "createWorkOrder", icon: PlusCircle },
       { title: "List", url: createPageUrl("WorkOrders"), icon: List },
+      { title: "Search WIP", action: "openSearchWIPModal", icon: Search },
       { title: "Find Part/Serial #", action: "FindPartModal", icon: Search },
       { title: "Reports", action: "showManagementReports", icon: BarChart3 },
     ]
@@ -816,10 +809,6 @@ const navigationItems = [
       </main>
 
       {/* Modals */}
-      <NewWorkOrderModal 
-        open={showNewWorkOrderModal}
-        onClose={() => setShowNewWorkOrderModal(false)}
-      />
       
       <FindPartModal
         open={showFindPartModal}
