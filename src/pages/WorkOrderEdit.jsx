@@ -137,8 +137,9 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
   });
 
 
-  // State for wip_legal from SystemSettings
+  // State for wip_legal and default_message from SystemSettings
   const [wipLegal, setWipLegal] = useState('');
+  const [defaultMessage, setDefaultMessage] = useState('');
 
   // NEW: State for work order statuses
   const [workOrderStatuses, setWorkOrderStatuses] = useState([]);
@@ -297,6 +298,7 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
         const settings = await SystemSettings.list();
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
+          setDefaultMessage(settings[0].default_message || '');
         }
       } catch (error) {
         console.error('Error loading system settings:', error);
@@ -1764,6 +1766,7 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
             vehicle={vehicle}
             lineItems={lineItems || []}
             wipLegal={wipLegal}
+            defaultMessage={defaultMessage}
           />
         )}
       </div>
@@ -1791,6 +1794,8 @@ export default function WorkOrderEditPage() { // Changed to WorkOrderEditPage
                 customer={customer}
                 vehicle={vehicle}
                 lineItems={lineItems || []}
+                wipLegal={wipLegal}
+                defaultMessage={defaultMessage}
               />
             </DialogContent>
           </Dialog>
