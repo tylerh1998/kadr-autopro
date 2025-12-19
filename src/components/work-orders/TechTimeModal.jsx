@@ -3,10 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Clock, User } from 'lucide-react';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function TechTimeModal({ open, onClose, project }) {
   const [timeLogs, setTimeLogs] = useState([]);
@@ -24,41 +21,15 @@ export default function TechTimeModal({ open, onClose, project }) {
     setError(null);
     
     try {
-      // Fetch ProjectTimeSession directly from WorkPRO API
-      const response = await fetch(`${API_BASE_URL}/ProjectTimeSession?project_id=${project.id}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const response = await base44.functions.invoke('getProjectTimeSessions', { 
+        projectId: project.id 
       });
 
-      if (!response.ok) {
-        throw new Error(`WorkPRO API error: ${response.status}`);
+      if (response.data?.success) {
+        setTimeLogs(response.data.logs);
+      } else {
+        throw new Error(response.data?.error || 'Failed to fetch time logs');
       }
-
-      const data = await response.json();
-      const sessions = Array.isArray(data) ? data : (data?.records || []);
-
-      // Map to expected format and sort by date and start time (most recent first)
-      const sortedLogs = sessions
-        .map(session => ({
-          id: session.id,
-          date: session.start_time ? new Date(session.start_time).toISOString().split('T')[0] : null,
-          hours: parseFloat(session.total_hours) || 0,
-          workpro_user_name: session.user_name || session.employee_name || 'Unknown User',
-          workpro_start_time: session.start_time,
-          workpro_end_time: session.end_time,
-          notes: session.notes || '',
-          isRunning: session.start_time && !session.end_time
-        }))
-        .sort((a, b) => {
-          const dateCompare = new Date(b.date) - new Date(a.date);
-          if (dateCompare !== 0) return dateCompare;
-          
-          if (a.workpro_start_time && b.workpro_start_time) {
-            return new Date(b.workpro_start_time) - new Date(a.workpro_start_time);
-          }
-          return 0;
-        });
-
-      setTimeLogs(sortedLogs);
     } catch (error) {
       console.error('Error loading tech time logs:', error);
       setError(`Failed to load tech time data: ${error.message}`);
