@@ -2,8 +2,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Package, Wrench, Loader2 } from 'lucide-react';
+import { DollarSign, TrendingUp, Package, Wrench, Loader2, Clock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import TechTimeModal from './TechTimeModal';
 
 export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, employees = [] }) {
   // Memoize safeLineItems to prevent unnecessary re-renders and ensure stable reference
@@ -14,6 +15,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
 
   const [techTimeLogs, setTechTimeLogs] = useState([]);
   const [loadingLaborCost, setLoadingLaborCost] = useState(false);
+  const [showTechTimeModal, setShowTechTimeModal] = useState(false);
 
   useEffect(() => {
     const fetchTechTimeLogs = async () => {
@@ -79,9 +81,6 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         }
         return sum;
       }, 0);
-    } else {
-      // Fallback to estimated cost
-      laborCost = laborRevenue * 0.6;
     }
 
     // Calculate parts totals
@@ -146,6 +145,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     if (margin >= 15) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
+
+  const totalTechHours = techTimeLogs.reduce((sum, log) => sum + (Number(log.hours) || 0), 0);
 
   // Don't render if no work order data or still loading labor cost
   if (!workOrder) {
@@ -263,9 +264,19 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
             {/* Labor Analysis */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-orange-600" />
-                  Labor Analysis
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-orange-600" />
+                    Labor Analysis
+                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-slate-100 flex items-center gap-1"
+                    onClick={() => setShowTechTimeModal(true)}
+                  >
+                    <Clock className="w-3 h-3" />
+                    Tech Time {totalTechHours.toFixed(1)}h
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -354,6 +365,11 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
             </Card>
           )}
         </div>
+        <TechTimeModal 
+          open={showTechTimeModal} 
+          onClose={() => setShowTechTimeModal(false)} 
+          project={workPROProject} 
+        />
       </DialogContent>
     </Dialog>
   );
