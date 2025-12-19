@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Package, Wrench, Loader2 } from 'lucide-react';
-import { TechTimeLog } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, employees = [] }) {
   // Memoize safeLineItems to prevent unnecessary re-renders and ensure stable reference
@@ -23,8 +23,16 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
       }
       setLoadingLaborCost(true);
       try {
-        const logs = await TechTimeLog.filter({ workpro_project_id: workPROProject.id });
-        setTechTimeLogs(logs);
+        const response = await base44.functions.invoke('getProjectTimeSessions', { 
+          projectId: workPROProject.id 
+        });
+
+        if (response.data?.success) {
+          setTechTimeLogs(response.data.logs);
+        } else {
+          console.error('Failed to fetch time logs:', response.data?.error);
+          setTechTimeLogs([]);
+        }
       } catch (error) {
         console.error('Failed to fetch TechTimeLogs:', error);
         setTechTimeLogs([]);
@@ -59,7 +67,13 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     if (techTimeLogs.length > 0 && employees.length > 0) {
       actualCostCalculated = true;
       laborCost = techTimeLogs.reduce((sum, log) => {
-        const employee = employees.find(emp => emp.email === log.workpro_user_email);
+        // Try to match employee by name since we are fetching live from WorkPRO
+        // The backend function maps 'user_name' or 'employee_name' to 'workpro_user_name'
+        const employee = employees.find(emp => 
+          (emp.full_name && log.workpro_user_name && emp.full_name.toLowerCase() === log.workpro_user_name.toLowerCase()) ||
+          (emp.email && log.email && emp.email.toLowerCase() === log.email.toLowerCase())
+        );
+        
         if (employee && employee.pay_rate) {
           return sum + (Number(log.hours) || 0) * (Number(employee.pay_rate) || 0);
         }
