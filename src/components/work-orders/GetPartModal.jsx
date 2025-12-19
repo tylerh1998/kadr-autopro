@@ -398,6 +398,19 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     }
   };
 
+  // Keyboard shortcut to add parts (Ctrl + Enter)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (open && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleAddSelectedParts();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [open, handleAddSelectedParts]);
+
   const totalSelectedCost = selectedParts.reduce((sum, part) => 
     sum + (part.calculatedPrice * part.selectedQuantity), 0
   );
