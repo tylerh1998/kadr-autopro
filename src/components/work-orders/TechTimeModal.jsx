@@ -80,6 +80,18 @@ export default function TechTimeModal({ open, onClose, project }) {
     return timeLogs.reduce((sum, log) => sum + (log.hours || 0), 0).toFixed(1);
   };
 
+  const getTechBreakdown = () => {
+    const breakdown = {};
+    timeLogs.forEach(log => {
+      const name = log.workpro_user_name || 'Unknown User';
+      breakdown[name] = (breakdown[name] || 0) + (parseFloat(log.hours) || 0);
+    });
+    return Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+  };
+
+  const techBreakdown = getTechBreakdown();
+  const showBreakdown = techBreakdown.length > 1;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -115,6 +127,21 @@ export default function TechTimeModal({ open, onClose, project }) {
           </div>
         ) : (
           <div className="space-y-3 py-4">
+            {showBreakdown && (
+              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">Technician Breakdown</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {techBreakdown.map(([name, hours]) => (
+                    <div key={name} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100">
+                      <span className="text-sm text-slate-600 truncate mr-2" title={name}>{name}</span>
+                      <Badge variant="secondary" className="font-mono">
+                        {hours.toFixed(1)}h
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {timeLogs.map((log) => (
               <Card key={log.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="px-4 py-2">
