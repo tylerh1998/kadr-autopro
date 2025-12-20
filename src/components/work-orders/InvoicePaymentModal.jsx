@@ -14,7 +14,8 @@ const paymentMethodOptions = [
   { value: 'credit_card', label: 'Credit Card' },
   { value: 'cheque', label: 'Cheque' },
   { value: 'e_transfer', label: 'e-Transfer' },
-  { value: 'on_account', label: 'On Account' }
+  { value: 'on_account', label: 'On Account' },
+  { value: 'other', label: 'Other' }
 ];
 
 export default function InvoicePaymentModal({
