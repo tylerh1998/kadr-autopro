@@ -272,6 +272,12 @@ function LayoutContent({ children, currentPageName }) {
     }
   };
 
+  const handleGlobalClockInSuccess = (newRecord) => {
+    setIsClockedIn(true);
+    setLastTimeRecord(newRecord);
+    alert(`Clocked in successfully at ${new Date(newRecord.clock_in_time).toLocaleTimeString()}`);
+  };
+
   const handleMouseEnter = (itemTitle) => {
     if (hoverTimeout) {
       clearTimeout(hoverTimeout);
