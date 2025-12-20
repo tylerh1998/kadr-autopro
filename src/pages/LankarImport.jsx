@@ -213,7 +213,7 @@ export default function LankarImport() {
                 <div className="mt-4 text-sm text-slate-600">
                   <p>Selected: <span className="font-medium">{selectedFile.name}</span></p>
                   {parsedData.length > 0 && (
-                    <p className="text-green-600 mt-1">{parsedData.length} rows found</p>
+                    <p className="text-green-600 mt-1">File ready for import</p>
                   )}
                 </div>
               )}
