@@ -241,19 +241,19 @@ function LayoutContent({ children, currentPageName }) {
         const clockInTime = now.toISOString();
 
         const createResponse = await fetch(`https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities/TimeRecord`, {
-          method: 'POST',
-          headers: {
-            'api_key': WORKPRO_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            employee_name: user.full_name,
-            clock_in_time: clockInTime,
-            status: 'clocked_in',
-            total_hours: 0,
-            pto_hours: 0,
-            stat_hours: 0
-          })
+        method: 'POST',
+        headers: {
+          'api_key': WORKPRO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          employee_name: user.full_name,
+          clock_in_time: clockInTime,
+          status: 'active', // Changed to 'active' for consistency
+          total_hours: 0,
+          pto_hours: 0,
+          stat_hours: 0
+        })
         });
 
         if (createResponse.ok) {

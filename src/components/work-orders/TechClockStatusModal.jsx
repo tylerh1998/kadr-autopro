@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import TechProjectClockInModal from './TechProjectClockInModal';
+import GlobalClockInModal from './GlobalClockInModal';
 import { useTechClockStatus } from '../context/TechClockStatusContext';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -18,6 +19,7 @@ export default function TechClockStatusModal({ open, onClose }) {
   const { initialProjectId } = useTechClockStatus();
   const [selectedTech, setSelectedTech] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -26,18 +28,27 @@ export default function TechClockStatusModal({ open, onClose }) {
   }, [open]);
 
   const handleTechClick = (tech) => {
-    // Only allow clicking if globally clocked in (unassigned or project status)
-    if (tech.status === 'clocked_out') return;
-
     setSelectedTech(tech);
-    setShowProjectModal(true);
+    
+    if (tech.status === 'clocked_out') {
+      // If clocked out, open Global Clock In modal
+      setShowGlobalClockInModal(true);
+    } else {
+      // If active (unassigned or project), open Project Clock In modal
+      setShowProjectModal(true);
+    }
   };
 
   const handleProjectClockInSuccess = () => {
     setShowProjectModal(false);
     setSelectedTech(null);
-    loadTechStatuses(); // Refresh list
-    // Optionally close the main modal if that's desired behavior, but keeping it open to see updated status is good too
+    loadTechStatuses(); 
+  };
+
+  const handleGlobalClockInSuccess = () => {
+    setShowGlobalClockInModal(false);
+    setSelectedTech(null);
+    loadTechStatuses();
   };
 
   const loadTechStatuses = async () => {
@@ -75,8 +86,10 @@ export default function TechClockStatusModal({ open, onClose }) {
         projectLookup[p.id] = p.customer || p.name || 'Unknown Project';
       });
 
-      // Find active global clock-ins (status is "active")
-      const activeGlobalClockIns = timeRecords.filter(tr => tr.status === 'active');
+      // Find active global clock-ins (status is "active" or "clocked_in")
+      const activeGlobalClockIns = timeRecords.filter(tr => 
+        (tr.status === 'active' || tr.status === 'clocked_in') && !tr.clock_out_time
+      );
 
       // Find active project sessions (has start_time but no end_time)
       const activeProjectSessions = projectSessions.filter(ps => ps.start_time && !ps.end_time);
@@ -121,6 +134,7 @@ export default function TechClockStatusModal({ open, onClose }) {
         return {
           id: emp.id,
           name: empName,
+          full_name: empName, // Ensure full_name is available for GlobalClockInModal
           status: 'clocked_out',
           projectName: null
         };
@@ -196,10 +210,10 @@ export default function TechClockStatusModal({ open, onClose }) {
               <div 
                 key={tech.id} 
                 onClick={() => handleTechClick(tech)}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer hover:bg-blue-50 hover:border-blue-200 shadow-sm ${
                   tech.status === 'clocked_out' 
-                    ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed' 
-                    : 'bg-white border-slate-200 hover:bg-blue-50 cursor-pointer hover:border-blue-200 shadow-sm'
+                    ? 'bg-slate-50 border-slate-200' 
+                    : 'bg-white border-slate-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -220,6 +234,13 @@ export default function TechClockStatusModal({ open, onClose }) {
           tech={selectedTech}
           initialProjectId={initialProjectId}
           onSuccess={handleProjectClockInSuccess}
+        />
+
+        <GlobalClockInModal
+          open={showGlobalClockInModal}
+          onClose={() => setShowGlobalClockInModal(false)}
+          user={selectedTech}
+          onClockIn={handleGlobalClockInSuccess}
         />
       </DialogContent>
     </Dialog>
