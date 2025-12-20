@@ -148,8 +148,11 @@ Deno.serve(async (req) => {
             const FETCH_LIMIT = 1000; 
             
             while (hasMore) {
-                const customers = await base44.asServiceRole.entities.Customer.list({ limit: FETCH_LIMIT, skip: skip });
-                if (customers.length === 0) {
+                // Try fetching using list with correct arguments (sort, limit, skip)
+                // Passing null for sort to use default
+                const customers = await base44.asServiceRole.entities.Customer.list(null, FETCH_LIMIT, skip);
+                
+                if (!customers || customers.length === 0) {
                     hasMore = false;
                 } else {
                     // Log the first customer to help debug field names
@@ -158,11 +161,22 @@ Deno.serve(async (req) => {
                     }
                     
                     customers.forEach(c => {
+                        // Handle flattened or nested data structure
+                        const recordData = c.data || c;
+                        const cusIdVal = recordData.cusid || c.cusid; // try both levels
+                        
                         // Store trimmed string version of cusid
-                        if (c.cusid) customerMap.set(String(c.cusid).trim(), c.id);
+                        if (cusIdVal) {
+                             customerMap.set(String(cusIdVal).trim(), c.id);
+                        }
                     });
                     skip += customers.length;
                     console.log(`Fetched ${skip} customers so far...`);
+                    
+                    // Safety break to prevent infinite loops if something is wrong with pagination
+                    if (customers.length < FETCH_LIMIT) {
+                        hasMore = false;
+                    }
                 }
             }
             console.log(`Built customer map with ${customerMap.size} entries.`);
