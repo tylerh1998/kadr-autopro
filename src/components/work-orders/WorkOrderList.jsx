@@ -157,6 +157,7 @@ function WorkOrderList({
                       <h3 className="text-lg font-bold text-slate-900">
                         {getCustomerName(workOrder.customer_id)}
                       </h3>
+                      <span className="text-slate-600 text-base font-normal">{workOrder.description}</span>
                       <StatusBadge status={workOrder.status} />
                       
                       {isLocked && (
@@ -177,8 +178,6 @@ function WorkOrderList({
                         </Tooltip>
                       )}
                     </div>
-
-                    <p className="text-slate-600 line-clamp-2">{workOrder.description}</p>
 
                     <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
                       <div className="flex items-center gap-1">
