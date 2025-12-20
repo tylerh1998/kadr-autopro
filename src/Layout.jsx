@@ -358,8 +358,8 @@ const navigationItems = [
       { title: "Create", action: "createCustomer", icon: UserCheck },
       { title: "List", url: createPageUrl("Customers"), icon: List },
       { title: "Account Receivables", url: createPageUrl("CustomerARSummary"), icon: Receipt },
-      { title: "Email Log", url: createPageUrl("EmailLog"), icon: Mail },
-    ]
+      { title: "Email/Text Log", url: createPageUrl("EmailLog"), icon: Mail },
+      ]
   },
   {
     title: "Vehicles",
