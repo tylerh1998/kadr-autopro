@@ -63,58 +63,62 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
       const sessionsRes = await fetch(`${API_BASE_URL}/ProjectTimeSession?employee_name=${encodeURIComponent(empName)}`, {
           headers: { 'api_key': WORKPRO_API_KEY }
       });
-      // Note: filtering by API might return all, we need to filter client side for active ones if API doesn't support complex filter
-      const sessionsData = await sessionsRes.json();
-      const sessions = Array.isArray(sessionsData) ? sessionsData : (sessionsData?.records || []);
       
-      // Find session that has start_time but NO end_time
-      const activeSession = sessions.find(s => s.start_time && !s.end_time);
+      if (sessionsRes.ok) {
+        const sessionsData = await sessionsRes.json();
+        const sessions = Array.isArray(sessionsData) ? sessionsData : (sessionsData?.records || []);
+        
+        // Find session that has start_time but NO end_time
+        const activeSession = sessions.find(s => s.start_time && !s.end_time);
 
-      if (activeSession) {
-        // End it
-        const startTime = new Date(activeSession.start_time);
-        const endTime = new Date();
-        const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+        if (activeSession) {
+          // End it
+          const startTime = new Date(activeSession.start_time);
+          const endTime = new Date();
+          const totalHours = (endTime - startTime) / (1000 * 60 * 60);
 
-        await fetch(`${API_BASE_URL}/ProjectTimeSession/${activeSession.id}`, {
-          method: 'PUT',
-          headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            end_time: now,
-            total_hours: Math.round(totalHours * 100) / 100
-          })
-        });
+          await fetch(`${API_BASE_URL}/ProjectTimeSession/${activeSession.id}`, {
+            method: 'PUT',
+            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              end_time: now,
+              total_hours: Math.round(totalHours * 100) / 100,
+              status: 'completed'
+            })
+          });
+        }
       }
 
       // 2. Find and end current active UnassignedTimeRecord
-      // We need to fetch unassigned records for this tech
-      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTimeRecord`, {
+      // Check filtering by employee_name if possible, otherwise filtering client side
+      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTimeRecord?employee_name=${encodeURIComponent(empName)}`, {
         headers: { 'api_key': WORKPRO_API_KEY }
       });
-      const unassignedData = await unassignedRes.json();
-      const unassignedRecs = Array.isArray(unassignedData) ? unassignedData : (unassignedData?.records || []);
       
-      // Filter for this tech and active
-      const activeUnassigned = unassignedRecs.find(r => 
-        (r.employee_name === empName) && 
-        r.start_time && 
-        !r.end_time
-      );
+      if (unassignedRes.ok) {
+        const unassignedData = await unassignedRes.json();
+        const unassignedRecs = Array.isArray(unassignedData) ? unassignedData : (unassignedData?.records || []);
+        
+        // Filter for active
+        const activeUnassigned = unassignedRecs.find(r => 
+          r.start_time && !r.end_time
+        );
 
-      if (activeUnassigned) {
-        const startTime = new Date(activeUnassigned.start_time);
-        const endTime = new Date();
-        const duration = (endTime - startTime) / (1000 * 60 * 60);
+        if (activeUnassigned) {
+          const startTime = new Date(activeUnassigned.start_time);
+          const endTime = new Date();
+          const duration = (endTime - startTime) / (1000 * 60 * 60);
 
-        await fetch(`${API_BASE_URL}/UnassignedTimeRecord/${activeUnassigned.id}`, {
-          method: 'PUT',
-          headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            end_time: now,
-            duration: Math.round(duration * 100) / 100,
-            status: 'completed'
-          })
-        });
+          await fetch(`${API_BASE_URL}/UnassignedTimeRecord/${activeUnassigned.id}`, {
+            method: 'PUT',
+            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              end_time: now,
+              duration: Math.round(duration * 100) / 100,
+              status: 'completed'
+            })
+          });
+        }
       }
 
       // 3. Create NEW ProjectTimeSession
@@ -127,7 +131,8 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
           user_name: empName,
           user_email: empEmail, // if available
           start_time: now,
-          total_hours: 0
+          total_hours: 0,
+          status: 'active'
         })
       });
 
