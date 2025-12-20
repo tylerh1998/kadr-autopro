@@ -157,7 +157,7 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 group-hover:hidden">
               <Briefcase className="w-3 h-3 mr-1" />
               {projectName}
             </Badge>
