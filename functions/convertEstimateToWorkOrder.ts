@@ -73,12 +73,12 @@ Deno.serve(async (req) => {
                         inventory_item_id: inventoryItemId,
                         part_num: inventoryItem.part_number,
                         tx_date: new Date().toISOString(),
-                        tx_type: 'Issue to WO',
+                        tx_type: 'Issued to WO',
                         quantity_change: -issuedQuantity,
                         quantity_ordered_change: onOrderQuantity,
                         ro_number: workOrder.ro_number,
                         source_record_id: workOrder.id,
-                        description: `Issue to WO ${workOrder.ro_number} (Conversion from Estimate)`
+                        description: `Issued to WO ${workOrder.ro_number} (Conversion from Estimate)`
                     }));
 
                     // Mark line as processed
