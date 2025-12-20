@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, Briefcase, Clock, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, Briefcase, Clock, AlertTriangle, LogOut } from 'lucide-react';
 
 const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -161,6 +161,109 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
     }
   };
 
+  const handleClockOut = async () => {
+    if (!tech) return;
+    setProcessing(true);
+
+    try {
+      const now = new Date().toISOString();
+      const empName = tech.name || tech.full_name;
+
+      // 1. End active ProjectTimeSession
+      const sessionsRes = await fetch(`${API_BASE_URL}/ProjectTimeSession?user_name=${encodeURIComponent(empName)}`, {
+          headers: { 'api_key': WORKPRO_API_KEY }
+      });
+
+      if (sessionsRes.ok) {
+        const sessionsData = await sessionsRes.json();
+        const sessions = Array.isArray(sessionsData) ? sessionsData : (sessionsData?.records || []);
+        const activeSession = sessions.find(s => s.start_time && !s.end_time);
+
+        if (activeSession) {
+          console.log("Ending active ProjectTimeSession for Clock Out:", activeSession.id);
+          const startTime = new Date(activeSession.start_time);
+          const endTime = new Date();
+          const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+
+          await fetch(`${API_BASE_URL}/ProjectTimeSession/${activeSession.id}`, {
+            method: 'PUT',
+            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              end_time: now,
+              total_hours: Math.round(totalHours * 100) / 100,
+              status: 'completed'
+            })
+          });
+        }
+      }
+
+      // 2. End active UnassignedTime
+      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTime?user_name=${encodeURIComponent(empName)}`, {
+        headers: { 'api_key': WORKPRO_API_KEY }
+      });
+
+      if (unassignedRes.ok) {
+        const unassignedData = await unassignedRes.json();
+        const unassignedRecs = Array.isArray(unassignedData) ? unassignedData : (unassignedData?.records || []);
+        const activeUnassigned = unassignedRecs.find(r => r.start_time && !r.end_time);
+
+        if (activeUnassigned) {
+          console.log("Ending active UnassignedTime for Clock Out:", activeUnassigned.id);
+          const startTime = new Date(activeUnassigned.start_time);
+          const endTime = new Date();
+          const duration = (endTime - startTime) / (1000 * 60 * 60);
+
+          await fetch(`${API_BASE_URL}/UnassignedTime/${activeUnassigned.id}`, {
+            method: 'PUT',
+            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              end_time: now,
+              total_hours: Math.round(duration * 100) / 100,
+              status: 'completed'
+            })
+          });
+        }
+      }
+
+      // 3. End TimeRecord (Clock Out)
+      const timeRecordsRes = await fetch(`${API_BASE_URL}/TimeRecord?employee_name=${encodeURIComponent(empName)}`, {
+          headers: { 'api_key': WORKPRO_API_KEY }
+      });
+
+      if (timeRecordsRes.ok) {
+        const timeData = await timeRecordsRes.json();
+        const timeRecords = Array.isArray(timeData) ? timeData : (timeData?.records || []);
+        const activeTimeRecord = timeRecords.find(tr => !tr.clock_out_time);
+
+        if (activeTimeRecord) {
+           console.log("Ending active TimeRecord for Clock Out:", activeTimeRecord.id);
+           const startTime = new Date(activeTimeRecord.clock_in_time);
+           const endTime = new Date();
+           const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+
+           await fetch(`${API_BASE_URL}/TimeRecord/${activeTimeRecord.id}`, {
+             method: 'PUT',
+             headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
+             body: JSON.stringify({
+               clock_out_time: now,
+               total_hours: Math.round(totalHours * 100) / 100,
+               status: 'clocked_out'
+             })
+           });
+        }
+      }
+
+      if (onSuccess) onSuccess();
+      onClose();
+
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      alert("Failed to clock out");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const filteredProjects = projects.filter(p => 
     p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -170,11 +273,20 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Clock {tech?.name} into Project</DialogTitle>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleClockOut}
+            disabled={processing}
+          >
+            {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4 mr-2" />}
+            Clock Out
+          </Button>
         </DialogHeader>
 
-        <div className="relative mb-4">
+        <div className="relative mb-4 mt-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
           <Input 
             placeholder="Search projects..." 
