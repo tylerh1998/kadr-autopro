@@ -84,6 +84,7 @@ Deno.serve(async (req) => {
         let failedCount = 0;
 
         for (const appt of remindersToSend) {
+            let logId = null;
             try {
                 const vehicle = vehicleMap.get(appt.vehicle_id);
                 const appointmentDateTime = new Date(appt.start_time);
@@ -98,21 +99,56 @@ ${appointmentDateStr} at ${appointmentTime}
 ${vehicleDesc}
 Please call or text us at 780-847-3002 to reschedule or confirm. Please do not reply directly to this message.`;
 
+                const subject = `Appointment Reminder for ${appointmentDateStr}`;
+
+                // Create Log Entry
+                try {
+                     const logEntry = await base44.asServiceRole.entities.SentEmailLog.create({
+                        to_email: appt.reminders_phone,
+                        from_email: "system generated message",
+                        subject: subject,
+                        body: messageBody,
+                        body_preview: messageBody,
+                        status: 'pending',
+                        sent_date: new Date().toISOString(),
+                        customer_id: appt.customer_id || null,
+                        appointment_id: appt.id,
+                        tracking_id: null
+                    });
+                    logId = logEntry.id;
+                } catch (logError) {
+                    console.error(`Failed to create log for appt ${appt.id}`, logError);
+                }
+
                 console.log(`Sending SMS to ${appt.reminders_phone} for appt ${appt.id}`);
 
-                await client.messages.create({
+                const result = await client.messages.create({
                     body: messageBody,
                     from: fromNumber,
                     to: appt.reminders_phone
                 });
 
+                if (logId) {
+                    await base44.asServiceRole.entities.SentEmailLog.update(logId, {
+                        status: 'sent',
+                        tracking_id: result.sid
+                    });
+                }
+
                 sentCount++;
-                
-                // Optional: Log to SentEmailLog or a new SentSmsLog if it existed. 
-                // For now, just console log success.
 
             } catch (smsError) {
                 console.error(`Failed to send SMS for appointment ${appt.id}:`, smsError.message);
+                
+                if (logId) {
+                    try {
+                        await base44.asServiceRole.entities.SentEmailLog.update(logId, {
+                            status: 'failed',
+                            status_message: smsError.message || 'SMS Send Failed'
+                        });
+                    } catch (e) { console.error("Failed to update log status", e); }
+                }
+
                 failedCount++;
             }
         }
