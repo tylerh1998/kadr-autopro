@@ -378,6 +378,24 @@ export default function AppointmentForm({
       }
     }
 
+    // Adjust reminder_days_before if the reminder date falls on a weekend
+    if (submissionData.start_time && (submissionData.reminders_email || submissionData.reminders_text)) {
+        const startDate = new Date(submissionData.start_time);
+        const daysBefore = parseInt(submissionData.reminder_days_before) || 1;
+        const reminderDate = new Date(startDate);
+        reminderDate.setDate(startDate.getDate() - daysBefore);
+        
+        const dayOfWeek = reminderDate.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        if (dayOfWeek === 6) { // Saturday
+            submissionData.reminder_days_before = daysBefore + 1; // Shift to Friday
+            console.log(`Adjusting reminder from Saturday to Friday (daysBefore: ${daysBefore} -> ${daysBefore + 1})`);
+        } else if (dayOfWeek === 0) { // Sunday
+            submissionData.reminder_days_before = daysBefore + 2; // Shift to Friday
+            console.log(`Adjusting reminder from Sunday to Friday (daysBefore: ${daysBefore} -> ${daysBefore + 2})`);
+        }
+    }
+
     console.log('Calling onSubmit with submissionData');
     onSubmit(submissionData);
   };
