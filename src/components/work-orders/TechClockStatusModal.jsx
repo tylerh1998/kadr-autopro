@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import TechProjectClockInModal from './TechProjectClockInModal';
-import GlobalClockInModal from './GlobalClockInModal';
 import { useTechClockStatus } from '../context/TechClockStatusContext';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -19,7 +18,6 @@ export default function TechClockStatusModal({ open, onClose }) {
   const { initialProjectId } = useTechClockStatus();
   const [selectedTech, setSelectedTech] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -28,27 +26,17 @@ export default function TechClockStatusModal({ open, onClose }) {
   }, [open]);
 
   const handleTechClick = (tech) => {
+    // Only allow clicking if globally clocked in (unassigned or project status)
+    if (tech.status === 'clocked_out') return;
+
     setSelectedTech(tech);
-    
-    if (tech.status === 'clocked_out') {
-      // If clocked out, open Global Clock In modal
-      setShowGlobalClockInModal(true);
-    } else {
-      // If active (unassigned or project), open Project Clock In modal
-      setShowProjectModal(true);
-    }
+    setShowProjectModal(true);
   };
 
   const handleProjectClockInSuccess = () => {
     setShowProjectModal(false);
     setSelectedTech(null);
-    loadTechStatuses(); 
-  };
-
-  const handleGlobalClockInSuccess = () => {
-    setShowGlobalClockInModal(false);
-    setSelectedTech(null);
-    loadTechStatuses();
+    loadTechStatuses(); // Refresh list
   };
 
   const loadTechStatuses = async () => {
@@ -210,10 +198,10 @@ export default function TechClockStatusModal({ open, onClose }) {
               <div 
                 key={tech.id} 
                 onClick={() => handleTechClick(tech)}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer hover:bg-blue-50 hover:border-blue-200 shadow-sm ${
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
                   tech.status === 'clocked_out' 
-                    ? 'bg-slate-50 border-slate-200' 
-                    : 'bg-white border-slate-200'
+                    ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed' 
+                    : 'bg-white border-slate-200 hover:bg-blue-50 cursor-pointer hover:border-blue-200 shadow-sm'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -234,13 +222,6 @@ export default function TechClockStatusModal({ open, onClose }) {
           tech={selectedTech}
           initialProjectId={initialProjectId}
           onSuccess={handleProjectClockInSuccess}
-        />
-
-        <GlobalClockInModal
-          open={showGlobalClockInModal}
-          onClose={() => setShowGlobalClockInModal(false)}
-          user={selectedTech}
-          onClockIn={handleGlobalClockInSuccess}
         />
       </DialogContent>
     </Dialog>
