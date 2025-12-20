@@ -89,20 +89,46 @@ Deno.serve(async (req) => {
                     }
                     return undefined;
                 };
-                
-                const phone = String(getVal(['phone', 'Phone', 'Phone1', 'Cell']) || '');
+
+                // Helper to clean phone numbers (digits only)
+                const cleanPhone = (str) => String(str || '').replace(/\D/g, '');
+
+                // Phone logic: acell + cell
+                const acell = cleanPhone(getVal(['acell', 'ACell']));
+                const cell = cleanPhone(getVal(['cell', 'Cell']));
+                const phone = (acell && cell) ? `${acell}${cell}` : (cell || cleanPhone(getVal(['phone', 'Phone'])));
+
                 if (!phone) return null; // Phone is required
 
+                // Secondary phone logic: ahtel + htel
+                const ahtel = cleanPhone(getVal(['ahtel', 'AHTel']));
+                const htel = cleanPhone(getVal(['htel', 'HTel']));
+                const secondary_phone = (ahtel && htel) ? `${ahtel}${htel}` : (htel || '');
+
+                // Business phone logic for notes: abtel + btel (assuming user meant btel when saying htel in notes rule)
+                const abtel = cleanPhone(getVal(['abtel', 'ABTel']));
+                const btel = cleanPhone(getVal(['btel', 'BTel']));
+                const business_phone = (abtel && btel) ? `${abtel}${btel}` : (btel || '');
+
+                let notes = "";
+                if (business_phone) {
+                    notes = `Legacy Business Phone: ${business_phone}`;
+                }
+
                 return {
-                    first_name: String(getVal(['first_name', 'FirstName', 'First Name']) || ''),
-                    last_name: String(getVal(['last_name', 'LastName', 'Last Name']) || ''),
-                    org_name: String(getVal(['org_name', 'Company', 'Organization']) || ''),
+                    org_name: String(getVal(['company', 'Company', 'org_name']) || ''),
+                    first_name: String(getVal(['fname', 'Fname', 'first_name']) || ''),
+                    last_name: String(getVal(['lname', 'Lname', 'last_name']) || ''),
                     phone: phone,
+                    secondary_phone: secondary_phone,
                     email: String(getVal(['email', 'Email']) || ''),
-                    address: String(getVal(['address', 'Address']) || ''),
+                    address: String(getVal(['street', 'Street', 'address']) || ''),
                     city: String(getVal(['city', 'City']) || ''),
-                    state: String(getVal(['state', 'Province', 'State']) || ''),
-                    zip_code: String(getVal(['zip_code', 'PostalCode', 'Zip']) || ''),
+                    state: String(getVal(['province', 'Province', 'state']) || ''),
+                    zip_code: String(getVal(['postal', 'Postal', 'zip_code']) || ''),
+                    cusid: String(getVal(['cusid', 'Cusid', 'CusId']) || ''),
+                    notes: notes,
+                    default_taxable: true
                 };
             }).filter(r => r !== null);
 
