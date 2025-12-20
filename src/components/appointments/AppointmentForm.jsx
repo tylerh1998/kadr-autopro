@@ -115,7 +115,8 @@ export default function AppointmentForm({
         customer_id: '',
         vehicle_id: '',
         work_order_id: '', // Also clear work order if customer is deselected
-        reminder_email_address: ''
+        reminder_email_address: '',
+        reminders_phone: ''
       }));
       setAvailableVehicles([]);
     }
@@ -140,13 +141,14 @@ export default function AppointmentForm({
         // is potentially evaluated against the new `availableVehicles` list in the UI,
         // although React batches state updates. It fulfills the specific request from the outline.
         setTimeout(() => {
-          setFormData(prev => ({
-            ...prev,
-            work_order_id: workOrder.id,
-            customer_id: workOrder.customer_id,
-            vehicle_id: workOrder.vehicle_id || '', // Set vehicle directly from work order
-            reminder_email_address: customer?.email || prev.reminder_email_address // Set email address here, or keep previous
-          }));
+        setFormData(prev => ({
+        ...prev,
+        work_order_id: workOrder.id,
+        customer_id: workOrder.customer_id,
+        vehicle_id: workOrder.vehicle_id || '', // Set vehicle directly from work order
+        reminder_email_address: customer?.email || prev.reminder_email_address, // Set email address here, or keep previous
+        reminders_phone: customer?.phone ? customer.phone.replace(/[^0-9]/g, '') : prev.reminders_phone
+        }));
         }, 0);
       } catch (error) {
         console.error('Error loading vehicles:', error);
@@ -166,7 +168,8 @@ export default function AppointmentForm({
         work_order_id: workOrder.id,
         customer_id: '', // Clear customer if WO doesn't have one
         vehicle_id: '', // Clear vehicle if WO doesn't have customer
-        reminder_email_address: '' // Clear email
+        reminder_email_address: '', // Clear email
+        reminders_phone: ''
       }));
       setAvailableVehicles([]);
     }
@@ -219,6 +222,7 @@ export default function AppointmentForm({
               reminders_email: appointment.reminders_email || false,
               reminders_text: appointment.reminders_text || false,
               reminder_email_address: appointment.reminder_email_address || '',
+              reminders_phone: appointment.reminders_phone ? appointment.reminders_phone.replace(/^\+1/, '') : '',
               reminder_days_before: appointment.reminder_days_before || 1,
             });
           }, 100);
@@ -265,6 +269,7 @@ export default function AppointmentForm({
               reminders_email: false,
               reminders_text: false,
               reminder_email_address: customer?.email || '',
+              reminders_phone: customer?.phone ? customer.phone.replace(/[^0-9]/g, '') : '',
               reminder_days_before: 1,
             });
           }, 100);
@@ -287,6 +292,7 @@ export default function AppointmentForm({
           reminders_email: false,
           reminders_text: false,
           reminder_email_address: '',
+          reminders_phone: '',
           reminder_days_before: 1,
         });
         setAvailableVehicles([]);
@@ -306,6 +312,7 @@ export default function AppointmentForm({
           reminders_email: false,
           reminders_text: false,
           reminder_email_address: '',
+          reminders_phone: '',
           reminder_days_before: 1,
         });
         setAvailableVehicles([]);
@@ -354,15 +361,25 @@ export default function AppointmentForm({
     }
 
     // Warn if email reminder is not enabled
-    if (!formData.reminders_email) {
-      const confirmed = window.confirm('This appointment will NOT send an email reminder. Do you want to continue?');
+    if (!formData.reminders_email && !formData.reminders_text) {
+      const confirmed = window.confirm('This appointment will NOT send any reminders (email or text). Do you want to continue?');
       if (!confirmed) {
         return;
       }
     }
 
-    console.log('Calling onSubmit with formData');
-    onSubmit(formData);
+    // Format phone number with +1 prefix if it exists
+    const submissionData = { ...formData };
+    if (submissionData.reminders_phone) {
+      // Ensure only digits are kept and prepend +1
+      const digitsOnly = submissionData.reminders_phone.replace(/[^0-9]/g, '');
+      if (digitsOnly) {
+          submissionData.reminders_phone = `+1${digitsOnly}`;
+      }
+    }
+
+    console.log('Calling onSubmit with submissionData');
+    onSubmit(submissionData);
   };
 
   const handleDelete = () => {
@@ -393,10 +410,11 @@ export default function AppointmentForm({
       
       // Auto-select the new customer
       setFormData(prev => ({
-        ...prev,
-        customer_id: newCustomer.id,
-        reminder_email_address: newCustomer.email || prev.reminder_email_address,
-        vehicle_id: '',
+      ...prev,
+      customer_id: newCustomer.id,
+      reminder_email_address: newCustomer.email || prev.reminder_email_address,
+      reminders_phone: newCustomer.phone ? newCustomer.phone.replace(/[^0-9]/g, '') : '',
+      vehicle_id: '',
       }));
       
       setShowAddCustomer(false);
@@ -902,51 +920,69 @@ export default function AppointmentForm({
                 <div className="space-y-3 border-t pt-4">
                   <Label className="text-base font-semibold">Reminders</Label>
                   
-                  <div className="flex items-center space-x-2">
+                  {/* Email Reminder */}
+                  <div className="flex items-center space-x-2 h-10">
                     <Checkbox
                       id="reminders_email"
                       checked={formData.reminders_email}
                       onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_email: checked }))}
                     />
-                    <Label htmlFor="reminders_email" className="font-normal cursor-pointer">
-                      Send email reminder
+                    <Label htmlFor="reminders_email" className="font-normal cursor-pointer whitespace-nowrap min-w-[130px]">
+                      Send email reminder:
                     </Label>
-                  </div>
-
-                  {formData.reminders_email && (
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder_email">Email Address</Label>
+                    {formData.reminders_email && (
                       <Input
                         id="reminder_email"
                         type="email"
                         value={formData.reminder_email_address}
                         onChange={(e) => setFormData(prev => ({ ...prev, reminder_email_address: e.target.value }))}
                         placeholder="customer@example.com"
+                        className="h-8 flex-1"
                       />
-                    </div>
-                  )}
+                    )}
+                  </div>
 
-                  {/* Text reminders disabled - feature planned for post-release */}
-                  <div className="flex items-center space-x-2 opacity-50">
+                  {/* Text Reminder */}
+                  <div className="flex items-center space-x-2 h-10">
                     <Checkbox
                       id="reminders_text"
-                      checked={false}
-                      disabled
+                      checked={formData.reminders_text}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reminders_text: checked }))}
                     />
-                    <Label htmlFor="reminders_text" className="font-normal cursor-not-allowed">
-                      Send text reminder <span className="text-xs text-slate-500 italic">(Coming soon)</span>
+                    <Label htmlFor="reminders_text" className="font-normal cursor-pointer whitespace-nowrap min-w-[130px]">
+                      Send text reminder:
                     </Label>
+                    {formData.reminders_text && (
+                      <div className="flex items-center gap-1 flex-1">
+                        <span className="text-sm text-slate-500 font-medium">+1</span>
+                        <Input
+                          id="reminders_phone"
+                          value={formData.reminders_phone}
+                          onChange={(e) => {
+                            // Only allow numbers
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            setFormData(prev => ({ ...prev, reminders_phone: val }));
+                          }}
+                          placeholder="5551234567"
+                          className="h-8 flex-1"
+                          maxLength={10}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {(formData.reminders_email || formData.reminders_text) && (
-                    <div className="space-y-2">
-                      <Label htmlFor="reminder_days">Days before appointment</Label>
+                    <div className="flex items-center space-x-2 h-10 mt-2">
+                      <Label htmlFor="reminder_days" className="font-normal whitespace-nowrap min-w-[154px]">
+                        Days before appointment:
+                      </Label>
                       <Input
                         id="reminder_days"
                         type="number"
                         min="0"
                         value={formData.reminder_days_before}
                         onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
+                        className="h-8 w-20"
                       />
                     </div>
                   )}
