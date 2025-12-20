@@ -463,7 +463,7 @@ const navigationItems = [
     setMobileDropdownOpen(null);
   };
   
-  if (currentPageName === 'WorkOrderEdit' || currentPageName === 'WorkOrderView' || currentPageName === 'CreditInvoice' || currentPageName === 'InvoiceConversion' || currentPageName === 'GLAcct' || currentPageName === 'WorkPROView' || currentPageName === 'StockReorderReport' || currentPageName === 'GeneralLedger' || currentPageName === 'GLJournal' || currentPageName === 'FinancialDashboard' || currentPageName === 'InventoryValuation') {
+  if (currentPageName === 'WorkOrderEdit' || currentPageName === 'EstimateEdit' || currentPageName === 'WorkOrderView' || currentPageName === 'CreditInvoice' || currentPageName === 'InvoiceConversion' || currentPageName === 'GLAcct' || currentPageName === 'WorkPROView' || currentPageName === 'StockReorderReport' || currentPageName === 'GeneralLedger' || currentPageName === 'GLJournal' || currentPageName === 'FinancialDashboard' || currentPageName === 'InventoryValuation') {
     return (
       <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
         <main>{children}</main>

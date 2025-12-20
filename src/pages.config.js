@@ -10,6 +10,7 @@ import CustomerARSummary from './pages/CustomerARSummary';
 import CustomerARTransactions from './pages/CustomerARTransactions';
 import Customers from './pages/Customers';
 import EmailLog from './pages/EmailLog';
+import EstimateEdit from './pages/EstimateEdit';
 import FinancialDashboard from './pages/FinancialDashboard';
 import FiscalPeriods from './pages/FiscalPeriods';
 import GLAcct from './pages/GLAcct';
@@ -41,7 +42,6 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
-import EstimateEdit from './pages/EstimateEdit';
 import __Layout from './Layout.jsx';
 
 
@@ -58,6 +58,7 @@ export const PAGES = {
     "CustomerARTransactions": CustomerARTransactions,
     "Customers": Customers,
     "EmailLog": EmailLog,
+    "EstimateEdit": EstimateEdit,
     "FinancialDashboard": FinancialDashboard,
     "FiscalPeriods": FiscalPeriods,
     "GLAcct": GLAcct,
@@ -89,7 +90,6 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
-    "EstimateEdit": EstimateEdit,
 }
 
 export const pagesConfig = {

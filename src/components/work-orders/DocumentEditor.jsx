@@ -328,6 +328,16 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           return;
         }
 
+        // Redirect based on stage and mode
+        if (mode === 'work_order' && freshWorkOrder.stage === 'estimate') {
+          navigate(createPageUrl(`EstimateEdit?id=${roNumber}`), { replace: true });
+          return;
+        }
+        if (mode === 'estimate' && freshWorkOrder.stage === 'work_order') {
+          navigate(createPageUrl(`WorkOrderEdit?id=${roNumber}`), { replace: true });
+          return;
+        }
+
         if (freshWorkOrder.LockedByUser && freshWorkOrder.LockedByUser !== currentUser.email) {
           try {
             const lockingUsers = await UserEntity.filter({ email: freshWorkOrder.LockedByUser });
@@ -1125,9 +1135,9 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       });
       
       if (response.data.success) {
-        alert("Estimate successfully converted to Work Order!");
+        //alert("Estimate successfully converted to Work Order!"); // Optional: remove alert for smoother flow
         
-        // Reload page to switch to Work Order mode (handled by parent router or self-reload)
+        // Reload page to switch to Work Order mode
         window.location.href = `/WorkOrderEdit?id=${workOrder.ro_number}`;
       } else {
         alert(`Conversion failed: ${response.data.error}`);
@@ -1257,16 +1267,17 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     {
       key: 'estimate',
       label: 'Estimate',
-      activeColor: 'bg-orange-500 text-white border-orange-600',
+      activeColor: 'bg-orange-500 text-white border-orange-600 font-bold',
       inactiveColor: 'text-orange-700 hover:bg-orange-100',
-      disabled: workOrder?.stage === 'work_order' || workOrder?.stage === 'invoice'
+      disabled: workOrder?.stage === 'work_order' || workOrder?.stage === 'invoice' || workOrder?.stage === 'credit_invoice'
     },
     {
       key: 'work_order',
       label: 'Work Order',
       activeColor: 'bg-blue-600 text-white border-blue-700',
       inactiveColor: 'text-blue-700 hover:bg-blue-100',
-      disabled: workOrder?.stage === 'invoice'
+      disabled: workOrder?.stage === 'invoice' || workOrder?.stage === 'credit_invoice',
+      action: mode === 'estimate' ? handleConvertEstimate : undefined
     },
     {
       key: 'invoice',
@@ -1345,46 +1356,31 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               <div className="w-px h-6 bg-slate-300"></div>
 
               <div className="flex items-center gap-4">
-                {mode === 'estimate' ? (
-                  // Estimate Mode Controls
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-orange-500 text-white text-sm px-3 py-1">Estimate Mode</Badge>
-                    <Button 
-                      onClick={handleConvertEstimate}
-                      disabled={converting || saving}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      {converting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRightCircle className="w-4 h-4 mr-2" />}
-                      Convert to Work Order
-                    </Button>
-                    <Button
-                      onClick={handleHeaderSaveClick}
-                      disabled={saving}
-                      className="bg-slate-900 hover:bg-slate-800 text-white"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                      Save
-                    </Button>
-                  </div>
-                ) : (
-                  // Work Order Mode Controls (Original)
                   <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1">
                     {stages.map((stage, index) => (
                       <button
                         key={stage.key}
-                        onClick={() => !stage.disabled && handleStageChange(stage.key)}
-                        disabled={stage.disabled}
+                        onClick={() => {
+                          if (stage.disabled) return;
+                          if (stage.action) {
+                            stage.action();
+                          } else {
+                            handleStageChange(stage.key);
+                          }
+                        }}
+                        disabled={stage.disabled && !stage.action}
                         className={`
                           px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200
                           ${workOrder?.stage === stage.key
                             ? stage.activeColor + ' shadow-sm'
-                            : stage.disabled
+                            : (stage.disabled && !stage.action)
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               : stage.inactiveColor + ' bg-transparent'
                           }
                           ${index < stages.length ? 'mr-1' : ''}
                         `}
                       >
+                        {stage.action && converting ? <Loader2 className="w-3 h-3 animate-spin mr-1 inline" /> : null}
                         {stage.label}
                       </button>
                     ))}
@@ -1402,7 +1398,6 @@ export default function DocumentEditor({ mode = 'work_order' }) {
                       {saving ? 'Saving...' : 'Save'}
                     </button>
                   </div>
-                )}
               </div>
             </div>
           </div>
