@@ -4,9 +4,16 @@ const TechClockStatusContext = createContext();
 
 export function TechClockStatusProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [initialProjectId, setInitialProjectId] = useState(null);
 
-  const openTechClockStatusModal = () => setIsOpen(true);
-  const closeTechClockStatusModal = () => setIsOpen(false);
+  const openTechClockStatusModal = (projectId = null) => {
+    setInitialProjectId(projectId);
+    setIsOpen(true);
+  };
+  const closeTechClockStatusModal = () => {
+    setIsOpen(false);
+    setInitialProjectId(null);
+  };
 
   return (
     <TechClockStatusContext.Provider value={{ isOpen, openTechClockStatusModal, closeTechClockStatusModal }}>
