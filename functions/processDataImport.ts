@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
                     city: String(getVal(['city', 'City']) || ''),
                     state: String(getVal(['province', 'Province', 'state']) || ''),
                     zip_code: String(getVal(['postal', 'Postal', 'zip_code']) || ''),
-                    cusid: String(getVal(['cusid', 'Cusid', 'CusId']) || ''),
+                    cusid: String(getVal(['cusid', 'Cusid', 'CusId', 'CUSID', 'Customer ID', 'CustomerId', 'CustomerID']) || ''),
                     notes: notes,
                     default_taxable: true
                 };
@@ -152,6 +152,11 @@ Deno.serve(async (req) => {
                 if (customers.length === 0) {
                     hasMore = false;
                 } else {
+                    // Log the first customer to help debug field names
+                    if (skip === 0 && customers.length > 0) {
+                        console.log("DEBUG: Sample Customer Record from DB:", JSON.stringify(customers[0]));
+                    }
+                    
                     customers.forEach(c => {
                         // Store trimmed string version of cusid
                         if (c.cusid) customerMap.set(String(c.cusid).trim(), c.id);
