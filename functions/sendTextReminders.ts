@@ -93,7 +93,10 @@ Deno.serve(async (req) => {
                 const vehicleDesc = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'your vehicle';
                 
                 // Construct the SMS message
-                const messageBody = `Reminder: Appointment with Ken's Auto on ${appointmentDateStr} at ${appointmentTime} for ${vehicleDesc}. Call 780-847-3002 to reschedule.`;
+                const messageBody = `Ken's Auto Appointment Reminder
+${appointmentDateStr} at ${appointmentTime}
+${vehicleDesc}
+Please call or text us at 780-847-3002 to reschedule or confirm. Please do not reply directly to this message.`;
 
                 console.log(`Sending SMS to ${appt.reminders_phone} for appt ${appt.id}`);
 
