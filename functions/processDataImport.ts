@@ -137,12 +137,10 @@ Deno.serve(async (req) => {
         } else if (type === 'vehicles') {
             entityName = "Vehicle";
             
+            console.log("CSV Headers detected:", parseResult.meta.fields);
+
             // Fetch Customers for mapping cusid to customer_id
             console.log("Fetching Customers for ID mapping...");
-            // We need to fetch all customers to build a map. 
-            // In a real large-scale scenario, we might need a more efficient way, but for migration this is acceptable.
-            // base44.asServiceRole.entities.Customer.list returns max 50 by default. We need more.
-            // Let's loop until we have all or hit a safety limit.
             
             const customerMap = new Map();
             let hasMore = true;
@@ -155,16 +153,22 @@ Deno.serve(async (req) => {
                     hasMore = false;
                 } else {
                     customers.forEach(c => {
-                        if (c.cusid) customerMap.set(String(c.cusid), c.id);
+                        // Store trimmed string version of cusid
+                        if (c.cusid) customerMap.set(String(c.cusid).trim(), c.id);
                     });
                     skip += customers.length;
                     console.log(`Fetched ${skip} customers so far...`);
-                    // Safety break if needed, but we want all.
                 }
             }
             console.log(`Built customer map with ${customerMap.size} entries.`);
+            
+            // Debug: log first few keys in customer map
+            console.log("Sample Customer IDs in DB:", Array.from(customerMap.keys()).slice(0, 5));
 
-             recordsToCreate = rows.map(row => {
+            let missingCusIdCount = 0;
+            let customerNotFoundCount = 0;
+
+             recordsToCreate = rows.map((row, index) => {
                 const getVal = (keys) => {
                     for (const key of keys) {
                         if (row[key] !== undefined) return row[key];
@@ -172,12 +176,21 @@ Deno.serve(async (req) => {
                     return undefined;
                 };
 
-                const cusId = String(getVal(['cusid', 'CusId', 'Cusid']) || '');
+                const rawCusId = getVal(['cusid', 'CusId', 'Cusid', 'CUSID']);
+                const cusId = String(rawCusId || '').trim();
+                
+                if (!cusId) {
+                    missingCusIdCount++;
+                    if (missingCusIdCount <= 5) console.warn(`Row ${index}: Missing cusid in CSV (Raw: ${rawCusId})`);
+                    return null;
+                }
+
                 const customer_id = customerMap.get(cusId);
 
                 // If no customer found for this vehicle, we can't create it validly as customer_id is required.
                 if (!customer_id) {
-                    console.warn(`Skipping vehicle with cusid ${cusId} - Customer not found.`);
+                    customerNotFoundCount++;
+                    if (customerNotFoundCount <= 5) console.warn(`Row ${index}: Skipped - Customer ID '${cusId}' not found in DB.`);
                     return null;
                 }
 
@@ -191,9 +204,14 @@ Deno.serve(async (req) => {
                     engine: String(getVal(['engsize', 'EngSize', 'Engine']) || ''),
                     unit_number: String(getVal(['unitno', 'UnitNo', 'UnitNumber']) || ''),
                     color: String(getVal(['colour', 'Colour', 'Color']) || ''),
-                    // Default values or other fields can be mapped here
                 };
             }).filter(r => r !== null);
+
+            if (recordsToCreate.length === 0) {
+                 const details = ` (Stats: ${rows.length} rows in file. ${missingCusIdCount} missing ID in CSV. ${customerNotFoundCount} IDs not found in DB. DB has ${customerMap.size} customers with legacy IDs)`;
+                 console.log(details);
+                 return Response.json({ success: true, count: 0, message: "No valid records matched." + details });
+            }
         }
 
         if (recordsToCreate.length === 0) {
