@@ -131,17 +131,7 @@ export default function LankarImport() {
           </CardHeader>
           <CardContent>
             <RadioGroup value={selectedType} onValueChange={setSelectedType} className="space-y-3">
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                <RadioGroupItem value="inventory" id="inventory" />
-                <Label htmlFor="inventory" className="flex items-center gap-3 cursor-pointer flex-1">
-                  <Package className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium">Inventory</p>
-                    <p className="text-sm text-slate-500">Import inventory items and parts</p>
-                  </div>
-                </Label>
-              </div>
-              
+              {/* Customers */}
               <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                 <RadioGroupItem value="customers" id="customers" />
                 <Label htmlFor="customers" className="flex items-center gap-3 cursor-pointer flex-1">
@@ -152,7 +142,8 @@ export default function LankarImport() {
                   </div>
                 </Label>
               </div>
-              
+
+              {/* Vehicles */}
               <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                 <RadioGroupItem value="vehicles" id="vehicles" />
                 <Label htmlFor="vehicles" className="flex items-center gap-3 cursor-pointer flex-1">
@@ -160,6 +151,42 @@ export default function LankarImport() {
                   <div>
                     <p className="font-medium">Vehicles</p>
                     <p className="text-sm text-slate-500">Import vehicle records</p>
+                  </div>
+                </Label>
+              </div>
+
+              {/* Suppliers (Disabled) */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed">
+                <RadioGroupItem value="suppliers" id="suppliers" disabled />
+                <Label htmlFor="suppliers" className="flex items-center gap-3 cursor-not-allowed flex-1">
+                  <Package className="w-5 h-5 text-slate-400" />
+                  <div>
+                    <p className="font-medium text-slate-500">Suppliers</p>
+                    <p className="text-sm text-slate-400">Import supplier records (Coming Soon)</p>
+                  </div>
+                </Label>
+              </div>
+
+              {/* Inventory */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                <RadioGroupItem value="inventory" id="inventory" />
+                <Label htmlFor="inventory" className="flex items-center gap-3 cursor-pointer flex-1">
+                  <Package className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium">Inventory</p>
+                    <p className="text-sm text-slate-500">Import inventory items and parts</p>
+                  </div>
+                </Label>
+              </div>
+
+              {/* Inventory Locations (Disabled) */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed">
+                <RadioGroupItem value="inventory_locations" id="inventory_locations" disabled />
+                <Label htmlFor="inventory_locations" className="flex items-center gap-3 cursor-not-allowed flex-1">
+                  <Package className="w-5 h-5 text-slate-400" />
+                  <div>
+                    <p className="font-medium text-slate-500">Inventory Locations</p>
+                    <p className="text-sm text-slate-400">Import location records (Coming Soon)</p>
                   </div>
                 </Label>
               </div>
@@ -213,7 +240,7 @@ export default function LankarImport() {
         {/* Import Button */}
         <Button 
           onClick={handleImport}
-          disabled={selectedType !== 'inventory' || parsedData.length === 0 || importing}
+          disabled={['suppliers', 'inventory_locations'].includes(selectedType) || parsedData.length === 0 || importing}
           className="w-full" 
           size="lg"
         >
