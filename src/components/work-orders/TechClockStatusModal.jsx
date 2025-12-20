@@ -37,6 +37,7 @@ export default function TechClockStatusModal({ open, onClose }) {
     setShowProjectModal(false);
     setSelectedTech(null);
     loadTechStatuses(); // Refresh list
+    // Optionally close the main modal if that's desired behavior, but keeping it open to see updated status is good too
   };
 
   const loadTechStatuses = async () => {
@@ -74,10 +75,8 @@ export default function TechClockStatusModal({ open, onClose }) {
         projectLookup[p.id] = p.customer || p.name || 'Unknown Project';
       });
 
-      // Find active global clock-ins (status is "active" or "clocked_in")
-      const activeGlobalClockIns = timeRecords.filter(tr => 
-        (tr.status === 'active' || tr.status === 'clocked_in') && !tr.clock_out_time
-      );
+      // Find active global clock-ins (status is "active")
+      const activeGlobalClockIns = timeRecords.filter(tr => tr.status === 'active');
 
       // Find active project sessions (has start_time but no end_time)
       const activeProjectSessions = projectSessions.filter(ps => ps.start_time && !ps.end_time);
@@ -122,7 +121,6 @@ export default function TechClockStatusModal({ open, onClose }) {
         return {
           id: emp.id,
           name: empName,
-          full_name: empName, // Ensure full_name is available for GlobalClockInModal
           status: 'clocked_out',
           projectName: null
         };
