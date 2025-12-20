@@ -154,12 +154,12 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge className="bg-green-100 text-green-800 border-green-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 group-hover:hidden">
               <Briefcase className="w-3 h-3 mr-1" />
               {projectName}
             </Badge>
             {/* Hover State */}
-            <Badge className="bg-orange-100 text-orange-800 border-orange-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 hidden group-hover:flex items-center">
               <ArrowRight className="w-3 h-3 mr-1" />
               Re-Assign/Clock Out
             </Badge>
@@ -169,12 +169,12 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 group-hover:hidden">
               <Clock className="w-3 h-3 mr-1" />
               Unassigned
             </Badge>
             {/* Hover State */}
-            <Badge className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
               <Plus className="w-3 h-3 mr-1" />
               Assign
             </Badge>
@@ -184,11 +184,11 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge className="bg-slate-100 text-slate-600 border-slate-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 group-hover:hidden">
               Clocked Out
             </Badge>
             {/* Hover State */}
-            <Badge className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
               <Play className="w-3 h-3 mr-1" />
               Clock In
             </Badge>
