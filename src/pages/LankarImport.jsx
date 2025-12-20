@@ -32,105 +32,55 @@ export default function LankarImport() {
     }
   };
 
+  const [uploadedFileUrl, setUploadedFileUrl] = useState(null);
+
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setImportResult(null);
-      setParsedData([]);
-      
+      setParsedData([]); // We don't parse on client anymore
+      setUploadedFileUrl(null);
+      setImporting(true); // Reuse state to show uploading
+
       try {
-        // Upload file first
+        // Just upload the file
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        
-        // Extract data using the integration
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url,
-          json_schema: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                partnum: { type: "string" },
-                description: { type: "string" },
-                qoh: { type: "number" },
-                lastcost: { type: "number" },
-                location: { type: "string" },
-                chkhasacore: { type: "number" },
-                lastcorecost: { type: "number" },
-                TagAlongId: { type: "string" }
-              }
-            }
-          }
-        });
-        
-        if (result.status === 'success' && result.output) {
-          const data = Array.isArray(result.output) ? result.output : [result.output];
-          setParsedData(data);
-        } else {
-          setImportResult({ success: false, message: 'Error parsing file: ' + (result.details || 'Unknown error') });
-        }
+        setUploadedFileUrl(file_url);
+        // We set parsedData to a dummy array to enable the Import button (since we don't parse client-side anymore)
+        setParsedData([{ placeholder: true }]); 
       } catch (error) {
-        console.error('Error parsing file:', error);
-        setImportResult({ success: false, message: 'Error parsing file: ' + error.message });
+        console.error('Error uploading file:', error);
+        setImportResult({ success: false, message: 'Error uploading file: ' + error.message });
+      } finally {
+        setImporting(false);
       }
     }
   };
 
   const handleImport = async () => {
-    if (selectedType !== 'inventory' || parsedData.length === 0) return;
+    if (!uploadedFileUrl) return;
 
     setImporting(true);
     setImportResult(null);
 
-    let successCount = 0;
-    let errorCount = 0;
-    let skippedTagAlongs = 0;
-
     try {
-      for (const row of parsedData) {
-        try {
-          // Find matching tagalong by tagalongid
-          let tag_along_id = null;
-          if (row.TagAlongId || row.tagalongid || row.TagAlongID) {
-            const tagAlongIdValue = String(row.TagAlongId || row.tagalongid || row.TagAlongID);
-            const matchingTagAlong = tagAlongs.find(ta => ta.tagalongid === tagAlongIdValue);
-            if (matchingTagAlong) {
-              tag_along_id = matchingTagAlong.id;
-            } else {
-              skippedTagAlongs++;
-            }
-          }
-
-          const inventoryItem = {
-            part_number: String(row.partnum || row.Partnum || row.PartNum || ''),
-            description: String(row.description || row.Description || ''),
-            quantity_on_hand: parseFloat(row.qoh || row.QOH || 0) || 0,
-            cost: parseFloat(row.lastcost || row.LastCost || row.Lastcost || 0) || 0,
-            location: String(row.location || row.Location || ''),
-            core: (row.chkhasacore === 1 || row.chkhasacore === '1' || row.ChkHasACore === 1 || row.ChkHasACore === '1'),
-            core_cost: parseFloat(row.lastcorecost || row.LastCoreCost || row.Lastcorecost || 0) || 0,
-            selling_price: 0,
-            is_active: true,
-          };
-
-          if (tag_along_id) {
-            inventoryItem.tag_along_id = tag_along_id;
-          }
-
-          await InventoryItem.create(inventoryItem);
-          successCount++;
-        } catch (error) {
-          console.error('Error importing row:', row, error);
-          errorCount++;
-        }
-      }
-
-      setImportResult({
-        success: true,
-        message: `Import complete: ${successCount} items imported, ${errorCount} errors${skippedTagAlongs > 0 ? `, ${skippedTagAlongs} tag-alongs not found` : ''}`
+      // Call the backend function
+      const response = await base44.functions.invoke('processDataImport', {
+        file_url: uploadedFileUrl,
+        type: selectedType
       });
+
+      if (response.data.success) {
+        setImportResult({
+          success: true,
+          message: response.data.message
+        });
+      } else {
+        throw new Error(response.data.error || 'Unknown error occurred during import');
+      }
     } catch (error) {
+      console.error('Import error:', error);
       setImportResult({ success: false, message: 'Import failed: ' + error.message });
     } finally {
       setImporting(false);
@@ -275,7 +225,7 @@ export default function LankarImport() {
           ) : (
             <>
               <Upload className="w-4 h-4 mr-2" />
-              Import {parsedData.length > 0 ? `${parsedData.length} Items` : 'Data'}
+              Import Data (Batch Process)
             </>
           )}
         </Button>
