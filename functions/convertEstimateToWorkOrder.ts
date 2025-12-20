@@ -45,26 +45,12 @@ Deno.serve(async (req) => {
                     const inventoryItem = await base44.entities.InventoryItem.get(inventoryItemId);
                     if (!inventoryItem) continue;
 
-                    const currentQOH = inventoryItem.quantity_on_hand || 0;
                     const currentQOO = inventoryItem.quantity_on_order || 0;
 
-                    let issuedQuantity = 0;
-                    let onOrderQuantity = 0;
-
-                    if (currentQOH >= requestedQuantity) {
-                        issuedQuantity = requestedQuantity;
-                        onOrderQuantity = 0;
-                    } else {
-                        issuedQuantity = currentQOH;
-                        onOrderQuantity = requestedQuantity - currentQOH;
-                    }
-
-                    const newQOH = Math.max(0, currentQOH - issuedQuantity);
-                    const newQOO = currentQOO + onOrderQuantity;
+                    const newQOO = currentQOO + requestedQuantity;
 
                     // Queue Inventory Update
                     updates.push(base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
-                        quantity_on_hand: newQOH,
                         quantity_on_order: newQOO
                     }));
 
@@ -73,18 +59,18 @@ Deno.serve(async (req) => {
                         inventory_item_id: inventoryItemId,
                         part_num: inventoryItem.part_number,
                         tx_date: new Date().toISOString(),
-                        tx_type: 'Issued to WO',
-                        quantity_change: -issuedQuantity,
-                        quantity_ordered_change: onOrderQuantity,
+                        tx_type: 'Ordered',
+                        quantity_change: 0, // No QOH change for 'Ordered'
+                        quantity_ordered_change: requestedQuantity, // All quantity on order
                         ro_number: workOrder.ro_number,
                         source_record_id: workOrder.id,
-                        description: `Issued to WO ${workOrder.ro_number} (Conversion from Estimate)`
+                        description: `Ordered for WO ${workOrder.ro_number} (Conversion from Estimate)`
                     }));
 
                     // Mark line as processed
                     updatedLineItems.push({
                         ...line,
-                        qty_on_order: onOrderQuantity,
+                        qty_on_order: requestedQuantity, // All quantity on order
                         inventory_processed: true
                     });
 

@@ -887,6 +887,7 @@ export default function WorkOrderForm({
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}
+        mode={mode} // Pass mode to LineItemsTable
       />
 
       <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} />

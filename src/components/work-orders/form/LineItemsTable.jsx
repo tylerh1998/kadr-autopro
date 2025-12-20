@@ -54,6 +54,7 @@ export default function LineItemsTable({
   workOrder,
   selectedLineIndex,
   onSelectLine,
+  mode = 'work_order', // Add mode prop with default
 }) {
   const [inventoryPrices, setInventoryPrices] = useState({});
   const [serialNumModalOpen, setSerialNumModalOpen] = useState(false);
@@ -382,18 +383,24 @@ export default function LineItemsTable({
       <ContextMenuSeparator />
       {line.part_number && (
         <>
-          <ContextMenuItem onClick={() => onReturnPart(index)} disabled={!line.part_number}>
-            <RotateCcw className="mr-2 h-4 w-4" />
-            <span>Return Part</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onReceivePart(index)} disabled={!line.qty_on_order || line.qty_on_order === 0}>
-            <Truck className="mr-2 h-4 w-4" />
-            <span>Receive Part</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCores(index)} disabled={!line.Core_num || line.Core_num === 0}>
-            <Wrench className="mr-2 h-4 w-4" />
-            <span>Cores</span>
-          </ContextMenuItem>
+          {mode !== 'estimate' && (
+            <ContextMenuItem onClick={() => onReturnPart(index)} disabled={!line.part_number}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              <span>Return Part</span>
+            </ContextMenuItem>
+          )}
+          {mode !== 'estimate' && (
+            <ContextMenuItem onClick={() => onReceivePart(index)} disabled={!line.qty_on_order || line.qty_on_order === 0}>
+              <Truck className="mr-2 h-4 w-4" />
+              <span>Receive Part</span>
+            </ContextMenuItem>
+          )}
+          {mode !== 'estimate' && (
+            <ContextMenuItem onClick={() => onCores(index)} disabled={!line.Core_num || line.Core_num === 0}>
+              <Wrench className="mr-2 h-4 w-4" />
+              <span>Cores</span>
+            </ContextMenuItem>
+          )}
           {line.inventory_item_id && (
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
               <Hash className="mr-2 h-4 w-4" />
