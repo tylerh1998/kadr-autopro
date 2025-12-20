@@ -148,9 +148,15 @@ export default function LankarImport() {
                 <RadioGroupItem value="vehicles" id="vehicles" />
                 <Label htmlFor="vehicles" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Car className="w-5 h-5 text-purple-600" />
-                  <div>
+                  <div className="w-full">
                     <p className="font-medium">Vehicles</p>
                     <p className="text-sm text-slate-500">Import vehicle records</p>
+                    {selectedType === 'vehicles' && (
+                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                            <p className="font-semibold mb-1">Required Columns:</p>
+                            <code className="text-purple-700">cusid, vehid, year, make, model, vin, engsize, unitno, colour</code>
+                        </div>
+                    )}
                   </div>
                 </Label>
               </div>
