@@ -63,14 +63,15 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
       if (!timeRecordRes.ok) throw new Error('Failed to create Time Record');
       const timeRecord = await timeRecordRes.json();
 
-      // 2. Create UnassignedTimeRecord
-      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTimeRecord`, {
+      // 2. Create UnassignedTime
+      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTime`, {
         method: 'POST',
         headers: {
           'api_key': WORKPRO_API_KEY,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          user_name: user.full_name, // Using user_name as per schema
           employee_name: user.full_name,
           start_time: isoTime,
           status: 'active'
@@ -78,7 +79,7 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
       });
 
       if (!unassignedRes.ok) {
-        console.error("Failed to create UnassignedTimeRecord", await unassignedRes.text());
+        console.error("Failed to create UnassignedTime", await unassignedRes.text());
         // Don't fail the whole operation if this fails, but warn? 
         // Instructions say "It will create...".
       }
