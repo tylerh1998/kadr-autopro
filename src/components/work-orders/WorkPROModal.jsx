@@ -8,11 +8,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
 import TechTimeModal from './TechTimeModal';
 import EditProjectDetailsModal from './EditProjectDetailsModal';
+import NewWorkPROModal from './NewWorkPROModal';
 import { createPageUrl } from '@/utils';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -48,11 +50,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
   // Tech Time Modal state
   const [showTechTimeModal, setShowTechTimeModal] = useState(false);
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [showNewWorkPROModal, setShowNewWorkPROModal] = useState(false);
   
   // New state for connecting to existing projects
   const [showConnectToExistingSection, setShowConnectToExistingSection] = useState(false);
   const [projectsForConnection, setProjectsForConnection] = useState([]);
   const [isFetchingProjectsForConnection, setIsFetchingProjectsForConnection] = useState(false);
+  const [connectSearchTerm, setConnectSearchTerm] = useState("");
+  const [connectStatusFilter, setConnectStatusFilter] = useState("in_progress");
   
   const [formData, setFormData] = useState({
     priority: '',
@@ -279,52 +284,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
     }
   };
 
-  const handleCreateProject = async () => {
-    if (!workOrderIdentifier) return;
-
-    setLoading(true);
-    try {
-      const vehicle = vehicles && vehicles.length > 0 ? vehicles.find(v => v.id === workOrder.vehicle_id) : null;
-      
-      const customerName = customer?.org_name && customer.org_name.trim() !== '' 
-        ? customer.org_name 
-        : `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
-      
-      const projectData = {
-        name: `${customerName} - ${workOrderIdentifier}`.trim(),
-        work_order: workOrderIdentifier,
-        status: 'to_do',
-        customer: customerName,
-        priority: 'low',
-        task: '',
-        vin: vehicle?.vin || '',
-        vehicle: vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '',
-        time_estimate: 0,
-        promised_by: '',
-        description: ''
-      };
-
-      const response = await fetch(`${API_BASE_URL}/Project`, {
-        method: 'POST',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectData)
-      });
-
-      if (response.ok) {
-        await fetchWorkPROData();
-        if (onConnectionChange) {
-          onConnectionChange();
-        }
-        alert('Project created successfully!');
-      } else {
-        throw new Error('Failed to create project');
-      }
-    } catch (error) {
-      console.error('Error creating project:', error);
-      alert('Failed to create project. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleCreateProject = () => {
+    setShowNewWorkPROModal(true);
   };
 
   const handleFieldChange = (field, value) => {
@@ -419,6 +380,10 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
         {status?.replace(/_/g, ' ').toUpperCase()}
       </Badge>
     );
+  };
+
+  const getProjectCountByStatus = (status) => {
+    return projectsForConnection.filter(p => p.status === status).length;
   };
 
   const statusButtons = [
@@ -570,46 +535,130 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
                     </Button>
                   </div>
                   
-                  {projectsForConnection.length === 0 ? (
-                    <Card>
-                      <CardContent className="p-6 text-center">
-                        <p className="text-slate-600">No available projects found to connect.</p>
-                        <p className="text-sm text-slate-500 mt-2">All active projects are already connected to work orders.</p>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                      {projectsForConnection.map((proj) => (
-                        <Card 
-                          key={proj.id}
-                          className="cursor-pointer hover:shadow-md transition-all"
-                          onClick={() => handleConnectExistingProject(proj)}
+                  {/* Search Box */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search projects, customers, VIN..."
+                      value={connectSearchTerm}
+                      onChange={(e) => setConnectSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <Tabs value={connectStatusFilter} onValueChange={setConnectStatusFilter} className="w-full">
+                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-slate-100 rounded-lg">
+                      {['to_do', 'in_progress', 'parts_needed', 'on_hold', 'done', 'archived'].map(status => (
+                        <TabsTrigger 
+                          key={status} 
+                          value={status}
+                          className={`
+                            text-xs py-2 px-1 flex flex-col items-center gap-1
+                            data-[state=active]:bg-white data-[state=active]:shadow-sm
+                            ${status === 'to_do' ? 'data-[state=active]:text-slate-900' : ''}
+                            ${status === 'in_progress' ? 'data-[state=active]:text-blue-700' : ''}
+                            ${status === 'parts_needed' ? 'data-[state=active]:text-red-700' : ''}
+                            ${status === 'on_hold' ? 'data-[state=active]:text-orange-700' : ''}
+                            ${status === 'done' ? 'data-[state=active]:text-green-700' : ''}
+                            ${status === 'archived' ? 'data-[state=active]:text-gray-700' : ''}
+                          `}
                         >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-slate-900 mb-1">{proj.name}</h4>
-                                {proj.customer && (
-                                  <p className="text-sm text-slate-600">{proj.customer}</p>
-                                )}
-                                {proj.task && (
-                                  <p className="text-sm text-slate-500 mt-1">{proj.task}</p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2">
-                                  {getStatusBadge(proj.status)}
-                                  {proj.created_date && (
-                                    <span className="text-xs text-slate-500">
-                                      Created: {format(new Date(proj.created_date), 'MMM d, yyyy')}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                          <span className="capitalize">{status.replace('_', ' ')}</span>
+                          <span className="text-[10px] bg-slate-200 px-1.5 rounded-full min-w-[1.25rem] text-center">
+                            {getProjectCountByStatus(status)}
+                          </span>
+                        </TabsTrigger>
                       ))}
-                    </div>
-                  )}
+                    </TabsList>
+                  </Tabs>
+
+                  {/* Project List */}
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {projectsForConnection.filter(p => {
+                      const matchesStatus = p.status === connectStatusFilter;
+                      if (!matchesStatus) return false;
+                      
+                      if (!connectSearchTerm) return true;
+                      
+                      const searchLower = connectSearchTerm.toLowerCase();
+                      return (
+                        p.name?.toLowerCase().includes(searchLower) ||
+                        p.customer?.toLowerCase().includes(searchLower) ||
+                        p.vehicle?.toLowerCase().includes(searchLower) ||
+                        p.vin?.toLowerCase().includes(searchLower) ||
+                        p.task?.toLowerCase().includes(searchLower)
+                      );
+                    }).length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <p>No projects found matching current filters</p>
+                      </div>
+                    ) : (
+                      projectsForConnection
+                        .filter(p => {
+                          const matchesStatus = p.status === connectStatusFilter;
+                          if (!matchesStatus) return false;
+                          
+                          if (!connectSearchTerm) return true;
+                          
+                          const searchLower = connectSearchTerm.toLowerCase();
+                          return (
+                            p.name?.toLowerCase().includes(searchLower) ||
+                            p.customer?.toLowerCase().includes(searchLower) ||
+                            p.vehicle?.toLowerCase().includes(searchLower) ||
+                            p.vin?.toLowerCase().includes(searchLower) ||
+                            p.task?.toLowerCase().includes(searchLower)
+                          );
+                        })
+                        .map((proj) => (
+                          <Card 
+                            key={proj.id}
+                            className="cursor-pointer hover:shadow-md transition-all border-slate-200"
+                            onClick={() => handleConnectExistingProject(proj)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="font-semibold text-slate-900">{proj.name}</h4>
+                                    {getStatusBadge(proj.status)}
+                                  </div>
+                                  {proj.customer && (
+                                    <p className="text-sm text-slate-600 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 text-xs">Customer:</span>
+                                      {proj.customer}
+                                    </p>
+                                  )}
+                                  {proj.vehicle && (
+                                    <p className="text-sm text-slate-600 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 text-xs">Vehicle:</span>
+                                      {proj.vehicle}
+                                    </p>
+                                  )}
+                                  {proj.task && (
+                                    <p className="text-sm text-slate-600 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 text-xs">Task:</span>
+                                      {proj.task}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-100">
+                                    {proj.created_date && (
+                                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        Created: {format(new Date(proj.created_date), 'MMM d, yyyy')}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                  Connect <LinkIcon className="w-3 h-3 ml-1" />
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -987,6 +1036,30 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, vehic
         project={project}
         onProjectUpdated={() => {
           setShowEditProjectModal(false);
+          fetchWorkPROData();
+          if (onConnectionChange) {
+            onConnectionChange();
+          }
+        }}
+      />
+
+      {/* New Project Modal */}
+      <NewWorkPROModal
+        open={showNewWorkPROModal}
+        onClose={() => setShowNewWorkPROModal(false)}
+        customers={customers}
+        vehicles={vehicles}
+        initialData={workOrderIdentifier ? {
+          customer: customer?.org_name && customer.org_name.trim() !== '' 
+            ? customer.org_name 
+            : `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim(),
+          vehicle: vehicles && vehicles.length > 0 && workOrder ? vehicles.find(v => v.id === workOrder.vehicle_id)?.year + ' ' + vehicles.find(v => v.id === workOrder.vehicle_id)?.make + ' ' + vehicles.find(v => v.id === workOrder.vehicle_id)?.model : '',
+          vin: vehicles && vehicles.length > 0 && workOrder ? vehicles.find(v => v.id === workOrder.vehicle_id)?.vin : '',
+          work_order: workOrderIdentifier
+        } : null}
+        lockedFields={workOrderIdentifier ? ['vin', 'work_order'] : []}
+        onProjectCreated={() => {
+          setShowNewWorkPROModal(false);
           fetchWorkPROData();
           if (onConnectionChange) {
             onConnectionChange();
