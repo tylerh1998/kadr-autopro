@@ -96,9 +96,11 @@ Deno.serve(async (req) => {
                 // Phone logic: acell + cell
                 const acell = cleanPhone(getVal(['acell', 'ACell']));
                 const cell = cleanPhone(getVal(['cell', 'Cell']));
-                const phone = (acell && cell) ? `${acell}${cell}` : (cell || cleanPhone(getVal(['phone', 'Phone'])));
+                // Only use cell columns. If empty, leave empty.
+                const phone = (acell && cell) ? `${acell}${cell}` : (cell || '');
 
-                if (!phone) return null; // Phone is required
+                // Phone is no longer required for import
+                // if (!phone) return null;
 
                 // Secondary phone logic: ahtel + htel
                 const ahtel = cleanPhone(getVal(['ahtel', 'AHTel']));
