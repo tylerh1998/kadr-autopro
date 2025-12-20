@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Clock, Briefcase, Play } from 'lucide-react';
+import { Loader2, User, Clock, Briefcase } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import TechProjectClockInModal from './TechProjectClockInModal';
 import GlobalClockInModal from './GlobalClockInModal';
@@ -20,7 +20,6 @@ export default function TechClockStatusModal({ open, onClose }) {
   const [selectedTech, setSelectedTech] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
-  const [hoveredTechId, setHoveredTechId] = useState(null);
 
   useEffect(() => {
     if (open) {
@@ -156,7 +155,7 @@ export default function TechClockStatusModal({ open, onClose }) {
     }
   };
 
-  const getStatusBadge = (status, projectName, isHovered) => {
+  const getStatusBadge = (status, projectName) => {
     switch (status) {
       case 'project':
         return (
@@ -173,14 +172,6 @@ export default function TechClockStatusModal({ open, onClose }) {
           </Badge>
         );
       case 'clocked_out':
-        if (isHovered) {
-            return (
-                <Badge className="bg-green-600 text-white border-green-600 shadow-sm animate-in fade-in zoom-in duration-200">
-                  <Play className="w-3 h-3 mr-1 fill-current" />
-                  Clock In
-                </Badge>
-            );
-        }
         return (
           <Badge className="bg-slate-100 text-slate-600 border-slate-200">
             Clocked Out
@@ -219,12 +210,10 @@ export default function TechClockStatusModal({ open, onClose }) {
               <div 
                 key={tech.id} 
                 onClick={() => handleTechClick(tech)}
-                onMouseEnter={() => setHoveredTechId(tech.id)}
-                onMouseLeave={() => setHoveredTechId(null)}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-200 cursor-pointer shadow-sm ${
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer hover:bg-blue-50 hover:border-blue-200 shadow-sm ${
                   tech.status === 'clocked_out' 
-                    ? 'bg-slate-50 border-slate-200 hover:bg-white hover:border-green-200 hover:shadow-md' 
-                    : 'bg-white border-slate-200 hover:bg-blue-50 hover:border-blue-200'
+                    ? 'bg-slate-50 border-slate-200' 
+                    : 'bg-white border-slate-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -233,7 +222,7 @@ export default function TechClockStatusModal({ open, onClose }) {
                     {tech.name}
                   </span>
                 </div>
-                {getStatusBadge(tech.status, tech.projectName, hoveredTechId === tech.id)}
+                {getStatusBadge(tech.status, tech.projectName)}
               </div>
             ))}
           </div>

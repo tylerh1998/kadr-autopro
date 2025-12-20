@@ -249,7 +249,7 @@ function LayoutContent({ children, currentPageName }) {
         body: JSON.stringify({
           employee_name: user.full_name,
           clock_in_time: clockInTime,
-          status: 'clocked_in',
+          status: 'active', // Changed to 'active' for consistency
           total_hours: 0,
           pto_hours: 0,
           stat_hours: 0
