@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
@@ -68,6 +67,7 @@ export default function WorkOrderForm({
   onOpenPaymentModal,
   onOpenOdometerPrompt,
   onOpenApprovals,
+  mode = 'work_order', // Add mode prop with default
 }) {
   const [editedWorkOrder, setEditedWorkOrder] = useState(initialWorkOrder);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -260,23 +260,12 @@ export default function WorkOrderForm({
     console.log('=== CHECKING FOR EMPTY LINES (STRICTER DEFINITION) ===');
     const firstEmptyIndex = displayLineItems.findIndex(
       (line, index) => {
-        console.log(`Checking line at index ${index}:`, line);
-        console.log(`  - inventory_item_id:`, line?.inventory_item_id);
-        console.log(`  - is_other_charge:`, line?.is_other_charge);
-        console.log(`  - description:`, line?.description, `(type: ${typeof line?.description})`);
-        console.log(`  - description is blank?`, !line?.description || line.description.trim() === '');
-        console.log(`  - part_number:`, line?.part_number, `(type: ${typeof line?.part_number})`);
-        console.log(`  - part_number is blank?`, !line?.part_number || line.part_number.trim() === '');
-        console.log(`  - manually_inserted:`, line?.manually_inserted);
-        
         const isEmpty = line && 
                         !line.inventory_item_id && // No part linked
                         !line.is_other_charge && // Not an other charge
                         !line.manually_inserted && // Not a manually inserted line
                         (!line.description || line.description.trim() === '') && // Description is empty
                         (!line.part_number || line.part_number.trim() === ''); // Part number is empty
-        
-        console.log(`  - Result: isEmpty = ${isEmpty}`);
         return isEmpty;
       }
     );
@@ -910,6 +899,7 @@ export default function WorkOrderForm({
         onAddParts={handleMultiplePartsAdded}
         contextLineItem={currentLineItem}
         workOrder={initialWorkOrder}
+        mode={mode} // Pass mode
       />
       <OtherChargeModal
         open={modals.otherCharge}
