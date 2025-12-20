@@ -104,8 +104,8 @@ export default function EmailLogPage() {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Email Log</h1>
-          <p className="text-slate-600 mt-1">History of all emails sent from the platform.</p>
+          <h1 className="text-3xl font-bold text-slate-900">Email/Text Log</h1>
+          <p className="text-slate-600 mt-1">History of all emails and text messages sent from the platform.</p>
         </div>
 
         <Card>
