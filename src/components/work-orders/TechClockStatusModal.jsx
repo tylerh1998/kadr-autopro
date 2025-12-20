@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase } from 'lucide-react';
 import { Employee } from '@/entities/all';
+import TechProjectClockInModal from './TechProjectClockInModal';
+import { useTechClockStatus } from '../context/TechClockStatusContext';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
 const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
@@ -12,12 +14,31 @@ export default function TechClockStatusModal({ open, onClose }) {
   const [techStatuses, setTechStatuses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  const { initialProjectId } = useTechClockStatus();
+  const [selectedTech, setSelectedTech] = useState(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadTechStatuses();
     }
   }, [open]);
+
+  const handleTechClick = (tech) => {
+    // Only allow clicking if globally clocked in (unassigned or project status)
+    if (tech.status === 'clocked_out') return;
+
+    setSelectedTech(tech);
+    setShowProjectModal(true);
+  };
+
+  const handleProjectClockInSuccess = () => {
+    setShowProjectModal(false);
+    setSelectedTech(null);
+    loadTechStatuses(); // Refresh list
+    // Optionally close the main modal if that's desired behavior, but keeping it open to see updated status is good too
+  };
 
   const loadTechStatuses = async () => {
     setLoading(true);
@@ -174,17 +195,32 @@ export default function TechClockStatusModal({ open, onClose }) {
             {techStatuses.map((tech) => (
               <div 
                 key={tech.id} 
-                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
+                onClick={() => handleTechClick(tech)}
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                  tech.status === 'clocked_out' 
+                    ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed' 
+                    : 'bg-white border-slate-200 hover:bg-blue-50 cursor-pointer hover:border-blue-200 shadow-sm'
+                }`}
               >
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-slate-500" />
-                  <span className="font-medium text-slate-900">{tech.name}</span>
+                  <User className={`w-4 h-4 ${tech.status === 'clocked_out' ? 'text-slate-400' : 'text-slate-600'}`} />
+                  <span className={`font-medium ${tech.status === 'clocked_out' ? 'text-slate-500' : 'text-slate-900'}`}>
+                    {tech.name}
+                  </span>
                 </div>
                 {getStatusBadge(tech.status, tech.projectName)}
               </div>
             ))}
           </div>
         )}
+
+        <TechProjectClockInModal 
+          open={showProjectModal}
+          onClose={() => setShowProjectModal(false)}
+          tech={selectedTech}
+          initialProjectId={initialProjectId}
+          onSuccess={handleProjectClockInSuccess}
+        />
       </DialogContent>
     </Dialog>
   );

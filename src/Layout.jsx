@@ -61,6 +61,7 @@ import NewCustomerModal from './components/customers/NewCustomerModal';
 import NewVehicleModal from './components/vehicles/NewVehicleModal';
 import OpenROModal from './components/work-orders/OpenROModal';
 import TechClockStatusModal from './components/work-orders/TechClockStatusModal';
+import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
 
 function LayoutContent({ children, currentPageName }) {
@@ -71,6 +72,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showOpenROModal, setShowOpenROModal] = useState(false);
   const [reportType, setReportType] = useState('');
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
+  const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [user, setUser] = useState(null);
   const location = useLocation();
@@ -632,15 +634,15 @@ const navigationItems = [
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${
                   isClockedIn 
                     ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
                 }`}
               >
                 <Clock className="w-5 h-5" />
                 <div className="flex flex-col items-start">
-                  <span className="text-xs font-medium">
+                  <span className={`text-xs ${isClockedIn ? 'font-medium' : 'font-bold'}`}>
                     {isClockedIn ? 'Clock Out' : 'Clock In'}
                   </span>
-                  <span className="text-xs">
+                  <span className="text-xs opacity-90">
                     {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
@@ -839,6 +841,13 @@ const navigationItems = [
       <TechClockStatusModal
         open={showTechClockStatusModal}
         onClose={closeTechClockStatusModal}
+      />
+
+      <GlobalClockInModal
+        open={showGlobalClockInModal}
+        onClose={() => setShowGlobalClockInModal(false)}
+        user={user}
+        onClockIn={handleGlobalClockInSuccess}
       />
     </div>
   );

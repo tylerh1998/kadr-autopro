@@ -1262,9 +1262,9 @@ export default function WorkOrdersPage() {
                                 <div 
                                   className="p-1 rounded hover:bg-slate-200 cursor-pointer transition-colors"
                                   onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            openTechClockStatusModal();
-                                                                          }}
+                                    e.stopPropagation();
+                                    openTechClockStatusModal(project.id);
+                                  }}
                                 >
                                   <Clock className="w-5 h-5 text-blue-500" />
                                 </div>
