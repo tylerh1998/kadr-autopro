@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Clock, Briefcase } from 'lucide-react';
+import { Loader2, User, Clock, Briefcase, Play, Plus, ArrowRight } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import TechProjectClockInModal from './TechProjectClockInModal';
+import GlobalClockInModal from './GlobalClockInModal';
 import { useTechClockStatus } from '../context/TechClockStatusContext';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
@@ -18,6 +19,7 @@ export default function TechClockStatusModal({ open, onClose }) {
   const { initialProjectId } = useTechClockStatus();
   const [selectedTech, setSelectedTech] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showGlobalModal, setShowGlobalModal] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -26,18 +28,20 @@ export default function TechClockStatusModal({ open, onClose }) {
   }, [open]);
 
   const handleTechClick = (tech) => {
-    // Only allow clicking if globally clocked in (unassigned or project status)
-    if (tech.status === 'clocked_out') return;
-
     setSelectedTech(tech);
-    setShowProjectModal(true);
+    if (tech.status === 'clocked_out') {
+      setShowGlobalModal(true);
+    } else {
+      // For both unassigned and project status
+      setShowProjectModal(true);
+    }
   };
 
-  const handleProjectClockInSuccess = () => {
+  const handleClockInSuccess = () => {
     setShowProjectModal(false);
+    setShowGlobalModal(false);
     setSelectedTech(null);
     loadTechStatuses(); // Refresh list
-    // Optionally close the main modal if that's desired behavior, but keeping it open to see updated status is good too
   };
 
   const loadTechStatuses = async () => {
@@ -75,8 +79,8 @@ export default function TechClockStatusModal({ open, onClose }) {
         projectLookup[p.id] = p.customer || p.name || 'Unknown Project';
       });
 
-      // Find active global clock-ins (status is "active")
-      const activeGlobalClockIns = timeRecords.filter(tr => tr.status === 'active');
+      // Find active global clock-ins (status is "active" or "clocked_in")
+      const activeGlobalClockIns = timeRecords.filter(tr => tr.status === 'active' || tr.status === 'clocked_in');
 
       // Find active project sessions (has start_time but no end_time)
       const activeProjectSessions = projectSessions.filter(ps => ps.start_time && !ps.end_time);
@@ -99,7 +103,8 @@ export default function TechClockStatusModal({ open, onClose }) {
             id: emp.id,
             name: empName,
             status: 'project',
-            projectName: projectName
+            projectName: projectName,
+            full_name: emp.full_name // Pass full_name for modal
           };
         }
 
@@ -113,7 +118,8 @@ export default function TechClockStatusModal({ open, onClose }) {
             id: emp.id,
             name: empName,
             status: 'unassigned',
-            projectName: null
+            projectName: null,
+            full_name: emp.full_name
           };
         }
 
@@ -122,7 +128,8 @@ export default function TechClockStatusModal({ open, onClose }) {
           id: emp.id,
           name: empName,
           status: 'clocked_out',
-          projectName: null
+          projectName: null,
+          full_name: emp.full_name
         };
       });
 
@@ -145,23 +152,47 @@ export default function TechClockStatusModal({ open, onClose }) {
     switch (status) {
       case 'project':
         return (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
-            <Briefcase className="w-3 h-3 mr-1" />
-            {projectName}
-          </Badge>
+          <>
+            {/* Default State */}
+            <Badge className="bg-green-100 text-green-800 border-green-200 group-hover:hidden">
+              <Briefcase className="w-3 h-3 mr-1" />
+              {projectName}
+            </Badge>
+            {/* Hover State */}
+            <Badge className="bg-orange-100 text-orange-800 border-orange-200 hidden group-hover:flex items-center">
+              <ArrowRight className="w-3 h-3 mr-1" />
+              Re-Assign/Clock Out
+            </Badge>
+          </>
         );
       case 'unassigned':
         return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-            <Clock className="w-3 h-3 mr-1" />
-            Unassigned
-          </Badge>
+          <>
+            {/* Default State */}
+            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 group-hover:hidden">
+              <Clock className="w-3 h-3 mr-1" />
+              Unassigned
+            </Badge>
+            {/* Hover State */}
+            <Badge className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+              <Plus className="w-3 h-3 mr-1" />
+              Assign
+            </Badge>
+          </>
         );
       case 'clocked_out':
         return (
-          <Badge className="bg-slate-100 text-slate-600 border-slate-200">
-            Clocked Out
-          </Badge>
+          <>
+            {/* Default State */}
+            <Badge className="bg-slate-100 text-slate-600 border-slate-200 group-hover:hidden">
+              Clocked Out
+            </Badge>
+            {/* Hover State */}
+            <Badge className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+              <Play className="w-3 h-3 mr-1" />
+              Clock In
+            </Badge>
+          </>
         );
       default:
         return null;
@@ -196,15 +227,15 @@ export default function TechClockStatusModal({ open, onClose }) {
               <div 
                 key={tech.id} 
                 onClick={() => handleTechClick(tech)}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                  tech.status === 'clocked_out' 
-                    ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed' 
-                    : 'bg-white border-slate-200 hover:bg-blue-50 cursor-pointer hover:border-blue-200 shadow-sm'
-                }`}
+                className={`group flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer shadow-sm
+                  ${tech.status === 'clocked_out' ? 'bg-slate-50 border-slate-200 hover:bg-green-50 hover:border-green-200' : ''}
+                  ${tech.status === 'unassigned' ? 'bg-white border-slate-200 hover:bg-green-50 hover:border-green-200' : ''}
+                  ${tech.status === 'project' ? 'bg-white border-slate-200 hover:bg-orange-50 hover:border-orange-200' : ''}
+                `}
               >
                 <div className="flex items-center gap-2">
-                  <User className={`w-4 h-4 ${tech.status === 'clocked_out' ? 'text-slate-400' : 'text-slate-600'}`} />
-                  <span className={`font-medium ${tech.status === 'clocked_out' ? 'text-slate-500' : 'text-slate-900'}`}>
+                  <User className={`w-4 h-4 ${tech.status === 'clocked_out' ? 'text-slate-400 group-hover:text-green-600' : 'text-slate-600 group-hover:text-slate-900'}`} />
+                  <span className={`font-medium ${tech.status === 'clocked_out' ? 'text-slate-500 group-hover:text-green-700' : 'text-slate-900'}`}>
                     {tech.name}
                   </span>
                 </div>
@@ -219,7 +250,14 @@ export default function TechClockStatusModal({ open, onClose }) {
           onClose={() => setShowProjectModal(false)}
           tech={selectedTech}
           initialProjectId={initialProjectId}
-          onSuccess={handleProjectClockInSuccess}
+          onSuccess={handleClockInSuccess}
+        />
+
+        <GlobalClockInModal 
+          open={showGlobalModal}
+          onClose={() => setShowGlobalModal(false)}
+          user={selectedTech}
+          onClockIn={handleClockInSuccess}
         />
       </DialogContent>
     </Dialog>
