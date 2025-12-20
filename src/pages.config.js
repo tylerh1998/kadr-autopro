@@ -41,7 +41,6 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
-import EstimateEdit from './pages/EstimateEdit';
 import __Layout from './Layout.jsx';
 
 
@@ -89,7 +88,6 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
-    "EstimateEdit": EstimateEdit,
 }
 
 export const pagesConfig = {

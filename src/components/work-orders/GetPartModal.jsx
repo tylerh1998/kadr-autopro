@@ -10,7 +10,7 @@ import { SalesClass, TagAlong, OtherChargeList } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { debounce } from 'lodash';
 
-export default function GetPartModal({ open, onClose, onAddParts, contextLineItem, workOrder, mode = 'work_order' }) {
+export default function GetPartModal({ open, onClose, onAddParts, contextLineItem, workOrder }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedParts, setSelectedParts] = useState([]);
   const [salesClasses, setSalesClasses] = useState([]);
@@ -280,40 +280,23 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
 
       const requestedQuantity = selectedPart.selectedQuantity;
 
-      // Call the backend function to adjust inventory (ONLY if mode is 'work_order')
+      // Call the backend function to adjust inventory
       try {
-        let issuedQuantity = 0;
-        let onOrderQuantity = 0;
-        let newInventoryQOH = invItem.quantity_on_hand;
-        let newInventoryQOO = invItem.quantity_on_order;
-        let inventoryProcessed = false;
+        const adjustmentResponse = await base44.functions.invoke('WOGetPart', {
+          inventoryItemId: invItem.id,
+          requestedQuantity: requestedQuantity,
+          workOrderId: workOrder.id,
+          roNumber: workOrder.ro_number,
+          lineDescription: invItem.description,
+          linePartNumber: invItem.part_number
+        });
 
-        if (mode === 'work_order') {
-          const adjustmentResponse = await base44.functions.invoke('WOGetPart', {
-            inventoryItemId: invItem.id,
-            requestedQuantity: requestedQuantity,
-            workOrderId: workOrder.id,
-            roNumber: workOrder.ro_number,
-            lineDescription: invItem.description,
-            linePartNumber: invItem.part_number
-          });
-
-          if (!adjustmentResponse.data.success) {
-            alert(`Failed to adjust inventory for ${invItem.part_number}: ${adjustmentResponse.data.message}`);
-            continue;
-          }
-
-          issuedQuantity = adjustmentResponse.data.issuedQuantity;
-          onOrderQuantity = adjustmentResponse.data.onOrderQuantity;
-          newInventoryQOH = adjustmentResponse.data.newInventoryQOH;
-          newInventoryQOO = adjustmentResponse.data.newInventoryQOO;
-          inventoryProcessed = true;
-        } else {
-          // Estimate Mode: Don't call backend, just add line item without processing inventory
-          issuedQuantity = 0; // Not issued yet
-          onOrderQuantity = 0; // Not on order yet (will be calculated on convert)
-          inventoryProcessed = false;
+        if (!adjustmentResponse.data.success) {
+          alert(`Failed to adjust inventory for ${invItem.part_number}: ${adjustmentResponse.data.message}`);
+          continue;
         }
+
+        const { issuedQuantity, onOrderQuantity, newInventoryQOH, newInventoryQOO } = adjustmentResponse.data;
 
         // Create the line item with the processed inventory data
         const partLineItem = {
@@ -337,7 +320,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           core_ret: 0,
           core_cost: invItem.core_cost || 0,
           core_osamt: invItem.core ? ((invItem.core_cost || 0) * requestedQuantity) : 0,
-          inventory_processed: inventoryProcessed, // True for WO, False for Estimate
+          inventory_processed: true,
           is_other_charge: false,
           oc_total: 0,
           supplier_invoice_line_id: null,
@@ -347,14 +330,11 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         partsToAdd.push(partLineItem);
 
         // Store the adjustment info for updating local inventory list in parent component
-        // Only if we actually changed inventory
-        if (mode === 'work_order') {
-          inventoryAdjustments.push({
-            inventoryItemId: invItem.id,
-            newQOH: newInventoryQOH,
-            newQOO: newInventoryQOO
-          });
-        }
+        inventoryAdjustments.push({
+          inventoryItemId: invItem.id,
+          newQOH: newInventoryQOH,
+          newQOO: newInventoryQOO
+        });
 
         // Re-add TagAlong logic for the requested quantity
         if (invItem.tag_along_id) {

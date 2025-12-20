@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
@@ -67,7 +68,6 @@ export default function WorkOrderForm({
   onOpenPaymentModal,
   onOpenOdometerPrompt,
   onOpenApprovals,
-  mode = 'work_order',
 }) {
   const [editedWorkOrder, setEditedWorkOrder] = useState(initialWorkOrder);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -910,7 +910,6 @@ export default function WorkOrderForm({
         onAddParts={handleMultiplePartsAdded}
         contextLineItem={currentLineItem}
         workOrder={initialWorkOrder}
-        mode={mode}
       />
       <OtherChargeModal
         open={modals.otherCharge}
