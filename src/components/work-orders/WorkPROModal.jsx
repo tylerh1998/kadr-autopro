@@ -40,7 +40,7 @@ const INSPECTION_SECTIONS = [
   }
 ];
 
-export default function WorkPROModal({ open, onClose, workOrder, customer, vehicles, initialWorkPROProject, onConnectionChange }) {
+export default function WorkPROModal({ open, onClose, workOrder, customer, customers, vehicles, initialWorkPROProject, onConnectionChange }) {
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
