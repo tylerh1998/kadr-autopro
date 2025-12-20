@@ -126,20 +126,29 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
       }
 
       // 3. Create NEW ProjectTimeSession
-      console.log("Creating new ProjectTimeSession for project:", project.id);
-      await fetch(`${API_BASE_URL}/ProjectTimeSession`, {
+      console.log("Creating new ProjectTimeSession for project:", project.id, project.name);
+      const createRes = await fetch(`${API_BASE_URL}/ProjectTimeSession`, {
         method: 'POST',
         headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: project.id,
-          user_name: empName, // Ensure user_name is used
-          employee_name: empName, // Keep employee_name just in case
-          user_email: empEmail, 
+          project_name: project.name,
+          user_name: empName,
+          user_email: empEmail || "",
           start_time: now,
           total_hours: 0,
           status: 'active'
         })
       });
+
+      if (!createRes.ok) {
+        const errorText = await createRes.text();
+        console.error("Failed to create ProjectTimeSession:", errorText);
+        throw new Error(`Failed to create session: ${createRes.status} ${createRes.statusText}`);
+      }
+
+      const createdSession = await createRes.json();
+      console.log("Created ProjectTimeSession:", createdSession);
 
       if (onSuccess) onSuccess();
       onClose();
