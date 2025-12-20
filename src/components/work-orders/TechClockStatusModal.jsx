@@ -104,7 +104,8 @@ export default function TechClockStatusModal({ open, onClose }) {
             name: empName,
             status: 'project',
             projectName: projectName,
-            full_name: emp.full_name // Pass full_name for modal
+            full_name: emp.full_name, // Pass full_name for modal
+            email: emp.email
           };
         }
 
@@ -119,7 +120,8 @@ export default function TechClockStatusModal({ open, onClose }) {
             name: empName,
             status: 'unassigned',
             projectName: null,
-            full_name: emp.full_name
+            full_name: emp.full_name,
+            email: emp.email
           };
         }
 
@@ -129,7 +131,8 @@ export default function TechClockStatusModal({ open, onClose }) {
           name: empName,
           status: 'clocked_out',
           projectName: null,
-          full_name: emp.full_name
+          full_name: emp.full_name,
+          email: emp.email
         };
       });
 
