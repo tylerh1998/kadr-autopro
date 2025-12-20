@@ -14,7 +14,7 @@ const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
 const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
 const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
-export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated }) {
+export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,6 +23,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
     customer: '',
     vehicle: '',
     vin: '',
+    work_order: '',
     priority: 'medium',
     task: '',
     assigned_employees: [],
@@ -61,12 +62,20 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   }, []);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (initialData) {
+        setFormData(prev => ({
+          ...prev,
+          ...initialData
+        }));
+      }
+    } else {
       // Reset form when modal closes
       setFormData({
         customer: '',
         vehicle: '',
         vin: '',
+        work_order: '',
         priority: 'medium',
         task: '',
         assigned_employees: [],
@@ -86,7 +95,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         oil_change_type: ''
       });
     }
-  }, [open]);
+  }, [open, initialData]);
 
   const handleFieldChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -119,6 +128,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         customer: formData.customer,
         vehicle: formData.vehicle,
         vin: formData.vin,
+        work_order: formData.work_order,
         priority: formData.priority,
         task: formData.task,
         employee_assigned: formData.assigned_employees.join(', '),
@@ -207,14 +217,28 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
             />
           </div>
 
-          {/* VIN Field */}
-          <div>
-            <Label className="text-sm font-medium">VIN</Label>
-            <Input
-              value={formData.vin}
-              onChange={(e) => handleFieldChange('vin', e.target.value)}
-              placeholder="Enter VIN"
-            />
+          {/* VIN and WO# Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium">VIN</Label>
+              <Input
+                value={formData.vin}
+                onChange={(e) => handleFieldChange('vin', e.target.value)}
+                placeholder="Enter VIN"
+                disabled={lockedFields.includes('vin')}
+                className={lockedFields.includes('vin') ? 'bg-slate-100 text-slate-500' : ''}
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">WO #</Label>
+              <Input
+                value={formData.work_order}
+                onChange={(e) => handleFieldChange('work_order', e.target.value)}
+                placeholder="WO Number"
+                disabled={lockedFields.includes('work_order')}
+                className={lockedFields.includes('work_order') ? 'bg-slate-100 text-slate-500' : ''}
+              />
+            </div>
           </div>
 
           {/* Project Type Toggle */}
