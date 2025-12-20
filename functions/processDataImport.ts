@@ -136,9 +136,34 @@ Deno.serve(async (req) => {
 
         } else if (type === 'vehicles') {
             entityName = "Vehicle";
-            // Note: Vehicles typically require a customer_id. This is tricky in batch import without lookup.
-            // For now, we'll map what we can, but this might fail validation if customer_id is missing.
-            // Assuming simple mapping for now.
+            
+            // Fetch Customers for mapping cusid to customer_id
+            console.log("Fetching Customers for ID mapping...");
+            // We need to fetch all customers to build a map. 
+            // In a real large-scale scenario, we might need a more efficient way, but for migration this is acceptable.
+            // base44.asServiceRole.entities.Customer.list returns max 50 by default. We need more.
+            // Let's loop until we have all or hit a safety limit.
+            
+            const customerMap = new Map();
+            let hasMore = true;
+            let skip = 0;
+            const FETCH_LIMIT = 1000; 
+            
+            while (hasMore) {
+                const customers = await base44.asServiceRole.entities.Customer.list({ limit: FETCH_LIMIT, skip: skip });
+                if (customers.length === 0) {
+                    hasMore = false;
+                } else {
+                    customers.forEach(c => {
+                        if (c.cusid) customerMap.set(String(c.cusid), c.id);
+                    });
+                    skip += customers.length;
+                    console.log(`Fetched ${skip} customers so far...`);
+                    // Safety break if needed, but we want all.
+                }
+            }
+            console.log(`Built customer map with ${customerMap.size} entries.`);
+
              recordsToCreate = rows.map(row => {
                 const getVal = (keys) => {
                     for (const key of keys) {
@@ -147,13 +172,26 @@ Deno.serve(async (req) => {
                     return undefined;
                 };
 
+                const cusId = String(getVal(['cusid', 'CusId', 'Cusid']) || '');
+                const customer_id = customerMap.get(cusId);
+
+                // If no customer found for this vehicle, we can't create it validly as customer_id is required.
+                if (!customer_id) {
+                    console.warn(`Skipping vehicle with cusid ${cusId} - Customer not found.`);
+                    return null;
+                }
+
                 return {
+                    customer_id: customer_id,
+                    vehid: String(getVal(['vehid', 'VehId', 'Vehid']) || ''),
                     year: parseFloat(getVal(['year', 'Year']) || 0) || 0,
                     make: String(getVal(['make', 'Make']) || ''),
                     model: String(getVal(['model', 'Model']) || ''),
                     vin: String(getVal(['vin', 'VIN']) || ''),
-                    license_plate: String(getVal(['license_plate', 'LicensePlate', 'Plate']) || ''),
-                    // customer_id mapping would be needed here in a real scenario
+                    engine: String(getVal(['engsize', 'EngSize', 'Engine']) || ''),
+                    unit_number: String(getVal(['unitno', 'UnitNo', 'UnitNumber']) || ''),
+                    color: String(getVal(['colour', 'Colour', 'Color']) || ''),
+                    // Default values or other fields can be mapped here
                 };
             }).filter(r => r !== null);
         }
