@@ -126,7 +126,7 @@ export default function InvoicePaymentModal({
       }
 
       const paymentData = {
-        amount: finalAmount, 
+        amount: finalAmount + creditCardFee, 
         method: newPayment.method,
         date: newPayment.date,
       };
