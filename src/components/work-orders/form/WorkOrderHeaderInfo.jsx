@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -296,6 +295,10 @@ export default function WorkOrderHeaderInfo({
 
                   {workOrder?.po_number && (
                     <p className="text-slate-700">PO: {workOrder.po_number}</p>
+                  )}
+
+                  {workOrder?.cvip && (
+                    <p className="text-slate-700">CVIP: {workOrder.cvip}</p>
                   )}
 
                   {workOrder?.description && (
