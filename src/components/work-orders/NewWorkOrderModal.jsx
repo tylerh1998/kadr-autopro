@@ -78,7 +78,8 @@ export default function NewWorkOrderModal({
   }, [searchTerm, open]);
 
   // Customers are now filtered by the backend function
-  const filteredCustomers = localCustomers || [];
+  // Limit to 10 if no search term
+  const filteredCustomers = searchTerm ? (localCustomers || []) : (localCustomers || []).slice(0, 10);
 
   const customerVehicles = (localVehicles || []).filter(v => v.customer_id === selectedCustomer?.id);
 
@@ -221,6 +222,33 @@ export default function NewWorkOrderModal({
     }
   };
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (!open) return;
+      
+      // Check for Ctrl + W (Work Order) or Ctrl + E (Estimate)
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === 'w') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedCustomer && selectedVehicle) {
+                handleCreate('work_order');
+            }
+        }
+        if (e.key.toLowerCase() === 'e') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedCustomer && selectedVehicle) {
+                handleCreate('estimate');
+            }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [open, selectedCustomer, selectedVehicle]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
@@ -255,7 +283,18 @@ export default function NewWorkOrderModal({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
                 {filteredCustomers.map((customer) => (
-                  <Card key={customer.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleCustomerSelect(customer)}>
+                  <Card 
+                    key={customer.id} 
+                    className="cursor-pointer hover:shadow-md transition-shadow focus:ring-2 focus:ring-blue-500 outline-none" 
+                    onClick={() => handleCustomerSelect(customer)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCustomerSelect(customer);
+                      }
+                    }}
+                  >
                     <CardContent className="p-4">
                         <h4 className="font-semibold">{getCustomerDisplayName(customer)}</h4>
                         {customer.org_name && customer.first_name && (
@@ -284,7 +323,18 @@ export default function NewWorkOrderModal({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
                 {customerVehicles.map((vehicle) => (
-                  <Card key={vehicle.id} className={`cursor-pointer transition-all border-2 ${selectedVehicle?.id === vehicle.id ? 'border-blue-500 bg-blue-50' : 'hover:border-blue-200'}`} onClick={() => handleVehicleSelect(vehicle)}>
+                  <Card 
+                    key={vehicle.id} 
+                    className={`cursor-pointer transition-all border-2 outline-none focus:ring-2 focus:ring-blue-500 ${selectedVehicle?.id === vehicle.id ? 'border-blue-500 bg-blue-50' : 'hover:border-blue-200'}`} 
+                    onClick={() => handleVehicleSelect(vehicle)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleVehicleSelect(vehicle);
+                      }
+                    }}
+                  >
                     <CardContent className="p-4">
                       <h4 className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</h4>
                       <p className="text-sm text-slate-500">License: {vehicle.license_plate}</p>
