@@ -230,34 +230,97 @@ export default function TimeRecordsView() {
   };
 
   return (
-    <div id="print-section">
+    <div id="print-section" className="p-4 bg-white min-h-screen">
       <style>{`
         @media print {
-          @page { size: landscape; margin: 1cm; }
+          @page { size: landscape; margin: 0.5cm; }
           body * { visibility: hidden; }
           #print-section, #print-section * { visibility: visible; }
-          #print-section { position: absolute; left: 0; top: 0; width: 100%; }
+          #print-section { position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: white; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
-          .hours-summary-card { 
-            box-shadow: none !important; 
-            border: 1px solid #e2e8f0 !important;
-            margin-bottom: 20px !important;
+          
+          /* Summary Box Styles */
+          .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+            width: 100%;
           }
+          .summary-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+          }
+          .summary-value { font-size: 16px; font-weight: 800; color: #1a202c; }
+          .summary-label { font-size: 10px; color: #718096; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+
+          /* Table Styles */
+          .print-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+          }
+          .print-table th, .print-table td {
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            text-align: left;
+          }
+          .print-table th {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #1a202c;
+          }
+          .print-table tr:nth-child(even) { background-color: #fff; }
+          .print-table-header-icon { display: inline-block; vertical-align: middle; margin-right: 6px; }
         }
         .print-only { display: none; }
+        .summary-grid { display: none; } /* Hide print summary in web view */
       `}</style>
 
+      {/* Print-only Header */}
       <div className="print-only mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Time Records Report</h1>
-        <div className="flex justify-between items-end">
-          <div className="text-sm text-gray-600">
-            <p>Employee: {selectedEmployee === 'all' ? 'All Employees' : selectedEmployee}</p>
-            <p>Period: {dateFrom && dateTo ? `${format(new Date(dateFrom), 'MMM d, yyyy')} - ${format(new Date(dateTo), 'MMM d, yyyy')}` : 'All Dates'}</p>
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Hours Summary</h1>
+            <div className="text-xs text-gray-500 mt-1">
+               {selectedEmployee === 'all' ? 'All Employees' : selectedEmployee} • {dateFrom && dateTo ? `${format(new Date(dateFrom), 'MMM d, yyyy')} - ${format(new Date(dateTo), 'MMM d, yyyy')}` : 'All Dates'}
+            </div>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-xs text-gray-400 text-right">
             Generated: {format(new Date(), 'MMM d, yyyy h:mm a')}
           </div>
+        </div>
+
+        {/* Print Summary Grid */}
+        <div className="summary-grid">
+            <div className="summary-item">
+                <span className="summary-value">{totals.regular.toFixed(1)}h</span>
+                <span className="summary-label">Regular Hours</span>
+            </div>
+            <div className="summary-item">
+                <span className="summary-value">{totals.overtime.toFixed(1)}h</span>
+                <span className="summary-label">Overtime</span>
+            </div>
+            <div className="summary-item">
+                <span className="summary-value">{totals.pto.toFixed(1)}h</span>
+                <span className="summary-label">PTO Hours</span>
+            </div>
+            <div className="summary-item">
+                <span className="summary-value">{totals.stat.toFixed(1)}h</span>
+                <span className="summary-label">STAT Hours</span>
+            </div>
+        </div>
+
+        <div className="flex items-center gap-2 mb-4 mt-8 border-b pb-2">
+            <Clock className="w-5 h-5 text-gray-700" />
+            <h2 className="text-lg font-bold text-gray-800">Time Records</h2>
         </div>
       </div>
 
@@ -315,7 +378,8 @@ export default function TimeRecordsView() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg border-0 mb-6 hours-summary-card">
+      {/* Web View Summary Card */}
+      <Card className="shadow-lg border-0 mb-6 hours-summary-card no-print">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Hours Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
