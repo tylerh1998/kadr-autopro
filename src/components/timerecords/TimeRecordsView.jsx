@@ -78,6 +78,7 @@ export default function TimeRecordsView() {
         // For non-admin users
         // Priority 1: Use User_name from User entity (matches WorkPRO data)
         let employeeName = currentUser.User_name;
+        console.log("TimeRecordsView: Determining employee name. User:", currentUser, "User_name:", currentUser.User_name);
         
         if (!employeeName) {
             // Priority 2: Try to find matching Employee entity by email

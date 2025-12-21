@@ -3,13 +3,27 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        const user = await base44.auth.me();
+        let user;
+        try {
+            user = await base44.auth.me();
+        } catch (e) {
+            console.error("Auth error:", e);
+            return new Response(JSON.stringify({ error: 'Authentication failed', details: e.message }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
         
         if (!user) {
             return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
-        const { entityName, method, params, id, sort, limit } = await req.json();
+        let body;
+        try {
+            body = await req.json();
+        } catch (e) {
+            console.error("JSON parse error:", e);
+            return new Response(JSON.stringify({ error: 'Invalid JSON body', details: e.message }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        const { entityName, method, params, id, sort, limit } = body;
         console.log(`WorkProProxy Request: ${method} ${entityName}`, { params, id, sort, limit });
 
         const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
@@ -120,7 +134,7 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true, data: responseData }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
     } catch (error) {
-        console.error("WorkPRO Proxy Error:", error.message);
-        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        console.error("WorkPRO Proxy Error:", error);
+        return new Response(JSON.stringify({ error: error.message, stack: error.stack }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 });
