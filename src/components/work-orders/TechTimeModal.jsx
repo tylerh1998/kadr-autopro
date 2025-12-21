@@ -2,8 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Clock, User } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+
+const CATEGORIES = {
+  billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800' },
+  rework: { label: 'Rework', color: 'bg-red-100 text-red-800' },
+  warranty: { label: 'Warranty', color: 'bg-orange-100 text-orange-800' },
+  training: { label: 'Training', color: 'bg-purple-100 text-purple-800' },
+  internal: { label: 'Internal', color: 'bg-slate-100 text-slate-800' },
+  shop_work: { label: 'Shop Work', color: 'bg-green-100 text-green-800' },
+  split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800' }
+};
 
 export default function TechTimeModal({ open, onClose, project }) {
   const [timeLogs, setTimeLogs] = useState([]);
@@ -74,6 +85,51 @@ export default function TechTimeModal({ open, onClose, project }) {
       return elapsedHours.toFixed(1);
     }
     return log.hours;
+  };
+
+  const getCategory = (log) => {
+    if (log.category) {
+      try {
+        const catObj = typeof log.category === 'string' ? JSON.parse(log.category) : log.category;
+        const key = Object.keys(catObj)[0];
+        if (key && CATEGORIES[key]) return key;
+      } catch {
+        // ignore error
+      }
+    }
+    return project?.default_category || 'billable';
+  };
+
+  const handleCategoryChange = async (log, newCategory) => {
+    const currentCategory = getCategory(log);
+    if (currentCategory === newCategory) return;
+
+    // Optimistic update
+    setTimeLogs(prev => prev.map(l => {
+      if (l.id === log.id) {
+        return { 
+          ...l, 
+          category: JSON.stringify({ [newCategory]: log.hours || 0 }) 
+        };
+      }
+      return l;
+    }));
+
+    try {
+      const hours = log.hours || 0;
+      const categoryJson = JSON.stringify({ [newCategory]: hours });
+      
+      await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectTimeSession',
+        method: 'update',
+        id: log.id,
+        params: { category: categoryJson }
+      });
+    } catch (error) {
+      console.error('Error updating category:', error);
+      // Revert on error (reload logs)
+      loadTimeLogs();
+    }
   };
 
   const getTotalHours = () => {
@@ -164,6 +220,24 @@ export default function TechTimeModal({ open, onClose, project }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {!log.isRunning && (
+                        <Select 
+                          value={getCategory(log)} 
+                          onValueChange={(val) => handleCategoryChange(log, val)}
+                        >
+                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${CATEGORIES[getCategory(log)]?.color}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(CATEGORIES).map(([key, config]) => (
+                              <SelectItem key={key} value={key} className="text-xs">
+                                {config.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      
                       <Badge className={`font-bold ${log.isRunning ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
                         {getDisplayHours(log)} hrs
                       </Badge>
