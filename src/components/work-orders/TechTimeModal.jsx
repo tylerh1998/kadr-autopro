@@ -127,6 +127,7 @@ export default function TechTimeModal({ open, onClose, project }) {
       });
     } catch (error) {
       console.error('Error updating category:', error);
+      alert(`Failed to update category: ${error.message}`);
       // Revert on error (reload logs)
       loadTimeLogs();
     }
