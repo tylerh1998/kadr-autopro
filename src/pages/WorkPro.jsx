@@ -595,7 +595,7 @@ export default function ActivityLog() {
             onClose={handleCancelProjectForm}
             workOrder={selectedProject.work_order ? { ro_number: selectedProject.work_order } : null}
             customer={selectedProject.customer ? { org_name: selectedProject.customer } : null}
-            project={selectedProject}
+            initialWorkPROProject={selectedProject}
         />
       )}
 

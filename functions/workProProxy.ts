@@ -32,8 +32,6 @@ Deno.serve(async (req) => {
         switch (method) {
             case 'list':
                 // For list, params can be sort order and limit passed in the body or separate properties
-                // The SDK invoke passes a single body object.
-                // If using params object for list options:
                 const listSort = params?.sort || sort;
                 const listLimit = params?.limit || limit;
                 
@@ -51,15 +49,13 @@ Deno.serve(async (req) => {
             case 'filter':
                 // For filter, params is the query object
                 url += '/filter';
-                // Check if sort/limit are provided for filter
-                const filterSort = sort || (params && params._sort); // Check separate prop or inside params
+                const filterSort = sort || (params && params._sort);
                 const filterLimit = limit || (params && params._limit);
 
                 if (filterSort) url += `?sort=${encodeURIComponent(filterSort)}`;
                 if (filterLimit) url += `${filterSort ? '&' : '?'}limit=${filterLimit}`;
 
                 options.method = 'POST';
-                // Remove special params from body if they were mixed in
                 const filterBody = { ...params };
                 delete filterBody._sort;
                 delete filterBody._limit;
@@ -73,7 +69,6 @@ Deno.serve(async (req) => {
                 responseData = await filterResponse.json();
                 break;
             case 'get':
-                // For get, id is required
                 if (!id) throw new Error('ID is required for get method');
                 url += `/${id}`;
                 options.method = 'GET';
@@ -85,7 +80,6 @@ Deno.serve(async (req) => {
                 responseData = await getResponse.json();
                 break;
             case 'update':
-                // For update, id and params (data) are required
                 if (!id) throw new Error('ID is required for update method');
                 url += `/${id}`;
                 options.method = 'PUT';
@@ -98,7 +92,6 @@ Deno.serve(async (req) => {
                 responseData = await updateResponse.json();
                 break;
             case 'create':
-                // For create, params (data) are required
                 options.method = 'POST';
                 options.body = JSON.stringify(params || {});
                 const createResponse = await fetch(url, options);
@@ -109,7 +102,6 @@ Deno.serve(async (req) => {
                 responseData = await createResponse.json();
                 break;
             case 'delete':
-                // For delete, id is required
                 if (!id) throw new Error('ID is required for delete method');
                 url += `/${id}`;
                 options.method = 'DELETE';
