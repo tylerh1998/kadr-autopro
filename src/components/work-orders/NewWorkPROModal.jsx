@@ -27,7 +27,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
     priority: 'medium',
     task: '',
     assigned_employees: [],
-    time_estimate: '',
+    // time_estimate: '',
+    default_category: 'billable',
     promised_by: '',
     status: 'to_do',
     description: '',
@@ -79,7 +80,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         priority: 'medium',
         task: '',
         assigned_employees: [],
-        time_estimate: '',
+        // time_estimate: '',
+        default_category: 'billable',
         promised_by: '',
         status: 'to_do',
         description: '',
@@ -132,7 +134,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         priority: formData.priority,
         task: formData.task,
         employee_assigned: formData.assigned_employees.join(', '),
-        time_estimate: parseFloat(formData.time_estimate) || 0,
+        // time_estimate: parseFloat(formData.time_estimate) || 0,
+        default_category: formData.default_category,
         promised_by: formData.promised_by,
         status: formData.status,
         description: formData.description,
@@ -447,17 +450,23 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
             </p>
           </div>
 
-          {/* Estimate (Hrs), Priority, Promised By */}
+          {/* Default Category, Priority, Promised By */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label className="text-sm font-medium">Estimate (Hrs)</Label>
-              <Input
-                type="number"
-                step="0.5"
-                value={formData.time_estimate}
-                onChange={(e) => handleFieldChange('time_estimate', e.target.value)}
-                placeholder="e.g., 4.5"
-              />
+              <Label className="text-sm font-medium">Default Category</Label>
+              <Select value={formData.default_category} onValueChange={(val) => handleFieldChange('default_category', val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="billable">Billable</SelectItem>
+                  <SelectItem value="rework">Rework</SelectItem>
+                  <SelectItem value="warranty">Warranty</SelectItem>
+                  <SelectItem value="training">Training</SelectItem>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  <SelectItem value="shop_work">Shop Work</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-sm font-medium">Priority</Label>
