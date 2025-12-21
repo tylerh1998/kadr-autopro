@@ -249,7 +249,7 @@ export default function TimeRecordsView() {
       <Card className="shadow-lg border-0 mb-6 no-print">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {employees.length > 0 && user?.access_level === 'lvl3_user' && (
+            {employees.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="tr-employee-filter">Employee</Label>
                 <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
@@ -257,7 +257,9 @@ export default function TimeRecordsView() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Employees</SelectItem>
+                    {user?.access_level === 'lvl3_user' && (
+                      <SelectItem value="all">All Employees</SelectItem>
+                    )}
                     {employees.map((employeeName) => (
                       <SelectItem key={employeeName} value={employeeName}>
                         {employeeName}
