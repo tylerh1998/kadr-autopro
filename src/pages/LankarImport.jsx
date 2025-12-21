@@ -161,14 +161,20 @@ export default function LankarImport() {
                 </Label>
               </div>
 
-              {/* Suppliers (Disabled) */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed">
-                <RadioGroupItem value="suppliers" id="suppliers" disabled />
-                <Label htmlFor="suppliers" className="flex items-center gap-3 cursor-not-allowed flex-1">
-                  <Package className="w-5 h-5 text-slate-400" />
+              {/* Suppliers */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                <RadioGroupItem value="suppliers" id="suppliers" />
+                <Label htmlFor="suppliers" className="flex items-center gap-3 cursor-pointer flex-1">
+                  <Package className="w-5 h-5 text-orange-600" />
                   <div>
-                    <p className="font-medium text-slate-500">Suppliers</p>
-                    <p className="text-sm text-slate-400">Import supplier records (Coming Soon)</p>
+                    <p className="font-medium">Suppliers</p>
+                    <p className="text-sm text-slate-500">Import supplier records</p>
+                    {selectedType === 'suppliers' && (
+                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                            <p className="font-semibold mb-1">Required Columns:</p>
+                            <code className="text-orange-700">supid, company, Inventory_Supplier, contact, street, city, province, postal, atel, tel</code>
+                        </div>
+                    )}
                   </div>
                 </Label>
               </div>

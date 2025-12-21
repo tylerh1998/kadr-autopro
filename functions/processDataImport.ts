@@ -231,6 +231,45 @@ Deno.serve(async (req) => {
                  console.log(details);
                  return Response.json({ success: true, count: 0, message: "No valid records matched." + details });
             }
+        } else if (type === 'suppliers') {
+            entityName = "Supplier";
+            recordsToCreate = rows.map(row => {
+                const getVal = (keys) => {
+                    for (const key of keys) {
+                        if (row[key] !== undefined) return row[key];
+                    }
+                    return undefined;
+                };
+
+                // Phone logic
+                const atel = String(getVal(['atel', 'Atel']) || '').trim();
+                const tel = String(getVal(['tel', 'Tel']) || '').trim();
+                let phone = "";
+                if (atel && tel) {
+                    phone = `${atel}${tel}`;
+                } else {
+                    phone = atel || tel || "";
+                }
+
+                // Inventory Supplier logic
+                const invSupVal = String(getVal(['Inventory_Supplier', 'inventory_supplier', 'InventorySupplier']) || '').toLowerCase();
+                const isInventorySupplier = invSupVal === 'yes' || invSupVal === 'true' || invSupVal === '1';
+
+                return {
+                    supid: String(getVal(['supid', 'SupId', 'SupID']) || ''),
+                    name: String(getVal(['company', 'Company', 'org_name']) || ''),
+                    inventory_supplier: isInventorySupplier,
+                    default_gl_account: String(getVal(['default_gl_account', 'DefaultGLAccount', 'GLAccount']) || '5000'), 
+                    contact_person: String(getVal(['contact', 'Contact']) || ''),
+                    address: String(getVal(['street', 'Street', 'address']) || ''),
+                    town: String(getVal(['city', 'City', 'town']) || ''),
+                    province: String(getVal(['province', 'Province']) || ''),
+                    postal_code: String(getVal(['postal', 'Postal', 'postal_code']) || ''),
+                    phone: phone,
+                    notes: String(getVal(['SupplierNote', 'Suppliernote', 'supplier_note', 'notes']) || ''),
+                    pin_to_top: false
+                };
+            }).filter(r => r.name);
         }
 
         if (recordsToCreate.length === 0) {
