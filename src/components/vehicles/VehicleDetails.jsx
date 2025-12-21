@@ -199,7 +199,18 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                   <div>
                     <p className="text-sm font-medium text-slate-500">Name</p>
                     <p className="text-lg font-semibold text-slate-900">
-                      {customer.first_name} {customer.last_name}
+                      {customer.org_name ? (
+                        <>
+                          <span className="block">{customer.org_name}</span>
+                          {(customer.first_name || customer.last_name) && (
+                            <span className="text-sm font-normal text-slate-500 block">
+                              {customer.first_name} {customer.last_name}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        `${customer.first_name} ${customer.last_name}`
+                      )}
                     </p>
                   </div>
 
