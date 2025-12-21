@@ -11,6 +11,7 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
   const [formData, setFormData] = useState({
     description: '',
     po_number: '',
+    cvip: '',
     default_taxable: true,
     est_date: '',
     wo_date: ''
@@ -22,6 +23,7 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
       setFormData({
         description: workOrder.description || '',
         po_number: workOrder.po_number || '',
+        cvip: workOrder.cvip || '',
         default_taxable: workOrder.default_taxable !== undefined ? workOrder.default_taxable : true,
         est_date: workOrder.est_date || '',
         wo_date: workOrder.wo_date || ''
@@ -96,26 +98,12 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="est_date">Estimate Date</Label>
+              <Label htmlFor="date">{isEstimateStage ? 'Estimate Date' : 'Work Order Date'}</Label>
               <Input
-                id="est_date"
+                id="date"
                 type="date"
-                value={formData.est_date}
-                onChange={(e) => handleChange('est_date', e.target.value)}
-                disabled={isWorkOrderStage}
-                className={isWorkOrderStage ? "bg-slate-50" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="wo_date">Work Order Date</Label>
-              <Input
-                id="wo_date"
-                type="date"
-                value={formData.wo_date}
-                onChange={(e) => handleChange('wo_date', e.target.value)}
-                disabled={!isWorkOrderStage}
-                className={!isWorkOrderStage ? "bg-slate-50" : ""}
+                value={isEstimateStage ? formData.est_date : formData.wo_date}
+                onChange={(e) => handleChange(isEstimateStage ? 'est_date' : 'wo_date', e.target.value)}
               />
             </div>
 
@@ -126,6 +114,16 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
                 value={formData.po_number}
                 onChange={(e) => handleChange('po_number', e.target.value)}
                 placeholder="Customer PO number..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cvip">CVIP</Label>
+              <Input
+                id="cvip"
+                value={formData.cvip}
+                onChange={(e) => handleChange('cvip', e.target.value)}
+                placeholder="CVIP number..."
               />
             </div>
           </div>
