@@ -69,9 +69,20 @@ export default function InventoryOnOrder() {
     });
   }, [inventoryData, searchTerm]);
 
-  const totalItemsOnOrder = filteredItems.length;
-  const totalQuantityOnOrder = filteredItems.reduce((sum, item) => sum + (item.quantity_on_order || 0), 0);
-  const totalValueOnOrder = filteredItems.reduce((sum, item) => sum + item.total_value, 0);
+  const groupedItems = useMemo(() => {
+    return filteredItems.reduce((acc, item) => {
+      const supplier = item.supplier_name || 'No Supplier';
+      if (!acc[supplier]) {
+        acc[supplier] = [];
+      }
+      acc[supplier].push(item);
+      return acc;
+    }, {});
+  }, [filteredItems]);
+
+  const sortedSuppliers = useMemo(() => {
+    return Object.keys(groupedItems).sort();
+  }, [groupedItems]);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -80,19 +91,38 @@ export default function InventoryOnOrder() {
       return;
     }
 
-    const tableRows = filteredItems.map(item => `
-      <tr>
-        <td>${item.part_number || '-'}</td>
-        <td>${item.description || '-'}</td>
-        <td>${item.manufacturer || '-'}</td>
-        <td style="text-align: center;">${item.quantity_on_order || 0}</td>
-        <td style="text-align: right;">$${(item.cost || 0).toFixed(2)}</td>
-        <td style="text-align: right;">$${item.total_value.toFixed(2)}</td>
-        <td>${item.supplier_name}</td>
-        <td>${item.last_ordered_date ? format(new Date(item.last_ordered_date), 'MMM d, yyyy') : '-'}</td>
-        <td>${item.last_ordered_ro || '-'}</td>
-      </tr>
-    `).join('');
+    const reportContent = sortedSuppliers.map(supplier => {
+      const items = groupedItems[supplier];
+      const tableRows = items.map(item => `
+        <tr>
+          <td>${item.part_number || '-'}</td>
+          <td>${item.description || '-'}</td>
+          <td style="text-align: center;">${item.quantity_on_order || 0}</td>
+          <td style="text-align: center;">${item.last_ordered_date ? format(new Date(item.last_ordered_date), 'MMM d, yyyy') : '-'}</td>
+          <td style="text-align: center;">${item.last_ordered_ro || '-'}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <div style="margin-bottom: 20px; page-break-inside: avoid;">
+          <h3 style="margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px; color: #333;">${supplier}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%">Part #</th>
+                <th style="width: 40%">Description</th>
+                <th style="width: 10%">Qty on Order</th>
+                <th style="width: 15%">Date Ordered</th>
+                <th style="width: 15%">WO#</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }).join('');
 
     printWindow.document.write(`
       <html>
@@ -101,7 +131,7 @@ export default function InventoryOnOrder() {
           <style>
             body { font-family: sans-serif; margin: 20px; }
             h1, h2 { text-align: center; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
             th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
             th { background-color: #f2f2f2; }
             tr:nth-child(even) { background-color: #f9f9f9; }
@@ -111,29 +141,7 @@ export default function InventoryOnOrder() {
         <body>
           <h1>Inventory On Order Report</h1>
           <h2>${format(new Date(), 'MMMM d, yyyy')}</h2>
-          <p>
-            <strong>Total Items on Order:</strong> ${totalItemsOnOrder} | 
-            <strong>Total Quantity on Order:</strong> ${totalQuantityOnOrder} | 
-            <strong>Total Value on Order:</strong> $${totalValueOnOrder.toFixed(2)}
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Part Number</th>
-                <th>Description</th>
-                <th>Manufacturer</th>
-                <th>Qty on Order</th>
-                <th>Cost Each</th>
-                <th>Total Value</th>
-                <th>Supplier</th>
-                <th>Last Ordered</th>
-                <th>RO Number</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
+          ${reportContent}
         </body>
       </html>
     `);
@@ -185,27 +193,50 @@ export default function InventoryOnOrder() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="text-blue-600 font-semibold">Items on Order</div>
-          <div className="text-2xl font-bold text-blue-800">{totalItemsOnOrder}</div>
-        </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="text-amber-600 font-semibold">Total Quantity</div>
-          <div className="text-2xl font-bold text-amber-800">{totalQuantityOnOrder}</div>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="text-green-600 font-semibold">Total Value</div>
-          <div className="text-2xl font-bold text-green-800">${totalValueOnOrder.toFixed(2)}</div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700">Full Report Ready for Printing</h3>
-        <p className="text-gray-500 mt-2 max-w-md mx-auto">
-          The summary above reflects the items found based on your search. Click the "Print Report" button to view the full, detailed list in a new, printer-friendly window.
-        </p>
+      <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
+        {sortedSuppliers.map(supplier => (
+          <div key={supplier} className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+             <div className="bg-slate-50 px-4 py-2 font-semibold text-slate-800 border-b border-slate-200 flex justify-between items-center">
+               <span>{supplier}</span>
+               <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                 {groupedItems[supplier].length} items
+               </span>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full text-sm text-left">
+                 <thead className="bg-white text-slate-500 font-medium border-b border-slate-100">
+                   <tr>
+                     <th className="px-4 py-2">Part #</th>
+                     <th className="px-4 py-2">Description</th>
+                     <th className="px-4 py-2 text-center">Qty on Order</th>
+                     <th className="px-4 py-2 text-center">Date Ordered</th>
+                     <th className="px-4 py-2 text-center">WO#</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {groupedItems[supplier].map(item => (
+                     <tr key={item.id} className="hover:bg-slate-50">
+                       <td className="px-4 py-2 font-medium text-slate-700">{item.part_number}</td>
+                       <td className="px-4 py-2 text-slate-600">{item.description}</td>
+                       <td className="px-4 py-2 text-center text-slate-700 font-medium">{item.quantity_on_order}</td>
+                       <td className="px-4 py-2 text-center text-slate-500">
+                         {item.last_ordered_date ? format(new Date(item.last_ordered_date), 'MMM d, yyyy') : '-'}
+                       </td>
+                       <td className="px-4 py-2 text-center text-slate-500">{item.last_ordered_ro || '-'}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+          </div>
+        ))}
+        
+        {filteredItems.length === 0 && (
+           <div className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+             <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p>No items found matching your search.</p>
+           </div>
+        )}
       </div>
     </div>
   );
