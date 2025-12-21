@@ -854,7 +854,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               labour: 0,
               oc_total: payload.penny_adjustment,
               total: payload.penny_adjustment,
-              taxable: false, // Usually non-taxable
+              taxable: pennyAdjCharge.is_taxable === true,
               gl_account: pennyAdjCharge.gl_account,
               inventory_item_id: null,
               cost_ea: 0,
@@ -886,7 +886,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               labour: 0,
               oc_total: payload.credit_card_fee,
               total: payload.credit_card_fee,
-              taxable: ccFeeCharge.is_taxable !== false, // Use setting from other charge
+              taxable: ccFeeCharge.is_taxable === true,
               gl_account: ccFeeCharge.gl_account,
               inventory_item_id: null,
               cost_ea: 0,
