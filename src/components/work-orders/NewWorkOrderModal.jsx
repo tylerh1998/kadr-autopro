@@ -164,7 +164,7 @@ export default function NewWorkOrderModal({
       status: "Open",
       priority: "medium",
       stage: stage,
-      description: "New Work Order",
+      description: "",
       internal_notes: "",
       labor_rate: 120,
       total_amount: 0,
