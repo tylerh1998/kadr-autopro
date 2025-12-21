@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createPageUrl } from '@/utils';
 // import ProjectForm from "../components/projects/ProjectForm"; // Temporarily commented out
 import WorkPROModal from "../components/work-orders/WorkPROModal";
+import TimeRecordsView from "../components/timerecords/TimeRecordsView";
 
 export default function ActivityLog() {
   const [activities, setActivities] = useState([]);
@@ -580,13 +581,7 @@ export default function ActivityLog() {
           </TabsContent>
 
           <TabsContent value="time_records">
-            <Card>
-              <CardContent className="p-12 text-center text-gray-500">
-                <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900">Time Records Module</h3>
-                <p>This feature will be available in a future update.</p>
-              </CardContent>
-            </Card>
+            <TimeRecordsView />
           </TabsContent>
         </Tabs>
       </div>
