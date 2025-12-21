@@ -242,7 +242,7 @@ export default function TimeRecordsView() {
           
           /* Summary Box Styles */
           .summary-grid {
-            display: grid;
+            display: grid !important;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 24px;
