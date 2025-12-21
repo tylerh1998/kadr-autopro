@@ -104,26 +104,32 @@ export default function TechTimeModal({ open, onClose, project }) {
     const currentCategory = getCategory(log);
     if (currentCategory === newCategory) return;
 
+    if (!log.id) {
+        console.error("Missing log ID", log);
+        alert("Cannot update: Missing Log ID");
+        return;
+    }
+
+    const hours = parseFloat(log.hours) || 0;
+    const categoryObj = { [newCategory]: hours };
+
     // Optimistic update
     setTimeLogs(prev => prev.map(l => {
       if (l.id === log.id) {
         return { 
           ...l, 
-          category: JSON.stringify({ [newCategory]: log.hours || 0 }) 
+          category: categoryObj 
         };
       }
       return l;
     }));
 
     try {
-      const hours = log.hours || 0;
-      const categoryJson = JSON.stringify({ [newCategory]: hours });
-      
       await base44.functions.invoke('workProProxy', {
         entityName: 'ProjectTimeSession',
         method: 'update',
         id: log.id,
-        params: { category: categoryJson }
+        params: { category: categoryObj }
       });
     } catch (error) {
       console.error('Error updating category:', error);
