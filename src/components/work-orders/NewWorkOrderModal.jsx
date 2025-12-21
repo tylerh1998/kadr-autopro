@@ -253,14 +253,14 @@ export default function NewWorkOrderModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Create New Work Order
             </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center gap-4 my-6">
+          <div className="flex items-center gap-4 my-6 flex-shrink-0">
               <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 1 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
                   <User className="w-4 h-4" />1. Select Customer
               </div>
@@ -270,6 +270,7 @@ export default function NewWorkOrderModal({
               </div>
           </div>
 
+          <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           {step === 1 && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
@@ -282,7 +283,7 @@ export default function NewWorkOrderModal({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input ref={searchInputRef} placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
                 {filteredCustomers.map((customer) => (
                   <Card 
                     key={customer.id} 
@@ -322,7 +323,7 @@ export default function NewWorkOrderModal({
                     <Button variant="outline" onClick={() => setShowVehicleForm(true)}><Plus className="w-4 h-4 mr-2" /> New Vehicle</Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
                 {customerVehicles.map((vehicle) => (
                   <Card 
                     key={vehicle.id} 
@@ -345,8 +346,9 @@ export default function NewWorkOrderModal({
               </div>
             </div>
           )}
+          </div>
 
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex justify-between pt-4 border-t mt-4 flex-shrink-0">
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
             <div className="flex gap-2">
               <Button onClick={() => handleCreate('estimate')} disabled={!selectedCustomer || !selectedVehicle} className="bg-yellow-500 hover:bg-yellow-600">Create Estimate</Button>
