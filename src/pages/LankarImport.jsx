@@ -252,7 +252,7 @@ export default function LankarImport() {
         {/* Import Button */}
         <Button 
           onClick={handleImport}
-          disabled={['suppliers', 'inventory_locations'].includes(selectedType) || parsedData.length === 0 || importing}
+          disabled={['inventory_locations'].includes(selectedType) || parsedData.length === 0 || importing}
           className="w-full" 
           size="lg"
         >
