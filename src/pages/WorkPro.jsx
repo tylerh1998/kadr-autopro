@@ -27,7 +27,6 @@ export default function ActivityLog() {
   const [sortBy, setSortBy] = useState("-start_time");
   const [selectedProject, setSelectedProject] = useState(null); // This will hold WorkPRO Project data
   const [isProjectLoading, setIsProjectLoading] = useState(false);
-  const [isSavingProject, setIsSavingProject] = useState(false); // Used if WorkPROModal gets editing capabilities
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [unassignedRecordToAssign, setUnassignedRecordToAssign] = useState(null);
   const [activeProjects, setActiveProjects] = useState([]); // WorkPRO Projects
@@ -230,10 +229,7 @@ export default function ActivityLog() {
 
       if (currentUser.access_level === 'lvl3_user') {
         employeeListForFilter = [...new Set(combinedActivities.map(a => a.employee_name))].sort();
-        // Add 'All Employees' option if there are multiple employees or if it's an admin viewing all.
-        if (employeeListForFilter.length > 1) {
-            employeeListForFilter.unshift('all'); // Add 'all' option for admin only if more than one employee
-        }
+        // Removed adding 'all' to the list to prevent duplicate dropdown option
         initialEmployeeFilter = selectedEmployee === 'all' ? 'all' : (employeeListForFilter.includes(selectedEmployee) ? selectedEmployee : 'all');
 
       } else {
@@ -290,24 +286,6 @@ export default function ActivityLog() {
       alert("Failed to load project details");
     } finally {
       setIsProjectLoading(false);
-    }
-  };
-
-  const handleSaveProject = async (projectData) => {
-    if (!selectedProject) return; // This will likely not be used if WorkPROModal is for linking, not editing
-
-    setIsSavingProject(true);
-    try {
-      // This update call will be for a WorkPRO Project entity
-      await base44.functions.invoke('workProProxy', { entityName: 'Project', method: 'update', id: selectedProject.id, params: projectData });
-      setSelectedProject(null);
-      await loadData();
-      alert("Project updated successfully!");
-    } catch (error) {
-      console.error("Error saving WorkPRO project:", error);
-      alert("Failed to save project");
-    } finally {
-      setIsSavingProject(false);
     }
   };
 
@@ -600,34 +578,26 @@ export default function ActivityLog() {
         </Card>
       </div>
 
-      {/* WorkPRO Project Modal (replacing ProjectForm) */}
-      <Dialog open={!!selectedProject || isProjectLoading} onOpenChange={(open) => !open && handleCancelProjectForm()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedProject?.name || "WorkPRO Project Details"}</DialogTitle>
-            <DialogDescription>Details for WorkPRO Project ID: {selectedProject?.id || "N/A"}</DialogDescription>
-          </DialogHeader>
-          {isProjectLoading ? (
-            <div className="text-center py-12">
-              <Loader2 className="w-12 h-12 text-gray-300 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600">Loading project...</p>
+      {/* Loading Modal */}
+      <Dialog open={isProjectLoading} onOpenChange={(open) => !open && setIsProjectLoading(false)}>
+        <DialogContent>
+            <div className="flex justify-center items-center p-8">
+                <Loader2 className="w-8 h-8 animate-spin mr-2" />
+                <span>Loading Project...</span>
             </div>
-          ) : selectedProject ? (
-            // Display key project details here directly or using a simple view component
-            // Note: The existing WorkPROModal is typically for connecting WOs, not generic project editing.
-            // We are using it here to display, but a dedicated ProjectForm for WorkPRO would be needed for full editing.
-            <WorkPROModal
-              open={true} // Controlled by parent Dialog
-              onClose={handleCancelProjectForm}
-              workOrder={selectedProject.work_order ? { ro_number: selectedProject.work_order } : null} // Pass WorkOrder data if available
-              customer={selectedProject.customer ? { org_name: selectedProject.customer } : null} // Pass Customer data if available
-              project={selectedProject} // Pass the WorkPRO project itself
-              // For now, no direct 'onSave' prop for generic project editing, but WorkPROModal might handle internal state/linking.
-              // If full editing of WorkPRO Project properties is needed from here, a new component would be required.
-            />
-          ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* WorkPRO Project Modal */}
+      {selectedProject && (
+        <WorkPROModal
+            open={!!selectedProject}
+            onClose={handleCancelProjectForm}
+            workOrder={selectedProject.work_order ? { ro_number: selectedProject.work_order } : null}
+            customer={selectedProject.customer ? { org_name: selectedProject.customer } : null}
+            project={selectedProject}
+        />
+      )}
 
       {/* Assign Unassigned Time Modal */}
       <Dialog open={showAssignModal} onOpenChange={(open) => !open && handleCancelAssignModal()}>
@@ -734,45 +704,45 @@ export default function ActivityLog() {
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  <svg className="w-6 h-6 text-gray-400" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
+                    <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 14l-7 7m0 0l-7-7m7 7V3\" />
                   </svg>
                 </div>
 
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Assign to Project:</p>
-                  <p className="text-sm text-gray-600">
+                <div className=\"p-4 bg-green-50 rounded-lg\">
+                  <p className=\"text-sm font-semibold text-gray-700 mb-2\">Assign to Project:</p>
+                  <p className=\"text-sm text-gray-600\">
                     <strong>Project:</strong> {projectToAssign.name}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className=\"text-sm text-gray-600\">
                     <strong>Customer:</strong> {projectToAssign.customer}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className=\"text-sm text-gray-600\">
                     <strong>Vehicle:</strong> {projectToAssign.vehicle}
                   </p>
                   {projectToAssign.work_order && (
-                    <p className="text-sm text-gray-600">
+                    <p className=\"text-sm text-gray-600\">
                       <strong>Work Order:</strong> {projectToAssign.work_order}
                     </p>
                   )}
                 </div>
 
-                <p className="text-sm text-gray-500 italic">
+                <p className=\"text-sm text-gray-500 italic\">
                   Are you sure you want to assign this unassigned time to this project?
                 </p>
               </div>
             )}
 
-            <DialogFooter className="pt-4 border-t">
+            <DialogFooter className=\"pt-4 border-t\">
               <Button
-                variant="outline"
+                variant=\"outline\"
                 onClick={handleCancelConfirmDialog}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirmAssignment}
-                className="bg-blue-600 hover:bg-blue-700"
+                className=\"bg-blue-600 hover:bg-blue-700\"
               >
                 Confirm Assignment
               </Button>
