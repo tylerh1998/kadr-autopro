@@ -62,26 +62,55 @@ Deno.serve(async (req) => {
                 responseData = await listResponse.json();
                 break;
             case 'filter':
-                // For filter, params is the query object
-                url += '/filter';
-                const filterSort = sort || (params && params._sort);
-                const filterLimit = limit || (params && params._limit);
-
-                if (filterSort) url += `?sort=${encodeURIComponent(filterSort)}`;
-                if (filterLimit) url += `${filterSort ? '&' : '?'}limit=${filterLimit}`;
-
-                options.method = 'POST';
-                const filterBody = { ...params };
-                delete filterBody._sort;
-                delete filterBody._limit;
+                // Fetch all data first, then filter in memory as requested by user
+                // Using a high limit to ensure we get enough records
+                url += `?limit=2000&sort=-created_date`;
+                options.method = 'GET';
                 
-                options.body = JSON.stringify(filterBody || {});
-                const filterResponse = await fetch(url, options);
-                if (!filterResponse.ok) {
-                    const errorText = await filterResponse.text();
-                    throw new Error(`WorkPRO API Filter Error: ${filterResponse.status} ${errorText}`);
+                const fetchResponse = await fetch(url, options);
+                if (!fetchResponse.ok) {
+                    const errorText = await fetchResponse.text();
+                    throw new Error(`WorkPRO API List (for Filter) Error: ${fetchResponse.status} ${errorText}`);
                 }
-                responseData = await filterResponse.json();
+                
+                const allRecords = await fetchResponse.json();
+                let filteredRecords = Array.isArray(allRecords) ? allRecords : (allRecords.records || []);
+
+                // Apply filters from params
+                if (params && Object.keys(params).length > 0) {
+                    filteredRecords = filteredRecords.filter(record => {
+                        return Object.entries(params).every(([key, value]) => {
+                            // Skip _sort and _limit in params if they exist (though we handle them separately)
+                            if (key === '_sort' || key === '_limit') return true;
+                            // Loose equality to handle potential type mismatches
+                            return record[key] == value;
+                        });
+                    });
+                }
+
+                // In-memory Sort
+                const requestedSort = sort || (params && params._sort);
+                if (requestedSort) {
+                    const desc = requestedSort.startsWith('-');
+                    const field = desc ? requestedSort.substring(1) : requestedSort;
+                    
+                    filteredRecords.sort((a, b) => {
+                        const valA = a[field] || '';
+                        const valB = b[field] || '';
+                        
+                        if (valA < valB) return desc ? 1 : -1;
+                        if (valA > valB) return desc ? -1 : 1;
+                        return 0;
+                    });
+                }
+
+                // In-memory Limit
+                const requestedLimit = limit || (params && params._limit);
+                if (requestedLimit) {
+                    filteredRecords = filteredRecords.slice(0, parseInt(requestedLimit));
+                }
+
+                responseData = filteredRecords;
                 break;
             case 'get':
                 if (!id) throw new Error('ID is required for get method');
