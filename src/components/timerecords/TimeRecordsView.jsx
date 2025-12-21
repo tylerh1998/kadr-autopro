@@ -76,17 +76,20 @@ export default function TimeRecordsView() {
         uniqueEmployeeNames = [...new Set(recordsData.map(r => r.employee_name))].sort();
       } else {
         // For non-admin users
-        let employeeName = null;
+        // Priority 1: Use User_name from User entity (matches WorkPRO data)
+        let employeeName = currentUser.User_name;
         
-        // 1. Try to find matching Employee entity by email
-        const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
-        
-        if (employeeData.length > 0) {
-            employeeName = employeeData[0].full_name;
-        } else if (currentUser.full_name) {
-            // 2. Fallback: use User's full name directly if no linked Employee record found
-            console.log("No linked Employee record found via email, using User full_name:", currentUser.full_name);
-            employeeName = currentUser.full_name;
+        if (!employeeName) {
+            // Priority 2: Try to find matching Employee entity by email
+            const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
+            
+            if (employeeData.length > 0) {
+                employeeName = employeeData[0].full_name;
+            } else if (currentUser.full_name) {
+                // Priority 3: Fallback to User's full name
+                console.log("No User_name or linked Employee record found, using User full_name:", currentUser.full_name);
+                employeeName = currentUser.full_name;
+            }
         }
 
         if (employeeName) {
