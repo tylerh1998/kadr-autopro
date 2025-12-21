@@ -117,6 +117,14 @@ export default function InvoicePaymentModal({
         }
       }
 
+      // Apply Credit Card Fee (3%)
+      let creditCardFee = 0;
+      if (newPayment.method === 'credit_card') {
+        creditCardFee = finalAmount * 0.03;
+        creditCardFee = parseFloat(creditCardFee.toFixed(2));
+        console.log(`Applying credit card fee: ${creditCardFee} (Amount: ${finalAmount})`);
+      }
+
       const paymentData = {
         amount: finalAmount, 
         method: newPayment.method,
@@ -125,6 +133,10 @@ export default function InvoicePaymentModal({
 
       if (pennyAdjustment !== 0) {
         paymentData.penny_adjustment = pennyAdjustment;
+      }
+
+      if (creditCardFee > 0) {
+        paymentData.credit_card_fee = creditCardFee;
       }
       
       // Add cheque fields if payment method is cheque
@@ -324,6 +336,11 @@ export default function InvoicePaymentModal({
                           {payment.penny_adjustment_amount && (
                              <p className="text-xs text-amber-600">
                                Penny Adj: ${Number(payment.penny_adjustment_amount).toFixed(2)}
+                             </p>
+                          )}
+                          {payment.credit_card_fee_amount && (
+                             <p className="text-xs text-blue-600">
+                               CC Fee (3%): ${Number(payment.credit_card_fee_amount).toFixed(2)}
                              </p>
                           )}
                         </div>

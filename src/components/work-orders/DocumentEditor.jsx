@@ -836,6 +836,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       if (action === 'add') {
         let newLineItems = [...lineItems];
         let pennyAdjustmentLineId = null;
+        let creditCardFeeLineId = null;
 
         // Handle Penny Adjustment
         if (payload.penny_adjustment && payload.penny_adjustment !== 0) {
@@ -866,6 +867,38 @@ export default function DocumentEditor({ mode = 'work_order' }) {
             console.log("Added Penny Adjustment line item:", newLineItem);
           } else {
             console.warn("Penny Adjustment Other Charge not found. Proceeding without adjustment line.");
+          }
+        }
+
+        // Handle Credit Card Fee
+        if (payload.credit_card_fee && payload.credit_card_fee > 0) {
+          // Find Credit Card Fee Other Charge
+          const ccFeeCharge = otherCharges.find(oc => oc.description === "Credit Card Fee");
+          
+          if (ccFeeCharge) {
+            const newLineItem = {
+              id: crypto.randomUUID(), // Generate client-side ID
+              is_other_charge: true,
+              description: "Credit Card Fee (3%)",
+              unit: 'ea',
+              qty: 1,
+              parts_ea: 0,
+              labour: 0,
+              oc_total: payload.credit_card_fee,
+              total: payload.credit_card_fee,
+              taxable: ccFeeCharge.is_taxable !== false, // Use setting from other charge
+              gl_account: ccFeeCharge.gl_account,
+              inventory_item_id: null,
+              cost_ea: 0,
+              hrs: 0,
+              inventory_processed: false
+            };
+            newLineItems.push(newLineItem);
+            creditCardFeeLineId = newLineItem.id;
+            
+            console.log("Added Credit Card Fee line item:", newLineItem);
+          } else {
+            console.warn("Credit Card Fee Other Charge not found. Proceeding without fee line.");
           }
         }
 
@@ -910,6 +943,11 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           paymentForJson.penny_adjustment_amount = payload.penny_adjustment;
         }
 
+        if (creditCardFeeLineId) {
+          paymentForJson.credit_card_fee_line_item_id = creditCardFeeLineId;
+          paymentForJson.credit_card_fee_amount = payload.credit_card_fee;
+        }
+
         currentPayments.push(paymentForJson);
 
         const updatedPaymentsJson = JSON.stringify(currentPayments);
@@ -943,6 +981,13 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           const lineIdToRemove = paymentToDelete.penny_adjustment_line_item_id;
           newLineItems = newLineItems.filter(item => item.id !== lineIdToRemove);
           console.log("Removed Penny Adjustment line item:", lineIdToRemove);
+        }
+
+        // Handle Credit Card Fee Deletion
+        if (paymentToDelete && paymentToDelete.credit_card_fee_line_item_id) {
+          const lineIdToRemove = paymentToDelete.credit_card_fee_line_item_id;
+          newLineItems = newLineItems.filter(item => item.id !== lineIdToRemove);
+          console.log("Removed Credit Card Fee line item:", lineIdToRemove);
         }
 
         await CustomerPayments.delete(paymentIdToDelete);
