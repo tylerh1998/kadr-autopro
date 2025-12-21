@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock, Loader2, FileText } from "lucide-react";
+import { Clock, Loader2, FileText, DollarSign } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { base44 } from '@/api/base44Client';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { createPageUrl } from '@/utils';
 // import ProjectForm from "../components/projects/ProjectForm"; // Temporarily commented out
 import WorkPROModal from "../components/work-orders/WorkPROModal";
 
@@ -369,27 +371,26 @@ export default function ActivityLog() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-              Activity Log
-            </h1>
-            <p className="text-gray-600 text-lg">
-              Comprehensive log of all time-related activities
-            </p>
-          </div>
-          {user?.access_level === 'lvl3_user' && ( // Changed from lvl2 to lvl3_user
-            <Button
-              onClick={() => window.location.href = '/Reports'} // Assuming a /Reports page exists
-              className="bg-blue-600 hover:bg-blue-700 shadow-lg"
-            >
-              <FileText className="w-5 h-5 mr-2" />
-              View Reports
-            </Button>
-          )}
-        </div>
+        <Tabs defaultValue="activity_log" className="w-full">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <TabsList>
+              <TabsTrigger value="activity_log">Activity Log</TabsTrigger>
+              <TabsTrigger value="time_records">Time Records</TabsTrigger>
+            </TabsList>
 
-        <Card className="shadow-lg border-0 mb-6">
+            {user?.access_level === 'lvl3_user' && (
+              <Button
+                onClick={() => window.location.href = createPageUrl('Payroll')}
+                className="bg-green-600 hover:bg-green-700 shadow-lg"
+              >
+                <DollarSign className="w-5 h-5 mr-2" />
+                Payroll
+              </Button>
+            )}
+          </div>
+
+          <TabsContent value="activity_log">
+            <Card className="shadow-lg border-0 mb-6">
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               {employees.length > 0 && (
@@ -575,7 +576,19 @@ export default function ActivityLog() {
               </div>
             )}
           </CardContent>
-        </Card>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="time_records">
+            <Card>
+              <CardContent className="p-12 text-center text-gray-500">
+                <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-900">Time Records Module</h3>
+                <p>This feature will be available in a future update.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Loading Modal */}
