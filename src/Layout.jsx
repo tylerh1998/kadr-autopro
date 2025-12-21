@@ -195,7 +195,10 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   const handlePayrollClick = (e) => {
-    if (user?.access_level === 'lvl1_user' || user?.access_level === 'lvl2_user' || !user?.access_level) {
+    if (user?.access_level === 'lvl1_user' || user?.access_level === 'lvl2_user') {
+      e.preventDefault();
+      window.location.href = createPageUrl("WorkPro");
+    } else if (!user?.access_level) {
       e.preventDefault();
       alert('You do not have access to this feature. Contact an administrator to request access.');
     }
@@ -499,7 +502,7 @@ const navigationItems = [
               {/* AutoPRO Area */}
               <div
                 onClick={() => {
-                  window.location.href = createPageUrl("WorkPro");
+                  window.location.href = createPageUrl("Home");
                 }}
                 className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100"
               >

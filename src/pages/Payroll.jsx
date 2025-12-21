@@ -7,9 +7,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar as CalendarIcon, Plus, CheckCircle, FileText, DollarSign, AlertCircle, Trash2, RefreshCw, Printer } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, CheckCircle, FileText, DollarSign, AlertCircle, Trash2, RefreshCw, Printer, Briefcase } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { createPageUrl } from '@/utils';
 
 // Import new modal components
 import AddPaychequeModal from '../components/payroll/AddPaychequeModal';
@@ -278,6 +279,13 @@ export default function PayrollPage() {
               <h1 className="text-3xl font-bold text-slate-900">Payroll Management</h1>
               <p className="text-slate-600 mt-1">Manage all payroll transactions in one place</p>
             </div>
+            <Button 
+              onClick={() => window.location.href = createPageUrl("WorkPro")}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Briefcase className="w-4 h-4 mr-2" />
+              WorkPRO
+            </Button>
           </div>
 
           {/* Filters and Actions */}
