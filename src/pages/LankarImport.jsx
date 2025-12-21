@@ -172,7 +172,7 @@ export default function LankarImport() {
                     {selectedType === 'suppliers' && (
                         <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
                             <p className="font-semibold mb-1">Required Columns:</p>
-                            <code className="text-orange-700">supid, company, Inventory_Supplier, contact, street, city, province, postal, atel, tel</code>
+                            <code className="text-orange-700">supid, company, Inventory_Supplier, default_gl_account, contact, street, city, province, postal, atel, tel</code>
                         </div>
                     )}
                   </div>
