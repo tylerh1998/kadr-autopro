@@ -76,10 +76,20 @@ export default function TimeRecordsView() {
         uniqueEmployeeNames = [...new Set(recordsData.map(r => r.employee_name))].sort();
       } else {
         // For non-admin users
+        let employeeName = null;
+        
+        // 1. Try to find matching Employee entity by email
         const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
         
         if (employeeData.length > 0) {
-            const employeeName = employeeData[0].full_name;
+            employeeName = employeeData[0].full_name;
+        } else if (currentUser.full_name) {
+            // 2. Fallback: use User's full name directly if no linked Employee record found
+            console.log("No linked Employee record found via email, using User full_name:", currentUser.full_name);
+            employeeName = currentUser.full_name;
+        }
+
+        if (employeeName) {
             const response = await base44.functions.invoke('workProProxy', { 
                 entityName: 'TimeRecord', 
                 method: 'filter', 
@@ -91,6 +101,7 @@ export default function TimeRecordsView() {
             uniqueEmployeeNames = [employeeName];
             setSelectedEmployee(employeeName);
         } else {
+            console.warn("Could not determine employee name for user:", currentUser.email);
             recordsData = [];
             uniqueEmployeeNames = [];
             setSelectedEmployee("all");
