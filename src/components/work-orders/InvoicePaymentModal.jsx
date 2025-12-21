@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { WorkOrder } from '@/entities/all';
 
 const paymentMethodOptions = [
   { value: 'cash', label: 'Cash' },
@@ -184,10 +183,10 @@ export default function InvoicePaymentModal({
     try {
       setLoading(true);
       
-      // Save the invoice date to the work order before navigating
-      // We update directly to avoid potential state issues with parent's handleSave overwriting line items
-      if (workOrder && workOrder.id) {
-          await WorkOrder.update(workOrder.id, { invoice_date: invoiceDate });
+      // Save the invoice date via parent onSubmit (which calls handleSave)
+      // This ensures the unsaved changes flag is cleared in DocumentEditor before navigation
+      if (onSubmit) {
+        await onSubmit({ invoice_date: invoiceDate });
       }
       
       // Navigate in the same window/tab, replacing WorkOrderEdit
