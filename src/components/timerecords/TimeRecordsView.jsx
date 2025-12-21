@@ -207,10 +207,6 @@ export default function TimeRecordsView() {
     }
   }, [selectedEmployee, dateFrom, dateTo, allRecords, user, isLoading, applyFilters]);
 
-  const handlePrintReport = () => {
-    window.print();
-  };
-
   const totals = {
     regular: records.reduce((sum, r) => sum + (r.regularHours || 0), 0),
     overtime: records.reduce((sum, r) => sum + (r.overtimeHours || 0), 0),
@@ -220,25 +216,33 @@ export default function TimeRecordsView() {
 
   return (
     <div id="print-section">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">
-            {user?.access_level === 'lvl3_user' && selectedEmployee === "all"
-              ? "All Time Records"
-              : user?.access_level === 'lvl3_user' && selectedEmployee !== "all"
-              ? `Time Records for ${selectedEmployee}`
-              : "My Time Records"}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline"
-            onClick={handlePrintReport}
-            className="bg-white"
-          >
-            <FileDown className="w-5 h-5 mr-2" />
-            Report
-          </Button>
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 1cm; }
+          body * { visibility: hidden; }
+          #print-section, #print-section * { visibility: visible; }
+          #print-section { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          .hours-summary-card { 
+            box-shadow: none !important; 
+            border: 1px solid #e2e8f0 !important;
+            margin-bottom: 20px !important;
+          }
+        }
+        .print-only { display: none; }
+      `}</style>
+
+      <div className="print-only mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Time Records Report</h1>
+        <div className="flex justify-between items-end">
+          <div className="text-sm text-gray-600">
+            <p>Employee: {selectedEmployee === 'all' ? 'All Employees' : selectedEmployee}</p>
+            <p>Period: {dateFrom && dateTo ? `${format(new Date(dateFrom), 'MMM d, yyyy')} - ${format(new Date(dateTo), 'MMM d, yyyy')}` : 'All Dates'}</p>
+          </div>
+          <div className="text-sm text-gray-500">
+            Generated: {format(new Date(), 'MMM d, yyyy h:mm a')}
+          </div>
         </div>
       </div>
 

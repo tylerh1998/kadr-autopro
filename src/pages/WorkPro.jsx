@@ -16,6 +16,7 @@ import { createPageUrl } from '@/utils';
 // import ProjectForm from "../components/projects/ProjectForm"; // Temporarily commented out
 import WorkPROModal from "../components/work-orders/WorkPROModal";
 import TimeRecordsView from "../components/timerecords/TimeRecordsView";
+import { FileDown } from "lucide-react";
 
 export default function ActivityLog() {
   const [activities, setActivities] = useState([]);
@@ -36,6 +37,7 @@ export default function ActivityLog() {
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [projectToAssign, setProjectToAssign] = useState(null);
+  const [activeTab, setActiveTab] = useState("activity_log");
 
   const getDefaultDateRange = () => {
     const today = new Date();
@@ -369,25 +371,41 @@ export default function ActivityLog() {
 
   const totalHours = activities.reduce((sum, activity) => sum + (activity.hours || 0), 0);
 
+  const handlePrintTimeRecords = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <Tabs defaultValue="activity_log" className="w-full">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
             <TabsList>
               <TabsTrigger value="activity_log">Activity Log</TabsTrigger>
               <TabsTrigger value="time_records">Time Records</TabsTrigger>
             </TabsList>
 
-            {user?.access_level === 'lvl3_user' && (
-              <Button
-                onClick={() => window.location.href = createPageUrl('Payroll')}
-                className="bg-green-600 hover:bg-green-700 shadow-lg"
-              >
-                <DollarSign className="w-5 h-5 mr-2" />
-                Payroll
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {activeTab === 'time_records' && (
+                <Button
+                  onClick={handlePrintTimeRecords}
+                  variant="outline"
+                  className="bg-white hover:bg-slate-50 shadow-sm"
+                >
+                  <FileDown className="w-5 h-5 mr-2" />
+                  Report
+                </Button>
+              )}
+              {user?.access_level === 'lvl3_user' && (
+                <Button
+                  onClick={() => window.location.href = createPageUrl('Payroll')}
+                  className="bg-green-600 hover:bg-green-700 shadow-lg"
+                >
+                  <DollarSign className="w-5 h-5 mr-2" />
+                  Payroll
+                </Button>
+              )}
+            </div>
           </div>
 
           <TabsContent value="activity_log">
