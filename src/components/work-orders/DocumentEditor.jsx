@@ -486,7 +486,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   };
 
   // Centralized save logic
-  const handleSave = useCallback(async (updatedDetails = {}, showAlertOnSuccess = true) => {
+  const handleSave = useCallback(async (updatedDetails = {}, showAlertOnSuccess = true, lineItemsOverride = null) => {
     if (!workOrder || !workOrder.id) {
       console.error('Cannot save: workOrder or workOrder.id is missing');
       return;
@@ -495,7 +495,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     setSaving(true);
 
     try {
-      let workingLineItems = lineItems;
+      let workingLineItems = lineItemsOverride || lineItems;
       if (updatedDetails.default_taxable !== undefined && updatedDetails.default_taxable !== workOrder?.default_taxable) {
         workingLineItems = lineItems.map(line => ({
           ...line,
@@ -918,25 +918,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         // Update state and save
         setLineItems(newLineItems);
         
-        // We need to pass the updated line items to handleSave because state update is async
-        // Re-construct the line items JSON for saving
-        const lineItemsToSave = newLineItems.map(item => ({
-          ...item,
-          // Ensure fields match what handleSave expects/strips
-          id: item.id,
-          description: item.description,
-          oc_total: item.oc_total,
-          is_other_charge: item.is_other_charge,
-          gl_account: item.gl_account,
-          taxable: item.taxable,
-          total: item.total
-        }));
-
+        // Pass newLineItems as the 3rd argument (lineItemsOverride) to ensure handleSave uses the updated list
+        // and performs all calculations (totals, tax, etc.) correctly based on it.
         await handleSave({
           payments: updatedPaymentsJson,
-          amount_paid: newTotalPaid,
-          line_items: JSON.stringify(lineItemsToSave)
-        }, false);
+          amount_paid: newTotalPaid
+        }, false, newLineItems);
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
@@ -966,16 +953,10 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
         setLineItems(newLineItems);
         
-        const lineItemsToSave = newLineItems.map(item => ({
-          ...item,
-          id: item.id
-        }));
-
         await handleSave({
           payments: updatedPaymentsJson,
-          amount_paid: newTotalPaid,
-          line_items: JSON.stringify(lineItemsToSave)
-        }, false);
+          amount_paid: newTotalPaid
+        }, false, newLineItems);
       }
     } catch (error) {
       console.error(`Error processing invoice payment ${action}:`, error);

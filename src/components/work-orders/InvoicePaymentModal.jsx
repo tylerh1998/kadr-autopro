@@ -321,6 +321,11 @@ export default function InvoicePaymentModal({
                               return ` - ${format(localDate, 'MMM d, yyyy')}`;
                             })()}
                           </p>
+                          {payment.penny_adjustment_amount && (
+                             <p className="text-xs text-amber-600">
+                               Penny Adj: ${Number(payment.penny_adjustment_amount).toFixed(2)}
+                             </p>
+                          )}
                         </div>
                       </div>
                       {payment.id && ( // Only allow removing if payment has a database ID
