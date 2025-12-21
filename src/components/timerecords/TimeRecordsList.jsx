@@ -59,37 +59,37 @@ export default function TimeRecordsList({ records, isLoading }) {
       <table className="w-full text-sm text-left print-table">
         <thead className="bg-gray-50">
           <tr className="border-b">
-            <th className="h-12 px-4 align-middle font-semibold text-gray-500">Employee</th>
-            <th className="h-12 px-4 align-middle font-semibold text-gray-500">Date</th>
-            <th className="h-12 px-4 align-middle font-semibold text-gray-500">Time In</th>
-            <th className="h-12 px-4 align-middle font-semibold text-gray-500">Time Out</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">Hours</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">Day Total</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">Regular</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">OT</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">PTO</th>
-            <th className="h-12 px-4 align-middle font-semibold text-right text-gray-500">STAT</th>
-            <th className="h-12 px-4 align-middle font-semibold text-gray-500 no-print">Status</th>
+            <th className="h-8 px-2 align-middle font-semibold text-gray-500">Employee</th>
+            <th className="h-8 px-2 align-middle font-semibold text-gray-500">Date</th>
+            <th className="h-8 px-2 align-middle font-semibold text-gray-500">Time In</th>
+            <th className="h-8 px-2 align-middle font-semibold text-gray-500">Time Out</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">Hours</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">Day Total</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">Regular</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">OT</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">PTO</th>
+            <th className="h-8 px-2 align-middle font-semibold text-right text-gray-500">STAT</th>
+            <th className="h-8 px-2 align-middle font-semibold text-gray-500 no-print">Status</th>
           </tr>
         </thead>
         <tbody>
           {records.map((record) => (
             <tr key={record.id} className="border-b hover:bg-gray-50">
-              <td className="p-4 align-middle">{record.employee_name}</td>
-              <td className="p-4 align-middle font-medium">{formatDate(record.clock_in_time)}</td>
-              <td className="p-4 align-middle">{formatTime(record.clock_in_time)}</td>
-              <td className="p-4 align-middle">{formatTime(record.clock_out_time)}</td>
-              <td className="p-4 align-middle text-right text-gray-600">
+              <td className="p-1 px-2 align-middle">{record.employee_name}</td>
+              <td className="p-1 px-2 align-middle font-medium">{formatDate(record.clock_in_time)}</td>
+              <td className="p-1 px-2 align-middle">{formatTime(record.clock_in_time)}</td>
+              <td className="p-1 px-2 align-middle">{formatTime(record.clock_out_time)}</td>
+              <td className="p-1 px-2 align-middle text-right text-gray-600">
                 {record.total_hours ? record.total_hours.toFixed(2) + 'h' : '-'}
               </td>
-              <td className="p-4 align-middle text-right font-bold">
+              <td className="p-1 px-2 align-middle text-right font-bold">
                 {record.dayTotal ? record.dayTotal.toFixed(2) + 'h' : ''}
               </td>
-              <td className="p-4 align-middle text-right">{record.regularHours ? record.regularHours.toFixed(2) + 'h' : ''}</td>
-              <td className="p-4 align-middle text-right text-red-600">{record.overtimeHours ? record.overtimeHours.toFixed(2) + 'h' : ''}</td>
-              <td className="p-4 align-middle text-right text-purple-600">{record.pto_hours ? Number(record.pto_hours).toFixed(2) + 'h' : '-'}</td>
-              <td className="p-4 align-middle text-right text-orange-600">{record.stat_hours ? Number(record.stat_hours).toFixed(2) + 'h' : '-'}</td>
-              <td className="p-4 align-middle no-print">{getStatusBadge(record.status)}</td>
+              <td className="p-1 px-2 align-middle text-right">{record.regularHours ? record.regularHours.toFixed(2) + 'h' : ''}</td>
+              <td className="p-1 px-2 align-middle text-right text-red-600">{record.overtimeHours ? record.overtimeHours.toFixed(2) + 'h' : ''}</td>
+              <td className="p-1 px-2 align-middle text-right text-purple-600">{record.pto_hours ? Number(record.pto_hours).toFixed(2) + 'h' : '-'}</td>
+              <td className="p-1 px-2 align-middle text-right text-orange-600">{record.stat_hours ? Number(record.stat_hours).toFixed(2) + 'h' : '-'}</td>
+              <td className="p-1 px-2 align-middle no-print">{getStatusBadge(record.status)}</td>
             </tr>
           ))}
         </tbody>
