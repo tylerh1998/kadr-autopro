@@ -10,6 +10,7 @@ Deno.serve(async (req) => {
         }
 
         const { entityName, method, params, id, sort, limit } = await req.json();
+        console.log(`WorkProProxy Request: ${method} ${entityName}`, { params, id, sort, limit });
 
         const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
         const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018'; // Hardcoded from existing Layout.js

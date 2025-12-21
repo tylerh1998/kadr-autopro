@@ -161,10 +161,23 @@ export default function ActivityLog() {
 
       } else if (currentUser.access_level === 'lvl1_user' || currentUser.access_level === 'lvl2_user') {
         // For non-admin users, filter by their own employee name
-        const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
-        if (employeeData.length > 0) {
-          const employeeSpecificName = employeeData[0].full_name;
+        // Priority 1: Use User_name from User entity (matches WorkPRO data)
+        let employeeSpecificName = currentUser.User_name;
 
+        if (!employeeSpecificName) {
+            // Priority 2: Try to find matching Employee entity by email
+            const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
+            
+            if (employeeData.length > 0) {
+                employeeSpecificName = employeeData[0].full_name;
+            } else if (currentUser.full_name) {
+                // Priority 3: Fallback to User's full name
+                console.log("No User_name or linked Employee record found, using User full_name:", currentUser.full_name);
+                employeeSpecificName = currentUser.full_name;
+            }
+        }
+
+        if (employeeSpecificName) {
           const [timeRecordsRes, projectSessionsRes, unassignedSessionsRes] = await Promise.all([
             base44.functions.invoke('workProProxy', { entityName: 'TimeRecord', method: 'filter', params: { employee_name: employeeSpecificName }, sort: '-clock_in_time', limit: 1000 }),
             base44.functions.invoke('workProProxy', { entityName: 'ProjectTimeSession', method: 'filter', params: { user_name: employeeSpecificName }, sort: '-start_time', limit: 1000 }),
@@ -212,7 +225,7 @@ export default function ActivityLog() {
           initialEmployeeFilter = employeeSpecificName;
           employeeListForFilter = [employeeSpecificName];
         } else {
-          console.warn("No active employee record found for current user. Displaying no activities.");
+          console.warn("Could not determine employee name for user:", currentUser.email);
           setIsLoading(false);
           setAllActivities([]);
           setActivities([]);
