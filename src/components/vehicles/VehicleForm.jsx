@@ -165,14 +165,19 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="vin">VIN</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="vin"
-                  value={formData.vin}
-                  onChange={(e) => handleChange('vin', e.target.value)}
-                  maxLength="17"
-                  className="font-mono"
-                />
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <Input
+                    id="vin"
+                    value={formData.vin}
+                    onChange={(e) => handleChange('vin', e.target.value)}
+                    maxLength="17"
+                    className="font-mono uppercase"
+                  />
+                  <div className="font-mono text-sm text-slate-400 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
+                    {'       * *'}
+                  </div>
+                </div>
                 <Button type="button" variant="outline" onClick={handleVinDecode} disabled={decoding}> {/* Changed onClick and disabled prop */}
                   {decoding ? ( // Changed condition
                     <Loader2 className="w-4 h-4 animate-spin" />
