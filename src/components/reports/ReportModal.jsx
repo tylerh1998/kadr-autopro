@@ -209,7 +209,7 @@ export default function ReportModal({ open, onClose, reportType }) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); setSelectedReportId(null); setShowPartsOnOrder(false); setShowOtherChargesBreakdown(false); } }}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {(showPartsOnOrder || showOtherChargesBreakdown || selectedReportId) && (
@@ -222,7 +222,7 @@ export default function ReportModal({ open, onClose, reportType }) {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-4 overflow-y-auto">
+        <div className="py-4 overflow-y-auto flex-1">
           {showPartsOnOrder ? (
             <InventoryOnOrder />
           ) : showOtherChargesBreakdown ? (

@@ -193,7 +193,7 @@ export default function InventoryOnOrder() {
         </div>
       </div>
 
-      <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2">
+      <div className="space-y-6 pr-2">
         {sortedSuppliers.map(supplier => (
           <div key={supplier} className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
              <div className="bg-slate-50 px-4 py-2 font-semibold text-slate-800 border-b border-slate-200 flex justify-between items-center">
