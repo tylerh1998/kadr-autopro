@@ -243,23 +243,23 @@ export default function TimeRecordsView() {
           /* Summary Box Styles */
           .summary-grid {
             display: grid !important;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
             width: 100%;
           }
           .summary-item {
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 8px 16px;
+            border-radius: 6px;
+            padding: 4px 8px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             background: #fff;
           }
-          .summary-value { font-size: 16px; font-weight: 800; color: #1a202c; }
-          .summary-label { font-size: 10px; color: #718096; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+          .summary-value { font-size: 12px; font-weight: 800; color: #1a202c; }
+          .summary-label { font-size: 9px; color: #718096; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
 
           /* Table Styles */
           .print-table {
@@ -286,8 +286,8 @@ export default function TimeRecordsView() {
       `}</style>
 
       {/* Print-only Header */}
-      <div className="print-only mb-6">
-        <div className="flex justify-between items-start mb-6">
+      <div className="print-only mb-2">
+        <div className="flex justify-between items-start mb-2">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Hours Summary</h1>
             <div className="text-xs text-gray-500 mt-1">
@@ -319,7 +319,7 @@ export default function TimeRecordsView() {
             </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-4 mt-8 border-b pb-2">
+        <div className="flex items-center gap-2 mb-2 mt-4 border-b pb-1">
             <Clock className="w-5 h-5 text-gray-700" />
             <h2 className="text-lg font-bold text-gray-800">Time Records</h2>
         </div>
