@@ -98,11 +98,34 @@ export default function InvoicePaymentModal({
     try {
       setLoading(true);
 
+      let finalAmount = parseFloat(newPayment.amount);
+      let pennyAdjustment = 0;
+
+      // Apply Canadian Cash Rounding if method is cash
+      if (newPayment.method === 'cash') {
+        // Round to nearest 0.05
+        const roundedAmount = Math.round(finalAmount * 20) / 20;
+        pennyAdjustment = roundedAmount - finalAmount;
+        finalAmount = roundedAmount;
+        
+        // Adjust precision
+        pennyAdjustment = parseFloat(pennyAdjustment.toFixed(2));
+        finalAmount = parseFloat(finalAmount.toFixed(2));
+
+        if (pennyAdjustment !== 0) {
+          console.log(`Applying penny adjustment: ${pennyAdjustment} (Original: ${newPayment.amount}, Rounded: ${finalAmount})`);
+        }
+      }
+
       const paymentData = {
-        amount: parseFloat(newPayment.amount), // Ensure amount is a number
-        method: newPayment.method, // Already using schema value
+        amount: finalAmount, 
+        method: newPayment.method,
         date: newPayment.date,
       };
+
+      if (pennyAdjustment !== 0) {
+        paymentData.penny_adjustment = pennyAdjustment;
+      }
       
       // Add cheque fields if payment method is cheque
       if (newPayment.method === 'cheque') {
@@ -321,13 +344,16 @@ export default function InvoicePaymentModal({
 
         {/* Warning if balance not zero */}
         {Math.abs(balanceDue) > 0.005 && (
-          <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <div>
-              <p className="font-semibold">Balance must be zero to continue</p>
-              <p className="text-sm">Please add or remove payments until the balance due is $0.00</p>
-            </div>
-          </div>
+        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
+        <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+        <div>
+          <p className="font-semibold">Balance must be zero to continue</p>
+          <p className="text-sm">Please add or remove payments until the balance due is $0.00</p>
+          {newPayment.method === 'cash' && Math.abs(balanceDue) <= 0.02 && (
+            <p className="text-xs text-amber-700 mt-1 font-medium">Tip: Use the "Pay remaining balance" link then select Cash to auto-apply rounding.</p>
+          )}
+        </div>
+        </div>
         )}
 
         <DialogFooter className="flex items-center justify-between pt-4 gap-4">

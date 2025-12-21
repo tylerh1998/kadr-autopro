@@ -834,6 +834,41 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
     try {
       if (action === 'add') {
+        let newLineItems = [...lineItems];
+        let pennyAdjustmentLineId = null;
+
+        // Handle Penny Adjustment
+        if (payload.penny_adjustment && payload.penny_adjustment !== 0) {
+          // Find Penny Adjustment Other Charge
+          const pennyAdjCharge = otherCharges.find(oc => oc.description === "Penny Adjustment");
+          
+          if (pennyAdjCharge) {
+            const newLineItem = {
+              id: crypto.randomUUID(), // Generate client-side ID
+              is_other_charge: true,
+              description: "Penny Adjustment",
+              unit: 'ea',
+              qty: 1,
+              parts_ea: 0,
+              labour: 0,
+              oc_total: payload.penny_adjustment,
+              total: payload.penny_adjustment,
+              taxable: false, // Usually non-taxable
+              gl_account: pennyAdjCharge.gl_account,
+              inventory_item_id: null,
+              cost_ea: 0,
+              hrs: 0,
+              inventory_processed: false
+            };
+            newLineItems.push(newLineItem);
+            pennyAdjustmentLineId = newLineItem.id;
+            
+            console.log("Added Penny Adjustment line item:", newLineItem);
+          } else {
+            console.warn("Penny Adjustment Other Charge not found. Proceeding without adjustment line.");
+          }
+        }
+
         const newCustomerPaymentData = {
           customer_id: workOrder.customer_id,
           work_order_id: workOrder.id,
@@ -870,20 +905,42 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           notes: createdPayment.notes
         };
 
+        if (pennyAdjustmentLineId) {
+          paymentForJson.penny_adjustment_line_item_id = pennyAdjustmentLineId;
+          paymentForJson.penny_adjustment_amount = payload.penny_adjustment;
+        }
+
         currentPayments.push(paymentForJson);
 
         const updatedPaymentsJson = JSON.stringify(currentPayments);
         const newTotalPaid = currentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
+        // Update state and save
+        setLineItems(newLineItems);
+        
+        // We need to pass the updated line items to handleSave because state update is async
+        // Re-construct the line items JSON for saving
+        const lineItemsToSave = newLineItems.map(item => ({
+          ...item,
+          // Ensure fields match what handleSave expects/strips
+          id: item.id,
+          description: item.description,
+          oc_total: item.oc_total,
+          is_other_charge: item.is_other_charge,
+          gl_account: item.gl_account,
+          taxable: item.taxable,
+          total: item.total
+        }));
+
         await handleSave({
           payments: updatedPaymentsJson,
-          amount_paid: newTotalPaid
+          amount_paid: newTotalPaid,
+          line_items: JSON.stringify(lineItemsToSave)
         }, false);
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
-        await CustomerPayments.delete(paymentIdToDelete);
-
+        
         let currentPayments = [];
         try {
           currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
@@ -891,20 +948,40 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           currentPayments = [];
         }
 
+        const paymentToDelete = currentPayments.find(p => p.id === paymentIdToDelete);
+        
+        // Handle Penny Adjustment Deletion
+        let newLineItems = [...lineItems];
+        if (paymentToDelete && paymentToDelete.penny_adjustment_line_item_id) {
+          const lineIdToRemove = paymentToDelete.penny_adjustment_line_item_id;
+          newLineItems = newLineItems.filter(item => item.id !== lineIdToRemove);
+          console.log("Removed Penny Adjustment line item:", lineIdToRemove);
+        }
+
+        await CustomerPayments.delete(paymentIdToDelete);
+
         const filteredPayments = currentPayments.filter(p => p.id !== paymentIdToDelete);
         const updatedPaymentsJson = JSON.stringify(filteredPayments);
         const newTotalPaid = filteredPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
 
+        setLineItems(newLineItems);
+        
+        const lineItemsToSave = newLineItems.map(item => ({
+          ...item,
+          id: item.id
+        }));
+
         await handleSave({
           payments: updatedPaymentsJson,
-          amount_paid: newTotalPaid
+          amount_paid: newTotalPaid,
+          line_items: JSON.stringify(lineItemsToSave)
         }, false);
       }
     } catch (error) {
       console.error(`Error processing invoice payment ${action}:`, error);
       throw new Error(`Failed to ${action} invoice payment: ${error.message}`);
     }
-  }, [workOrder, handleSave]);
+  }, [workOrder, lineItems, otherCharges, handleSave]);
 
   const onConversionModalCancel = useCallback(async () => {
     try {
