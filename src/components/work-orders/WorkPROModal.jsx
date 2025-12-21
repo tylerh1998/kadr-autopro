@@ -347,8 +347,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       }));
       
       setHasChanges(false);
-      alert('Project updated successfully!');
-    } catch (error) {
+      onClose();
+      } catch (error) {
       console.error('Error updating project:', error);
       alert('Failed to update project. Please try again.');
     } finally {
