@@ -26,9 +26,9 @@ export default function TimeRecordsList({ records, isLoading }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'clocked_in':
-        return <Badge className="bg-green-100 text-green-800 border-green-200"><Clock className="w-3 h-3 mr-1" /> In Progress</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><Clock className="w-3 h-3 mr-1" /> Clocked In</Badge>;
       case 'clocked_out':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Completed</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Clocked Out</Badge>;
       case 'locked':
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><Lock className="w-3 h-3 mr-1" /> Locked</Badge>;
       case 'error':
