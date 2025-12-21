@@ -28,9 +28,9 @@ export default function TimeRecordsList({ records, isLoading }) {
       case 'clocked_in':
         return <Badge className="bg-green-100 text-green-800 border-green-200"><Clock className="w-3 h-3 mr-1" /> In Progress</Badge>;
       case 'clocked_out':
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Completed</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><CheckCircle2 className="w-3 h-3 mr-1" /> Completed</Badge>;
       case 'locked':
-        return <Badge className="bg-slate-100 text-slate-800 border-slate-200"><Lock className="w-3 h-3 mr-1" /> Locked</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><Lock className="w-3 h-3 mr-1" /> Locked</Badge>;
       case 'error':
         return <Badge className="bg-red-100 text-red-800 border-red-200"><AlertCircle className="w-3 h-3 mr-1" /> Error</Badge>;
       default:
@@ -59,32 +59,32 @@ export default function TimeRecordsList({ records, isLoading }) {
       <Table>
         <TableHeader className="bg-gray-50">
           <TableRow>
-            <TableHead className="font-semibold">Date</TableHead>
             <TableHead className="font-semibold">Employee</TableHead>
+            <TableHead className="font-semibold">Date</TableHead>
             <TableHead className="font-semibold">Clock In</TableHead>
             <TableHead className="font-semibold">Clock Out</TableHead>
+            <TableHead className="font-semibold text-right">Day Total</TableHead>
             <TableHead className="font-semibold text-right">Regular</TableHead>
-            <TableHead className="font-semibold text-right">Overtime</TableHead>
+            <TableHead className="font-semibold text-right">OT</TableHead>
             <TableHead className="font-semibold text-right">PTO</TableHead>
             <TableHead className="font-semibold text-right">Stat</TableHead>
-            <TableHead className="font-semibold text-right">Total</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {records.map((record) => (
             <TableRow key={record.id} className="hover:bg-gray-50">
-              <TableCell className="font-medium">{formatDate(record.clock_in_time)}</TableCell>
               <TableCell>{record.employee_name}</TableCell>
+              <TableCell className="font-medium">{formatDate(record.clock_in_time)}</TableCell>
               <TableCell>{formatTime(record.clock_in_time)}</TableCell>
               <TableCell>{formatTime(record.clock_out_time)}</TableCell>
-              <TableCell className="text-right">{record.regularHours ? record.regularHours.toFixed(2) : '-'}</TableCell>
-              <TableCell className="text-right text-red-600">{record.overtimeHours ? record.overtimeHours.toFixed(2) : '-'}</TableCell>
+              <TableCell className="text-right font-bold">
+                {record.dayTotal ? record.dayTotal.toFixed(2) : ''}
+              </TableCell>
+              <TableCell className="text-right">{record.regularHours ? record.regularHours.toFixed(2) : ''}</TableCell>
+              <TableCell className="text-right text-red-600">{record.overtimeHours ? record.overtimeHours.toFixed(2) : ''}</TableCell>
               <TableCell className="text-right text-purple-600">{record.pto_hours ? Number(record.pto_hours).toFixed(2) : '-'}</TableCell>
               <TableCell className="text-right text-orange-600">{record.stat_hours ? Number(record.stat_hours).toFixed(2) : '-'}</TableCell>
-              <TableCell className="text-right font-bold">
-                {((record.total_hours || 0) + (record.pto_hours || 0) + (record.stat_hours || 0)).toFixed(2)}
-              </TableCell>
               <TableCell>{getStatusBadge(record.status)}</TableCell>
             </TableRow>
           ))}

@@ -142,7 +142,8 @@ export default function TimeRecordsView() {
         }
         return {
             ...record,
-            regularHours: record.total_hours || 0,
+            dayTotal: null,
+            regularHours: 0,
             overtimeHours: 0
         };
       });
