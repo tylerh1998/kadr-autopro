@@ -704,45 +704,45 @@ export default function ActivityLog() {
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-400" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">
-                    <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 14l-7 7m0 0l-7-7m7 7V3\" />
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                   </svg>
                 </div>
 
-                <div className=\"p-4 bg-green-50 rounded-lg\">
-                  <p className=\"text-sm font-semibold text-gray-700 mb-2\">Assign to Project:</p>
-                  <p className=\"text-sm text-gray-600\">
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Assign to Project:</p>
+                  <p className="text-sm text-gray-600">
                     <strong>Project:</strong> {projectToAssign.name}
                   </p>
-                  <p className=\"text-sm text-gray-600\">
+                  <p className="text-sm text-gray-600">
                     <strong>Customer:</strong> {projectToAssign.customer}
                   </p>
-                  <p className=\"text-sm text-gray-600\">
+                  <p className="text-sm text-gray-600">
                     <strong>Vehicle:</strong> {projectToAssign.vehicle}
                   </p>
                   {projectToAssign.work_order && (
-                    <p className=\"text-sm text-gray-600\">
+                    <p className="text-sm text-gray-600">
                       <strong>Work Order:</strong> {projectToAssign.work_order}
                     </p>
                   )}
                 </div>
 
-                <p className=\"text-sm text-gray-500 italic\">
+                <p className="text-sm text-gray-500 italic">
                   Are you sure you want to assign this unassigned time to this project?
                 </p>
               </div>
             )}
 
-            <DialogFooter className=\"pt-4 border-t\">
+            <DialogFooter className="pt-4 border-t">
               <Button
-                variant=\"outline\"
+                variant="outline"
                 onClick={handleCancelConfirmDialog}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirmAssignment}
-                className=\"bg-blue-600 hover:bg-blue-700\"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 Confirm Assignment
               </Button>
