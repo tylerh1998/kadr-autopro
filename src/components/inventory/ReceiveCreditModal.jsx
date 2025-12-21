@@ -112,6 +112,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
   const adjTotal = Math.round((adj + adjGst) * 100) / 100;
   const grandTotal = Math.round((subtotal + gst + adj + adjGst) * 100) / 100;
 
+  const displaySubtotal = Math.round((subtotal + adj) * 100) / 100;
+  const displayGst = Math.round((gst + adjGst) * 100) / 100;
+
   const getToAccountOptions = () => {
     switch (refundCreditTo) {
       case 'Supplier AP':
@@ -453,28 +456,12 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                  <span className="font-medium">${displaySubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>GST (5%):</span>
-                  <span className="font-medium">${gst.toFixed(2)}</span>
+                  <span className="font-medium">${displayGst.toFixed(2)}</span>
                 </div>
-                {adj !== 0 && (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Adjustment:</span>
-                      <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${adj.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Adjustment GST:</span>
-                      <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${adjGst.toFixed(2)}
-                      </span>
-                    </div>
-                  </>
-                )}
                 <Separator />
                 <div className="flex justify-between font-bold">
                   <span>Grand Total:</span>
