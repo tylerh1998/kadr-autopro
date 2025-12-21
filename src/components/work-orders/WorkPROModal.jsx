@@ -67,6 +67,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     promised_by: '',
     status: '',
     description: '',
+    default_category: 'billable',
     // Oil change fields
     filter: '',
     oil_qty: '',
@@ -169,6 +170,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
           promised_by: foundProject.promised_by || '',
           status: foundProject.status || '',
           description: foundProject.description || '',
+          default_category: foundProject.default_category || 'billable',
           // Oil change fields
           filter: foundProject.filter || '',
           oil_qty: foundProject.oil_qty || '',
@@ -316,6 +318,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         promised_by: formData.promised_by,
         status: formData.status,
         description: formData.description,
+        default_category: formData.default_category,
         // Oil change fields
         filter: formData.filter,
         oil_qty: formData.oil_qty,
@@ -707,14 +710,20 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Estimate (Hrs)</Label>
-                  <Input
-                    type="number"
-                    step="0.5"
-                    value={formData.time_estimate}
-                    onChange={(e) => handleFieldChange('time_estimate', e.target.value)}
-                    placeholder="e.g., 4.5"
-                  />
+                  <Label className="text-sm font-medium">Default Category</Label>
+                  <Select value={formData.default_category} onValueChange={(val) => handleFieldChange('default_category', val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="billable">Billable</SelectItem>
+                      <SelectItem value="rework">Rework</SelectItem>
+                      <SelectItem value="warranty">Warranty</SelectItem>
+                      <SelectItem value="training">Training</SelectItem>
+                      <SelectItem value="internal">Internal</SelectItem>
+                      <SelectItem value="shop_work">Shop Work</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Priority</Label>
