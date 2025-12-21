@@ -226,22 +226,23 @@ export default function NewWorkOrderModal({
     const handleGlobalKeyDown = (e) => {
       if (!open) return;
       
-      // Check for Alt + W (Work Order) or Ctrl + E (Estimate)
+      // Check for Alt + W (Work Order) or Alt + E (Estimate)
       // Note: Ctrl + W is reserved by browser (Close Tab) so using Alt + W
-      if (e.altKey && e.key.toLowerCase() === 'w') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (selectedCustomer && selectedVehicle) {
-              handleCreate('work_order');
-          }
-      }
-      
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
-          e.preventDefault();
-          e.stopPropagation();
-          if (selectedCustomer && selectedVehicle) {
-              handleCreate('estimate');
-          }
+      if (e.altKey) {
+        if (e.key.toLowerCase() === 'w') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedCustomer && selectedVehicle) {
+                handleCreate('work_order');
+            }
+        }
+        if (e.key.toLowerCase() === 'e') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectedCustomer && selectedVehicle) {
+                handleCreate('estimate');
+            }
+        }
       }
     };
 
