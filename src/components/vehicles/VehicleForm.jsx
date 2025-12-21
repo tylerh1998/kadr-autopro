@@ -120,7 +120,9 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               <SelectContent>
                 {customers?.map(customer => (
                   <SelectItem key={customer.id} value={customer.id}>
-                    {customer.first_name} {customer.last_name}
+                    {customer.org_name 
+                      ? `${customer.org_name} ${customer.first_name || customer.last_name ? `(${customer.first_name} ${customer.last_name})` : ''}`
+                      : `${customer.first_name} ${customer.last_name}`}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -83,7 +83,8 @@ export default function VehiclesPage() {
       vehicle.vin?.toLowerCase().includes(searchLower) ||
       vehicle.license_plate?.toLowerCase().includes(searchLower) ||
       customer?.first_name?.toLowerCase().includes(searchLower) ||
-      customer?.last_name?.toLowerCase().includes(searchLower);
+      customer?.last_name?.toLowerCase().includes(searchLower) ||
+      customer?.org_name?.toLowerCase().includes(searchLower);
   });
 
   const getCustomer = (customerId) => customers.find(c => c.id === customerId);
@@ -258,7 +259,18 @@ export default function VehiclesPage() {
                             </h4>
                             <div className="space-y-1 text-sm">
                               <p className="font-medium text-slate-900">
-                                {customer.first_name} {customer.last_name}
+                                {customer.org_name ? (
+                                  <>
+                                    <span className="block">{customer.org_name}</span>
+                                    {(customer.first_name || customer.last_name) && (
+                                      <span className="text-sm font-normal text-slate-500">
+                                        {customer.first_name} {customer.last_name}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  `${customer.first_name} ${customer.last_name}`
+                                )}
                               </p>
                               {customer.phone && (
                                 <p className="text-slate-600 flex items-center gap-1">
