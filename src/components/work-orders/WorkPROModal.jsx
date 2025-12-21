@@ -277,7 +277,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       setShowConnectToExistingSection(false);
       setProjectsForConnection([]);
       
-      alert('Project connected successfully!');
+      onClose();
     } catch (error) {
       console.error('Error connecting project:', error);
       alert('Failed to connect project. Please try again.');
