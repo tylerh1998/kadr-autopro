@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { WorkOrder, Customer, Vehicle, SystemSettings } from '@/entities/all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
@@ -20,6 +20,7 @@ export default function InvoiceConversion() {
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [isAccountingSummaryOpen, setIsAccountingSummaryOpen] = useState(false);
 
   useEffect(() => {
     const convertToInvoice = async () => {
@@ -393,55 +394,75 @@ export default function InvoiceConversion() {
 
           {/* Accounting Summary */}
           {accountingSummary && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-semibold text-blue-900">Accounting Summary</p>
-              <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
-                {accountingSummary.parts_sales !== undefined && (
-                  <div className="text-left">
-                    <span className="font-medium">Parts Sales:</span>
-                    <span className="float-right">${accountingSummary.parts_sales?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.labor_sales !== undefined && (
-                  <div className="text-left">
-                    <span className="font-medium">Labor Sales:</span>
-                    <span className="float-right">${accountingSummary.labor_sales?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.shop_supplies !== undefined && accountingSummary.shop_supplies !== 0 && (
-                  <div className="text-left">
-                    <span className="font-medium">Shop Supplies:</span>
-                    <span className="float-right">${accountingSummary.shop_supplies?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.gst !== undefined && (
-                  <div className="text-left">
-                    <span className="font-medium">GST:</span>
-                    <span className="float-right">${accountingSummary.gst?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.cash_payments !== undefined && accountingSummary.cash_payments !== 0 && (
-                  <div className="text-left">
-                    <span className="font-medium">Cash Payments:</span>
-                    <span className="float-right">${accountingSummary.cash_payments?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.advance_payments !== undefined && accountingSummary.advance_payments !== 0 && (
-                  <div className="text-left">
-                    <span className="font-medium">Advance Payments:</span>
-                    <span className="float-right">${accountingSummary.advance_payments?.toFixed(2)}</span>
-                  </div>
-                )}
-                {accountingSummary.remaining_balance !== undefined && accountingSummary.remaining_balance !== 0 && (
-                  <div className="text-left col-span-2 pt-2 border-t border-blue-300">
-                    <span className="font-bold">Balance Due:</span>
-                    <span className="float-right font-bold">${accountingSummary.remaining_balance?.toFixed(2)}</span>
-                  </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
+              <div 
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-100/50 transition-colors"
+                onClick={() => setIsAccountingSummaryOpen(!isAccountingSummaryOpen)}
+              >
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-blue-900">Accounting Summary</p>
+                  <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                    {accountingSummary.total_transactions} txs
+                  </span>
+                </div>
+                {isAccountingSummaryOpen ? (
+                  <ChevronDown className="w-4 h-4 text-blue-700" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-blue-700" />
                 )}
               </div>
-              <p className="text-xs text-blue-700 pt-2">
-                {accountingSummary.total_transactions} GL transactions posted
-              </p>
+              
+              {isAccountingSummaryOpen && (
+                <div className="px-4 pb-4 space-y-2 border-t border-blue-200 pt-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                    {accountingSummary.parts_sales !== undefined && (
+                      <div className="text-left">
+                        <span className="font-medium">Parts Sales:</span>
+                        <span className="float-right">${accountingSummary.parts_sales?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.labor_sales !== undefined && (
+                      <div className="text-left">
+                        <span className="font-medium">Labor Sales:</span>
+                        <span className="float-right">${accountingSummary.labor_sales?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.shop_supplies !== undefined && accountingSummary.shop_supplies !== 0 && (
+                      <div className="text-left">
+                        <span className="font-medium">Shop Supplies:</span>
+                        <span className="float-right">${accountingSummary.shop_supplies?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.gst !== undefined && (
+                      <div className="text-left">
+                        <span className="font-medium">GST:</span>
+                        <span className="float-right">${accountingSummary.gst?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.cash_payments !== undefined && accountingSummary.cash_payments !== 0 && (
+                      <div className="text-left">
+                        <span className="font-medium">Cash Payments:</span>
+                        <span className="float-right">${accountingSummary.cash_payments?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.advance_payments !== undefined && accountingSummary.advance_payments !== 0 && (
+                      <div className="text-left">
+                        <span className="font-medium">Advance Payments:</span>
+                        <span className="float-right">${accountingSummary.advance_payments?.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {accountingSummary.remaining_balance !== undefined && accountingSummary.remaining_balance !== 0 && (
+                      <div className="text-left col-span-2 pt-2 border-t border-blue-300">
+                        <span className="font-bold">Balance Due:</span>
+                        <span className="float-right font-bold">${accountingSummary.remaining_balance?.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-blue-700 pt-2">
+                    {accountingSummary.total_transactions} GL transactions posted
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
