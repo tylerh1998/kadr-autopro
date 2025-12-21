@@ -436,7 +436,7 @@ const navigationItems = [
     title: "Payroll",
     icon: UserCheck,
     url: createPageUrl("Payroll"),
-    activePaths: ["/Payroll"],
+    activePaths: ["/Payroll", "/WorkPro"],
   },
   {
     title: "Setup",

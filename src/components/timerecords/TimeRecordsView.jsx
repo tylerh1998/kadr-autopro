@@ -265,11 +265,12 @@ export default function TimeRecordsView() {
           .print-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
+            font-size: 10px;
           }
           .print-table th, .print-table td {
             border: 1px solid #e2e8f0;
-            padding: 6px 8px;
+            padding: 2px 4px !important;
+            height: 24px;
             text-align: left;
           }
           .print-table th {
