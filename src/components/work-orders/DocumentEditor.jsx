@@ -719,13 +719,16 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         line_items: JSON.stringify(lineItemsToSave),
       };
 
+      // Create a copy for the API update to avoid mutating workOrderData which is used for local state
+      const apiPayload = { ...workOrderData };
+
       if (invoiceConversionPhase > 0 && invoiceConversionPhase < 4) {
-        delete workOrderData.stage;
-        delete workOrderData.converted;
-        delete workOrderData.inv_number;
+        delete apiPayload.stage;
+        delete apiPayload.converted;
+        delete apiPayload.inv_number;
       }
 
-      await WorkOrder.update(workOrder.id, workOrderData);
+      await WorkOrder.update(workOrder.id, apiPayload);
 
       if (!updatedDetails.LockedByUser && workOrderData.LockedByUser !== null && workOrderData.LockedByUser !== '') {
           await WorkOrder.update(workOrder.id, { LockedByUser: null });
