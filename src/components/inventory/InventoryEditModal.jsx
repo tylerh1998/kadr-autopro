@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { InventoryItem } from '@/entities/all';
 import { TagAlong } from "@/entities/TagAlong";
 import { base44 } from '@/api/base44Client';
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Search, Check } from "lucide-react";
 
 export default function InventoryEditModal({ open, onClose, item, onUpdate, suppliers, salesClasses, inventoryLocations }) {
     const [formData, setFormData] = useState({
