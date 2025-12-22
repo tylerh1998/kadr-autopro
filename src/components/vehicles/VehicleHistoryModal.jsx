@@ -1,15 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { WorkOrder } from '@/entities/all';
+import { Button } from "@/components/ui/button";
+import { WorkOrder, Vehicle, Customer } from '@/entities/all';
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Gauge, Edit } from 'lucide-react';
+import VehicleForm from './VehicleForm';
 
-export default function VehicleHistoryModal({ open, onClose, vehicle }) {
+export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleUpdated }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showEditVehicle, setShowEditVehicle] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentVehicle, setCurrentVehicle] = useState(vehicle);
+
+  useEffect(() => {
+    setCurrentVehicle(vehicle);
+  }, [vehicle]);
 
   useEffect(() => {
     if (open && vehicle?.id) {
@@ -61,14 +70,51 @@ export default function VehicleHistoryModal({ open, onClose, vehicle }) {
     }
   };
 
+  const handleEditClick = async () => {
+    try {
+      const customerList = await Customer.list();
+      setCustomers(customerList);
+      setShowEditVehicle(true);
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+    }
+  };
+
+  const handleUpdateVehicle = async (vehicleData) => {
+    setIsSubmitting(true);
+    try {
+      await Vehicle.update(currentVehicle.id, vehicleData);
+      const updated = await Vehicle.get(currentVehicle.id);
+      setCurrentVehicle(updated);
+      setShowEditVehicle(false);
+      if (onVehicleUpdated) {
+        onVehicleUpdated(updated);
+      }
+    } catch (error) {
+      console.error("Failed to update vehicle:", error);
+      alert("Failed to update vehicle.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Work Order History for {vehicle?.year} {vehicle?.make} {vehicle?.model}</DialogTitle>
-          <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1">
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <div className="flex justify-between items-center pr-8">
+              <div>
+                <DialogTitle>Work Order History for {currentVehicle?.year} {currentVehicle?.make} {currentVehicle?.model}</DialogTitle>
+                <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleEditClick}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Vehicle
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1">
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
           ) : history.length > 0 ? (
@@ -118,5 +164,21 @@ export default function VehicleHistoryModal({ open, onClose, vehicle }) {
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={showEditVehicle} onOpenChange={setShowEditVehicle}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Edit Vehicle</DialogTitle>
+        </DialogHeader>
+        <VehicleForm
+          vehicle={currentVehicle}
+          customers={customers}
+          onSubmit={handleUpdateVehicle}
+          onCancel={() => setShowEditVehicle(false)}
+          isSubmitting={isSubmitting}
+        />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

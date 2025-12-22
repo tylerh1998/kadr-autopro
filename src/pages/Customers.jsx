@@ -233,8 +233,8 @@ export default function CustomersPage() {
                       size="sm"
                       onClick={(e) => handleHistoryClick(customer, e)}
                     >
-                      <History className="w-4 h-4 mr-2" />
-                      History
+                      <Car className="w-4 h-4 mr-2" />
+                      Vehicles
                     </Button>
                     {user?.role === 'admin' && (
                       <Button

@@ -39,6 +39,10 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
     setSelectedVehicle(null);
   }
 
+  const handleVehicleUpdated = (updatedVehicle) => {
+    setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v));
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -78,6 +82,7 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
           open={isHistoryModalOpen}
           onClose={handleCloseHistoryModal}
           vehicle={selectedVehicle}
+          onVehicleUpdated={handleVehicleUpdated}
         />
       )}
     </>
