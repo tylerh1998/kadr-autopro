@@ -540,19 +540,61 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="location">Location</Label>
-                                <Select value={formData.location} onValueChange={(val) => handleInputChange('location', val === 'none' ? '' : val)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select location" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">None</SelectItem>
-                                        {inventoryLocations.map(loc => (
-                                            <SelectItem key={loc.id} value={loc.id}>
-                                                {loc.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={searchOpen}
+                                            className="w-full justify-between font-normal"
+                                        >
+                                            {formData.location || "Select location..."}
+                                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[300px] p-0" align="start">
+                                        <div className="p-2">
+                                            <Input
+                                                placeholder="Search locations..."
+                                                value={formData.location || ''}
+                                                onChange={(e) => handleInputChange('location', e.target.value)}
+                                                className="mb-2"
+                                                autoFocus
+                                            />
+                                            <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                                <div
+                                                    onClick={() => {
+                                                        handleInputChange('location', '');
+                                                        setSearchOpen(false);
+                                                    }}
+                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                >
+                                                    <span className="text-slate-500 italic">No Location</span>
+                                                    {(!formData.location || formData.location === '') && <Check className="ml-auto h-4 w-4" />}
+                                                </div>
+                                                {filteredLocations.length === 0 ? (
+                                                    <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                ) : (
+                                                    filteredLocations.map((loc) => (
+                                                        <div
+                                                            key={loc.id}
+                                                            onClick={() => {
+                                                                handleInputChange('location', loc.location_name);
+                                                                setSearchOpen(false);
+                                                            }}
+                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                        >
+                                                            <span>{loc.location_name}</span>
+                                                            {formData.location === loc.location_name && (
+                                                                <Check className="ml-auto h-4 w-4" />
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
                     )}
