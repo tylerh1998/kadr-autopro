@@ -21,7 +21,7 @@ export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Customer</DialogTitle>
         </DialogHeader>
