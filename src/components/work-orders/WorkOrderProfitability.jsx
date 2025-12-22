@@ -63,7 +63,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     }, 0);
 
     const billedHours = safeLineItems.reduce((sum, item) => {
-      return sum + (Number(item.labour) > 0 ? (Number(item.qty) || 0) : 0);
+      return sum + (Number(item.hrs) || 0);
     }, 0);
     
     // Calculate actual labor cost from tech time logs
