@@ -20,17 +20,31 @@ Deno.serve(async (req) => {
         console.log(`Fetching file from ${file_url}`);
         const fileResponse = await fetch(file_url);
         if (!fileResponse.ok) throw new Error("Failed to fetch file");
-        const fileText = await fileResponse.text();
-
-        // Parse CSV
-        console.log("Parsing CSV...");
-        const parseResult = Papa.parse(fileText, { header: true, skipEmptyLines: true });
         
-        if (parseResult.errors.length > 0) {
-             console.warn("CSV Parse warnings:", parseResult.errors);
+        const fileBuffer = await fileResponse.arrayBuffer();
+        let rows = [];
+
+        // Check for Excel file extension
+        // Note: The file_url from Base44 storage typically preserves the extension
+        const isExcel = file_url.toLowerCase().includes('.xlsx') || file_url.toLowerCase().includes('.xls');
+
+        if (isExcel) {
+             console.log("Parsing Excel file...");
+             const workbook = XLSX.read(new Uint8Array(fileBuffer), { type: 'array' });
+             const sheetName = workbook.SheetNames[0];
+             rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        } else {
+             // Parse CSV
+             console.log("Parsing CSV...");
+             const fileText = new TextDecoder().decode(fileBuffer);
+             const parseResult = Papa.parse(fileText, { header: true, skipEmptyLines: true });
+             
+             if (parseResult.errors.length > 0) {
+                  console.warn("CSV Parse warnings:", parseResult.errors);
+             }
+             rows = parseResult.data;
         }
         
-        const rows = parseResult.data;
         console.log(`Parsed ${rows.length} rows.`);
 
         let recordsToCreate = [];
