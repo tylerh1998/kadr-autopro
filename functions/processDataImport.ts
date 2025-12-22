@@ -311,6 +311,26 @@ Deno.serve(async (req) => {
                     pin_to_top: false
                 };
             }).filter(r => r.name);
+
+        } else if (type === 'inventory_locations') {
+            entityName = "InventoryLocation";
+            recordsToCreate = rows.map(row => {
+                 const getVal = (keys) => {
+                    for (const key of keys) {
+                        if (row[key] !== undefined) return row[key];
+                    }
+                    return undefined;
+                };
+
+                const name = String(getVal(['Location', 'location', 'Name', 'name', 'LocationName']) || '').trim();
+                if (!name) return null;
+
+                return {
+                    location_name: name,
+                    description: String(getVal(['Description', 'description']) || ''),
+                    is_active: true
+                };
+            }).filter(r => r !== null);
         }
 
         if (recordsToCreate.length === 0) {
