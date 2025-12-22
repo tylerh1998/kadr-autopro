@@ -24,7 +24,14 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
   const totalHours = parseFloat(log?.hours || 0);
 
   useEffect(() => {
-    if (open) {
+    if (open && log?.category) {
+      try {
+        const catObj = typeof log.category === 'string' ? JSON.parse(log.category) : log.category;
+        setAllocations(catObj || {});
+      } catch {
+        setAllocations({});
+      }
+    } else if (open) {
       setAllocations({});
     }
   }, [open, log]);
