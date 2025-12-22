@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
             
             // Fetch TagAlongs for mapping
             console.log("Fetching TagAlongs...");
-            const tagAlongs = await base44.asServiceRole.entities.TagAlong.list({ limit: 1000 });
+            // Correct SDK usage: list(sort, limit)
+            const tagAlongs = await base44.asServiceRole.entities.TagAlong.list(null, 1000);
             const tagAlongMap = new Map();
             tagAlongs.forEach(ta => {
                 if (ta.tagalongid) tagAlongMap.set(String(ta.tagalongid), ta.id);
@@ -48,13 +49,18 @@ Deno.serve(async (req) => {
 
             // Fetch Suppliers for mapping
             console.log("Fetching Suppliers for ID mapping...");
-            // Using a simple list with limit 1000. If > 1000 suppliers, we should implement pagination.
-            const suppliers = await base44.asServiceRole.entities.Supplier.list({ limit: 1000 });
+            // Correct SDK usage: list(sort, limit)
+            const suppliers = await base44.asServiceRole.entities.Supplier.list(null, 1000);
             const supplierMap = new Map();
             suppliers.forEach(s => {
-                if (s.supid) supplierMap.set(String(s.supid).trim(), s.id);
+                if (s.supid) {
+                    supplierMap.set(String(s.supid).trim(), s.id);
+                }
             });
-            console.log(`Mapped ${supplierMap.size} suppliers by legacy ID.`);
+            console.log(`Fetched ${suppliers.length} suppliers. Mapped ${supplierMap.size} suppliers by legacy ID.`);
+            if (suppliers.length > 0) {
+                 console.log("Sample supplier mapping keys:", Array.from(supplierMap.keys()).slice(0, 5));
+            }
 
             // Map rows to entity
             recordsToCreate = rows.map(row => {
