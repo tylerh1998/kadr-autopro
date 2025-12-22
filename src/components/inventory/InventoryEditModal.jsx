@@ -36,6 +36,15 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     const [loading, setLoading] = useState(false);
     const [calculatedMargin, setCalculatedMargin] = useState('');
     const [tagAlongs, setTagAlongs] = useState([]);
+    const [searchOpen, setSearchOpen] = useState(false);
+
+    const filteredLocations = React.useMemo(() => {
+        if (!formData.location) return inventoryLocations || [];
+        const searchLower = formData.location.toLowerCase();
+        return (inventoryLocations || []).filter(loc => 
+            (loc.location_name || '').toLowerCase().includes(searchLower)
+        );
+    }, [formData.location, inventoryLocations]);
 
     const calculatePriceFromSalesClass = useCallback((costValue, salesClassId) => {
         if (!costValue || !salesClassId || !salesClasses || salesClasses.length === 0) return null;
