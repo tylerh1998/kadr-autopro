@@ -157,6 +157,15 @@ export default function InventoryAddPage() {
     const supplierTriggerRef = React.useRef(null);
     const partNumberRef = React.useRef(null);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
+    const [locationSearchOpen, setLocationSearchOpen] = useState(false);
+
+    const filteredLocations = useMemo(() => {
+        if (!currentItem.location) return inventoryLocations || [];
+        const searchLower = currentItem.location.toLowerCase();
+        return (inventoryLocations || []).filter(loc => 
+            (loc.location_name || '').toLowerCase().includes(searchLower)
+        );
+    }, [currentItem.location, inventoryLocations]);
 
     const filteredInventory = useMemo(() => {
         if (!currentItem.part_number || currentItem.part_number.trim() === '') return [];
