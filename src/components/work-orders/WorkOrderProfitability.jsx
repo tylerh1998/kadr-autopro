@@ -61,6 +61,10 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     const laborRevenue = safeLineItems.reduce((sum, item) => {
       return sum + (Number(item.labour) || 0);
     }, 0);
+
+    const billedHours = safeLineItems.reduce((sum, item) => {
+      return sum + (Number(item.labour) > 0 ? (Number(item.qty) || 0) : 0);
+    }, 0);
     
     // Calculate actual labor cost from tech time logs
     let laborCost = 0;
@@ -122,7 +126,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         cost: laborCost, 
         profit: laborProfit, 
         margin: laborMargin,
-        actualCostCalculated: actualCostCalculated
+        actualCostCalculated: actualCostCalculated,
+        billedHours: billedHours
       }
     };
   }, [safeLineItems, techTimeLogs, employees]);
@@ -279,29 +284,48 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Revenue:</span>
-                  <span className="font-semibold">{formatCurrency(profitabilityData.laborData.revenue)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">
-                    Cost{profitabilityData.laborData.actualCostCalculated ? '' : ' (Estimated)'}:
-                  </span>
-                  <span className="font-semibold">{formatCurrency(profitabilityData.laborData.cost)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Profit:</span>
-                  <span className={`font-semibold ${getMarginColor(profitabilityData.laborData.margin)}`}>
-                    {formatCurrency(profitabilityData.laborData.profit)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Margin:</span>
-                  <Badge className={getMarginBadgeColor(profitabilityData.laborData.margin)}>
-                    {profitabilityData.laborData.margin.toFixed(1)}%
-                  </Badge>
-                </div>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="text-left py-2 px-4 font-medium text-slate-500">Metric</th>
+                      <th className="text-right py-2 px-4 font-medium text-slate-500">Hours</th>
+                      <th className="text-right py-2 px-4 font-medium text-slate-500">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 text-slate-600">Revenue</td>
+                      <td className="text-right py-2 px-4">{profitabilityData.laborData.billedHours.toFixed(1)}</td>
+                      <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.revenue)}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 text-slate-600">
+                        Cost{profitabilityData.laborData.actualCostCalculated ? '' : ' (Est)'}
+                      </td>
+                      <td className="text-right py-2 px-4">{totalTechHours.toFixed(1)}</td>
+                      <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.cost)}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-2 px-4 text-slate-600">Profit</td>
+                      <td className={`text-right py-2 px-4 ${(profitabilityData.laborData.billedHours - totalTechHours) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {(profitabilityData.laborData.billedHours - totalTechHours).toFixed(1)}
+                      </td>
+                      <td className={`text-right py-2 px-4 font-semibold ${getMarginColor(profitabilityData.laborData.margin)}`}>
+                        {formatCurrency(profitabilityData.laborData.profit)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 text-slate-600">Margin</td>
+                      <td className="text-right py-2 px-4 text-slate-400">-</td>
+                      <td className="text-right py-2 px-4">
+                        <Badge className={getMarginBadgeColor(profitabilityData.laborData.margin)}>
+                          {profitabilityData.laborData.margin.toFixed(1)}%
+                        </Badge>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </CardContent>
             </Card>
           </div>
