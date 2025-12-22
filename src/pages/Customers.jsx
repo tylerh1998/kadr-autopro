@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, User, Phone, Mail, DollarSign, Edit, History } from "lucide-react";
+import { Plus, Search, User, Phone, Mail, DollarSign, Edit, History, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -20,9 +20,22 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
+  const [user, setUser] = useState(null);
   const searchInputRef = React.useRef(null);
   
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch (error) {
+        console.error("Failed to fetch user", error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     loadCustomers();
@@ -74,6 +87,19 @@ export default function CustomersPage() {
     e.stopPropagation();
     setSelectedCustomerForHistory(customer);
     setShowHistoryModal(true);
+  };
+
+  const handleDelete = async (customer, e) => {
+    e.stopPropagation();
+    if (window.confirm(`Are you sure you want to delete ${customer.org_name || customer.first_name + ' ' + customer.last_name}? This cannot be undone.`)) {
+      try {
+        await Customer.delete(customer.id);
+        loadCustomers();
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        alert('Failed to delete customer. They may have related records.');
+      }
+    }
   };
 
   const formatPhoneDisplay = (phone) => {
@@ -210,6 +236,17 @@ export default function CustomersPage() {
                       <History className="w-4 h-4 mr-2" />
                       History
                     </Button>
+                    {user?.role === 'admin' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handleDelete(customer, e)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
