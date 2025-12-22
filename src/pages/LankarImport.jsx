@@ -191,14 +191,20 @@ export default function LankarImport() {
                 </Label>
               </div>
 
-              {/* Inventory Locations (Disabled) */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed">
-                <RadioGroupItem value="inventory_locations" id="inventory_locations" disabled />
-                <Label htmlFor="inventory_locations" className="flex items-center gap-3 cursor-not-allowed flex-1">
-                  <Package className="w-5 h-5 text-slate-400" />
+              {/* Inventory Locations */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                <RadioGroupItem value="inventory_locations" id="inventory_locations" />
+                <Label htmlFor="inventory_locations" className="flex items-center gap-3 cursor-pointer flex-1">
+                  <Package className="w-5 h-5 text-indigo-600" />
                   <div>
-                    <p className="font-medium text-slate-500">Inventory Locations</p>
-                    <p className="text-sm text-slate-400">Import location records (Coming Soon)</p>
+                    <p className="font-medium">Inventory Locations</p>
+                    <p className="text-sm text-slate-500">Import location records from XLSX</p>
+                    {selectedType === 'inventory_locations' && (
+                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                            <p className="font-semibold mb-1">Required Columns:</p>
+                            <code className="text-indigo-700">Location (or Name), Description (optional)</code>
+                        </div>
+                    )}
                   </div>
                 </Label>
               </div>
