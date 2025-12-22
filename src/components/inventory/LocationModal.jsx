@@ -140,19 +140,83 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
         <div className="space-y-4">
           <div>
             <Label>Current Location</Label>
-            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>No Location</SelectItem>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.location_name}>
-                    {location.location_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={searchOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedLocation || "Select location..."}
+                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <div className="p-2">
+                  <Input
+                    ref={inputRef}
+                    placeholder="Search locations..."
+                    value={selectedLocation === item?.location ? '' : selectedLocation} 
+                    onChange={(e) => {
+                         // If user types, we update selectedLocation to filter
+                         // But we might want a separate search state if we want to preserve selection while searching?
+                         // The user said "type something in that filters the list"
+                         // Usually for combobox:
+                         // 1. We have a search term state.
+                         // 2. We have a selected value state.
+                         // Here I'm using selectedLocation as both? 
+                         // Let's change selectedLocation to just hold the value, and use the input for filtering?
+                         // Actually, let's keep it simple: 
+                         // If I type in the input, I am searching.
+                         // If I click an item, I select it.
+                         // Let's use a temporary search state inside the popover content maybe?
+                         // Or just use the input directly.
+                    }}
+                    onInput={(e) => {
+                        // We will filter based on this input. 
+                        // But wait, my filteredLocations depends on selectedLocation... 
+                        // That's tricky if selectedLocation is the committed value.
+                        // Let's assume for this specific modal, the user selects from the list.
+                        // If I change selectedLocation on input, it updates the "Current Location" label immediately.
+                        setSelectedLocation(e.target.value);
+                    }}
+                    className="mb-2"
+                  />
+                  <div className="max-h-[300px] overflow-y-auto space-y-1">
+                    <div
+                        onClick={() => {
+                            setSelectedLocation('');
+                            setSearchOpen(false);
+                        }}
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                    >
+                        <span className="text-slate-500 italic">No Location</span>
+                        {selectedLocation === '' && <Check className="ml-auto h-4 w-4" />}
+                    </div>
+                    {filteredLocations.length === 0 ? (
+                        <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                    ) : (
+                        filteredLocations.map((location) => (
+                        <div
+                            key={location.id}
+                            onClick={() => {
+                                setSelectedLocation(location.location_name);
+                                setSearchOpen(false);
+                            }}
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                        >
+                            <span>{location.location_name}</span>
+                            {selectedLocation === location.location_name && (
+                                <Check className="ml-auto h-4 w-4" />
+                            )}
+                        </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="flex gap-2">
