@@ -157,31 +157,10 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
                   <Input
                     ref={inputRef}
                     placeholder="Search locations..."
-                    value={selectedLocation === item?.location ? '' : selectedLocation} 
-                    onChange={(e) => {
-                         // If user types, we update selectedLocation to filter
-                         // But we might want a separate search state if we want to preserve selection while searching?
-                         // The user said "type something in that filters the list"
-                         // Usually for combobox:
-                         // 1. We have a search term state.
-                         // 2. We have a selected value state.
-                         // Here I'm using selectedLocation as both? 
-                         // Let's change selectedLocation to just hold the value, and use the input for filtering?
-                         // Actually, let's keep it simple: 
-                         // If I type in the input, I am searching.
-                         // If I click an item, I select it.
-                         // Let's use a temporary search state inside the popover content maybe?
-                         // Or just use the input directly.
-                    }}
-                    onInput={(e) => {
-                        // We will filter based on this input. 
-                        // But wait, my filteredLocations depends on selectedLocation... 
-                        // That's tricky if selectedLocation is the committed value.
-                        // Let's assume for this specific modal, the user selects from the list.
-                        // If I change selectedLocation on input, it updates the "Current Location" label immediately.
-                        setSelectedLocation(e.target.value);
-                    }}
+                    value={selectedLocation === item?.location ? '' : selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)}
                     className="mb-2"
+                    autoFocus
                   />
                   <div className="max-h-[300px] overflow-y-auto space-y-1">
                     <div
