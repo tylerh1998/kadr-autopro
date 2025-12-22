@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Vehicle, Customer } from "@/entities/all";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,21 +30,52 @@ export default function VehiclesPage() {
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    totalPages: 1,
+    total: 0
+  });
+
+  // Debounce logic
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reload when debounced search or page changes
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on new search
+    loadData(1);
+  }, [debouncedSearchTerm]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(pagination.page);
+  }, [pagination.page]);
 
-  const loadData = async () => {
+  const loadData = async (pageToLoad = 1) => {
     setLoading(true);
     try {
-      const [vehiclesData, customersData] = await Promise.all([
-        Vehicle.list('-created_date'),
-        Customer.list()
-      ]);
-      
-      setVehicles(vehiclesData);
-      setCustomers(customersData);
+      // Use new backend search function
+      const response = await base44.functions.invoke('searchVehicles', { 
+        searchTerm: debouncedSearchTerm,
+        page: pageToLoad,
+        limit: 50
+      });
+
+      if (response.data.success) {
+        setVehicles(response.data.vehicles);
+        setCustomers(response.data.customers); // Customers are returned for name mapping
+        setPagination(response.data.pagination);
+      } else {
+        console.error('Search failed:', response.data.error);
+        // Fallback for customers if needed, though searchVehicles should handle it
+        const customersData = await Customer.list();
+        setCustomers(customersData);
+      }
     } catch (error) {
       console.error('Error loading vehicles:', error);
     } finally {
@@ -61,7 +93,7 @@ export default function VehiclesPage() {
       
       setShowForm(false);
       setEditingVehicle(null);
-      loadData();
+      loadData(pagination.page);
     } catch (error) {
       console.error('Error saving vehicle:', error);
     }
@@ -72,20 +104,8 @@ export default function VehiclesPage() {
     setShowForm(true);
   };
 
-  const filteredVehicles = vehicles.filter(vehicle => {
-    const customer = customers.find(c => c.id === vehicle.customer_id);
-    const searchLower = searchTerm.toLowerCase();
-    
-    return !searchTerm || 
-      vehicle.make?.toLowerCase().includes(searchLower) ||
-      vehicle.model?.toLowerCase().includes(searchLower) ||
-      vehicle.year?.toString().includes(searchTerm) ||
-      vehicle.vin?.toLowerCase().includes(searchLower) ||
-      vehicle.license_plate?.toLowerCase().includes(searchLower) ||
-      customer?.first_name?.toLowerCase().includes(searchLower) ||
-      customer?.last_name?.toLowerCase().includes(searchLower) ||
-      customer?.org_name?.toLowerCase().includes(searchLower);
-  });
+  // Vehicles are already filtered and paginated from backend
+  const filteredVehicles = vehicles;
 
   const getCustomer = (customerId) => customers.find(c => c.id === customerId);
 
@@ -136,11 +156,41 @@ export default function VehiclesPage() {
                 placeholder="Search vehicles by make, model, VIN, license plate, or customer name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setDebouncedSearchTerm(searchTerm);
+                  }
+                }}
                 className="pl-10"
               />
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        <div className="flex justify-between items-center text-sm text-slate-500 px-1">
+          <div>
+            Showing {vehicles.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vehicles
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              disabled={pagination.page <= 1 || loading}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              disabled={pagination.page >= pagination.totalPages || loading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
 
         {showForm && (
           <VehicleForm

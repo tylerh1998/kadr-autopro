@@ -19,6 +19,12 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    totalPages: 1,
+    total: 0
+  });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
   const [user, setUser] = useState(null);
@@ -46,8 +52,13 @@ export default function CustomersPage() {
   }, [searchTerm]);
 
   useEffect(() => {
-    loadCustomers();
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
+    loadCustomers(1);
   }, [debouncedSearchTerm]);
+
+  useEffect(() => {
+    loadCustomers(pagination.page);
+  }, [pagination.page]);
 
   useEffect(() => {
     if (!loading && searchInputRef.current) {
@@ -55,12 +66,17 @@ export default function CustomersPage() {
     }
   }, [loading]);
 
-  const loadCustomers = async () => {
+  const loadCustomers = async (pageToLoad = 1) => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('searchCustomers', { searchTerm });
+      const response = await base44.functions.invoke('searchCustomers', { 
+        searchTerm: debouncedSearchTerm,
+        page: pageToLoad,
+        limit: 50 
+      });
       if (response.data.success) {
         setCustomers(response.data.customers);
+        setPagination(response.data.pagination);
       } else {
         console.error('Search failed:', response.data.error);
       }
@@ -80,7 +96,7 @@ export default function CustomersPage() {
       }
       setShowEditDialog(false);
       setEditingCustomer(null);
-      loadCustomers();
+      loadCustomers(pagination.page);
     } catch (error) {
       console.error('Error saving customer:', error);
     }
@@ -102,7 +118,7 @@ export default function CustomersPage() {
     if (window.confirm(`Are you sure you want to delete ${customer.org_name || customer.first_name + ' ' + customer.last_name}? This cannot be undone.`)) {
       try {
         await Customer.delete(customer.id);
-        loadCustomers();
+        loadCustomers(pagination.page);
       } catch (error) {
         console.error('Error deleting customer:', error);
         alert('Failed to delete customer. They may have related records.');
@@ -176,6 +192,31 @@ export default function CustomersPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        <div className="flex justify-between items-center text-sm text-slate-500 px-1">
+          <div>
+            Showing {customers.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} customers
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              disabled={pagination.page <= 1 || loading}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              disabled={pagination.page >= pagination.totalPages || loading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
 
         <div className="space-y-3">
           {loading ? (
