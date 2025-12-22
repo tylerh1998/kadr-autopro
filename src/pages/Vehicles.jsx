@@ -167,31 +167,6 @@ export default function VehiclesPage() {
           </CardContent>
         </Card>
 
-        {/* Pagination Controls */}
-        <div className="flex justify-between items-center text-sm text-slate-500 px-1">
-          <div>
-            Showing {vehicles.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vehicles
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-              disabled={pagination.page <= 1 || loading}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-              disabled={pagination.page >= pagination.totalPages || loading}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-
         {showForm && (
           <VehicleForm
             vehicle={editingVehicle}
@@ -397,6 +372,33 @@ export default function VehiclesPage() {
                 </Card>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!showForm && !selectedVehicle && (
+          <div className="flex justify-between items-center text-sm text-slate-500 px-1 pt-4">
+            <div>
+              Showing {vehicles.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vehicles
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page <= 1 || loading}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page >= pagination.totalPages || loading}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </div>
