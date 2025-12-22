@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
                     supid: String(getVal(['supid', 'SupId', 'SupID']) || ''),
                     name: String(getVal(['company', 'Company', 'org_name']) || ''),
                     inventory_supplier: isInventorySupplier,
-                    default_gl_account: String(getVal(['default_gl_account', 'DefaultGLAccount', 'GLAccount']) || '5000'), 
+                    default_gl_account: String(getVal(['glacct', 'GLAcct', 'default_gl_account', 'DefaultGLAccount', 'GLAccount']) || '5000'), 
                     contact_person: String(getVal(['contact', 'Contact']) || ''),
                     address: String(getVal(['street', 'Street', 'address']) || ''),
                     town: String(getVal(['city', 'City', 'town']) || ''),
