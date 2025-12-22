@@ -46,6 +46,16 @@ Deno.serve(async (req) => {
                 if (ta.tagalongid) tagAlongMap.set(String(ta.tagalongid), ta.id);
             });
 
+            // Fetch Suppliers for mapping
+            console.log("Fetching Suppliers for ID mapping...");
+            // Using a simple list with limit 1000. If > 1000 suppliers, we should implement pagination.
+            const suppliers = await base44.asServiceRole.entities.Supplier.list({ limit: 1000 });
+            const supplierMap = new Map();
+            suppliers.forEach(s => {
+                if (s.supid) supplierMap.set(String(s.supid).trim(), s.id);
+            });
+            console.log(`Mapped ${supplierMap.size} suppliers by legacy ID.`);
+
             // Map rows to entity
             recordsToCreate = rows.map(row => {
                 // Flexible header matching
@@ -62,6 +72,12 @@ Deno.serve(async (req) => {
                     tag_along_id = tagAlongMap.get(String(tagAlongIdKey));
                 }
 
+                const supidKey = getVal(['supid', 'Supid', 'SupID', 'SupplierId']);
+                let supplier_id = null;
+                if (supidKey) {
+                    supplier_id = supplierMap.get(String(supidKey).trim());
+                }
+
                 const partNum = String(getVal(['partnum', 'Partnum', 'PartNum', 'part_number']) || '');
                 // Skip empty rows if any
                 if (!partNum) return null;
@@ -74,9 +90,10 @@ Deno.serve(async (req) => {
                     location: String(getVal(['location', 'Location']) || ''),
                     core: (getVal(['chkhasacore', 'ChkHasACore', 'core']) == 1 || getVal(['chkhasacore', 'ChkHasACore', 'core']) === '1'),
                     core_cost: parseFloat(getVal(['lastcorecost', 'LastCoreCost', 'Lastcorecost', 'core_cost']) || 0) || 0,
-                    selling_price: 0, // Default
+                    selling_price: parseFloat(getVal(['lastlist', 'LastList', 'lastlist', 'selling_price']) || 0) || 0,
                     is_active: true,
-                    tag_along_id: tag_along_id
+                    tag_along_id: tag_along_id,
+                    supplier_id: supplier_id
                 };
             }).filter(r => r !== null);
         
