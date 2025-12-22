@@ -218,7 +218,9 @@ export default function TechTimeModal({ open, onClose, project }) {
     if (log.category) {
       try {
         const catObj = typeof log.category === 'string' ? JSON.parse(log.category) : log.category;
-        const key = Object.keys(catObj)[0];
+        const keys = Object.keys(catObj);
+        if (keys.length > 1) return 'split';
+        const key = keys[0];
         if (key && CATEGORIES[key]) return key;
       } catch {
         // ignore error
