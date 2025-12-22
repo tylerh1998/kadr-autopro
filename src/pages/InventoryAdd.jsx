@@ -999,22 +999,61 @@ export default function InventoryAddPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="location">Location (Optional)</Label>
-                                    <Select
-                                        value={currentItem.location}
-                                        onValueChange={(val) => handleItemFieldChange('location', val === 'none' ? '' : val)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select location..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            {inventoryLocations.map(loc => (
-                                                <SelectItem key={loc.id} value={loc.location_name}>
-                                                    {loc.location_name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover open={locationSearchOpen} onOpenChange={setLocationSearchOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={locationSearchOpen}
+                                                className="w-full justify-between font-normal"
+                                            >
+                                                {currentItem.location || "Select location..."}
+                                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[300px] p-0" align="start">
+                                            <div className="p-2">
+                                                <Input
+                                                    placeholder="Search locations..."
+                                                    value={currentItem.location || ''}
+                                                    onChange={(e) => handleItemFieldChange('location', e.target.value)}
+                                                    className="mb-2"
+                                                    autoFocus
+                                                />
+                                                <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                                    <div
+                                                        onClick={() => {
+                                                            handleItemFieldChange('location', '');
+                                                            setLocationSearchOpen(false);
+                                                        }}
+                                                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                    >
+                                                        <span className="text-slate-500 italic">No Location</span>
+                                                        {(!currentItem.location || currentItem.location === '') && <Check className="ml-auto h-4 w-4" />}
+                                                    </div>
+                                                    {filteredLocations.length === 0 ? (
+                                                        <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                    ) : (
+                                                        filteredLocations.map((loc) => (
+                                                            <div
+                                                                key={loc.id}
+                                                                onClick={() => {
+                                                                    handleItemFieldChange('location', loc.location_name);
+                                                                    setLocationSearchOpen(false);
+                                                                }}
+                                                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                            >
+                                                                <span>{loc.location_name}</span>
+                                                                {currentItem.location === loc.location_name && (
+                                                                    <Check className="ml-auto h-4 w-4" />
+                                                                )}
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             </div>
                         )}
