@@ -88,16 +88,19 @@ Deno.serve(async (req) => {
                 // Skip empty rows if any
                 if (!partNum) return null;
 
+                const location = String(getVal(['location', 'Location']) || '');
+
                 return {
                     part_number: partNum,
                     description: String(getVal(['description', 'Description']) || ''),
                     quantity_on_hand: parseFloat(getVal(['qoh', 'QOH', 'quantity_on_hand']) || 0) || 0,
                     cost: parseFloat(getVal(['lastcost', 'LastCost', 'Lastcost', 'cost']) || 0) || 0,
-                    location: String(getVal(['location', 'Location']) || ''),
+                    location: location,
                     core: (getVal(['chkhasacore', 'ChkHasACore', 'core']) == 1 || getVal(['chkhasacore', 'ChkHasACore', 'core']) === '1'),
                     core_cost: parseFloat(getVal(['lastcorecost', 'LastCoreCost', 'Lastcorecost', 'core_cost']) || 0) || 0,
                     selling_price: parseFloat(getVal(['lastlist', 'LastList', 'lastlist', 'selling_price']) || 0) || 0,
                     is_active: true,
+                    stocked_item: location.trim().length > 0,
                     tag_along_id: tag_along_id,
                     supplier_id: supplier_id
                 };
