@@ -235,6 +235,9 @@ export default function TechTimeModal({ open, onClose, project }) {
       return;
     }
     
+    const currentCategory = getCategory(log);
+    if (currentCategory === newCategory) return;
+
     const hours = parseFloat(log.hours) || 0;
     const categoryObj = { [newCategory]: hours };
     updateLog(log, categoryObj);
