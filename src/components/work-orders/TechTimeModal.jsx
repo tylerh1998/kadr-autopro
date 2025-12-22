@@ -92,9 +92,15 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
               .filter(([key]) => key !== 'split')
               .map(([key, config]) => (
               <div key={key} className="grid grid-cols-2 gap-4 items-center">
-                <Label htmlFor={`cat-${key}`} className="text-sm font-medium">
-                  {config.label}
-                </Label>
+                <div 
+                  onClick={() => handleLabelClick(key)}
+                  className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  title="Click to assign remaining time"
+                >
+                  <Badge className={`w-full justify-center py-1.5 text-sm font-medium border-0 ${config.color}`}>
+                    {config.label}
+                  </Badge>
+                </div>
                 <div className="relative">
                   <Input
                     id={`cat-${key}`}
@@ -104,7 +110,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
                     placeholder="0.0"
                     value={allocations[key] || ''}
                     onChange={(e) => handleAllocationChange(key, e.target.value)}
-                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50" : ""}
+                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50 font-medium" : ""}
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">hrs</span>
                 </div>
