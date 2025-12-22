@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Loader2, Clock, User, AlertCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 const CATEGORIES = {
@@ -16,10 +19,110 @@ const CATEGORIES = {
   split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800' }
 };
 
+function SplitTimeDialog({ open, onClose, onSave, log }) {
+  const [allocations, setAllocations] = useState({});
+  const totalHours = parseFloat(log?.hours || 0);
+
+  useEffect(() => {
+    if (open) {
+      setAllocations({});
+    }
+  }, [open, log]);
+
+  const handleAllocationChange = (key, value) => {
+    setAllocations(prev => ({
+      ...prev,
+      [key]: value === '' ? '' : parseFloat(value)
+    }));
+  };
+
+  const currentTotal = Object.values(allocations).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+  const remaining = totalHours - currentTotal;
+  const isValid = Math.abs(remaining) < 0.01; // Allow for tiny floating point differences
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    
+    // Filter out zero or empty allocations
+    const finalAllocations = Object.entries(allocations).reduce((acc, [key, val]) => {
+      const numVal = parseFloat(val);
+      if (numVal > 0) {
+        acc[key] = numVal;
+      }
+      return acc;
+    }, {});
+
+    onSave(finalAllocations);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Split Time Allocation</DialogTitle>
+        </DialogHeader>
+        
+        <div className="py-4 space-y-4">
+          <div className="bg-slate-50 p-3 rounded-md mb-4 flex justify-between items-center">
+             <div>
+               <p className="text-sm font-medium text-slate-500">Total Time</p>
+               <p className="text-xl font-bold">{totalHours.toFixed(2)} hrs</p>
+             </div>
+             <div className="text-right">
+               <p className="text-sm font-medium text-slate-500">Remaining</p>
+               <p className={`text-xl font-bold ${Math.abs(remaining) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+                 {remaining.toFixed(2)} hrs
+               </p>
+             </div>
+          </div>
+
+          <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+            {Object.entries(CATEGORIES)
+              .filter(([key]) => key !== 'split')
+              .map(([key, config]) => (
+              <div key={key} className="grid grid-cols-2 gap-4 items-center">
+                <Label htmlFor={`cat-${key}`} className="text-sm font-medium">
+                  {config.label}
+                </Label>
+                <div className="relative">
+                  <Input
+                    id={`cat-${key}`}
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="0.0"
+                    value={allocations[key] || ''}
+                    onChange={(e) => handleAllocationChange(key, e.target.value)}
+                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50" : ""}
+                  />
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">hrs</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {!isValid && (
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+              <AlertCircle className="w-4 h-4" />
+              <span>Total allocation must equal {totalHours.toFixed(2)} hrs</span>
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={!isValid}>Save Split</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function TechTimeModal({ open, onClose, project }) {
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [splitDialogLog, setSplitDialogLog] = useState(null);
 
   useEffect(() => {
     if (open && project?.id) {
@@ -100,40 +203,63 @@ export default function TechTimeModal({ open, onClose, project }) {
     return project?.default_category || 'billable';
   };
 
-  const handleCategoryChange = async (log, newCategory) => {
-    const currentCategory = getCategory(log);
-    if (currentCategory === newCategory) return;
-
-    if (!log.id) {
-        console.error("Missing log ID", log);
-        alert("Cannot update: Missing Log ID");
-        return;
+  const handleCategoryChange = (log, newCategory) => {
+    if (newCategory === 'split') {
+      setSplitDialogLog(log);
+      return;
     }
-
+    
     const hours = parseFloat(log.hours) || 0;
     const categoryObj = { [newCategory]: hours };
+    updateLog(log, categoryObj);
+  };
 
+  const handleSplitSave = async (allocations) => {
+    if (!splitDialogLog) return;
+    
+    // Create note text
+    const breakdownText = Object.entries(allocations)
+      .map(([key, hours]) => `${CATEGORIES[key]?.label || key}: ${hours}h`)
+      .join(', ');
+      
+    const noteText = `Split Time: ${breakdownText}`;
+    
+    // Append to existing notes or create new
+    const currentNotes = splitDialogLog.notes || '';
+    const newNotes = currentNotes ? `${currentNotes}\n${noteText}` : noteText;
+    
+    await updateLog(splitDialogLog, allocations, newNotes);
+    setSplitDialogLog(null);
+  };
+
+  const updateLog = async (log, categoryObj, newNotes = null) => {
     // Optimistic update
     setTimeLogs(prev => prev.map(l => {
       if (l.id === log.id) {
         return { 
           ...l, 
-          category: categoryObj 
+          category: categoryObj,
+          notes: newNotes !== null ? newNotes : l.notes
         };
       }
       return l;
     }));
 
     try {
+      const params = { category: categoryObj };
+      if (newNotes !== null) {
+        params.notes = newNotes;
+      }
+
       await base44.functions.invoke('workProProxy', {
         entityName: 'ProjectTimeSession',
         method: 'update',
         id: log.id,
-        params: { category: categoryObj }
+        params: params
       });
     } catch (error) {
-      console.error('Error updating category:', error);
-      alert(`Failed to update category: ${error.message}`);
+      console.error('Error updating log:', error);
+      alert(`Failed to update: ${error.message}`);
       // Revert on error (reload logs)
       loadTimeLogs();
     }
@@ -264,6 +390,13 @@ export default function TechTimeModal({ open, onClose, project }) {
           </div>
         )}
       </DialogContent>
+
+      <SplitTimeDialog 
+        open={!!splitDialogLog} 
+        onClose={() => setSplitDialogLog(null)} 
+        onSave={handleSplitSave}
+        log={splitDialogLog}
+      />
     </Dialog>
   );
 }
