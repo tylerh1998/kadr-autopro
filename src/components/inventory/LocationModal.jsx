@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InventoryItem, InventoryLocation } from '@/entities/all';
-import { MapPin, Plus, Edit } from 'lucide-react';
+import { MapPin, Plus, Edit, Search, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export default function LocationModal({ open, onClose, item, onUpdate }) {
   const [locations, setLocations] = useState([]);
@@ -16,6 +16,8 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
   const [editLocationName, setEditLocationName] = useState('');
   const [editLocationId, setEditLocationId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (open) {
@@ -31,11 +33,19 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
   const loadLocations = async () => {
     try {
       const data = await InventoryLocation.filter({ is_active: true });
-      setLocations(data);
+      setLocations(data.sort((a, b) => (a.location_name || '').localeCompare(b.location_name || '')));
     } catch (error) {
       console.error('Error loading locations:', error);
     }
   };
+
+  const filteredLocations = useMemo(() => {
+    if (!selectedLocation) return locations;
+    const searchLower = selectedLocation.toLowerCase();
+    return locations.filter(loc => 
+      (loc.location_name || '').toLowerCase().includes(searchLower)
+    );
+  }, [selectedLocation, locations]);
 
   const handleLocationChange = async () => {
     if (!item || !selectedLocation) return;
