@@ -18,6 +18,7 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
   const [user, setUser] = useState(null);
@@ -38,8 +39,15 @@ export default function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    loadCustomers();
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [debouncedSearchTerm]);
 
   useEffect(() => {
     if (!loading && searchInputRef.current) {
@@ -158,6 +166,11 @@ export default function CustomersPage() {
                 placeholder="Search customers by name, organization, phone, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setDebouncedSearchTerm(searchTerm);
+                  }
+                }}
                 className="pl-10"
               />
             </div>
