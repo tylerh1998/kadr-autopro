@@ -40,6 +40,17 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
   const remaining = totalHours - currentTotal;
   const isValid = Math.abs(remaining) < 0.01; // Allow for tiny floating point differences
 
+  const handleLabelClick = (key) => {
+    if (remaining <= 0.001) return;
+
+    const currentVal = parseFloat(allocations[key] || 0);
+    const newVal = currentVal + remaining;
+    // Round to 2 decimals
+    const rounded = Math.round(newVal * 100) / 100;
+    
+    handleAllocationChange(key, rounded);
+  };
+
   const handleSubmit = () => {
     if (!isValid) return;
     
