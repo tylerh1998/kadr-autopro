@@ -82,6 +82,12 @@ Deno.serve(async (req) => {
                         return Object.entries(params).every(([key, value]) => {
                             // Skip _sort and _limit in params if they exist (though we handle them separately)
                             if (key === '_sort' || key === '_limit') return true;
+
+                            // Handle $ne operator
+                            if (typeof value === 'object' && value !== null && '$ne' in value) {
+                                return record[key] != value['$ne'];
+                            }
+                            
                             // Loose equality to handle potential type mismatches
                             return record[key] == value;
                         });
