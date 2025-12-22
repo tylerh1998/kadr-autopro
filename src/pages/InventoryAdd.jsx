@@ -156,6 +156,7 @@ export default function InventoryAddPage() {
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
     const partNumberRef = React.useRef(null);
+    const quantityReceivedRef = React.useRef(null);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
 
@@ -636,6 +637,9 @@ export default function InventoryAddPage() {
                 }
                 return updatedItem;
             });
+            setTimeout(() => {
+                quantityReceivedRef.current?.focus();
+            }, 100);
         } else {
             setCurrentItem(prev => ({
                 ...prev,
@@ -860,6 +864,7 @@ export default function InventoryAddPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="quantity_received">Qty Received *</Label>
                                 <Input
+                                    ref={quantityReceivedRef}
                                     id="quantity_received"
                                     type="number"
                                     step="0.01"
