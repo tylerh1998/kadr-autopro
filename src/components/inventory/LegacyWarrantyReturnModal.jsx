@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format } from 'date-fns';
-import { InventoryItem, InventoryReturn, Supplier } from '@/entities/all';
+import { InventoryItem, InventoryReturn, Supplier, GLTransaction } from '@/entities/all';
 
 export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -202,7 +202,29 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
       };
 
       console.log('Creating LANKAR warranty return:', returnData);
-      await InventoryReturn.create(returnData);
+      const newInventoryReturn = await InventoryReturn.create(returnData);
+
+      // Create GL Transactions
+      await GLTransaction.bulkCreate([
+        {
+          account_number: "5000",
+          transaction_date: format(formData.return_date, 'yyyy-MM-dd'),
+          description: `Lankar Warranty Return: ${formData.part_number} (WO# ${formData.lankar_wo})`,
+          credit_amount: totalCost,
+          debit_amount: 0,
+          source_type: "adjustment",
+          source_id: newInventoryReturn.id
+        },
+        {
+          account_number: "1200",
+          transaction_date: format(formData.return_date, 'yyyy-MM-dd'),
+          description: `Lankar Warranty Return: ${formData.part_number} (WO# ${formData.lankar_wo})`,
+          debit_amount: totalCost,
+          credit_amount: 0,
+          source_type: "adjustment",
+          source_id: newInventoryReturn.id
+        }
+      ]);
 
       alert('LANKAR warranty return added successfully!');
       onUpdate();
