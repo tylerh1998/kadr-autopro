@@ -225,7 +225,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                 <div className="text-center">
                   <p className="text-sm text-slate-600">Profit Margin</p>
                   <Badge className={`text-lg px-3 py-1 ${getMarginBadgeColor(profitabilityData.profitMargin)}`}>
-                    {profitabilityData.profitMargin.toFixed(1)}%
+                    {(profitabilityData.profitMargin || 0).toFixed(1)}%
                   </Badge>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                 <div className="flex justify-between items-center">
                   <span className="text-slate-600">Margin:</span>
                   <Badge className={getMarginBadgeColor(profitabilityData.partsData.margin)}>
-                    {profitabilityData.partsData.margin.toFixed(1)}%
+                    {(profitabilityData.partsData.margin || 0).toFixed(1)}%
                   </Badge>
                 </div>
               </CardContent>
@@ -280,7 +280,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                     onClick={() => setShowTechTimeModal(true)}
                   >
                     <Clock className="w-3 h-3" />
-                    Tech Time {totalTechHours.toFixed(1)}h
+                    Tech Time {(totalTechHours || 0).toFixed(1)}h
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -296,20 +296,20 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                   <tbody>
                     <tr className="border-b">
                       <td className="py-2 px-4 text-slate-600">Revenue</td>
-                      <td className="text-right py-2 px-4">{profitabilityData.laborData.billedHours.toFixed(1)}</td>
+                      <td className="text-right py-2 px-4">{(profitabilityData.laborData.billedHours || 0).toFixed(1)}</td>
                       <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.revenue)}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 px-4 text-slate-600">
                         Cost{profitabilityData.laborData.actualCostCalculated ? '' : ' (Est)'}
                       </td>
-                      <td className="text-right py-2 px-4">{totalTechHours.toFixed(1)}</td>
+                      <td className="text-right py-2 px-4">{(totalTechHours || 0).toFixed(1)}</td>
                       <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.cost)}</td>
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 px-4 text-slate-600">Profit</td>
                       <td className={`text-right py-2 px-4 ${(profitabilityData.laborData.billedHours - totalTechHours) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {(profitabilityData.laborData.billedHours - totalTechHours).toFixed(1)}
+                        {((profitabilityData.laborData.billedHours || 0) - (totalTechHours || 0)).toFixed(1)}
                       </td>
                       <td className={`text-right py-2 px-4 font-semibold ${getMarginColor(profitabilityData.laborData.margin)}`}>
                         {formatCurrency(profitabilityData.laborData.profit)}
@@ -320,7 +320,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                       <td className="text-right py-2 px-4 text-slate-400">-</td>
                       <td className="text-right py-2 px-4">
                         <Badge className={getMarginBadgeColor(profitabilityData.laborData.margin)}>
-                          {profitabilityData.laborData.margin.toFixed(1)}%
+                          {(profitabilityData.laborData.margin || 0).toFixed(1)}%
                         </Badge>
                       </td>
                     </tr>
@@ -367,7 +367,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                             </td>
                             <td className="text-right p-2">
                               <span className={getMarginColor(margin)}>
-                                {margin.toFixed(1)}%
+                                {(margin || 0).toFixed(1)}%
                               </span>
                             </td>
                           </tr>
