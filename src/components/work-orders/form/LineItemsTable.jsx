@@ -348,7 +348,7 @@ export default function LineItemsTable({
   // getTextareaHeight is removed as the onInput approach is now used for dynamic height.
 
   const handleUpdateToInventoryPrice = (index, inventorySellingPrice) => {
-    handleFieldChange(index, 'parts_ea', inventorySellingPrice.toFixed(2));
+    handleFieldChange(index, 'parts_ea', (inventorySellingPrice || 0).toFixed(2));
   };
 
   const handleOpenSerialNumModal = (index) => {
@@ -415,7 +415,7 @@ export default function LineItemsTable({
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => handleUpdateToInventoryPrice(index, inventorySellingPrice)}>
             <DollarSign className="mr-2 h-4 w-4" />
-            <span>Update to Inv. Price (${inventorySellingPrice.toFixed(2)})</span>
+            <span>Update to Inv. Price (${(inventorySellingPrice || 0).toFixed(2)})</span>
           </ContextMenuItem>
         </>
       )}

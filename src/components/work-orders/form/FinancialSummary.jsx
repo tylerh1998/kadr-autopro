@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -115,17 +114,17 @@ export default function FinancialSummary({ lineItems = [], workOrder = {} }) {
   return (
     <Card>
       <CardContent className="p-3 flex flex-wrap justify-around items-center gap-x-6 gap-y-2">
-        <FinancialItem label="Parts Total" value={`$${partsTotal.toFixed(2)}`} />
-        <FinancialItem label="Labour Total" value={`$${laborTotal.toFixed(2)}`} />
-        <FinancialItem label="Other Charges" value={`$${otherChargesTotal.toFixed(2)}`} />
-        <FinancialItem label="Shop Supplies" value={`$${shopSupplyTotal.toFixed(2)}`} />
-        <FinancialItem label="GST (5%)" value={`$${taxAmount.toFixed(2)}`} />
+        <FinancialItem label="Parts Total" value={`$${(partsTotal || 0).toFixed(2)}`} />
+        <FinancialItem label="Labour Total" value={`$${(laborTotal || 0).toFixed(2)}`} />
+        <FinancialItem label="Other Charges" value={`$${(otherChargesTotal || 0).toFixed(2)}`} />
+        <FinancialItem label="Shop Supplies" value={`$${(shopSupplyTotal || 0).toFixed(2)}`} />
+        <FinancialItem label="GST (5%)" value={`$${(taxAmount || 0).toFixed(2)}`} />
         
         <div className="w-px h-10 bg-slate-200 hidden md:block" />
 
-        <FinancialItem label="Total" value={`$${grandTotal.toFixed(2)}`} className="bg-slate-100" />
-        <FinancialItem label="Payments" value={`$${amountPaid.toFixed(2)}`} className="text-green-700" />
-        <FinancialItem label="Amount Owing" value={`$${balanceDue.toFixed(2)}`} className={`font-extrabold ${balanceDue > 0.005 ? 'text-red-700' : 'text-slate-900'}`} />
+        <FinancialItem label="Total" value={`$${(grandTotal || 0).toFixed(2)}`} className="bg-slate-100" />
+        <FinancialItem label="Payments" value={`$${(amountPaid || 0).toFixed(2)}`} className="text-green-700" />
+        <FinancialItem label="Amount Owing" value={`$${(balanceDue || 0).toFixed(2)}`} className={`font-extrabold ${balanceDue > 0.005 ? 'text-red-700' : 'text-slate-900'}`} />
       </CardContent>
     </Card>
   );

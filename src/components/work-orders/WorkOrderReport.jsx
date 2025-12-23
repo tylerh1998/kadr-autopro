@@ -233,43 +233,43 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
           <div className="space-y-0.5 text-[9px]">
             <div className="flex justify-between">
               <span>Parts Subtotal:</span>
-              <span className="font-semibold">${partsTotal.toFixed(2)}</span>
+              <span className="font-semibold">${(partsTotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Labour Subtotal:</span>
-              <span className="font-semibold">${laborTotal.toFixed(2)}</span>
+              <span className="font-semibold">${(laborTotal || 0).toFixed(2)}</span>
             </div>
             {otherChargesTotal > 0 && (
               <div className="flex justify-between">
                 <span>Other Charges:</span>
-                <span className="font-semibold">${otherChargesTotal.toFixed(2)}</span>
+                <span className="font-semibold">${(otherChargesTotal || 0).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between pt-1 border-t border-slate-300">
               <span>Subtotal:</span>
-              <span className="font-semibold">${grandTotalBeforeTax.toFixed(2)}</span>
+              <span className="font-semibold">${(grandTotalBeforeTax || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Shop Supplies (7%):</span>
-              <span className="font-semibold">${shopSupplyTotal.toFixed(2)}</span>
+              <span className="font-semibold">${(shopSupplyTotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>GST (5%):</span>
-              <span className="font-semibold">${taxAmount.toFixed(2)}</span>
+              <span className="font-semibold">${(taxAmount || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between pt-1 border-t-2 border-black font-bold text-[10px]">
               <span>Grand Total:</span>
-              <span>${grandTotal.toFixed(2)}</span>
+              <span>${(grandTotal || 0).toFixed(2)}</span>
             </div>
             {amountPaid > 0 && (
               <>
                 <div className="flex justify-between pt-1">
                   <span>Amount Paid:</span>
-                  <span className="font-semibold">${amountPaid.toFixed(2)}</span>
+                  <span className="font-semibold">${(amountPaid || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Balance Due:</span>
-                  <span>${balanceDue.toFixed(2)}</span>
+                  <span>${(balanceDue || 0).toFixed(2)}</span>
                 </div>
               </>
             )}
