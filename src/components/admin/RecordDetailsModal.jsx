@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, Check } from 'lucide-react';
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function RecordDetailsModal({ open, onClose, record, entityName }) {
   if (!record) return null;
@@ -25,7 +24,7 @@ export default function RecordDetailsModal({ open, onClose, record, entityName }
           <DialogTitle>Record Details - {entityName}</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4 -mr-4">
+        <div className="flex-1 overflow-y-auto pr-4 -mr-4">
           <div className="grid gap-4 py-4">
             {sortedKeys.map((key) => {
               const value = record[key];
@@ -62,7 +61,7 @@ export default function RecordDetailsModal({ open, onClose, record, entityName }
               );
             })}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button onClick={onClose}>Close</Button>
