@@ -42,8 +42,9 @@ import {
   ChevronDown,
   ChevronRight,
   Sun,
-  Moon
-} from 'lucide-react';
+  Moon,
+  Shield
+  } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -701,10 +702,16 @@ const navigationItems = [
                       <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                       </DropdownMenuItem>
                       {user?.role === 'admin' && (
-                      <DropdownMenuItem onClick={handleToggleOpenNewWindow} className="cursor-pointer">
-                      <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
-                      <span>Open New Windows</span>
-                      </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>Admin Dashboard</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleToggleOpenNewWindow} className="cursor-pointer">
+                            <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
+                            <span>Open New Windows</span>
+                          </DropdownMenuItem>
+                        </>
                       )}
                       <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
