@@ -6,6 +6,7 @@ import { Shield, Database, Search, Download, Loader2, Table as TableIcon } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ export default function AdminPage() {
   // Extract State
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [extractAllDates, setExtractAllDates] = useState(false);
   
   // Search State
   const [searchField, setSearchField] = useState("");
@@ -230,20 +232,50 @@ export default function AdminPage() {
                         </TabsList>
 
                         <TabsContent value="extract" className="space-y-4 border rounded-lg p-6 bg-slate-50">
+                            <div className="flex items-center space-x-2 mb-2">
+                                <Checkbox 
+                                    id="allDates" 
+                                    checked={extractAllDates}
+                                    onCheckedChange={(checked) => {
+                                        setExtractAllDates(checked);
+                                        if(checked) {
+                                            setStartDate("");
+                                            setEndDate("");
+                                        }
+                                    }}
+                                />
+                                <Label htmlFor="allDates" className="cursor-pointer">For all date periods</Label>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <Label>Start Date (Created)</Label>
-                                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                                    <Label className={extractAllDates ? "text-slate-400" : ""}>Start Date (Created)</Label>
+                                    <Input 
+                                        type="date" 
+                                        value={startDate} 
+                                        onChange={e => {
+                                            setStartDate(e.target.value);
+                                            setExtractAllDates(false);
+                                        }} 
+                                        disabled={extractAllDates}
+                                    />
                                 </div>
                                 <div>
-                                    <Label>End Date (Created)</Label>
-                                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                    <Label className={extractAllDates ? "text-slate-400" : ""}>End Date (Created)</Label>
+                                    <Input 
+                                        type="date" 
+                                        value={endDate} 
+                                        onChange={e => {
+                                            setEndDate(e.target.value);
+                                            setExtractAllDates(false);
+                                        }} 
+                                        disabled={extractAllDates}
+                                    />
                                 </div>
                             </div>
                             <Button 
                                 onClick={handleExtract} 
                                 disabled={processing} 
-                                className="bg-blue-600 hover:bg-blue-700"
+                                className="bg-blue-600 hover:bg-blue-700 w-full md:w-auto"
                             >
                                 {processing ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Download className="w-4 h-4 mr-2"/>}
                                 Run Extract

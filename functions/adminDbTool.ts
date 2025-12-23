@@ -11,7 +11,10 @@ export default async function handler(req) {
 
     const { mode, entityName, startDate, endDate, field, searchTerm } = await req.json();
 
-    if (!base44.entities[entityName]) {
+    // Use service role for robust access to all entities
+    const adminEntities = base44.asServiceRole.entities;
+
+    if (!adminEntities[entityName]) {
       return new Response(JSON.stringify({ error: `Entity '${entityName}' not found` }), { status: 400 });
     }
 
@@ -26,8 +29,11 @@ export default async function handler(req) {
         if (endDate) query.created_date.$lte = endDate;
       }
       
-      // Fetch with a high limit for extract (chunking might be needed for huge datasets but starting simple)
-      results = await base44.entities[entityName].filter(query, '-created_date', 5000);
+      console.log(`Extracting ${entityName} with query:`, JSON.stringify(query));
+      
+      // Fetch with a high limit for extract
+      results = await adminEntities[entityName].filter(query, '-created_date', 5000);
+      console.log(`Found ${results.length} records`);
     } 
     else if (mode === 'search') {
       const query = {};
@@ -40,16 +46,15 @@ export default async function handler(req) {
         } else if (field === 'id' || field.endsWith('_id') || field === 'boolean') {
              query[field] = searchTerm;
         } else {
-             // Default to regex for string fields if supported, or exact match
-             // MongoDB regex syntax usually works with base44 filter if passed directly
              query[field] = { $regex: searchTerm, $options: 'i' };
         }
       }
-      results = await base44.entities[entityName].filter(query, '-created_date', 100);
+      
+      console.log(`Searching ${entityName} with query:`, JSON.stringify(query));
+      results = await adminEntities[entityName].filter(query, '-created_date', 100);
     }
     else if (mode === 'get_schema') {
-        // Fetch one record to derive schema + built-ins
-        const sample = await base44.entities[entityName].list(1);
+        const sample = await adminEntities[entityName].list(1);
         let fields = ['id', 'created_date', 'updated_date', 'created_by'];
         if (sample && sample.length > 0) {
             fields = [...new Set([...fields, ...Object.keys(sample[0])])];
@@ -69,7 +74,6 @@ export default async function handler(req) {
   }
 }
 
-// Wrapper for Deno
 import { createClientFromRequest as createClient } from 'npm:@base44/sdk@0.8.3';
 Deno.serve(async (req) => {
     return await handler(req);
