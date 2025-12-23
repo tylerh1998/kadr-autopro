@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
-import { Shield, Database, Search, Download, Loader2, Table as TableIcon } from 'lucide-react';
+import { Shield, Database, Search, Download, Loader2, Table as TableIcon, Columns } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
 const AVAILABLE_ENTITIES = [
@@ -47,6 +55,29 @@ export default function AdminPage() {
   
   // Modal State
   const [selectedRecord, setSelectedRecord] = useState(null);
+  
+  // Column State
+  const [visibleColumns, setVisibleColumns] = useState([]);
+
+  // Set default columns when results change
+  useEffect(() => {
+    if (results.length > 0) {
+      // Default to first 8 columns of the first record
+      setVisibleColumns(Object.keys(results[0]).slice(0, 8));
+    } else {
+      setVisibleColumns([]);
+    }
+  }, [results]);
+
+  const toggleColumn = (column) => {
+    if (visibleColumns.includes(column)) {
+      setVisibleColumns(prev => prev.filter(c => c !== column));
+    } else {
+      if (visibleColumns.length < 8) {
+        setVisibleColumns(prev => [...prev, column]);
+      }
+    }
+  };
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -328,6 +359,27 @@ export default function AdminPage() {
                         Query Results ({results.length})
                     </CardTitle>
                     <div className="flex gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2">
+                                    <Columns className="w-4 h-4" /> Columns
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 max-h-[300px] overflow-y-auto">
+                                <DropdownMenuLabel>Visible Columns (Max 8)</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {(entityFields.length > 0 ? entityFields : (results.length > 0 ? Object.keys(results[0]) : [])).map(field => (
+                                    <DropdownMenuCheckboxItem 
+                                        key={field}
+                                        checked={visibleColumns.includes(field)}
+                                        onCheckedChange={() => toggleColumn(field)}
+                                        disabled={!visibleColumns.includes(field) && visibleColumns.length >= 8}
+                                    >
+                                        {field}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="outline" size="sm" onClick={() => downloadData('csv')}>Download .csv</Button>
                         <Button variant="outline" size="sm" onClick={() => downloadData('txt')}>Download .txt</Button>
                     </div>
@@ -337,7 +389,7 @@ export default function AdminPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    {Object.keys(results[0]).slice(0, 8).map(key => (
+                                    {visibleColumns.map(key => (
                                         <TableHead key={key} className="whitespace-nowrap">{key}</TableHead>
                                     ))}
                                 </TableRow>
@@ -349,9 +401,9 @@ export default function AdminPage() {
                                         onClick={() => setSelectedRecord(row)}
                                         className="cursor-pointer hover:bg-slate-50 transition-colors"
                                     >
-                                        {Object.keys(row).slice(0, 8).map(key => (
-                                            <TableCell key={key} className="max-w-[200px] truncate" title={String(row[key])}>
-                                                {String(row[key])}
+                                        {visibleColumns.map(key => (
+                                            <TableCell key={key} className="max-w-[200px] truncate" title={String(row[key] ?? '')}>
+                                                {String(row[key] ?? '')}
                                             </TableCell>
                                         ))}
                                     </TableRow>
@@ -359,9 +411,9 @@ export default function AdminPage() {
                             </TableBody>
                         </Table>
                     </div>
-                    {results.length > 0 && Object.keys(results[0]).length > 8 && (
+                    {results.length > 0 && (
                         <p className="text-xs text-slate-500 mt-2 italic text-center">
-                            (Table shows first 8 columns. Download to see full data.)
+                            (Showing {visibleColumns.length} columns. Download to see full data.)
                         </p>
                     )}
                 </CardContent>
