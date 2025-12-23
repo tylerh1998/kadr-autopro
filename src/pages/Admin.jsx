@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
 const AVAILABLE_ENTITIES = [
   "User", "OtherChargeList", "Customer", "Vehicle", "WorkOrder", "InventoryItem", "Employee", 
@@ -41,6 +42,9 @@ export default function AdminPage() {
   // Results State
   const [results, setResults] = useState([]);
   const [processing, setProcessing] = useState(false);
+  
+  // Modal State
+  const [selectedRecord, setSelectedRecord] = useState(null);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -308,7 +312,11 @@ export default function AdminPage() {
                             </TableHeader>
                             <TableBody>
                                 {results.map((row, i) => (
-                                    <TableRow key={i}>
+                                    <TableRow 
+                                        key={i} 
+                                        onClick={() => setSelectedRecord(row)}
+                                        className="cursor-pointer hover:bg-slate-50 transition-colors"
+                                    >
                                         {Object.keys(row).slice(0, 8).map(key => (
                                             <TableCell key={key} className="max-w-[200px] truncate" title={String(row[key])}>
                                                 {String(row[key])}
@@ -328,6 +336,13 @@ export default function AdminPage() {
             </Card>
         )}
       </div>
+      
+      <RecordDetailsModal 
+        open={!!selectedRecord} 
+        onClose={() => setSelectedRecord(null)} 
+        record={selectedRecord} 
+        entityName={selectedEntity} 
+      />
     </div>
   );
 }
