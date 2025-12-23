@@ -231,10 +231,18 @@ export default function InvoiceConversion() {
             }
           } else {
             console.error('GL function returned error:', glResponse.data?.error);
-            setError(`Accounting posting warning: ${glResponse.data?.error || 'Unknown error'}. Invoice was created but GL transactions may not have been posted correctly.`);
+            const errorMessage = glResponse.data?.error || 'Unknown error';
+            if (errorMessage === "An accounting error has occured. Please advise the system administrator of this invoice.") {
+              alert(errorMessage);
+            }
+            setError(`Accounting posting warning: ${errorMessage}. Invoice was created but GL transactions may not have been posted correctly.`);
           }
         } catch (glError) {
           console.error('Error calling handleInvoiceConversionGL:', glError);
+          // Check if the error response from the server matches our specific error
+          if (glError.response?.data?.error === "An accounting error has occured. Please advise the system administrator of this invoice.") {
+             alert("An accounting error has occured. Please advise the system administrator of this invoice.");
+          }
           setError(`Accounting posting warning: ${glError.message}. Invoice was created but GL transactions may not have been posted correctly.`);
         }
 

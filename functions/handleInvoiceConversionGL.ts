@@ -337,6 +337,30 @@ Deno.serve(async (req) => {
 
         console.log(`--- Generated ${generatedGLTransactions.length} GL transactions ---`);
 
+        // Calculate total debits and credits
+        const totalDebits = generatedGLTransactions.reduce((sum, t) => sum + (t.debit_amount || 0), 0);
+        const totalCredits = generatedGLTransactions.reduce((sum, t) => sum + (t.credit_amount || 0), 0);
+
+        console.log('Total Debits:', totalDebits.toFixed(2));
+        console.log('Total Credits:', totalCredits.toFixed(2));
+
+        // Check for balance
+        const balanceDifference = Math.abs(totalDebits - totalCredits);
+        if (balanceDifference > 0.02) { // Allow small floating point difference
+            console.error(`ACCOUNTING ERROR: Invoice conversion imbalance for WO ${workOrder.ro_number} (ID: ${workOrder.id}). Debits: ${totalDebits}, Credits: ${totalCredits}, Diff: ${balanceDifference}`);
+            console.error('Transactions:', JSON.stringify(generatedGLTransactions, null, 2));
+            
+            return Response.json({ 
+                success: false, 
+                error: "An accounting error has occured. Please advise the system administrator of this invoice.",
+                details: {
+                    debits: totalDebits,
+                    credits: totalCredits,
+                    difference: balanceDifference
+                }
+            }, { status: 400 });
+        }
+
         // Return the accounting details as a JSON string
         return Response.json({
             success: true,
