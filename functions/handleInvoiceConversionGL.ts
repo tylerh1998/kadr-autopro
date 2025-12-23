@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
                 const ocTotal = parseFloat(line.oc_total || 0);
                 if (ocTotal !== 0) {
                     // Fallback to '4000' if no GL account is specified to ensure GL balance
-                    const account_number = line.gl_account || '4000';
+                    const account_number = line.gl_account || '4003';
                     
                     const ocEntry = {
                         account_number: account_number,
