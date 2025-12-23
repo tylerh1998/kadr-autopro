@@ -35,8 +35,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         
         const [salesClassesData, tagAlongsData, otherChargesData, defaultInventory] = await Promise.all([
           SalesClass.list(),
-          TagAlong.list(),
-          OtherChargeList.list(),
+          TagAlong.list(null, 1000),
+          OtherChargeList.list(null, 1000),
           base44.functions.invoke('searchInventory', { limit: 50 })
         ]);
         
@@ -379,6 +379,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                 oc_total: tagAlongTotal,
                 total: tagAlongTotal,
                 taxable: otherCharge.is_taxable !== undefined ? otherCharge.is_taxable : true,
+                gl_account: otherCharge.gl_account || '',
                 complete: false,
                 bold: false,
                 is_other_charge: true,
