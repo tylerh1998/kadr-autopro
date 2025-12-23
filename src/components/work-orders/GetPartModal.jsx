@@ -379,7 +379,6 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                 oc_total: tagAlongTotal,
                 total: tagAlongTotal,
                 taxable: otherCharge.is_taxable !== undefined ? otherCharge.is_taxable : true,
-                gl_account: otherCharge.gl_account || '',
                 complete: false,
                 bold: false,
                 is_other_charge: true,
