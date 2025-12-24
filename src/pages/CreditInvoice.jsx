@@ -177,13 +177,22 @@ export default function CreditInvoicePage() {
         parts_total: -Math.abs(creditSubtotal),
         tax_amount: -Math.abs(creditTaxAmount),
         total_amount: -Math.abs(creditTotalAmount),
-        line_items: JSON.stringify(selectedLineItems.map(line => ({
-          ...line,
-          total: -Math.abs(parseFloat(line.total) || 0),
-          tot_parts: -Math.abs(parseFloat(line.tot_parts) || 0),
-          labour: -Math.abs(parseFloat(line.labour) || 0),
-          oc_total: -Math.abs(parseFloat(line.oc_total) || 0),
-        }))),
+        line_items: JSON.stringify(selectedLineItems.map(line => {
+          const lineTotal = parseFloat(line.total) || 0;
+          // For other charges, if oc_total isn't set, use the line total
+          // This ensures the credit shows up in the "Other Charges" breakdown
+          const ocTotalSource = (line.is_other_charge || line.other_charge_id) 
+              ? ((parseFloat(line.oc_total) || 0) !== 0 ? (parseFloat(line.oc_total) || 0) : lineTotal)
+              : (parseFloat(line.oc_total) || 0);
+
+          return {
+            ...line,
+            total: -Math.abs(lineTotal),
+            tot_parts: -Math.abs(parseFloat(line.tot_parts) || 0),
+            labour: -Math.abs(parseFloat(line.labour) || 0),
+            oc_total: -Math.abs(ocTotalSource),
+          };
+        })),
         payments: JSON.stringify([{
           id: Date.now(),
           payment_date: format(new Date(), 'yyyy-MM-dd'),
