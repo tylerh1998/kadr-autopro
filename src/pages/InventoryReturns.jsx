@@ -450,7 +450,7 @@ export default function InventoryReturnsPage() {
                                 <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => openModal(setShowChangeSupplierModal, returnItem)}>
                                   <Truck className="w-4 h-4 mr-2" /> Change Supplier
                                 </ContextMenuItem>
-                                <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => openModal(setShowEditReturnInfoModal, returnItem)}>
+                                <ContextMenuItem onClick={() => openModal(setShowEditReturnInfoModal, returnItem)}>
                                   <Pencil className="w-4 h-4 mr-2" /> Edit Return Info
                                 </ContextMenuItem>
                               </ContextMenuContent>
