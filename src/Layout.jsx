@@ -196,13 +196,14 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   const handlePayrollClick = (e) => {
-    if (user?.access_level === 'lvl1_user' || user?.access_level === 'lvl2_user') {
-      e.preventDefault();
-      window.location.href = createPageUrl("WorkPro");
-    } else if (!user?.access_level) {
-      e.preventDefault();
-      alert('You do not have access to this feature. Contact an administrator to request access.');
+    // If Paypro_user is true, allow default navigation to /Payroll
+    if (user?.Paypro_user === true) {
+      return;
     }
+
+    // If false or null/undefined, redirect to WorkPro
+    e.preventDefault();
+    window.location.href = createPageUrl("WorkPro");
   };
 
   const handleClockToggle = async () => {
