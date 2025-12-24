@@ -1,4 +1,5 @@
 import APSummary from './pages/APSummary';
+import Admin from './pages/Admin';
 import BalanceSheet from './pages/BalanceSheet';
 import Bank from './pages/Bank';
 import CashDrawer from './pages/CashDrawer';
@@ -42,12 +43,12 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
-import Admin from './pages/Admin';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "APSummary": APSummary,
+    "Admin": Admin,
     "BalanceSheet": BalanceSheet,
     "Bank": Bank,
     "CashDrawer": CashDrawer,
@@ -91,7 +92,6 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
-    "Admin": Admin,
 }
 
 export const pagesConfig = {

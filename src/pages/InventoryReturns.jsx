@@ -444,7 +444,7 @@ export default function InventoryReturnsPage() {
                                 <ContextMenuItem disabled={returnItem.status === 'On-site'} onClick={() => openModal(setShowReceiveCreditModal, returnItem)}>
                                   <CreditCard className="w-4 h-4 mr-2" /> Receive Credit/Refund
                                 </ContextMenuItem>
-                                <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => handleReturnToInventory(returnItem)}>
+                                <ContextMenuItem disabled={returnItem.status === 'Returned' || returnItem.return_type === 'warranty' || returnItem.return_type === 'core'} onClick={() => handleReturnToInventory(returnItem)}>
                                   <ArchiveRestore className="w-4 h-4 mr-2" /> Return to Inventory
                                 </ContextMenuItem>
                                 <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => openModal(setShowChangeSupplierModal, returnItem)}>
