@@ -113,7 +113,8 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
             <div className="divide-y">
               {payments.map((payment) => {
                 const isAdjustment = payment.source_type === 'adjustment';
-                const isShortage = isAdjustment && payment.amount < 0;
+                const isNegative = payment.amount < 0;
+                const isShortage = isAdjustment && isNegative;
                 
                 return (
                   <div 
@@ -165,9 +166,9 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                     
                     <div className="text-right flex-shrink-0">
                       <div className={`font-semibold text-lg ${
-                        isShortage ? 'text-red-600' : ''
+                        isNegative ? 'text-red-600' : ''
                       }`}>
-                        ${Math.abs(payment.amount).toFixed(2)}
+                        {isNegative ? '-' : ''}${Math.abs(payment.amount).toFixed(2)}
                       </div>
                       <div className="text-xs text-gray-500 capitalize">
                         {payment.method.replace('_', ' ')}
