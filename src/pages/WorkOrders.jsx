@@ -541,7 +541,7 @@ export default function WorkOrdersPage() {
       return workOrder.est_date;
     } else if (workOrder.stage === 'work_order' && workOrder.wo_date) {
       return workOrder.wo_date;
-    } else if (workOrder.stage === 'invoice' && workOrder.invoice_date) {
+    } else if ((workOrder.stage === 'invoice' || workOrder.stage === 'credit_invoice') && workOrder.invoice_date) {
       return workOrder.invoice_date;
     } else if (workOrder.completed_date) {
       return workOrder.completed_date;

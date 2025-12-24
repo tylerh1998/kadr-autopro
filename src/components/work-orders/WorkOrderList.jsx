@@ -86,6 +86,8 @@ function WorkOrderList({
       return { label: 'WO', date: workOrder.wo_date };
     } else if (workOrder.stage === 'invoice' && workOrder.invoice_date) {
       return { label: 'Inv', date: workOrder.invoice_date };
+    } else if (workOrder.stage === 'credit_invoice' && workOrder.invoice_date) {
+      return { label: 'CrInv', date: workOrder.invoice_date };
     } else if (workOrder.completed_date) {
       return { label: 'Completed', date: workOrder.completed_date };
     }
