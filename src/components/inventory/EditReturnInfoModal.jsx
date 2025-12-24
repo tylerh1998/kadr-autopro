@@ -12,11 +12,10 @@ import { format } from 'date-fns';
 
 export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdate }) {
   const [formData, setFormData] = useState({
-    return_type: '',
-    quantity_returned: '',
     return_reason: '',
     notes: '',
-    return_date: ''
+    return_date: '',
+    sent_back: ''
   });
   const [returnReasons, setReturnReasons] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -24,11 +23,10 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
   useEffect(() => {
     if (open && returnItem) {
       setFormData({
-        return_type: returnItem.return_type || '',
-        quantity_returned: returnItem.quantity_returned?.toString() || '',
         return_reason: returnItem.return_reason || '',
         notes: returnItem.notes || '',
-        return_date: returnItem.return_date || format(new Date(), 'yyyy-MM-dd')
+        return_date: returnItem.return_date || format(new Date(), 'yyyy-MM-dd'),
+        sent_back: returnItem.sent_back === 'N/A' ? '' : (returnItem.sent_back || '')
       });
       loadReturnReasons();
     }
@@ -51,28 +49,18 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
     e.preventDefault();
     setLoading(true);
 
-    if (!formData.quantity_returned || !formData.return_reason || !formData.return_type) {
-      alert('Please fill in all required fields.');
-      setLoading(false);
-      return;
-    }
-
-    const qtyReturned = parseFloat(formData.quantity_returned);
-    if (qtyReturned <= 0) {
-      alert('Quantity must be greater than 0.');
+    if (!formData.return_reason) {
+      alert('Please select a return reason.');
       setLoading(false);
       return;
     }
 
     try {
       const updateData = {
-        return_type: formData.return_type,
-        quantity_returned: qtyReturned,
         return_reason: formData.return_reason,
         notes: formData.notes,
         return_date: formData.return_date,
-        // Recalculate total cost based on new quantity
-        total_cost: qtyReturned * (returnItem.cost_per_unit || 0)
+        sent_back: formData.sent_back || 'N/A'
       };
 
       await InventoryReturn.update(returnItem.id, updateData);
@@ -114,52 +102,23 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="return-type">Return Type *</Label>
-                <Select value={formData.return_type} onValueChange={val => handleChange('return_type', val)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {returnTypes.map(type => (
-                      <SelectItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity Returned *</Label>
-                <Input 
-                  id="quantity"
-                  type="number" 
-                  min="0.01"
-                  step="0.01"
-                  value={formData.quantity_returned} 
-                  onChange={e => handleChange('quantity_returned', e.target.value)} 
-                  required 
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="return-reason">Return Reason *</Label>
+              <Select value={formData.return_reason} onValueChange={val => handleChange('return_reason', val)} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {returnReasons.map(reason => (
+                    <SelectItem key={reason.id} value={reason.reason}>
+                      {reason.reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="return-reason">Return Reason *</Label>
-                <Select value={formData.return_reason} onValueChange={val => handleChange('return_reason', val)} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select reason" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {returnReasons.map(reason => (
-                      <SelectItem key={reason.id} value={reason.reason}>
-                        {reason.reason}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="return-date">Return Date *</Label>
                 <Input 
@@ -168,6 +127,15 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
                   value={formData.return_date} 
                   onChange={e => handleChange('return_date', e.target.value)} 
                   required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sent-back">Sent Back Date</Label>
+                <Input 
+                  id="sent-back"
+                  type="date" 
+                  value={formData.sent_back} 
+                  onChange={e => handleChange('sent_back', e.target.value)} 
                 />
               </div>
             </div>
@@ -183,25 +151,7 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
               />
             </div>
 
-            {/* Cost Summary */}
-            <div className="bg-white border rounded-lg p-4 space-y-2">
-              <h4 className="font-semibold text-slate-900">Updated Cost Summary</h4>
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>Cost per unit:</span>
-                  <span className="font-medium">${(returnItem.cost_per_unit || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>New quantity:</span>
-                  <span className="font-medium">{parseFloat(formData.quantity_returned) || 0}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-bold">
-                  <span>New total:</span>
-                  <span>${((parseFloat(formData.quantity_returned) || 0) * (returnItem.cost_per_unit || 0)).toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
+
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
