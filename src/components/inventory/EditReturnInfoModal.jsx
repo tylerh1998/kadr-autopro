@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Pencil, X, Save } from 'lucide-react';
 import { format } from 'date-fns';
+import { getMountainTimeNow, toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
       setFormData({
         return_reason: returnItem.return_reason || '',
         notes: returnItem.notes || '',
-        return_date: returnItem.return_date || (returnItem.date_returned ? format(new Date(returnItem.date_returned), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
+        return_date: returnItem.return_date || (returnItem.date_returned ? format(toMountainTime(returnItem.date_returned), 'yyyy-MM-dd') : format(getMountainTimeNow(), 'yyyy-MM-dd')),
         sent_back: returnItem.sent_back === 'N/A' ? '' : (returnItem.sent_back || '')
       });
       loadReturnReasons();
