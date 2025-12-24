@@ -25,7 +25,7 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
       setFormData({
         return_reason: returnItem.return_reason || '',
         notes: returnItem.notes || '',
-        return_date: returnItem.return_date || format(new Date(), 'yyyy-MM-dd'),
+        return_date: returnItem.return_date || (returnItem.date_returned ? format(new Date(returnItem.date_returned), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
         sent_back: returnItem.sent_back === 'N/A' ? '' : (returnItem.sent_back || '')
       });
       loadReturnReasons();
@@ -97,9 +97,7 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
             <div className="bg-slate-50 p-4 rounded-lg">
               <h4 className="font-semibold text-slate-900">{returnItem.part_number}</h4>
               <p className="text-sm text-slate-600">{returnItem.description}</p>
-              <p className="text-sm text-slate-500 mt-1">
-                Supplier: <span className="font-bold">{returnItem.supplier}</span>
-              </p>
+
             </div>
 
             <div className="space-y-2">
