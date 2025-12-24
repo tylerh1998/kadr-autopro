@@ -22,6 +22,42 @@ export default function ConfirmCreditInvoiceModal({
   // Count inventory items that will be returned
   const inventoryItemsCount = selectedLineItems.filter(line => line.inventory_item_id).length;
 
+  // Calculate financial totals
+  const partsTotal = selectedLineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
+  const laborTotal = selectedLineItems.reduce((sum, item) => sum + (parseFloat(item.labour) || 0), 0);
+
+  const otherChargesTotal = selectedLineItems.reduce((sum, item) => {
+    const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+    if (isOtherChargeLine) {
+        return sum + (parseFloat(item.total) || 0);
+    }
+    return sum + (parseFloat(item.oc_total) || 0);
+  }, 0);
+
+  const shopSupplyTotal = laborTotal * 0.07;
+
+  // Calculate tax
+  const taxableAmount = selectedLineItems.reduce((sum, item) => {
+    if (item.taxable !== false) {
+      const parts = parseFloat(item.tot_parts) || 0;
+      const labor = parseFloat(item.labour) || 0;
+      let other = parseFloat(item.oc_total) || 0;
+      
+      const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+      if (isOtherChargeLine) {
+         other = parseFloat(item.total) || 0;
+      }
+
+      return sum + parts + labor + other;
+    }
+    return sum;
+  }, 0);
+
+  const taxableSubtotal = taxableAmount + shopSupplyTotal;
+  const taxAmount = taxableSubtotal * 0.05;
+
+  const grandTotal = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal + taxAmount;
+
   const handleConfirm = () => {
     if (!refundSource) {
       alert('Please select a refund payment source.');
@@ -92,9 +128,12 @@ export default function ConfirmCreditInvoiceModal({
               <div className="flex justify-between items-center font-semibold">
                 <span>Total Credit Amount:</span>
                 <span className="text-lg text-red-600">
-                  -${selectedLineItems.reduce((sum, line) => sum + (line.total || 0), 0).toFixed(2)}
+                  -${grandTotal.toFixed(2)}
                 </span>
               </div>
+              <p className="text-xs text-slate-500 mt-1 text-right">
+                Includes parts, labor, other charges, shop supplies (7%), and GST (5%)
+              </p>
             </div>
           </div>
 
