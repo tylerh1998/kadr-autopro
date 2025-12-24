@@ -113,26 +113,47 @@ export default function CreditInvoicePage() {
       const selectedLineItems = lineItems.filter((_, index) => selectedLines[index]);
       
       console.log('Selected line items to credit:', selectedLineItems);
+
+      // Calculate granular totals
+      const partsTotal = selectedLineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
+      const laborTotal = selectedLineItems.reduce((sum, item) => sum + (parseFloat(item.labour) || 0), 0);
       
-      const creditSubtotal = selectedLineItems.reduce((sum, line) => {
-        const lineTotal = parseFloat(line.total) || 0;
-        return sum + lineTotal;
+      const otherChargesTotal = selectedLineItems.reduce((sum, item) => {
+        const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+        if (isOtherChargeLine) {
+            return sum + (parseFloat(item.total) || 0);
+        }
+        return sum + (parseFloat(item.oc_total) || 0);
       }, 0);
       
-      const creditTaxAmount = selectedLineItems.reduce((sum, line) => {
-        const lineTotal = parseFloat(line.total) || 0;
-        const taxable = line.taxable !== false;
-        if (taxable) {
-          // Assuming a default tax rate if not specified, or fetching from a global config.
-          // For now, using 5% as per original code's calculation logic.
-          return sum + (lineTotal * 0.05);
+      const shopSupplyTotal = laborTotal * 0.07;
+      
+      // Calculate tax
+      const taxableAmount = selectedLineItems.reduce((sum, item) => {
+        if (item.taxable !== false) {
+          const parts = parseFloat(item.tot_parts) || 0;
+          const labor = parseFloat(item.labour) || 0;
+          let other = parseFloat(item.oc_total) || 0;
+          
+          const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+          if (isOtherChargeLine) {
+             other = parseFloat(item.total) || 0;
+          }
+          
+          return sum + parts + labor + other;
         }
         return sum;
       }, 0);
       
-      const creditTotalAmount = creditSubtotal + creditTaxAmount;
+      const taxableSubtotal = taxableAmount + shopSupplyTotal;
+      const creditTaxAmount = taxableSubtotal * 0.05;
       
-      console.log('Credit subtotal:', creditSubtotal);
+      const creditTotalAmount = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal + creditTaxAmount;
+      
+      console.log('Parts Total:', partsTotal);
+      console.log('Labor Total:', laborTotal);
+      console.log('Other Charges Total:', otherChargesTotal);
+      console.log('Shop Supplies:', shopSupplyTotal);
       console.log('Credit tax:', creditTaxAmount);
       console.log('Credit total:', creditTotalAmount);
       
@@ -174,7 +195,9 @@ export default function CreditInvoicePage() {
         stage: 'credit_invoice',
         description: `Credit Invoice for ${workOrder.inv_number}`,
         invoice_date: format(new Date(), 'yyyy-MM-dd'),
-        parts_total: -Math.abs(creditSubtotal),
+        parts_total: -Math.abs(partsTotal),
+        labor_total: -Math.abs(laborTotal),
+        shop_supply_total: -Math.abs(shopSupplyTotal),
         tax_amount: -Math.abs(creditTaxAmount),
         total_amount: -Math.abs(creditTotalAmount),
         line_items: JSON.stringify(selectedLineItems.map(line => {
