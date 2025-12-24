@@ -30,7 +30,10 @@ export default function ChangeSupplierModal({ open, onClose, returnItem, onSuppl
     setLoading(true);
     try {
       const suppliersData = await Supplier.list();
-      setSuppliers(suppliersData);
+      const filteredSorted = suppliersData
+        .filter(s => s.inventory_supplier)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      setSuppliers(filteredSorted);
     } catch (error) {
       console.error('Error loading suppliers:', error);
     } finally {
