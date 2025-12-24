@@ -1101,7 +1101,7 @@ export default function WorkOrdersPage() {
                   <TabsContent value="invoices">
                     <WorkOrderList
                       workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => wo.stage === 'invoice'),
+                        filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
                         invoicesSort
                       )}
                       customers={customers}

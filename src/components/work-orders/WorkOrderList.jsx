@@ -139,6 +139,7 @@ function WorkOrderList({
           
           const displayNumber = workOrder.stage === 'estimate' ? workOrder.est_number :
                               workOrder.stage === 'invoice' ? workOrder.inv_number :
+                              workOrder.stage === 'credit_invoice' ? workOrder.crinv_number :
                               workOrder.wo_number;
           
           const isLocked = workOrder.LockedByUser && workOrder.LockedByUser.trim() !== '';
@@ -157,7 +158,13 @@ function WorkOrderList({
                       <h3 className="text-lg font-bold text-slate-900">
                         {getCustomerName(workOrder.customer_id)}
                       </h3>
-                      <StatusBadge status={workOrder.status} />
+                      {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
+                        <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium`}>
+                          {workOrder.stage === 'credit_invoice' ? 'Credit Invoice' : 'Invoice'}
+                        </Badge>
+                      ) : (
+                        <StatusBadge status={workOrder.status} />
+                      )}
                       
                       {isLocked && (
                         <Tooltip>
