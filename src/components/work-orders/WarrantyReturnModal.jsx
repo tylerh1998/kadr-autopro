@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, InventoryTxs, InventoryItem, Supplier } from '@/entities/all';
+import { InventoryReturn, InventoryTxs, InventoryItem, Supplier, GLTransaction, WorkOrder } from '@/entities/all';
+import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
@@ -15,11 +16,21 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
   const [submitting, setSubmitting] = useState(false);
   const [inventoryItem, setInventoryItem] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
+  const [availableQty, setAvailableQty] = useState(0);
+  const [alreadyReturnedQty, setAlreadyReturnedQty] = useState(0);
 
   useEffect(() => {
     if (open && lineItem) {
+      // Calculate availability
+      const returned = parseFloat(lineItem.warranty_returned) || 0;
+      const totalQty = parseFloat(lineItem.qty) || 0;
+      const available = Math.max(0, totalQty - returned);
+      
+      setAlreadyReturnedQty(returned);
+      setAvailableQty(available);
+
       // Reset form
-      setQuantity(lineItem.qty?.toString() || '1');
+      setQuantity(available > 0 ? '1' : '0');
       setReturnScope('Parts Only');
       setNotes('');
 
@@ -59,8 +70,8 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       return;
     }
 
-    if (qty > lineItem.qty) {
-      alert(`Quantity cannot exceed ${lineItem.qty}`);
+    if (qty > availableQty) {
+      alert(`Quantity cannot exceed available warranty quantity (${availableQty})`);
       return;
     }
 
@@ -108,6 +119,64 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       await InventoryTxs.create(txData);
       console.log('Created warranty transaction record');
 
+      // Create GL Transactions (Replicating Legacy Warranty Logic)
+      const totalCost = (inventoryItem.cost || 0) * qty;
+      await GLTransaction.bulkCreate([
+        {
+          account_number: "5000",
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
+          credit_amount: totalCost,
+          debit_amount: 0,
+          source_type: "adjustment",
+          source_id: createdReturn.id
+        },
+        {
+          account_number: "1200",
+          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
+          debit_amount: totalCost,
+          credit_amount: 0,
+          source_type: "adjustment",
+          source_id: createdReturn.id
+        }
+      ]);
+      console.log('Created GL transactions for warranty return');
+
+      // Update WorkOrder line items with warranty_returned flag
+      // Need to fetch fresh WO to ensure we don't overwrite other changes, 
+      // but since this is usually done in view mode or single user, we'll try to use current props or fetch.
+      // Ideally we fetch the latest.
+      try {
+        const freshWO = await WorkOrder.get(workOrder.id);
+        const currentLines = JSON.parse(freshWO.line_items || '[]');
+        
+        // Find the matching line item. We try to match by properties since IDs might not be reliable or unique in all cases
+        // But if lineItem has an ID, we use it.
+        const lineIndex = currentLines.findIndex(l => {
+            if (lineItem.id && l.id) return l.id === lineItem.id;
+            // Fallback matching
+            return l.part_number === lineItem.part_number && 
+                   l.description === lineItem.description && 
+                   l.qty === lineItem.qty;
+        });
+
+        if (lineIndex !== -1) {
+            const currentReturned = parseFloat(currentLines[lineIndex].warranty_returned) || 0;
+            currentLines[lineIndex].warranty_returned = currentReturned + qty;
+            
+            await WorkOrder.update(workOrder.id, {
+                line_items: JSON.stringify(currentLines)
+            });
+            console.log('Updated Work Order line item warranty_returned flag');
+        } else {
+            console.warn('Could not find matching line item to update warranty flag');
+        }
+      } catch (err) {
+        console.error('Error updating Work Order line items:', err);
+        // We don't block success here, but log it.
+      }
+
       alert(`Warranty return processed successfully for ${qty} unit(s).`);
       
       if (onSuccess) {
@@ -140,7 +209,11 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           <div className="bg-slate-50 p-3 rounded-lg">
             <p className="font-semibold text-slate-900">{lineItem.part_number}</p>
             <p className="text-sm text-slate-600">{lineItem.description}</p>
-            <p className="text-xs text-slate-500 mt-1">Work Order Qty: {lineItem.qty}</p>
+            <div className="flex gap-4 mt-2 text-xs">
+                <span className="text-slate-500">Original Qty: {lineItem.qty}</span>
+                <span className="text-orange-600">Already Returned: {alreadyReturnedQty}</span>
+                <span className="font-semibold text-green-600">Available: {availableQty}</span>
+            </div>
           </div>
 
           {/* Warning if not linked to inventory */}
@@ -161,11 +234,15 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
               id="quantity"
               type="number"
               min="1"
-              max={lineItem.qty}
+              max={availableQty}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               required
+              disabled={availableQty <= 0}
             />
+            {availableQty <= 0 && (
+                <p className="text-xs text-red-500 mt-1">No quantity available for warranty return.</p>
+            )}
           </div>
 
           {/* Return Scope */}
