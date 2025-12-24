@@ -300,8 +300,7 @@ export default function CreditInvoicePage() {
 
       // Create CustomerPayment record for the refund
       if (refundSource === 'cash_drawer' || refundSource === 'on_account') {
-        const { CustomerPayments } = await import('@/entities/all');
-        
+
         let paymentMethod;
         if (refundSource === 'cash_drawer') {
           paymentMethod = cashDrawerPaymentType; // 'cash', 'debit', or 'credit'
@@ -309,7 +308,7 @@ export default function CreditInvoicePage() {
           paymentMethod = 'on_account';
         }
 
-        await CustomerPayments.create({
+        await base44.entities.CustomerPayments.create({
           customer_id: workOrder.customer_id,
           work_order_id: workOrder.id,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
