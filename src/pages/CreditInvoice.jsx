@@ -4,7 +4,7 @@ import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings } from '@/
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText } from 'lucide-react';
+import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -311,9 +311,7 @@ export default function CreditInvoicePage() {
     }
   };
 
-  const handlePrintCreditInvoice = () => {
-    handlePrint();
-  };
+
 
   const handleToggleLine = (index) => {
     setSelectedLines(prev => {
@@ -397,13 +395,12 @@ export default function CreditInvoicePage() {
                   )}
                 </Button>
                 <Button 
-                  onClick={handlePrintCreditInvoice}
-                  disabled={!workOrder || isPrinting || processing}
+                  onClick={() => navigate(createPageUrl('WorkOrderView') + `?id=${roNumber}`)}
                   variant="outline"
-                  className="bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-white"
                 >
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Credit Invoice
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Return to Invoice
                 </Button>
                 <Button 
                   variant="outline" 
