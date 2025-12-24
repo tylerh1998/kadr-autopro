@@ -671,7 +671,15 @@ const navigationItems = [
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user?.User_name || user?.full_name || 'My Account'}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="flex flex-col gap-0.5">
+                    <span>{user?.User_name || user?.full_name || 'My Account'}</span>
+                    <span className="text-xs font-normal text-slate-500">
+                      {user?.role === 'admin' ? "Program Administrator" :
+                       user?.access_level === 'lvl3_user' ? "Executive Access" :
+                       user?.access_level === 'lvl2_user' ? "Supervisor Access" :
+                       "Standard Access"}
+                    </span>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <a href="https://workpro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
