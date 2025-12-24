@@ -258,7 +258,8 @@ export default function WorkOrderViewPage() {
                       <div>
                         <h1 className="text-3xl font-bold text-slate-900">
                           {workOrder.stage === 'estimate' ? `Estimate ${workOrder.est_number}` :
-                           workOrder.stage === 'invoice' || workOrder.stage === 'credit_invoice' ? `Invoice ${workOrder.inv_number}` :
+                           workOrder.stage === 'credit_invoice' ? `Credit Invoice ${workOrder.crinv_number}` :
+                           workOrder.stage === 'invoice' ? `Invoice ${workOrder.inv_number}` :
                            `Work Order ${workOrder.wo_number || workOrder.ro_number}`}
                         </h1>
                         <p className="text-slate-600 mt-1">View Only Mode</p>

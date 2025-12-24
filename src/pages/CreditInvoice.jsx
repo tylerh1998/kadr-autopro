@@ -181,6 +181,8 @@ export default function CreditInvoicePage() {
           ...line,
           total: -Math.abs(parseFloat(line.total) || 0),
           tot_parts: -Math.abs(parseFloat(line.tot_parts) || 0),
+          labour: -Math.abs(parseFloat(line.labour) || 0),
+          oc_total: -Math.abs(parseFloat(line.oc_total) || 0),
         }))),
         payments: JSON.stringify([{
           id: Date.now(),
@@ -290,7 +292,7 @@ export default function CreditInvoicePage() {
       
       alert(`Credit invoice ${creditInvoiceNumber} created successfully!`);
       
-      window.close();
+      navigate(createPageUrl(`WorkOrderView?id=${creditInvoiceNumber}`));
       
     } catch (error) {
       console.error('Error creating credit invoice:', error);
