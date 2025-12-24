@@ -290,7 +290,12 @@ export default function WorkOrderViewPage() {
                         Print
                       </Button>
 
-                      <Button variant="outline" onClick={handleEditWorkOrder} className="border-green-300 text-green-700 hover:bg-green-50">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleEditWorkOrder} 
+                        disabled={workOrder.stage === 'credit_invoice'}
+                        className="border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
                         <Edit3 className="w-4 h-4 mr-2" />
                         Edit Work Order
                       </Button>
