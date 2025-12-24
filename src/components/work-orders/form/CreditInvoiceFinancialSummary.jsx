@@ -11,20 +11,38 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
   
   const laborTotal = selectedLineItems.reduce((sum, item) => 
     sum + (parseFloat(item.labour) || 0), 0);
+
+  const otherChargesTotal = selectedLineItems.reduce((sum, item) => {
+    // If it's an Other Charge line type, use total, otherwise use oc_total
+    const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+    if (isOtherChargeLine) {
+        return sum + (parseFloat(item.total) || 0);
+    }
+    return sum + (parseFloat(item.oc_total) || 0);
+  }, 0);
   
   const shopSupplyTotal = laborTotal * 0.07;
   
-  const subtotal = partsTotal + laborTotal + shopSupplyTotal;
+  const subtotal = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal;
 
   // Calculate tax only on taxable items
-  const taxablePartsAndLabor = selectedLineItems.reduce((sum, item) => {
+  const taxableAmount = selectedLineItems.reduce((sum, item) => {
     if (item.taxable !== false) {
-      return sum + (parseFloat(item.tot_parts) || 0) + (parseFloat(item.labour) || 0);
+      const parts = parseFloat(item.tot_parts) || 0;
+      const labor = parseFloat(item.labour) || 0;
+      let other = parseFloat(item.oc_total) || 0;
+      
+      const isOtherChargeLine = item.is_other_charge || item.other_charge_id;
+      if (isOtherChargeLine) {
+         other = parseFloat(item.total) || 0;
+      }
+
+      return sum + parts + labor + other;
     }
     return sum;
   }, 0);
   
-  const taxableSubtotal = taxablePartsAndLabor + shopSupplyTotal;
+  const taxableSubtotal = taxableAmount + shopSupplyTotal;
   const taxAmount = taxableSubtotal * 0.05; // 5% GST
 
   const grandTotal = subtotal + taxAmount;
@@ -41,7 +59,7 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
         </p>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
           {/* Parts Total */}
           <div className="space-y-1">
             <p className="text-sm text-slate-600">Parts Total</p>
@@ -55,6 +73,14 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
             <p className="text-sm text-slate-600">Labor Total</p>
             <p className="text-2xl font-bold text-slate-900">
               ${laborTotal.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Other Charges */}
+          <div className="space-y-1">
+            <p className="text-sm text-slate-600">Other Charges</p>
+            <p className="text-2xl font-bold text-slate-900">
+              ${otherChargesTotal.toFixed(2)}
             </p>
           </div>
 
