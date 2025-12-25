@@ -1,15 +1,11 @@
 import React from 'react';
-import { useDroppable } from '@hello-pangea/dnd';
-import { SortableContext, verticalListSortingStrategy } from '@hello-pangea/dnd';
+import { Droppable } from '@hello-pangea/dnd';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import KanbanCard from './KanbanCard';
 
 export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes, customers, vehicles, handleEdit }) {
-  const { setNodeRef } = useDroppable({
-    id: statusObj.name,
-  });
-
+  
   const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top', columnPosition: 1, width: 280, height: 600 };
   
   if (config.visible === false) return null;
@@ -48,7 +44,6 @@ export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes,
 
   const colorClass = getColorClass(statusObj.color);
   const colSpan = getColSpan(config.width);
-  // const rowSpan = config.row === 'both' ? 2 : 1;
   const gridRow = config.row === 'bottom' ? 2 : (config.row === 'both' ? 'span 2' : 1);
 
   return (
@@ -69,32 +64,36 @@ export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes,
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent 
-        ref={setNodeRef}
-        className="flex flex-col gap-3 overflow-y-auto p-4" 
-        style={{ maxHeight: `${config.height - 80}px` }}
-      >
-        <SortableContext 
-            items={workOrders.map(wo => wo.id)} 
-            strategy={verticalListSortingStrategy}
-        >
-            {workOrders.map(wo => (
-            <KanbanCard 
+      
+      <Droppable droppableId={statusObj.name}>
+        {(provided, snapshot) => (
+          <CardContent 
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className={`flex flex-col gap-1 overflow-y-auto p-4 transition-colors ${snapshot.isDraggingOver ? 'bg-black/5' : ''}`}
+            style={{ maxHeight: `${config.height - 80}px` }}
+          >
+            {workOrders.map((wo, index) => (
+              <KanbanCard 
                 key={wo.id}
                 wo={wo}
+                index={index}
                 customers={customers}
                 vehicles={vehicles}
                 handleEdit={handleEdit}
                 kanbanColumnSizes={kanbanColumnSizes}
-            />
+              />
             ))}
-        </SortableContext>
-        {workOrders.length === 0 && (
-            <div className="h-20 w-full flex items-center justify-center text-slate-400 text-sm italic border-2 border-dashed border-slate-200 rounded">
+            {provided.placeholder}
+            
+            {workOrders.length === 0 && !snapshot.isDraggingOver && (
+              <div className="h-20 w-full flex items-center justify-center text-slate-400 text-sm italic border-2 border-dashed border-slate-200 rounded">
                 Drop items here
-            </div>
+              </div>
+            )}
+          </CardContent>
         )}
-      </CardContent>
+      </Droppable>
     </Card>
   );
 }
