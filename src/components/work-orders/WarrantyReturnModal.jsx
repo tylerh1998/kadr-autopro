@@ -59,6 +59,11 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (lineItem.credit_flag) {
+      alert(`Already credited on ${lineItem.credit_flag}`);
+      return;
+    }
+
     if (!lineItem || !inventoryItem) {
       alert('Cannot process warranty return: Missing item information.');
       return;
@@ -216,6 +221,17 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
             </div>
           </div>
 
+          {/* Error if already credited */}
+          {lineItem.credit_flag && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-red-800">
+                <p className="font-medium">Already Credited</p>
+                <p>Already credited on {lineItem.credit_flag}</p>
+              </div>
+            </div>
+          )}
+
           {/* Warning if not linked to inventory */}
           {!inventoryItem && (
             <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -281,7 +297,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" disabled={submitting || !!lineItem.credit_flag} className="bg-blue-600 hover:bg-blue-700">
               {submitting ? 'Processing...' : 'Process Warranty Return'}
             </Button>
           </DialogFooter>
