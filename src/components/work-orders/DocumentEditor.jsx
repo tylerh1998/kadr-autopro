@@ -103,6 +103,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   // State for lock management
   const [currentUser, setCurrentUser] = useState(null);
   const [isLockedByOtherUser, setIsLockedByOtherUser] = useState(false);
+  const [isAlreadyOpenByMe, setIsAlreadyOpenByMe] = useState(false);
   const [lockedByUserName, setLockedByUserName] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
   const [lockCheckComplete, setLockCheckComplete] = useState(false);
@@ -354,9 +355,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           setLockAcquired(false);
           lockAcquiredRef.current = false;
         } else if (freshWorkOrder.LockedByUser === currentUser.email) {
-          setIsLockedByOtherUser(false);
-          setLockAcquired(true);
-          lockAcquiredRef.current = true;
+          setIsAlreadyOpenByMe(true);
+          setLockCheckComplete(true);
         } else {
           await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email });
           setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email }));
@@ -1300,6 +1300,77 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         <div className="text-center">
           <p className="text-gray-600 text-lg">Work order not found</p>
         </div>
+      </div>
+    );
+  }
+
+  if (isAlreadyOpenByMe) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <Card className="max-w-2xl w-full shadow-xl">
+          <CardContent className="p-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  Document Already Open
+                </h2>
+                <p className="text-lg text-slate-700">
+                  You already have this {mode === 'estimate' ? 'Estimate' : 'Work Order'} open in another window or tab.
+                </p>
+                <p className="text-sm text-slate-600 mt-4">
+                  Opening it here may cause data conflicts if you are editing it elsewhere.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                <Button
+                  onClick={() => {
+                    window.close();
+                    // Fallback if window.close() fails
+                    setTimeout(() => {
+                      navigate(createPageUrl('WorkOrders'));
+                    }, 100);
+                  }}
+                  variant="outline"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Close
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    const viewUrl = createPageUrl(`WorkOrderView?id=${roNumber}`);
+                    window.location.href = viewUrl;
+                  }}
+                  variant="outline"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  View-Only
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setIsAlreadyOpenByMe(false);
+                    setLockAcquired(true);
+                    lockAcquiredRef.current = true;
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open Anyway
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
