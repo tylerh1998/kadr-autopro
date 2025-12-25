@@ -12,6 +12,11 @@ export default function KanbanBoard({
   handleEdit,
   refreshData
 }) {
+  const [isBrowser, setIsBrowser] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsBrowser(true);
+  }, []);
 
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -27,8 +32,8 @@ export default function KanbanBoard({
       return;
     }
 
-    // Find the moved work order
-    const movedWorkOrder = workOrders.find(wo => wo.id === draggableId);
+    // Find the moved work order - ensure loose comparison or string comparison
+    const movedWorkOrder = workOrders.find(wo => String(wo.id) === String(draggableId));
     if (!movedWorkOrder) return;
 
     const oldStatus = source.droppableId;
@@ -63,6 +68,10 @@ export default function KanbanBoard({
         // Given complexity, let's keep it simple as requested.
     }
   };
+
+  if (!isBrowser) {
+    return null; 
+  }
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>

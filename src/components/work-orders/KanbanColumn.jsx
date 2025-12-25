@@ -67,11 +67,11 @@ export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes,
       
       <Droppable droppableId={statusObj.name}>
         {(provided, snapshot) => (
-          <CardContent 
+          <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`flex flex-col gap-1 overflow-y-auto p-4 transition-colors ${snapshot.isDraggingOver ? 'bg-black/5' : ''}`}
-            style={{ maxHeight: `${config.height - 80}px` }}
+            style={{ maxHeight: `${config.height - 80}px`, minHeight: '100px' }}
           >
             {workOrders.map((wo, index) => (
               <KanbanCard 
@@ -91,7 +91,7 @@ export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes,
                 Drop items here
               </div>
             )}
-          </CardContent>
+          </div>
         )}
       </Droppable>
     </Card>
