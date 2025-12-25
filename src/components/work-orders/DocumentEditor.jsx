@@ -531,12 +531,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
                 inventory_item_id: deletedLine.inventory_item_id,
                 part_num: deletedLine.part_number || inventoryItem.part_number,
                 tx_date: new Date().toISOString(),
-                tx_type: 'Returned to Stock from WO',
+                tx_type: 'Returned from WO',
                 quantity_change: qtyToReturn,
                 quantity_ordered_change: 0,
                 ro_number: workOrder.ro_number,
                 source_record_id: workOrder.id,
-                description: `Returned ${qtyToReturn} units to inventory from deleted line on WO ${workOrder.ro_number}`
+                description: `Returned ${qtyToReturn} units to inventory from deleted line on ${workOrder.ro_number}`
               });
             } catch (error) {
               console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
@@ -565,7 +565,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
                 quantity_ordered_change: 0,
                 ro_number: workOrder.ro_number,
                 source_record_id: workOrder.id,
-                description: `Returned ${returnItem.qtyToReturn} units to inventory from WO ${workOrder.ro_number}`
+                description: `Returned ${returnItem.qtyToReturn} units to inventory from ${workOrder.ro_number}`
               });
             } catch (error) {
               console.error(`Failed to process return for ${returnItem.part_number}:`, error);
