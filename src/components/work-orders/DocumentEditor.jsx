@@ -1070,7 +1070,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     setInvoiceConversionPhase(1);
   }, [workOrder, lineItems]);
 
-  const handleHeaderSaveClick = async () => {
+  const handleHeaderSaveClick = useCallback(async () => {
+    if (saving) return;
     try {
       await handleSave({}, false);
 
@@ -1123,7 +1124,19 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     } catch (error) {
       alert(`Failed to save work order: ${error.message}`);
     }
-  };
+  }, [handleSave, workOrder, currentUser, saving]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleHeaderSaveClick();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleHeaderSaveClick]);
 
   const handleCustomerUpdate = async (customerData) => {
     try {
