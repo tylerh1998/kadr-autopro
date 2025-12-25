@@ -4,6 +4,7 @@ import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
 import { SupplierInvoiceLine, InventoryItem, InventoryTxs } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { handleSupplierInvoiceLineGL } from '@/functions/handleSupplierInvoiceLineGL';
 
 // Modals
 import GetPartModal from '../GetPartModal';
@@ -490,7 +491,7 @@ export default function WorkOrderForm({
         newLine.supplier_invoice_line_id = createdSupplierInvoiceLine.id;
         
         console.log('=== DEBUG: Posting to GL ===');
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+        await handleSupplierInvoiceLineGL({
           supplierInvoiceLine: createdSupplierInvoiceLine,
           action: 'create'
         });
@@ -542,7 +543,7 @@ export default function WorkOrderForm({
         await SupplierInvoiceLine.update(existingSupplierInvoiceLineId, updatedSupplierInvoiceLineData);
         console.log('=== DEBUG: Updated SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+        await handleSupplierInvoiceLineGL({
           supplierInvoiceLine: { ...updatedSupplierInvoiceLineData, id: existingSupplierInvoiceLineId },
           action: 'update',
           oldValues: oldSupplierInvoiceLine
@@ -557,7 +558,7 @@ export default function WorkOrderForm({
         await SupplierInvoiceLine.delete(existingSupplierInvoiceLineId);
         console.log('=== DEBUG: Deleted SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+        await handleSupplierInvoiceLineGL({
           supplierInvoiceLine: supplierInvoiceLineToDelete,
           action: 'delete'
         });
@@ -789,7 +790,7 @@ export default function WorkOrderForm({
           console.log('WorkOrderForm: Created offsetting SupplierInvoiceLine:', offsettingSIL);
           
           // Post the offsetting GL entries (action: 'create' with negative values acts as reversal)
-          await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+          await handleSupplierInvoiceLineGL({
             supplierInvoiceLine: offsettingSIL,
             action: 'create'
           });
