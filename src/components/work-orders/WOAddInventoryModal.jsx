@@ -241,7 +241,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         selling_price: parseFloat(formData.selling_price) || 0,
         profit_margin: parseFloat(formData.profit_margin) || 0,
         quantity_on_hand: 0,
-        quantity_on_order: quantityToOrder,
+        quantity_on_order: 0, // Set to 0 initially to prevent duplicate backend transactions
         minimum_quantity: formData.minimum_quantity ? parseInt(formData.minimum_quantity, 10) : 0,
         maximum_quantity: formData.maximum_quantity ? parseInt(formData.maximum_quantity, 10) : 0,
         location: formData.location || null,
@@ -255,46 +255,27 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       console.log('Creating new inventory item:', newInventoryItemData);
       const createdInventoryItem = await InventoryItem.create(newInventoryItemData);
 
-      // Step 2: Handle InventoryTxs record for the order
-      // Check if system already created a transaction (to prevent duplicates)
-      let existingTxs = [];
-      try {
-        existingTxs = await InventoryTxs.filter({ 
-          inventory_item_id: createdInventoryItem.id,
-          tx_type: 'Ordered'
-        });
-      } catch (e) {
-        console.warn('Could not check for existing transactions:', e);
-      }
+      // Step 2: Create the InventoryTxs record for the order
+      const inventoryTxData = {
+        inventory_item_id: createdInventoryItem.id,
+        part_num: createdInventoryItem.part_number,
+        tx_date: new Date().toISOString(),
+        tx_type: 'Ordered',
+        quantity_change: 0,
+        quantity_ordered_change: quantityToOrder,
+        ro_number: workOrder.ro_number,
+        source_record_id: workOrder.id,
+        supplier_name: suppliers.find(s => s.id === formData.supplier_id)?.name || '',
+        description: `Ordered new part for WO ${workOrder.ro_number}`
+      };
 
-      const supplierName = suppliers.find(s => s.id === formData.supplier_id)?.name || '';
-      const txDescription = `Ordered new part for WO ${workOrder.ro_number}`;
+      console.log('Creating inventory transaction:', inventoryTxData);
+      await InventoryTxs.create(inventoryTxData);
 
-      if (existingTxs && existingTxs.length > 0) {
-        console.log('Updating existing system-generated inventory transaction');
-        await InventoryTxs.update(existingTxs[0].id, {
-          ro_number: workOrder.ro_number,
-          source_record_id: workOrder.id,
-          supplier_name: supplierName,
-          description: txDescription
-        });
-      } else {
-        const inventoryTxData = {
-          inventory_item_id: createdInventoryItem.id,
-          part_num: createdInventoryItem.part_number,
-          tx_date: new Date().toISOString(),
-          tx_type: 'Ordered',
-          quantity_change: 0,
-          quantity_ordered_change: quantityToOrder,
-          ro_number: workOrder.ro_number,
-          source_record_id: workOrder.id,
-          supplier_name: supplierName,
-          description: txDescription
-        };
-
-        console.log('Creating inventory transaction:', inventoryTxData);
-        await InventoryTxs.create(inventoryTxData);
-      }
+      // Step 2.5: Update inventory item with correct quantity on order
+      await InventoryItem.update(createdInventoryItem.id, {
+        quantity_on_order: quantityToOrder
+      });
 
       // Step 3: Create the line item object for the work order
       const newLineItem = {
