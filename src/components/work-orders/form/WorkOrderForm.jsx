@@ -927,6 +927,7 @@ export default function WorkOrderForm({
         onClose={() => closeModal('receivePart')}
         lineItem={currentLineItem}
         inventoryItem={inventory.find(i => i.id === currentLineItem?.inventory_item_id)}
+        workOrderId={initialWorkOrder?.id}
         onReceive={handleReceiveWorkOrderPart}
       />
       <ROCoreModal
