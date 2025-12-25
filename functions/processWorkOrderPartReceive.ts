@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       inventory_item_id: lineItem.inventory_item_id,
       part_num: lineItem.part_number || inventoryItem.part_number,
       tx_date: txDate,
-      tx_type: 'Issued to Work Order',
+      tx_type: 'Issued to WO',
       quantity_change: -receivedQuantity,
       quantity_ordered_change: 0,
       ro_number: workOrder.ro_number,
