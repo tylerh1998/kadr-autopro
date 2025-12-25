@@ -31,46 +31,91 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Invalid line items data' }, { status: 500 });
         }
 
-        const updates = [];
-        const inventoryTxs = [];
         const updatedLineItems = [];
 
-        // Process line items for inventory updates
+        // Process line items for inventory updates sequentially
         for (const line of lineItems) {
             if (line.inventory_item_id && !line.inventory_processed && parseFloat(line.qty) > 0) {
                 const requestedQuantity = parseFloat(line.qty);
                 const inventoryItemId = line.inventory_item_id;
 
                 try {
+                    // Fetch fresh inventory item
                     const inventoryItem = await base44.entities.InventoryItem.get(inventoryItemId);
-                    if (!inventoryItem) continue;
+                    if (!inventoryItem) {
+                        updatedLineItems.push(line);
+                        continue;
+                    }
 
-                    const currentQOO = inventoryItem.quantity_on_order || 0;
+                    const currentQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
+                    const currentQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
 
-                    const newQOO = currentQOO + requestedQuantity;
+                    let qtyTakenFromHand = 0;
+                    let qtyPlacedOnOrder = 0;
+                    
+                    // Determine split based on QOH
+                    if (currentQOH >= requestedQuantity) {
+                        // Scenario 1: Sufficient QOH
+                        qtyTakenFromHand = requestedQuantity;
+                        qtyPlacedOnOrder = 0;
+                    } else if (currentQOH > 0) {
+                        // Scenario 2: Partial QOH
+                        qtyTakenFromHand = currentQOH;
+                        qtyPlacedOnOrder = requestedQuantity - currentQOH;
+                    } else {
+                        // Scenario 3: No QOH
+                        qtyTakenFromHand = 0;
+                        qtyPlacedOnOrder = requestedQuantity;
+                    }
 
-                    // Queue Inventory Update
-                    updates.push(base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
-                        quantity_on_order: newQOO
-                    }));
+                    // Prepare Inventory Update
+                    const updateData = {};
+                    if (qtyTakenFromHand > 0) {
+                        updateData.quantity_on_hand = currentQOH - qtyTakenFromHand;
+                    }
+                    if (qtyPlacedOnOrder > 0) {
+                        updateData.quantity_on_order = currentQOO + qtyPlacedOnOrder;
+                    }
 
-                    // Queue Inventory Transaction
-                    inventoryTxs.push(base44.asServiceRole.entities.InventoryTxs.create({
-                        inventory_item_id: inventoryItemId,
-                        part_num: inventoryItem.part_number,
-                        tx_date: new Date().toISOString(),
-                        tx_type: 'Ordered',
-                        quantity_change: 0, // No QOH change for 'Ordered'
-                        quantity_ordered_change: requestedQuantity, // All quantity on order
-                        ro_number: workOrder.ro_number,
-                        source_record_id: workOrder.id,
-                        description: `Ordered for WO ${workOrder.ro_number} (Conversion from Estimate)`
-                    }));
+                    // Perform Inventory Update if needed
+                    if (Object.keys(updateData).length > 0) {
+                        await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, updateData);
+                    }
 
-                    // Mark line as processed
+                    // Create Transaction for Taking from Hand
+                    if (qtyTakenFromHand > 0) {
+                        await base44.asServiceRole.entities.InventoryTxs.create({
+                            inventory_item_id: inventoryItemId,
+                            part_num: inventoryItem.part_number,
+                            tx_date: new Date().toISOString(),
+                            tx_type: 'Work Order Usage',
+                            quantity_change: -qtyTakenFromHand,
+                            quantity_ordered_change: 0,
+                            ro_number: workOrder.ro_number,
+                            source_record_id: workOrder.id,
+                            description: `Allocated ${qtyTakenFromHand} to WO ${workOrder.ro_number} (Conversion)`
+                        });
+                    }
+
+                    // Create Transaction for Placing on Order
+                    if (qtyPlacedOnOrder > 0) {
+                        await base44.asServiceRole.entities.InventoryTxs.create({
+                            inventory_item_id: inventoryItemId,
+                            part_num: inventoryItem.part_number,
+                            tx_date: new Date().toISOString(),
+                            tx_type: 'Ordered',
+                            quantity_change: 0,
+                            quantity_ordered_change: qtyPlacedOnOrder,
+                            ro_number: workOrder.ro_number,
+                            source_record_id: workOrder.id,
+                            description: `Placed ${qtyPlacedOnOrder} on order for WO ${workOrder.ro_number} (Conversion)`
+                        });
+                    }
+
+                    // Mark line as processed with updated qty_on_order
                     updatedLineItems.push({
                         ...line,
-                        qty_on_order: requestedQuantity, // All quantity on order
+                        qty_on_order: qtyPlacedOnOrder,
                         inventory_processed: true
                     });
 
@@ -82,10 +127,6 @@ Deno.serve(async (req) => {
                 updatedLineItems.push(line); // Keep original if not an unprocessed inventory item
             }
         }
-
-        // Execute all inventory updates
-        await Promise.all(updates);
-        await Promise.all(inventoryTxs);
 
         // Update Work Order
         const updateData = {
