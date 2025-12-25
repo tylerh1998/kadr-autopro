@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
-import { SupplierInvoiceLine } from '@/entities/all';
+import { SupplierInvoiceLine, InventoryItem, InventoryTxs } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 
 // Modals
@@ -731,16 +731,137 @@ export default function WorkOrderForm({
     closeModal('cores');
   };
 
-  const handleDeleteLine = useCallback((lineIndex) => {
+  const handleDeleteLine = useCallback(async (lineIndex) => {
     if (lineIndex === null || lineIndex < 0 || lineIndex >= displayLineItems.length) return;
     
+    const itemToDelete = displayLineItems[lineIndex];
+    if (!itemToDelete || (!itemToDelete.description && !itemToDelete.part_number)) {
+      // Just remove empty line without confirmation or logic
+      tracedSetLineItems(prev => {
+        const updated = [...prev];
+        updated.splice(lineIndex, 1);
+        return updated; 
+      });
+      setHasUnsavedChanges(true);
+      return; 
+    }
+
+    let proceedWithDeletion = false;
+
+    // Specific confirmation for lines with associated cost entries
+    if (itemToDelete.supplier_invoice_line_id) {
+      proceedWithDeletion = window.confirm(
+        'This line has an associated cost entry. Deleting it will remove the cost tracking and reverse the accounting entries. Continue?'
+      );
+    } else {
+      // General confirmation for other lines (parts, labor, etc.)
+      proceedWithDeletion = window.confirm(`Are you sure you want to delete line: "${itemToDelete.description || itemToDelete.part_number}"?`);
+    }
+
+    if (!proceedWithDeletion) {
+      return; // User cancelled deletion
+    }
+
+    console.log(`WorkOrderForm: Attempting to delete line ${lineIndex}: ${itemToDelete.description || itemToDelete.part_number}`);
+
+    // Handle SupplierInvoiceLine deletion if this line has an associated cost entry
+    if (itemToDelete.supplier_invoice_line_id) {
+      try {
+        // Fetch the SupplierInvoiceLine record before deleting for GL reversal
+        const supplierInvoiceLineToDelete = await SupplierInvoiceLine.get(itemToDelete.supplier_invoice_line_id);
+        
+        // Delete the SupplierInvoiceLine record
+        await SupplierInvoiceLine.delete(itemToDelete.supplier_invoice_line_id);
+        
+        // Reverse the GL entries
+        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+          supplierInvoiceLine: supplierInvoiceLineToDelete,
+          action: 'delete'
+        });
+        console.log(`WorkOrderForm: Successfully deleted SupplierInvoiceLine and reversed GL for line ${lineIndex}`);
+        
+      } catch (error) {
+        console.error('WorkOrderForm: Error deleting SupplierInvoiceLine or reversing GL:', error);
+        alert('Failed to delete supplier invoice line and reverse GL entries. Please try again.');
+        return; // Don't proceed with line deletion if GL reversal failed
+      }
+    }
+
+    // Handle inventory updates for parts
+    if (itemToDelete.inventory_item_id) {
+      try {
+        const inventoryItem = await InventoryItem.get(itemToDelete.inventory_item_id);
+        if (!inventoryItem) {
+          console.warn('WorkOrderForm: Inventory item not found for ID:', itemToDelete.inventory_item_id);
+        } else {
+          let newQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
+          let newQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
+          let txDescriptions = [];
+          let txTypes = [];
+          let quantityChange = 0; // Total QOH change
+          let quantityOrderedChange = 0; // Total QOO change
+
+          // Calculate the portion that was actually issued from QOH
+          if (itemToDelete.inventory_processed && (parseFloat(itemToDelete.qty) || 0) > 0) {
+            const totalQty = parseFloat(itemToDelete.qty) || 0;
+            const qtyOnOrder = parseFloat(itemToDelete.qty_on_order) || 0;
+            
+            const issuedFromQOH = totalQty - qtyOnOrder;
+            
+            if (issuedFromQOH > 0) {
+              const qtyToReturn = issuedFromQOH;
+              newQOH += qtyToReturn;
+              quantityChange += qtyToReturn;
+              txTypes.push('Returned from WO');
+              txDescriptions.push(`Returned ${qtyToReturn} to stock from WO ${initialWorkOrder.ro_number}`);
+            }
+          }
+
+          // Handle parts on order
+          if ((parseFloat(itemToDelete.qty_on_order) || 0) > 0) {
+            const qtyOnOrderToCancel = parseFloat(itemToDelete.qty_on_order);
+            newQOO = Math.max(0, newQOO - qtyOnOrderToCancel);
+            quantityOrderedChange -= qtyOnOrderToCancel;
+            txTypes.push('Order cancelled from WO');
+            txDescriptions.push(`Cancelled ${qtyOnOrderToCancel} from order for WO ${initialWorkOrder.ro_number}`);
+          }
+
+          // Only perform inventory update and create transaction if there were actual changes
+          if (quantityChange !== 0 || quantityOrderedChange !== 0) {
+            await InventoryItem.update(itemToDelete.inventory_item_id, {
+              quantity_on_hand: newQOH,
+              quantity_on_order: newQOO
+            });
+
+            await InventoryTxs.create({
+              inventory_item_id: itemToDelete.inventory_item_id,
+              part_num: itemToDelete.part_number,
+              tx_date: new Date().toISOString(),
+              tx_type: txTypes.length > 0 ? txTypes.join(' & ') : 'WO Line Deleted',
+              quantity_change: quantityChange,
+              quantity_ordered_change: quantityOrderedChange,
+              ro_number: initialWorkOrder.ro_number,
+              source_record_id: initialWorkOrder.id,
+              description: txDescriptions.join('; ') || `Line item deleted from WO ${initialWorkOrder.ro_number}`
+            });
+            console.log(`WorkOrderForm: Successfully updated inventory for line ${lineIndex}. New QOH: ${newQOH}, New QOO: ${newQOO}`);
+          }
+        }
+      } catch (error) {
+        console.error('WorkOrderForm: Failed to update inventory or create transaction on line delete:', error);
+        alert(`Failed to update inventory for line deletion: ${error.message}. Please check inventory history manually.`);
+        return; 
+      }
+    }
+
     tracedSetLineItems(prev => {
       const updated = [...prev];
       updated.splice(lineIndex, 1);
-      return updated; // Removed direct padLines call here, tracedSetLineItems will handle it
+      return updated; 
     });
     setHasUnsavedChanges(true);
-  }, [tracedSetLineItems, displayLineItems.length]);
+    console.log(`WorkOrderForm: Line ${lineIndex} successfully removed from UI.`);
+  }, [tracedSetLineItems, displayLineItems, initialWorkOrder]);
 
   const handleBoldLine = useCallback((lineIndex) => {
     if (lineIndex === null || lineIndex < 0 || lineIndex >= displayLineItems.length) return;
@@ -884,6 +1005,7 @@ export default function WorkOrderForm({
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
         onCores={handleCores}
+        onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}

@@ -51,6 +51,7 @@ export default function LineItemsTable({
   onReturnPart,
   onReceivePart,
   onCores,
+  onDeleteLine, // Accept onDeleteLine prop
   workOrder,
   selectedLineIndex,
   onSelectLine,
@@ -177,127 +178,7 @@ export default function LineItemsTable({
     });
   };
 
-  const deleteLine = async (index) => {
-    const itemToDelete = lineItems[index];
-    if (!itemToDelete || (!itemToDelete.description && !itemToDelete.part_number)) return; // Don't delete empty lines if no description or part number
-
-    let proceedWithDeletion = false;
-
-    // Specific confirmation for lines with associated cost entries
-    if (itemToDelete.supplier_invoice_line_id) {
-      proceedWithDeletion = window.confirm(
-        'This line has an associated cost entry. Deleting it will remove the cost tracking and reverse the accounting entries. Continue?'
-      );
-    } else {
-      // General confirmation for other lines (parts, labor, etc.)
-      proceedWithDeletion = window.confirm(`Are you sure you want to delete line: "${itemToDelete.description || itemToDelete.part_number}"?`);
-    }
-
-    if (!proceedWithDeletion) {
-      return; // User cancelled deletion
-    }
-
-    // Add strategic log
-    console.log(`LineItemsTable: Attempting to delete line ${index}: ${itemToDelete.description || itemToDelete.part_number}`);
-
-    // Handle SupplierInvoiceLine deletion if this line has an associated cost entry
-    if (itemToDelete.supplier_invoice_line_id) {
-      try {
-        // Fetch the SupplierInvoiceLine record before deleting for GL reversal
-        const supplierInvoiceLineToDelete = await SupplierInvoiceLine.get(itemToDelete.supplier_invoice_line_id);
-        
-        // Delete the SupplierInvoiceLine record
-        await SupplierInvoiceLine.delete(itemToDelete.supplier_invoice_line_id);
-        
-        // Reverse the GL entries
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: supplierInvoiceLineToDelete,
-          action: 'delete'
-        });
-        console.log(`LineItemsTable: Successfully deleted SupplierInvoiceLine and reversed GL for line ${index}`);
-        
-      } catch (error) {
-        console.error('LineItemsTable: Error deleting SupplierInvoiceLine or reversing GL:', error);
-        alert('Failed to delete supplier invoice line and reverse GL entries. Please try again.');
-        return; // Don't proceed with line deletion if GL reversal failed
-      }
-    }
-
-    // Handle inventory updates for parts
-    if (itemToDelete.inventory_item_id) {
-      try {
-        const inventoryItem = await InventoryItem.get(itemToDelete.inventory_item_id);
-        if (!inventoryItem) {
-          console.warn('LineItemsTable: Inventory item not found for ID:', itemToDelete.inventory_item_id);
-        } else {
-          let newQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
-          let newQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
-          let txDescriptions = [];
-          let txTypes = [];
-          let quantityChange = 0; // Total QOH change
-          let quantityOrderedChange = 0; // Total QOO change
-
-          // Calculate the portion that was actually issued from QOH
-          if (itemToDelete.inventory_processed && (parseFloat(itemToDelete.qty) || 0) > 0) {
-            const totalQty = parseFloat(itemToDelete.qty) || 0;
-            const qtyOnOrder = parseFloat(itemToDelete.qty_on_order) || 0;
-            
-            const issuedFromQOH = totalQty - qtyOnOrder;
-            
-            if (issuedFromQOH > 0) {
-              const qtyToReturn = issuedFromQOH;
-              newQOH += qtyToReturn;
-              quantityChange += qtyToReturn;
-              txTypes.push('Returned from WO');
-              txDescriptions.push(`Returned ${qtyToReturn} to stock from WO ${workOrder.ro_number}`);
-            }
-          }
-
-          // Handle parts on order
-          if ((parseFloat(itemToDelete.qty_on_order) || 0) > 0) {
-            const qtyOnOrderToCancel = parseFloat(itemToDelete.qty_on_order);
-            newQOO = Math.max(0, newQOO - qtyOnOrderToCancel);
-            quantityOrderedChange -= qtyOnOrderToCancel;
-            txTypes.push('Order cancelled from WO');
-            txDescriptions.push(`Cancelled ${qtyOnOrderToCancel} from order for WO ${workOrder.ro_number}`);
-          }
-
-          // Only perform inventory update and create transaction if there were actual changes
-          if (quantityChange !== 0 || quantityOrderedChange !== 0) {
-            await InventoryItem.update(itemToDelete.inventory_item_id, {
-              quantity_on_hand: newQOH,
-              quantity_on_order: newQOO
-            });
-
-            await InventoryTxs.create({
-              inventory_item_id: itemToDelete.inventory_item_id,
-              part_num: itemToDelete.part_number,
-              tx_date: new Date().toISOString(),
-              tx_type: txTypes.length > 0 ? txTypes.join(' & ') : 'WO Line Deleted',
-              quantity_change: quantityChange,
-              quantity_ordered_change: quantityOrderedChange,
-              ro_number: workOrder.ro_number,
-              source_record_id: workOrder.id,
-              description: txDescriptions.join('; ') || `Line item deleted from WO ${workOrder.ro_number}`
-            });
-            console.log(`LineItemsTable: Successfully updated inventory for line ${index}. New QOH: ${newQOH}, New QOO: ${newQOO}`);
-          }
-        }
-      } catch (error) {
-        console.error('LineItemsTable: Failed to update inventory or create transaction on line delete:', error);
-        alert(`Failed to update inventory for line deletion: ${error.message}. Please check inventory history manually.`);
-        return; 
-      }
-    }
-    
-    // Remove the line from the UI if all prior operations were successful
-    setLineItems(prev => {
-      const updated = [...prev];
-      updated.splice(index, 1);
-      return updated;
-    });
-    console.log(`LineItemsTable: Line ${index} successfully removed from UI.`);
-  };
+  // deleteLine logic moved to WorkOrderForm and passed as onDeleteLine prop
 
   const handleLineItemClick = useCallback((index) => {
     if (onSelectLine && index !== selectedLineIndex) {
@@ -420,7 +301,7 @@ export default function LineItemsTable({
         </>
       )}
       <ContextMenuItem
-        onClick={() => deleteLine(index)}
+        onClick={() => onDeleteLine(index)}
         className="text-red-600 focus:text-red-700"
         disabled={!line.description && !line.part_number} // Disable if line is empty
       >
