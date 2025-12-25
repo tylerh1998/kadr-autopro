@@ -751,7 +751,7 @@ export default function WorkOrderForm({
     // Specific confirmation for lines with associated cost entries
     if (itemToDelete.supplier_invoice_line_id) {
       proceedWithDeletion = window.confirm(
-        'This line has an associated cost entry. Deleting it will remove the cost tracking and reverse the accounting entries. Continue?'
+        'This line has an associated cost entry. Deleting it will create an offsetting reversal entry in the supplier invoice records. Continue?'
       );
     } else {
       // General confirmation for other lines (parts, labor, etc.)
@@ -764,26 +764,44 @@ export default function WorkOrderForm({
 
     console.log(`WorkOrderForm: Attempting to delete line ${lineIndex}: ${itemToDelete.description || itemToDelete.part_number}`);
 
-    // Handle SupplierInvoiceLine deletion if this line has an associated cost entry
+    // Handle SupplierInvoiceLine reversal if this line has an associated cost entry
     if (itemToDelete.supplier_invoice_line_id) {
       try {
-        // Fetch the SupplierInvoiceLine record before deleting for GL reversal
-        const supplierInvoiceLineToDelete = await SupplierInvoiceLine.get(itemToDelete.supplier_invoice_line_id);
+        // Fetch the original SupplierInvoiceLine record
+        const originalSIL = await SupplierInvoiceLine.get(itemToDelete.supplier_invoice_line_id);
         
-        // Delete the SupplierInvoiceLine record
-        await SupplierInvoiceLine.delete(itemToDelete.supplier_invoice_line_id);
-        
-        // Reverse the GL entries
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: supplierInvoiceLineToDelete,
-          action: 'delete'
-        });
-        console.log(`WorkOrderForm: Successfully deleted SupplierInvoiceLine and reversed GL for line ${lineIndex}`);
+        if (originalSIL) {
+          // Create offsetting SupplierInvoiceLine record instead of deleting the original
+          const offsettingSILData = {
+            supplier_id: originalSIL.supplier_id,
+            invoice_number: originalSIL.invoice_number,
+            invoice_date: new Date().toISOString().split('T')[0],
+            description: `REVERSAL: ${originalSIL.description}`,
+            purchase_amount: -1 * (parseFloat(originalSIL.purchase_amount) || 0),
+            gst_amount: -1 * (parseFloat(originalSIL.gst_amount) || 0),
+            gl_account: originalSIL.gl_account,
+            inventory: originalSIL.inventory,
+            inventory_item_id: originalSIL.inventory_item_id,
+            gst_override: originalSIL.gst_override
+          };
+
+          const offsettingSIL = await SupplierInvoiceLine.create(offsettingSILData);
+          console.log('WorkOrderForm: Created offsetting SupplierInvoiceLine:', offsettingSIL);
+          
+          // Post the offsetting GL entries (action: 'create' with negative values acts as reversal)
+          await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+            supplierInvoiceLine: offsettingSIL,
+            action: 'create'
+          });
+          console.log(`WorkOrderForm: Successfully created offsetting SIL and GL entries for line ${lineIndex}`);
+        } else {
+          console.warn(`WorkOrderForm: Original SupplierInvoiceLine not found for ID ${itemToDelete.supplier_invoice_line_id}`);
+        }
         
       } catch (error) {
-        console.error('WorkOrderForm: Error deleting SupplierInvoiceLine or reversing GL:', error);
-        alert('Failed to delete supplier invoice line and reverse GL entries. Please try again.');
-        return; // Don't proceed with line deletion if GL reversal failed
+        console.error('WorkOrderForm: Error processing SupplierInvoiceLine reversal:', error);
+        alert('Failed to process supplier invoice line reversal. Please try again.');
+        return; // Don't proceed with line deletion if reversal failed
       }
     }
 
