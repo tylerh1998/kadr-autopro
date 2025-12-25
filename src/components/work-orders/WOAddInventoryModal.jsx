@@ -295,9 +295,9 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         bold: false,
         qty_on_order: quantityToOrder,
         inventory_item_id: createdInventoryItem.id,
-        // PHASE 5 CHANGE: Since no QOH is consumed when adding via this modal,
-        // inventory_processed should be false
-        inventory_processed: false,
+        // Inventory is fully processed (item created, QOO updated, Tx created) within this modal.
+        // Mark as true to prevent DocumentEditor from triggering WOGetPart and creating a duplicate transaction.
+        inventory_processed: true,
         cost_ea: parseFloat(formData.cost) || 0,
         Core_num: createdInventoryItem.core ? quantityToOrder : 0,
         core_ret: 0,
