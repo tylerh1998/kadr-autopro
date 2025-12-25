@@ -341,7 +341,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 id="part_number"
                 value={formData.part_number}
                 onChange={async (e) => {
-                  const newPartNumber = e.target.value;
+                  const newPartNumber = e.target.value.toUpperCase();
                   handleInputChange("part_number", newPartNumber);
                   if (newPartNumber.trim()) {
                     const existingPart = await InventoryItem.filter({ part_number: newPartNumber });
@@ -379,7 +379,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
               <Input
                 id="description"
                 value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) => {
+                  // Title Case: Capitalize first letter of each word
+                  const val = e.target.value.replace(/\b\w/g, l => l.toUpperCase());
+                  handleInputChange("description", val);
+                }}
                 required
               />
             </div>
