@@ -125,6 +125,26 @@ Deno.serve(async (req) => {
 
     const customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
 
+    // Create SentEmailLog record
+    let emailLogId = null;
+    try {
+        const emailLog = await base44.asServiceRole.entities.SentEmailLog.create({
+            to_email: toEmail,
+            from_email: Deno.env.get("SES_FROM_EMAIL") || "noreply@kensauto.ca",
+            subject: subject,
+            body_preview: body.substring(0, 255),
+            status: 'pending',
+            sent_date: new Date().toISOString(),
+            customer_id: customer.id,
+            email_type: 'payment_receipt'
+        });
+        emailLogId = emailLog.id;
+        console.log('Created SentEmailLog record:', emailLogId);
+    } catch (logError) {
+        console.error('Failed to create SentEmailLog record:', logError);
+        // Continue sending email even if logging fails, but log the error
+    }
+
     // Build HTML email body using the user-provided body as the intro
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.3;">
@@ -194,7 +214,21 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       console.error('Resend API error:', emailResult);
+      if (emailLogId) {
+          try {
+              await base44.asServiceRole.entities.SentEmailLog.update(emailLogId, { 
+                  status: 'failed',
+                  status_message: emailResult.message || 'Resend API Error'
+              });
+          } catch (e) { console.error('Failed to update email log status to failed', e); }
+      }
       return Response.json({ error: emailResult.message || 'Failed to send email via Resend' }, { status: response.status });
+    }
+
+    if (emailLogId) {
+        try {
+            await base44.asServiceRole.entities.SentEmailLog.update(emailLogId, { status: 'sent' });
+        } catch (e) { console.error('Failed to update email log status to sent', e); }
     }
 
     console.log('--- sendARReceiptEmail: Email sent successfully, id:', emailResult.id, '---');
