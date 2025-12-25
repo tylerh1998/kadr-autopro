@@ -22,6 +22,15 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Work Order not found' }, { status: 404 });
         }
 
+        // Fetch Suppliers for lookup
+        let supplierMap = new Map();
+        try {
+            const suppliers = await base44.entities.Supplier.list();
+            supplierMap = new Map(suppliers.map(s => [s.id, s.name]));
+        } catch (e) {
+            console.error('Error fetching suppliers:', e);
+        }
+
         // Parse line items
         let lineItems = [];
         try {
@@ -88,7 +97,7 @@ Deno.serve(async (req) => {
                             inventory_item_id: inventoryItemId,
                             part_num: inventoryItem.part_number,
                             tx_date: new Date().toISOString(),
-                            tx_type: 'Work Order Usage',
+                            tx_type: 'Issued to WO',
                             quantity_change: -qtyTakenFromHand,
                             quantity_ordered_change: 0,
                             ro_number: workOrder.ro_number,
@@ -99,6 +108,8 @@ Deno.serve(async (req) => {
 
                     // Create Transaction for Placing on Order
                     if (qtyPlacedOnOrder > 0) {
+                        const supplierName = supplierMap.get(inventoryItem.supplier_id) || '';
+                        
                         await base44.asServiceRole.entities.InventoryTxs.create({
                             inventory_item_id: inventoryItemId,
                             part_num: inventoryItem.part_number,
@@ -108,6 +119,7 @@ Deno.serve(async (req) => {
                             quantity_ordered_change: qtyPlacedOnOrder,
                             ro_number: workOrder.ro_number,
                             source_record_id: workOrder.id,
+                            supplier_name: supplierName,
                             description: `Placed ${qtyPlacedOnOrder} on order for WO ${workOrder.ro_number} (Conversion)`
                         });
                     }
