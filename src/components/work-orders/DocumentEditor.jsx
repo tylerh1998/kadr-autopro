@@ -343,7 +343,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           try {
             const lockingUsers = await UserEntity.filter({ email: freshWorkOrder.LockedByUser });
             if (lockingUsers.length > 0) {
-              setLockedByUserName(lockingUsers[0].full_name || freshWorkOrder.LockedByUser);
+              setLockedByUserName(lockingUsers[0].User_name || lockingUsers[0].full_name || freshWorkOrder.LockedByUser);
             } else {
               setLockedByUserName(freshWorkOrder.LockedByUser);
             }
