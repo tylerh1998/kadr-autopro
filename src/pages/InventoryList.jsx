@@ -64,6 +64,7 @@ export default function InventoryListPage() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "part_number", direction: "ascending" });
   const [filter, setFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -90,7 +91,7 @@ export default function InventoryListPage() {
     try {
       const isInventoryCount = filter === 'inventory-count';
       const response = await base44.functions.invoke('searchInventory', {
-        searchTerm: searchTerm,
+        searchTerm: debouncedSearchTerm,
         filter: filter,
         sortBy: isInventoryCount ? 'location' : sortConfig.key,
         sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
@@ -112,7 +113,16 @@ export default function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filter, sortConfig, currentPage, itemsPerPage]);
+  }, [debouncedSearchTerm, filter, sortConfig, currentPage, itemsPerPage]);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Function to load data shared by modals
   const loadSharedData = async () => {
@@ -397,6 +407,7 @@ export default function InventoryListPage() {
                   value={searchTerm}
                   onChange={handleSearchChange}
                   className="pl-10"
+                  autoFocus
                 />
               </div>
               <div className="flex items-center gap-2">
