@@ -9,9 +9,17 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle } from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export default function WorkOrderViewLineItemsTable({
   lineItems,
+  onReturnForWarranty,
+  workOrder,
 }) {
   const renderLineItem = (line, index) => {
     const isEmptyLine = !line.description && (!line.part_number || line.part_number.trim() === '') && !line.qty && !line.hrs && !line.parts_ea;
@@ -26,7 +34,7 @@ export default function WorkOrderViewLineItemsTable({
     const isBold = line.bold === true;
     const boldClass = isBold ? 'font-bold' : '';
 
-    return (
+    const rowContent = (
       <TableRow key={line.id || index} className="hover:bg-slate-50 transition-colors">
         {/* Qty Column */}
         <TableCell className={`w-20 p-2 align-top text-center ${boldClass}`}>
@@ -95,6 +103,24 @@ export default function WorkOrderViewLineItemsTable({
         </TableCell>
       </TableRow>
     );
+
+    // Only wrap in ContextMenu if it's a part line and we're in invoice stage and we have the handler
+    if (hasPartNumber && workOrder?.stage === 'invoice' && onReturnForWarranty) {
+      return (
+        <ContextMenu key={line.id || index}>
+          <ContextMenuTrigger asChild>
+            {rowContent}
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onClick={() => onReturnForWarranty(line)}>
+              Return for Warranty
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      );
+    }
+
+    return rowContent;
   };
 
   return (

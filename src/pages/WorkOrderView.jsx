@@ -160,20 +160,10 @@ export default function WorkOrderViewPage() {
     navigate(createPageUrl(`CreditInvoice?id=${workOrder.ro_number}`));
   };
 
-  const handleReturnForWarranty = () => {
-    // For now, we'll just show a prompt to select which line item
-    // In a full implementation, you might want to show a list of parts to select from
-    if (lineItems && lineItems.length > 0) {
-      // Find the first part line item
-      const partLine = lineItems.find(line => line.inventory_item_id && line.part_number);
-      if (partLine) {
-        setSelectedLineForWarranty(partLine);
-        setShowWarrantyModal(true);
-      } else {
-        alert('No parts found on this work order to return for warranty.');
-      }
-    } else {
-      alert('No line items found on this work order.');
+  const handleReturnForWarranty = (lineItem) => {
+    if (lineItem) {
+      setSelectedLineForWarranty(lineItem);
+      setShowWarrantyModal(true);
     }
   };
 
@@ -245,120 +235,108 @@ export default function WorkOrderViewPage() {
         }
       `}</style>
 
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          <div className="min-h-screen bg-slate-50">
-            {/* Screen View */}
-            {!isPrinting && (
-              <div className="p-6">
-                <div className="max-w-7xl mx-auto space-y-6">
-                  {/* Header with Stage Indicator and Actions */}
-                  <div className="flex items-center justify-between no-print">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <h1 className="text-3xl font-bold text-slate-900">
-                          {workOrder.stage === 'estimate' ? `Estimate ${workOrder.est_number}` :
-                           workOrder.stage === 'credit_invoice' ? `Credit Invoice ${workOrder.crinv_number}` :
-                           workOrder.stage === 'invoice' ? `Invoice ${workOrder.inv_number}` :
-                           `Work Order ${workOrder.wo_number || workOrder.ro_number}`}
-                        </h1>
-                        <p className="text-slate-600 mt-1">View Only Mode</p>
-                      </div>
-                      <Badge variant="outline" className={`${stageDisplay.color} border text-sm px-3 py-1`}>
-                        {stageDisplay.text}
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Button variant="outline" onClick={() => setShowNotesModal(true)}>
-                        <FileText className="w-4 h-4 mr-2" />
-                        WO Notes
-                      </Button>
-
-                      <Button variant="outline" onClick={() => setShowWorkPROModal(true)}>
-                        <Briefcase className="w-4 h-4 mr-2" />
-                        WorkPRO
-                      </Button>
-
-                      <Button variant="outline" onClick={() => setShowSendModal(true)}>
-                        <Send className="w-4 h-4 mr-2" />
-                        Send
-                      </Button>
-
-                      <Button variant="outline" onClick={handlePrint}>
-                        <Printer className="w-4 h-4 mr-2" />
-                        Print
-                      </Button>
-
-                      <Button 
-                        variant="outline" 
-                        onClick={handleEditWorkOrder} 
-                        disabled={workOrder.stage === 'credit_invoice'}
-                        className="border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Edit3 className="w-4 h-4 mr-2" />
-                        Edit Work Order
-                      </Button>
-
-                      {workOrder.stage === 'invoice' && (
-                        <Button variant="outline" onClick={handleCreateCreditInvoice} className="border-red-300 text-red-700 hover:bg-red-50">
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Create Credit Invoice
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="outline"
-                        onClick={handleExit}
-                        className="bg-slate-100 hover:bg-slate-200"
-                      >
-                        Exit
-                      </Button>
-                    </div>
+      <div className="min-h-screen bg-slate-50">
+        {/* Screen View */}
+        {!isPrinting && (
+          <div className="p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Header with Stage Indicator and Actions */}
+              <div className="flex items-center justify-between no-print">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-slate-900">
+                      {workOrder.stage === 'estimate' ? `Estimate ${workOrder.est_number}` :
+                        workOrder.stage === 'credit_invoice' ? `Credit Invoice ${workOrder.crinv_number}` :
+                        workOrder.stage === 'invoice' ? `Invoice ${workOrder.inv_number}` :
+                        `Work Order ${workOrder.wo_number || workOrder.ro_number}`}
+                    </h1>
+                    <p className="text-slate-600 mt-1">View Only Mode</p>
                   </div>
+                  <Badge variant="outline" className={`${stageDisplay.color} border text-sm px-3 py-1`}>
+                    {stageDisplay.text}
+                  </Badge>
+                </div>
 
-                  {/* Work Order View Form */}
-                  <WorkOrderViewForm
-                    workOrder={workOrder}
-                    customer={customer}
-                    vehicle={vehicle}
-                    employees={employees}
-                    inventory={inventory}
-                    lineItems={lineItems}
-                    tagAlongs={tagAlongs}
-                    otherCharges={otherCharges}
-                    upcomingAppointment={upcomingAppointment}
-                    onPaymentsClick={() => setShowPaymentModal(true)}
-                  />
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={() => setShowNotesModal(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    WO Notes
+                  </Button>
+
+                  <Button variant="outline" onClick={() => setShowWorkPROModal(true)}>
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    WorkPRO
+                  </Button>
+
+                  <Button variant="outline" onClick={() => setShowSendModal(true)}>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send
+                  </Button>
+
+                  <Button variant="outline" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    onClick={handleEditWorkOrder} 
+                    disabled={workOrder.stage === 'credit_invoice'}
+                    className="border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Edit Work Order
+                  </Button>
+
+                  {workOrder.stage === 'invoice' && (
+                    <Button variant="outline" onClick={handleCreateCreditInvoice} className="border-red-300 text-red-700 hover:bg-red-50">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Create Credit Invoice
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={handleExit}
+                    className="bg-slate-100 hover:bg-slate-200"
+                  >
+                    Exit
+                  </Button>
                 </div>
               </div>
-            )}
 
-            {/* Print View */}
-            {isPrinting && (
-              <div className="print-only">
-                <WorkOrderReport
-                  workOrder={workOrder}
-                  customer={customer}
-                  vehicle={vehicle}
-                  lineItems={lineItems}
-                  wipLegal={wipLegal}
-                  defaultMessage={defaultMessage}
-                />
-              </div>
-            )}
+              {/* Work Order View Form */}
+              <WorkOrderViewForm
+                workOrder={workOrder}
+                customer={customer}
+                vehicle={vehicle}
+                employees={employees}
+                inventory={inventory}
+                lineItems={lineItems}
+                tagAlongs={tagAlongs}
+                otherCharges={otherCharges}
+                upcomingAppointment={upcomingAppointment}
+                onPaymentsClick={() => setShowPaymentModal(true)}
+                onReturnForWarranty={handleReturnForWarranty}
+              />
+            </div>
           </div>
-        </ContextMenuTrigger>
+        )}
 
-        <ContextMenuContent>
-          {/* Only show warranty return option if work order is in invoice stage */}
-          {workOrder?.stage === 'invoice' && (
-            <ContextMenuItem onClick={handleReturnForWarranty}>
-              Return for Warranty
-            </ContextMenuItem>
-          )}
-        </ContextMenuContent>
-      </ContextMenu>
+        {/* Print View */}
+        {isPrinting && (
+          <div className="print-only">
+            <WorkOrderReport
+              workOrder={workOrder}
+              customer={customer}
+              vehicle={vehicle}
+              lineItems={lineItems}
+              wipLegal={wipLegal}
+              defaultMessage={defaultMessage}
+            />
+          </div>
+        )}
+      </div>
 
       {/* WorkPRO Modal */}
       {showWorkPROModal && (

@@ -21,6 +21,7 @@ export default function WorkOrderViewForm({
   lineItems,
   onOpenWorkPRO,
   onPaymentsClick, // NEW: Add this prop
+  onReturnForWarranty, // Pass down the handler
 }) {
   return (
     <div className="space-y-6">
@@ -33,6 +34,8 @@ export default function WorkOrderViewForm({
       
       <WorkOrderViewLineItemsTable
         lineItems={lineItems}
+        onReturnForWarranty={onReturnForWarranty}
+        workOrder={workOrder}
       />
 
       <WorkOrderViewFinancialSummary 
