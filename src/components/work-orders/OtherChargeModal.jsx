@@ -211,8 +211,8 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       return;
     }
     
-    if (qty <= 0 || price <= 0) {
-      alert('Quantity and price must be greater than 0');
+    if (qty <= 0) {
+      alert('Quantity must be greater than 0');
       return;
     }
     
@@ -248,7 +248,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         alert('Please select an invoice date');
         return;
       }
-      if (!supplierPurchaseAmount || parseFloat(supplierPurchaseAmount) <= 0) {
+      if (supplierPurchaseAmount === '' || isNaN(parseFloat(supplierPurchaseAmount))) {
         alert('Please enter a valid purchase amount');
         return;
       }
