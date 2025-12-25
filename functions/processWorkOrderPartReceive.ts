@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
     // 3. Create the inventory transaction record
     const txDate = new Date().toISOString();
-    const description = `Issued to WO ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
+    const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
     
     await base44.asServiceRole.entities.InventoryTxs.create({
       inventory_item_id: lineItem.inventory_item_id,
