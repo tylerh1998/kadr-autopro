@@ -33,6 +33,7 @@ export default function CreditInvoicePage() {
   const [showWorkPROModal, setShowWorkPROModal] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [selectedLines, setSelectedLines] = useState([]);
+  const [processedLineItems, setProcessedLineItems] = useState([]); // Virtual lines support
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
@@ -44,6 +45,47 @@ export default function CreditInvoicePage() {
     const [year, month, day] = dateStr.split('-');
     return new Date(year, month - 1, day);
   };
+
+  // Process line items to include virtual core lines
+  useEffect(() => {
+    if (lineItems && lineItems.length > 0) {
+      const processed = [];
+      lineItems.forEach(line => {
+        processed.push(line);
+        // Check for outstanding cores
+        const coreNum = parseFloat(line.Core_num) || 0;
+        const coreRet = parseFloat(line.core_ret) || 0;
+        const outstanding = coreNum - coreRet;
+        
+        if (outstanding > 0) {
+          processed.push({
+            ...line,
+            id: `${line.id}_core`,
+            original_line_id: line.id,
+            is_core_virtual: true,
+            description: `CORE - ${line.description}`,
+            qty: outstanding,
+            parts_ea: line.core_cost || 0,
+            tot_parts: line.core_osamt || 0,
+            total: line.core_osamt || 0,
+            labour: 0,
+            // Map core_credit to credit for display purposes (so it shows as disabled/credited in table)
+            credit: line.core_credit, 
+            // Ensure other fields don't interfere
+            is_other_charge: false,
+            other_charge_id: null,
+            // Reset core fields on the virtual line so it doesn't spawn more cores recursively if processed again
+            Core_num: 0,
+            core_ret: 0,
+            core_osamt: 0
+          });
+        }
+      });
+      setProcessedLineItems(processed);
+      // Initialize selected lines for the new processed list
+      setSelectedLines(processed.map(() => false));
+    }
+  }, [lineItems]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -74,12 +116,7 @@ export default function CreditInvoicePage() {
     loadSystemSettings();
   }, []);
 
-  // Initialize selectedLines when lineItems load
-  useEffect(() => {
-    if (lineItems && lineItems.length > 0) {
-      setSelectedLines(lineItems.map(() => false));
-    }
-  }, [lineItems]);
+  // Selected lines initialization moved to processedLineItems effect
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -110,7 +147,7 @@ export default function CreditInvoicePage() {
     setProcessing(true);
     
     try {
-      const selectedLineItems = lineItems.filter((_, index) => selectedLines[index]);
+      const selectedLineItems = processedLineItems.filter((_, index) => selectedLines[index]);
       
       console.log('Selected line items to credit:', selectedLineItems);
 
@@ -284,12 +321,28 @@ export default function CreditInvoicePage() {
       }
       
       // Mark credited lines on original work order with credit invoice number
-      const updatedLineItems = lineItems.map((line, index) => {
-        if (selectedLines[index]) {
-          // Store the actual credit invoice number reference
-          return { ...line, credit: creditInvoiceNumber };
+      const updatedLineItems = [...lineItems];
+      
+      selectedLineItems.forEach(selectedItem => {
+        if (selectedItem.is_core_virtual) {
+           // This is a virtual core line - find original line and update core_credit
+           const originalIndex = updatedLineItems.findIndex(l => l.id === selectedItem.original_line_id);
+           if (originalIndex !== -1) {
+             updatedLineItems[originalIndex] = {
+               ...updatedLineItems[originalIndex],
+               core_credit: creditInvoiceNumber
+             };
+           }
+        } else {
+           // This is a regular line - find original line and update credit
+           const originalIndex = updatedLineItems.findIndex(l => l.id === selectedItem.id);
+           if (originalIndex !== -1) {
+             updatedLineItems[originalIndex] = {
+               ...updatedLineItems[originalIndex],
+               credit: creditInvoiceNumber
+             };
+           }
         }
-        return line;
       });
       
       await WorkOrder.update(workOrder.id, {
@@ -546,7 +599,7 @@ export default function CreditInvoicePage() {
                   vehicle={vehicle}
                   employees={employees}
                   inventory={inventory}
-                  lineItems={lineItems}
+                  lineItems={processedLineItems}
                   tagAlongs={tagAlongs}
                   selectedLines={selectedLines}
                   onToggleLine={handleToggleLine}
@@ -581,7 +634,7 @@ export default function CreditInvoicePage() {
         open={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
         selectedLines={selectedLines}
-        lineItems={lineItems}
+        lineItems={processedLineItems}
         workOrder={workOrder}
         onConfirmCreditInvoice={handleConfirmCreditInvoice}
       />
