@@ -17,11 +17,12 @@ Deno.serve(async (req) => {
         const trackingId = data?.email_id;
         
         if (!trackingId) {
-            console.log('No email_id found in webhook payload');
+            console.log('No email_id found in webhook payload - skipping');
+            // Return 200 to acknowledge receipt even if we can't process it, so Resend doesn't retry
             return Response.json({ 
-                success: false, 
-                message: 'No email_id found' 
-            }, { status: 400 });
+                success: true, 
+                message: 'No email_id found, skipped' 
+            });
         }
 
         console.log(`Processing event: ${eventType} for tracking_id: ${trackingId}`);
@@ -32,11 +33,12 @@ Deno.serve(async (req) => {
         });
 
         if (!emailLogs || emailLogs.length === 0) {
-            console.log(`No email log found for tracking_id: ${trackingId}`);
+            console.log(`No email log found for tracking_id: ${trackingId} - skipping`);
+            // Return 200 to acknowledge receipt so Resend doesn't retry for emails we don't track
             return Response.json({ 
-                success: false, 
-                message: 'Email log not found' 
-            }, { status: 404 });
+                success: true, 
+                message: 'Email log not found, skipped' 
+            });
         }
 
         const emailLog = emailLogs[0];
