@@ -68,9 +68,9 @@ Deno.serve(async (req) => {
                 description: item.description,
                 part_number: item.part_number || '',
                 // Requirement: Labour qty unneeded (if 1). 
-                qty: isLabor ? null : item.quantity,
-                parts_ea: item.unit_price,
-                cost_ea: item.inventory_match?.cost || item.cost || 0,
+                qty: isLabor ? 0 : item.quantity,
+                parts_ea: isPart ? item.unit_price : 0,
+                cost_ea: isPart ? (item.inventory_match?.cost || item.cost || 0) : 0,
                 tot_parts: isPart ? item.total_price : 0, 
                 labour: isLabor ? item.total_price : 0,    
                 is_other_charge: isOtherCharge || false,
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
                 gl_account: item.gl_account || '',
                 tx: item.is_taxable ? 'Y' : 'N',
                 total: item.total_price,
-                hrs: isLabor ? item.quantity : '', 
+                hrs: isLabor ? item.quantity : 0, 
                 inventory_item_id: inventoryItemId,
                 inventory_processed: isPart ? true : false, // Requirement: true for all parts imported
                 complete: false,
