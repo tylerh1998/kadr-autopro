@@ -229,7 +229,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 .map(item => ({
                     part_number: item.part_number,
                     description: item.description,
-                    cost: item.unit_price * 0.6, // Estimate cost if not provided
+                    cost: item.cost || item.unit_price * 0.6, // Use captured cost
                     selling_price: item.unit_price,
                     quantity_on_hand: 0 // Don't add stock yet
                 }));
