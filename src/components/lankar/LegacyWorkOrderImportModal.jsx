@@ -525,7 +525,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 {/* Line Items */}
                             <div className="space-y-2">
                                 <Label>Line Items</Label>
-                                <div className="border rounded-md overflow-hidden">
+                                <div className="border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
