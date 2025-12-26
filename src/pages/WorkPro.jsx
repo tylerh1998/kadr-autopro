@@ -110,8 +110,8 @@ export default function ActivityLog() {
       let initialEmployeeFilter = "all";
       let employeeListForFilter = [];
 
-      if (currentUser.access_level === 'lvl3_user') { 
-        // Admin users can see all records
+      if (currentUser.access_level === 'lvl3_user' || currentUser.access_level === 'lvl2_user') { 
+        // Admin and Lvl2 users can see all records
         const [timeRecordsRes, projectSessionsRes, unassignedSessionsRes] = await Promise.all([
           base44.functions.invoke('workProProxy', { entityName: 'TimeRecord', method: 'list', params: { sort: '-clock_in_time', limit: 1000 } }),
           base44.functions.invoke('workProProxy', { entityName: 'ProjectTimeSession', method: 'list', params: { sort: '-start_time', limit: 1000 } }),
@@ -159,7 +159,7 @@ export default function ActivityLog() {
         const allLocalEmployees = await Employee.list();
         employeeListForFilter = [...new Set(allLocalEmployees.map(e => e.full_name))].sort();
 
-      } else if (currentUser.access_level === 'lvl1_user' || currentUser.access_level === 'lvl2_user') {
+      } else if (currentUser.access_level === 'lvl1_user') {
         // For non-admin users, filter by their own employee name
         // Priority 1: Use User_name from User entity (matches WorkPRO data)
         let employeeSpecificName = currentUser.User_name;
@@ -245,7 +245,7 @@ export default function ActivityLog() {
 
       const combinedActivities = [...payrollActivities, ...projectActivities, ...unassignedActivities];
 
-      if (currentUser.access_level === 'lvl3_user') {
+      if (currentUser.access_level === 'lvl3_user' || currentUser.access_level === 'lvl2_user') {
         employeeListForFilter = [...new Set(combinedActivities.map(a => a.employee_name))].sort();
         // Removed adding 'all' to the list to prevent duplicate dropdown option
         initialEmployeeFilter = selectedEmployee === 'all' ? 'all' : (employeeListForFilter.includes(selectedEmployee) ? selectedEmployee : 'all');
@@ -389,7 +389,7 @@ export default function ActivityLog() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
@@ -433,7 +433,7 @@ export default function ActivityLog() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {user?.access_level === 'lvl3_user' && ( // Changed from lvl2 to lvl3_user
+                      {(user?.access_level === 'lvl3_user' || user?.access_level === 'lvl2_user') && (
                         <SelectItem value="all">All Employees</SelectItem>
                       )}
                       {employees.map((employeeName) => (
