@@ -435,7 +435,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                         {/* Invoice Details */}
                         <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
                             <div>
-                                <Label className="text-xs text-slate-500">Invoice #</Label>
+                                <Label className="text-xs text-slate-500">Document #</Label>
                                 <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
                             </div>
                             <div>
