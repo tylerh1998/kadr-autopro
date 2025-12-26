@@ -1054,11 +1054,36 @@ export default function WorkOrdersPage() {
             {/* Section 2: Main Tabs */}
             <div className="w-full">
               <TabsList className="grid grid-cols-5 w-full">
-                <TabsTrigger value="estimates">Estimates</TabsTrigger>
-                <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
-                <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
-                <TabsTrigger value="board">Kanban Board</TabsTrigger>
-                <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                <TabsTrigger 
+                  value="estimates"
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all duration-200"
+                >
+                  Estimates
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="work_in_progress"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all duration-200"
+                >
+                  Work In Progress
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="workpro"
+                  className="data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-200"
+                >
+                  WorkPRO
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="board"
+                  className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-200"
+                >
+                  Kanban Board
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="invoices"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all duration-200"
+                >
+                  Invoices
+                </TabsTrigger>
               </TabsList>
             </div>
 
