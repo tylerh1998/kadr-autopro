@@ -107,7 +107,9 @@ Deno.serve(async (req) => {
             INSTRUCTIONS:
             - Extract customer name, phone, email.
             - Extract vehicle VIN, Year, Make, Model (infer from text if needed).
-            - Extract ALL line items, even if they have $0 price/cost. Narrative lines are important.
+            - CRITICAL: Extract ALL line items, including those with $0.00 cost/price.
+            - Narrative text, comments, notes, or descriptions that appear as lines in the invoice MUST be extracted as separate line items with quantity 0 and total_price 0.
+            - Do NOT skip lines just because they have no financial value. They are critical for history.
             - For each item, decide if it's labor or part.
             - If it's a part, try to find the part number.
             - CRITICAL: Distinguish carefully between digit '0' and letter 'O' in part numbers. Part numbers usually prioritize digits '0'.
