@@ -360,12 +360,16 @@ export default function CreditInvoicePage() {
       
       selectedLineItems.forEach(selectedItem => {
         if (selectedItem.is_core_virtual) {
-           // This is a virtual core line - find original line and update core_credit
+           // This is a virtual core line - find original line and update core_credit AND core_ret
            const originalIndex = updatedLineItems.findIndex(l => l.id === selectedItem.original_line_id);
            if (originalIndex !== -1) {
+             const currentCoreRet = parseFloat(updatedLineItems[originalIndex].core_ret || 0);
+             const qtyToReturn = parseFloat(selectedItem.qty || 0);
+
              updatedLineItems[originalIndex] = {
                ...updatedLineItems[originalIndex],
-               core_credit: creditInvoiceNumber
+               core_credit: creditInvoiceNumber,
+               core_ret: currentCoreRet + qtyToReturn
              };
            }
         } else {
