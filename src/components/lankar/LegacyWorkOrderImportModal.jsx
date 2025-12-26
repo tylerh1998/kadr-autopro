@@ -43,6 +43,12 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const [costItemIndex, setCostItemIndex] = useState(null);
     const [itemCost, setItemCost] = useState('');
     const [totalPartCost, setTotalPartCost] = useState('');
+
+    // Additional fields for new parts
+    const [coresEnabled, setCoresEnabled] = useState(false);
+    const [coreCount, setCoreCount] = useState('');
+    const [coreCost, setCoreCost] = useState('');
+    const [qtyOnOrder, setQtyOnOrder] = useState('');
     
     // New Parts State
     const [newParts, setNewParts] = useState([]); // List of parts to create in inventory
@@ -301,11 +307,20 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
             // Pre-calculate defaults if possible, or leave blank
             setItemCost(''); 
             setTotalPartCost('');
+            // Reset new fields
+            setCoresEnabled(false);
+            setCoreCount('');
+            setCoreCost('');
+            setQtyOnOrder('');
             setCostModalOpen(true);
         } else {
             const newItems = [...extractedData.line_items];
             newItems[index].create_new_part = false;
             newItems[index].cost = undefined;
+            newItems[index].core_num = undefined;
+            newItems[index].core_cost = undefined;
+            newItems[index].core_osamt = undefined;
+            newItems[index].qty_on_order = undefined;
             setExtractedData({...extractedData, line_items: newItems});
         }
     };
@@ -338,10 +353,49 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
 
     const handleSaveCost = () => {
         const newItems = [...extractedData.line_items];
-        newItems[costItemIndex].create_new_part = true;
-        newItems[costItemIndex].cost = parseFloat(itemCost);
+        const item = newItems[costItemIndex];
+
+        // Validation for On Order
+        if (qtyOnOrder !== '') {
+            const parsedOnOrder = parseFloat(qtyOnOrder);
+            const itemQty = item.quantity || 0;
+            if (parsedOnOrder > itemQty) {
+                alert(`On Order quantity cannot exceed item quantity (${itemQty}).`);
+                return;
+            }
+        }
+
+        item.create_new_part = true;
+        item.cost = parseFloat(itemCost);
+        
+        // Save new fields
+        if (coresEnabled) {
+            item.core_num = parseFloat(coreCount) || 0;
+            item.core_cost = parseFloat(coreCost) || 0;
+            item.core_osamt = item.core_num * item.core_cost;
+        } else {
+            item.core_num = 0;
+            item.core_cost = 0;
+            item.core_osamt = 0;
+        }
+
+        item.qty_on_order = parseFloat(qtyOnOrder) || 0;
+
         setExtractedData({...extractedData, line_items: newItems});
         setCostModalOpen(false);
+    };
+    
+    const handleQuantityChange = (index, newValue) => {
+        const newItems = [...extractedData.line_items];
+        const parsedValue = parseFloat(newValue);
+        newItems[index].quantity = isNaN(parsedValue) ? 0 : parsedValue;
+        
+        // Recalculate total price if needed (assuming unit price stays constant)
+        if (newItems[index].unit_price) {
+             newItems[index].total_price = newItems[index].quantity * newItems[index].unit_price;
+        }
+
+        setExtractedData({...extractedData, line_items: newItems});
     };
 
     const handleOpenClassify = (index) => {
@@ -560,7 +614,14 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                             </span>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell>{item.quantity}</TableCell>
+                                                    <TableCell>
+                                                        <Input
+                                                            type="number"
+                                                            className="h-8 w-20 px-2"
+                                                            value={item.quantity}
+                                                            onChange={(e) => handleQuantityChange(idx, e.target.value)}
+                                                        />
+                                                    </TableCell>
                                                     <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
                                                     <TableCell>${item.total_price?.toFixed(2)}</TableCell>
                                                     <TableCell>
@@ -675,6 +736,58 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 onChange={(e) => handleUnitCostChange(e.target.value)} 
                                 placeholder="0.00"
                             />
+                        </div>
+
+                        {/* On Order Section */}
+                        <div className="space-y-2 pt-2 border-t">
+                            <Label htmlFor="qtyOnOrder">Quantity On Order</Label>
+                            <Input 
+                                id="qtyOnOrder" 
+                                type="number" 
+                                value={qtyOnOrder} 
+                                onChange={(e) => setQtyOnOrder(e.target.value)} 
+                                placeholder="0"
+                            />
+                            <p className="text-xs text-slate-500">
+                                Enter quantity currently on order (max {extractedData?.line_items[costItemIndex]?.quantity || 0}).
+                            </p>
+                        </div>
+
+                        {/* Cores Section */}
+                        <div className="space-y-4 pt-2 border-t">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                    id="coresEnabled" 
+                                    checked={coresEnabled}
+                                    onCheckedChange={setCoresEnabled}
+                                />
+                                <Label htmlFor="coresEnabled" className="cursor-pointer">Includes Cores</Label>
+                            </div>
+                            
+                            {coresEnabled && (
+                                <div className="grid grid-cols-2 gap-4 pl-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="coreCount">Core Count</Label>
+                                        <Input 
+                                            id="coreCount" 
+                                            type="number" 
+                                            value={coreCount} 
+                                            onChange={(e) => setCoreCount(e.target.value)} 
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="coreCost">Core Amount (Each)</Label>
+                                        <Input 
+                                            id="coreCost" 
+                                            type="number" 
+                                            value={coreCost} 
+                                            onChange={(e) => setCoreCost(e.target.value)} 
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
