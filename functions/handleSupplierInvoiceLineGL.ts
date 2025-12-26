@@ -133,10 +133,23 @@ Deno.serve(async (req) => {
         }
 
         // Create all GL transactions using service role
-        console.log('Creating GL Transactions:', glTransactions);
+        console.log('Creating GL Transactions:', JSON.stringify(glTransactions, null, 2));
         
         for (const glTx of glTransactions) {
-            await base44.asServiceRole.entities.GLTransaction.create(glTx);
+            try {
+                // Ensure amounts are numbers and fixed to 2 decimal places to prevent float issues
+                const sanitizedTx = {
+                    ...glTx,
+                    debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
+                    credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
+                };
+                
+                console.log('Creating transaction:', JSON.stringify(sanitizedTx));
+                await base44.asServiceRole.entities.GLTransaction.create(sanitizedTx);
+            } catch (createError) {
+                console.error('Error creating GL transaction:', createError, 'Transaction data:', glTx);
+                // Continue to try other transactions even if one fails
+            }
         }
 
         return Response.json({ 
