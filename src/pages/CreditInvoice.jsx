@@ -346,7 +346,7 @@ export default function CreditInvoicePage() {
                   ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
                   part_num: line.part_number || inventoryItem.part_number,
                   tx_date: new Date().toISOString(),
-                  tx_type: 'Credit Received',
+                  tx_type: 'Returned from WO',
                   quantity_change: returnQty,
                   quantity_ordered_change: 0,
                   description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
