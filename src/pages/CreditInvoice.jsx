@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings } from '@/entities/all';
+import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings, InventoryReturn, Supplier } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -289,33 +289,66 @@ export default function CreditInvoicePage() {
         console.error('Failed to record GL transactions for credit invoice:', glResponse.data.error);
       }
 
+      // Fetch suppliers to map IDs to names for returns
+      let suppliers = [];
+      try {
+        suppliers = await Supplier.list();
+      } catch (err) {
+        console.error("Failed to load suppliers for return processing", err);
+      }
+
       for (const line of selectedLineItems) {
         if (line.inventory_item_id) {
           try {
             const inventoryItem = inventory.find(i => i.id === line.inventory_item_id);
             if (inventoryItem) {
-              const returnQty = parseFloat(line.qty) || 0;
-              const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + returnQty;
-              
-              await InventoryItem.update(line.inventory_item_id, {
-                quantity_on_hand: newQOH
-              });
-              
-              await InventoryTxs.create({
-                inventory_item_id: line.inventory_item_id,
-                ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
-                part_num: line.part_number || inventoryItem.part_number,
-                tx_date: new Date().toISOString(),
-                tx_type: 'Credit Received',
-                quantity_change: returnQty,
-                quantity_ordered_change: 0,
-                description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
-              });
-              
-              console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
+              // Check if this is a core return
+              if (line.is_core_virtual) {
+                // Core Return Logic: Create InventoryReturn, do NOT update QOH
+                const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
+                const supplierName = supplier ? supplier.name : 'Unknown';
+
+                await InventoryReturn.create({
+                  part_number: line.part_number || inventoryItem.part_number,
+                  description: line.description || inventoryItem.description,
+                  supplier: supplierName,
+                  quantity_returned: parseFloat(line.qty) || 0,
+                  return_type: 'core',
+                  return_reason: 'Core Credit',
+                  cost_per_unit: parseFloat(line.parts_ea) || 0,
+                  total_cost: parseFloat(line.total) || 0,
+                  return_date: format(new Date(), 'yyyy-MM-dd'),
+                  work_order_id: workOrder.id,
+                  inventory_item_id: line.inventory_item_id,
+                  status: 'On-site',
+                  notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`
+                });
+                console.log(`Created Core Return for ${line.part_number}`);
+              } else {
+                // Regular Part Return Logic: Update QOH and create TX
+                const returnQty = parseFloat(line.qty) || 0;
+                const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + returnQty;
+                
+                await InventoryItem.update(line.inventory_item_id, {
+                  quantity_on_hand: newQOH
+                });
+                
+                await InventoryTxs.create({
+                  inventory_item_id: line.inventory_item_id,
+                  ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
+                  part_num: line.part_number || inventoryItem.part_number,
+                  tx_date: new Date().toISOString(),
+                  tx_type: 'Credit Received',
+                  quantity_change: returnQty,
+                  quantity_ordered_change: 0,
+                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
+                });
+                
+                console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
+              }
             }
           } catch (error) {
-            console.error(`Error updating inventory for item ${line.inventory_item_id}:`, error);
+            console.error(`Error processing inventory for item ${line.inventory_item_id}:`, error);
           }
         }
       }
