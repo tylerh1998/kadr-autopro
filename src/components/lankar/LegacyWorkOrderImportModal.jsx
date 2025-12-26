@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
+import { Customer, Vehicle, InventoryItem } from "@/entities/all";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ChartOfAccount } from "@/entities/all";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -33,28 +34,28 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     
-    // Modal States
+    // Dialog States
+    const [classifyModalOpen, setClassifyModalOpen] = useState(false);
     const [classifyingItemIndex, setClassifyingItemIndex] = useState(null);
-    const [classificationType, setClassificationType] = useState('labor'); // 'labor' | 'other_charge'
-    const [selectedGL, setSelectedGL] = useState('');
+    const [classificationType, setClassificationType] = useState('labor');
+    const [selectedGlAccount, setSelectedGlAccount] = useState('');
+
+    const [costModalOpen, setCostModalOpen] = useState(false);
+    const [costItemIndex, setCostItemIndex] = useState(null);
+    const [itemCost, setItemCost] = useState('');
     
-    const [costingItemIndex, setCostingItemIndex] = useState(null);
-    const [tempCost, setTempCost] = useState('');
+    // New Parts State
+    const [newParts, setNewParts] = useState([]); // List of parts to create in inventory
 
     React.useEffect(() => {
         if (open) {
-            loadGLAccounts();
+            const loadData = async () => {
+                const accounts = await ChartOfAccount.list();
+                setGlAccounts(accounts.filter(a => a.is_active));
+            };
+            loadData();
         }
     }, [open]);
-
-    const loadGLAccounts = async () => {
-        try {
-            const accounts = await ChartOfAccount.list();
-            setGlAccounts(accounts.filter(a => a.is_active));
-        } catch (error) {
-            console.error("Error loading GL accounts:", error);
-        }
-    };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -179,36 +180,26 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 if (match) setSelectedVehicle(match);
             }
 
-            // Filter out Shop Supplies
-            const filteredItems = data.line_items.filter(item => {
-                const desc = (item.description || '').toLowerCase();
-                return !desc.includes('shop supp') && !desc.includes('shop mat') && !desc.includes('enviro');
-            });
-
             // Check Line Items for Inventory Matches
-            const processedItems = await Promise.all(filteredItems.map(async (item) => {
-                // If explicitly marked as labor by LLM, keep it
-                if (item.is_labor) return item;
-
-                // If part number exists, check inventory
-                if (item.part_number) {
+            const processedItems = await Promise.all(data.line_items.map(async (item) => {
+                if (item.part_number && !item.is_labor) {
                     const existingParts = await InventoryItem.filter({ part_number: item.part_number });
                     return {
                         ...item,
                         inventory_match: existingParts.length > 0 ? existingParts[0] : null
                     };
                 }
-                
-                // If no part number and not explicitly labor, it needs classification
-                return {
-                    ...item,
-                    needs_classification: true
-                };
+                return item;
             }));
+            
+            // Filter out Shop Supplies
+            const filteredItems = processedItems.filter(item => 
+                !item.description?.toLowerCase().includes('shop supplies')
+            );
             
             setExtractedData({
                 ...data,
-                line_items: processedItems
+                line_items: filteredItems
             });
 
             setStep(2);
@@ -275,67 +266,49 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
 
     const toggleNewPart = (index, checked) => {
         if (checked) {
-            setCostingItemIndex(index);
-            setTempCost('');
+            setCostItemIndex(index);
+            setItemCost('');
+            setCostModalOpen(true);
         } else {
             const newItems = [...extractedData.line_items];
             newItems[index].create_new_part = false;
-            newItems[index].cost_ea = undefined;
+            newItems[index].cost = undefined;
             setExtractedData({...extractedData, line_items: newItems});
         }
     };
 
-    const handleCostSubmit = () => {
-        if (costingItemIndex === null) return;
-        
-        const cost = parseFloat(tempCost);
-        if (isNaN(cost)) {
-            alert("Please enter a valid cost.");
-            return;
-        }
-
+    const handleSaveCost = () => {
         const newItems = [...extractedData.line_items];
-        newItems[costingItemIndex].create_new_part = true;
-        newItems[costingItemIndex].cost_ea = cost;
+        newItems[costItemIndex].create_new_part = true;
+        newItems[costItemIndex].cost = parseFloat(itemCost);
         setExtractedData({...extractedData, line_items: newItems});
-        
-        setCostingItemIndex(null);
-        setTempCost('');
+        setCostModalOpen(false);
     };
 
-    const handleClassificationSubmit = () => {
-        if (classifyingItemIndex === null) return;
+    const handleOpenClassify = (index) => {
+        const item = extractedData.line_items[index];
+        setClassifyingItemIndex(index);
+        setClassificationType(item.is_other_charge ? 'other_charge' : 'labor');
+        setSelectedGlAccount(item.gl_account || '');
+        setClassifyModalOpen(true);
+    };
 
+    const handleSaveClassification = () => {
         const newItems = [...extractedData.line_items];
         const item = newItems[classifyingItemIndex];
-
-        if (classificationType === 'labor') {
-            item.is_labor = true;
-            item.labor_total = item.total_price;
-            item.needs_classification = false;
-            item.is_other_charge = false;
-        } else {
-            if (!selectedGL) {
-                alert("Please select a GL Account for Other Charge.");
-                return;
-            }
-            item.is_other_charge = true;
-            item.oc_total = item.total_price;
-            item.gl_account = selectedGL;
-            item.needs_classification = false;
+        
+        if (classificationType === 'other_charge') {
             item.is_labor = false;
+            item.is_other_charge = true;
+            item.gl_account = selectedGlAccount;
+        } else {
+            item.is_labor = true;
+            item.is_other_charge = false;
+            item.gl_account = undefined;
         }
-
+        
         setExtractedData({...extractedData, line_items: newItems});
-        setClassifyingItemIndex(null);
-        setClassificationType('labor');
-        setSelectedGL('');
-    };
-
-    const openClassificationModal = (index) => {
-        setClassifyingItemIndex(index);
-        setClassificationType('labor');
-        setSelectedGL('');
+        setClassifyModalOpen(false);
     };
 
     return (
@@ -462,7 +435,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                         {/* Invoice Details */}
                         <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
                             <div>
-                                <Label className="text-xs text-slate-500">Ref / WO #</Label>
+                                <Label className="text-xs text-slate-500">Invoice #</Label>
                                 <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
                             </div>
                             <div>
@@ -487,18 +460,13 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                             <TableHead className="w-20">Qty</TableHead>
                                             <TableHead className="w-24">Price</TableHead>
                                             <TableHead className="w-24">Total</TableHead>
-                                            <TableHead className="w-36">Action</TableHead>
+                                            <TableHead className="w-32">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {extractedData.line_items.map((item, idx) => (
                                             <TableRow key={idx}>
-                                                <TableCell className="text-sm">
-                                                    {item.description}
-                                                    {item.is_other_charge && <span className="block text-xs text-orange-600">Other Charge (GL: {item.gl_account})</span>}
-                                                    {item.is_labor && <span className="block text-xs text-blue-600">Labor</span>}
-                                                    {item.create_new_part && <span className="block text-xs text-purple-600">New Part (Cost: ${item.cost_ea?.toFixed(2)})</span>}
-                                                </TableCell>
+                                                <TableCell className="text-sm">{item.description}</TableCell>
                                                 <TableCell className="text-sm">
                                                     {item.part_number || '-'}
                                                     {item.inventory_match && (
@@ -511,19 +479,6 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                 <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
                                                 <TableCell>${item.total_price?.toFixed(2)}</TableCell>
                                                 <TableCell>
-                                                    {/* Classification for non-parts */}
-                                                    {(item.needs_classification || (!item.part_number && !item.is_labor && !item.is_other_charge)) && (
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="secondary" 
-                                                            className="h-7 text-xs"
-                                                            onClick={() => openClassificationModal(idx)}
-                                                        >
-                                                            Classify
-                                                        </Button>
-                                                    )}
-
-                                                    {/* New Part Creation */}
                                                     {item.part_number && !item.inventory_match && !item.is_labor && (
                                                         <div className="flex items-center space-x-2">
                                                             <Checkbox 
@@ -546,82 +501,6 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 </Table>
                             </div>
                         </div>
-
-                        {/* Classification Modal */}
-                        <Dialog open={classifyingItemIndex !== null} onOpenChange={(open) => !open && setClassifyingItemIndex(null)}>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                    <DialogTitle>Classify Line Item</DialogTitle>
-                                </DialogHeader>
-                                <div className="py-4 space-y-4">
-                                    <div className="bg-slate-50 p-3 rounded text-sm">
-                                        {classifyingItemIndex !== null && extractedData.line_items[classifyingItemIndex].description}
-                                    </div>
-                                    <RadioGroup value={classificationType} onValueChange={setClassificationType}>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="labor" id="r-labor" />
-                                            <Label htmlFor="r-labor">Labor</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="other_charge" id="r-oc" />
-                                            <Label htmlFor="r-oc">Other Charge</Label>
-                                        </div>
-                                    </RadioGroup>
-
-                                    {classificationType === 'other_charge' && (
-                                        <div className="space-y-2">
-                                            <Label>GL Account</Label>
-                                            <Select value={selectedGL} onValueChange={setSelectedGL}>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select GL Account" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {glAccounts.map(acc => (
-                                                        <SelectItem key={acc.id} value={acc.account_number}>
-                                                            {acc.account_number} - {acc.account_name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                </div>
-                                <DialogFooter>
-                                    <Button onClick={handleClassificationSubmit}>Save</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-
-                        {/* Cost Modal */}
-                        <Dialog open={costingItemIndex !== null} onOpenChange={(open) => !open && setCostingItemIndex(null)}>
-                            <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                    <DialogTitle>Enter Part Cost</DialogTitle>
-                                </DialogHeader>
-                                <div className="py-4 space-y-4">
-                                    <div className="bg-slate-50 p-3 rounded text-sm">
-                                        {costingItemIndex !== null && extractedData.line_items[costingItemIndex].description}
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Cost Each</Label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2">$</span>
-                                            <Input 
-                                                type="number" 
-                                                step="0.01" 
-                                                className="pl-7" 
-                                                value={tempCost}
-                                                onChange={(e) => setTempCost(e.target.value)}
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button onClick={handleCostSubmit}>Save</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
 
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>Back</Button>
