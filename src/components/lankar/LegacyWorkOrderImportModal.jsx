@@ -192,9 +192,14 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 return item;
             }));
             
+            // Filter out Shop Supplies
+            const filteredItems = processedItems.filter(item => 
+                !item.description?.toLowerCase().includes('shop supplies')
+            );
+            
             setExtractedData({
                 ...data,
-                line_items: processedItems
+                line_items: filteredItems
             });
 
             setStep(2);
