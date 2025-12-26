@@ -179,16 +179,31 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 if (match) setSelectedVehicle(match);
             }
 
+            // Filter out Shop Supplies
+            const filteredItems = data.line_items.filter(item => {
+                const desc = (item.description || '').toLowerCase();
+                return !desc.includes('shop supp') && !desc.includes('shop mat') && !desc.includes('enviro');
+            });
+
             // Check Line Items for Inventory Matches
-            const processedItems = await Promise.all(data.line_items.map(async (item) => {
-                if (item.part_number && !item.is_labor) {
+            const processedItems = await Promise.all(filteredItems.map(async (item) => {
+                // If explicitly marked as labor by LLM, keep it
+                if (item.is_labor) return item;
+
+                // If part number exists, check inventory
+                if (item.part_number) {
                     const existingParts = await InventoryItem.filter({ part_number: item.part_number });
                     return {
                         ...item,
                         inventory_match: existingParts.length > 0 ? existingParts[0] : null
                     };
                 }
-                return item;
+                
+                // If no part number and not explicitly labor, it needs classification
+                return {
+                    ...item,
+                    needs_classification: true
+                };
             }));
             
             setExtractedData({
