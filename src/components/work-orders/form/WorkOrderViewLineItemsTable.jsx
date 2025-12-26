@@ -15,6 +15,12 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function WorkOrderViewLineItemsTable({
   lineItems,
@@ -54,9 +60,24 @@ export default function WorkOrderViewLineItemsTable({
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span className="font-mono">{line.part_number}</span>
                 {line.Core_num > 0 && (
-                  <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200">
-                    Core {line.Core_num}
-                  </Badge>
+                  line.core_credit ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200 cursor-help">
+                            Core {line.Core_num}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Credited on {line.core_credit}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200">
+                      Core {line.Core_num}
+                    </Badge>
+                  )
                 )}
                 {line.qty_on_order > 0 && (
                   <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 text-blue-700 border-blue-200">
