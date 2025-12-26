@@ -93,8 +93,8 @@ export default function LineItemsTable({
     fetchInventoryPrices();
   }, [lineItems]);
 
-  // Maximum characters for description (2 lines at ~85 chars per line)
-  const MAX_DESCRIPTION_LENGTH = 170;
+  // Maximum characters for description (3 lines at 70 chars per line)
+  const MAX_DESCRIPTION_LENGTH = 210;
 
   // Renamed from handleLineItemChange to handleFieldChange as per outline's implicit naming convention.
   const handleFieldChange = (index, field, value) => {
@@ -380,18 +380,11 @@ export default function LineItemsTable({
                   onFocus={(e) => handleFieldInteraction(index, e)}
                   onClick={(e) => handleFieldInteraction(index, e)}
                   maxLength={MAX_DESCRIPTION_LENGTH}
-                  className={`w-full text-sm resize-none overflow-hidden bg-white ${isBold ? 'font-bold' : ''}`}
-                  rows={1}
-                  style={{
-                    height: 'auto',
-                    minHeight: '32px', // Minimum height for 1 line
-                    lineHeight: '1.5',
-                    padding: '4px 8px', // Adjust padding for better appearance
-                  }}
-                  onInput={(e) => { // Using onInput for dynamic height from outline
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
-                  }}
+                  className={`w-full text-sm resize-none bg-white ${isBold ? 'font-bold' : ''}`}
+                  rows={
+                    (line.description || '').length > 140 ? 3 : 
+                    (line.description || '').length > 70 ? 2 : 1
+                  }
                   placeholder="Enter description"
                   disabled={isLocked}
                   data-line-index={index}
