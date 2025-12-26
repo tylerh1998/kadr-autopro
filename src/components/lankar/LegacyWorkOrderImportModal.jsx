@@ -29,11 +29,32 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const [extractedData, setExtractedData] = useState(null);
     const [customers, setCustomers] = useState([]);
     const [vehicles, setVehicles] = useState([]);
+    const [glAccounts, setGlAccounts] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     
-    // New Parts State
-    const [newParts, setNewParts] = useState([]); // List of parts to create in inventory
+    // Modal States
+    const [classifyingItemIndex, setClassifyingItemIndex] = useState(null);
+    const [classificationType, setClassificationType] = useState('labor'); // 'labor' | 'other_charge'
+    const [selectedGL, setSelectedGL] = useState('');
+    
+    const [costingItemIndex, setCostingItemIndex] = useState(null);
+    const [tempCost, setTempCost] = useState('');
+
+    React.useEffect(() => {
+        if (open) {
+            loadGLAccounts();
+        }
+    }, [open]);
+
+    const loadGLAccounts = async () => {
+        try {
+            const accounts = await ChartOfAccount.list();
+            setGlAccounts(accounts.filter(a => a.is_active));
+        } catch (error) {
+            console.error("Error loading GL accounts:", error);
+        }
+    };
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
