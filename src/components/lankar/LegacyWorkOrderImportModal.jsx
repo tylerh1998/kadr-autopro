@@ -531,5 +531,72 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 )}
             </DialogContent>
         </Dialog>
+
+        <Dialog open={classifyModalOpen} onOpenChange={setClassifyModalOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Classify Line Item</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <RadioGroup value={classificationType} onValueChange={setClassificationType}>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="labor" id="labor" />
+                            <Label htmlFor="labor">Labour</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="other_charge" id="other_charge" />
+                            <Label htmlFor="other_charge">Other Charge</Label>
+                        </div>
+                    </RadioGroup>
+                    
+                    {classificationType === 'other_charge' && (
+                        <div className="space-y-2">
+                            <Label>GL Account</Label>
+                            <Select value={selectedGlAccount} onValueChange={setSelectedGlAccount}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select GL Account" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {glAccounts.map((account) => (
+                                        <SelectItem key={account.account_number} value={account.account_number}>
+                                            {account.account_number} - {account.account_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setClassifyModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveClassification}>Save</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={costModalOpen} onOpenChange={setCostModalOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Add New Part to Inventory</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="cost">Cost Each</Label>
+                        <Input 
+                            id="cost" 
+                            type="number" 
+                            value={itemCost} 
+                            onChange={(e) => setItemCost(e.target.value)} 
+                            placeholder="0.00"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setCostModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveCost}>Save</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }
