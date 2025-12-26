@@ -468,10 +468,18 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                             <TableRow key={idx}>
                                                 <TableCell className="text-sm">{item.description}</TableCell>
                                                 <TableCell className="text-sm">
-                                                    {item.part_number || '-'}
-                                                    {item.inventory_match && (
-                                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                            Found
+                                                    {item.part_number ? (
+                                                        <>
+                                                            {item.part_number}
+                                                            {item.inventory_match && (
+                                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                    Found
+                                                                </span>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <span className="italic text-slate-500">
+                                                            {item.is_other_charge ? 'Other Charge' : (item.is_labor ? 'Labour' : 'Unclassified')}
                                                         </span>
                                                     )}
                                                 </TableCell>
@@ -479,7 +487,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                 <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
                                                 <TableCell>${item.total_price?.toFixed(2)}</TableCell>
                                                 <TableCell>
-                                                    {item.part_number && !item.inventory_match && !item.is_labor && (
+                                                    {item.part_number && !item.inventory_match && !item.is_labor ? (
                                                         <div className="flex items-center space-x-2">
                                                             <Checkbox 
                                                                 id={`new-part-${idx}`} 
@@ -493,7 +501,16 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                 Add to Inv
                                                             </label>
                                                         </div>
-                                                    )}
+                                                    ) : !item.part_number ? (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            onClick={() => handleOpenClassify(idx)}
+                                                            className="text-blue-600 h-8 px-2"
+                                                        >
+                                                            Classify
+                                                        </Button>
+                                                    ) : null}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
