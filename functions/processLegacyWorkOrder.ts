@@ -14,20 +14,23 @@ Deno.serve(async (req) => {
         const payload = await req.json();
         // console.log('Received payload:', JSON.stringify(payload, null, 2));
 
-        const { customer_id, vehicle_id, invoice_details, line_items, totals, new_parts } = payload;
+        const { customer_id, vehicle_id, invoice_details, line_items, totals, new_parts, odometer } = payload;
 
         if (!customer_id || !vehicle_id) {
             return Response.json({ error: 'Customer or Vehicle ID is missing.' }, { status: 400 });
         }
 
         // --- Step 1: Handle New Inventory Items ---
-        // If the frontend identified new parts and the user chose to create them
+        const createdPartIds = {}; // Map part_number -> new item ID
+
         if (new_parts && new_parts.length > 0) {
             for (const part of new_parts) {
                 // Check if part already exists to avoid duplicates
                 const existing = await base44.asServiceRole.entities.InventoryItem.filter({ part_number: part.part_number });
+                let itemId;
+                
                 if (existing.length === 0) {
-                    await base44.asServiceRole.entities.InventoryItem.create({
+                    const newItem = await base44.asServiceRole.entities.InventoryItem.create({
                         part_number: part.part_number,
                         description: part.description,
                         cost: parseFloat(part.cost) || 0,
@@ -35,29 +38,49 @@ Deno.serve(async (req) => {
                         quantity_on_hand: parseFloat(part.quantity_on_hand) || 0, // Initial count
                         unit: 'ea',
                         category: 'other',
-                        stocked_item: true
+                        stocked_item: false // Requirement: false for all new imports
                     });
+                    itemId = newItem.id;
+                } else {
+                    itemId = existing[0].id;
                 }
+                createdPartIds[part.part_number] = itemId;
             }
         }
 
         // --- Step 2: Process Line Items ---
         const processedLineItems = line_items.map((item, index) => {
+            const isLabor = item.is_labor;
+            const isOtherCharge = item.is_other_charge;
+            const isPart = !isLabor && !isOtherCharge;
+            
+            let inventoryItemId = null;
+            if (isPart) {
+                if (item.inventory_match) {
+                    inventoryItemId = item.inventory_match.id;
+                } else if (item.part_number && createdPartIds[item.part_number]) {
+                    inventoryItemId = createdPartIds[item.part_number];
+                }
+            }
+
             return {
                 id: Date.now() + index, // Generate unique ID for React keys
                 description: item.description,
                 part_number: item.part_number || '',
-                qty: item.quantity,
+                // Requirement: Labour qty unneeded (if 1). 
+                qty: isLabor ? null : item.quantity,
                 parts_ea: item.unit_price,
                 cost_ea: item.inventory_match?.cost || item.cost || 0,
-                tot_parts: (item.is_labor || item.is_other_charge) ? 0 : item.total_price, 
-                labour: item.is_labor ? item.total_price : 0,    
-                is_other_charge: item.is_other_charge || false,
-                oc_total: item.is_other_charge ? item.total_price : 0,
+                tot_parts: isPart ? item.total_price : 0, 
+                labour: isLabor ? item.total_price : 0,    
+                is_other_charge: isOtherCharge || false,
+                oc_total: isOtherCharge ? item.total_price : 0,
                 gl_account: item.gl_account || '',
                 tx: item.is_taxable ? 'Y' : 'N',
                 total: item.total_price,
-                hrs: item.is_labor ? item.quantity : '', 
+                hrs: isLabor ? item.quantity : '', 
+                inventory_item_id: inventoryItemId,
+                inventory_processed: isPart ? true : false, // Requirement: true for all parts imported
                 complete: false,
                 bold: false,
                 is_legacy_import: true 
@@ -81,9 +104,11 @@ Deno.serve(async (req) => {
             status: "Open", // Default status
             stage: "work_order", // Directly to WO stage
             wo_date: invoice_details.invoice_date || new Date().toISOString().split('T')[0],
-            description: invoice_details.description || `Imported Legacy Work Order ${invoice_details.invoice_number || ''}`,
+            // Requirement: Don't put anything in description
+            description: '',
             po_number: invoice_details.po_number || '',
-            odometer: invoice_details.odometer || 0,
+            // Requirement: Add odometer field
+            odometer: typeof odometer !== 'undefined' ? odometer : (invoice_details.odometer || 0),
             
             // Financials
             total_amount: totals.total_amount,
@@ -94,8 +119,8 @@ Deno.serve(async (req) => {
             
             line_items: JSON.stringify(processedLineItems),
             
-            // Legacy reference
-            internal_notes: `Imported from Legacy System. Original Invoice #: ${invoice_details.invoice_number || 'N/A'}`
+            // Requirement: "Lankar WO# {document}" in internal notes
+            internal_notes: `Lankar WO# ${invoice_details.invoice_number || 'N/A'}`
         };
 
         const createdWorkOrder = await base44.asServiceRole.entities.WorkOrder.create(newWorkOrderData);
