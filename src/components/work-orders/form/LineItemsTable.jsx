@@ -380,7 +380,7 @@ export default function LineItemsTable({
                   onFocus={(e) => handleFieldInteraction(index, e)}
                   onClick={(e) => handleFieldInteraction(index, e)}
                   maxLength={MAX_DESCRIPTION_LENGTH}
-                  className={`w-full text-sm resize-none bg-white ${isBold ? 'font-bold' : ''}`}
+                  className={`w-full text-sm resize-none bg-white min-h-[32px] py-1 ${isBold ? 'font-bold' : ''}`}
                   rows={
                     (line.description || '').length > 140 ? 3 : 
                     (line.description || '').length > 70 ? 2 : 1
