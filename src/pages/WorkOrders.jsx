@@ -991,16 +991,19 @@ export default function WorkOrdersPage() {
         )}
 
         {!showForm && (
-          <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-            {/* Tabs with Search and Filter inline */}
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white p-4 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-2">
-                <TabsList className="grid grid-cols-3 w-full lg:w-auto">
-                  <TabsTrigger value="list">Work Order List</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            
+            {/* Main Tabs and Actions Row */}
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto">
+                <TabsList className="grid grid-cols-5 w-full min-w-[500px] lg:w-auto">
+                  <TabsTrigger value="estimates">Estimates</TabsTrigger>
+                  <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
+                  <TabsTrigger value="invoices">Invoices</TabsTrigger>
                   <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
                   <TabsTrigger value="board">Kanban Board</TabsTrigger>
                 </TabsList>
-                {mainTab === 'board' && (
+                {activeTab === 'board' && (
                   <Button
                     variant="outline"
                     size="icon"
@@ -1012,231 +1015,239 @@ export default function WorkOrdersPage() {
                 )}
               </div>
 
-              {/* Search and Sort Controls */}
-              <div className="flex gap-3 items-center w-full lg:w-auto">
-                <div className="relative flex-1 lg:w-80">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <Input
-                    placeholder={
-                      mainTab === 'workpro' 
-                        ? "Search projects, customers, VIN..." 
-                        : "Search work orders, customers..."
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    loadData();
+                    if (activeTab === 'workpro') {
+                      loadWorkPROProjects();
                     }
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
-                    <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
-                    <SelectItem value="date_newest">Date (Newest)</SelectItem>
-                    <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
-                    <SelectItem value="amount_highest">Amount (High)</SelectItem>
-                    <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
-                  </SelectContent>
-                </Select>
+                  }}
+                  disabled={loading || workPROLoading}
+                  className="bg-white"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowFlushConfirm(true)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Flush Locks
+                  </Button>
+                )}
+                <Button 
+                  onClick={handleCreateCounterSale}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Counter Sale
+                </Button>
+                <Button 
+                  onClick={() => setShowNewWorkPROModal(true)}
+                  className="bg-gray-700 hover:bg-gray-800"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+                <Button 
+                  onClick={() => setShowNewWorkOrderModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Work Order
+                </Button>
               </div>
             </div>
 
-            <TabsContent value="list">
-              <div className="space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="estimates">Estimates</TabsTrigger>
-                    <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
-                    <TabsTrigger value="invoices">Invoices</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="estimates">
-                    <Card className="mb-6">
-                      <CardContent className="p-4 overflow-x-auto">
-                        <Tabs value={estimateStatusFilter} onValueChange={setEstimateStatusFilter}>
-                          <TabsList className="flex w-max space-x-2 bg-transparent p-0">
-                            <TabsTrigger 
-                              value="all"
-                              className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
-                            >
-                              <span>All</span>
-                              <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
-                                {getWOCountByStatus('estimate', 'all')}
-                              </Badge>
-                            </TabsTrigger>
-                            {workOrderStatuses.map(status => (
-                              <TabsTrigger 
-                                key={status.id}
-                                value={status.name}
-                                className={getStatusColorClasses(status.color, false)}
-                              >
-                                <span>{status.name}</span>
-                                <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
-                                  {getWOCountByStatus('estimate', status.name)}
-                                </Badge>
-                              </TabsTrigger>
-                            ))}
-                          </TabsList>
-                        </Tabs>
-                      </CardContent>
-                    </Card>
-
-                    <WorkOrderList
-                      workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => {
-                          const isStage = wo.stage === 'estimate';
-                          const isStatus = estimateStatusFilter === 'all' || wo.status === estimateStatusFilter;
-                          return isStage && isStatus;
-                        }),
-                        estimatesSort
-                      )}
-                      customers={customers}
-                      vehicles={vehicles}
-                      loading={!initialLoadComplete && loading}
-                      onSelect={handleEdit}
-                      onEdit={handleEdit}
-                      onStatusUpdate={handleStatusUpdate}
-                      currentUser={currentUser}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="work_in_progress">
-                    <Card className="mb-6">
-                      <CardContent className="p-4 overflow-x-auto">
-                        <Tabs value={wipStatusFilter} onValueChange={setWipStatusFilter}>
-                          <TabsList className="flex w-max space-x-2 bg-transparent p-0">
-                            <TabsTrigger 
-                              value="all"
-                              className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
-                            >
-                              <span>All</span>
-                              <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
-                                {getWOCountByStatus('work_order', 'all')}
-                              </Badge>
-                            </TabsTrigger>
-                            {workOrderStatuses.map(status => (
-                              <TabsTrigger 
-                                key={status.id}
-                                value={status.name}
-                                className={getStatusColorClasses(status.color, false)}
-                              >
-                                <span>{status.name}</span>
-                                <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
-                                  {getWOCountByStatus('work_order', status.name)}
-                                </Badge>
-                              </TabsTrigger>
-                            ))}
-                          </TabsList>
-                        </Tabs>
-                      </CardContent>
-                    </Card>
-
-                    <WorkOrderList
-                      workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => {
-                          const isStage = wo.stage === 'work_order';
-                          const isStatus = wipStatusFilter === 'all' || wo.status === wipStatusFilter;
-                          return isStage && isStatus;
-                        }),
-                        wipSort
-                      )}
-                      customers={customers}
-                      vehicles={vehicles}
-                      loading={!initialLoadComplete && loading}
-                      onSelect={handleEdit}
-                      onEdit={handleEdit}
-                      onStatusUpdate={handleStatusUpdate}
-                      currentUser={currentUser}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="invoices">
-                    <WorkOrderList
-                      workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
-                        invoicesSort
-                      )}
-                      customers={customers}
-                      vehicles={vehicles}
-                      loading={!initialLoadComplete && loading}
-                      onSelect={handleEdit}
-                      onEdit={handleEdit}
-                      onStatusUpdate={handleStatusUpdate}
-                      currentUser={currentUser}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </TabsContent>
-
-            {/* WorkPRO Tab */}
-            <TabsContent value="workpro">
-              {/* Status Filter Tabs - Only on WorkPRO tab */}
+            {/* Status Filters Bar - Conditional */}
+            {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro') && (
               <Card className="mb-6">
-                <CardContent className="p-4">
-                  <Tabs value={workPROStatusFilter} onValueChange={setWorkPROStatusFilter}>
-                    <TabsList className="grid w-full grid-cols-6">
-                      <TabsTrigger 
-                        value="to_do" 
-                        className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
-                      >
-                        <span>To Do</span>
-                        <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
-                          {getProjectCountByStatus('to_do')}
-                        </Badge>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="in_progress"
-                        className="flex items-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                      >
-                        <span>In Progress</span>
-                        <Badge variant="outline" className="bg-white text-blue-600 border-blue-400">
-                          {getProjectCountByStatus('in_progress')}
-                        </Badge>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="parts_needed"
-                        className="flex items-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white"
-                      >
-                        <span>Parts Needed</span>
-                        <Badge variant="outline" className="bg-white text-red-600 border-red-400">
-                          {getProjectCountByStatus('parts_needed')}
-                        </Badge>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="on_hold"
-                        className="flex items-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
-                      >
-                        <span>On Hold</span>
-                        <Badge variant="outline" className="bg-white text-orange-500 border-orange-400">
-                          {getProjectCountByStatus('on_hold')}
-                        </Badge>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="done"
-                        className="flex items-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white"
-                      >
-                        <span>Done</span>
-                        <Badge variant="outline" className="bg-white text-green-600 border-green-400">
-                          {getProjectCountByStatus('done')}
-                        </Badge>
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="archived"
-                        className="flex items-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
-                      >
-                        <span>Archived</span>
-                        <Badge variant="outline" className="bg-white text-gray-600 border-gray-400">
-                          {getProjectCountByStatus('archived')}
-                        </Badge>
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                <CardContent className="p-4 overflow-x-auto">
+                  {/* Estimates Statuses */}
+                  {activeTab === 'estimates' && (
+                    <Tabs value={estimateStatusFilter} onValueChange={setEstimateStatusFilter}>
+                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                        <TabsTrigger 
+                          value="all"
+                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                        >
+                          <span>All</span>
+                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            {getWOCountByStatus('estimate', 'all')}
+                          </Badge>
+                        </TabsTrigger>
+                        {workOrderStatuses.map(status => (
+                          <TabsTrigger 
+                            key={status.id}
+                            value={status.name}
+                            className={getStatusColorClasses(status.color, false)}
+                          >
+                            <span>{status.name}</span>
+                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                              {getWOCountByStatus('estimate', status.name)}
+                            </Badge>
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  )}
+
+                  {/* WIP Statuses */}
+                  {activeTab === 'work_in_progress' && (
+                    <Tabs value={wipStatusFilter} onValueChange={setWipStatusFilter}>
+                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                        <TabsTrigger 
+                          value="all"
+                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                        >
+                          <span>All</span>
+                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            {getWOCountByStatus('work_order', 'all')}
+                          </Badge>
+                        </TabsTrigger>
+                        {workOrderStatuses.map(status => (
+                          <TabsTrigger 
+                            key={status.id}
+                            value={status.name}
+                            className={getStatusColorClasses(status.color, false)}
+                          >
+                            <span>{status.name}</span>
+                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                              {getWOCountByStatus('work_order', status.name)}
+                            </Badge>
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
+                  )}
+
+                  {/* WorkPRO Statuses */}
+                  {activeTab === 'workpro' && (
+                    <Tabs value={workPROStatusFilter} onValueChange={setWorkPROStatusFilter}>
+                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                        <TabsTrigger 
+                          value="to_do" 
+                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                        >
+                          <span>To Do</span>
+                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            {getProjectCountByStatus('to_do')}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="in_progress"
+                          className="flex items-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                        >
+                          <span>In Progress</span>
+                          <Badge variant="outline" className="bg-white text-blue-600 border-blue-400">
+                            {getProjectCountByStatus('in_progress')}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="parts_needed"
+                          className="flex items-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white"
+                        >
+                          <span>Parts Needed</span>
+                          <Badge variant="outline" className="bg-white text-red-600 border-red-400">
+                            {getProjectCountByStatus('parts_needed')}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="on_hold"
+                          className="flex items-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+                        >
+                          <span>On Hold</span>
+                          <Badge variant="outline" className="bg-white text-orange-500 border-orange-400">
+                            {getProjectCountByStatus('on_hold')}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="done"
+                          className="flex items-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white"
+                        >
+                          <span>Done</span>
+                          <Badge variant="outline" className="bg-white text-green-600 border-green-400">
+                            {getProjectCountByStatus('done')}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="archived"
+                          className="flex items-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
+                        >
+                          <span>Archived</span>
+                          <Badge variant="outline" className="bg-white text-gray-600 border-gray-400">
+                            {getProjectCountByStatus('archived')}
+                          </Badge>
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  )}
                 </CardContent>
               </Card>
+            )}
 
+            <TabsContent value="estimates">
+              <WorkOrderList
+                workOrders={sortWorkOrders(
+                  filteredWorkOrders.filter(wo => {
+                    const isStage = wo.stage === 'estimate';
+                    const isStatus = estimateStatusFilter === 'all' || wo.status === estimateStatusFilter;
+                    return isStage && isStatus;
+                  }),
+                  estimatesSort
+                )}
+                customers={customers}
+                vehicles={vehicles}
+                loading={!initialLoadComplete && loading}
+                onSelect={handleEdit}
+                onEdit={handleEdit}
+                onStatusUpdate={handleStatusUpdate}
+                currentUser={currentUser}
+              />
+            </TabsContent>
+
+            <TabsContent value="work_in_progress">
+              <WorkOrderList
+                workOrders={sortWorkOrders(
+                  filteredWorkOrders.filter(wo => {
+                    const isStage = wo.stage === 'work_order';
+                    const isStatus = wipStatusFilter === 'all' || wo.status === wipStatusFilter;
+                    return isStage && isStatus;
+                  }),
+                  wipSort
+                )}
+                customers={customers}
+                vehicles={vehicles}
+                loading={!initialLoadComplete && loading}
+                onSelect={handleEdit}
+                onEdit={handleEdit}
+                onStatusUpdate={handleStatusUpdate}
+                currentUser={currentUser}
+              />
+            </TabsContent>
+
+            <TabsContent value="invoices">
+              <WorkOrderList
+                workOrders={sortWorkOrders(
+                  filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
+                  invoicesSort
+                )}
+                customers={customers}
+                vehicles={vehicles}
+                loading={!initialLoadComplete && loading}
+                onSelect={handleEdit}
+                onEdit={handleEdit}
+                onStatusUpdate={handleStatusUpdate}
+                currentUser={currentUser}
+              />
+            </TabsContent>
+
+            <TabsContent value="workpro">
               {workPROLoading ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {Array(4).fill(0).map((_, i) => (
