@@ -83,7 +83,11 @@ Deno.serve(async (req) => {
                 inventory_processed: isPart ? true : false, // Requirement: true for all parts imported
                 complete: false,
                 bold: false,
-                is_legacy_import: true 
+                is_legacy_import: true,
+                Core_num: item.core_num || 0,
+                core_cost: item.core_cost || 0,
+                core_osamt: item.core_osamt || 0,
+                qty_on_order: item.qty_on_order || 0
             };
         });
 
