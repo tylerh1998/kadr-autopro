@@ -10,11 +10,13 @@ import { InventoryItem, TagAlong } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import LankarImportReturnModal from '@/components/inventory/LankarImportReturnModal';
 import AddLegacyInvoiceModal from '@/components/lankar/AddLegacyInvoiceModal';
+import LegacyWorkOrderImportModal from '@/components/lankar/LegacyWorkOrderImportModal';
 
 export default function LankarImport() {
   const [selectedType, setSelectedType] = useState('inventory');
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showLegacyInvoiceModal, setShowLegacyInvoiceModal] = useState(false);
+  const [showWorkOrderImportModal, setShowWorkOrderImportModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [tagAlongs, setTagAlongs] = useState([]);
@@ -115,6 +117,14 @@ export default function LankarImport() {
               Add Legacy Invoice to AR
             </Button>
             <Button 
+              onClick={() => setShowWorkOrderImportModal(true)}
+              variant="outline"
+              className="border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Import Work Order
+            </Button>
+            <Button 
               onClick={() => setShowReturnModal(true)}
               variant="outline"
               className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
@@ -126,6 +136,10 @@ export default function LankarImport() {
         </div>
       </div>
 
+      <LegacyWorkOrderImportModal
+        open={showWorkOrderImportModal}
+        onClose={() => setShowWorkOrderImportModal(false)}
+      />
       <LankarImportReturnModal 
         open={showReturnModal} 
         onClose={() => setShowReturnModal(false)}
