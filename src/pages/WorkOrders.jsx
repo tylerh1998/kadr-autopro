@@ -87,10 +87,13 @@ export default function WorkOrdersPage() {
   // Work order statuses from setup
   const [workOrderStatuses, setWorkOrderStatuses] = useState([]);
   
+  // Sub-tab filters
+  const [wipStatusFilter, setWipStatusFilter] = useState("all");
+  const [estimateStatusFilter, setEstimateStatusFilter] = useState("all");
+  
   // Sort state for each tab
   const [estimatesSort, setEstimatesSort] = useState("customer_az");
   const [wipSort, setWipSort] = useState("customer_az");
-  const [completedSort, setCompletedSort] = useState("customer_az");
   const [invoicesSort, setInvoicesSort] = useState("date_newest");
 
   useEffect(() => {
@@ -829,7 +832,6 @@ export default function WorkOrdersPage() {
     switch(activeTab) {
       case "estimates": return estimatesSort;
       case "work_in_progress": return wipSort;
-      case "completed": return completedSort;
       case "invoices": return invoicesSort;
       default: return "customer_az";
     }
@@ -839,7 +841,6 @@ export default function WorkOrdersPage() {
     switch(activeTab) {
       case "estimates": setEstimatesSort(value); break;
       case "work_in_progress": setWipSort(value); break;
-      case "completed": setCompletedSort(value); break;
       case "invoices": setInvoicesSort(value); break;
       default: break;
     }
@@ -882,6 +883,34 @@ export default function WorkOrdersPage() {
   // Count projects by status
   const getProjectCountByStatus = (status) => {
     return workPROProjects.filter(p => p.status === status).length;
+  };
+
+  const getWOCountByStatus = (stage, statusName) => {
+    return workOrders.filter(wo => {
+      const stageMatch = wo.stage === stage;
+      if (statusName === 'all') return stageMatch;
+      return stageMatch && wo.status === statusName;
+    }).length;
+  };
+  
+  const getStatusColorClasses = (color, isActive) => {
+    const colorMap = {
+      blue: { active: 'bg-blue-600 text-white', inactive: 'bg-blue-100 text-blue-900', badge: 'text-blue-600 border-blue-400' },
+      green: { active: 'bg-green-600 text-white', inactive: 'bg-green-100 text-green-900', badge: 'text-green-600 border-green-400' },
+      red: { active: 'bg-red-600 text-white', inactive: 'bg-red-100 text-red-900', badge: 'text-red-600 border-red-400' },
+      yellow: { active: 'bg-yellow-500 text-white', inactive: 'bg-yellow-100 text-yellow-900', badge: 'text-yellow-600 border-yellow-400' },
+      orange: { active: 'bg-orange-500 text-white', inactive: 'bg-orange-100 text-orange-900', badge: 'text-orange-600 border-orange-400' },
+      purple: { active: 'bg-purple-600 text-white', inactive: 'bg-purple-100 text-purple-900', badge: 'text-purple-600 border-purple-400' },
+      pink: { active: 'bg-pink-600 text-white', inactive: 'bg-pink-100 text-pink-900', badge: 'text-pink-600 border-pink-400' },
+      slate: { active: 'bg-slate-600 text-white', inactive: 'bg-slate-200 text-slate-900', badge: 'text-slate-600 border-slate-400' },
+    };
+    
+    const theme = colorMap[color] || colorMap['slate'];
+    
+    if (isActive) {
+      return `flex items-center gap-2 ${theme.active}`;
+    }
+    return `flex items-center gap-2 ${theme.inactive} data-[state=active]:${theme.active.split(' ')[0]} data-[state=active]:text-white`;
   };
 
   return (
@@ -1041,17 +1070,50 @@ export default function WorkOrdersPage() {
             <TabsContent value="list">
               <div className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="estimates">Estimates</TabsTrigger>
                     <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
-                    <TabsTrigger value="completed">Completed Work Orders</TabsTrigger>
                     <TabsTrigger value="invoices">Invoices</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="estimates">
+                    <Card className="mb-6">
+                      <CardContent className="p-4 overflow-x-auto">
+                        <Tabs value={estimateStatusFilter} onValueChange={setEstimateStatusFilter}>
+                          <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                            <TabsTrigger 
+                              value="all"
+                              className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                            >
+                              <span>All</span>
+                              <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                                {getWOCountByStatus('estimate', 'all')}
+                              </Badge>
+                            </TabsTrigger>
+                            {workOrderStatuses.map(status => (
+                              <TabsTrigger 
+                                key={status.id}
+                                value={status.name}
+                                className={getStatusColorClasses(status.color, false)}
+                              >
+                                <span>{status.name}</span>
+                                <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                                  {getWOCountByStatus('estimate', status.name)}
+                                </Badge>
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </Tabs>
+                      </CardContent>
+                    </Card>
+
                     <WorkOrderList
                       workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => wo.stage === 'estimate'),
+                        filteredWorkOrders.filter(wo => {
+                          const isStage = wo.stage === 'estimate';
+                          const isStatus = estimateStatusFilter === 'all' || wo.status === estimateStatusFilter;
+                          return isStage && isStatus;
+                        }),
                         estimatesSort
                       )}
                       customers={customers}
@@ -1065,29 +1127,44 @@ export default function WorkOrdersPage() {
                   </TabsContent>
 
                   <TabsContent value="work_in_progress">
+                    <Card className="mb-6">
+                      <CardContent className="p-4 overflow-x-auto">
+                        <Tabs value={wipStatusFilter} onValueChange={setWipStatusFilter}>
+                          <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                            <TabsTrigger 
+                              value="all"
+                              className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                            >
+                              <span>All</span>
+                              <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                                {getWOCountByStatus('work_order', 'all')}
+                              </Badge>
+                            </TabsTrigger>
+                            {workOrderStatuses.map(status => (
+                              <TabsTrigger 
+                                key={status.id}
+                                value={status.name}
+                                className={getStatusColorClasses(status.color, false)}
+                              >
+                                <span>{status.name}</span>
+                                <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                                  {getWOCountByStatus('work_order', status.name)}
+                                </Badge>
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </Tabs>
+                      </CardContent>
+                    </Card>
+
                     <WorkOrderList
                       workOrders={sortWorkOrders(
                         filteredWorkOrders.filter(wo => {
-                          const isWorkInProgress = wo.stage === 'work_order' && wo.status !== 'Completed';
-                          return isWorkInProgress;
+                          const isStage = wo.stage === 'work_order';
+                          const isStatus = wipStatusFilter === 'all' || wo.status === wipStatusFilter;
+                          return isStage && isStatus;
                         }),
                         wipSort
-                      )}
-                      customers={customers}
-                      vehicles={vehicles}
-                      loading={!initialLoadComplete && loading}
-                      onSelect={handleEdit}
-                      onEdit={handleEdit}
-                      onStatusUpdate={handleStatusUpdate}
-                      currentUser={currentUser}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="completed">
-                    <WorkOrderList
-                      workOrders={sortWorkOrders(
-                        filteredWorkOrders.filter(wo => wo.stage === 'work_order' && wo.status === 'Completed'),
-                        completedSort
                       )}
                       customers={customers}
                       vehicles={vehicles}
