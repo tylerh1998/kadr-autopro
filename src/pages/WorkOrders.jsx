@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { WorkOrder, Customer, Vehicle, TagAlong, Appointment, User, WorkOrderStatus, SystemSettings } from "@/entities/all";
+import { WorkOrder } from "@/entities/WorkOrder";
+import { Customer } from "@/entities/Customer";
+import { Vehicle } from "@/entities/Vehicle";
+import { TagAlong } from "@/entities/TagAlong";
+import { Appointment } from "@/entities/Appointment";
+import { User } from "@/entities/User";
+import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
+import { SystemSettings } from "@/entities/SystemSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

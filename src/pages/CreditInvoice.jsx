@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User, WorkOrder, InventoryItem, InventoryTxs, SystemSettings, InventoryReturn, Supplier } from '@/entities/all';
+import { User } from "@/entities/User";
+import { WorkOrder } from "@/entities/WorkOrder";
+import { InventoryItem } from "@/entities/InventoryItem";
+import { InventoryTxs } from "@/entities/InventoryTxs";
+import { SystemSettings } from "@/entities/SystemSettings";
+import { InventoryReturn } from "@/entities/InventoryReturn";
+import { Supplier } from "@/entities/Supplier";
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
