@@ -843,44 +843,6 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const getWorkPROStatusCount = (status) => {
-    return workPROProjects.filter(p => p.status === status).length;
-  };
-
-  const filteredWorkOrders = workOrders.filter(wo => {
-    const customer = customers.find(c => c.id === wo.customer_id);
-    const customerFullName = customer ? getCustomerName(customer.id) : '';
-
-    const matchesSearch = !searchTerm || 
-      wo.wo_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wo.ro_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      wo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customerFullName.toLowerCase().includes(searchTerm.toLowerCase());
-      
-    return matchesSearch;
-  });
-
-  const getCustomer = (customerId) => customers.find(c => c.id === customerId);
-  const getVehicle = (vehicleId) => vehicles.find(v => v.id === vehicleId);
-
-  // Filter WorkPRO projects by status and search term
-  const filteredWorkPROProjects = workPROProjects.filter(project => {
-    const matchesStatus = project.status === workPROStatusFilter;
-    
-    if (!searchTerm) return matchesStatus;
-    
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      project.customer?.toLowerCase().includes(searchLower) ||
-      project.vehicle?.toLowerCase().includes(searchLower) ||
-      project.vin?.toLowerCase().includes(searchLower) ||
-      project.task?.toLowerCase().includes(searchLower) ||
-      project.description?.toLowerCase().includes(searchLower) ||
-      project.work_order?.toLowerCase().includes(searchLower);
-    
-    return matchesStatus && matchesSearch;
-  });
-
   // Count projects by status
   const getProjectCountByStatus = (status) => {
     return workPROProjects.filter(p => p.status === status).length;
@@ -1654,6 +1616,6 @@ export default function WorkOrdersPage() {
         }}
       />
 
-      </div>
-      );
-      }
+    </div>
+  );
+}
