@@ -188,26 +188,35 @@ export default function WorkOrderForm({
     setUserHasManuallySelected(true);
   }, []);
 
-  // Effect to apply default_taxable to line items when it changes
-  useEffect(() => {
-    if (editedWorkOrder?.default_taxable !== undefined && displayLineItems.length > 0) {
-      const needsUpdate = displayLineItems.some(line => 
-        line && (line.description || line.part_number) &&
-        line.taxable !== editedWorkOrder.default_taxable
-      );
+  // Ref to track previous default taxable value to prevent unwanted overrides
+  const prevDefaultTaxableRef = useRef();
+  const isTaxableFirstRun = useRef(true);
 
-      if (needsUpdate) {
-        tracedSetLineItems(prev => prev.map(line => {
-          if (!line || (!line.description && !line.part_number)) return line;
-          
-          if (line.taxable !== editedWorkOrder.default_taxable) {
-            return { ...line, taxable: editedWorkOrder.default_taxable };
-          }
-          return line;
-        }));
-      }
+  // Effect to apply default_taxable to line items ONLY when the default setting explicitly changes
+  useEffect(() => {
+    // If default taxable is not yet defined, do nothing
+    if (editedWorkOrder?.default_taxable === undefined) return;
+
+    const currentDefault = editedWorkOrder.default_taxable;
+
+    // Initialize the ref on first valid render without triggering update
+    if (isTaxableFirstRun.current) {
+        prevDefaultTaxableRef.current = currentDefault;
+        isTaxableFirstRun.current = false;
+        return;
     }
-  }, [editedWorkOrder?.default_taxable, displayLineItems, tracedSetLineItems]);
+
+    // Only update lines if the header default has actually changed
+    if (currentDefault !== prevDefaultTaxableRef.current) {
+      tracedSetLineItems(prev => prev.map(line => {
+        // Update valid lines to match new default
+        if (!line || (!line.description && !line.part_number && !line.manually_inserted)) return line;
+        
+        return { ...line, taxable: currentDefault };
+      }));
+      prevDefaultTaxableRef.current = currentDefault;
+    }
+  }, [editedWorkOrder?.default_taxable, tracedSetLineItems]);
 
   // Simplified auto-select logic - only runs when appropriate
   useEffect(() => {
