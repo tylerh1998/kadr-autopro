@@ -61,12 +61,14 @@ export default function WorkOrderViewLineItemsTable({
                 <span className="font-mono">{line.part_number}</span>
                 {line.Core_num > 0 && (
                   line.core_credit ? (
-                    <TooltipProvider>
+                    <TooltipProvider delayDuration={0}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200 cursor-help">
-                            Core {line.Core_num}
-                          </Badge>
+                          <div className="cursor-help inline-flex">
+                            <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200">
+                              Core {line.Core_num}
+                            </Badge>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Credited on {line.core_credit}</p>
