@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
                 part_number: item.part_number || '',
                 qty: item.quantity,
                 parts_ea: item.unit_price,
-                cost_ea: item.cost || 0, // Added cost_ea
+                cost_ea: item.inventory_match?.cost || item.cost || 0,
                 tot_parts: (item.is_labor || item.is_other_charge) ? 0 : item.total_price, 
                 labour: item.is_labor ? item.total_price : 0,    
                 is_other_charge: item.is_other_charge || false,
