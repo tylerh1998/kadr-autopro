@@ -50,7 +50,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
             
             setProcessingStatus('Extracting data with AI...');
             
-            // 2. Extract Data
+            // 2. Extract Data using InvokeLLM (more robust for PDFs)
             const jsonSchema = {
                 type: "object",
                 properties: {
@@ -112,23 +112,16 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 required: ["customer_info", "vehicle_info", "line_items", "totals"]
             };
 
-            const extractionRes = await base44.integrations.Core.ExtractDataFromUploadedFile({
-                file_url,
-                json_schema: jsonSchema
+            const data = await base44.integrations.Core.InvokeLLM({
+                prompt: "Extract all relevant data from this work order/invoice PDF. Capture customer details, vehicle details (including VIN, Year, Make, Model), invoice metadata, and all line items with pricing. For line items, determine if they are parts or labor. If it's a part, extract the part number if visible. Ensure all totals match the document.",
+                file_urls: [file_url],
+                response_json_schema: jsonSchema
             });
-
-            if (extractionRes.status === 'error') {
-                throw new Error(extractionRes.details || 'Failed to extract data');
-            }
-
-            const data = extractionRes.output;
-            setExtractedData(data);
 
             // 3. Pre-fetch Matching Records
             setProcessingStatus('Matching records...');
             
             // Fetch all customers/vehicles for client-side search (assuming reasonable size, otherwise search via API)
-            // For better UX with larger datasets, we might want to search specifically, but listing is easier for the dropdown
             const [allCustomers, allVehicles] = await Promise.all([
                 Customer.list(),
                 Vehicle.list()
@@ -195,7 +188,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 .map(item => ({
                     part_number: item.part_number,
                     description: item.description,
-                    cost: item.unit_price * 0.6, // Estimate cost if not provided, usually logic needed
+                    cost: item.unit_price * 0.6, // Estimate cost if not provided
                     selling_price: item.unit_price,
                     quantity_on_hand: 0 // Don't add stock yet
                 }));
