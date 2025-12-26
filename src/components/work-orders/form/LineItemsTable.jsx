@@ -98,6 +98,15 @@ export default function LineItemsTable({
 
   // Renamed from handleLineItemChange to handleFieldChange as per outline's implicit naming convention.
   const handleFieldChange = (index, field, value) => {
+    // Validation rule: Prevent changing quantity for inventory items in work order stage
+    if (field === 'qty' && mode === 'work_order') {
+      const currentItem = lineItems[index];
+      if (currentItem && currentItem.inventory_item_id) {
+        alert("Please delete the line and readd to change the quantity");
+        return;
+      }
+    }
+
     setLineItems(prev => {
       const updated = [...prev];
       const item = { ...updated[index] };
