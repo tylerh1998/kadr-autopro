@@ -45,19 +45,90 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
         setProcessingStatus('Uploading file...');
 
         try {
+            // Ensure lowercase extension for compatibility with extraction tool
+            let uploadFile = file;
+            if (file.name.toUpperCase().endsWith('.PDF')) {
+                const newName = file.name.slice(0, -4) + '.pdf';
+                uploadFile = new File([file], newName, { type: 'application/pdf' });
+            }
+
             // 1. Upload File
-            const { file_url } = await base44.integrations.Core.UploadFile({ file });
+            const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
             
             setProcessingStatus('Extracting data with AI...');
             
-            // 2. Extract Data using Backend Function (Robust PDF text extraction)
-            const extractionResponse = await base44.functions.invoke('analyzeWorkOrderPdf', { file_url });
-            
-            if (!extractionResponse.data || extractionResponse.data.error) {
-                throw new Error(extractionResponse.data?.error || "Failed to analyze PDF");
+            // 2. Extract Data using ExtractDataFromUploadedFile (better PDF support)
+            const jsonSchema = {
+                type: "object",
+                properties: {
+                    customer_info: {
+                        type: "object",
+                        properties: {
+                            name: { type: "string" },
+                            phone: { type: "string" },
+                            email: { type: "string" }
+                        },
+                        required: ["name"]
+                    },
+                    vehicle_info: {
+                        type: "object",
+                        properties: {
+                            vin: { type: "string" },
+                            year: { type: "number" },
+                            make: { type: "string" },
+                            model: { type: "string" },
+                            license_plate: { type: "string" },
+                            odometer: { type: "number" }
+                        },
+                        required: ["vin", "make", "model"]
+                    },
+                    invoice_details: {
+                        type: "object",
+                        properties: {
+                            invoice_number: { type: "string" },
+                            invoice_date: { type: "string", format: "date" },
+                            description: { type: "string" },
+                            po_number: { type: "string" }
+                        }
+                    },
+                    line_items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                part_number: { type: "string" },
+                                description: { type: "string" },
+                                quantity: { type: "number" },
+                                unit_price: { type: "number" },
+                                total_price: { type: "number" },
+                                is_labor: { type: "boolean" },
+                                is_taxable: { type: "boolean" }
+                            },
+                            required: ["description", "quantity", "total_price"]
+                        }
+                    },
+                    totals: {
+                        type: "object",
+                        properties: {
+                            subtotal: { type: "number" },
+                            tax_amount: { type: "number" },
+                            total_amount: { type: "number" }
+                        }
+                    }
+                },
+                required: ["customer_info", "vehicle_info", "line_items", "totals"]
+            };
+
+            const extractionRes = await base44.integrations.Core.ExtractDataFromUploadedFile({
+                file_url,
+                json_schema: jsonSchema
+            });
+
+            if (extractionRes.status === 'error') {
+                throw new Error(extractionRes.details || 'Failed to extract data from file');
             }
 
-            const data = extractionResponse.data;
+            const data = extractionRes.output;
 
             // 3. Pre-fetch Matching Records
             setProcessingStatus('Matching records...');
