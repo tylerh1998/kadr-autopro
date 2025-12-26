@@ -365,11 +365,16 @@ export default function CreditInvoicePage() {
            if (originalIndex !== -1) {
              const currentCoreRet = parseFloat(updatedLineItems[originalIndex].core_ret || 0);
              const qtyToReturn = parseFloat(selectedItem.qty || 0);
+             const newCoreRet = currentCoreRet + qtyToReturn;
+             
+             const coreNum = parseFloat(updatedLineItems[originalIndex].Core_num || 0);
+             const coreCost = parseFloat(updatedLineItems[originalIndex].core_cost || 0);
 
              updatedLineItems[originalIndex] = {
                ...updatedLineItems[originalIndex],
                core_credit: creditInvoiceNumber,
-               core_ret: currentCoreRet + qtyToReturn
+               core_ret: newCoreRet,
+               core_osamt: (coreNum - newCoreRet) * coreCost
              };
            }
         } else {
