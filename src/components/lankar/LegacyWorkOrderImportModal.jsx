@@ -42,6 +42,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const [costModalOpen, setCostModalOpen] = useState(false);
     const [costItemIndex, setCostItemIndex] = useState(null);
     const [itemCost, setItemCost] = useState('');
+    const [totalPartCost, setTotalPartCost] = useState('');
     
     // New Parts State
     const [newParts, setNewParts] = useState([]); // List of parts to create in inventory
@@ -265,7 +266,8 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 invoice_details: extractedData.invoice_details || {},
                 line_items: extractedData.line_items,
                 totals: extractedData.totals,
-                new_parts: partsToCreate
+                new_parts: partsToCreate,
+                odometer: extractedData.vehicle_info?.odometer // Pass odometer explicitly
             };
 
             const response = await base44.functions.invoke('processLegacyWorkOrder', payload);
@@ -292,13 +294,42 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const toggleNewPart = (index, checked) => {
         if (checked) {
             setCostItemIndex(index);
-            setItemCost('');
+            const item = extractedData.line_items[index];
+            // Pre-calculate defaults if possible, or leave blank
+            setItemCost(''); 
+            setTotalPartCost('');
             setCostModalOpen(true);
         } else {
             const newItems = [...extractedData.line_items];
             newItems[index].create_new_part = false;
             newItems[index].cost = undefined;
             setExtractedData({...extractedData, line_items: newItems});
+        }
+    };
+
+    const handleTotalCostChange = (value) => {
+        setTotalPartCost(value);
+        const total = parseFloat(value);
+        const item = extractedData.line_items[costItemIndex];
+        const qty = item.quantity || 1;
+        
+        if (!isNaN(total) && qty > 0) {
+            setItemCost((total / qty).toFixed(2));
+        } else {
+            setItemCost('');
+        }
+    };
+
+    const handleUnitCostChange = (value) => {
+        setItemCost(value);
+        const unit = parseFloat(value);
+        const item = extractedData.line_items[costItemIndex];
+        const qty = item.quantity || 1;
+        
+        if (!isNaN(unit)) {
+            setTotalPartCost((unit * qty).toFixed(2));
+        } else {
+            setTotalPartCost('');
         }
     };
 
@@ -472,9 +503,26 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                     <Label className="text-xs text-slate-500">Total Amount</Label>
                                     <div className="font-medium">${extractedData.totals?.total_amount?.toFixed(2) || '0.00'}</div>
                                 </div>
-                            </div>
+                                <div>
+                                    <Label className="text-xs text-slate-500">Odometer</Label>
+                                    <Input 
+                                        type="number"
+                                        className="h-8 mt-1"
+                                        value={extractedData.vehicle_info?.odometer || ''}
+                                        onChange={(e) => {
+                                            setExtractedData({
+                                                ...extractedData,
+                                                vehicle_info: {
+                                                    ...extractedData.vehicle_info,
+                                                    odometer: parseInt(e.target.value) || 0
+                                                }
+                                            });
+                                        }}
+                                    />
+                                </div>
+                                </div>
 
-                            {/* Line Items */}
+                                {/* Line Items */}
                             <div className="space-y-2">
                                 <Label>Line Items</Label>
                                 <div className="border rounded-md overflow-hidden">
@@ -606,12 +654,22 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
+                            <Label htmlFor="totalCost">Total Cost (for {extractedData?.line_items[costItemIndex]?.quantity || 1} items)</Label>
+                            <Input 
+                                id="totalCost" 
+                                type="number" 
+                                value={totalPartCost} 
+                                onChange={(e) => handleTotalCostChange(e.target.value)} 
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="cost">Cost Each</Label>
                             <Input 
                                 id="cost" 
                                 type="number" 
                                 value={itemCost} 
-                                onChange={(e) => setItemCost(e.target.value)} 
+                                onChange={(e) => handleUnitCostChange(e.target.value)} 
                                 placeholder="0.00"
                             />
                         </div>
