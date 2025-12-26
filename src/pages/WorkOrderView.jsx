@@ -110,6 +110,13 @@ export default function WorkOrderViewPage() {
 
     // Check if the work order is an invoice
     if (workOrder.stage === 'invoice') {
+      // Check for existing credits
+      const hasCredits = lineItems.some(line => line.credit || line.core_credit);
+      if (hasCredits) {
+        alert("This invoice cannot be converted back into a work order because a credit invoice has been created for this invoice.");
+        return;
+      }
+
       // Check if invoice_date exists
       if (!workOrder.invoice_date) {
         alert("This invoice does not have an invoice date set. Please contact the Administrator to resolve this issue before editing.");
