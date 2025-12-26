@@ -382,7 +382,7 @@ export default function LineItemsTable({
                   maxLength={MAX_DESCRIPTION_LENGTH}
                   className={`w-full text-sm resize-none bg-white min-h-[32px] py-1 ${isBold ? 'font-bold' : ''}`}
                   rows={
-                    (line.description || '').length > 140 ? 3 : 
+                    (line.description || '').length > 120 ? 3 : 
                     (line.description || '').length > 70 ? 2 : 1
                   }
                   placeholder="Enter description"
