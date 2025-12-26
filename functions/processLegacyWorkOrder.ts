@@ -49,14 +49,18 @@ Deno.serve(async (req) => {
                 part_number: item.part_number || '',
                 qty: item.quantity,
                 parts_ea: item.unit_price,
-                tot_parts: item.is_labor ? 0 : item.total_price, // If labor, parts total is 0
-                labour: item.is_labor ? item.total_price : 0,    // If labor, put in labour column
+                cost_ea: item.cost || 0, // Added cost_ea
+                tot_parts: (item.is_labor || item.is_other_charge) ? 0 : item.total_price, 
+                labour: item.is_labor ? item.total_price : 0,    
+                is_other_charge: item.is_other_charge || false,
+                oc_total: item.is_other_charge ? item.total_price : 0,
+                gl_account: item.gl_account || '',
                 tx: item.is_taxable ? 'Y' : 'N',
                 total: item.total_price,
-                hrs: item.is_labor ? item.quantity : '', // Assuming qty is hours for labor
+                hrs: item.is_labor ? item.quantity : '', 
                 complete: false,
                 bold: false,
-                is_legacy_import: true // Flag for future reference
+                is_legacy_import: true 
             };
         });
 
