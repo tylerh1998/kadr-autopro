@@ -28,9 +28,13 @@ Deno.serve(async (req) => {
         console.log(`Processing event: ${eventType} for tracking_id: ${trackingId}`);
 
         // Find the email log by tracking_id
+        // Using explicit list call first to debug if filter behaves unexpectedly
+        console.log(`Querying SentEmailLog for tracking_id: ${trackingId}`);
         const emailLogs = await base44.asServiceRole.entities.SentEmailLog.filter({ 
             tracking_id: trackingId 
         });
+
+        console.log(`Found ${emailLogs?.length || 0} matching logs`);
 
         if (!emailLogs || emailLogs.length === 0) {
             console.log(`No email log found for tracking_id: ${trackingId} - skipping`);
@@ -42,6 +46,7 @@ Deno.serve(async (req) => {
         }
 
         const emailLog = emailLogs[0];
+        console.log(`Updating email log ${emailLog.id} (current status: ${emailLog.status})`);
         const updates = {};
 
         // Helper function to format timestamp in Mountain Time
