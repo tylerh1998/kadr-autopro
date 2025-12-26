@@ -351,6 +351,28 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
         }
     };
 
+    const handleOpenPartInfo = (index) => {
+        setCostItemIndex(index);
+        const item = extractedData.line_items[index];
+        
+        // Pre-fill data from existing item or inventory match
+        setItemCost(item.cost || item.inventory_match?.cost || '');
+        
+        // Cores
+        const hasCore = (item.core_cost > 0) || (item.inventory_match?.core_cost > 0);
+        setCoresEnabled(hasCore);
+        if (hasCore) {
+            setCoreCost(item.core_cost || item.inventory_match?.core_cost || '');
+            setCoreCount(item.core_num || item.quantity || 1);
+        } else {
+            setCoreCost('');
+            setCoreCount('');
+        }
+        
+        setQtyOnOrder(item.qty_on_order || '');
+        setCostModalOpen(true);
+    };
+
     const handleSaveCost = () => {
         const newItems = [...extractedData.line_items];
         const item = newItems[costItemIndex];
@@ -365,7 +387,11 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
             }
         }
 
-        item.create_new_part = true;
+        // Only mark for creation if it's not matched
+        if (!item.inventory_match) {
+            item.create_new_part = true;
+        }
+        
         item.cost = parseFloat(itemCost);
         
         // Save new fields
@@ -625,19 +651,31 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                     <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
                                                     <TableCell>${item.total_price?.toFixed(2)}</TableCell>
                                                     <TableCell>
-                                                        {item.part_number && !item.inventory_match && !item.is_labor ? (
-                                                            <div className="flex items-center space-x-2">
-                                                                <Checkbox 
-                                                                    id={`new-part-${idx}`} 
-                                                                    checked={item.create_new_part || false}
-                                                                    onCheckedChange={(checked) => toggleNewPart(idx, checked)}
-                                                                />
-                                                                <label 
-                                                                    htmlFor={`new-part-${idx}`} 
-                                                                    className="text-xs cursor-pointer select-none text-blue-600 font-medium"
+                                                        {item.part_number && !item.is_labor ? (
+                                                            <div className="flex items-center gap-2">
+                                                                {!item.inventory_match && (
+                                                                    <div className="flex items-center space-x-1">
+                                                                        <Checkbox 
+                                                                            id={`new-part-${idx}`} 
+                                                                            checked={item.create_new_part || false}
+                                                                            onCheckedChange={(checked) => toggleNewPart(idx, checked)}
+                                                                        />
+                                                                        <label 
+                                                                            htmlFor={`new-part-${idx}`} 
+                                                                            className="text-xs cursor-pointer select-none text-blue-600 font-medium"
+                                                                        >
+                                                                            Add
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="sm" 
+                                                                    onClick={() => handleOpenPartInfo(idx)}
+                                                                    className="text-blue-600 h-7 px-2 text-xs"
                                                                 >
-                                                                    Add to Inv
-                                                                </label>
+                                                                    Part Info
+                                                                </Button>
                                                             </div>
                                                         ) : !item.part_number ? (
                                                             <Button 

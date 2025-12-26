@@ -63,13 +63,19 @@ Deno.serve(async (req) => {
                 }
             }
 
+            // Determine core cost to subtract from unit price
+            const coreCost = parseFloat(item.core_cost || (item.inventory_match?.core_cost) || 0);
+            
+            // Calculate adjusted unit price (subtracting core if present)
+            const adjustedPartsEa = isPart ? (item.unit_price - coreCost) : 0;
+
             return {
                 id: Date.now() + index, // Generate unique ID for React keys
                 description: item.description,
                 part_number: item.part_number || '',
                 // Requirement: Labour qty unneeded (if 1). 
                 qty: isLabor ? 0 : item.quantity,
-                parts_ea: isPart ? item.unit_price : 0,
+                parts_ea: adjustedPartsEa,
                 cost_ea: isPart ? (item.inventory_match?.cost || item.cost || 0) : 0,
                 tot_parts: isPart ? item.total_price : 0, 
                 labour: isLabor ? item.total_price : 0,    
@@ -85,7 +91,7 @@ Deno.serve(async (req) => {
                 bold: false,
                 is_legacy_import: true,
                 Core_num: item.core_num || 0,
-                core_cost: item.core_cost || 0,
+                core_cost: coreCost,
                 core_osamt: item.core_osamt || 0,
                 qty_on_order: item.qty_on_order || 0
             };
