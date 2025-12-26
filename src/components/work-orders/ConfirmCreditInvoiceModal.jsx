@@ -19,8 +19,11 @@ export default function ConfirmCreditInvoiceModal({
   // Get the selected line items for display
   const selectedLineItems = lineItems.filter((_, index) => selectedLines[index]);
   
-  // Count inventory items that will be returned
-  const inventoryItemsCount = selectedLineItems.filter(line => line.inventory_item_id).length;
+  // Categorize inventory items by destination
+  const stockReturnItems = selectedLineItems.filter(line => line.inventory_item_id && !line.is_core_virtual);
+  const coreReturnItems = selectedLineItems.filter(line => line.inventory_item_id && line.is_core_virtual);
+  
+  const inventoryItemsCount = stockReturnItems.length + coreReturnItems.length;
 
   // Calculate financial totals
   const partsTotal = selectedLineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
@@ -100,9 +103,14 @@ export default function ConfirmCreditInvoiceModal({
                 <Package className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
                   <h4 className="font-semibold text-blue-900 mb-1">Inventory Returns</h4>
-                  <p className="text-sm text-blue-800">
-                    {inventoryItemsCount} inventory {inventoryItemsCount === 1 ? 'item' : 'items'} will be returned to stock.
-                  </p>
+                  <ul className="text-sm text-blue-800 list-disc list-inside mt-1">
+                    {stockReturnItems.length > 0 && (
+                      <li>{stockReturnItems.length} item{stockReturnItems.length !== 1 ? 's' : ''} returning to <strong>Stock</strong></li>
+                    )}
+                    {coreReturnItems.length > 0 && (
+                      <li>{coreReturnItems.length} item{coreReturnItems.length !== 1 ? 's' : ''} returning to <strong>Supplier (Core)</strong></li>
+                    )}
+                  </ul>
                 </div>
               </div>
             </div>
