@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 
 Deno.serve(async (req) => {
-    console.log('--- Resend webhook received ---');
+    console.log('--- Resend webhook received (v1.2) ---');
     
     const base44 = createClientFromRequest(req);
 
