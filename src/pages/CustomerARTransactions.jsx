@@ -32,6 +32,7 @@ import TakePaymentModal from '@/components/ar/TakePaymentModal';
 import RecordAdjustmentModal from '@/components/ar/RecordAdjustmentModal';
 import StatementModal from '@/components/ar/StatementModal';
 import ARPaymentDetailsModal from '@/components/ar/ARPaymentDetailsModal';
+import InvoiceViewerModal from '@/components/ar/InvoiceViewerModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { // Added AlertDialog components
   AlertDialog,
@@ -64,6 +65,8 @@ export default function CustomerARTransactionsPage() {
   const [paymentToDelete, setPaymentToDelete] = useState(null);
   const [showDeleteAdjustmentConfirm, setShowDeleteAdjustmentConfirm] = useState(false);
   const [adjustmentToDelete, setAdjustmentToDelete] = useState(null);
+  const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
+  const [viewInvoiceUrl, setViewInvoiceUrl] = useState(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -157,7 +160,8 @@ export default function CustomerARTransactionsPage() {
     try {
       // Check for legacy invoice URL first
       if (transaction.lankar_invoice) {
-        window.open(transaction.lankar_invoice, '_blank');
+        setViewInvoiceUrl(transaction.lankar_invoice);
+        setShowInvoiceViewer(true);
         return;
       }
 
@@ -837,6 +841,15 @@ export default function CustomerARTransactionsPage() {
           setSelectedPaymentForDetails(null);
         }}
         paymentRecord={selectedPaymentForDetails}
+      />
+
+      <InvoiceViewerModal
+        open={showInvoiceViewer}
+        onClose={() => {
+          setShowInvoiceViewer(false);
+          setViewInvoiceUrl(null);
+        }}
+        invoiceUrl={viewInvoiceUrl}
       />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
