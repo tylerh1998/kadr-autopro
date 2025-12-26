@@ -924,11 +924,11 @@ export default function WorkOrdersPage() {
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
-              />
+                className="pl-10 w-full bg-white"
+                />
             </div>
             <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
-              <SelectTrigger className="w-auto min-w-[80px] px-4 font-medium">
+              <SelectTrigger className="w-auto min-w-[80px] px-4 font-medium bg-white">
                 <span>Sort</span>
               </SelectTrigger>
               <SelectContent>
