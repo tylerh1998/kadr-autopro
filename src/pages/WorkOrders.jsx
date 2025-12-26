@@ -78,10 +78,7 @@ export default function WorkOrdersPage() {
   const [kanbanColumnSizes, setKanbanColumnSizes] = useState({});
   const [systemSettings, setSystemSettings] = useState(null);
   
-  // Track active main tab (list, workpro, board)
-  const [mainTab, setMainTab] = useState("list");
-  
-  // Track active tab for list view (estimates, wip, completed, invoices)
+  // Track active tab (estimates, wip, invoices, workpro, board)
   const [activeTab, setActiveTab] = useState("work_in_progress");
 
   // Work order statuses from setup
@@ -156,7 +153,7 @@ export default function WorkOrdersPage() {
         // Tab is visible, start interval
         refreshInterval = setInterval(() => {
           loadData();
-          if (mainTab === 'workpro' && workPROLoaded) {
+          if (activeTab === 'workpro' && workPROLoaded) {
             loadWorkPROProjects();
             loadTechTimeForProjects();
           }
@@ -168,7 +165,7 @@ export default function WorkOrdersPage() {
     if (!document.hidden) {
       refreshInterval = setInterval(() => {
         loadData();
-        if (mainTab === 'workpro' && workPROLoaded) {
+        if (activeTab === 'workpro' && workPROLoaded) {
           loadWorkPROProjects();
           loadTechTimeForProjects();
         }
@@ -185,27 +182,27 @@ export default function WorkOrdersPage() {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [mainTab, workPROLoaded]);
+  }, [activeTab, workPROLoaded]);
 
   useEffect(() => {
-    if (mainTab === 'workpro' && !workPROLoaded) {
+    if (activeTab === 'workpro' && !workPROLoaded) {
       loadWorkPROProjects(true);
     }
-  }, [mainTab, workPROLoaded]);
+  }, [activeTab, workPROLoaded]);
 
   // Load appointments when WorkPRO tab is active and projects are loaded
   useEffect(() => {
-    if (mainTab === 'workpro' && workPROLoaded && workPROProjects.length > 0 && workOrders.length > 0) {
+    if (activeTab === 'workpro' && workPROLoaded && workPROProjects.length > 0 && workOrders.length > 0) {
       loadAppointmentsForProjects();
     }
-  }, [mainTab, workPROLoaded, workPROProjects, workOrders]);
+  }, [activeTab, workPROLoaded, workPROProjects, workOrders]);
 
   // Load tech time data when WorkPRO tab is active and projects are loaded
   useEffect(() => {
-    if (mainTab === 'workpro' && workPROLoaded && workPROProjects.length > 0 && !techTimeLoaded) {
+    if (activeTab === 'workpro' && workPROLoaded && workPROProjects.length > 0 && !techTimeLoaded) {
       loadTechTimeForProjects();
     }
-  }, [mainTab, workPROLoaded, workPROProjects, techTimeLoaded]);
+  }, [activeTab, workPROLoaded, workPROProjects, techTimeLoaded]);
 
   const loadCurrentUser = async () => {
     try {
@@ -846,6 +843,10 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const getWorkPROStatusCount = (status) => {
+    return workPROProjects.filter(p => p.status === status).length;
+  };
+
   const filteredWorkOrders = workOrders.filter(wo => {
     const customer = customers.find(c => c.id === wo.customer_id);
     const customerFullName = customer ? getCustomerName(customer.id) : '';
@@ -916,59 +917,34 @@ export default function WorkOrdersPage() {
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Work Orders</h1>
-            <p className="text-slate-600 mt-1">Manage service jobs and repairs</p>
+        {/* Top Search & Sort Row */}
+        <div className="flex justify-end gap-3 items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Input
+              placeholder={
+                activeTab === 'workpro' 
+                  ? "Search projects, customers, VIN..." 
+                  : "Search work orders, customers..."
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                loadData();
-                if (mainTab === 'workpro') {
-                  loadWorkPROProjects();
-                }
-              }}
-              disabled={loading || workPROLoading}
-              className="bg-white"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
-              <Button
-                variant="destructive"
-                onClick={() => setShowFlushConfirm(true)}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Flush Locks
-              </Button>
-            )}
-            <Button 
-              onClick={handleCreateCounterSale}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Counter Sale
-            </Button>
-            <Button 
-              onClick={() => setShowNewWorkPROModal(true)}
-              className="bg-gray-700 hover:bg-gray-800"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
-            <Button 
-              onClick={() => setShowNewWorkOrderModal(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Work Order
-            </Button>
-          </div>
+          <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
+              <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
+              <SelectItem value="date_newest">Date (Newest)</SelectItem>
+              <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
+              <SelectItem value="amount_highest">Amount (High)</SelectItem>
+              <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Flush Locks Confirmation Dialog */}
