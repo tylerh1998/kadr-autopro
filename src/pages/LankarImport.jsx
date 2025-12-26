@@ -4,15 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Upload, Package, Users, Car, Loader2, CheckCircle, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Upload, Package, Users, Car, Loader2, CheckCircle, AlertTriangle, RotateCcw, FileText } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { InventoryItem, TagAlong } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import LankarImportReturnModal from '@/components/inventory/LankarImportReturnModal';
+import AddLegacyInvoiceModal from '@/components/lankar/AddLegacyInvoiceModal';
 
 export default function LankarImport() {
   const [selectedType, setSelectedType] = useState('inventory');
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showLegacyInvoiceModal, setShowLegacyInvoiceModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [tagAlongs, setTagAlongs] = useState([]);
@@ -103,14 +105,24 @@ export default function LankarImport() {
             <h1 className="text-3xl font-bold text-slate-900">Lankar Import</h1>
             <p className="text-slate-600 mt-1">Import data in bulk from CSV files</p>
           </div>
-          <Button 
-            onClick={() => setShowReturnModal(true)}
-            variant="outline"
-            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Add Legacy Return
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowLegacyInvoiceModal(true)}
+              variant="outline"
+              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Add Legacy Invoice to AR
+            </Button>
+            <Button 
+              onClick={() => setShowReturnModal(true)}
+              variant="outline"
+              className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Add Legacy Return
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -120,6 +132,10 @@ export default function LankarImport() {
         onUpdate={() => {
           // Optional: handle any post-update logic if needed
         }}
+      />
+      <AddLegacyInvoiceModal
+        open={showLegacyInvoiceModal}
+        onClose={() => setShowLegacyInvoiceModal(false)}
       />
 
       <div className="space-y-6">
