@@ -146,7 +146,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         // Create blob and open in new tab
         const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        window.open(url, '_blank', 'width=1400,height=900');
       }
     } catch (error) {
       console.error('Error generating receipt:', error);
