@@ -46,7 +46,8 @@ Deno.serve(async (req) => {
           sourceId: payment.id || 'unknown',
           workOrderId: workOrder?.id || null,
           ar_pmt: payment.ar_pmt || false,
-          payment_method: payment.payment_method || ''
+          payment_method: payment.payment_method || '',
+          lankar_invoice: payment.lankar_invoice || null
         });
       });
 

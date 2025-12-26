@@ -155,6 +155,12 @@ export default function CustomerARTransactionsPage() {
 
   const handleViewInvoice = async (transaction) => {
     try {
+      // Check for legacy invoice URL first
+      if (transaction.lankar_invoice) {
+        window.open(transaction.lankar_invoice, '_blank');
+        return;
+      }
+
       let workOrder = null;
 
       // Try to get work order by ID first (most reliable)
