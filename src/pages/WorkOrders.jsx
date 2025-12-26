@@ -876,6 +876,36 @@ export default function WorkOrdersPage() {
     return `flex items-center gap-2 ${theme.inactive} data-[state=active]:${theme.active.split(' ')[0]} data-[state=active]:text-white`;
   };
 
+  const filteredWorkOrders = workOrders.filter(wo => {
+    const customer = customers.find(c => c.id === wo.customer_id);
+    const customerFullName = customer ? getCustomerName(customer.id) : '';
+
+    const matchesSearch = !searchTerm || 
+      wo.wo_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      wo.ro_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      wo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customerFullName.toLowerCase().includes(searchTerm.toLowerCase());
+      
+    return matchesSearch;
+  });
+
+  const filteredWorkPROProjects = workPROProjects.filter(project => {
+    const matchesStatus = project.status === workPROStatusFilter;
+    
+    if (!searchTerm) return matchesStatus;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      project.customer?.toLowerCase().includes(searchLower) ||
+      project.vehicle?.toLowerCase().includes(searchLower) ||
+      project.vin?.toLowerCase().includes(searchLower) ||
+      project.task?.toLowerCase().includes(searchLower) ||
+      project.description?.toLowerCase().includes(searchLower) ||
+      project.work_order?.toLowerCase().includes(searchLower);
+    
+    return matchesStatus && matchesSearch;
+  });
+
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
