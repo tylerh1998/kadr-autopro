@@ -909,34 +909,100 @@ export default function WorkOrdersPage() {
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Top Search & Sort Row */}
-        <div className="flex justify-end gap-3 items-center">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
-              placeholder={
-                activeTab === 'workpro' 
-                  ? "Search projects, customers, VIN..." 
-                  : "Search work orders, customers..."
-              }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        
+        {/* Section 1: Actions, Search, Sort */}
+        <div className="flex flex-col xl:flex-row gap-3 items-center justify-between">
+          {/* Search and Sort */}
+          <div className="flex flex-1 w-full gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Input
+                placeholder={
+                  activeTab === 'workpro' 
+                    ? "Search projects, customers, VIN..." 
+                    : "Search work orders, customers..."
+                }
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+            <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
+              <SelectTrigger className="w-auto min-w-[80px] px-4 font-medium">
+                <span>Sort</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
+                <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
+                <SelectItem value="date_newest">Date (Newest)</SelectItem>
+                <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
+                <SelectItem value="amount_highest">Amount (High)</SelectItem>
+                <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
-              <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
-              <SelectItem value="date_newest">Date (Newest)</SelectItem>
-              <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
-              <SelectItem value="amount_highest">Amount (High)</SelectItem>
-              <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
-            </SelectContent>
-          </Select>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 xl:pb-0 w-full xl:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => {
+                loadData();
+                if (activeTab === 'workpro') {
+                  loadWorkPROProjects();
+                }
+              }}
+              disabled={loading || workPROLoading}
+              className="bg-white whitespace-nowrap"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            {activeTab === 'board' && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowKanbanSettings(true)}
+                className="shrink-0 bg-white"
+                title="Kanban Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            )}
+
+            {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
+              <Button
+                variant="destructive"
+                onClick={() => setShowFlushConfirm(true)}
+                className="bg-red-600 hover:bg-red-700 whitespace-nowrap"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Flush Locks
+              </Button>
+            )}
+            <Button 
+              onClick={handleCreateCounterSale}
+              className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Counter Sale
+            </Button>
+            <Button 
+              onClick={() => setShowNewWorkPROModal(true)}
+              className="bg-gray-700 hover:bg-gray-800 whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Button>
+            <Button 
+              onClick={() => setShowNewWorkOrderModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Work Order
+            </Button>
+          </div>
         </div>
 
         {/* Flush Locks Confirmation Dialog */}
@@ -985,88 +1051,28 @@ export default function WorkOrdersPage() {
         {!showForm && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             
-            {/* Main Tabs and Actions Row */}
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto">
-                <TabsList className="grid grid-cols-5 w-full min-w-[500px] lg:w-auto">
-                  <TabsTrigger value="estimates">Estimates</TabsTrigger>
-                  <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
-                  <TabsTrigger value="invoices">Invoices</TabsTrigger>
-                  <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
-                  <TabsTrigger value="board">Kanban Board</TabsTrigger>
-                </TabsList>
-                {activeTab === 'board' && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setShowKanbanSettings(true)}
-                    className="shrink-0"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    loadData();
-                    if (activeTab === 'workpro') {
-                      loadWorkPROProjects();
-                    }
-                  }}
-                  disabled={loading || workPROLoading}
-                  className="bg-white"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-                {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowFlushConfirm(true)}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Flush Locks
-                  </Button>
-                )}
-                <Button 
-                  onClick={handleCreateCounterSale}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Counter Sale
-                </Button>
-                <Button 
-                  onClick={() => setShowNewWorkPROModal(true)}
-                  className="bg-gray-700 hover:bg-gray-800"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Project
-                </Button>
-                <Button 
-                  onClick={() => setShowNewWorkOrderModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Work Order
-                </Button>
-              </div>
+            {/* Section 2: Main Tabs */}
+            <div className="w-full">
+              <TabsList className="grid grid-cols-5 w-full">
+                <TabsTrigger value="estimates">Estimates</TabsTrigger>
+                <TabsTrigger value="work_in_progress">Work In Progress</TabsTrigger>
+                <TabsTrigger value="workpro">WorkPRO</TabsTrigger>
+                <TabsTrigger value="board">Kanban Board</TabsTrigger>
+                <TabsTrigger value="invoices">Invoices</TabsTrigger>
+              </TabsList>
             </div>
 
-            {/* Status Filters Bar - Conditional */}
+            {/* Section 3: Status Filters - Conditional */}
             {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro') && (
               <Card className="mb-6">
-                <CardContent className="p-4 overflow-x-auto">
+                <CardContent className="p-1">
                   {/* Estimates Statuses */}
                   {activeTab === 'estimates' && (
                     <Tabs value={estimateStatusFilter} onValueChange={setEstimateStatusFilter}>
-                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                      <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
                           <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
@@ -1077,7 +1083,7 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={getStatusColorClasses(status.color, false)}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
                             <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
@@ -1092,10 +1098,10 @@ export default function WorkOrdersPage() {
                   {/* WIP Statuses */}
                   {activeTab === 'work_in_progress' && (
                     <Tabs value={wipStatusFilter} onValueChange={setWipStatusFilter}>
-                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                      <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
                           <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
@@ -1106,7 +1112,7 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={getStatusColorClasses(status.color, false)}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
                             <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
@@ -1121,10 +1127,10 @@ export default function WorkOrdersPage() {
                   {/* WorkPRO Statuses */}
                   {activeTab === 'workpro' && (
                     <Tabs value={workPROStatusFilter} onValueChange={setWorkPROStatusFilter}>
-                      <TabsList className="flex w-max space-x-2 bg-transparent p-0">
+                      <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="to_do" 
-                          className="flex items-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>To Do</span>
                           <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
@@ -1133,7 +1139,7 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                         <TabsTrigger 
                           value="in_progress"
-                          className="flex items-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>In Progress</span>
                           <Badge variant="outline" className="bg-white text-blue-600 border-blue-400">
@@ -1142,7 +1148,7 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                         <TabsTrigger 
                           value="parts_needed"
-                          className="flex items-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Parts Needed</span>
                           <Badge variant="outline" className="bg-white text-red-600 border-red-400">
@@ -1151,7 +1157,7 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                         <TabsTrigger 
                           value="on_hold"
-                          className="flex items-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>On Hold</span>
                           <Badge variant="outline" className="bg-white text-orange-500 border-orange-400">
@@ -1160,7 +1166,7 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                         <TabsTrigger 
                           value="done"
-                          className="flex items-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Done</span>
                           <Badge variant="outline" className="bg-white text-green-600 border-green-400">
@@ -1169,7 +1175,7 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                         <TabsTrigger 
                           value="archived"
-                          className="flex items-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white"
+                          className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Archived</span>
                           <Badge variant="outline" className="bg-white text-gray-600 border-gray-400">
