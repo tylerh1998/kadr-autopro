@@ -347,7 +347,7 @@ export default function LineItemsTable({
             <TableCell className="w-20 p-1 align-top">
               <Input
                 type="text"
-                value={line.qty ?? ''}
+                value={line.qty === 0 ? '' : (line.qty ?? '')}
                 onChange={(e) => handleFieldChange(index, 'qty', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
@@ -361,7 +361,7 @@ export default function LineItemsTable({
             <TableCell className="w-20 p-1 align-top">
               <Input
                 type="text"
-                value={line.hrs ?? ''}
+                value={line.hrs === 0 ? '' : (line.hrs ?? '')}
                 onChange={(e) => handleFieldChange(index, 'hrs', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
