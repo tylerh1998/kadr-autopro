@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
+import { Customer, Vehicle, InventoryItem } from "@/entities/all";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ChartOfAccount } from "@/entities/all";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -33,28 +34,18 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
     
-    // Modal States
+    // Dialog States
+    const [classifyModalOpen, setClassifyModalOpen] = useState(false);
     const [classifyingItemIndex, setClassifyingItemIndex] = useState(null);
-    const [classificationType, setClassificationType] = useState('labor'); // 'labor' | 'other_charge'
-    const [selectedGL, setSelectedGL] = useState('');
+    const [classificationType, setClassificationType] = useState('labor');
+    const [selectedGlAccount, setSelectedGlAccount] = useState('');
+
+    const [costModalOpen, setCostModalOpen] = useState(false);
+    const [costItemIndex, setCostItemIndex] = useState(null);
+    const [itemCost, setItemCost] = useState('');
     
-    const [costingItemIndex, setCostingItemIndex] = useState(null);
-    const [tempCost, setTempCost] = useState('');
-
-    React.useEffect(() => {
-        if (open) {
-            loadGLAccounts();
-        }
-    }, [open]);
-
-    const loadGLAccounts = async () => {
-        try {
-            const accounts = await ChartOfAccount.list();
-            setGlAccounts(accounts.filter(a => a.is_active));
-        } catch (error) {
-            console.error("Error loading GL accounts:", error);
-        }
-    };
+    // New Parts State
+    const [newParts, setNewParts] = useState([]); // List of parts to create in inventory
 
     const handleFileChange = (e) => {
         if (e.target.files && e.target.files[0]) {
@@ -179,31 +170,16 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 if (match) setSelectedVehicle(match);
             }
 
-            // Filter out Shop Supplies
-            const filteredItems = data.line_items.filter(item => {
-                const desc = (item.description || '').toLowerCase();
-                return !desc.includes('shop supp') && !desc.includes('shop mat') && !desc.includes('enviro');
-            });
-
             // Check Line Items for Inventory Matches
-            const processedItems = await Promise.all(filteredItems.map(async (item) => {
-                // If explicitly marked as labor by LLM, keep it
-                if (item.is_labor) return item;
-
-                // If part number exists, check inventory
-                if (item.part_number) {
+            const processedItems = await Promise.all(data.line_items.map(async (item) => {
+                if (item.part_number && !item.is_labor) {
                     const existingParts = await InventoryItem.filter({ part_number: item.part_number });
                     return {
                         ...item,
                         inventory_match: existingParts.length > 0 ? existingParts[0] : null
                     };
                 }
-                
-                // If no part number and not explicitly labor, it needs classification
-                return {
-                    ...item,
-                    needs_classification: true
-                };
+                return item;
             }));
             
             setExtractedData({
