@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 import { format } from 'npm:date-fns@2.30.0';
 
 Deno.serve(async (req) => {
