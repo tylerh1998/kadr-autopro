@@ -5,14 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem } from "@/entities/all";
+import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChartOfAccount } from "@/entities/all";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -313,290 +312,290 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
 
     return (
         <>
-        <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Import Legacy Work Order</DialogTitle>
-                </DialogHeader>
+            <Dialog open={open} onOpenChange={onClose}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Import Legacy Work Order</DialogTitle>
+                    </DialogHeader>
 
-                {step === 1 && (
-                    <div className="py-8 space-y-4 text-center">
-                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 hover:bg-slate-50 transition-colors">
-                            <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                            <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 mb-2">
-                                Upload Work Order PDF
-                            </Label>
-                            <Input 
-                                id="wo-upload" 
-                                type="file" 
-                                accept=".pdf" 
-                                onChange={handleFileChange} 
-                                className="hidden" 
-                            />
-                            <Button variant="outline" onClick={() => document.getElementById('wo-upload').click()}>
-                                {file ? file.name : "Select File"}
-                            </Button>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                            <Button onClick={processFile} disabled={!file || loading}>
-                                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                {loading ? processingStatus : "Process with AI"}
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {step === 2 && extractedData && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-6">
-                            {/* Customer Selection */}
-                            <div className="space-y-2">
-                                <Label>Customer</Label>
-                                <div className="text-sm text-slate-500 mb-1">
-                                    Extracted: <span className="font-medium text-slate-900">{extractedData.customer_info?.name}</span>
-                                </div>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn("w-full justify-between", !selectedCustomer && "text-muted-foreground")}
-                                        >
-                                            {selectedCustomer ? getCustomerLabel(selectedCustomer) : "Select Customer"}
-                                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[400px] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search customer..." />
-                                            <CommandList>
-                                                <CommandEmpty>No customer found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {customers.map((c) => (
-                                                        <CommandItem
-                                                            key={c.id}
-                                                            value={getCustomerLabel(c)}
-                                                            onSelect={() => setSelectedCustomer(c)}
-                                                        >
-                                                            <Check className={cn("mr-2 h-4 w-4", selectedCustomer?.id === c.id ? "opacity-100" : "opacity-0")} />
-                                                            {getCustomerLabel(c)}
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                    {step === 1 && (
+                        <div className="py-8 space-y-4 text-center">
+                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 hover:bg-slate-50 transition-colors">
+                                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                                <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 mb-2">
+                                    Upload Work Order PDF
+                                </Label>
+                                <Input 
+                                    id="wo-upload" 
+                                    type="file" 
+                                    accept=".pdf" 
+                                    onChange={handleFileChange} 
+                                    className="hidden" 
+                                />
+                                <Button variant="outline" onClick={() => document.getElementById('wo-upload').click()}>
+                                    {file ? file.name : "Select File"}
+                                </Button>
                             </div>
-
-                            {/* Vehicle Selection */}
-                            <div className="space-y-2">
-                                <Label>Vehicle</Label>
-                                <div className="text-sm text-slate-500 mb-1">
-                                    Extracted: <span className="font-medium text-slate-900">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
-                                </div>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn("w-full justify-between", !selectedVehicle && "text-muted-foreground")}
-                                        >
-                                            {selectedVehicle ? getVehicleLabel(selectedVehicle) : "Select Vehicle"}
-                                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[400px] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search vehicle..." />
-                                            <CommandList>
-                                                <CommandEmpty>No vehicle found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {vehicles
-                                                        .filter(v => !selectedCustomer || v.customer_id === selectedCustomer.id)
-                                                        .map((v) => (
-                                                            <CommandItem
-                                                                key={v.id}
-                                                                value={getVehicleLabel(v)}
-                                                                onSelect={() => setSelectedVehicle(v)}
-                                                            >
-                                                                <Check className={cn("mr-2 h-4 w-4", selectedVehicle?.id === v.id ? "opacity-100" : "opacity-0")} />
-                                                                {getVehicleLabel(v)}
-                                                            </CommandItem>
-                                                        ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                            
+                            <div className="flex justify-end">
+                                <Button onClick={processFile} disabled={!file || loading}>
+                                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                    {loading ? processingStatus : "Process with AI"}
+                                </Button>
                             </div>
-                        </div>
-
-                        {/* Invoice Details */}
-                        <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
-                            <div>
-                                <Label className="text-xs text-slate-500">Document #</Label>
-                                <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
-                            </div>
-                            <div>
-                                <Label className="text-xs text-slate-500">Date</Label>
-                                <div className="font-medium">{extractedData.invoice_details?.invoice_date || 'N/A'}</div>
-                            </div>
-                            <div>
-                                <Label className="text-xs text-slate-500">Total Amount</Label>
-                                <div className="font-medium">${extractedData.totals?.total_amount?.toFixed(2) || '0.00'}</div>
-                            </div>
-                        </div>
-
-                        {/* Line Items */}
-                        <div className="space-y-2">
-                            <Label>Line Items</Label>
-                            <div className="border rounded-md overflow-hidden">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Desc</TableHead>
-                                            <TableHead>Part #</TableHead>
-                                            <TableHead className="w-20">Qty</TableHead>
-                                            <TableHead className="w-24">Price</TableHead>
-                                            <TableHead className="w-24">Total</TableHead>
-                                            <TableHead className="w-32">Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {extractedData.line_items.map((item, idx) => (
-                                            <TableRow key={idx}>
-                                                <TableCell className="text-sm">{item.description}</TableCell>
-                                                <TableCell className="text-sm">
-                                                    {item.part_number ? (
-                                                        <>
-                                                            {item.part_number}
-                                                            {item.inventory_match && (
-                                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                                                    Found
-                                                                </span>
-                                                            )}
-                                                        </>
-                                                    ) : (
-                                                        <span className="italic text-slate-500">
-                                                            {item.is_other_charge ? 'Other Charge' : (item.is_labor ? 'Labour' : 'Unclassified')}
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{item.quantity}</TableCell>
-                                                <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
-                                                <TableCell>${item.total_price?.toFixed(2)}</TableCell>
-                                                <TableCell>
-                                                    {item.part_number && !item.inventory_match && !item.is_labor ? (
-                                                        <div className="flex items-center space-x-2">
-                                                            <Checkbox 
-                                                                id={`new-part-${idx}`} 
-                                                                checked={item.create_new_part || false}
-                                                                onCheckedChange={(checked) => toggleNewPart(idx, checked)}
-                                                            />
-                                                            <label 
-                                                                htmlFor={`new-part-${idx}`} 
-                                                                className="text-xs cursor-pointer select-none text-blue-600 font-medium"
-                                                            >
-                                                                Add to Inv
-                                                            </label>
-                                                        </div>
-                                                    ) : !item.part_number ? (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="sm" 
-                                                            onClick={() => handleOpenClassify(idx)}
-                                                            className="text-blue-600 h-8 px-2"
-                                                        >
-                                                            Classify
-                                                        </Button>
-                                                    ) : null}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>Back</Button>
-                            <Button onClick={handleCreateWorkOrder} disabled={loading || !selectedCustomer || !selectedVehicle}>
-                                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                {loading ? processingStatus : "Create Work Order"}
-                            </Button>
-                        </DialogFooter>
-                    </div>
-                )}
-            </DialogContent>
-        </Dialog>
-
-        <Dialog open={classifyModalOpen} onOpenChange={setClassifyModalOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Classify Line Item</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <RadioGroup value={classificationType} onValueChange={setClassificationType}>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="labor" id="labor" />
-                            <Label htmlFor="labor">Labour</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="other_charge" id="other_charge" />
-                            <Label htmlFor="other_charge">Other Charge</Label>
-                        </div>
-                    </RadioGroup>
-                    
-                    {classificationType === 'other_charge' && (
-                        <div className="space-y-2">
-                            <Label>GL Account</Label>
-                            <Select value={selectedGlAccount} onValueChange={setSelectedGlAccount}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select GL Account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {glAccounts.map((account) => (
-                                        <SelectItem key={account.account_number} value={account.account_number}>
-                                            {account.account_number} - {account.account_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
                         </div>
                     )}
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setClassifyModalOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveClassification}>Save</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
 
-        <Dialog open={costModalOpen} onOpenChange={setCostModalOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Add New Part to Inventory</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="cost">Cost Each</Label>
-                        <Input 
-                            id="cost" 
-                            type="number" 
-                            value={itemCost} 
-                            onChange={(e) => setItemCost(e.target.value)} 
-                            placeholder="0.00"
-                        />
+                    {step === 2 && extractedData && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                {/* Customer Selection */}
+                                <div className="space-y-2">
+                                    <Label>Customer</Label>
+                                    <div className="text-sm text-slate-500 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900">{extractedData.customer_info?.name}</span>
+                                    </div>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className={cn("w-full justify-between", !selectedCustomer && "text-muted-foreground")}
+                                            >
+                                                {selectedCustomer ? getCustomerLabel(selectedCustomer) : "Select Customer"}
+                                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[400px] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Search customer..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No customer found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {customers.map((c) => (
+                                                            <CommandItem
+                                                                key={c.id}
+                                                                value={getCustomerLabel(c)}
+                                                                onSelect={() => setSelectedCustomer(c)}
+                                                            >
+                                                                <Check className={cn("mr-2 h-4 w-4", selectedCustomer?.id === c.id ? "opacity-100" : "opacity-0")} />
+                                                                {getCustomerLabel(c)}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                {/* Vehicle Selection */}
+                                <div className="space-y-2">
+                                    <Label>Vehicle</Label>
+                                    <div className="text-sm text-slate-500 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
+                                    </div>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className={cn("w-full justify-between", !selectedVehicle && "text-muted-foreground")}
+                                            >
+                                                {selectedVehicle ? getVehicleLabel(selectedVehicle) : "Select Vehicle"}
+                                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[400px] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Search vehicle..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No vehicle found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {vehicles
+                                                            .filter(v => !selectedCustomer || v.customer_id === selectedCustomer.id)
+                                                            .map((v) => (
+                                                                <CommandItem
+                                                                    key={v.id}
+                                                                    value={getVehicleLabel(v)}
+                                                                    onSelect={() => setSelectedVehicle(v)}
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4", selectedVehicle?.id === v.id ? "opacity-100" : "opacity-0")} />
+                                                                    {getVehicleLabel(v)}
+                                                                </CommandItem>
+                                                            ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+
+                            {/* Invoice Details */}
+                            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
+                                <div>
+                                    <Label className="text-xs text-slate-500">Document #</Label>
+                                    <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
+                                </div>
+                                <div>
+                                    <Label className="text-xs text-slate-500">Date</Label>
+                                    <div className="font-medium">{extractedData.invoice_details?.invoice_date || 'N/A'}</div>
+                                </div>
+                                <div>
+                                    <Label className="text-xs text-slate-500">Total Amount</Label>
+                                    <div className="font-medium">${extractedData.totals?.total_amount?.toFixed(2) || '0.00'}</div>
+                                </div>
+                            </div>
+
+                            {/* Line Items */}
+                            <div className="space-y-2">
+                                <Label>Line Items</Label>
+                                <div className="border rounded-md overflow-hidden">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Desc</TableHead>
+                                                <TableHead>Part #</TableHead>
+                                                <TableHead className="w-20">Qty</TableHead>
+                                                <TableHead className="w-24">Price</TableHead>
+                                                <TableHead className="w-24">Total</TableHead>
+                                                <TableHead className="w-32">Action</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {extractedData.line_items.map((item, idx) => (
+                                                <TableRow key={idx}>
+                                                    <TableCell className="text-sm">{item.description}</TableCell>
+                                                    <TableCell className="text-sm">
+                                                        {item.part_number ? (
+                                                            <>
+                                                                {item.part_number}
+                                                                {item.inventory_match && (
+                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                        Found
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="italic text-slate-500">
+                                                                {item.is_other_charge ? 'Other Charge' : (item.is_labor ? 'Labour' : 'Unclassified')}
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{item.quantity}</TableCell>
+                                                    <TableCell>${item.unit_price?.toFixed(2)}</TableCell>
+                                                    <TableCell>${item.total_price?.toFixed(2)}</TableCell>
+                                                    <TableCell>
+                                                        {item.part_number && !item.inventory_match && !item.is_labor ? (
+                                                            <div className="flex items-center space-x-2">
+                                                                <Checkbox 
+                                                                    id={`new-part-${idx}`} 
+                                                                    checked={item.create_new_part || false}
+                                                                    onCheckedChange={(checked) => toggleNewPart(idx, checked)}
+                                                                />
+                                                                <label 
+                                                                    htmlFor={`new-part-${idx}`} 
+                                                                    className="text-xs cursor-pointer select-none text-blue-600 font-medium"
+                                                                >
+                                                                    Add to Inv
+                                                                </label>
+                                                            </div>
+                                                        ) : !item.part_number ? (
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="sm" 
+                                                                onClick={() => handleOpenClassify(idx)}
+                                                                className="text-blue-600 h-8 px-2"
+                                                            >
+                                                                Classify
+                                                            </Button>
+                                                        ) : null}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>Back</Button>
+                                <Button onClick={handleCreateWorkOrder} disabled={loading || !selectedCustomer || !selectedVehicle}>
+                                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                    {loading ? processingStatus : "Create Work Order"}
+                                </Button>
+                            </DialogFooter>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={classifyModalOpen} onOpenChange={setClassifyModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Classify Line Item</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <RadioGroup value={classificationType} onValueChange={setClassificationType}>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="labor" id="labor" />
+                                <Label htmlFor="labor">Labour</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="other_charge" id="other_charge" />
+                                <Label htmlFor="other_charge">Other Charge</Label>
+                            </div>
+                        </RadioGroup>
+                        
+                        {classificationType === 'other_charge' && (
+                            <div className="space-y-2">
+                                <Label>GL Account</Label>
+                                <Select value={selectedGlAccount} onValueChange={setSelectedGlAccount}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select GL Account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {glAccounts.map((account) => (
+                                            <SelectItem key={account.account_number} value={account.account_number}>
+                                                {account.account_number} - {account.account_name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                     </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setCostModalOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSaveCost}>Save</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setClassifyModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveClassification}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={costModalOpen} onOpenChange={setCostModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Add New Part to Inventory</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="cost">Cost Each</Label>
+                            <Input 
+                                id="cost" 
+                                type="number" 
+                                value={itemCost} 
+                                onChange={(e) => setItemCost(e.target.value)} 
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCostModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveCost}>Save</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
