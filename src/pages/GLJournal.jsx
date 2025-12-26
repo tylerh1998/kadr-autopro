@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { BookOpen, Calendar, Printer, Search } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function GLJournalPage() {
   const [transactions, setTransactions] = useState([]);
@@ -19,8 +20,8 @@ export default function GLJournalPage() {
   const urlEndDate = urlParams.get('endDate');
 
   // Determine initial dates from URL or defaults
-  const initialStartDate = urlStartDate || format(subDays(new Date(), 30), 'yyyy-MM-dd');
-  const initialEndDate = urlEndDate || format(new Date(), 'yyyy-MM-dd');
+  const initialStartDate = urlStartDate || format(subDays(getMountainTimeNow(), 30), 'yyyy-MM-dd');
+  const initialEndDate = urlEndDate || format(getMountainTimeNow(), 'yyyy-MM-dd');
   
   // Date range input state (not applied yet)
   const [daysBack, setDaysBack] = useState(30);
@@ -324,7 +325,7 @@ export default function GLJournalPage() {
             <strong>Date Range:</strong> {formatTransactionDate(appliedStartDate)} to {formatTransactionDate(appliedEndDate)}
           </div>
           <div className="info-line">
-            <strong>Report Date:</strong> {format(new Date(), 'MMMM d, yyyy h:mm a')}
+            <strong>Report Date:</strong> {format(getMountainTimeNow(), 'MMMM d, yyyy h:mm a')}
           </div>
         </div>
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { format } from 'date-fns';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
@@ -775,7 +777,7 @@ export default function WorkOrderForm({
           const offsettingSILData = {
             supplier_id: originalSIL.supplier_id,
             invoice_number: originalSIL.invoice_number,
-            invoice_date: new Date().toISOString().split('T')[0],
+            invoice_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
             description: `REVERSAL: ${originalSIL.description}`,
             purchase_amount: -1 * (parseFloat(originalSIL.purchase_amount) || 0),
             gst_amount: -1 * (parseFloat(originalSIL.gst_amount) || 0),
