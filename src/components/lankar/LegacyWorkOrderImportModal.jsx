@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem } from "@/entities/all";
+import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
