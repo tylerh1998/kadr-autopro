@@ -3,10 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Customer } from "@/entities/Customer";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Upload, FileText } from "lucide-react";
+import { Loader2, Upload, FileText, Check, ChevronsUpDown } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
 import { format } from "date-fns";
 
 export default function AddLegacyInvoiceModal({ open, onClose }) {
@@ -106,24 +113,58 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
                 </DialogHeader>
                 
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col">
                         <Label htmlFor="customer">Customer</Label>
-                        <Select 
-                            value={formData.customer_id} 
-                            onValueChange={(val) => setFormData({...formData, customer_id: val})}
-                            disabled={loading}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder={loading ? "Loading customers..." : "Select Customer"} />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px]">
-                                {customers.map(c => (
-                                    <SelectItem key={c.id} value={c.id}>
-                                        {getCustomerName(c)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    disabled={loading}
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !formData.customer_id && "text-muted-foreground"
+                                    )}
+                                >
+                                    {formData.customer_id
+                                        ? getCustomerName(customers.find((c) => c.id === formData.customer_id) || {})
+                                        : (loading ? "Loading customers..." : "Select customer...")}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[450px] p-0" align="start">
+                                <Command filter={(value, search) => {
+                                    if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+                                    return 0;
+                                }}>
+                                    <CommandInput placeholder="Search customer..." />
+                                    <CommandList>
+                                        <CommandEmpty>No customer found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {customers.map((customer) => (
+                                                <CommandItem
+                                                    value={getCustomerName(customer)}
+                                                    key={customer.id}
+                                                    onSelect={() => {
+                                                        setFormData({...formData, customer_id: customer.id});
+                                                    }}
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            customer.id === formData.customer_id
+                                                                ? "opacity-100"
+                                                                : "opacity-0"
+                                                        )}
+                                                    />
+                                                    {getCustomerName(customer)}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
