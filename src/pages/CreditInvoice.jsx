@@ -65,7 +65,9 @@ export default function CreditInvoicePage() {
             is_core_virtual: true,
             description: `CORE - ${line.description}`,
             qty: outstanding,
-            parts_ea: line.core_cost || 0,
+            parts_ea: (line.core_osamt || 0) / outstanding, // Sell Price Per Unit
+            cost_ea: line.core_cost || 0, // Cost Price Per Unit (for GL)
+            core_cost: line.core_cost || 0, // Preserve core_cost explicitly
             tot_parts: line.core_osamt || 0,
             total: line.core_osamt || 0,
             labour: 0,
@@ -396,7 +398,7 @@ export default function CreditInvoicePage() {
 
         await base44.entities.CustomerPayments.create({
           customer_id: workOrder.customer_id,
-          work_order_id: workOrder.id,
+          work_order_id: createdCreditInvoice.id,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: -Math.abs(creditTotalAmount),
           payment_method: paymentMethod,
