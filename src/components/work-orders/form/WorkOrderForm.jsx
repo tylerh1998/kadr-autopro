@@ -70,6 +70,7 @@ export default function WorkOrderForm({
   onOpenOdometerPrompt,
   onOpenApprovals,
   mode = 'work_order', // Add mode prop with default
+  shopSupplyRate = 0.07,
 }) {
   const [editedWorkOrder, setEditedWorkOrder] = useState(initialWorkOrder);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -1041,7 +1042,7 @@ export default function WorkOrderForm({
         mode={mode} // Pass mode to LineItemsTable
       />
 
-      <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} />
+      <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} shopSupplyRate={shopSupplyRate} />
       
       {/* Modal Components */}
       <GetPartModal

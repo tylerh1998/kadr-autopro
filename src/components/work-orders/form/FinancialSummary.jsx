@@ -9,7 +9,7 @@ const FinancialItem = ({ label, value, className = '' }) => (
   </div>
 );
 
-export default function FinancialSummary({ lineItems = [], workOrder = {} }) {
+export default function FinancialSummary({ lineItems = [], workOrder = {}, shopSupplyRate = 0.07 }) {
   // Calculate charge totals from line items with new GST logic
   const { partsTotal, laborTotal, otherChargesTotal, shopSupplyTotal, taxAmount, grandTotal } = useMemo(() => {
     // Step 1: Calculate Parts Total, Labor Total, and Other Charges Total separately
@@ -30,8 +30,8 @@ export default function FinancialSummary({ lineItems = [], workOrder = {} }) {
     // Step 2: Calculate Grand Total Before Tax
     const grandTotalBeforeTax = parts + labor + otherCharges;
 
-    // Step 3: Calculate Shop Supply Total (7% of ALL labor)
-    const shopSupplies = labor * 0.07;
+    // Step 3: Calculate Shop Supply Total (using passed rate)
+    const shopSupplies = labor * shopSupplyRate;
 
     // Step 4: Calculate Taxable Base for GST
     let totalTaxableBase = 0;
@@ -64,7 +64,7 @@ export default function FinancialSummary({ lineItems = [], workOrder = {} }) {
     }, 0);
 
     // Add taxable shop supplies to the taxable base
-    const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+    const taxableShopSupplies = taxableLaborForShopSupply * shopSupplyRate;
     totalTaxableBase += taxableShopSupplies;
 
     // Step 5: Calculate GST (5% of Total Taxable Base)

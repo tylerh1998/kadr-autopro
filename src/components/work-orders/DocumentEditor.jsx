@@ -280,6 +280,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
+          setSystemSettings(prev => ({
+            ...prev,
+            shop_supply_rate: settings[0].shop_supply_rate !== undefined ? settings[0].shop_supply_rate / 100 : 0.07,
+            default_taxable: settings[0].default_taxable !== undefined ? settings[0].default_taxable : true,
+            tax_rate: settings[0].tax_rate !== undefined ? settings[0].tax_rate : 0.05,
+          }));
         }
       } catch (error) {
         console.error('Error loading system settings:', error);
@@ -1701,6 +1707,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               onOpenOdometerPrompt={handleOpenOdometerPrompt}
               onOpenApprovals={() => openModal('approvals')}
               mode={mode} // Pass mode to WorkOrderForm
+              shopSupplyRate={systemSettings.shop_supply_rate}
             />
           )}
         </div>
