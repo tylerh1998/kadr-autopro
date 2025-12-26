@@ -200,19 +200,9 @@ function WorkOrderList({
                       </div>
 
                       {vehicle && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1">
                             <Car className="w-4 h-4" />
                             <span>{vehicle.year} {vehicle.make} {vehicle.model}</span>
-                          </div>
-                          {stageDate && stageDate.date && (() => {
-                            const parsedDate = parseLocalDate(stageDate.date);
-                            return parsedDate && !isNaN(parsedDate.getTime()) && (
-                              <span className="text-slate-400">
-                                • {stageDate.label}: {format(parsedDate, 'MMM d, yyyy')}
-                              </span>
-                            );
-                          })()}
                         </div>
                       )}
 
@@ -222,6 +212,16 @@ function WorkOrderList({
                           <span>{contactPerson}</span>
                         </div>
                       )}
+
+                      {stageDate && stageDate.date && (() => {
+                        const parsedDate = parseLocalDate(stageDate.date);
+                        return parsedDate && !isNaN(parsedDate.getTime()) && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{stageDate.label}: {format(parsedDate, 'MMM d, yyyy')}</span>
+                          </div>
+                        );
+                      })()}
                       
                       {workOrder.scheduled_date && (() => {
                         const parsedDate = parseLocalDate(workOrder.scheduled_date);
