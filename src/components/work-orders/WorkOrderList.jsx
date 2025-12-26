@@ -146,6 +146,10 @@ function WorkOrderList({
           
           const isLocked = workOrder.LockedByUser && workOrder.LockedByUser.trim() !== '';
           const stageDate = getStageDate(workOrder);
+
+          const contactPerson = (customer && customer.org_name && (customer.first_name || customer.last_name)) 
+            ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() 
+            : null;
           
           return (
             <Card 
@@ -209,6 +213,13 @@ function WorkOrderList({
                               </span>
                             );
                           })()}
+                        </div>
+                      )}
+
+                      {contactPerson && (
+                        <div className="flex items-center gap-1">
+                          <User className="w-4 h-4" />
+                          <span>{contactPerson}</span>
                         </div>
                       )}
                       

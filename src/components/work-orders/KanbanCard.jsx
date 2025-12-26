@@ -1,7 +1,7 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { Card } from "@/components/ui/card";
-import { FileText, Car, Calendar } from "lucide-react";
+import { FileText, Car, Calendar, User } from "lucide-react";
 import { format } from "date-fns";
 
 export default function KanbanCard({ wo, index, customers, vehicles, handleEdit, kanbanColumnSizes }) {
@@ -20,6 +20,10 @@ export default function KanbanCard({ wo, index, customers, vehicles, handleEdit,
   const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
   const relevantDate = wo.stage === 'estimate' ? wo.est_date : wo.wo_date;
   const cardFields = kanbanColumnSizes.cardFields || {};
+
+  const contactPerson = (customer && customer.org_name && (customer.first_name || customer.last_name)) 
+    ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() 
+    : null;
 
   return (
     <Draggable draggableId={String(wo.id)} index={index}>
@@ -63,6 +67,12 @@ export default function KanbanCard({ wo, index, customers, vehicles, handleEdit,
                 <p className="text-xs text-slate-500 flex items-center gap-1">
                     <Car className="w-3 h-3" />
                     {vehicle.year} {vehicle.make} {vehicle.model}
+                </p>
+                )}
+                {contactPerson && (
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {contactPerson}
                 </p>
                 )}
                 {(cardFields.showDate !== false) && relevantDate && !isNaN(new Date(relevantDate).getTime()) && (
