@@ -179,16 +179,42 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 if (match) setSelectedVehicle(match);
             }
 
-            // Check Line Items for Inventory Matches
+            // Clean and Check Line Items for Inventory Matches
             const processedItems = await Promise.all(data.line_items.map(async (item) => {
-                if (item.part_number && !item.is_labor) {
-                    const existingParts = await InventoryItem.filter({ part_number: item.part_number });
+                // Clean up "null" strings or "N/A" that might come from LLM
+                let cleanPartNumber = item.part_number;
+                if (cleanPartNumber === 'null' || cleanPartNumber === 'N/A' || cleanPartNumber === '') {
+                    cleanPartNumber = null;
+                }
+
+                // If we have a part number, try to match it
+                if (cleanPartNumber && !item.is_labor) {
+                    // Try exact match first
+                    let existingParts = await InventoryItem.filter({ part_number: cleanPartNumber });
+                    
+                    // If no match, try swapping 'O' and '0' as a fallback
+                    if (existingParts.length === 0 && (cleanPartNumber.includes('O') || cleanPartNumber.includes('0'))) {
+                        const swappedPartNumber = cleanPartNumber.replace(/O/g, '0'); // Try replacing O with 0 first (most common error)
+                        if (swappedPartNumber !== cleanPartNumber) {
+                             const swappedMatch = await InventoryItem.filter({ part_number: swappedPartNumber });
+                             if (swappedMatch.length > 0) {
+                                 existingParts = swappedMatch;
+                                 cleanPartNumber = swappedPartNumber; // Update to the matched one
+                             }
+                        }
+                    }
+
                     return {
                         ...item,
+                        part_number: cleanPartNumber,
                         inventory_match: existingParts.length > 0 ? existingParts[0] : null
                     };
                 }
-                return item;
+                
+                return {
+                    ...item,
+                    part_number: cleanPartNumber
+                };
             }));
             
             // Filter out Shop Supplies

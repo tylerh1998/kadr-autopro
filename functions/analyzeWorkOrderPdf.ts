@@ -109,6 +109,8 @@ Deno.serve(async (req) => {
             - Extract vehicle VIN, Year, Make, Model (infer from text if needed).
             - Extract line items. For each item, decide if it's labor or part.
             - If it's a part, try to find the part number.
+            - CRITICAL: Distinguish carefully between digit '0' and letter 'O' in part numbers. Part numbers usually prioritize digits '0'.
+            - CRITICAL: If a part number is not found or is empty, set it to null (the value), DO NOT return the string "null" or "N/A".
             - Ensure totals match the sum of line items if possible, but prioritize extracted totals.
             - Return JSON matching the schema.`,
             response_json_schema: jsonSchema
