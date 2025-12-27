@@ -126,6 +126,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                     },
                     line_items: {
                         type: "array",
+                        description: "Extract ALL rows from the table, including parts, labor, AND descriptive comment lines (lines starting with - or containing notes but no price). For comment lines, quantity and price can be 0 or null.",
                         items: {
                             type: "object",
                             properties: {
@@ -135,9 +136,10 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 unit_price: { type: "number" },
                                 total_price: { type: "number" },
                                 is_labor: { type: "boolean" },
-                                is_taxable: { type: "boolean" }
+                                is_taxable: { type: "boolean" },
+                                is_note: { type: "boolean", description: "True if this is just a comment/note line without a price" }
                             },
-                            required: ["description", "quantity", "total_price"]
+                            required: ["description"]
                         }
                     },
                     totals: {
@@ -223,7 +225,10 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 
                 return {
                     ...item,
-                    part_number: cleanPartNumber
+                    part_number: cleanPartNumber,
+                    quantity: item.quantity || 0,
+                    unit_price: item.unit_price || 0,
+                    total_price: item.total_price || 0
                 };
             }));
             
