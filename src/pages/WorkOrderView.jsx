@@ -14,6 +14,7 @@ import { useShopData } from '../components/hooks/useInventory';
 // Import view-only form and report
 import WorkOrderViewForm from '../components/work-orders/WorkOrderViewForm';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
+import WorkOrderPdfModal from '../components/work-orders/WorkOrderPdfModal';
 import WorkPROViewModal from '../components/work-orders/WorkPROViewModal';
 import WarrantyReturnModal from '../components/work-orders/WarrantyReturnModal';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
@@ -53,7 +54,8 @@ export default function WorkOrderViewPage() {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedLineForWarranty, setSelectedLineForWarranty] = useState(null);
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false); // Kept for fallback or legacy logic if needed
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
   const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
@@ -91,13 +93,21 @@ export default function WorkOrderViewPage() {
   }, []);
 
   const handlePrint = () => {
-    setIsPrinting(true);
-    // Small delay to let the state update and show the print view
-    setTimeout(() => {
-      window.print();
-      setIsPrinting(false);
-    }, 100);
+    setShowPdfModal(true);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+        event.preventDefault();
+        setShowPdfModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const handleExit = () => {
     window.close();
@@ -399,6 +409,16 @@ export default function WorkOrderViewPage() {
         workOrder={workOrder}
         viewOnly={true}
         totalOwing={workOrder?.total_amount || 0}
+      />
+
+      {/* PDF Generation Modal */}
+      <WorkOrderPdfModal
+        open={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        workOrder={workOrder}
+        customer={customer}
+        vehicle={vehicle}
+        lineItems={lineItems}
       />
     </>
   );
