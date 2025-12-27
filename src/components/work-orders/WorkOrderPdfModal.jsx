@@ -23,7 +23,7 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
             setLoading(true);
             setError(null);
             try {
-                // Call backend function
+                // Call backend function using SDK - expecting JSON response with Data URI
                 const response = await base44.functions.invoke('generateWorkOrderPdf', {
                     workOrder,
                     customer,
@@ -31,65 +31,24 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                     lineItems
                 });
 
-                // The SDK invoke returns an Axios response-like object
-                // But for binary responses, we might need to handle it differently depending on SDK version
-                // base44.functions.invoke usually expects JSON response.
-                // However, we are returning a PDF blob.
-                // The current SDK might try to parse JSON. 
-                // Let's rely on fetch directly if SDK doesn't support blob response easily,
-                // OR use the raw response from SDK if available.
+                const { pdfDataUri } = response.data;
                 
-                // Workaround: SDK's invoke parses JSON by default. 
-                // We'll use a direct fetch to the function URL for binary data.
-                // But we need auth headers.
-                
-                // Let's try standard fetch since we need the blob
-                const functionUrl = `https://app.base44.com/api/apps/${window.base44_app_id || '68b3caadfc9d9a1ea34d2018'}/functions/generateWorkOrderPdf`;
-                
-                // Get token - relying on implicit cookie or token if available.
-                // Since we are in the app, cookies usually work for function calls.
-                // Let's try simply fetching.
-                
-                // Note: base44.functions.invoke might not support blob return types easily.
-                // Let's use the native fetch with credentials.
-                
-                // Better approach: SDK might allow us to get the URL or just use fetch with headers.
-                // We'll try to use the SDK invoke and hope it handles non-JSON if content-type is pdf,
-                // OR we use the raw fetch.
-                
-                // Actually, let's use the provided 'invoke' but we need to handle the blob.
-                // If 'invoke' fails to parse JSON, it might throw.
-                
-                // Alternative: Use `base44.client` (axios instance) if available?
-                
-                // Let's use standard fetch for now, assuming standard auth cookies/headers are handled by browser
-                // or we can't easily get the token.
-                // Wait, `base44.functions.invoke` sends a POST with JSON body.
-                
-                // Let's use a workaround:
-                // We will use standard fetch but we need to pass the body.
-                
-                const fetchResponse = await fetch('/api/functions/generateWorkOrderPdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        workOrder,
-                        customer,
-                        vehicle,
-                        lineItems
-                    })
-                });
-
-                if (!fetchResponse.ok) {
-                    const errText = await fetchResponse.text();
-                    throw new Error(errText || 'Failed to generate PDF');
+                if (!pdfDataUri) {
+                    throw new Error("No PDF data received from server");
                 }
 
-                const blob = await fetchResponse.blob();
-                const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                createdUrl = URL.createObjectURL(pdfBlob);
+                // Convert Data URI to Blob for better handling (and to avoid large string in memory if possible)
+                // Data URI format: data:application/pdf;filename=generated.pdf;base64,.....
+                const byteString = atob(pdfDataUri.split(',')[1]);
+                const mimeString = pdfDataUri.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeString });
+                
+                createdUrl = URL.createObjectURL(blob);
 
                 if (active) {
                     setBlobUrl(createdUrl);
@@ -99,8 +58,7 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
 
             } catch (err) {
                 console.error("Error generating PDF:", err);
-                // Fallback attempt: maybe the URL path is different
-                if (active) setError(`Could not generate PDF: ${err.message}`);
+                if (active) setError(`Could not generate PDF: ${err.message || 'Unknown error'}`);
             } finally {
                 if (active) setLoading(false);
             }

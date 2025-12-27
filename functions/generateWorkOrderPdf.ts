@@ -613,14 +613,12 @@ Deno.serve(async (req) => {
             doc.text(pageText, (pageWidth - pageTextWidth) / 2, pageHeight - 10);
         }
 
-        const pdfArrayBuffer = doc.output('arraybuffer');
+        // Return as base64 JSON to avoid binary handling issues with SDK
+        const pdfDataUri = doc.output('datauristring');
 
-        return new Response(pdfArrayBuffer, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="WorkOrder_${workOrder.wo_number || 'document'}.pdf"`,
-            }
+        return Response.json({ 
+            pdfDataUri,
+            filename: `WorkOrder_${workOrder.wo_number || 'document'}.pdf`
         });
 
     } catch (error) {
