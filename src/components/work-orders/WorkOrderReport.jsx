@@ -201,7 +201,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
 
       {/* Notes to Customer - Only prints if user added something */}
       {workOrder.notes_to_customer && (
-        <div className="mb-3">
+        <div className="mb-3 break-inside-avoid">
           <h3 className="font-bold mb-1 text-sm">Notes to Customer</h3>
           <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
             {workOrder.notes_to_customer}
@@ -211,7 +211,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
 
       {/* Default Message - Always prints, no header */}
       {defaultMessage && (
-        <div className="mb-3">
+        <div className="mb-3 break-inside-avoid">
           <div className="border border-slate-300 p-2 text-xs whitespace-pre-wrap">
             {defaultMessage}
           </div>
@@ -219,7 +219,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
       )}
 
       {/* Terms of Service and Financial Summary */}
-      <div className="grid grid-cols-2 gap-4 mb-3">
+      <div className="grid grid-cols-2 gap-4 mb-3 break-inside-avoid">
         {/* Terms of Service - Left Column */}
         <div className="border border-slate-300 p-2">
           <h3 className="font-bold mb-1 text-xs">Terms of Service</h3>
@@ -304,8 +304,13 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-3 border-t border-slate-300 text-center text-xs text-slate-600">
-        <p>Thank you for your business!</p>
+      <div className="mt-4 pt-3 border-t border-slate-300 text-center text-xs text-slate-600 break-inside-avoid">
+        <p className="font-bold mb-1">Thank you for your business!</p>
+      </div>
+      
+      {/* Print-only fixed footer for pagination (Browser dependent) */}
+      <div className="fixed bottom-0 left-0 w-full text-center text-[10px] font-bold hidden print:block">
+        {/* Note: Standard browsers handle "Page x of y" in their own print headers/footers settings */}
       </div>
     </div>
   );
