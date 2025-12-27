@@ -422,10 +422,18 @@ export default function InventoryReturnsPage() {
                                     </Tooltip></TooltipProvider>
                                   </td>
                                   <td className="p-3"><span className="font-semibold text-slate-900">${(returnItem.total_cost || 0).toFixed(2)}</span></td>
-                                  <td className="p-3"><span className="text-slate-600">{returnItem.return_date ? format(new Date(returnItem.return_date + 'T12:00:00'), 'MMM d, yyyy') : 'N/A'}</span></td>
+                                  <td className="p-3"><span className="text-slate-600">{returnItem.return_date ? (() => {
+                                    const d = new Date(returnItem.return_date + 'T12:00:00');
+                                    return !isNaN(d.getTime()) ? format(d, 'MMM d, yyyy') : returnItem.return_date;
+                                  })() : 'N/A'}</span></td>
                                   <td className="p-3"><span className="text-slate-600">{returnItem.sent_back && returnItem.sent_back !== 'N/A' ? (() => {
-                                    const [year, month, day] = returnItem.sent_back.split('-').map(Number);
-                                    return format(new Date(year, month - 1, day), 'MMM d, yyyy');
+                                    const parts = returnItem.sent_back.split('-');
+                                    if (parts.length === 3) {
+                                      const [year, month, day] = parts.map(Number);
+                                      const d = new Date(year, month - 1, day);
+                                      if (!isNaN(d.getTime())) return format(d, 'MMM d, yyyy');
+                                    }
+                                    return returnItem.sent_back;
                                   })() : 'N/A'}</span></td>
                                   <td className="p-3">
                                     <TooltipProvider><Tooltip>
@@ -436,7 +444,12 @@ export default function InventoryReturnsPage() {
                                           className={`cursor-pointer ${returnItem.status === 'Returned' ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-yellow-800 bg-yellow-100 border-yellow-200'}`}
                                         >{returnItem.status}</Badge>
                                       </TooltipTrigger>
-                                      {returnItem.status === 'Returned' && returnItem.date_returned && (<TooltipContent>Returned on: {format(toMountainTime(returnItem.date_returned), "MMM d, yyyy, h:mm a")}</TooltipContent>)}
+                                      {returnItem.status === 'Returned' && returnItem.date_returned && (<TooltipContent>Returned on: {(() => {
+                                        try {
+                                          const d = toMountainTime(returnItem.date_returned);
+                                          return !isNaN(d.getTime()) ? format(d, "MMM d, yyyy, h:mm a") : '';
+                                        } catch (e) { return ''; }
+                                      })()}</TooltipContent>)}
                                     </Tooltip></TooltipProvider>
                                   </td>
                                 </tr>
