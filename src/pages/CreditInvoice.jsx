@@ -590,7 +590,16 @@ export default function CreditInvoicePage() {
                     <CardContent>
                       {customer ? (
                         <div className="space-y-2">
-                          <p className="font-semibold text-lg">{customer.first_name} {customer.last_name}</p>
+                          {customer.org_name ? (
+                            <>
+                              <p className="font-semibold text-lg">{customer.org_name}</p>
+                              {(customer.first_name || customer.last_name) && (
+                                <p className="text-sm text-slate-600">Contact: {customer.first_name} {customer.last_name}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="font-semibold text-lg">{customer.first_name} {customer.last_name}</p>
+                          )}
                           <div className="text-sm text-slate-600 space-y-1">
                             <p className="flex items-center gap-2">
                               <Phone className="w-4 h-4" />
