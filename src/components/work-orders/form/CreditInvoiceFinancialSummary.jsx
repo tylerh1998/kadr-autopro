@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign } from 'lucide-react';
 
-export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines }) {
+export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines, shopSupplyRate = 0.07 }) {
   // Only calculate totals for selected lines
   const selectedLineItems = lineItems.filter((_, index) => selectedLines[index]);
 
@@ -21,7 +21,7 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
     return sum + (parseFloat(item.oc_total) || 0);
   }, 0);
   
-  const shopSupplyTotal = laborTotal * 0.07;
+  const shopSupplyTotal = laborTotal * shopSupplyRate;
   
   const subtotal = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal;
 
@@ -86,7 +86,7 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
 
           {/* Shop Supplies */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">Shop Supplies (7%)</p>
+            <p className="text-sm text-slate-600">Shop Supplies ({(shopSupplyRate * 100).toFixed(0)}%)</p>
             <p className="text-2xl font-bold text-slate-900">
               ${shopSupplyTotal.toFixed(2)}
             </p>

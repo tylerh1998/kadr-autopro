@@ -12,7 +12,7 @@ const FinancialItem = ({ label, value, className = '', onClick }) => (
   </div>
 );
 
-export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrder = {}, onPaymentsClick }) {
+export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrder = {}, onPaymentsClick, shopSupplyRate = 0.07 }) {
   // Calculate charge totals from line items with GST logic
   const { partsTotal, laborTotal, otherChargesTotal, shopSupplyTotal, taxAmount, grandTotal } = useMemo(() => {
     const parts = lineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
@@ -20,7 +20,7 @@ export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrde
     const otherCharges = lineItems.reduce((sum, item) => sum + (parseFloat(item.oc_total) || 0), 0);
     
     const grandTotalBeforeTax = parts + labor + otherCharges;
-    const shopSupplies = labor * 0.07;
+    const shopSupplies = labor * shopSupplyRate;
 
     let totalTaxableBase = 0;
     lineItems.forEach(item => {
@@ -36,7 +36,7 @@ export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrde
       return sum;
     }, 0);
 
-    const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+    const taxableShopSupplies = taxableLaborForShopSupply * shopSupplyRate;
     totalTaxableBase += taxableShopSupplies;
 
     const tax = totalTaxableBase * 0.05;

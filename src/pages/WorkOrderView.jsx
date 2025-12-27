@@ -56,6 +56,7 @@ export default function WorkOrderViewPage() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
+  const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -78,6 +79,9 @@ export default function WorkOrderViewPage() {
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
+          if (settings[0].shop_supply_rate !== undefined) {
+            setShopSupplyRate(settings[0].shop_supply_rate / 100);
+          }
         }
       } catch (error) {
         console.error('Error loading system settings:', error);
@@ -325,6 +329,7 @@ export default function WorkOrderViewPage() {
                 upcomingAppointment={upcomingAppointment}
                 onPaymentsClick={() => setShowPaymentModal(true)}
                 onReturnForWarranty={handleReturnForWarranty}
+                shopSupplyRate={shopSupplyRate}
               />
             </div>
           </div>

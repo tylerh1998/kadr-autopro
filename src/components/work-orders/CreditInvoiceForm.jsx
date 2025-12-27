@@ -11,7 +11,8 @@ export default function CreditInvoiceForm({
   lineItems,
   tagAlongs,
   selectedLines,
-  onToggleLine
+  onToggleLine,
+  shopSupplyRate = 0.07
 }) {
   return (
     <div className="space-y-6">
@@ -27,6 +28,7 @@ export default function CreditInvoiceForm({
         lineItems={lineItems}
         selectedLines={selectedLines}
         workOrder={workOrder}
+        shopSupplyRate={shopSupplyRate}
       />
     </div>
   );

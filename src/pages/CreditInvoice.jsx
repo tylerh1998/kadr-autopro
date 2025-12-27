@@ -44,6 +44,7 @@ export default function CreditInvoicePage() {
   const [processing, setProcessing] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
+  const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
 
   // Parse date string as local date (no timezone conversion)
   const parseLocalDate = (dateStr) => {
@@ -116,6 +117,9 @@ export default function CreditInvoicePage() {
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
+          if (settings[0].shop_supply_rate !== undefined) {
+            setShopSupplyRate(settings[0].shop_supply_rate / 100);
+          }
         }
       } catch (error) {
         console.error('Error loading system settings:', error);
@@ -171,7 +175,7 @@ export default function CreditInvoicePage() {
         return sum + (parseFloat(item.oc_total) || 0);
       }, 0);
       
-      const shopSupplyTotal = laborTotal * 0.07;
+      const shopSupplyTotal = laborTotal * shopSupplyRate;
       
       // Calculate tax
       const taxableAmount = selectedLineItems.reduce((sum, item) => {
@@ -662,6 +666,7 @@ export default function CreditInvoicePage() {
                   tagAlongs={tagAlongs}
                   selectedLines={selectedLines}
                   onToggleLine={handleToggleLine}
+                  shopSupplyRate={shopSupplyRate}
                 />
               </>
             )}
