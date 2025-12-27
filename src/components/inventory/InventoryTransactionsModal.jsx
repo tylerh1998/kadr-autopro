@@ -50,24 +50,24 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
       const [invoiceLines, suppliersData, inventoryTxsData] = await Promise.all([
         SupplierInvoiceLine.filter({ inventory_item_id: inventoryItemId }, '-invoice_date'),
         Supplier.list(),
-        InventoryTxs.filter({ inventory_item_id: inventoryItemId, tx_type: 'Received' })
+        InventoryTxs.filter({ inventory_item_id: inventoryItemId })
       ]);
 
-      // Create a map of InventoryTxs by source_record_id for quick lookup
+      // Create a map of InventoryTxs by source_record_id for quick lookup (summing quantities)
       const txsMap = {};
       inventoryTxsData.forEach(tx => {
         if (tx.source_record_id) {
-          txsMap[tx.source_record_id] = tx;
+          txsMap[tx.source_record_id] = (txsMap[tx.source_record_id] || 0) + (tx.quantity_change || 0);
         }
       });
 
       // Augment invoice lines with quantity data from InventoryTxs
       const augmentedTransactions = invoiceLines.map(line => {
-        const correspondingTx = txsMap[line.id];
+        const txQuantity = txsMap[line.id];
         let quantity = 1; // Default fallback
         
-        if (correspondingTx) {
-          quantity = Math.abs(correspondingTx.quantity_change || 0);
+        if (txQuantity !== undefined) {
+          quantity = Math.abs(txQuantity);
         } else if (line.description) {
           // Try to parse quantity from description pattern: "AddPart/x[qty]/[part_number]"
           const qtyMatch = line.description.match(/x(\d+(?:\.\d+)?)\//);

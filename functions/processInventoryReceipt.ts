@@ -864,18 +864,34 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     });
     results.updated_inventory_item_id = inventoryItem.id;
 
-    // 12. Update the InventoryTxs record
+    // 12. Update the InventoryTxs record (Metadata only)
     if (inventoryTxId) {
-      console.log(`Step 4: Updating InventoryTxs ${inventoryTxId}`);
+      console.log(`Step 4: Updating InventoryTxs ${inventoryTxId} metadata`);
       await base44.asServiceRole.entities.InventoryTxs.update(inventoryTxId, {
-        quantity_change: newQuantity,
         supplier_inv: newInvoiceNumber,
         tx_date: new Date(newInvoiceDate).toISOString(),
-        description: `Edited: Received from supplier invoice ${newInvoiceNumber} (was ${originalQuantity}, now ${newQuantity})`
       });
       results.updated_inventory_tx_id = inventoryTxId;
     } else {
       console.log('No InventoryTxs record found to update');
+    }
+
+    // 12b. Create QOH Adjusted transaction if quantity changed
+    if (quantityDelta !== 0) {
+      console.log(`Step 4b: Creating QOH Adjusted transaction for delta: ${quantityDelta}`);
+      const adjustmentTx = await base44.asServiceRole.entities.InventoryTxs.create({
+        inventory_item_id: inventoryItem.id,
+        part_num: inventoryItem.part_number,
+        tx_date: new Date().toISOString(),
+        tx_type: 'QOH Adjusted',
+        quantity_change: quantityDelta,
+        quantity_ordered_change: 0,
+        supplier_inv: newInvoiceNumber,
+        supplier_name: '', 
+        source_record_id: supplierInvoiceLineId,
+        description: `Adjustment from editing invoice ${newInvoiceNumber} (Qty change: ${quantityDelta})`
+      });
+      results.created_inventory_tx_id = adjustmentTx.id;
     }
 
     // 13. Post new GL entries with the updated line data
