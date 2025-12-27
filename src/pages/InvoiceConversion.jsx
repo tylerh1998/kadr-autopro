@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
+import WorkOrderPdfModal from '../components/work-orders/WorkOrderPdfModal';
 
 export default function InvoiceConversion() {
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function InvoiceConversion() {
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [isAccountingSummaryOpen, setIsAccountingSummaryOpen] = useState(false);
 
   useEffect(() => {
@@ -276,8 +278,19 @@ export default function InvoiceConversion() {
   };
 
   const handlePrint = () => {
-    window.print();
+    setShowPdfModal(true);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+        event.preventDefault();
+        setShowPdfModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleExit = () => {
     window.close();
@@ -565,6 +578,16 @@ export default function InvoiceConversion() {
     <SESEmailModal
       open={showEmailModal}
       onClose={() => setShowEmailModal(false)}
+      workOrder={workOrder}
+      customer={customer}
+      vehicle={vehicle}
+      lineItems={lineItems}
+    />
+
+    {/* PDF Modal */}
+    <WorkOrderPdfModal
+      open={showPdfModal}
+      onClose={() => setShowPdfModal(false)}
       workOrder={workOrder}
       customer={customer}
       vehicle={vehicle}
