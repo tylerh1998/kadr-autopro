@@ -40,6 +40,13 @@ export default function WorkOrderViewLineItemsTable({
     const isBold = line.bold === true;
     const boldClass = isBold ? 'font-bold' : '';
 
+    // Calculate core_osamt for display
+    const coreNum = parseFloat(line.Core_num) || 0;
+    const coreRet = parseFloat(line.core_ret) || 0;
+    const coreCost = parseFloat(line.core_cost) || 0;
+    const coreOutstanding = coreNum - coreRet;
+    const coreOsamt = coreOutstanding * coreCost;
+
     const rowContent = (
       <TableRow key={line.id || index} className="hover:bg-slate-50 transition-colors">
         {/* Qty Column */}
@@ -59,27 +66,10 @@ export default function WorkOrderViewLineItemsTable({
             {hasPartNumber && (
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span className="font-mono">{line.part_number}</span>
-                {line.Core_num > 0 && (
-                  line.core_credit ? (
-                    <TooltipProvider delayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="cursor-help inline-flex">
-                            <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200">
-                              Core {line.Core_num}
-                            </Badge>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Credited on {line.core_credit}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <Badge variant="outline" className="px-1 py-0 text-xs bg-orange-50 text-orange-700 border-orange-200">
-                      Core {line.Core_num}
-                    </Badge>
-                  )
+                {coreOutstanding > 0 && (
+                  <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 text-amber-700 border-amber-300 whitespace-nowrap">
+                    Cores ({coreOutstanding}) - ${coreOsamt.toFixed(2)}
+                  </Badge>
                 )}
                 {line.qty_on_order > 0 && (
                   <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 text-blue-700 border-blue-200">

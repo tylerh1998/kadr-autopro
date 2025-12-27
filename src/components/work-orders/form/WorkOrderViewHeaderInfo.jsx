@@ -236,6 +236,12 @@ export default function WorkOrderViewHeaderInfo({
                   <span className="font-medium">PO #:</span> {workOrder.po_number}
                 </p>
               )}
+              
+              {workOrder?.cvip && (
+                <p className="text-slate-600">
+                  <span className="font-medium">CVIP:</span> {workOrder.cvip}
+                </p>
+              )}
 
               {workOrder?.technician && (
                 <p className="text-slate-600">
