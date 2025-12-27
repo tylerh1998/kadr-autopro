@@ -725,14 +725,41 @@ export default function WorkOrderForm({
     console.log('quantity:', quantity, 'action:', action, 'cost:', cost, 'newCoreRet:', newCoreRet);
     
     if (action === 'received' && currentLineIndex !== null && newCoreRet !== undefined) {
-      // Update the core_ret value for the line item
+      // Update the core_ret value for the line item and recalculate totals immediately
       tracedSetLineItems(prev => {
         const updated = [...prev];
-        if (updated[currentLineIndex]) {
+        const line = updated[currentLineIndex];
+        
+        if (line) {
+          // 1. Calculate new core outstanding amount
+          const coreNum = parseFloat(line.Core_num) || 0;
+          const coreCost = parseFloat(line.core_cost) || 0;
+          const newCoreOsamt = (coreNum - newCoreRet) * coreCost;
+
+          // 2. Get other values needed for calculation
+          const qty = parseFloat(line.qty) || 0;
+          const partsEa = parseFloat(line.parts_ea) || 0;
+          const labour = parseFloat(line.labour) || 0;
+          const ocTotal = parseFloat(line.oc_total) || 0;
+
+          // 3. Recalculate totals
+          let newTotParts = 0;
+          let newTotal = 0;
+
+          if (line.is_other_charge) {
+             newTotParts = 0;
+             newTotal = ocTotal;
+          } else {
+             newTotParts = (qty * partsEa) + newCoreOsamt;
+             newTotal = newTotParts + labour + ocTotal;
+          }
+
           updated[currentLineIndex] = {
-            ...updated[currentLineIndex],
+            ...line,
             core_ret: newCoreRet,
-            core_osamt: ((updated[currentLineIndex].Core_num || 0) - newCoreRet) * (updated[currentLineIndex].core_cost || 0)
+            core_osamt: newCoreOsamt,
+            tot_parts: newTotParts,
+            total: newTotal
           };
         }
         return updated;
