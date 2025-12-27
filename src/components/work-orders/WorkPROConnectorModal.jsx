@@ -38,7 +38,7 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
     const woNumber = wo.wo_number?.toLowerCase() || '';
     const estNumber = wo.est_number?.toLowerCase() || '';
-    const customerName = customer ? `${customer.first_name} ${customer.last_name}`.toLowerCase() : '';
+    const customerName = customer ? (customer.org_name || `${customer.first_name} ${customer.last_name}`).toLowerCase() : '';
     const vehicleInfo = vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}`.toLowerCase() : '';
     const description = wo.description?.toLowerCase() || '';
 
@@ -156,7 +156,7 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <h4 className="font-semibold text-lg">
-                                {customer ? `${customer.first_name} ${customer.last_name}` : 'Unknown Customer'}
+                                {customer ? (customer.org_name || `${customer.first_name} ${customer.last_name}`) : 'Unknown Customer'}
                               </h4>
                               <Badge variant="outline" className="mt-1">
                                 {wo.stage === 'estimate' ? 'Estimate' : 'Work Order'}
@@ -248,7 +248,10 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
             {selectedWorkOrder && (
               <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <p className="text-sm text-slate-600">
-                  Customer: {customers.find(c => c.id === selectedWorkOrder.customer_id)?.first_name} {customers.find(c => c.id === selectedWorkOrder.customer_id)?.last_name}
+                  Customer: {(() => {
+                    const c = customers.find(cust => cust.id === selectedWorkOrder.customer_id);
+                    return c ? (c.org_name || `${c.first_name} ${c.last_name}`) : 'Unknown Customer';
+                  })()}
                 </p>
                 <p className="text-sm text-slate-600">
                   Description: {selectedWorkOrder.description}
