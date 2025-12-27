@@ -472,6 +472,7 @@ Deno.serve(async (req) => {
                     // Main item with reduced total
                     processedLineItems.push({
                         ...item,
+                        tot_parts: (Number(item.tot_parts || 0) - coreOsamt),
                         total: (Number(item.total || 0) - coreOsamt)
                     });
                     // Core line
