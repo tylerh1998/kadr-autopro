@@ -41,6 +41,7 @@ import { createPageUrl } from '@/utils';
 
 // Import all necessary modals
 import WorkOrderReport from './WorkOrderReport';
+import WorkOrderPdfModal from './WorkOrderPdfModal';
 import SESEmailModal from './SESEmailModal';
 import WorkPROModal from './WorkPROModal';
 import ROInspectionModal from './ROInspectionModal';
@@ -166,6 +167,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     workPRODescription: false,
     workPROCommentsEdit: false,
     woNotes: false,
+    pdf: false,
   });
 
   // State for the specific appointment being edited
@@ -242,7 +244,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   }, [lineItems, workOrder?.total_amount]);
 
   const handlePrintDirect = useCallback(() => {
-    window.print();
+    setModals(prev => ({ ...prev, pdf: true }));
   }, []);
 
   const openModal = useCallback((modalName) => {
@@ -385,6 +387,18 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
     acquireLock();
   }, [workOrder, currentUser, lockCheckComplete, setWorkOrder, navigate, roNumber]);
+
+  // Ctrl+P shortcut for PDF modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+        event.preventDefault();
+        setModals(prev => ({ ...prev, pdf: true }));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Warn user about unsaved changes
   useEffect(() => {
@@ -1910,6 +1924,15 @@ export default function DocumentEditor({ mode = 'work_order' }) {
             totalAmount={workOrder?.total_amount || 0}
             existingPayments={existingPayments}
             onProcessPayment={handleProcessInvoicePayment}
+          />
+
+          <WorkOrderPdfModal
+            open={modals.pdf}
+            onClose={() => closeModal('pdf')}
+            workOrder={workOrder}
+            customer={customer}
+            vehicle={vehicle}
+            lineItems={lineItems}
           />
         </>
       )}
