@@ -233,6 +233,11 @@ export default function CreditInvoicePage() {
       const uniqueRoNumber = creditInvoiceNumber;
       
       console.log('Generated unique RO number:', uniqueRoNumber);
+
+      // Determine the correct payment method string
+      // If refund source is cash_drawer, use the specific type (cash, debit, credit)
+      // Otherwise use the refund source itself (cheque, on_account)
+      const effectivePaymentMethod = refundSource === 'cash_drawer' ? cashDrawerPaymentType : refundSource;
       
       const creditInvoiceData = {
         ro_number: uniqueRoNumber, // Use the generated unique RO number
@@ -269,7 +274,7 @@ export default function CreditInvoicePage() {
           id: Date.now(),
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: -Math.abs(creditTotalAmount),
-          payment_method: refundSource,
+          payment_method: effectivePaymentMethod,
           reference: `Credit for ${workOrder.inv_number}`,
         }]),
         amount_paid: -Math.abs(creditTotalAmount),
