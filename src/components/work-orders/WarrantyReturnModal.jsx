@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InventoryReturn, InventoryTxs, InventoryItem, Supplier, GLTransaction, WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
   const [quantity, setQuantity] = useState('1');
@@ -98,7 +99,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         return_reason: returnScope,
         cost_per_unit: inventoryItem.cost || 0,
         total_cost: (inventoryItem.cost || 0) * qty,
-        return_date: new Date().toISOString(),
+        return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
         status: 'On-site',
         work_order_id: workOrder.id,
         notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`
@@ -125,11 +126,15 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       console.log('Created warranty transaction record');
 
       // Create GL Transactions (Replicating Legacy Warranty Logic)
+      // Use standard ISO string for transaction_date or yyyy-MM-dd as required by GL.
+      // GL usually expects yyyy-MM-dd. format(new Date(), ...) uses local time of browser, 
+      // ensuring consistency with return_date is best.
+      const glDate = format(toMountainTime(new Date()), 'yyyy-MM-dd');
       const totalCost = (inventoryItem.cost || 0) * qty;
       await GLTransaction.bulkCreate([
         {
           account_number: "5000",
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           credit_amount: totalCost,
           debit_amount: 0,
@@ -138,7 +143,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         },
         {
           account_number: "1200",
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           debit_amount: totalCost,
           credit_amount: 0,
