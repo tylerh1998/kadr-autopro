@@ -134,8 +134,8 @@ Deno.serve(async (req) => {
             if (isFirst) {
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Customer Information', margin, currentY);
-                doc.text('Vehicle Information', margin + 280, currentY);
+                doc.text('Customer', margin, currentY);
+                doc.text('Vehicle', margin + 280, currentY);
 
                 currentY += 5;
                 doc.setLineWidth(1);
@@ -143,66 +143,82 @@ Deno.serve(async (req) => {
                 doc.line(margin + 280, currentY, margin + 480, currentY);
 
                 currentY += 15;
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                
+                const startY = currentY;
 
                 // Customer Info
-                let customerY = currentY;
+                let customerY = startY;
                 const customerName = customer?.org_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() || 'N/A';
                 
+                // Name (Bold)
                 doc.setFont('helvetica', 'bold');
-                doc.text(`Name: `, margin, customerY);
+                doc.text(customerName, margin, customerY);
                 doc.setFont('helvetica', 'normal');
-                doc.text(customerName, margin + 40, customerY);
+                customerY += 12;
 
-                if (customer?.email) {
-                    customerY += 15;
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Email: ', margin, customerY);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(customer.email, margin + 40, customerY);
+                // Contact Person (if org)
+                if (customer?.org_name && (customer?.first_name || customer?.last_name)) {
+                    const contactName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+                    if (contactName) {
+                        doc.text(`Contact: ${contactName}`, margin, customerY);
+                        customerY += 12;
+                    }
                 }
 
+                // Address Line 1
                 if (customer?.address) {
-                    customerY += 15;
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Address: ', margin, customerY);
-                    doc.setFont('helvetica', 'normal');
-                    // Simple address formatting
-                    const addressStr = `${customer.address || ''} ${customer.city ? ', ' + customer.city : ''}`.trim();
-                    doc.text(addressStr, margin + 40, customerY);
+                    doc.text(customer.address, margin, customerY);
+                    customerY += 12;
+                }
+
+                // City, Province, Zip
+                const cityStateZip = `${customer?.city || ''}${customer?.city && (customer?.state || customer?.zip_code) ? ', ' : ''}${customer?.state || ''} ${customer?.zip_code || ''}`.trim();
+                if (cityStateZip && cityStateZip !== ',') {
+                    doc.text(cityStateZip, margin, customerY);
+                    customerY += 12;
+                }
+
+                // Phone
+                if (customer?.phone) {
+                    doc.text(customer.phone, margin, customerY);
+                    customerY += 12;
                 }
 
                 // Vehicle Info
-                let vehicleY = currentY;
+                let vehicleY = startY;
                 if (vehicle) {
+                    // YMM (Bold)
                     doc.setFont('helvetica', 'bold');
-                    doc.text('Vehicle: ', margin + 280, vehicleY);
+                    const vehString = `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim();
+                    if (vehString) {
+                        doc.text(vehString, margin + 280, vehicleY);
+                        vehicleY += 12;
+                    }
                     doc.setFont('helvetica', 'normal');
-                    doc.text(`${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`, margin + 325, vehicleY);
 
+                    // VIN
                     if (vehicle.vin) {
-                        vehicleY += 15;
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('VIN: ', margin + 280, vehicleY);
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(vehicle.vin, margin + 310, vehicleY);
+                        doc.text(vehicle.vin, margin + 280, vehicleY);
+                        vehicleY += 12;
                     }
 
+                    // License
                     if (vehicle.license_plate) {
-                        vehicleY += 15;
-                        doc.setFont('helvetica', 'bold');
-                        doc.text('License: ', margin + 280, vehicleY);
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(vehicle.license_plate, margin + 325, vehicleY);
+                        doc.text(vehicle.license_plate, margin + 280, vehicleY);
+                        vehicleY += 12;
                     }
                     
+                    // Odometer
                     if (workOrder.odometer) {
-                         vehicleY += 15;
-                         doc.setFont('helvetica', 'bold');
-                         doc.text('Odometer: ', margin + 280, vehicleY);
-                         doc.setFont('helvetica', 'normal');
-                         doc.text(workOrder.odometer.toString(), margin + 335, vehicleY);
+                         doc.text(`${Number(workOrder.odometer).toLocaleString()} km`, margin + 280, vehicleY);
+                         vehicleY += 12;
+                    }
+
+                    // Unit Number
+                    if (vehicle.unit_number) {
+                        doc.text(`Unit: ${vehicle.unit_number}`, margin + 280, vehicleY);
+                        vehicleY += 12;
                     }
                 }
 
