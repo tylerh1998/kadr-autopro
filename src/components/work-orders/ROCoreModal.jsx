@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InventoryItem, InventoryReturn } from '@/entities/all';
+import { format } from 'date-fns';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCoreProcessed }) {
   const [qty, setQty] = useState('');
@@ -34,14 +36,12 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         // DO NOT create InventoryTxs
         
         // Get supplier info from inventory item
-        let supplierName = 'Unknown Supplier';
+        let supplierId = 'Unknown Supplier';
         if (lineItem.inventory_item_id) {
           try {
             const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
             if (inventoryItem && inventoryItem.supplier_id) {
-              const { Supplier } = await import('@/entities/all');
-              const supplier = await Supplier.get(inventoryItem.supplier_id);
-              supplierName = supplier?.name || 'Unknown Supplier';
+              supplierId = inventoryItem.supplier_id;
             }
           } catch (error) {
             console.error('Error fetching supplier info:', error);
@@ -53,13 +53,13 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
           inventory_item_id: lineItem.inventory_item_id || null,
           part_number: lineItem.part_number || 'N/A',
           description: `${lineItem.description || 'Core'} (Core Return)`,
-          supplier: supplierName,
+          supplier: supplierId,
           quantity_returned: qtyProcessed,
           return_type: 'core',
           return_reason: 'Customer Core Received',
           cost_per_unit: lineItem.core_cost || 0,
           total_cost: qtyProcessed * (lineItem.core_cost || 0),
-          return_date: new Date().toISOString().split('T')[0],
+          return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
           work_order_id: workOrder?.id || null,
           status: 'On-site',
           notes: 'Core received from customer, awaiting return to supplier.'
@@ -79,14 +79,12 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         // DO NOT change inventory quantity_on_hand
         
         // Get supplier info from inventory item
-        let supplierName = 'Unknown Supplier';
+        let supplierId = 'Unknown Supplier';
         if (lineItem.inventory_item_id) {
           try {
             const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
             if (inventoryItem && inventoryItem.supplier_id) {
-              const { Supplier } = await import('@/entities/all');
-              const supplier = await Supplier.get(inventoryItem.supplier_id);
-              supplierName = supplier?.name || 'Unknown Supplier';
+              supplierId = inventoryItem.supplier_id;
             }
           } catch (error) {
             console.error('Error fetching supplier info:', error);
@@ -106,7 +104,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
           await InventoryReturn.update(returnToUpdate.id, {
             status: 'Returned',
             date_returned: new Date().toISOString(),
-            notes: `${returnToUpdate.notes || ''}\nReturned to supplier on ${new Date().toLocaleDateString()}`
+            notes: `${returnToUpdate.notes || ''}\nReturned to supplier on ${format(toMountainTime(new Date()), 'yyyy-MM-dd')}`
           });
           
           alert(`Core marked as returned to supplier. Quantity: ${returnToUpdate.quantity_returned}`);
@@ -116,13 +114,13 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
             inventory_item_id: lineItem.inventory_item_id || null,
             part_number: lineItem.part_number || 'N/A',
             description: `${lineItem.description || 'Core'} (Core Return)`,
-            supplier: supplierName,
+            supplier: supplierId,
             quantity_returned: qtyProcessed,
             return_type: 'core',
             return_reason: 'Direct Return to Supplier',
             cost_per_unit: lineItem.core_cost || 0,
             total_cost: qtyProcessed * (lineItem.core_cost || 0),
-            return_date: new Date().toISOString().split('T')[0],
+            return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
             work_order_id: workOrder?.id || null,
             status: 'Returned',
             date_returned: new Date().toISOString(),
