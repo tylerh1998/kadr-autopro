@@ -104,9 +104,18 @@ Deno.serve(async (req) => {
                 // Parse date string carefully to avoid timezone issues
                 let dateStr = 'N/A';
                 try {
-                    const [y, m, d] = refDate.split('-').map(Number);
-                    const localDate = new Date(y, m - 1, d);
-                    dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const parts = refDate.split('-').map(Number);
+                    if (parts.length === 3 && !parts.some(isNaN)) {
+                        const [y, m, d] = parts;
+                        const localDate = new Date(y, m - 1, d);
+                        if (!isNaN(localDate.getTime())) {
+                            dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        } else {
+                            dateStr = refDate;
+                        }
+                    } else {
+                        dateStr = refDate;
+                    }
                 } catch (e) {
                     dateStr = refDate;
                 }
@@ -359,8 +368,20 @@ Deno.serve(async (req) => {
                         finY += 10;
                         let dateStr = 'N/A';
                         try {
-                           const [y, m, d] = payment.payment_date.split('-').map(Number);
-                           dateStr = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                           if (payment.payment_date) {
+                               const parts = payment.payment_date.split('-').map(Number);
+                               if (parts.length === 3 && !parts.some(isNaN)) {
+                                   const [y, m, d] = parts;
+                                   const localDate = new Date(y, m - 1, d);
+                                   if (!isNaN(localDate.getTime())) {
+                                       dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                   } else {
+                                       dateStr = payment.payment_date;
+                                   }
+                               } else {
+                                   dateStr = payment.payment_date;
+                               }
+                           }
                         } catch (e) { dateStr = payment.payment_date || 'N/A'; }
                         
                         const method = payment.payment_method?.replace(/_/g, ' ') || 'N/A';

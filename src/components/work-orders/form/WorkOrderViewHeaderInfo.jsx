@@ -19,7 +19,10 @@ export default function WorkOrderViewHeaderInfo({
   // Parse date string as local date (no timezone conversion)
   const parseLocalDate = (dateStr) => {
     if (!dateStr) return null;
-    const [year, month, day] = dateStr.split('-');
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return null;
+    const [year, month, day] = parts.map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
     return new Date(year, month - 1, day);
   };
 
