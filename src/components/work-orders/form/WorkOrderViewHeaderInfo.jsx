@@ -23,7 +23,14 @@ export default function WorkOrderViewHeaderInfo({
     if (parts.length !== 3) return null;
     const [year, month, day] = parts.map(Number);
     if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
-    return new Date(year, month - 1, day);
+    const date = new Date(year, month - 1, day);
+    if (isNaN(date.getTime())) return null;
+    return date;
+  };
+
+  const formatDate = (dateStr) => {
+    const date = parseLocalDate(dateStr);
+    return date ? format(date, 'MMM d, yyyy') : 'N/A';
   };
 
   // Helper function to get customer display name
@@ -204,7 +211,7 @@ export default function WorkOrderViewHeaderInfo({
               {workOrder?.invoice_date && (
                 <p className="text-slate-600">
                   <span className="font-medium">Invoice Date:</span>{' '}
-                  {format(parseLocalDate(workOrder.invoice_date), 'MMM d, yyyy')}
+                  {formatDate(workOrder.invoice_date)}
                 </p>
               )}
               
@@ -223,7 +230,7 @@ export default function WorkOrderViewHeaderInfo({
               {((workOrder?.stage === 'work_order' || workOrder?.stage === 'invoice' || workOrder?.stage === 'credit_invoice') && workOrder?.wo_date) && (
                 <p className="text-slate-600">
                   <span className="font-medium">Work Order Date:</span>{' '}
-                  {format(parseLocalDate(workOrder.wo_date), 'MMM d, yyyy')}
+                  {formatDate(workOrder.wo_date)}
                 </p>
               )}
               
@@ -255,7 +262,7 @@ export default function WorkOrderViewHeaderInfo({
               {workOrder?.scheduled_date && (
                 <p className="text-slate-600">
                   <span className="font-medium">Scheduled:</span>{' '}
-                  {format(parseLocalDate(workOrder.scheduled_date), 'MMM d, yyyy')}
+                  {formatDate(workOrder.scheduled_date)}
                 </p>
               )}
 

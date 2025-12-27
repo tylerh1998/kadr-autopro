@@ -64,9 +64,14 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
   const formatDisplayDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      // Parse YYYY-MM-DD as local date to avoid timezone shift
-      const [year, month, day] = dateString.split('-').map(Number);
+      const parts = dateString.split('-');
+      if (parts.length !== 3) return 'N/A';
+      const [year, month, day] = parts.map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return 'N/A';
+      
       const localDate = new Date(year, month - 1, day);
+      if (isNaN(localDate.getTime())) return 'N/A';
+      
       return format(localDate, 'MMM dd, yyyy').toUpperCase();
     } catch (e) {
       return 'N/A';
