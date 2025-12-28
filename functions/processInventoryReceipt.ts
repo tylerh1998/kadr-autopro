@@ -809,28 +809,22 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     // 9. Reverse original GL entries (using the original line data)
     console.log(`Step 1: Reversing original GL entries for line ${originalLine.id}`);
     try {
+      // Use 'delete' action to reverse entries (handleSupplierInvoiceLineGL expects 'delete' not 'reverse')
       const reverseGLResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
         supplierInvoiceLine: originalLine,
-        action: 'reverse'
+        action: 'delete'
       });
 
       if (!reverseGLResponse.data.success) {
         console.error('GL reversal failed:', reverseGLResponse.data);
-        results.errors.push({
-          error: 'Failed to reverse original GL entries',
-          details: reverseGLResponse.data
-        });
-        // Continue despite GL error - we'll try to recover
+        throw new Error(`Failed to reverse original GL entries: ${reverseGLResponse.data?.error || 'Unknown error'}`);
       } else {
         console.log('Successfully reversed original GL entries');
       }
     } catch (glError) {
       console.error('Error reversing GL transactions:', glError);
-      results.errors.push({
-        error: 'Failed to reverse original GL transactions',
-        details: glError.message
-      });
-      // Continue despite GL error
+      // Throw error to stop execution - prevent duplicate/incorrect GL state
+      throw new Error(`Critical: Failed to reverse original GL transactions. ${glError.message}`);
     }
 
     // 10. Update the SupplierInvoiceLine record with new values
