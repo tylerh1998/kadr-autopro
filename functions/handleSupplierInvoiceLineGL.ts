@@ -135,6 +135,9 @@ Deno.serve(async (req) => {
         // Create all GL transactions using service role
         console.log('Creating GL Transactions:', JSON.stringify(glTransactions, null, 2));
         
+        const errors = [];
+        let createdCount = 0;
+
         for (const glTx of glTransactions) {
             try {
                 // Ensure amounts are numbers and fixed to 2 decimal places to prevent float issues
@@ -146,16 +149,29 @@ Deno.serve(async (req) => {
                 
                 console.log('Creating transaction:', JSON.stringify(sanitizedTx));
                 await base44.asServiceRole.entities.GLTransaction.create(sanitizedTx);
+                createdCount++;
             } catch (createError) {
                 console.error('Error creating GL transaction:', createError, 'Transaction data:', glTx);
-                // Continue to try other transactions even if one fails
+                errors.push({
+                    transaction: glTx,
+                    error: createError.message
+                });
             }
+        }
+
+        if (errors.length > 0) {
+            return Response.json({
+                success: false,
+                message: `Failed to post ${errors.length} GL transactions. Created ${createdCount} successfully.`,
+                errors: errors,
+                transactionsCreated: createdCount
+            }, { status: 500 }); // Return 500 so upstream knows it failed
         }
 
         return Response.json({ 
             success: true, 
-            message: `Successfully posted ${glTransactions.length} GL transactions`,
-            transactionsCreated: glTransactions.length
+            message: `Successfully posted ${createdCount} GL transactions`,
+            transactionsCreated: createdCount
         });
 
     } catch (error) {
