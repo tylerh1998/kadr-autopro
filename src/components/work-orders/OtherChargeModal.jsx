@@ -89,8 +89,16 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       setPriceEach((editingChargeLine.oc_total / (editingChargeLine.qty || 1))?.toFixed(2) || '');
       setIsTaxable(editingChargeLine.taxable !== false);
       
-      // Try to find the matching charge type by description and gl_account
-      if (editingChargeLine.gl_account) {
+      // Try to find the matching charge type
+      if (editingChargeLine.other_charge_id) {
+        // First try by explicit ID if available
+        const matchingChargeType = chargeTypes.find(ct => ct.id === editingChargeLine.other_charge_id);
+        if (matchingChargeType) {
+          setSelectedChargeTypeId(matchingChargeType.id);
+          setSelectedChargeType(matchingChargeType);
+        }
+      } else if (editingChargeLine.gl_account) {
+        // Fallback: match by description and gl_account
         const matchingChargeType = chargeTypes.find(ct => 
           ct.gl_account === editingChargeLine.gl_account && 
           ct.description === editingChargeLine.description
@@ -268,6 +276,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       total: subtotal,
       taxable: isTaxable,
       gl_account: selectedChargeType?.gl_account || '', // Add GL account to the charge data
+      other_charge_id: selectedChargeTypeId, // Track which OtherChargeList item was selected
       applyCost,
       linkedSupplierId,
       supplierInvoiceNumber: supplierInvoiceNumber.trim(),

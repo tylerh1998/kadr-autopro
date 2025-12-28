@@ -41,17 +41,24 @@ Deno.serve(async (req) => {
 
         const description = line.description || 'Unknown Charge';
         const glAccount = line.gl_account || '';
+        const otherChargeId = line.other_charge_id;
 
-        const key = `${description}|||${glAccount}`;
+        // Group by other_charge_id if available, otherwise by description+gl
+        const key = otherChargeId ? `ID::${otherChargeId}` : `${description}|||${glAccount}`;
 
         if (!chargesMap[key]) {
           chargesMap[key] = {
             description: description,
             gl_account: glAccount,
+            other_charge_id: otherChargeId,
             total_amount: 0,
             count: 0
           };
         }
+        
+        // If we grouped by ID, keep the first description we found, or maybe update it?
+        // Let's stick to the first one for consistency, or maybe the most frequent one?
+        // For now, simple aggregation.
 
         chargesMap[key].total_amount += ocTotal;
         chargesMap[key].count += 1;

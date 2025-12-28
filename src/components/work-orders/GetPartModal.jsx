@@ -383,6 +383,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                 complete: false,
                 bold: false,
                 is_other_charge: true,
+                other_charge_id: tagAlong.other_charge_id, // Track linked OtherChargeList ID
                 inventory_item_id: null,
                 cost_ea: 0,
                 Core_num: 0,
