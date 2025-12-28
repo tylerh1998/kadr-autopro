@@ -873,21 +873,33 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     }
 
     // 12b. Create QOH Adjusted transaction if quantity changed
-    if (quantityDelta !== 0) {
+    if (Math.abs(quantityDelta) > 0.0001) {
       console.log(`Step 4b: Creating QOH Adjusted transaction for delta: ${quantityDelta}`);
-      const adjustmentTx = await base44.asServiceRole.entities.InventoryTxs.create({
-        inventory_item_id: inventoryItem.id,
-        part_num: inventoryItem.part_number,
-        tx_date: new Date().toISOString(),
-        tx_type: 'QOH Adjusted',
-        quantity_change: quantityDelta,
-        quantity_ordered_change: 0,
-        supplier_inv: newInvoiceNumber,
-        supplier_name: '', 
-        source_record_id: supplierInvoiceLineId,
-        description: `Adjustment from editing invoice ${newInvoiceNumber} (Qty change: ${quantityDelta})`
-      });
-      results.created_inventory_tx_id = adjustmentTx.id;
+      try {
+        const adjustmentTx = await base44.asServiceRole.entities.InventoryTxs.create({
+          inventory_item_id: inventoryItem.id,
+          part_num: inventoryItem.part_number,
+          tx_date: new Date().toISOString(),
+          tx_type: 'QOH Adjusted',
+          quantity_change: quantityDelta,
+          quantity_ordered_change: 0,
+          supplier_inv: newInvoiceNumber,
+          supplier_name: '', 
+          source_record_id: supplierInvoiceLineId,
+          description: `Adjustment from editing invoice ${newInvoiceNumber} (Qty change: ${quantityDelta})`
+        });
+        results.created_inventory_tx_id = adjustmentTx.id;
+        console.log(`Successfully created QOH Adjusted transaction ${adjustmentTx.id}`);
+      } catch (txError) {
+        console.error('Failed to create QOH Adjusted transaction:', txError);
+        results.errors.push({
+          error: 'Failed to create inventory adjustment transaction',
+          details: txError.message
+        });
+        // Non-critical, but should be noted
+      }
+    } else {
+        console.log(`Skipping QOH Adjusted transaction creation because delta is ${quantityDelta}`);
     }
 
     // 13. Post new GL entries with the updated line data
