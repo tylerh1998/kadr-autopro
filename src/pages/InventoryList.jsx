@@ -209,8 +209,12 @@ export default function InventoryListPage() {
     }
   };
 
-  const handleUpdate = () => {
-    fetchInventory();
+  const handleUpdate = (updatedItem) => {
+    if (updatedItem && typeof updatedItem === 'object' && updatedItem.id) {
+      setInventory(prev => prev.map(item => item.id === updatedItem.id ? { ...item, ...updatedItem } : item));
+    } else {
+      fetchInventory();
+    }
     setIsEditModalOpen(false);
     setIsAdjustQOHModalOpen(false);
     setIsReturnModalOpen(false);
