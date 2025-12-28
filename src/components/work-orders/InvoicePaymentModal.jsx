@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
+import { base44 } from '@/api/base44Client';
 
 const paymentMethodOptions = [
   { value: 'cash', label: 'Cash' },
@@ -170,6 +171,22 @@ export default function InvoicePaymentModal({
 
     try {
       setLoading(true);
+
+      // Validation: Check CustomerPayments entity
+      const cp = await base44.entities.CustomerPayments.get(payment.id);
+      if (cp) {
+        if (cp.deposited) {
+          alert("Cannot delete this payment as it has already been deposited.");
+          setLoading(false);
+          return;
+        }
+        if (cp.ar_paid && Number(cp.ar_paid) !== 0) {
+          alert("Cannot delete this payment as a payment has already been made against it in Accounts Receivable.");
+          setLoading(false);
+          return;
+        }
+      }
+
       await onProcessPayment('delete', { id: payment.id });
     } catch (error) {
       console.error('Error removing payment:', error);

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Lock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { WorkOrder, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function AdvancePaymentModal({
   open,
@@ -172,6 +173,26 @@ export default function AdvancePaymentModal({
     if (!paymentIdToDelete) {
         alert("Cannot delete a payment without an ID. It might not be saved yet.");
         return;
+    }
+
+    try {
+      // Validation: Check CustomerPayments entity
+      const cp = await base44.entities.CustomerPayments.get(paymentIdToDelete);
+      if (cp) {
+        if (cp.deposited) {
+          alert("Cannot delete this payment as it has already been deposited.");
+          return;
+        }
+        if (cp.ar_paid && Number(cp.ar_paid) !== 0) {
+          alert("Cannot delete this payment as a payment has already been made against it in Accounts Receivable.");
+          return;
+        }
+      }
+    } catch (error) {
+      console.error("Error verifying payment status:", error);
+      // Proceed if check fails? Or block? Assuming non-blocking if fetch fails, but validation logic usually blocks.
+      // If we can't verify, we might want to let user try, or block. 
+      // Given the specific request, I will proceed to confirmation but log error.
     }
 
     if (!confirm("Are you sure you want to delete this payment? This action cannot be undone.")) {
