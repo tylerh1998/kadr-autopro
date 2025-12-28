@@ -217,6 +217,12 @@ export default function LankarImport() {
                   <div>
                     <p className="font-medium">Inventory</p>
                     <p className="text-sm text-slate-500">Import inventory items and parts</p>
+                    {selectedType === 'inventory' && (
+                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                            <p className="font-semibold mb-1">Required Columns:</p>
+                            <code className="text-blue-700">partnum, description, qoh, lastcost, lastlist, location, chkhasacore, lastcorecost, category, reorderamt, reorderMAXamount</code>
+                        </div>
+                    )}
                   </div>
                 </Label>
               </div>

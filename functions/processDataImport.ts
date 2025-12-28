@@ -77,6 +77,24 @@ Deno.serve(async (req) => {
                  console.log("Sample supplier mapping keys:", Array.from(supplierMap.keys()).slice(0, 5));
             }
 
+            // Fetch Inventory Categories for mapping
+            console.log("Fetching Inventory Categories for mapping...");
+            const inventoryCategories = await base44.asServiceRole.entities.InventoryCategory.list(null, 1000);
+            const legacyCategoryMap = new Map();
+            
+            inventoryCategories.forEach(cat => {
+                if (cat.lankar_categories) {
+                    // Split by comma and clean up
+                    const legacyList = cat.lankar_categories.split(',').map(s => s.trim().toUpperCase());
+                    legacyList.forEach(legacyName => {
+                        if (legacyName) {
+                            legacyCategoryMap.set(legacyName, cat.name);
+                        }
+                    });
+                }
+            });
+            console.log(`Mapped ${legacyCategoryMap.size} legacy categories.`);
+
             // Map rows to entity
             recordsToCreate = rows.map(row => {
                 // Flexible header matching
@@ -105,6 +123,17 @@ Deno.serve(async (req) => {
 
                 const location = String(getVal(['location', 'Location']) || '');
 
+                // Map legacy category
+                const legacyCategory = String(getVal(['category', 'Category']) || '').trim().toUpperCase();
+                let mappedCategory = '';
+                if (legacyCategory && legacyCategoryMap.has(legacyCategory)) {
+                    mappedCategory = legacyCategoryMap.get(legacyCategory);
+                }
+
+                // Map reorder amounts
+                const minQty = parseInt(getVal(['reorderamt', 'reorderamount', 'ReorderAmt']) || 0) || 0;
+                const maxQty = parseInt(getVal(['reorderMAXamount', 'reordermaxamount', 'ReorderMAXAmount']) || 0) || 0;
+
                 return {
                     part_number: partNum,
                     description: String(getVal(['description', 'Description']) || ''),
@@ -114,6 +143,9 @@ Deno.serve(async (req) => {
                     core: (getVal(['chkhasacore', 'ChkHasACore', 'core']) == 1 || getVal(['chkhasacore', 'ChkHasACore', 'core']) === '1'),
                     core_cost: parseFloat(getVal(['lastcorecost', 'LastCoreCost', 'Lastcorecost', 'core_cost']) || 0) || 0,
                     selling_price: parseFloat(getVal(['lastlist', 'LastList', 'lastlist', 'selling_price']) || 0) || 0,
+                    minimum_quantity: minQty,
+                    maximum_quantity: maxQty,
+                    category: mappedCategory,
                     is_active: true,
                     stocked_item: location.trim().length > 0,
                     tag_along_id: tag_along_id,
