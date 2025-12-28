@@ -18,7 +18,9 @@ Deno.serve(async (req) => {
       // Current SDK might not give total count easily without fetching all ID's or similar.
       // For now, we'll fetch all to get total count, but slice for return.
       // Ideally we'd have a count() method.
-      const allCustomers = await base44.entities.Customer.list();
+      // Use service role to ensure we get all customers regardless of ownership
+      // Fetch up to 5000 customers to ensure we cover the dataset for now
+      const allCustomers = await base44.asServiceRole.entities.Customer.list(null, 5000);
       const total = allCustomers.length;
       const totalPages = Math.ceil(total / limit);
       
@@ -43,7 +45,8 @@ Deno.serve(async (req) => {
     }
 
     // Search Logic (Ranking)
-    const allCustomers = await base44.entities.Customer.list();
+    // Use service role to ensure we search across all customers
+    const allCustomers = await base44.asServiceRole.entities.Customer.list(null, 5000);
     const searchLower = searchTerm.toLowerCase().trim();
     
     const scoredCustomers = allCustomers
