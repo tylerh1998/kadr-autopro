@@ -325,7 +325,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
@@ -333,73 +333,9 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="part_number">Part Number *</Label>
-              <Input
-                id="part_number"
-                value={formData.part_number}
-                onChange={async (e) => {
-                  const newPartNumber = e.target.value.toUpperCase();
-                  handleInputChange("part_number", newPartNumber);
-                  if (newPartNumber.trim()) {
-                    const existingPart = await InventoryItem.filter({ part_number: newPartNumber });
-                    if (existingPart.length > 0) {
-                      setDuplicatePartWarning(`Notice: A part with number '${newPartNumber}' already exists in inventory.`);
-                    }
-                  }
-                }}
-                required
-              />
-              {duplicatePartWarning && (
-                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800">{duplicatePartWarning}</p>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(val) => handleInputChange('category', val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => <SelectItem key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="description">Description *</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => {
-                  // Title Case: Capitalize first letter of each word
-                  const val = e.target.value.replace(/\b\w/g, l => l.toUpperCase());
-                  handleInputChange("description", val);
-                }}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="unit">Unit (e.g., /ea, /lb, /gal)</Label>
-              <Input
-                id="unit"
-                value={formData.unit}
-                onChange={(e) => handleInputChange("unit", e.target.value.slice(0, 5))}
-                placeholder="/ea"
-                maxLength={5}
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Supplier Row - Kept separate as it's required for creating the item but not in the batch image */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="supplier_id">Supplier *</Label>
@@ -415,10 +351,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                   <SelectItem value="none">None</SelectItem>
                   {[...suppliers]
                     .sort((a, b) => {
-                      // First sort by pin_to_top (pinned first)
                       if (a.pin_to_top && !b.pin_to_top) return -1;
                       if (!a.pin_to_top && b.pin_to_top) return 1;
-                      // Then sort alphabetically by name
                       return (a.name || '').localeCompare(b.name || '');
                     })
                     .map((supplier) => (
@@ -439,9 +373,74 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cost">Cost *</Label>
+          {/* Row 1: Part #, Description, Unit */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="part_number">Part # (Create New) *</Label>
+              <Input
+                id="part_number"
+                value={formData.part_number}
+                onChange={async (e) => {
+                  const newPartNumber = e.target.value.toUpperCase();
+                  handleInputChange("part_number", newPartNumber);
+                  if (newPartNumber.trim()) {
+                    const existingPart = await InventoryItem.filter({ part_number: newPartNumber });
+                    if (existingPart.length > 0) {
+                      setDuplicatePartWarning(`Notice: A part with number '${newPartNumber}' already exists in inventory.`);
+                    }
+                  }
+                }}
+                required
+                placeholder="TYPE PART #..."
+              />
+              {duplicatePartWarning && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-yellow-800">{duplicatePartWarning}</p>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 col-span-1 md:col-span-2 grid grid-cols-3 gap-2">
+              <div className="space-y-2 col-span-2">
+                <Label htmlFor="description">Description *</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\b\w/g, l => l.toUpperCase());
+                    handleInputChange("description", val);
+                  }}
+                  required
+                />
+              </div>
+              <div className="space-y-2 col-span-1">
+                <Label htmlFor="unit">Unit</Label>
+                <Input
+                  id="unit"
+                  value={formData.unit}
+                  onChange={(e) => handleInputChange("unit", e.target.value.slice(0, 5))}
+                  placeholder="/ea"
+                  maxLength={5}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Qty, Cost, Sales Class, Tag Along */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quantity_to_order">Qty Received *</Label>
+              <Input
+                id="quantity_to_order"
+                type="number"
+                min="1"
+                value={formData.quantity_to_order}
+                onChange={(e) => handleInputChange("quantity_to_order", e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cost">Part Cost *</Label>
               <Input
                 id="cost"
                 type="number"
@@ -452,8 +451,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 placeholder="0.00"
               />
             </div>
-
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="sales_class">Sales Class *</Label>
               <Select
                 value={formData.sales_class}
@@ -472,11 +470,31 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="tag_along_id">Tag Along (Optional)</Label>
+              <Select 
+                value={formData.tag_along_id || 'none'} 
+                onValueChange={(val) => handleInputChange('tag_along_id', val === 'none' ? '' : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {tagAlongs.map(tagAlong => (
+                    <SelectItem key={tagAlong.id} value={tagAlong.id}>
+                      {tagAlong.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="selling_price">Selling Price *</Label>
+          {/* Row 3: List Price, Margin, Core, Stocked */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="selling_price">List Price *</Label>
               <div className="relative">
                 <Input
                   id="selling_price"
@@ -493,8 +511,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 )}
               </div>
             </div>
-            <div>
-              <Label htmlFor="profit_margin">Profit Margin %</Label>
+            <div className="space-y-2">
+              <Label htmlFor="profit_margin">Margin % (Auto)</Label>
               <Input
                 id="profit_margin"
                 type="number"
@@ -503,30 +521,103 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 onChange={(e) => handleInputChange("profit_margin", e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quantity_to_order">Quantity to Order *</Label>
-              <Input
-                id="quantity_to_order"
-                type="number"
-                min="1"
-                value={formData.quantity_to_order}
-                onChange={(e) => handleInputChange("quantity_to_order", e.target.value)}
-                required
-              />
+            <div className="space-y-2 flex items-end pb-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="core"
+                  checked={formData.core}
+                  onCheckedChange={(checked) => handleInputChange('core', checked)}
+                />
+                <Label htmlFor="core" className="cursor-pointer">Core Item</Label>
+              </div>
+            </div>
+            <div className="space-y-2 flex items-end pb-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="stocked_item"
+                  checked={formData.stocked_item}
+                  onCheckedChange={(checked) => handleInputChange('stocked_item', checked)}
+                />
+                <Label htmlFor="stocked_item" className="cursor-pointer">Stocked Item</Label>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose} type="button" disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Add & Order Part"}
-            </Button>
-          </DialogFooter>
+          {/* Conditional Fields: Core Cost */}
+          {formData.core && (
+            <div className="mb-4">
+              <Label htmlFor="core_cost">Core Cost</Label>
+              <Input
+                id="core_cost"
+                type="number"
+                step="0.01"
+                value={formData.core_cost}
+                onChange={(e) => handleInputChange('core_cost', e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+          )}
+
+          {/* Conditional Fields: Stocked Item Details */}
+          {formData.stocked_item && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+              <div className="space-y-2">
+                <Label htmlFor="minimum_quantity">Minimum (Optional)</Label>
+                <Input
+                  id="minimum_quantity"
+                  type="number"
+                  value={formData.minimum_quantity}
+                  onChange={(e) => handleInputChange('minimum_quantity', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maximum_quantity">Maximum (Optional)</Label>
+                <Input
+                  id="maximum_quantity"
+                  type="number"
+                  value={formData.maximum_quantity}
+                  onChange={(e) => handleInputChange('maximum_quantity', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location">Location (Optional)</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Row 4: Category and Action Buttons */}
+          <div className="flex items-end justify-between gap-4 pt-4 border-t">
+            <div className="w-64 space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={formData.category} onValueChange={(val) => handleInputChange('category', val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => <SelectItem key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose} type="button" disabled={loading}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add & Order Part
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
