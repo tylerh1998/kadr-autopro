@@ -368,7 +368,9 @@ Deno.serve(async (req) => {
 
             if (Array.isArray(payments) && payments.length > 0) {
                 const actualPayments = payments.filter(p => p.payment_method !== 'on_account');
+                const onAccountPayments = payments.filter(p => p.payment_method === 'on_account');
                 
+                // Actual Payments
                 if (actualPayments.length > 0) {
                     finY += 15;
                     doc.setLineWidth(0.5);
@@ -376,7 +378,7 @@ Deno.serve(async (req) => {
                     finY += 10;
                     doc.setFontSize(9);
                     doc.setFont('helvetica', 'bold');
-                    doc.text('Payment History', labelX, finY);
+                    doc.text('Payments Received:', labelX, finY);
                     doc.setFont('helvetica', 'normal');
                     doc.setFontSize(8);
 
@@ -404,7 +406,52 @@ Deno.serve(async (req) => {
                         doc.text(`${dateStr} - ${method}`, labelX, finY);
                         doc.text(`-$${(Number(payment.amount) || 0).toFixed(2)}`, valueX, finY, { align: 'right' });
                     });
+                }
 
+                // On Account Payments
+                if (onAccountPayments.length > 0) {
+                    finY += 15;
+                    if (actualPayments.length === 0) {
+                        doc.setLineWidth(0.5);
+                        doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
+                        finY += 10;
+                    }
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Charged to Account:', labelX, finY);
+                    doc.setFont('helvetica', 'italic');
+                    doc.setFontSize(8);
+                    doc.setTextColor(100, 100, 100); // Gray text for on account
+
+                    onAccountPayments.forEach(payment => {
+                        finY += 10;
+                        let dateStr = 'N/A';
+                        try {
+                           if (payment.payment_date) {
+                               const parts = payment.payment_date.split('-').map(Number);
+                               if (parts.length === 3 && !parts.some(isNaN)) {
+                                   const [y, m, d] = parts;
+                                   const localDate = new Date(y, m - 1, d);
+                                   if (!isNaN(localDate.getTime())) {
+                                       dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                                   } else {
+                                       dateStr = payment.payment_date;
+                                   }
+                               } else {
+                                   dateStr = payment.payment_date;
+                               }
+                           }
+                        } catch (e) { dateStr = payment.payment_date || 'N/A'; }
+                        
+                        doc.text(`${dateStr} (On Account)`, labelX, finY);
+                        doc.text(`-$${(Number(payment.amount) || 0).toFixed(2)}`, valueX, finY, { align: 'right' });
+                    });
+                    doc.setTextColor(0, 0, 0); // Reset color
+                    doc.setFont('helvetica', 'normal');
+                }
+
+                // Balance Due (if any payments made)
+                if (actualPayments.length > 0 || onAccountPayments.length > 0) {
                     finY += 12;
                     doc.setFontSize(9);
                     doc.setLineWidth(1);
@@ -412,7 +459,18 @@ Deno.serve(async (req) => {
                     finY += 10;
                     doc.setFont('helvetica', 'bold');
                     doc.text('Balance Due:', labelX, finY);
-                    doc.text(`$${(totalAmount - amountPaid).toFixed(2)}`, valueX, finY, { align: 'right' });
+                    // For balance due, we usually subtract only actual payments (money received).
+                    // On account means they still owe it (but it's moved to AR).
+                    // In WorkOrderReport.js logic: "const amountPaid = actualPayments.reduce(...)".
+                    // So Balance Due = GrandTotal - AmountPaid.
+                    // The "Charged to Account" is informational.
+                    // The "amountPaid" passed in workOrder.amount_paid might include everything or just actual.
+                    // Let's recalculate based on actualPayments to be consistent with WorkOrderReport.js logic.
+                    
+                    const actualPaid = actualPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                    const balanceDue = totalAmount - actualPaid;
+
+                    doc.text(`$${balanceDue.toFixed(2)}`, valueX, finY, { align: 'right' });
                 }
             }
         }

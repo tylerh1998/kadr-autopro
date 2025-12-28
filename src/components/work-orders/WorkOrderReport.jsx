@@ -4,10 +4,14 @@ import { SystemSettings } from '@/entities/all';
 
 export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
 
-  // Parse payments from JSON string
+  // Parse payments from JSON string or object
   let payments = [];
   try {
-    payments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+    if (Array.isArray(workOrder.payments)) {
+      payments = workOrder.payments;
+    } else {
+      payments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+    }
     if (!Array.isArray(payments)) payments = [];
   } catch (e) {
     console.error("Failed to parse payments JSON:", e);
