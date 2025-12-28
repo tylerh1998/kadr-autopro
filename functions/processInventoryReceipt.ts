@@ -772,29 +772,31 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     }
 
     // 7. Calculate changes and deltas
-    const originalPurchaseAmount = originalLine.purchase_amount || 0;
+    const originalPurchaseAmount = parseFloat(originalLine.purchase_amount || 0);
     const newPurchaseAmount = newQuantity * newAmountPerUnit;
-    const quantityDelta = newQuantity - originalQuantity;
+    const quantityDelta = parseFloat((newQuantity - originalQuantity).toFixed(4)); // Handle floating point issues
     
     results.changes = {
       invoice_number_changed: originalLine.invoice_number !== newInvoiceNumber,
       invoice_date_changed: originalLine.invoice_date !== newInvoiceDate,
-      quantity_changed: originalQuantity !== newQuantity,
+      quantity_changed: Math.abs(quantityDelta) > 0.0001,
       amount_changed: Math.abs(originalPurchaseAmount - newPurchaseAmount) > 0.01
     };
 
     console.log('Edit changes detected:', results.changes);
-    console.log(`Original: ${originalQuantity} @ $${(originalPurchaseAmount / originalQuantity).toFixed(2)} = $${originalPurchaseAmount.toFixed(2)}`);
+    console.log(`Original: ${originalQuantity} @ $${(originalQuantity > 0 ? (originalPurchaseAmount / originalQuantity) : 0).toFixed(2)} = $${originalPurchaseAmount.toFixed(2)}`);
     console.log(`New: ${newQuantity} @ $${newAmountPerUnit.toFixed(2)} = $${newPurchaseAmount.toFixed(2)}`);
-    console.log(`Quantity delta: ${quantityDelta}`);
+    console.log(`Quantity delta: ${quantityDelta} (New: ${newQuantity} - Old: ${originalQuantity})`);
 
     // 8. Calculate new QOH and check for negative inventory
-    const currentQOH = inventoryItem.quantity_on_hand || 0;
-    const newQOH = currentQOH + quantityDelta;
+    const currentQOH = parseFloat(inventoryItem.quantity_on_hand || 0);
+    const newQOH = parseFloat((currentQOH + quantityDelta).toFixed(4));
     
     results.old_qoh = currentQOH;
     results.new_qoh = newQOH;
     results.quantity_delta = quantityDelta;
+
+    console.log(`QOH Calculation: Current ${currentQOH} + Delta ${quantityDelta} = New ${newQOH}`);
 
     if (newQOH < 0) {
       return Response.json({
