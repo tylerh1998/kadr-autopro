@@ -42,10 +42,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
     fetchWorkOrders();
   }, [vehicle?.id]);
 
-  const handleWorkOrderClick = (workOrder) => {
-    const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-    window.open(url, '_blank');
-  };
+
 
   const getDisplayNumber = (workOrder) => {
     if (workOrder.stage === 'estimate') return workOrder.est_number;
@@ -304,10 +301,12 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
               ) : workOrders.length > 0 ? (
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {workOrders.map((wo) => (
-                    <div
+                    <a
                       key={wo.id}
-                      onClick={() => handleWorkOrderClick(wo)}
-                      className="p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+                      href={`/WorkOrderEdit?id=${wo.ro_number}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
@@ -336,7 +335,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                           </span>
                         )}
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               ) : (

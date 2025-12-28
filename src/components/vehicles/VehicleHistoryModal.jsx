@@ -38,10 +38,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
     }
   }, [open, vehicle]);
 
-  const handleWorkOrderClick = (workOrder) => {
-    const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-    window.open(url, '_blank');
-  };
+
 
   const getDisplayNumber = (workOrder) => {
     if (workOrder.stage === 'estimate') return workOrder.est_number;
@@ -119,10 +116,12 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
           ) : history.length > 0 ? (
             history.map(wo => (
-              <div 
+              <a 
                 key={wo.id}
-                className="p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                onClick={() => handleWorkOrderClick(wo)}
+                href={`/WorkOrderEdit?id=${wo.ro_number}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
@@ -156,7 +155,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
                     </div>
                   )}
                 </div>
-              </div>
+              </a>
             ))
           ) : (
             <p className="text-center text-slate-500 py-8">No work order history found for this vehicle.</p>
