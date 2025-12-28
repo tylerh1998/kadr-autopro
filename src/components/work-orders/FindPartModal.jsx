@@ -110,7 +110,7 @@ export default function FindPartModal({ open, onClose }) {
                 <TableRow key={index} className="hover:bg-slate-50">
                   <TableCell>
                     <Link
-                      to={createPageUrl(`WorkOrderEdit?id=${item.work_order_id}`)}
+                      to={createPageUrl(`WorkOrderEdit?id=${item.ro_number}`)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline font-bold"
@@ -159,7 +159,7 @@ export default function FindPartModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl min-h-[70vh]">
+      <DialogContent className="max-w-5xl h-[70vh] flex flex-col gap-4">
         <DialogHeader>
           <DialogTitle>Find Part in Work Orders</DialogTitle>
         </DialogHeader>
