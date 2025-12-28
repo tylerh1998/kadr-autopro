@@ -4,10 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function WorkPROTaskModal({ open, onClose, workOrder, project, onUpdate }) {
   const [task, setTask] = useState('');
@@ -39,15 +36,15 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
     try {
       if (project) {
         // Update existing project
-        const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-          method: 'PUT',
-          headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task: task })
+        const response = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'update',
+          id: project.id,
+          params: { task: task }
         });
 
-        if (!response.ok) throw new Error('Failed to update WorkPRO task');
+        if (!response.data.success) throw new Error(response.data.error || 'Failed to update WorkPRO task');
         
-        const updatedProject = await response.json();
         onUpdate('task', task);
       } else {
         // Create new project
@@ -58,15 +55,14 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
           priority: workOrder.priority || 'medium',
         };
 
-        const response = await fetch(`${API_BASE_URL}/Project`, {
-          method: 'POST',
-          headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify(projectData)
+        const response = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'create',
+          params: projectData
         });
 
-        if (!response.ok) throw new Error('Failed to create WorkPRO project');
+        if (!response.data.success) throw new Error(response.data.error || 'Failed to create WorkPRO project');
         
-        const newProject = await response.json();
         // This will trigger a refresh of the parent component
         window.location.reload();
       }

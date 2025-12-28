@@ -7,10 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, AlertCircle, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee } from '@/entities/all';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68be5d798e9d5c950954eb0d';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function WorkPROCommentsModal({ open, onClose, workOrder, project, comments, onUpdate }) {
   const [newComment, setNewComment] = useState('');
@@ -53,26 +50,29 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/ProjectComment`, {
-        method: 'POST',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectComment',
+        method: 'create',
+        params: {
           project_id: project.id,
           comment: newComment,
-          user: 'AutoShop User' // This should ideally be the logged-in user
-        })
+          user: 'AutoShop User'
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to add comment');
+      if (!response.data.success) throw new Error(response.data.error || 'Failed to add comment');
 
       // Refresh comments list
-      const commentsResponse = await fetch(`${API_BASE_URL}/ProjectComment?project_id=${project.id}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const commentsResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectComment',
+        method: 'filter',
+        params: {
+          project_id: project.id
+        }
       });
       
-      if (commentsResponse.ok) {
-        const commentsData = await commentsResponse.json();
-        const commentsArray = Array.isArray(commentsData) ? commentsData : (commentsData?.records || []);
+      if (commentsResponse.data.success) {
+        const commentsArray = commentsResponse.data.data || [];
         const sortedComments = commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
         onUpdate(sortedComments);
       }

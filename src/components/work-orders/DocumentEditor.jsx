@@ -461,28 +461,32 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
       setLoadingWorkPRO(true);
       try {
-        const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-        const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-        const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
-
-        const projectResponse = await fetch(`${API_BASE_URL}/Project?work_order=${workOrder.wo_number}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
+        // Use backend proxy for project fetching
+        const projectResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'filter',
+          params: {
+            work_order: workOrder.wo_number
+          }
         });
 
-        if (projectResponse.ok) {
-          const projectsData = await projectResponse.json();
-          const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
+        if (projectResponse.data.success) {
+          const projects = projectResponse.data.data || [];
           const foundProject = projects.length > 0 ? projects[0] : null;
           setWorkPROProject(foundProject);
 
           if (foundProject) {
-            const commentsResponse = await fetch(`${API_BASE_URL}/ProjectComment?project_id=${foundProject.id}`, {
-              headers: { 'api_key': WORKPRO_API_KEY }
+            // Use backend proxy for comments fetching
+            const commentsResponse = await base44.functions.invoke('workProProxy', {
+              entityName: 'ProjectComment',
+              method: 'filter',
+              params: {
+                project_id: foundProject.id
+              }
             });
 
-            if (commentsResponse.ok) {
-              const commentsData = await commentsResponse.json();
-              const commentsArray = Array.isArray(commentsData) ? commentsData : (commentsData?.records || []);
+            if (commentsResponse.data.success) {
+              const commentsArray = commentsResponse.data.data || [];
               setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
             }
           }

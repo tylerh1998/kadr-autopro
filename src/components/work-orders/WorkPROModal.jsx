@@ -12,14 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
+import { base44 } from '@/api/base44Client';
 import TechTimeModal from './TechTimeModal';
 import EditProjectDetailsModal from './EditProjectDetailsModal';
 import NewWorkPROModal from './NewWorkPROModal';
 import { createPageUrl } from '@/utils';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
 // Inspection sections data
 const INSPECTION_SECTIONS = [
@@ -105,18 +102,19 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/ProjectTimeSession?project_id=${projectId}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectTimeSession',
+        method: 'filter',
+        params: {
+          project_id: projectId
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`WorkPRO API error: ${response.status}`);
+      if (response.data.success) {
+        const sessions = response.data.data || [];
+        const totalHours = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
+        setTechTimeTotal(totalHours);
       }
-
-      const data = await response.json();
-      const sessions = Array.isArray(data) ? data : (data?.records || []);
-      const totalHours = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
-      setTechTimeTotal(totalHours);
     } catch (error) {
       console.error('Error fetching tech time total:', error);
       setTechTimeTotal(0);
@@ -131,25 +129,30 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
       // PRIORITY 1: Try to fetch using workOrderIdentifier
       if (workOrderIdentifier) {
-        const projectResponse = await fetch(`${API_BASE_URL}/Project?work_order=${workOrderIdentifier}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
+        const projectResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'filter',
+          params: {
+            work_order: workOrderIdentifier
+          }
         });
 
-        if (projectResponse.ok) {
-          const projectsData = await projectResponse.json();
-          const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
+        if (projectResponse.data.success) {
+          const projects = projectResponse.data.data || [];
           foundProject = projects.length > 0 ? projects[0] : null;
         }
       }
 
       // FALLBACK: If no project found and we have initialWorkPROProject.id, fetch by ID
       if (!foundProject && initialWorkPROProject?.id) {
-        const projectResponse = await fetch(`${API_BASE_URL}/Project/${initialWorkPROProject.id}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
+        const projectResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'get',
+          id: initialWorkPROProject.id
         });
 
-        if (projectResponse.ok) {
-          foundProject = await projectResponse.json();
+        if (projectResponse.data.success) {
+          foundProject = projectResponse.data.data;
         }
       }
 
@@ -207,13 +210,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const fetchAvailableProjectsForConnection = async () => {
     setIsFetchingProjectsForConnection(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/Project`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'list',
+        limit: 1000
       });
 
-      if (response.ok) {
-        const projectsData = await response.json();
-        const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
+      if (response.data.success) {
+        const projects = response.data.data || [];
         
         // Filter out archived projects and those already connected to a work order
         const availableProjects = projects.filter(p => 
@@ -257,13 +261,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         vin: vehicle?.vin || ''
       };
 
-      const response = await fetch(`${API_BASE_URL}/Project/${selectedWorkPROProject.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload)
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'update',
+        id: selectedWorkPROProject.id,
+        params: updatePayload
       });
 
-      if (!response.ok) throw new Error('Failed to connect project');
+      if (!response.data.success) throw new Error(response.data.error || 'Failed to connect project');
 
       // Reload the modal with the newly connected project
       await fetchWorkPROData();
@@ -333,13 +338,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         next_oil_change_odometer: formData.next_oil_change_odometer ? parseFloat(formData.next_oil_change_odometer) : null
       };
 
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'update',
+        id: project.id,
+        params: updateData
       });
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (!response.data.success) throw new Error(response.data.error || 'Failed to update project');
 
       setProject(prev => ({
         ...prev,

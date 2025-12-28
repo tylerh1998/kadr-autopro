@@ -4,10 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function WorkPRODescriptionModal({ open, onClose, workOrder, project, onUpdate }) {
   const [description, setDescription] = useState('');
@@ -38,15 +35,15 @@ export default function WorkPRODescriptionModal({ open, onClose, workOrder, proj
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: description })
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'update',
+        id: project.id,
+        params: { description: description }
       });
 
-      if (!response.ok) throw new Error('Failed to update WorkPRO description');
+      if (!response.data.success) throw new Error(response.data.error || 'Failed to update WorkPRO description');
       
-      const updatedProject = await response.json();
       onUpdate('description', description);
       setHasChanges(false);
       alert('Description updated successfully');

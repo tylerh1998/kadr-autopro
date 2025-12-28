@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
         console.log(`WorkProProxy Request: ${method} ${entityName}`, { params, id, sort, limit });
 
         const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
-        const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018'; // Hardcoded from existing Layout.js
+        const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018'; // Use secret or fallback for now
 
         if (!WORKPRO_API_KEY) {
             return new Response(JSON.stringify({ error: 'WORKPRO_API_KEY not set' }), { status: 500, headers: { 'Content-Type': 'application/json' } });

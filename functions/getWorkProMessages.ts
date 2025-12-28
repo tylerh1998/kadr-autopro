@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
 
 // These are the credentials for the external WorkPRO application
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
+const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
 const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
 Deno.serve(async (req) => {

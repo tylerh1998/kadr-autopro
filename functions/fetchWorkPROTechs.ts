@@ -1,7 +1,7 @@
 Deno.serve(async (req) => {
   try {
     const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
-    const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
+    const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
     
     if (!WORKPRO_API_KEY) {
       return Response.json(

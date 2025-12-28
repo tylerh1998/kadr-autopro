@@ -6,10 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Link, AlertCircle, Car, Calendar, FileText, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68be5d798e9d5c950954eb0d';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function WorkPROConnectorModal({ open, onClose, project, workOrders, customers, vehicles, workPROProjects, onConnectionComplete }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,19 +57,17 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
     setLinking(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: {
-          'api_key': WORKPRO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'update',
+        id: project.id,
+        params: {
           work_order: selectedWorkOrder.wo_number || selectedWorkOrder.est_number
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to link work order to project');
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to link work order to project');
       }
 
       alert('Work order successfully linked to project!');
