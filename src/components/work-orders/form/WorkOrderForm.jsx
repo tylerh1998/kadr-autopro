@@ -416,32 +416,37 @@ export default function WorkOrderForm({
     setHasUnsavedChanges(true);
     tracedSetLineItems(prev => {
         let updated = [...prev];
-        let currentUpdateIndex = selectedLineIndex !== null ? selectedLineIndex : -1;
+        
+        const isLineEmpty = (l) => {
+            if (!l) return false;
+            if (l.description || l.part_number || l.is_other_charge || l.inventory_item_id) return false;
+            if ((parseFloat(l.labour) || 0) !== 0) return false;
+            if ((parseFloat(l.total) || 0) !== 0) return false;
+            return true;
+        };
 
-        partsArrayWithProcessedFlags.forEach(newLineItem => {
+        partsArrayWithProcessedFlags.forEach((newLineItem, idx) => {
             const lineWithTaxable = { 
               ...newLineItem, 
               taxable: editedWorkOrder?.default_taxable !== undefined ? editedWorkOrder.default_taxable : true
             };
             
-            let emptyLineFound = false;
-            if (currentUpdateIndex !== -1 && updated[currentUpdateIndex] && (!updated[currentUpdateIndex]?.description && !updated[currentUpdateIndex]?.part_number && !updated[currentUpdateIndex]?.manually_inserted)) {
-              updated[currentUpdateIndex] = { ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
-              emptyLineFound = true;
-            } else {
-              const nextEmptyIndex = updated.findIndex(
-                  (l, idx) => l && (!l.description && !l.part_number && !l.manually_inserted) && idx > currentUpdateIndex
-              );
-              if (nextEmptyIndex !== -1) {
-                  updated[nextEmptyIndex] = { ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
-                  currentUpdateIndex = nextEmptyIndex;
-                  emptyLineFound = true;
-              }
+            let targetIndex = -1;
+
+            if (idx === 0 && selectedLineIndex !== null && selectedLineIndex >= 0 && selectedLineIndex < updated.length) {
+                if (isLineEmpty(updated[selectedLineIndex])) {
+                    targetIndex = selectedLineIndex;
+                }
             }
 
-            if (!emptyLineFound) {
+            if (targetIndex === -1) {
+                targetIndex = updated.findIndex(l => isLineEmpty(l));
+            }
+
+            if (targetIndex !== -1) {
+                updated[targetIndex] = { ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
+            } else {
                 updated.push({ ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` });
-                currentUpdateIndex = updated.length - 1;
             }
         });
 
@@ -516,10 +521,31 @@ export default function WorkOrderForm({
     
     tracedSetLineItems(prev => {
       const newLines = [...prev];
-      if (selectedLineIndex !== null && newLines[selectedLineIndex] && (!newLines[selectedLineIndex].description && !newLines[selectedLineIndex].part_number && !newLines[selectedLineIndex].manually_inserted)) {
-        newLines[selectedLineIndex] = newLine;
+      
+      const isLineEmpty = (l) => {
+          if (!l) return false;
+          if (l.description || l.part_number || l.is_other_charge || l.inventory_item_id) return false;
+          if ((parseFloat(l.labour) || 0) !== 0) return false;
+          if ((parseFloat(l.total) || 0) !== 0) return false;
+          return true;
+      };
+
+      let targetIndex = -1;
+
+      if (selectedLineIndex !== null && selectedLineIndex >= 0 && selectedLineIndex < newLines.length) {
+          if (isLineEmpty(newLines[selectedLineIndex])) {
+              targetIndex = selectedLineIndex;
+          }
+      }
+
+      if (targetIndex === -1) {
+          targetIndex = newLines.findIndex(l => isLineEmpty(l));
+      }
+
+      if (targetIndex !== -1) {
+          newLines[targetIndex] = newLine;
       } else {
-        newLines.splice(selectedLineIndex !== null ? selectedLineIndex + 1 : newLines.length, 0, newLine);
+          newLines.push(newLine);
       }
       return newLines;
     });
