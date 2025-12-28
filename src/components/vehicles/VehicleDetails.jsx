@@ -57,9 +57,25 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
     const labels = {
       estimate: 'Estimate',
       work_order: 'Work Order',
-      invoice: 'Invoice'
+      invoice: 'Invoice',
+      credit_invoice: 'Credit Invoice'
     };
     return labels[stage] || 'Work Order';
+  };
+
+  const getStageBadgeStyles = (stage) => {
+    switch (stage) {
+      case 'estimate':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'work_order':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'invoice':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'credit_invoice':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   const getStatusColor = (status) => {
@@ -298,7 +314,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                           <p className="font-semibold text-blue-700">
                             {getDisplayNumber(wo) || `RO ${wo.ro_number}`}
                           </p>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className={`text-xs ${getStageBadgeStyles(wo.stage)}`}>
                             {getStageLabel(wo.stage)}
                           </Badge>
                         </div>
