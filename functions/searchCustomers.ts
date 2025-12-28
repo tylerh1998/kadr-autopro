@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       // Ideally we'd have a count() method.
       // Use service role to ensure we get all customers regardless of ownership
       // Fetch up to 5000 customers to ensure we cover the dataset for now
-      const allCustomers = await base44.asServiceRole.entities.Customer.list(undefined, 5000);
+      const allCustomers = await base44.entities.Customer.list(undefined, 5000);
       const total = allCustomers.length;
       const totalPages = Math.ceil(total / limit);
       
