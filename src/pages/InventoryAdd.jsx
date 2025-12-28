@@ -1134,12 +1134,16 @@ export default function InventoryAddPage() {
                                 <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
                                 <Select 
                                     value={currentItem.category} 
-                                    onValueChange={(val) => handleItemFieldChange('category', val)}
+                                    onValueChange={(val) => {
+                                        handleItemFieldChange('category', val === 'none' ? '' : val);
+                                        setIsCategorySuggested(false);
+                                    }}
                                 >
-                                    <SelectTrigger id="category">
+                                    <SelectTrigger id="category" className={isCategorySuggested ? "border-red-500 ring-1 ring-red-500" : ""}>
                                         <SelectValue placeholder="Select category..." />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
                                         {[...inventoryCategories]
                                             .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                                             .map(category => (
