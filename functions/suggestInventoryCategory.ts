@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
       ${categoryNames.join(', ')}
       
       Return ONLY the exact name of the best matching category from the list above. 
-      If unsure, choose the closest match or 'other' if available.
+      If the part does not fit clearly into any specific category, return 'other'.
+      Do not make up new categories.
       Do not add explanations or quotes.
     `;
 
@@ -49,15 +50,16 @@ Deno.serve(async (req) => {
       add_context_from_internet: false
     });
 
-    let suggestedCategory = aiResponse.trim();
+    let suggestedCategory = aiResponse.trim().replace(/^['"]|['"]$/g, ''); // Remove quotes if present
     
     // Validate that the suggestion exists in our list (case-insensitive check)
     const match = categoryNames.find(c => c.toLowerCase() === suggestedCategory.toLowerCase());
     if (match) {
         suggestedCategory = match;
     } else {
-        // Fallback if LLM hallucinates a new category
-        suggestedCategory = categoryNames.includes('other') ? 'other' : categoryNames[0];
+        // Fallback: Try to find 'other' (case-insensitive), otherwise use first category
+        const otherCategory = categoryNames.find(c => c.toLowerCase() === 'other');
+        suggestedCategory = otherCategory || categoryNames[0];
     }
 
     return Response.json({ category: suggestedCategory });
