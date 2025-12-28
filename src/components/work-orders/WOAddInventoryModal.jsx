@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle } from 'lucide-react';
-import { InventoryItem, Supplier, SalesClass, InventoryTxs, TagAlong } from '@/entities/all';
+import { InventoryItem, Supplier, SalesClass, InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder }) {
   const [formData, setFormData] = useState({
@@ -34,9 +35,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const [suppliers, setSuppliers] = useState([]);
   const [salesClasses, setSalesClasses] = useState([]);
   const [tagAlongs, setTagAlongs] = useState([]);
+  const [otherCharges, setOtherCharges] = useState([]);
+  const [inventoryCategories, setInventoryCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [calculatedMargin, setCalculatedMargin] = useState('');
   const [duplicatePartWarning, setDuplicatePartWarning] = useState(null);
+  const [suggestingCategory, setSuggestingCategory] = useState(false);
+  const [isCategorySuggested, setIsCategorySuggested] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -50,37 +55,42 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       part_number: '',
       description: '',
       unit: '',
-      category: 'other',
+      category: '',
       supplier_id: '',
       manufacturer: '',
       cost: '',
       selling_price: '',
       sales_class: '',
       profit_margin: '',
-      quantity_to_order: '1',
+      quantity_to_order: '',
       minimum_quantity: '',
       maximum_quantity: '',
       location: '',
       core: false,
       core_cost: '',
       tag_along_id: '',
-      stocked_item: true,
+      stocked_item: false,
       is_active: true,
     });
     setCalculatedMargin('');
     setDuplicatePartWarning(null);
+    setIsCategorySuggested(false);
   };
 
   const loadDropdownData = async () => {
     try {
-      const [suppliersData, salesClassesData, tagAlongsData] = await Promise.all([
+      const [suppliersData, salesClassesData, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
         Supplier.filter({ inventory_supplier: true }, 'name'),
         SalesClass.list(),
-        TagAlong.list()
+        TagAlong.list(),
+        OtherChargeList.list(),
+        InventoryCategory.list()
       ]);
       setSuppliers(suppliersData);
       setSalesClasses(salesClassesData);
       setTagAlongs(tagAlongsData);
+      setOtherCharges(otherChargesData);
+      setInventoryCategories(categoriesData);
     } catch (error) {
       console.error('Error loading dropdown data:', error);
     }
@@ -128,6 +138,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
       if (field === 'part_number') {
         setDuplicatePartWarning(null);
+      }
+      
+      if (field === 'category') {
+        setIsCategorySuggested(false);
       }
 
       // Auto-calculate selling price and margin when cost or sales class changes
@@ -212,8 +226,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       alert('Selling Price must be greater than 0.');
       return;
     }
-    if (parseFloat(formData.quantity_to_order) <= 0) {
-      alert('Quantity to Order must be greater than 0.');
+    if (!formData.quantity_to_order || parseFloat(formData.quantity_to_order) <= 0) {
+      alert('Qty Ordered is required and must be greater than 0.');
       return;
     }
 
@@ -234,7 +248,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         part_number: formData.part_number,
         description: formData.description,
         unit: formData.unit || null,
-        category: formData.category,
+        category: formData.category || null,
         supplier_id: formData.supplier_id || null,
         manufacturer: formData.manufacturer || null,
         sales_class: formData.sales_class || null,
@@ -279,6 +293,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       });
 
       // Step 3: Create the line item object for the work order
+      const coreNum = createdInventoryItem.core ? quantityToOrder : 0;
+      const coreCost = parseFloat(formData.core_cost) || 0;
+      // core_osamt is calculated automatically in LineItemsTable based on core_num and core_cost
+      
       const newLineItem = {
         id: Date.now() + Math.random(), 
         qty: quantityToOrder,
@@ -300,18 +318,64 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         // Mark as true to prevent DocumentEditor from triggering WOGetPart and creating a duplicate transaction.
         inventory_processed: true,
         cost_ea: parseFloat(formData.cost) || 0,
-        Core_num: createdInventoryItem.core ? quantityToOrder : 0,
+        Core_num: coreNum,
         core_ret: 0,
-        core_cost: parseFloat(formData.core_cost) || 0,
+        core_cost: coreCost,
       };
       
-      console.log('=== DEBUG: WOAddInventoryModal creating line item ===');
-      console.log('New part data with taxable field:', newLineItem);
+      const itemsToAdd = [newLineItem];
+
+      // Handle Tag Along
+      if (formData.tag_along_id) {
+        const tagAlong = tagAlongs.find(ta => ta.id === formData.tag_along_id);
+        
+        if (tagAlong && tagAlong.other_charge_id) {
+          const otherCharge = otherCharges.find(oc => oc.id === tagAlong.other_charge_id);
+          
+          if (otherCharge) {
+            const tagAlongTotal = (otherCharge.base_amount || 0) * quantityToOrder;
+            
+            const tagAlongLineItem = {
+              id: Date.now() + Math.random() + 0.1,
+              qty: quantityToOrder,
+              hrs: 0,
+              description: tagAlong.description || otherCharge.description,
+              part_number: '',
+              unit: '',
+              parts_ea: 0,
+              tot_parts: 0,
+              labour: 0,
+              oc_total: tagAlongTotal,
+              total: tagAlongTotal,
+              taxable: otherCharge.is_taxable !== undefined ? otherCharge.is_taxable : true,
+              gl_account: otherCharge.gl_account || '',
+              complete: false,
+              bold: false,
+              is_other_charge: true,
+              other_charge_id: tagAlong.other_charge_id,
+              inventory_item_id: null,
+              cost_ea: 0,
+              Core_num: 0,
+              core_ret: 0,
+              core_cost: 0,
+              core_osamt: 0,
+              inventory_processed: false,
+              qty_on_order: 0,
+              supplier_invoice_line_id: null,
+              manually_inserted: false
+            };
+
+            itemsToAdd.push(tagAlongLineItem);
+          }
+        }
+      }
+      
+      console.log('=== DEBUG: WOAddInventoryModal creating line items ===');
+      console.log('Items to add:', itemsToAdd);
 
       console.log('=== WOAddInventoryModal: Inventory processing completed ===');
-      console.log('New line item:', newLineItem);
 
-      onAdd([newLineItem]);
+      onAdd(itemsToAdd);
       onClose();
 
     } catch (error) {
@@ -322,7 +386,45 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     }
   };
 
-  const categories = ["oil_fluids", "filters", "brakes", "engine", "transmission", "electrical", "tires", "belts_hoses", "suspension", "exhaust", "other"];
+  // Smart Category Suggestion Logic
+  useEffect(() => {
+      const fetchSuggestion = async () => {
+          if (formData.part_number && 
+              formData.description && 
+              !formData.category && 
+              !suggestingCategory) {
+              
+              setSuggestingCategory(true);
+              try {
+                  const supplier = suppliers.find(s => s.id === formData.supplier_id);
+                  const supplierName = supplier ? supplier.name : '';
+                  
+                  const response = await base44.functions.invoke('suggestInventoryCategory', {
+                      part_number: formData.part_number,
+                      description: formData.description,
+                      supplier_name: supplierName
+                  });
+                  
+                  if (response.data && response.data.category) {
+                      setFormData(prev => {
+                          if (!prev.category) {
+                              setTimeout(() => setIsCategorySuggested(true), 0);
+                              return { ...prev, category: response.data.category };
+                          }
+                          return prev;
+                      });
+                  }
+              } catch (error) {
+                  console.error("Error fetching category suggestion:", error);
+              } finally {
+                  setSuggestingCategory(false);
+              }
+          }
+      };
+
+      const timer = setTimeout(fetchSuggestion, 1000); // Debounce
+      return () => clearTimeout(timer);
+  }, [formData.part_number, formData.description, formData.category, formData.supplier_id, suppliers]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -430,7 +532,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
           {/* Row 2: Qty, Cost, Sales Class, Tag Along */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity_to_order">Qty Received *</Label>
+              <Label htmlFor="quantity_to_order">Qty Ordered *</Label>
               <Input
                 id="quantity_to_order"
                 type="number"
@@ -438,6 +540,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 value={formData.quantity_to_order}
                 onChange={(e) => handleInputChange("quantity_to_order", e.target.value)}
                 required
+                placeholder="Enter Qty"
               />
             </div>
             <div className="space-y-2">
@@ -594,13 +697,22 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
           {/* Row 4: Category and Action Buttons */}
           <div className="flex items-end justify-between gap-4 pt-4 border-t">
             <div className="w-64 space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(val) => handleInputChange('category', val)}>
-                <SelectTrigger>
+              <Label htmlFor="category">
+                Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}
+              </Label>
+              <Select value={formData.category || 'none'} onValueChange={(val) => handleInputChange('category', val === 'none' ? '' : val)}>
+                <SelectTrigger className={isCategorySuggested ? "border-red-500 ring-1 ring-red-500" : ""}>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map(cat => <SelectItem key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                  <SelectItem value="none">None</SelectItem>
+                  {[...inventoryCategories]
+                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                    .map(cat => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
