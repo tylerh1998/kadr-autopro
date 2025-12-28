@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { InventoryItem } from '@/entities/all';
+import { InventoryItem, InventoryCategory } from '@/entities/all';
 import { TagAlong } from "@/entities/TagAlong";
 import { base44 } from '@/api/base44Client';
 import { Save, Loader2, Search, Check } from "lucide-react";
@@ -36,6 +36,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     const [loading, setLoading] = useState(false);
     const [calculatedMargin, setCalculatedMargin] = useState('');
     const [tagAlongs, setTagAlongs] = useState([]);
+    const [inventoryCategories, setInventoryCategories] = useState([]);
     const [searchOpen, setSearchOpen] = useState(false);
 
     const filteredLocations = React.useMemo(() => {
@@ -82,19 +83,23 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
         return null;
     }, [salesClasses]);
 
-    // Effect to load tag alongs when the modal opens
+    // Effect to load data when the modal opens
     useEffect(() => {
         if (open) {
-            loadTagAlongs();
+            loadData();
         }
     }, [open]);
 
-    const loadTagAlongs = async () => {
+    const loadData = async () => {
         try {
-            const tagAlongsData = await TagAlong.list();
+            const [tagAlongsData, categoriesData] = await Promise.all([
+                TagAlong.list(),
+                InventoryCategory.list()
+            ]);
             setTagAlongs(tagAlongsData);
+            setInventoryCategories(categoriesData);
         } catch (error) {
-            console.error('Error loading tag alongs:', error);
+            console.error('Error loading data:', error);
         }
     };
 
@@ -105,7 +110,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     part_number: item.part_number || "",
                     description: item.description || "",
                     unit: item.unit || "", // NEW: Load unit value
-                    category: item.category || "other",
+                    category: item.category || "",
                     supplier_id: item.supplier_id || "",
                     manufacturer: item.manufacturer || "",
                     cost: item.cost?.toString() || "",
@@ -155,7 +160,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 }
             } else {
                 setFormData({
-                    part_number: "", description: "", unit: "", category: "other", supplier_id: "", manufacturer: "",
+                    part_number: "", description: "", unit: "", category: "", supplier_id: "", manufacturer: "",
                     cost: "", selling_price: "", sales_class: "", profit_margin: "", quantity_on_hand: "",
                     minimum_quantity: "", maximum_quantity: "", location: "", stocked_item: true,
                     core: false, core_cost: "", tag_along_id: "", is_active: true,
@@ -316,8 +321,6 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
         }
     };
 
-    const categories = ["oil_fluids", "filters", "brakes", "engine", "transmission", "electrical", "tires", "belts_hoses", "suspension", "exhaust", "other"];
-
     if (!open) return null;
 
     return (
@@ -344,12 +347,22 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
                         <div>
                             <Label htmlFor="category">Category</Label>
-                            <Select value={formData.category || 'other'} onValueChange={(val) => handleInputChange('category', val)}>
+                            <Select 
+                                value={formData.category || 'none'} 
+                                onValueChange={(val) => handleInputChange('category', val === 'none' ? '' : val)}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a category" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {categories.map(cat => <SelectItem key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                                    <SelectItem value="none">None</SelectItem>
+                                    {[...inventoryCategories]
+                                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                        .map(cat => (
+                                        <SelectItem key={cat.id} value={cat.name}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
