@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
             doc.text(`$${subtotal.toFixed(2)}`, valueX, finY, { align: 'right' });
 
             finY += 12;
-            doc.text('Shop Supplies (7%):', labelX, finY);
+            doc.text('Shop Supplies:', labelX, finY);
             doc.text(`$${shopSupplies.toFixed(2)}`, valueX, finY, { align: 'right' });
 
             finY += 12;
