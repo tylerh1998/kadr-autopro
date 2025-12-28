@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { InventoryItem, Supplier, SalesClass, TagAlong, InventoryLocation } from '@/entities/all';
+import { InventoryItem, Supplier, SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -127,6 +127,7 @@ export default function InventoryAddPage() {
     const [inventoryItems, setInventoryItems] = useState([]);
     const [tagAlongs, setTagAlongs] = useState([]);
     const [inventoryLocations, setInventoryLocations] = useState([]);
+    const [inventoryCategories, setInventoryCategories] = useState([]);
     const [selectedSupplier, setSelectedSupplier] = useState('');
     const [supplierLockStatus, setSupplierLockStatus] = useState({ checking: false, locked: false, lockedBy: null });
     const [addToBatchError, setAddToBatchError] = useState('');
@@ -152,6 +153,7 @@ export default function InventoryAddPage() {
         minimum_quantity: '0',
         maximum_quantity: '0',
         location: '',
+        category: '',
     });
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
@@ -159,6 +161,7 @@ export default function InventoryAddPage() {
     const quantityReceivedRef = React.useRef(null);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
+    const [suggestingCategory, setSuggestingCategory] = useState(false);
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -196,18 +199,20 @@ export default function InventoryAddPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [suppliersData, salesClassesData, inventoryData, tagAlongsData, locationsData] = await Promise.all([
+                const [suppliersData, salesClassesData, inventoryData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
                     Supplier.filter({ inventory_supplier: true }, 'name'),
                     SalesClass.list(),
                     InventoryItem.list(),
                     TagAlong.list(),
-                    InventoryLocation.list()
+                    InventoryLocation.list(),
+                    InventoryCategory.list()
                 ]);
                 setSuppliers(suppliersData);
                 setSalesClasses(salesClassesData);
                 setInventoryItems(inventoryData);
                 setTagAlongs(tagAlongsData);
                 setInventoryLocations(locationsData);
+                setInventoryCategories(categoriesData);
                 
                 setTimeout(() => {
                     supplierTriggerRef.current?.focus();
@@ -519,6 +524,7 @@ export default function InventoryAddPage() {
             minimum_quantity: '0',
             maximum_quantity: '0',
             location: '',
+            category: '',
         });
         
         // Autofocus back to part # field
@@ -625,7 +631,8 @@ export default function InventoryAddPage() {
                     stocked_item: selected.stocked_item || false,
                     minimum_quantity: (selected.minimum_quantity || 0).toString(),
                     maximum_quantity: (selected.maximum_quantity || 0).toString(),
-                    location: selected.location || ''
+                    location: selected.location || '',
+                    category: selected.category || ''
                 };
 
                 if (updatedItem.cost && updatedItem.sales_class) {
@@ -657,9 +664,55 @@ export default function InventoryAddPage() {
                 minimum_quantity: '0',
                 maximum_quantity: '0',
                 location: '',
+                category: '',
             }));
         }
     };
+
+    // Smart Category Suggestion Logic
+    useEffect(() => {
+        const fetchSuggestion = async () => {
+            // Only suggest if: 
+            // 1. We have a part number and description
+            // 2. No category is currently selected
+            // 3. This is a NEW item (not found in existing inventory)
+            const existingItem = inventoryItems.find(item => item.part_number === currentItem.part_number);
+            
+            if (currentItem.part_number && 
+                currentItem.description && 
+                !currentItem.category && 
+                !existingItem &&
+                !suggestingCategory) {
+                
+                setSuggestingCategory(true);
+                try {
+                    const supplierName = getSupplierName(selectedSupplier);
+                    const response = await base44.functions.invoke('suggestInventoryCategory', {
+                        part_number: currentItem.part_number,
+                        description: currentItem.description,
+                        supplier_name: supplierName
+                    });
+                    
+                    if (response.data && response.data.category) {
+                        // Only update if user hasn't selected a category in the meantime
+                        setCurrentItem(prev => {
+                            if (!prev.category) {
+                                return { ...prev, category: response.data.category };
+                            }
+                            return prev;
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error fetching category suggestion:", error);
+                } finally {
+                    setSuggestingCategory(false);
+                }
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestion, 1000); // Debounce
+        return () => clearTimeout(timer);
+    }, [currentItem.part_number, currentItem.description, currentItem.category, selectedSupplier, inventoryItems]);
 
     const getTotalItemsCount = () => {
         return batchItems.reduce((total, group) => total + group.partItems.length, 0);
@@ -1072,12 +1125,35 @@ export default function InventoryAddPage() {
                             </div>
                         )}
 
-                        <div className="flex justify-end items-center gap-2">
-                            <span className="text-xs text-slate-500">Ctrl + A</span>
-                            <Button onClick={handleAddToBatch} className="bg-black text-white hover:bg-gray-800">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add to Batch
-                            </Button>
+                        <div className="flex items-end justify-between gap-4 mt-4">
+                            <div className="w-64">
+                                <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
+                                <Select 
+                                    value={currentItem.category} 
+                                    onValueChange={(val) => handleItemFieldChange('category', val)}
+                                >
+                                    <SelectTrigger id="category">
+                                        <SelectValue placeholder="Select category..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {[...inventoryCategories]
+                                            .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                            .map(category => (
+                                            <SelectItem key={category.id} value={category.name}>
+                                                {category.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">Ctrl + A</span>
+                                <Button onClick={handleAddToBatch} className="bg-black text-white hover:bg-gray-800">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add to Batch
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
