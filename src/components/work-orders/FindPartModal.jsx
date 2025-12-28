@@ -119,7 +119,24 @@ export default function FindPartModal({ open, onClose }) {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {item.wo_date ? format(parseISO(item.wo_date), 'MM/dd/yyyy') : '-'}
+                    {(() => {
+                      if (!item.wo_date) return '-';
+                      try {
+                        // Try parsing as ISO first
+                        return format(parseISO(item.wo_date), 'MM/dd/yyyy');
+                      } catch (e) {
+                        try {
+                          // Fallback to standard Date parsing
+                          const d = new Date(item.wo_date);
+                          if (!isNaN(d.getTime())) {
+                            return format(d, 'MM/dd/yyyy');
+                          }
+                          return item.wo_date; // Return raw string if parsing fails
+                        } catch (e2) {
+                          return item.wo_date;
+                        }
+                      }
+                    })()}
                   </TableCell>
                   <TableCell>{item.customer_name || 'Unknown'}</TableCell>
                   <TableCell className="font-mono text-sm">{item.part_number}</TableCell>
