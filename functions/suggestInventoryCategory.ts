@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
     // Use LLM to suggest category
     const prompt = `
       You are an automotive parts inventory expert.
-      Classify the following part into one of the existing categories.
+      First, search the internet to identify what this part is based on the Part Number and Description.
+      Then, classify it into one of the existing categories below.
       
       Part Number: ${part_number || 'N/A'}
       Description: ${description || 'N/A'}
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
 
     const aiResponse = await base44.integrations.Core.InvokeLLM({
       prompt: prompt,
-      add_context_from_internet: false
+      add_context_from_internet: true
     });
 
     let suggestedCategory = aiResponse.trim().replace(/^['"]|['"]$/g, ''); // Remove quotes if present
