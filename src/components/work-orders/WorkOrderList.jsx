@@ -21,17 +21,26 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const StatusBadge = ({ status }) => {
-  const colors = {
-    "Open": "bg-blue-100 text-blue-800 border-blue-200",
-    "Parts On Order": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    "Scheduled": "bg-purple-100 text-purple-800 border-purple-200",
-    "On Hold": "bg-gray-100 text-gray-800 border-gray-200",
-    "Completed": "bg-green-100 text-green-800 border-green-200",
+const StatusBadge = ({ status, workOrderStatuses }) => {
+  // Map color names to Tailwind classes
+  const colorMap = {
+    blue: "bg-blue-100 text-blue-800 border-blue-200",
+    green: "bg-green-100 text-green-800 border-green-200",
+    red: "bg-red-100 text-red-800 border-red-200",
+    yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    orange: "bg-orange-100 text-orange-800 border-orange-200",
+    purple: "bg-purple-100 text-purple-800 border-purple-200",
+    pink: "bg-pink-100 text-pink-800 border-pink-200",
+    slate: "bg-slate-100 text-slate-800 border-slate-200",
+    gray: "bg-gray-100 text-gray-800 border-gray-200",
   };
+
+  const statusObj = workOrderStatuses?.find(s => s.name === status);
+  const colorKey = statusObj?.color || 'slate';
+  const badgeClass = colorMap[colorKey] || colorMap['slate'];
   
   return (
-    <Badge className={`${colors[status] || colors['On Hold']} border font-medium`}>
+    <Badge className={`${badgeClass} border font-medium`}>
       {status}
     </Badge>
   );
@@ -45,7 +54,8 @@ function WorkOrderList({
   onSelect,
   onEdit,   
   onStatusUpdate,
-  currentUser
+  currentUser,
+  workOrderStatuses
 }) {
   // Helper function to get customer display name
   const getCustomerName = (customerId) => {
@@ -169,7 +179,7 @@ function WorkOrderList({
                           {workOrder.stage === 'credit_invoice' ? 'Credit Invoice' : 'Invoice'}
                         </Badge>
                       ) : (
-                        <StatusBadge status={workOrder.status} />
+                        <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
                       )}
                       
                       {isLocked && (

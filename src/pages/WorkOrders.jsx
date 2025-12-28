@@ -1238,6 +1238,7 @@ export default function WorkOrdersPage() {
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
+                workOrderStatuses={workOrderStatuses}
               />
             </TabsContent>
 
@@ -1258,6 +1259,7 @@ export default function WorkOrdersPage() {
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
+                workOrderStatuses={workOrderStatuses}
               />
             </TabsContent>
 
@@ -1274,6 +1276,7 @@ export default function WorkOrdersPage() {
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
+                workOrderStatuses={workOrderStatuses}
               />
             </TabsContent>
 
