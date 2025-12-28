@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
 
 // These are the credentials for the external WorkPRO application
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
 const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
 const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
@@ -15,6 +14,11 @@ Deno.serve(async (req) => {
                 status: 401,
                 headers: { 'Content-Type': 'application/json' },
             });
+        }
+
+        const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
+        if (!WORKPRO_API_KEY) {
+            return new Response(JSON.stringify({ error: 'WORKPRO_API_KEY not set' }), { status: 500 });
         }
 
         // If authenticated, proceed to fetch data from the external WorkPRO app on the server-side

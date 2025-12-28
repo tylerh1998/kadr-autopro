@@ -5,10 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
   const [clockInTime, setClockInTime] = useState('');
@@ -42,47 +39,33 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
       const isoTime = selectedTime.toISOString();
 
       // 1. Create TimeRecord (Global Clock In)
-      const timeRecordRes = await fetch(`${API_BASE_URL}/TimeRecord`, {
-        method: 'POST',
-        headers: {
-          'api_key': WORKPRO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const timeRecordRes = await base44.functions.invoke('workProProxy', {
+        entityName: 'TimeRecord',
+        method: 'create',
+        params: {
           employee_name: user.full_name,
           clock_in_time: isoTime,
-          status: 'active', // Using 'active' as per TechClockStatusModal logic (was 'clocked_in' in Layout.js, checking consistency...)
-          // Layout.js used 'clocked_in', TechClockStatusModal uses 'active'. 
-          // Let's stick to what TechClockStatusModal expects for the dashboard to work: 'active'
+          status: 'active',
           total_hours: 0,
           pto_hours: 0,
           stat_hours: 0
-        })
+        }
       });
 
-      if (!timeRecordRes.ok) throw new Error('Failed to create Time Record');
-      const timeRecord = await timeRecordRes.json();
+      if (!timeRecordRes.data.success) throw new Error(timeRecordRes.data.error || 'Failed to create Time Record');
+      const timeRecord = timeRecordRes.data.data;
 
       // 2. Create UnassignedTime
-      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTime`, {
-        method: 'POST',
-        headers: {
-          'api_key': WORKPRO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_name: user.full_name, // Using user_name as per schema
+      await base44.functions.invoke('workProProxy', {
+        entityName: 'UnassignedTime',
+        method: 'create',
+        params: {
+          user_name: user.full_name,
           employee_name: user.full_name,
           start_time: isoTime,
           status: 'active'
-        })
+        }
       });
-
-      if (!unassignedRes.ok) {
-        console.error("Failed to create UnassignedTime", await unassignedRes.text());
-        // Don't fail the whole operation if this fails, but warn? 
-        // Instructions say "It will create...".
-      }
 
       onClockIn(timeRecord);
       onClose();

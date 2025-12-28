@@ -19,9 +19,10 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Project ID is required' }, { status: 400 });
         }
 
-        // Use secret if available, otherwise fallback to the hardcoded key from the frontend file (though secrets are preferred)
-        // The user instructions say WORKPRO_API_KEY is an existing secret.
-        const apiKey = Deno.env.get('WORKPRO_API_KEY') || '835a11119e7d4b84a59f8f7a180b7e61';
+        const apiKey = Deno.env.get('WORKPRO_API_KEY');
+        if (!apiKey) {
+            return Response.json({ error: 'WORKPRO_API_KEY not set' }, { status: 500 });
+        }
 
         // Fetch ProjectTimeSession directly from WorkPRO API
         const response = await fetch(`${API_BASE_URL}/ProjectTimeSession?project_id=${projectId}`, {

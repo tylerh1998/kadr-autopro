@@ -148,18 +148,17 @@ function LayoutContent({ children, currentPageName }) {
       if (!user || !user.full_name) return;
 
       try {
-        const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-        const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-
-        const response = await fetch(`https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities/TimeRecord?employee_name=${encodeURIComponent(user.full_name)}&status=active`, {
-          headers: {
-            'api_key': WORKPRO_API_KEY,
-            'Content-Type': 'application/json'
+        const response = await base44.functions.invoke('workProProxy', {
+          entityName: 'TimeRecord',
+          method: 'filter',
+          params: {
+            employee_name: user.full_name,
+            status: 'active'
           }
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (response.data.success) {
+          const data = response.data.data;
           const records = Array.isArray(data) ? data : (data?.records || []);
           
           const activeRecord = records.find(record => record.clock_in_time && !record.clock_out_time);
@@ -217,8 +216,6 @@ function LayoutContent({ children, currentPageName }) {
     if (!user || !user.full_name) return;
 
     try {
-      const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-      const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
       const now = new Date();
 
       if (isClockedIn && lastTimeRecord) {
@@ -227,54 +224,49 @@ function LayoutContent({ children, currentPageName }) {
         const clockInTime = new Date(lastTimeRecord.clock_in_time);
         const totalHours = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
 
-        const updateResponse = await fetch(`https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities/TimeRecord/${lastTimeRecord.id}`, {
-          method: 'PUT',
-          headers: {
-            'api_key': WORKPRO_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        const updateResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'TimeRecord',
+          method: 'update',
+          id: lastTimeRecord.id,
+          params: {
             clock_out_time: clockOutTime,
             total_hours: Math.round(totalHours * 100) / 100,
             status: 'clocked_out'
-          })
+          }
         });
 
-        if (updateResponse.ok) {
+        if (updateResponse.data.success) {
           setIsClockedIn(false);
           setLastTimeRecord(null);
           alert(`Clocked out at ${now.toLocaleTimeString()}. Total hours: ${Math.round(totalHours * 100) / 100}`);
         } else {
-            console.error(`Error clocking out: ${updateResponse.status} ${updateResponse.statusText}`);
+            console.error(`Error clocking out: ${updateResponse.data?.error || 'Unknown error'}`);
             alert('Error clocking out. Please try again.');
         }
       } else {
         // Clock in - create new record
         const clockInTime = now.toISOString();
 
-        const createResponse = await fetch(`https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities/TimeRecord`, {
-          method: 'POST',
-          headers: {
-            'api_key': WORKPRO_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        const createResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'TimeRecord',
+          method: 'create',
+          params: {
             employee_name: user.full_name,
             clock_in_time: clockInTime,
             status: 'clocked_in',
             total_hours: 0,
             pto_hours: 0,
             stat_hours: 0
-          })
+          }
         });
 
-        if (createResponse.ok) {
-          const newRecord = await createResponse.json();
+        if (createResponse.data.success) {
+          const newRecord = createResponse.data.data;
           setIsClockedIn(true);
           setLastTimeRecord(newRecord);
           alert(`Clocked in at ${now.toLocaleTimeString()}`);
         } else {
-            console.error(`Error clocking in: ${createResponse.status} ${createResponse.statusText}`);
+            console.error(`Error clocking in: ${createResponse.data?.error || 'Unknown error'}`);
             alert('Error clocking in. Please try again.');
         }
       }

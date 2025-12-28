@@ -3,13 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase, Play, Plus, ArrowRight } from 'lucide-react';
 import { Employee } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import TechProjectClockInModal from './TechProjectClockInModal';
 import GlobalClockInModal from './GlobalClockInModal';
 import { useTechClockStatus } from '../context/TechClockStatusContext';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
 export default function TechClockStatusModal({ open, onClose }) {
   const [techStatuses, setTechStatuses] = useState([]);
@@ -53,24 +50,30 @@ export default function TechClockStatusModal({ open, onClose }) {
       const employees = await Employee.filter({ employee_type: 'tech' });
       
       // Fetch WorkPRO TimeRecord (global clock in/out)
-      const timeRecordResponse = await fetch(`${API_BASE_URL}/TimeRecord`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const timeRecordResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'TimeRecord',
+        method: 'list',
+        limit: 1000
       });
-      const timeRecordData = await timeRecordResponse.json();
+      const timeRecordData = timeRecordResponse.data.success ? timeRecordResponse.data.data : [];
       const timeRecords = Array.isArray(timeRecordData) ? timeRecordData : (timeRecordData?.records || []);
 
       // Fetch WorkPRO ProjectTimeSession (project clock in)
-      const projectSessionResponse = await fetch(`${API_BASE_URL}/ProjectTimeSession`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const projectSessionResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectTimeSession',
+        method: 'list',
+        limit: 1000
       });
-      const projectSessionData = await projectSessionResponse.json();
+      const projectSessionData = projectSessionResponse.data.success ? projectSessionResponse.data.data : [];
       const projectSessions = Array.isArray(projectSessionData) ? projectSessionData : (projectSessionData?.records || []);
 
       // Fetch WorkPRO Projects for names
-      const projectsResponse = await fetch(`${API_BASE_URL}/Project`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const projectsResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'list',
+        limit: 1000
       });
-      const projectsData = await projectsResponse.json();
+      const projectsData = projectsResponse.data.success ? projectsResponse.data.data : [];
       const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
 
       // Build project lookup by ID
