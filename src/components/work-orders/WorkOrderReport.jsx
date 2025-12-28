@@ -255,7 +255,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
               <span className="font-semibold">${(grandTotalBeforeTax || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Shop Supplies (7%):</span>
+              <span>Shop Supplies:</span>
               <span className="font-semibold">${(shopSupplyTotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
