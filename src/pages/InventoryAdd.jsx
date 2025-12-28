@@ -615,6 +615,7 @@ export default function InventoryAddPage() {
     };
 
     const handlePartNumberSelect = (partNumber) => {
+        setIsCategorySuggested(false);
         const selected = inventoryItems.find(item => item.part_number === partNumber);
         if (selected) {
             setCurrentItem(prev => {
