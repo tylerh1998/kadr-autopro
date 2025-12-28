@@ -28,11 +28,26 @@ export default function RecordDetailsModal({ open, onClose, record, entityName }
           <div className="grid gap-4 py-4">
             {sortedKeys.map((key) => {
               const value = record[key];
-              const displayValue = value === null || value === undefined 
-                ? '' 
-                : typeof value === 'object' 
-                  ? JSON.stringify(value, null, 2) 
-                  : String(value);
+              let displayValue = '';
+
+              if (value === null || value === undefined) {
+                displayValue = '';
+              } else if (typeof value === 'object') {
+                displayValue = JSON.stringify(value, null, 2);
+              } else if (typeof value === 'string') {
+                try {
+                  const parsed = JSON.parse(value);
+                  if (typeof parsed === 'object' && parsed !== null) {
+                    displayValue = JSON.stringify(parsed, null, 2);
+                  } else {
+                    displayValue = value;
+                  }
+                } catch (e) {
+                  displayValue = value;
+                }
+              } else {
+                displayValue = String(value);
+              }
               
               const isLongText = displayValue.length > 50 || displayValue.includes('\n');
 
