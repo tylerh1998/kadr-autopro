@@ -551,6 +551,12 @@ export default function InventoryAddPage() {
     };
 
     const handleSaveAndFinish = async () => {
+        if (currentItem.part_number && currentItem.part_number.trim() !== '') {
+            alert('You have text in the Part # field. Did you mean to Add to Batch (Ctrl+A)? Please clear the field or add the item before saving.');
+            partNumberRef.current?.focus();
+            return;
+        }
+
         if (batchItems.length === 0) {
             alert('At least one part is required.');
             return;
