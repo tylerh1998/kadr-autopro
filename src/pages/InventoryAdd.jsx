@@ -159,6 +159,7 @@ export default function InventoryAddPage() {
     const supplierTriggerRef = React.useRef(null);
     const partNumberRef = React.useRef(null);
     const quantityReceivedRef = React.useRef(null);
+    const descriptionRef = React.useRef(null);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
@@ -620,62 +621,52 @@ export default function InventoryAddPage() {
         }
     };
 
-    const handlePartNumberSelect = (partNumber) => {
+    const selectPartFromList = (itemToSelect) => {
         setIsCategorySuggested(false);
-        const selected = inventoryItems.find(item => item.part_number === partNumber);
-        if (selected) {
-            setCurrentItem(prev => {
-                const updatedItem = {
-                    ...prev,
-                    part_number: selected.part_number,
-                    description: selected.description,
-                    unit: selected.unit || '',
-                    cost: (selected.cost || 0).toFixed(2),
-                    selling_price: (selected.selling_price || 0).toFixed(2),
-                    profit_margin: (selected.profit_margin || 0).toFixed(2),
-                    sales_class: selected.sales_class || '',
-                    tag_along_id: selected.tag_along_id || '',
-                    core: selected.core || false,
-                    core_cost: (selected.core_cost || 0).toFixed(2),
-                    stocked_item: selected.stocked_item || false,
-                    minimum_quantity: (selected.minimum_quantity || 0).toString(),
-                    maximum_quantity: (selected.maximum_quantity || 0).toString(),
-                    location: selected.location || '',
-                    category: selected.category || ''
-                };
-
-                if (updatedItem.cost && updatedItem.sales_class) {
-                    const salesClassCalculation = calculatePriceFromSalesClass(updatedItem.cost, updatedItem.sales_class);
-                    if (salesClassCalculation) {
-                        updatedItem.selling_price = salesClassCalculation.sellingPrice;
-                        updatedItem.profit_margin = salesClassCalculation.margin;
-                    }
-                }
-                return updatedItem;
-            });
-            setTimeout(() => {
-                quantityReceivedRef.current?.focus();
-            }, 100);
-        } else {
-            setCurrentItem(prev => ({
+        setCurrentItem(prev => {
+            const updatedItem = {
                 ...prev,
-                part_number: partNumber,
-                description: '', 
-                unit: '',
-                cost: '',
-                profit_margin: '',
-                selling_price: '',
-                sales_class: '',
-                tag_along_id: '',
-                core: false,
-                core_cost: '0.00',
-                stocked_item: false,
-                minimum_quantity: '0',
-                maximum_quantity: '0',
-                location: '',
-                category: '',
-            }));
-            setIsCategorySuggested(false);
+                part_number: itemToSelect.part_number,
+                description: itemToSelect.description,
+                unit: itemToSelect.unit || '',
+                cost: (itemToSelect.cost || 0).toFixed(2),
+                selling_price: (itemToSelect.selling_price || 0).toFixed(2),
+                profit_margin: (itemToSelect.profit_margin || 0).toFixed(2),
+                sales_class: itemToSelect.sales_class || '',
+                tag_along_id: itemToSelect.tag_along_id || '',
+                core: itemToSelect.core || false,
+                core_cost: (itemToSelect.core_cost || 0).toFixed(2),
+                stocked_item: itemToSelect.stocked_item || false,
+                minimum_quantity: (itemToSelect.minimum_quantity || 0).toString(),
+                maximum_quantity: (itemToSelect.maximum_quantity || 0).toString(),
+                location: itemToSelect.location || '',
+                category: itemToSelect.category || ''
+            };
+
+            if (updatedItem.cost && updatedItem.sales_class) {
+                const salesClassCalculation = calculatePriceFromSalesClass(updatedItem.cost, updatedItem.sales_class);
+                if (salesClassCalculation) {
+                    updatedItem.selling_price = salesClassCalculation.sellingPrice;
+                    updatedItem.profit_margin = salesClassCalculation.margin;
+                }
+            }
+            return updatedItem;
+        });
+        setTimeout(() => {
+            quantityReceivedRef.current?.focus();
+        }, 100);
+    };
+
+    const handlePartNumberInputKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            if (filteredInventory.length > 0) {
+                selectPartFromList(filteredInventory[0]);
+                setPartSearchOpen(false);
+            } else {
+                // If no suggestions, assume new part and move to description
+                descriptionRef.current?.focus();
+            }
         }
     };
 
@@ -856,10 +847,10 @@ export default function InventoryAddPage() {
                                                 placeholder="Search or type part #..."
                                                 value={currentItem.part_number}
                                                 onChange={(e) => {
-                                                    const upperValue = e.target.value.toUpperCase();
-                                                    handlePartNumberSelect(upperValue);
+                                                    handleItemFieldChange('part_number', e.target.value.toUpperCase());
                                                     setPartSearchOpen(true);
                                                 }}
+                                                onKeyDown={handlePartNumberInputKeyDown}
                                                 onFocus={() => setPartSearchOpen(true)}
                                                 className="pl-8 uppercase"
                                                 required
@@ -881,7 +872,7 @@ export default function InventoryAddPage() {
                                                         <div
                                                             key={item.id}
                                                             onClick={() => {
-                                                                handlePartNumberSelect(item.part_number);
+                                                                selectPartFromList(item);
                                                                 setPartSearchOpen(false);
                                                             }}
                                                             className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
@@ -905,6 +896,7 @@ export default function InventoryAddPage() {
                                 <div className="space-y-2 col-span-2">
                                     <Label htmlFor="description">Description *</Label>
                                     <Input
+                                        ref={descriptionRef}
                                         id="description"
                                         value={currentItem.description}
                                         onChange={(e) => handleItemFieldChange('description', e.target.value.replace(/\b\w/g, l => l.toUpperCase()))}
