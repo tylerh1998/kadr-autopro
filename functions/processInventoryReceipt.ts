@@ -848,8 +848,8 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     // Determine if this is a core line
     const isCoreLine = originalLine.description?.startsWith('AddCore/');
     const newDescription = isCoreLine 
-      ? `AddCore/x${newQuantity}/${partNumber}`
-      : `AddPart/x${newQuantity}/${partNumber}`;
+      ? `AddCore Qty${newQuantity} ${partNumber}`
+      : `AddPart Qty${newQuantity} ${partNumber}`;
 
     const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(supplierInvoiceLineId, {
       invoice_number: newInvoiceNumber,
