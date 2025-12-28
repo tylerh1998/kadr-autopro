@@ -151,11 +151,24 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     };
 
     if (transaction && isOpen) {
+      // Helper to parse quantity from description if not provided
+      let qty = transaction.quantity;
+      if (!qty && transaction.description) {
+        const match = transaction.description.match(/\/x(\d+(?:\.\d+)?)\//);
+        if (match) qty = match[1];
+      }
+
+      // Helper to calculate unit price if not provided
+      let unitPrice = transaction.amountPerUnit;
+      if (!unitPrice && transaction.purchase_amount && qty && parseFloat(qty) > 0) {
+        unitPrice = parseFloat(transaction.purchase_amount) / parseFloat(qty);
+      }
+
       setFormData({
         invoice_number: transaction.invoice_number || '',
         invoice_date: transaction.invoice_date || '',
-        quantity: transaction.quantity?.toString() || '',
-        amount_per_unit: transaction.amountPerUnit?.toFixed(2) || ''
+        quantity: qty?.toString() || '',
+        amount_per_unit: unitPrice ? Number(unitPrice).toFixed(2) : ''
       });
       setInvoiceDateInput(formatDateForInput(transaction.invoice_date));
       setDateError(null);

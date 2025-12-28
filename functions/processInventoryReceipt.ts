@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const payload = await req.json();
+    console.log('processInventoryReceipt payload:', JSON.stringify(payload, null, 2));
     const { 
       supplier_id, 
       invoice_number, 
@@ -750,6 +751,7 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     }
 
     // 6. Find the corresponding InventoryTxs record to determine original quantity
+    // Prioritize parsing from description as it represents the current state
     const inventoryTxs = await base44.asServiceRole.entities.InventoryTxs.filter({
       source_record_id: supplierInvoiceLineId,
       tx_type: 'Received'
@@ -758,17 +760,22 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
     let originalQuantity = 0;
     let inventoryTxId = null;
     
+    // Always get the Tx ID for metadata updates
     if (inventoryTxs.length > 0) {
-      originalQuantity = Math.abs(inventoryTxs[0].quantity_change || 0);
       inventoryTxId = inventoryTxs[0].id;
+    }
+
+    const qtyMatch = originalLine.description?.match(/\/x(\d+(?:\.\d+)?)\//);
+    if (qtyMatch) {
+      originalQuantity = parseFloat(qtyMatch[1]);
+      console.log(`Derived original quantity ${originalQuantity} from description`);
+    } else if (inventoryTxs.length > 0) {
+      // Fallback to InventoryTxs
+      originalQuantity = Math.abs(inventoryTxs[0].quantity_change || 0);
+      console.log(`Derived original quantity ${originalQuantity} from InventoryTxs`);
     } else {
-      // Try to parse from description if InventoryTxs not found
-      const qtyMatch = originalLine.description?.match(/x(\d+(?:\.\d+)?)\//);
-      if (qtyMatch) {
-        originalQuantity = parseFloat(qtyMatch[1]);
-      } else {
-        originalQuantity = 1; // Fallback
-      }
+      originalQuantity = 1; // Fallback
+      console.log('Defaulted original quantity to 1');
     }
 
     // 7. Calculate changes and deltas
