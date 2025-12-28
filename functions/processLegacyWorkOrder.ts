@@ -30,15 +30,20 @@ Deno.serve(async (req) => {
                 let itemId;
                 
                 if (existing.length === 0) {
+                    const coreCost = parseFloat(part.core_cost) || 0;
+                    const listPrice = parseFloat(part.selling_price) || 0;
+
                     const newItem = await base44.asServiceRole.entities.InventoryItem.create({
                         part_number: part.part_number,
                         description: part.description,
                         cost: parseFloat(part.cost) || 0,
-                        selling_price: parseFloat(part.selling_price) || 0,
+                        selling_price: listPrice - coreCost,
                         quantity_on_hand: parseFloat(part.quantity_on_hand) || 0, // Initial count
                         unit: 'ea',
                         category: 'other',
-                        stocked_item: false // Requirement: false for all new imports
+                        stocked_item: false, // Requirement: false for all new imports
+                        core: coreCost > 0,
+                        core_cost: coreCost
                     });
                     itemId = newItem.id;
                 } else {
