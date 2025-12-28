@@ -409,7 +409,7 @@ export default function InvoiceConversion() {
           </p>
 
           <p className="text-md text-slate-700">
-            <strong>Customer:</strong> {customer ? `${customer.first_name} ${customer.last_name}` : 'N/A'}<br />
+            <strong>Customer:</strong> {customer ? (customer.org_name || `${customer.first_name} ${customer.last_name}`) : 'N/A'}<br />
             <strong>Vehicle:</strong> {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.license_plate || 'N/A'})` : 'N/A'}
           </p>
 
