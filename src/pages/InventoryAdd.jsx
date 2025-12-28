@@ -162,6 +162,7 @@ export default function InventoryAddPage() {
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
+    const [isCategorySuggested, setIsCategorySuggested] = useState(false);
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -422,6 +423,7 @@ export default function InventoryAddPage() {
 
     const handleAddToBatch = async () => {
         setAddToBatchError('');
+        setIsCategorySuggested(false);
         
         if (!selectedSupplier) {
             alert('Supplier is required.');
@@ -666,6 +668,7 @@ export default function InventoryAddPage() {
                 location: '',
                 category: '',
             }));
+            setIsCategorySuggested(false);
         }
     };
 
@@ -697,6 +700,7 @@ export default function InventoryAddPage() {
                         // Only update if user hasn't selected a category in the meantime
                         setCurrentItem(prev => {
                             if (!prev.category) {
+                                setTimeout(() => setIsCategorySuggested(true), 0);
                                 return { ...prev, category: response.data.category };
                             }
                             return prev;
