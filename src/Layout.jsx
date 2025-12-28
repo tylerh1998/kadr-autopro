@@ -840,6 +840,7 @@ const navigationItems = [
       <FindPartModal
         open={showFindPartModal}
         onClose={() => setShowFindPartModal(false)}
+        currentUser={user}
       />
 
       <NewCustomerModal

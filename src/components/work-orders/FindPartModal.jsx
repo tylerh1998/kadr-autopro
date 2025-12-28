@@ -12,7 +12,7 @@ import { base44 } from '@/api/base44Client';
 import { format, parseISO } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 
-export default function FindPartModal({ open, onClose }) {
+export default function FindPartModal({ open, onClose, currentUser }) {
   const [activeTab, setActiveTab] = useState('part_number');
   const [searchFilter, setSearchFilter] = useState('contains');
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,14 +109,23 @@ export default function FindPartModal({ open, onClose }) {
               results.map((item, index) => (
                 <TableRow key={index} className="hover:bg-slate-50">
                   <TableCell>
-                    <Link
-                      to={createPageUrl(`WorkOrderEdit?id=${item.ro_number}`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-bold"
-                     >
+                    <button
+                      onClick={() => {
+                        const url = createPageUrl(`WorkOrderEdit?id=${item.ro_number}`);
+                        // Check user's OpenNewWindow preference
+                        if (currentUser?.OpenNewWindow === false) {
+                          // Open in same tab
+                          window.location.href = url;
+                        } else {
+                          // Open in new window (default behavior)
+                          const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+                          window.open(url, '_blank', windowFeatures);
+                        }
+                      }}
+                      className="text-blue-600 hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
+                    >
                       {item.ro_number}
-                    </Link>
+                    </button>
                   </TableCell>
                   <TableCell>
                     {(() => {
