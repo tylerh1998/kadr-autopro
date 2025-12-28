@@ -91,10 +91,7 @@ export default function InvoicePaymentModal({
   };
 
   const handleAddPayment = async () => {
-    if (newPayment.amount <= 0) {
-      alert("Payment amount must be greater than zero.");
-      return;
-    }
+
 
     try {
       setLoading(true);
