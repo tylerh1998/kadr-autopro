@@ -91,9 +91,10 @@ function LayoutContent({ children, currentPageName }) {
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndSettings = async () => {
       try {
         const currentUser = await UserEntity.me();
         setUser(currentUser);
@@ -101,11 +102,17 @@ function LayoutContent({ children, currentPageName }) {
         if (currentUser?.dark_mode) {
           setDarkMode(true);
         }
+
+        // Fetch System Settings to check for training environment
+        const settings = await base44.entities.SystemSettings.list();
+        if (settings && settings.length > 0 && settings[0].training_enviro) {
+          setIsTraining(true);
+        }
       } catch (error) {
-        console.error("Failed to fetch user", error);
+        console.error("Failed to fetch user or settings", error);
       }
     };
-    fetchUser();
+    fetchUserAndSettings();
   }, []);
 
   const handleToggleDarkMode = async () => {
@@ -488,6 +495,11 @@ const navigationItems = [
     <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+        {isTraining && (
+          <div className="bg-orange-500 text-white text-center py-1 text-sm font-bold shadow-inner">
+            Training Version of AutoPRO. No changes in this application will affect the live database.
+          </div>
+        )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo, AutoPRO, and Mobile Menu Button */}

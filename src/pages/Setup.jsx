@@ -16,11 +16,13 @@ import SalesClassManager from "../components/setup/SalesClassManager";
 import TagAlongManager from "../components/setup/TagAlongManager";
 import OtherChargesManager from "../components/setup/OtherChargesManager";
 import WIPSettings from "../components/setup/WIPSettings";
+import RestoreBackupModal from "../components/setup/RestoreBackupModal";
 
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState("sales");
   const [currentUser, setCurrentUser] = useState(null);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -83,13 +85,22 @@ export default function SetupPage() {
               Download Template
             </Button>
             {currentUser?.role === 'admin' && (
-              <Button 
-                onClick={() => window.location.href = createPageUrl('LankarImport')}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Lankar Import
-              </Button>
+              <>
+                <Button 
+                  onClick={() => window.location.href = createPageUrl('LankarImport')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Lankar Import
+                </Button>
+                <Button 
+                  onClick={() => setShowRestoreModal(true)}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Restore Backup
+                </Button>
+              </>
             )}
             <Button 
               onClick={handleBackup}
@@ -137,6 +148,11 @@ export default function SetupPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <RestoreBackupModal 
+        open={showRestoreModal} 
+        onClose={() => setShowRestoreModal(false)} 
+      />
     </div>
   );
 }
