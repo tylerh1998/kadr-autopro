@@ -23,6 +23,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import {
   ContextMenu,
@@ -46,7 +47,8 @@ import {
   Printer,
   RotateCcw,
   Plus,
-  FileText
+  FileText,
+  Settings
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -80,6 +82,44 @@ export default function InventoryListPage() {
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
+
+  const availableColumns = [
+    { id: 'part_number', label: 'Part Number', default: true },
+    { id: 'description', label: 'Description', default: true },
+    { id: 'unit', label: 'Unit', default: true },
+    { id: 'quantity_on_hand', label: 'QOH', default: true },
+    { id: 'cost', label: 'Cost', default: true },
+    { id: 'selling_price', label: 'Price', default: true },
+    { id: 'location', label: 'Location', default: true },
+    { id: 'category', label: 'Category', default: false },
+    { id: 'supplier', label: 'Supplier', default: false },
+    { id: 'manufacturer', label: 'Manufacturer', default: false },
+    { id: 'sales_class', label: 'Sales Class', default: false },
+    { id: 'quantity_on_order', label: 'On Order', default: false },
+    { id: 'minimum_quantity', label: 'Min', default: false },
+    { id: 'maximum_quantity', label: 'Max', default: false },
+    { id: 'profit_margin', label: 'Margin %', default: false },
+    { id: 'core', label: 'Core Item', default: false },
+    { id: 'core_cost', label: 'Core Cost', default: false },
+    { id: 'stocked_item', label: 'Stocked', default: false },
+    { id: 'is_active', label: 'Active', default: false },
+  ];
+
+  const [visibleColumns, setVisibleColumns] = useState(() => 
+    new Set(availableColumns.filter(c => c.default).map(c => c.id))
+  );
+
+  const toggleColumn = (columnId) => {
+    setVisibleColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(columnId)) {
+        newSet.delete(columnId);
+      } else {
+        newSet.add(columnId);
+      }
+      return newSet;
+    });
+  };
 
   // Add state for shared data
   const [suppliers, setSuppliers] = useState([]);
@@ -421,6 +461,30 @@ export default function InventoryListPage() {
                  <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')}>No Location</Button>
                  <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')}>Inventory Count</Button>
               </div>
+              
+              <div className="flex justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="ml-auto">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Customize
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
+                    <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {availableColumns.map((column) => (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        checked={visibleColumns.has(column.id)}
+                        onCheckedChange={() => toggleColumn(column.id)}
+                      >
+                        {column.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
 
@@ -433,27 +497,101 @@ export default function InventoryListPage() {
                 <Table className="print-table">
                   <TableHeader>
                     <TableRow className="bg-gray-50 hover:bg-gray-100">
-                      <TableHead className="cursor-pointer" onClick={() => handleSort('part_number')}>
-                        <div className="flex items-center">Part Number {getSortIndicator('part_number')}</div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
-                        <div className="flex items-center">Description {getSortIndicator('description')}</div>
-                      </TableHead>
-                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('unit')}>
-                        <div className="flex items-center justify-center">Unit {getSortIndicator('unit')}</div>
-                      </TableHead>
-                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('quantity_on_hand')}>
-                         <div className="flex items-center justify-center">QOH {getSortIndicator('quantity_on_hand')}</div>
-                      </TableHead>
-                      <TableHead className="text-right cursor-pointer" onClick={() => handleSort('cost')}>
-                         <div className="flex items-center justify-end">Cost {getSortIndicator('cost')}</div>
-                      </TableHead>
-                      <TableHead className="text-right cursor-pointer" onClick={() => handleSort('selling_price')}>
-                         <div className="flex items-center justify-end">Price {getSortIndicator('selling_price')}</div>
-                      </TableHead>
-                      <TableHead className="text-center cursor-pointer" onClick={() => handleSort('location')}>
-                        <div className="flex items-center justify-center">Location {getSortIndicator('location')}</div>
-                      </TableHead>
+                      {visibleColumns.has('part_number') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('part_number')}>
+                          <div className="flex items-center">Part Number {getSortIndicator('part_number')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('description') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
+                          <div className="flex items-center">Description {getSortIndicator('description')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('unit') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('unit')}>
+                          <div className="flex items-center justify-center">Unit {getSortIndicator('unit')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('quantity_on_hand') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('quantity_on_hand')}>
+                           <div className="flex items-center justify-center">QOH {getSortIndicator('quantity_on_hand')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('cost') && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('cost')}>
+                           <div className="flex items-center justify-end">Cost {getSortIndicator('cost')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('selling_price') && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('selling_price')}>
+                           <div className="flex items-center justify-end">Price {getSortIndicator('selling_price')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('location') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('location')}>
+                          <div className="flex items-center justify-center">Location {getSortIndicator('location')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('category') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('category')}>
+                          <div className="flex items-center">Category {getSortIndicator('category')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('supplier') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('supplier_id')}>
+                          <div className="flex items-center">Supplier {getSortIndicator('supplier_id')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('manufacturer') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('manufacturer')}>
+                          <div className="flex items-center">Manufacturer {getSortIndicator('manufacturer')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('sales_class') && (
+                        <TableHead className="cursor-pointer" onClick={() => handleSort('sales_class')}>
+                          <div className="flex items-center">Sales Class {getSortIndicator('sales_class')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('quantity_on_order') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('quantity_on_order')}>
+                          <div className="flex items-center justify-center">On Order {getSortIndicator('quantity_on_order')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('minimum_quantity') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('minimum_quantity')}>
+                          <div className="flex items-center justify-center">Min {getSortIndicator('minimum_quantity')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('maximum_quantity') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('maximum_quantity')}>
+                          <div className="flex items-center justify-center">Max {getSortIndicator('maximum_quantity')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('profit_margin') && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('profit_margin')}>
+                          <div className="flex items-center justify-end">Margin % {getSortIndicator('profit_margin')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('core') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('core')}>
+                          <div className="flex items-center justify-center">Core {getSortIndicator('core')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('core_cost') && (
+                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('core_cost')}>
+                          <div className="flex items-center justify-end">Core Cost {getSortIndicator('core_cost')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('stocked_item') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('stocked_item')}>
+                          <div className="flex items-center justify-center">Stocked {getSortIndicator('stocked_item')}</div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.has('is_active') && (
+                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('is_active')}>
+                          <div className="flex items-center justify-center">Active {getSortIndicator('is_active')}</div>
+                        </TableHead>
+                      )}
                       <TableHead className="text-center no-print">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -471,30 +609,80 @@ export default function InventoryListPage() {
                         <ContextMenu key={item.id}>
                           <ContextMenuTrigger asChild>
                             <TableRow className="hover:bg-gray-50">
-                              <TableCell 
-                                className="font-medium text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors"
-                                onClick={() => handleEdit(item)}
-                              >
-                                {item.part_number}
-                              </TableCell>
-                              <TableCell>{item.description}</TableCell>
-                              <TableCell className="text-center text-sm text-slate-600">
-                                {item.unit || ''}
-                              </TableCell>
-                              <TableCell 
-                                className={`text-center font-bold cursor-pointer hover:bg-blue-50 transition-colors ${(item.quantity_on_hand || 0) <= (item.minimum_quantity || 0) ? 'text-red-600' : ''}`}
-                                onClick={() => handleAdjustQOH(item)}
-                              >
-                                {item.quantity_on_hand || 0}
-                              </TableCell>
-                              <TableCell className="text-right">${(item.cost || 0).toFixed(2)}</TableCell>
-                              <TableCell className="text-right font-semibold">${(item.selling_price || 0).toFixed(2)}</TableCell>
-                              <TableCell 
-                                className="text-center cursor-pointer hover:bg-blue-50 transition-colors"
-                                onClick={() => handleLocationClick(item)}
-                              >
-                                {item.location || 'No Location'}
-                              </TableCell>
+                              {visibleColumns.has('part_number') && (
+                                <TableCell 
+                                  className="font-medium text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors"
+                                  onClick={() => handleEdit(item)}
+                                >
+                                  {item.part_number}
+                                </TableCell>
+                              )}
+                              {visibleColumns.has('description') && (
+                                <TableCell>{item.description}</TableCell>
+                              )}
+                              {visibleColumns.has('unit') && (
+                                <TableCell className="text-center text-sm text-slate-600">
+                                  {item.unit || ''}
+                                </TableCell>
+                              )}
+                              {visibleColumns.has('quantity_on_hand') && (
+                                <TableCell 
+                                  className={`text-center font-bold cursor-pointer hover:bg-blue-50 transition-colors ${(item.quantity_on_hand || 0) <= (item.minimum_quantity || 0) ? 'text-red-600' : ''}`}
+                                  onClick={() => handleAdjustQOH(item)}
+                                >
+                                  {item.quantity_on_hand || 0}
+                                </TableCell>
+                              )}
+                              {visibleColumns.has('cost') && (
+                                <TableCell className="text-right">${(item.cost || 0).toFixed(2)}</TableCell>
+                              )}
+                              {visibleColumns.has('selling_price') && (
+                                <TableCell className="text-right font-semibold">${(item.selling_price || 0).toFixed(2)}</TableCell>
+                              )}
+                              {visibleColumns.has('location') && (
+                                <TableCell 
+                                  className="text-center cursor-pointer hover:bg-blue-50 transition-colors"
+                                  onClick={() => handleLocationClick(item)}
+                                >
+                                  {item.location || 'No Location'}
+                                </TableCell>
+                              )}
+                              {visibleColumns.has('category') && (
+                                <TableCell>{item.category || '-'}</TableCell>
+                              )}
+                              {visibleColumns.has('supplier') && (
+                                <TableCell>{suppliers.find(s => s.id === item.supplier_id)?.name || '-'}</TableCell>
+                              )}
+                              {visibleColumns.has('manufacturer') && (
+                                <TableCell>{item.manufacturer || '-'}</TableCell>
+                              )}
+                              {visibleColumns.has('sales_class') && (
+                                <TableCell>{salesClasses.find(sc => sc.id === item.sales_class)?.name || '-'}</TableCell>
+                              )}
+                              {visibleColumns.has('quantity_on_order') && (
+                                <TableCell className="text-center">{item.quantity_on_order || 0}</TableCell>
+                              )}
+                              {visibleColumns.has('minimum_quantity') && (
+                                <TableCell className="text-center">{item.minimum_quantity || 0}</TableCell>
+                              )}
+                              {visibleColumns.has('maximum_quantity') && (
+                                <TableCell className="text-center">{item.maximum_quantity || 0}</TableCell>
+                              )}
+                              {visibleColumns.has('profit_margin') && (
+                                <TableCell className="text-right">{(item.profit_margin || 0).toFixed(2)}%</TableCell>
+                              )}
+                              {visibleColumns.has('core') && (
+                                <TableCell className="text-center">{item.core ? 'Yes' : 'No'}</TableCell>
+                              )}
+                              {visibleColumns.has('core_cost') && (
+                                <TableCell className="text-right">${(item.core_cost || 0).toFixed(2)}</TableCell>
+                              )}
+                              {visibleColumns.has('stocked_item') && (
+                                <TableCell className="text-center">{item.stocked_item ? 'Yes' : 'No'}</TableCell>
+                              )}
+                              {visibleColumns.has('is_active') && (
+                                <TableCell className="text-center">{item.is_active ? 'Yes' : 'No'}</TableCell>
+                              )}
                               <TableCell className="text-center no-print">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
