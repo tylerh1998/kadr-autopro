@@ -914,8 +914,8 @@ export default function SupplierTxPage() {
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = async (e) => {
-            // Ctrl + $ or Ctrl + 4 - Open payment modal
-            if (e.ctrlKey && (e.key === '$' || e.key === '4')) {
+            // Ctrl + $ or Ctrl + 4 or Ctrl + M - Open payment modal
+            if (e.ctrlKey && (e.key === '$' || e.key === '4' || e.key === 'm')) {
                 e.preventDefault();
                 if (!isLockedByOtherUser && lockAcquired) {
                     if (hasUnsavedChanges) {
