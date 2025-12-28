@@ -10,16 +10,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { supplierInvoiceLine, action, oldValues } = await req.json();
+        const payload = await req.json();
+        const { supplierInvoiceLine, supplierInvoiceLines, action, oldValues } = payload;
 
         console.log('=== handleSupplierInvoiceLineGL Debug ===');
         console.log('Action:', action);
-        console.log('SupplierInvoiceLine:', supplierInvoiceLine);
-        console.log('Old Values:', oldValues);
+        console.log('Payload:', JSON.stringify(payload, null, 2));
 
-        if (!supplierInvoiceLine || !action) {
+        if ((!supplierInvoiceLine && !supplierInvoiceLines) || !action) {
             return Response.json({ 
-                error: 'Missing required parameters: supplierInvoiceLine and action' 
+                error: 'Missing required parameters: supplierInvoiceLine(s) and action' 
             }, { status: 400 });
         }
 
@@ -37,6 +37,8 @@ Deno.serve(async (req) => {
             // Get supplier name for better description
             let supplierName = 'Unknown Supplier';
             try {
+                // Optimization: If we process many lines from same supplier, we could cache this.
+                // For now, fetching is safe.
                 const supplier = await base44.asServiceRole.entities.Supplier.get(line.supplier_id);
                 if (supplier) {
                     supplierName = supplier.name;
@@ -106,56 +108,66 @@ Deno.serve(async (req) => {
             }
         };
 
-        // Handle different actions
-        if (action === 'create') {
-            // For create, just post the new entries
-            await createGLEntries(supplierInvoiceLine, false);
-        } else if (action === 'update') {
-            // For update, first reverse the old entries, then post new entries
-            if (!oldValues) {
-                return Response.json({ 
-                    error: 'Old values required for update action' 
-                }, { status: 400 });
+        // Determine lines to process
+        let linesToProcess = [];
+        if (supplierInvoiceLines && Array.isArray(supplierInvoiceLines)) {
+            linesToProcess = supplierInvoiceLines;
+        } else if (supplierInvoiceLine) {
+            linesToProcess = [supplierInvoiceLine];
+        }
+
+        // Process all lines
+        for (const line of linesToProcess) {
+            if (action === 'create') {
+                await createGLEntries(line, false);
+            } else if (action === 'update') {
+                // Update logic assumes singular line for now (as oldValues is singular)
+                if (!oldValues) {
+                    return Response.json({ error: 'Old values required for update action' }, { status: 400 });
+                }
+                await createGLEntries(oldValues, true);
+                await createGLEntries(line, false);
+            } else if (action === 'delete') {
+                await createGLEntries(line, true);
             }
-            
-            // Reverse old entries
-            await createGLEntries(oldValues, true);
-            
-            // Post new entries
-            await createGLEntries(supplierInvoiceLine, false);
-        } else if (action === 'delete') {
-            // For delete, reverse the existing entries
-            await createGLEntries(supplierInvoiceLine, true);
-        } else {
-            return Response.json({ 
-                error: 'Invalid action. Must be create, update, or delete' 
-            }, { status: 400 });
         }
 
         // Create all GL transactions using service role
-        console.log('Creating GL Transactions:', JSON.stringify(glTransactions, null, 2));
+        console.log(`Creating ${glTransactions.length} GL Transactions in bulk`);
         
         const errors = [];
         let createdCount = 0;
 
-        for (const glTx of glTransactions) {
+        if (glTransactions.length > 0) {
             try {
-                // Ensure amounts are numbers and fixed to 2 decimal places to prevent float issues
-                const sanitizedTx = {
+                // Sanitize transactions
+                const sanitizedTxs = glTransactions.map(glTx => ({
                     ...glTx,
                     debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
                     credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
-                };
-                
-                console.log('Creating transaction:', JSON.stringify(sanitizedTx));
-                await base44.asServiceRole.entities.GLTransaction.create(sanitizedTx);
-                createdCount++;
-            } catch (createError) {
-                console.error('Error creating GL transaction:', createError, 'Transaction data:', glTx);
-                errors.push({
-                    transaction: glTx,
-                    error: createError.message
-                });
+                }));
+
+                // Use bulkCreate for efficiency
+                const created = await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
+                createdCount = created.length;
+                console.log(`Successfully bulk created ${createdCount} GL transactions`);
+            } catch (error) {
+                console.error('Bulk creation failed, falling back to individual:', error);
+                // Fallback to individual creation if bulk fails (e.g. partial failure)
+                for (const glTx of glTransactions) {
+                    try {
+                        const sanitizedTx = {
+                            ...glTx,
+                            debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
+                            credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
+                        };
+                        await base44.asServiceRole.entities.GLTransaction.create(sanitizedTx);
+                        createdCount++;
+                    } catch (createError) {
+                        console.error('Error creating GL transaction:', createError);
+                        errors.push({ transaction: glTx, error: createError.message });
+                    }
+                }
             }
         }
 

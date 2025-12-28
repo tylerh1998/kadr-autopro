@@ -395,30 +395,29 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
       
       results.created_invoice_lines = createdLines.map(line => line.id);
 
-      // Post GL transactions for each created line
-      for (const line of createdLines) {
-        try {
-          const glResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
-            supplierInvoiceLine: line,
-            action: 'create'
-          });
+      // Post GL transactions for all lines in one batch
+      try {
+        console.log(`Invoking handleSupplierInvoiceLineGL for ${createdLines.length} lines`);
+        const glResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+          supplierInvoiceLines: createdLines,
+          action: 'create'
+        });
 
-          if (!glResponse.data.success) {
-            console.error('GL posting failed for line:', line.id, glResponse.data);
-            results.errors.push({ 
-              line_id: line.id, 
-              error: 'GL posting failed',
-              details: glResponse.data 
-            });
-          }
-        } catch (glError) {
-          console.error('Error posting GL transactions for line:', line.id, glError);
+        if (!glResponse.data.success) {
+          console.error('GL batch posting failed:', glResponse.data);
           results.errors.push({ 
-            line_id: line.id, 
-            error: 'Failed to post GL transactions',
-            details: glError.message 
+            error: 'GL batch posting failed',
+            details: glResponse.data 
           });
+        } else {
+            console.log('Successfully posted GL transactions batch');
         }
+      } catch (glError) {
+        console.error('Error posting GL transactions batch:', glError);
+        results.errors.push({ 
+          error: 'Failed to post GL transactions batch',
+          details: glError.message 
+        });
       }
 
       // Link inventory transactions to supplier invoice lines
