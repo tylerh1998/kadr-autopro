@@ -185,11 +185,11 @@ export default function PayrollPage() {
   const getTransactionBadgeColor = (type) => {
     switch (type) {
       case 'Paycheque':
-        return 'bg-green-100 text-green-800';
-      case 'Remittance':
         return 'bg-blue-100 text-blue-800';
+      case 'Remittance':
+        return 'bg-slate-900 text-white';
       case 'Adjustment':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -253,6 +253,10 @@ export default function PayrollPage() {
           .print-table .text-blue-800 { color: #1e40af !important; }
           .print-table .bg-orange-100 { background-color: #ffedd5 !important; }
           .print-table .text-orange-800 { color: #9a3412 !important; }
+          .print-table .bg-red-100 { background-color: #fee2e2 !important; }
+          .print-table .text-red-800 { color: #991b1b !important; }
+          .print-table .bg-slate-900 { background-color: #0f172a !important; }
+          .print-table .text-white { color: #ffffff !important; }
           .print-table .bg-gray-100 { background-color: #f3f4f6 !important; }
           .print-table .text-gray-800 { color: #1f2937 !important; }
           .print-table .border-red-300 { border-color: #fca5a5 !important; }
