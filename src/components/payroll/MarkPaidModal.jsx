@@ -39,9 +39,21 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
     }
   };
 
+  // Calculate net pay dynamically since it's no longer stored
+  const getNetPay = (t) => {
+    if (t.transaction_type !== 'Paycheque') return t.amount || 0;
+    
+    const gross = t.gross_pay || 0;
+    const deductions = (t.income_tax || 0) + 
+                      (t.cpp_contribution || 0) + 
+                      (t.cpp2_contribution || 0) + 
+                      (t.ei_premium || 0);
+    return gross - deductions;
+  };
+
   const totalAmount = transactions.reduce((sum, t) => {
     if (t.transaction_type === 'Paycheque') {
-      return sum + (t.net_pay || 0);
+      return sum + getNetPay(t);
     } else if (t.transaction_type === 'Remittance') {
       return sum + (t.amount || 0);
     } else if (t.transaction_type === 'Adjustment') {
@@ -74,6 +86,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
                          `${transaction.transaction_type}-${format(new Date(paymentDate), 'yyyy-MM-dd')}`;
 
         if (transaction.transaction_type === 'Paycheque') {
+          const netPay = getNetPay(transaction);
+
           // Credit Bank Account (payment out)
           await GLTransaction.create({
             account_number: selectedAccount.gl_account || '1000',
@@ -81,7 +95,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             description: `Paycheque payment ${transaction.paycheque_number || ''}`,
             reference: reference,
             debit_amount: 0,
-            credit_amount: transaction.net_pay || 0,
+            credit_amount: netPay,
             source_type: 'payment',
             source_id: transaction.id
           });
@@ -303,7 +317,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
                     {t.transaction_type} - {t.paycheque_number || format(new Date(t.pay_date), 'MMM d, yyyy')}
                   </span>
                   <span className="text-sm font-semibold">
-                    ${(t.net_pay || t.amount || 0).toFixed(2)}
+                    ${(t.transaction_type === 'Paycheque' ? getNetPay(t) : (t.amount || 0)).toFixed(2)}
                   </span>
                 </li>
               ))}

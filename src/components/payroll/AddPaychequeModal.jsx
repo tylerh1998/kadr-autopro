@@ -19,8 +19,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export default function AddPaychequeModal({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     paycheque_number: '',
-    pay_period_start: '',
-    pay_period_end: '',
     pay_date: '',
     gross_pay: '',
     income_tax: '',
@@ -30,10 +28,6 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     cpp_employer: '',
     cpp2_employer: '',
     ei_employer: '',
-    employer_cost: '',
-    total_employer_cost: '',
-    deductions: '',
-    net_pay: '',
     notes: '',
     employee_reference: '',
     import_file_name: '',
@@ -45,69 +39,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
   const [uploadedFileName, setUploadedFileName] = useState('');
 
   const handleChange = (field, value) => {
-    // Helper to update specific fields without causing infinite loops
-    const updateForm = (updates) => {
-      setFormData(prev => {
-        const newPrev = { ...prev };
-        for (const key in updates) {
-          if (updates.hasOwnProperty(key)) {
-            newPrev[key] = updates[key];
-          }
-        }
-        return newPrev;
-      });
-    };
-
-    updateForm({ [field]: value });
-    
-    // Auto-calculate deductions when individual employee deduction fields change
-    if (['income_tax', 'cpp_contribution', 'cpp2_contribution', 'ei_premium'].includes(field)) {
-      const currentFormData = { ...formData, [field]: value }; // Use updated value for current field
-      const incomeTax = parseFloat(currentFormData.income_tax) || 0;
-      const cpp = parseFloat(currentFormData.cpp_contribution) || 0;
-      const cpp2 = parseFloat(currentFormData.cpp2_contribution) || 0;
-      const ei = parseFloat(currentFormData.ei_premium) || 0;
-      
-      const totalDeductions = incomeTax + cpp + cpp2 + ei;
-      
-      const grossPay = parseFloat(currentFormData.gross_pay) || 0;
-      const netPay = (grossPay - totalDeductions).toFixed(2);
-
-      updateForm({
-        deductions: totalDeductions.toFixed(2),
-        net_pay: netPay
-      });
-    }
-    
-    // Auto-calculate employer cost when employer contribution fields change
-    if (['cpp_employer', 'cpp2_employer', 'ei_employer'].includes(field)) {
-      const currentFormData = { ...formData, [field]: value }; // Use updated value for current field
-      const cppEmp = parseFloat(currentFormData.cpp_employer) || 0;
-      const cpp2Emp = parseFloat(currentFormData.cpp2_employer) || 0;
-      const eiEmp = parseFloat(currentFormData.ei_employer) || 0;
-      
-      const totalEmployerContributionCost = cppEmp + cpp2Emp + eiEmp;
-      
-      const grossPay = parseFloat(currentFormData.gross_pay) || 0;
-      const totalCostToEmployer = (grossPay + totalEmployerContributionCost).toFixed(2);
-
-      updateForm({
-        employer_cost: totalEmployerContributionCost.toFixed(2),
-        total_employer_cost: totalCostToEmployer
-      });
-    }
-    
-    // Auto-calculate net pay and total costs when gross pay changes
-    if (field === 'gross_pay') {
-      const gross = parseFloat(value) || 0;
-      const deductions = parseFloat(formData.deductions) || 0;
-      const employerCost = parseFloat(formData.employer_cost) || 0;
-      
-      updateForm({ 
-        net_pay: (gross - deductions).toFixed(2),
-        total_employer_cost: (gross + employerCost).toFixed(2)
-      });
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleFileUpload = async (e) => {
@@ -119,38 +51,23 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     setUploadedFileName(file.name);
 
     try {
-      // Read file content
       const fileContent = await file.text();
       
-      console.log('=== File Upload Debug ===');
-      console.log('File name:', file.name);
-      console.log('File content:', fileContent);
-
-      // Call backend function to parse the file
       const response = await base44.functions.invoke('parsePayrollFile', {
         fileContent,
         fileName: file.name
       });
 
-      console.log('Backend response:', JSON.stringify(response, null, 2));
-      console.log('Response data:', JSON.stringify(response.data, null, 2));
-
       if (response.data?.success && response.data?.data) {
         const parsedData = response.data.data;
         
-        console.log('Parsed data from backend:', JSON.stringify(parsedData, null, 2));
-        
-        // Verify it's a paycheque
         if (parsedData.transaction_type !== 'Paycheque') {
-          setUploadedFileName(''); // Clear the uploaded file name
+          setUploadedFileName('');
           throw new Error('This file appears to be a remittance, not a paycheque. Please use the Add Remittance modal instead.');
         }
 
-        // Populate form fields - with explicit logging
         const newFormData = {
           paycheque_number: parsedData.paycheque_number || '',
-          pay_period_start: parsedData.pay_period_start || '',
-          pay_period_end: parsedData.pay_period_end || '',
           pay_date: parsedData.pay_date || '',
           gross_pay: parsedData.gross_pay?.toString() || '',
           income_tax: parsedData.income_tax?.toString() || '',
@@ -160,30 +77,22 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           cpp_employer: parsedData.cpp_employer?.toString() || '',
           cpp2_employer: parsedData.cpp2_employer?.toString() || '',
           ei_employer: parsedData.ei_employer?.toString() || '',
-          employer_cost: parsedData.employer_cost?.toString() || '',
-          total_employer_cost: parsedData.total_employer_cost?.toString() || '',
-          deductions: parsedData.deductions?.toString() || '',
-          net_pay: parsedData.net_pay?.toString() || '',
           notes: parsedData.notes || '',
           employee_reference: parsedData.employee_reference || '',
           import_file_name: parsedData.import_file_name || file.name,
           is_bus_driver_wages: ''
         };
         
-        console.log('Setting form data to:', JSON.stringify(newFormData, null, 2));
         setFormData(newFormData);
-
         setError(null);
       } else {
-        console.error('Backend response missing success or data:', response.data);
-        setUploadedFileName(''); // Clear the uploaded file name
+        setUploadedFileName('');
         throw new Error(response.data?.error || 'Failed to parse file');
       }
     } catch (err) {
       console.error('Error parsing file:', err);
-      console.error('Error stack:', err.stack);
       setError(err.message || 'Failed to parse paycheque file. Please check the file format.');
-      setUploadedFileName(''); // Clear the uploaded file name on error
+      setUploadedFileName('');
     } finally {
       setParsing(false);
     }
@@ -195,7 +104,6 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     setError(null);
 
     try {
-      // Validate required fields
       if (!formData.pay_date || !formData.gross_pay) {
         throw new Error('Pay date and gross pay are required');
       }
@@ -204,13 +112,10 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         throw new Error('Please select whether this is for Bus Driver Wages');
       }
 
-      // Create the transaction
       await PayrollTransaction.create({
         transaction_type: 'Paycheque',
         paycheque_number: formData.paycheque_number || null,
         pay_date: formData.pay_date,
-        pay_period_start: formData.pay_period_start || null,
-        pay_period_end: formData.pay_period_end || null,
         gross_pay: parseFloat(formData.gross_pay),
         income_tax: parseFloat(formData.income_tax) || 0,
         cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
@@ -219,23 +124,16 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         cpp_employer: parseFloat(formData.cpp_employer) || 0,
         cpp2_employer: parseFloat(formData.cpp2_employer) || 0,
         ei_employer: parseFloat(formData.ei_employer) || 0,
-        employer_cost: parseFloat(formData.employer_cost) || 0,
-        total_employer_cost: parseFloat(formData.total_employer_cost) || 0,
-        deductions: parseFloat(formData.deductions) || 0,
-        net_pay: parseFloat(formData.net_pay) || 0,
         notes: formData.notes || null,
         employee_reference: formData.employee_reference || null,
         import_file_name: formData.import_file_name || null,
         import_date: formData.import_file_name ? new Date().toISOString() : null,
-        is_paid: false, // Default to unpaid for manual entries
+        is_paid: false,
         is_bus_driver_wages: formData.is_bus_driver_wages === 'yes'
       });
 
-      // Reset form
       setFormData({
         paycheque_number: '',
-        pay_period_start: '',
-        pay_period_end: '',
         pay_date: '',
         gross_pay: '',
         income_tax: '',
@@ -245,10 +143,6 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         cpp_employer: '',
         cpp2_employer: '',
         ei_employer: '',
-        employer_cost: '',
-        total_employer_cost: '',
-        deductions: '',
-        net_pay: '',
         notes: '',
         employee_reference: '',
         import_file_name: '',
@@ -256,7 +150,6 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
       });
       setUploadedFileName('');
 
-      // Close modal and trigger refresh
       onSuccess();
       onClose();
     } catch (err) {
@@ -282,39 +175,38 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* File Upload Section */}
-          <div className="space-y-2">
-            <Label htmlFor="file-upload">Upload Paycheque File (Optional)</Label>
-            <div className="flex items-center gap-2">
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <Label htmlFor="file-upload" className="mb-2 block">Upload Paycheque File (Optional)</Label>
+            <div className="flex items-center gap-3">
               <Input
                 id="file-upload"
                 type="file"
                 accept=".txt"
                 onChange={handleFileUpload}
                 disabled={parsing}
-                className="flex-1"
+                className="flex-1 bg-white"
               />
               {parsing && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
+                <div className="flex items-center gap-2 text-sm text-blue-600 whitespace-nowrap">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                   Parsing...
                 </div>
               )}
             </div>
             {uploadedFileName && (
-              <Alert className="bg-green-50 border-green-200">
+              <Alert className="mt-3 bg-white border-green-200 py-2">
                 <FileText className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
+                <AlertDescription className="text-green-800 ml-2">
                   File uploaded: {uploadedFileName}
                 </AlertDescription>
               </Alert>
             )}
-            <p className="text-xs text-slate-500">Upload a .txt file to automatically populate the form fields</p>
           </div>
 
-          {/* Form Fields */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Key Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="paycheque_number">Paycheque Number</Label>
               <Input
@@ -323,12 +215,13 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                 value={formData.paycheque_number}
                 onChange={(e) => handleChange('paycheque_number', e.target.value)}
               />
-              <p className="text-xs text-slate-500">Unique identifier for cross-referencing with payroll system</p>
             </div>
             
             <div className="space-y-2">
-              <Label>Bus Driver Wages? <span className="text-red-500">*</span></Label>
-              <div className="flex items-center gap-4 pt-2">
+              <Label className="flex items-center">
+                Bus Driver Wages? <span className="text-red-500 ml-1">*</span>
+              </Label>
+              <div className="flex items-center gap-4 h-10">
                 <div className="flex items-center space-x-2">
                   <input
                     type="radio"
@@ -337,7 +230,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                     value="yes"
                     checked={formData.is_bus_driver_wages === 'yes'}
                     onChange={(e) => handleChange('is_bus_driver_wages', e.target.value)}
-                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                   />
                   <Label htmlFor="bd_yes" className="font-normal cursor-pointer">Yes</Label>
                 </div>
@@ -349,66 +242,50 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                     value="no"
                     checked={formData.is_bus_driver_wages === 'no'}
                     onChange={(e) => handleChange('is_bus_driver_wages', e.target.value)}
-                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600 cursor-pointer"
                   />
                   <Label htmlFor="bd_no" className="font-normal cursor-pointer">No</Label>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="pay_period_start">Pay Period Start</Label>
+              <Label htmlFor="pay_date">Pay Date <span className="text-red-500">*</span></Label>
               <Input
-                id="pay_period_start"
+                id="pay_date"
                 type="date"
-                value={formData.pay_period_start}
-                onChange={(e) => handleChange('pay_period_start', e.target.value)}
+                value={formData.pay_date}
+                onChange={(e) => handleChange('pay_date', e.target.value)}
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="pay_period_end">Pay Period End</Label>
-              <Input
-                id="pay_period_end"
-                type="date"
-                value={formData.pay_period_end}
-                onChange={(e) => handleChange('pay_period_end', e.target.value)}
-              />
+              <Label htmlFor="gross_pay">Gross Pay <span className="text-red-500">*</span></Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <Input
+                  id="gross_pay"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.gross_pay}
+                  onChange={(e) => handleChange('gross_pay', e.target.value)}
+                  className="pl-7"
+                  required
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="pay_date">Pay Date <span className="text-red-500">*</span></Label>
-            <Input
-              id="pay_date"
-              type="date"
-              value={formData.pay_date}
-              onChange={(e) => handleChange('pay_date', e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="gross_pay">Gross Pay <span className="text-red-500">*</span></Label>
-            <Input
-              id="gross_pay"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.gross_pay}
-              onChange={(e) => handleChange('gross_pay', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Employee Deduction Fields */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Employee Deductions</h4>
-            <div className="grid grid-cols-2 gap-4">
+          {/* Deductions Section */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-700">Employee Deductions</h4>
+            </div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="income_tax">Income Tax (Federal + Provincial)</Label>
+                <Label htmlFor="income_tax">Income Tax</Label>
                 <Input
                   id="income_tax"
                   type="number"
@@ -416,6 +293,18 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                   placeholder="0.00"
                   value={formData.income_tax}
                   onChange={(e) => handleChange('income_tax', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ei_premium">EI Premium</Label>
+                <Input
+                  id="ei_premium"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.ei_premium}
+                  onChange={(e) => handleChange('ei_premium', e.target.value)}
                 />
               </div>
 
@@ -442,25 +331,29 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                   onChange={(e) => handleChange('cpp2_contribution', e.target.value)}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ei_premium">EI Premium</Label>
-                <Input
-                  id="ei_premium"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.ei_premium}
-                  onChange={(e) => handleChange('ei_premium', e.target.value)}
-                />
-              </div>
             </div>
           </div>
 
-          {/* Employer Contribution Fields */}
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Employer Contributions</h4>
-            <div className="grid grid-cols-2 gap-4">
+          {/* Employer Section */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-700">Employer Contributions</h4>
+            </div>
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ei_employer">EI Employer Premium (1.4x)</Label>
+                <Input
+                  id="ei_employer"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.ei_employer}
+                  onChange={(e) => handleChange('ei_employer', e.target.value)}
+                />
+              </div>
+              
+              <div className="hidden md:block"></div>
+
               <div className="space-y-2">
                 <Label htmlFor="cpp_employer">CPP Employer Contribution</Label>
                 <Input
@@ -484,78 +377,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                   onChange={(e) => handleChange('cpp2_employer', e.target.value)}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ei_employer">EI Employer Premium (1.4x)</Label>
-                <Input
-                  id="ei_employer"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.ei_employer}
-                  onChange={(e) => handleChange('ei_employer', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="employer_cost">Total Employer Contributions</Label>
-                <Input
-                  id="employer_cost"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.employer_cost}
-                  readOnly
-                  className="bg-slate-50 font-semibold"
-                />
-                <p className="text-xs text-slate-500">Auto-calculated from employer contributions</p>
-              </div>
             </div>
-          </div>
-
-          {/* Totals */}
-          <div className="grid grid-cols-2 gap-4 border-t pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="deductions">Total Employee Deductions</Label>
-              <Input
-                id="deductions"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.deductions}
-                readOnly
-                className="bg-slate-50 font-semibold"
-              />
-              <p className="text-xs text-slate-500">Auto-calculated from employee deduction fields</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="net_pay">Net Pay</Label>
-              <Input
-                id="net_pay"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.net_pay}
-                readOnly
-                className="bg-slate-50  font-semibold"
-              />
-              <p className="text-xs text-slate-500">Gross Pay - Total Employee Deductions</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="total_employer_cost">Total Cost to Employer</Label>
-            <Input
-              id="total_employer_cost"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.total_employer_cost}
-              readOnly
-              className="bg-indigo-50 font-bold text-lg"
-            />
-            <p className="text-xs text-slate-500">Gross Pay + Total Employer Contributions</p>
           </div>
 
           <div className="space-y-2">
