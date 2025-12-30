@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import MarkPaidModal from '../components/taxes/MarkPaidModal';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
@@ -68,7 +68,7 @@ export default function TaxesPage() {
     if (!summary) return;
 
     const confirmed = window.confirm(
-      `Post this GST return for period ${format(new Date(summary.period_start_date), 'MMM d, yyyy')} to ${format(new Date(summary.period_end_date), 'MMM d, yyyy')}?\n\nNet GST Due: $${summary.net_gst_due.toFixed(2)}`
+      `Post this GST return for period ${format(parseISO(summary.period_start_date), 'MMM d, yyyy')} to ${format(parseISO(summary.period_end_date), 'MMM d, yyyy')}?\n\nNet GST Due: $${summary.net_gst_due.toFixed(2)}`
     );
 
     if (!confirmed) return;
@@ -249,7 +249,7 @@ export default function TaxesPage() {
               <CardTitle className="flex items-center justify-between">
                 <span>GST Summary</span>
                 <Badge variant="outline" className="bg-white">
-                  {format(new Date(summary.period_start_date), 'MMM d, yyyy')} - {format(new Date(summary.period_end_date), 'MMM d, yyyy')}
+                  {format(parseISO(summary.period_start_date), 'MMM d, yyyy')} - {format(parseISO(summary.period_end_date), 'MMM d, yyyy')}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -342,7 +342,7 @@ export default function TaxesPage() {
                     {history.map((record) => (
                       <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-3 px-4 text-sm">
-                          {format(new Date(record.period_start_date), 'MMM d, yyyy')} - {format(new Date(record.period_end_date), 'MMM d, yyyy')}
+                          {format(parseISO(record.period_start_date), 'MMM d, yyyy')} - {format(parseISO(record.period_end_date), 'MMM d, yyyy')}
                         </td>
                         <td className="py-3 px-4 text-sm text-right">
                           ${record.gst_collected.toFixed(2)}
@@ -370,7 +370,7 @@ export default function TaxesPage() {
                           )}
                           {record.status === 'paid' && record.paid_date && (
                             <span className="text-xs text-slate-500">
-                              Paid: {format(new Date(record.paid_date), 'MMM d, yyyy')}
+                              Paid: {format(parseISO(record.paid_date), 'MMM d, yyyy')}
                             </span>
                           )}
                         </td>

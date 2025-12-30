@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, DollarSign } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
@@ -49,8 +49,8 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
     const isRefund = gstReturn.net_gst_due < 0;
     const confirmMessage = isRefund
-      ? `Confirm GST refund of $${Math.abs(gstReturn.net_gst_due).toFixed(2)} received on ${format(new Date(paymentDate), 'MMM d, yyyy')}?`
-      : `Confirm GST payment of $${gstReturn.net_gst_due.toFixed(2)} made on ${format(new Date(paymentDate), 'MMM d, yyyy')}?`;
+      ? `Confirm GST refund of $${Math.abs(gstReturn.net_gst_due).toFixed(2)} received on ${format(parseISO(paymentDate), 'MMM d, yyyy')}?`
+      : `Confirm GST payment of $${gstReturn.net_gst_due.toFixed(2)} made on ${format(parseISO(paymentDate), 'MMM d, yyyy')}?`;
 
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
@@ -98,7 +98,7 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
               <div>
                 <p className="text-sm font-medium text-slate-700">Period</p>
                 <p className="text-sm text-slate-900">
-                  {format(new Date(gstReturn.period_start_date), 'MMM d, yyyy')} - {format(new Date(gstReturn.period_end_date), 'MMM d, yyyy')}
+                  {format(parseISO(gstReturn.period_start_date), 'MMM d, yyyy')} - {format(parseISO(gstReturn.period_end_date), 'MMM d, yyyy')}
                 </p>
               </div>
               <DollarSign className={`w-8 h-8 ${isRefund ? 'text-green-400' : 'text-red-400'}`} />
