@@ -182,7 +182,7 @@ export default function JournalEntriesPage() {
                   </Select>
                 </div>
 
-                <div className="md:col-span-1 space-y-2">
+                <div className="md:col-span-2 space-y-2">
                   <Label htmlFor="debit">Debit</Label>
                   <Input
                     id="debit"
@@ -197,7 +197,7 @@ export default function JournalEntriesPage() {
                   />
                 </div>
 
-                <div className="md:col-span-1 space-y-2">
+                <div className="md:col-span-2 space-y-2">
                   <Label htmlFor="credit">Credit</Label>
                   <Input
                     id="credit"
@@ -212,7 +212,7 @@ export default function JournalEntriesPage() {
                   />
                 </div>
 
-                <div className="md:col-span-6 space-y-2">
+                <div className="md:col-span-5 space-y-2">
                   <Label htmlFor="memo">Memo</Label>
                   <Input
                     id="memo"
@@ -251,8 +251,8 @@ export default function JournalEntriesPage() {
                   <tr>
                     <th className="text-left p-3 font-semibold text-slate-700 w-8">#</th>
                     <th className="text-left p-3 font-semibold text-slate-700 w-48">Account</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-24">Debit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-24">Credit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 w-32">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 w-32">Credit</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Memo</th>
                     <th className="text-center p-3 font-semibold text-slate-700 w-16"></th>
                   </tr>
