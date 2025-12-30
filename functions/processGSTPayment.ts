@@ -117,6 +117,25 @@ Deno.serve(async (req) => {
       await base44.asServiceRole.entities.GLTransaction.create(tx);
     }
 
+    // Create Bank Transaction
+    const bankTx = {
+      bank_account_id: bankAccount.id,
+      transaction_date: payment_date,
+      description: netGstDue > 0 
+        ? `GST Payment to CRA (${gstReturn.period_start_date} - ${gstReturn.period_end_date})` 
+        : `GST Refund from CRA (${gstReturn.period_start_date} - ${gstReturn.period_end_date})`,
+      reference: `GST-${gstReturn.id}`,
+      credit_amount: netGstDue < 0 ? absAmount : 0, // Refund = Money In
+      debit_amount: netGstDue > 0 ? absAmount : 0,  // Payment = Money Out
+      cleared: false,
+      reconciled: false,
+      source_type: 'payment',
+      source_id: gstReturn.id,
+      gl_account: gstPayableReceivableAccount
+    };
+    
+    await base44.asServiceRole.entities.BankTransaction.create(bankTx);
+
     // Update the GST return to "paid" status
     await base44.asServiceRole.entities.GSTReturn.update(gstReturn.id, {
       status: 'paid',
