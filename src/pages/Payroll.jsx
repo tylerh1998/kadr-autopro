@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar as CalendarIcon, Plus, CheckCircle, FileText, DollarSign, AlertCircle, Trash2, RefreshCw, Printer, Briefcase } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { createPageUrl } from '@/utils';
 
@@ -20,9 +20,16 @@ import MarkPaidModal from '../components/payroll/MarkPaidModal';
 
 export default function PayrollPage() {
   const [dateRange, setDateRange] = useState({
-    from: subDays(new Date(), 30),
-    to: new Date()
+    from: startOfMonth(subMonths(new Date(), 2)),
+    to: endOfMonth(new Date())
   });
+
+  const calculateNetPay = (t) => {
+    if (t.transaction_type !== 'Paycheque') return 0;
+    const gross = t.gross_pay || 0;
+    const deductions = (t.income_tax || 0) + (t.cpp_contribution || 0) + (t.cpp2_contribution || 0) + (t.ei_premium || 0);
+    return gross - deductions;
+  };
   const [transactionTypeFilter, setTransactionTypeFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
@@ -86,7 +93,7 @@ export default function PayrollPage() {
         let reversalDescription = '';
 
         if (transaction.transaction_type === 'Paycheque') {
-          reversalAmount = -(transaction.net_pay || 0);
+          reversalAmount = -calculateNetPay(transaction);
           reversalDescription = `Reversal of Paycheque ${transaction.paycheque_number || ''} dated ${format(new Date(transaction.pay_date), 'MMM d, yyyy')}`;
         } else if (transaction.transaction_type === 'Remittance') {
           // Sum up all deduction amounts for remittance reversal
@@ -164,8 +171,8 @@ export default function PayrollPage() {
     .reduce((sum, t) => sum + t.gross_pay, 0);
 
   const totalNetPay = transactions
-    .filter(t => t.transaction_type === 'Paycheque' && t.net_pay)
-    .reduce((sum, t) => sum + t.net_pay, 0);
+    .filter(t => t.transaction_type === 'Paycheque')
+    .reduce((sum, t) => sum + calculateNetPay(t), 0);
 
   const totalRemittanceAmount = transactions
     .filter(t => t.transaction_type === 'Remittance' && t.amount)
@@ -474,8 +481,8 @@ export default function PayrollPage() {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
-                              {transaction.transaction_type === 'Paycheque' && transaction.net_pay ? (
-                                <span className="font-bold text-green-600">${transaction.net_pay.toFixed(2)}</span>
+                              {transaction.transaction_type === 'Paycheque' ? (
+                                <span className="font-bold text-green-600">${calculateNetPay(transaction).toFixed(2)}</span>
                               ) : transaction.amount ? (
                                 <span className="font-bold text-blue-600">${transaction.amount.toFixed(2)}</span>
                               ) : (
