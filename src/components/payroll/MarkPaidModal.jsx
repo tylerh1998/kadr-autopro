@@ -30,9 +30,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
     try {
       const accounts = await BankAccount.filter({ is_active: true });
       setBankAccounts(accounts);
-      if (accounts.length > 0) {
-        setSelectedBankAccount(accounts[0].id);
-      }
+      setSelectedBankAccount('');
     } catch (err) {
       console.error('Error loading bank accounts:', err);
       setError('Failed to load bank accounts');
