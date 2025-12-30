@@ -73,6 +73,43 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
     try {
       const selectedAccount = bankAccounts.find(acc => acc.id === selectedBankAccount);
+
+      // Validate GL Balance before processing
+      let totalDebits = 0;
+      let totalCredits = 0;
+
+      for (const t of transactions) {
+        if (t.transaction_type === 'Paycheque') {
+          const netPay = getNetPay(t);
+          const grossPay = t.gross_pay || 0;
+          const incomeTax = t.income_tax || 0;
+          const totalCppEmployee = (t.cpp_contribution || 0) + (t.cpp2_contribution || 0);
+          const eiPremium = t.ei_premium || 0;
+          const totalCppEmployer = (t.cpp_employer || 0) + (t.cpp2_employer || 0);
+          const eiEmployer = t.ei_employer || 0;
+
+          // Credits (Bank + Liabilities)
+          totalCredits += netPay;
+          totalCredits += incomeTax;
+          totalCredits += totalCppEmployee;
+          totalCredits += eiPremium;
+          totalCredits += totalCppEmployer;
+          totalCredits += eiEmployer;
+
+          // Debits (Expenses)
+          totalDebits += grossPay;
+          totalDebits += totalCppEmployer;
+          totalDebits += eiEmployer;
+        } else if (t.transaction_type === 'Remittance' || t.transaction_type === 'Adjustment') {
+          const amount = Math.abs(t.amount || 0);
+          totalDebits += amount;
+          totalCredits += amount;
+        }
+      }
+
+      if (Math.abs(totalDebits - totalCredits) > 0.02) {
+        throw new Error(`GL Transactions do not balance. Debits: $${totalDebits.toFixed(2)}, Credits: $${totalCredits.toFixed(2)}`);
+      }
       
       for (const transaction of transactions) {
         // Update transaction as paid
