@@ -326,7 +326,7 @@ export default function PayrollPage() {
 
               {/* Transaction Type Filter */}
               <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[160px] bg-white">
                   <SelectValue placeholder="All Transactions" />
                 </SelectTrigger>
                 <SelectContent>
