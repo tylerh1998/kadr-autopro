@@ -8,6 +8,7 @@ import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown } from 'lucide-
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import MarkPaidModal from '../components/taxes/MarkPaidModal';
+import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function TaxesPage() {
   const [startDate, setStartDate] = useState('');
@@ -86,7 +87,7 @@ export default function TaxesPage() {
         gst_paid: summary.gst_paid,
         net_gst_due: summary.net_gst_due,
         status: 'posted',
-        posted_date: format(new Date(), 'yyyy-MM-dd'),
+        posted_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
         posted_by: user.email
       });
 
@@ -193,7 +194,7 @@ export default function TaxesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const year = new Date().getFullYear();
+                  const year = getMountainTimeNow().getFullYear();
                   setStartDate(`${year}-01-01`);
                   setEndDate(`${year}-03-31`);
                 }}
@@ -205,7 +206,7 @@ export default function TaxesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const year = new Date().getFullYear();
+                  const year = getMountainTimeNow().getFullYear();
                   setStartDate(`${year}-04-01`);
                   setEndDate(`${year}-06-30`);
                 }}
@@ -217,7 +218,7 @@ export default function TaxesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const year = new Date().getFullYear();
+                  const year = getMountainTimeNow().getFullYear();
                   setStartDate(`${year}-07-01`);
                   setEndDate(`${year}-09-30`);
                 }}
@@ -229,7 +230,7 @@ export default function TaxesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const year = new Date().getFullYear() - 1;
+                  const year = getMountainTimeNow().getFullYear() - 1;
                   setStartDate(`${year}-10-01`);
                   setEndDate(`${year}-12-31`);
                 }}

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) {
   const [paymentDate, setPaymentDate] = useState('');
@@ -17,8 +18,8 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
   useEffect(() => {
     if (open) {
-      // Set default payment date to today
-      setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+      // Set default payment date to today (Mountain Time)
+      setPaymentDate(format(getMountainTimeNow(), 'yyyy-MM-dd'));
       loadBankAccounts();
     } else {
       // Reset form when modal closes

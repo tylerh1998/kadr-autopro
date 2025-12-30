@@ -27,8 +27,9 @@ Deno.serve(async (req) => {
     const gstPaidAccount = settings.gst_paid_account_number || '2003';
     const gstPayableAccount = settings.gst_payable_receivable_account_number || '2001';
 
-    // Use period end date as transaction date, or today if missing
-    const txDate = period_end_date || new Date().toISOString().split('T')[0];
+    // Use period end date as transaction date, or today (Mountain Time) if missing
+    // en-CA format is YYYY-MM-DD
+    const txDate = period_end_date || new Date().toLocaleDateString("en-CA", {timeZone: "America/Denver"});
     const sourceId = gst_return_id;
     const sourceType = 'supplier_invoice'; 
     const description = `GST Return Posting (Consolidation)`;
