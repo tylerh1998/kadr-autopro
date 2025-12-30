@@ -37,6 +37,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -98,20 +99,28 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handlePreSubmit = (e) => {
     e.preventDefault();
+    setError(null);
+
+    if (!formData.pay_date || !formData.gross_pay) {
+      setError('Pay date and gross pay are required');
+      return;
+    }
+
+    if (!formData.is_bus_driver_wages) {
+      setError('Please select whether this is for Bus Driver Wages');
+      return;
+    }
+
+    setShowConfirm(true);
+  };
+
+  const handleFinalSubmit = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      if (!formData.pay_date || !formData.gross_pay) {
-        throw new Error('Pay date and gross pay are required');
-      }
-
-      if (!formData.is_bus_driver_wages) {
-        throw new Error('Please select whether this is for Bus Driver Wages');
-      }
-
       await PayrollTransaction.create({
         transaction_type: 'Paycheque',
         paycheque_number: formData.paycheque_number || null,
@@ -152,16 +161,55 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
 
       onSuccess();
       onClose();
+      setShowConfirm(false);
     } catch (err) {
       console.error('Error creating paycheque:', err);
       setError(err.message || 'Failed to create paycheque');
+      setShowConfirm(false); // Close confirm modal on error so user can fix form
     } finally {
       setLoading(false);
     }
   };
 
+  const calculateNetPay = () => {
+    const gross = parseFloat(formData.gross_pay || 0);
+    const deductions = (parseFloat(formData.income_tax || 0) + 
+                        parseFloat(formData.cpp_contribution || 0) + 
+                        parseFloat(formData.cpp2_contribution || 0) + 
+                        parseFloat(formData.ei_premium || 0));
+    return gross - deductions;
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="sm:max-w-[400px] z-[100]">
+          <DialogHeader>
+            <DialogTitle>Verify Net Pay</DialogTitle>
+            <DialogDescription>
+              Please verify the calculated amount.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-center">
+            <div className="text-sm text-gray-500 mb-1">Calculated Net Pay</div>
+            <div className="text-3xl font-bold text-green-600">
+              ${calculateNetPay().toFixed(2)}
+            </div>
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm font-medium">
+              Verify that this Net Pay matches PayPRO
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 justify-center sm:justify-end">
+            <Button variant="outline" onClick={() => setShowConfirm(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button onClick={handleFinalSubmit} disabled={loading} className="bg-green-600 hover:bg-green-700">
+              {loading ? 'Adding...' : 'Confirm & Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
@@ -175,7 +223,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handlePreSubmit} className="space-y-6">
           {/* File Upload Section */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
             <Label htmlFor="file-upload" className="mb-2 block">Upload Paycheque File (Optional)</Label>
@@ -410,5 +458,6 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
