@@ -10,6 +10,7 @@ import { AlertTriangle, Save, RotateCcw, BookOpen, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function JournalEntriesPage() {
+  const accountInputRef = React.useRef(null);
   const [accounts, setAccounts] = useState([]);
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -67,6 +68,13 @@ export default function JournalEntriesPage() {
     setCurrentDebit('');
     setCurrentCredit('');
     setCurrentMemo('');
+
+    // Shift focus back to account field
+    setTimeout(() => {
+      if (accountInputRef.current) {
+        accountInputRef.current.focus();
+      }
+    }, 10);
   };
 
   const handleDeleteLine = (lineId) => {
@@ -161,7 +169,7 @@ export default function JournalEntriesPage() {
                 <div className="md:col-span-5 space-y-2">
                   <Label htmlFor="account">Account</Label>
                   <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                    <SelectTrigger>
+                    <SelectTrigger ref={accountInputRef} id="account">
                       <SelectValue placeholder="Select account..." />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
