@@ -87,10 +87,16 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           });
 
           // Debit Payroll Expense Account
+          // 5009 for Bus Driver Wages, 5008 for Regular Wages
+          const expenseAccount = transaction.is_bus_driver_wages ? '5009' : '5008';
+          const expenseDescription = transaction.is_bus_driver_wages 
+            ? `Bus Driver Wages ${transaction.paycheque_number || ''}` 
+            : `Wages & Salaries ${transaction.paycheque_number || ''}`;
+
           await GLTransaction.create({
-            account_number: '5000', // Payroll expense account
+            account_number: expenseAccount,
             transaction_date: paymentDate,
-            description: `Payroll expense ${transaction.paycheque_number || ''}`,
+            description: expenseDescription,
             reference: reference,
             debit_amount: transaction.gross_pay || 0,
             credit_amount: 0,
@@ -98,10 +104,10 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             source_id: transaction.id
           });
 
-          // Credit various payable accounts for deductions
+          // Credit Income Tax Payable (2054)
           if (transaction.income_tax && transaction.income_tax > 0) {
             await GLTransaction.create({
-              account_number: '2100', // Income Tax Payable
+              account_number: '2054', // Income Tax Payable
               transaction_date: paymentDate,
               description: `Income tax withheld ${transaction.paycheque_number || ''}`,
               reference: reference,
@@ -112,40 +118,87 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             });
           }
 
-          if (transaction.cpp_contribution && transaction.cpp_contribution > 0) {
+          // Credit CPP Payable (2052) - Combine CPP and CPP2
+          const totalCppEmployee = (transaction.cpp_contribution || 0) + (transaction.cpp2_contribution || 0);
+          if (totalCppEmployee > 0) {
             await GLTransaction.create({
-              account_number: '2110', // CPP Payable
+              account_number: '2052', // CPP Payable
               transaction_date: paymentDate,
-              description: `CPP withheld ${transaction.paycheque_number || ''}`,
+              description: `CPP/CPP2 withheld ${transaction.paycheque_number || ''}`,
               reference: reference,
               debit_amount: 0,
-              credit_amount: transaction.cpp_contribution,
+              credit_amount: totalCppEmployee,
               source_type: 'payment',
               source_id: transaction.id
             });
           }
 
-          if (transaction.cpp2_contribution && transaction.cpp2_contribution > 0) {
-            await GLTransaction.create({
-              account_number: '2111', // CPP2 Payable
-              transaction_date: paymentDate,
-              description: `CPP2 withheld ${transaction.paycheque_number || ''}`,
-              reference: reference,
-              debit_amount: 0,
-              credit_amount: transaction.cpp2_contribution,
-              source_type: 'payment',
-              source_id: transaction.id
-            });
-          }
-
+          // Credit EI Payable (2053)
           if (transaction.ei_premium && transaction.ei_premium > 0) {
             await GLTransaction.create({
-              account_number: '2120', // EI Payable
+              account_number: '2053', // EI Payable
               transaction_date: paymentDate,
               description: `EI withheld ${transaction.paycheque_number || ''}`,
               reference: reference,
               debit_amount: 0,
               credit_amount: transaction.ei_premium,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+          }
+
+          // --- Employer Contributions ---
+
+          // CPP Employer Expense (5006) and Liability (2052)
+          const totalCppEmployer = (transaction.cpp_employer || 0) + (transaction.cpp2_employer || 0);
+          if (totalCppEmployer > 0) {
+            // Debit Expense
+            await GLTransaction.create({
+              account_number: '5006', // CPP Expense
+              transaction_date: paymentDate,
+              description: `CPP Employer Expense ${transaction.paycheque_number || ''}`,
+              reference: reference,
+              debit_amount: totalCppEmployer,
+              credit_amount: 0,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+            
+            // Credit Liability
+            await GLTransaction.create({
+              account_number: '2052', // CPP Payable
+              transaction_date: paymentDate,
+              description: `CPP Employer Liability ${transaction.paycheque_number || ''}`,
+              reference: reference,
+              debit_amount: 0,
+              credit_amount: totalCppEmployer,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+          }
+
+          // EI Employer Expense (5007) and Liability (2053)
+          if (transaction.ei_employer && transaction.ei_employer > 0) {
+            // Debit Expense
+            await GLTransaction.create({
+              account_number: '5007', // EI Expense
+              transaction_date: paymentDate,
+              description: `EI Employer Expense ${transaction.paycheque_number || ''}`,
+              reference: reference,
+              debit_amount: transaction.ei_employer,
+              credit_amount: 0,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+            
+            // Credit Liability
+            await GLTransaction.create({
+              account_number: '2053', // EI Payable
+              transaction_date: paymentDate,
+              description: `EI Employer Liability ${transaction.paycheque_number || ''}`,
+              reference: reference,
+              debit_amount: 0,
+              credit_amount: transaction.ei_employer,
               source_type: 'payment',
               source_id: transaction.id
             });

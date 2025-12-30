@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PayrollTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
@@ -37,7 +36,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     net_pay: '',
     notes: '',
     employee_reference: '',
-    import_file_name: ''
+    import_file_name: '',
+    is_bus_driver_wages: 'no'
   });
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -166,7 +166,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           net_pay: parsedData.net_pay?.toString() || '',
           notes: parsedData.notes || '',
           employee_reference: parsedData.employee_reference || '',
-          import_file_name: parsedData.import_file_name || file.name
+          import_file_name: parsedData.import_file_name || file.name,
+          is_bus_driver_wages: 'no'
         };
         
         console.log('Setting form data to:', JSON.stringify(newFormData, null, 2));
@@ -222,7 +223,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         employee_reference: formData.employee_reference || null,
         import_file_name: formData.import_file_name || null,
         import_date: formData.import_file_name ? new Date().toISOString() : null,
-        is_paid: false // Default to unpaid for manual entries
+        is_paid: false, // Default to unpaid for manual entries
+        is_bus_driver_wages: formData.is_bus_driver_wages === 'yes'
       });
 
       // Reset form
@@ -245,7 +247,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         net_pay: '',
         notes: '',
         employee_reference: '',
-        import_file_name: ''
+        import_file_name: '',
+        is_bus_driver_wages: 'no'
       });
       setUploadedFileName('');
 
@@ -307,15 +310,47 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           </div>
 
           {/* Form Fields */}
-          <div className="space-y-2">
-            <Label htmlFor="paycheque_number">Paycheque Number</Label>
-            <Input
-              id="paycheque_number"
-              placeholder="e.g., 202509-006"
-              value={formData.paycheque_number}
-              onChange={(e) => handleChange('paycheque_number', e.target.value)}
-            />
-            <p className="text-xs text-slate-500">Unique identifier for cross-referencing with payroll system</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="paycheque_number">Paycheque Number</Label>
+              <Input
+                id="paycheque_number"
+                placeholder="e.g., 202509-006"
+                value={formData.paycheque_number}
+                onChange={(e) => handleChange('paycheque_number', e.target.value)}
+              />
+              <p className="text-xs text-slate-500">Unique identifier for cross-referencing with payroll system</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Bus Driver Wages? <span className="text-red-500">*</span></Label>
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="bd_yes"
+                    name="is_bus_driver_wages"
+                    value="yes"
+                    checked={formData.is_bus_driver_wages === 'yes'}
+                    onChange={(e) => handleChange('is_bus_driver_wages', e.target.value)}
+                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                  <Label htmlFor="bd_yes" className="font-normal cursor-pointer">Yes</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    id="bd_no"
+                    name="is_bus_driver_wages"
+                    value="no"
+                    checked={formData.is_bus_driver_wages === 'no'}
+                    onChange={(e) => handleChange('is_bus_driver_wages', e.target.value)}
+                    className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                  <Label htmlFor="bd_no" className="font-normal cursor-pointer">No</Label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
