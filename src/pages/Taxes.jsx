@@ -75,8 +75,9 @@ export default function TaxesPage() {
     setPosting(true);
     try {
       const user = await base44.auth.me();
-      
-      await base44.entities.GSTReturn.create({
+
+      // Create the return record
+      const newReturn = await base44.entities.GSTReturn.create({
         period_start_date: summary.period_start_date,
         period_end_date: summary.period_end_date,
         total_sales: summary.total_sales,
@@ -89,7 +90,24 @@ export default function TaxesPage() {
         posted_by: user.email
       });
 
-      alert('GST return posted successfully!');
+      // Post consolidating GL entries
+      const response = await base44.functions.invoke('postGSTJournalEntries', {
+        gst_return_id: newReturn.id,
+        gst_collected: summary.gst_collected,
+        gst_paid: summary.gst_paid,
+        period_end_date: summary.period_end_date
+      });
+
+      if (response.data.error) {
+        console.error("Error from postGSTJournalEntries:", response.data.error);
+        // Note: The return is already created, but GL entries failed. 
+        // We alert the user but don't rollback the return creation for now to avoid complexity,
+        // or we could delete it. For safety, we'll just warn.
+        alert(`GST return created, but failed to post accounting entries: ${response.data.error}`);
+      } else {
+        alert('GST return posted and accounting entries created successfully!');
+      }
+
       setSummary(null);
       setStartDate('');
       setEndDate('');
