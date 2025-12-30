@@ -37,7 +37,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     notes: '',
     employee_reference: '',
     import_file_name: '',
-    is_bus_driver_wages: 'no'
+    is_bus_driver_wages: ''
   });
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -167,7 +167,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           notes: parsedData.notes || '',
           employee_reference: parsedData.employee_reference || '',
           import_file_name: parsedData.import_file_name || file.name,
-          is_bus_driver_wages: 'no'
+          is_bus_driver_wages: ''
         };
         
         console.log('Setting form data to:', JSON.stringify(newFormData, null, 2));
@@ -198,6 +198,10 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
       // Validate required fields
       if (!formData.pay_date || !formData.gross_pay) {
         throw new Error('Pay date and gross pay are required');
+      }
+
+      if (!formData.is_bus_driver_wages) {
+        throw new Error('Please select whether this is for Bus Driver Wages');
       }
 
       // Create the transaction
@@ -248,7 +252,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         notes: '',
         employee_reference: '',
         import_file_name: '',
-        is_bus_driver_wages: 'no'
+        is_bus_driver_wages: ''
       });
       setUploadedFileName('');
 

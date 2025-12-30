@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
             }
             
             // Calculate Income Tax (Federal + Provincial)
-            parsedData.income_tax = federalTax + provincialTax;
+            parsedData.income_tax = Math.round((federalTax + provincialTax) * 100) / 100;
             console.log('Calculated income_tax:', parsedData.income_tax);
             
             // Extract CPP Contribution
