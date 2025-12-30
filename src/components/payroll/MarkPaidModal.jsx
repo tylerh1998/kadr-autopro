@@ -260,7 +260,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           await GLTransaction.create({
             account_number: selectedAccount.gl_account || '1000',
             transaction_date: paymentDate,
-            description: `Remittance payment - ${transaction.remittance_type || ''}`,
+            description: `Remittance payment`,
             reference: reference,
             debit_amount: 0,
             credit_amount: transaction.amount || 0,
@@ -268,24 +268,49 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             source_id: transaction.id
           });
 
-          // Debit the appropriate payable account
-          let payableAccount = '2100'; // Default to tax payable
-          if (transaction.remittance_type === 'CPP') {
-            payableAccount = '2110';
-          } else if (transaction.remittance_type === 'EI') {
-            payableAccount = '2120';
+          // Debit Income Tax Payable (2054)
+          if (transaction.income_tax && transaction.income_tax > 0) {
+            await GLTransaction.create({
+              account_number: '2054', // Income Tax Payable
+              transaction_date: paymentDate,
+              description: `Remittance paid - Income Tax`,
+              reference: reference,
+              debit_amount: transaction.income_tax,
+              credit_amount: 0,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
           }
 
-          await GLTransaction.create({
-            account_number: payableAccount,
-            transaction_date: paymentDate,
-            description: `Remittance paid - ${transaction.remittance_type || ''}`,
-            reference: reference,
-            debit_amount: transaction.amount || 0,
-            credit_amount: 0,
-            source_type: 'payment',
-            source_id: transaction.id
-          });
+          // Debit CPP Payable (2052) - Employee + Employer
+          const totalCpp = (transaction.cpp_contribution || 0) + (transaction.cpp_employer || 0);
+          if (totalCpp > 0) {
+            await GLTransaction.create({
+              account_number: '2052', // CPP Payable
+              transaction_date: paymentDate,
+              description: `Remittance paid - CPP`,
+              reference: reference,
+              debit_amount: totalCpp,
+              credit_amount: 0,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+          }
+
+          // Debit EI Payable (2053) - Employee + Employer
+          const totalEi = (transaction.ei_premium || 0) + (transaction.ei_employer || 0);
+          if (totalEi > 0) {
+            await GLTransaction.create({
+              account_number: '2053', // EI Payable
+              transaction_date: paymentDate,
+              description: `Remittance paid - EI`,
+              reference: reference,
+              debit_amount: totalEi,
+              credit_amount: 0,
+              source_type: 'payment',
+              source_id: transaction.id
+            });
+          }
 
         } else if (transaction.transaction_type === 'Adjustment') {
           // Handle adjustments - credit or debit based on positive/negative amount
