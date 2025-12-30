@@ -158,29 +158,20 @@ export default function JournalEntriesPage() {
             {/* Entry Line Form */}
             <div className="border-t pt-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="account-number">Account Number</Label>
+                <div className="md:col-span-5 space-y-2">
+                  <Label htmlFor="account">Account</Label>
                   <Select value={selectedAccount} onValueChange={setSelectedAccount}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select..." />
+                      <SelectValue placeholder="Select account..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {accounts.map((account) => (
                         <SelectItem key={account.account_number} value={account.account_number}>
-                          {account.account_number}
+                          <span className="font-bold">{account.account_number}</span> - {account.account_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                
-                <div className="md:col-span-3 space-y-2">
-                  <Label>Account</Label>
-                  <Input 
-                    value={getAccountName(selectedAccount)} 
-                    readOnly 
-                    className="bg-slate-50"
-                  />
                 </div>
 
                 <div className="md:col-span-2 space-y-2">
