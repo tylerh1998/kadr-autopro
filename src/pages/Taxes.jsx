@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
+import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import MarkPaidModal from '../components/taxes/MarkPaidModal';
@@ -130,6 +130,91 @@ export default function TaxesPage() {
     setShowMarkPaidModal(false);
     setSelectedReturn(null);
     loadHistory();
+  };
+
+  const handlePrintReport = (record) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert('Please allow popups to print report');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>GST Return Report - ${format(parseISO(record.period_end_date), 'yyyy-MM-dd')}</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .header h2 { margin: 5px 0 0; font-size: 18px; color: #666; }
+            .section { margin-bottom: 30px; }
+            .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+            .label { font-weight: 500; color: #666; }
+            .value { font-weight: bold; }
+            .amount { font-family: monospace; font-size: 16px; }
+            .footer { margin-top: 50px; font-size: 12px; text-align: center; color: #999; border-top: 1px solid #ddd; padding-top: 20px; }
+            .net-box { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: right; }
+            .net-label { font-size: 14px; color: #666; }
+            .net-value { font-size: 24px; font-weight: bold; margin-top: 5px; }
+            .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; border: 1px solid #ccc; background: #eee; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Ken's Auto</h1>
+            <h2>GST Return Report</h2>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Return Details</div>
+            <div class="grid">
+              <div class="row"><span class="label">Period Start:</span> <span class="value">${format(parseISO(record.period_start_date), 'MMM d, yyyy')}</span></div>
+              <div class="row"><span class="label">Period End:</span> <span class="value">${format(parseISO(record.period_end_date), 'MMM d, yyyy')}</span></div>
+              <div class="row"><span class="label">Status:</span> <span class="value"><span class="status-badge">${record.status}</span></span></div>
+              <div class="row"><span class="label">Return ID:</span> <span class="value">${record.id}</span></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Financial Summary</div>
+            <div class="row"><span class="label">Total Sales (Revenue):</span> <span class="value amount">$${record.total_sales?.toFixed(2) || '0.00'}</span></div>
+            <div class="row"><span class="label">Total Purchases (Expenses):</span> <span class="value amount">$${record.total_purchases?.toFixed(2) || '0.00'}</span></div>
+            <hr style="border: 0; border-top: 1px dashed #ddd; margin: 15px 0;" />
+            <div class="row"><span class="label">GST Collected (Line 103):</span> <span class="value amount">$${record.gst_collected?.toFixed(2) || '0.00'}</span></div>
+            <div class="row"><span class="label">GST Paid (Line 106):</span> <span class="value amount">$${record.gst_paid?.toFixed(2) || '0.00'}</span></div>
+            
+            <div class="net-box">
+              <div class="net-label">Net GST ${record.net_gst_due >= 0 ? 'Due (Line 109)' : 'Refund (Line 109)'}</div>
+              <div class="net-value" style="color: ${record.net_gst_due >= 0 ? '#d32f2f' : '#388e3c'}">
+                $${Math.abs(record.net_gst_due)?.toFixed(2) || '0.00'}
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Filing Information</div>
+            <div class="row"><span class="label">Posted Date:</span> <span class="value">${record.posted_date ? format(parseISO(record.posted_date), 'MMM d, yyyy') : 'N/A'}</span></div>
+            <div class="row"><span class="label">Posted By:</span> <span class="value">${record.posted_by || 'N/A'}</span></div>
+            ${record.paid_date ? `
+              <div class="row"><span class="label">Paid/Refunded Date:</span> <span class="value">${format(parseISO(record.paid_date), 'MMM d, yyyy')}</span></div>
+              <div class="row"><span class="label">Processed By:</span> <span class="value">${record.paid_by || 'N/A'}</span></div>
+            ` : ''}
+          </div>
+
+          <div class="footer">
+            Generated on ${format(getMountainTimeNow(), 'MMM d, yyyy h:mm a')} • Internal Record
+          </div>
+
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   const getStatusBadge = (status) => {
@@ -358,21 +443,31 @@ export default function TaxesPage() {
                           {getStatusBadge(record.status)}
                         </td>
                         <td className="py-3 px-4 text-center">
-                          {record.status === 'posted' && (
+                          <div className="flex items-center justify-center gap-2">
+                            {record.status === 'posted' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleMarkPaid(record)}
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              >
+                                Mark Paid
+                              </Button>
+                            )}
+                            {record.status === 'paid' && record.paid_date && (
+                              <span className="text-xs text-slate-500">
+                                Paid: {format(parseISO(record.paid_date), 'MMM d, yyyy')}
+                              </span>
+                            )}
                             <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkPaid(record)}
-                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handlePrintReport(record)}
+                              title="Print Report"
                             >
-                              Mark Paid
+                              <Printer className="w-4 h-4 text-slate-500 hover:text-slate-800" />
                             </Button>
-                          )}
-                          {record.status === 'paid' && record.paid_date && (
-                            <span className="text-xs text-slate-500">
-                              Paid: {format(parseISO(record.paid_date), 'MMM d, yyyy')}
-                            </span>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     ))}
