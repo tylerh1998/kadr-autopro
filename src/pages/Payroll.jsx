@@ -279,186 +279,70 @@ export default function PayrollPage() {
               <h1 className="text-3xl font-bold text-slate-900">Payroll Management</h1>
               <p className="text-slate-600 mt-1">Manage all payroll transactions in one place</p>
             </div>
-            <Button 
-              onClick={() => window.location.href = createPageUrl("WorkPro")}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              <Briefcase className="w-4 h-4 mr-2" />
-              WorkPRO
-            </Button>
-          </div>
-
-          {/* Filters and Actions */}
-          <Card className="no-print">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                {/* Left side - Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-1">
-                  {/* Date Range Picker */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-700">Date Range:</span>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "justify-start text-left font-normal w-[280px]",
-                            !dateRange && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateRange?.from ? (
-                            dateRange.to ? (
-                              <>
-                                {format(dateRange.from, "MMM d, yyyy")} - {format(dateRange.to, "MMM d, yyyy")}
-                              </>
-                            ) : (
-                              format(dateRange.from, "MMM d, yyyy")
-                            )
-                          ) : (
-                            <span>Pick a date range</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          initialFocus
-                          mode="range"
-                          defaultMonth={dateRange?.from}
-                          selected={dateRange}
-                          onSelect={handleDateSelect}
-                          numberOfMonths={2}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  {/* Transaction Type Filter */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-700">Type:</span>
-                    <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="All Transactions" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Transactions</SelectItem>
-                        <SelectItem value="Paycheque">Paycheques</SelectItem>
-                        <SelectItem value="Remittance">Remittances</SelectItem>
-                        <SelectItem value="Adjustment">Adjustments</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Refresh Button */}
-                  <Button variant="outline" size="icon" onClick={loadTransactions} disabled={loading}>
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  </Button>
-                </div>
-
-                {/* Right side - Action Buttons */}
-                <div className="flex flex-wrap gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={handlePrint}
+            
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Date Range Picker */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal w-[240px]",
+                      !dateRange && "text-muted-foreground"
+                    )}
                   >
-                    <Printer className="w-4 h-4" />
-                    Print Report
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "MMM d, yyyy")} - {format(dateRange.to, "MMM d, yyyy")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "MMM d, yyyy")
+                      )
+                    ) : (
+                      <span>Pick a date range</span>
+                    )}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={handleMarkPaidClick}
-                    disabled={selectedTransactionObjects.length === 0}
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Mark Paid ({selectedTransactionObjects.length})
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => setShowAddAdjustmentModal(true)}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Adjustment
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2"
-                    onClick={() => setShowAddRemittanceModal(true)}
-                  >
-                    <FileText className="w-4 h-4" />
-                    Add Remittance
-                  </Button>
-                  <Button 
-                    className="bg-green-600 hover:bg-green-700 gap-2"
-                    onClick={() => setShowAddPaychequeModal(true)}
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    Add Paycheque
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={handleDateSelect}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
 
-          {/* Transaction Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Total Paycheques</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalPaycheques}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Transaction Type Filter */}
+              <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Transactions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Transactions</SelectItem>
+                  <SelectItem value="Paycheque">Paycheques</SelectItem>
+                  <SelectItem value="Remittance">Remittances</SelectItem>
+                  <SelectItem value="Adjustment">Adjustments</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Remittances</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalRemittances}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Refresh Button */}
+              <Button variant="outline" size="icon" onClick={loadTransactions} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Adjustments</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalAdjustments}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                    <AlertCircle className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-600">Unpaid Items</p>
-                    <p className="text-2xl font-bold text-red-600 mt-1">{summaryStats.unpaidItems}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <Button 
+                onClick={() => window.location.href = createPageUrl("WorkPro")}
+                className="bg-indigo-600 hover:bg-indigo-700 ml-2"
+              >
+                <Briefcase className="w-4 h-4 mr-2" />
+                WorkPRO
+              </Button>
+            </div>
           </div>
 
           {/* This div contains all printable content */}
@@ -485,8 +369,47 @@ export default function PayrollPage() {
 
             {/* Transactions Table */}
             <Card>
-              <CardHeader className="no-print">
+              <CardHeader className="no-print flex flex-row items-center justify-between">
                 <CardTitle>Payroll Transactions</CardTitle>
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700 gap-2"
+                    onClick={() => setShowAddPaychequeModal(true)}
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    Add Paycheque
+                  </Button>
+                  <Button 
+                    className="bg-green-600 hover:bg-green-700 gap-2"
+                    onClick={handleMarkPaidClick}
+                    disabled={selectedTransactionObjects.length === 0}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Mark Paid ({selectedTransactionObjects.length})
+                  </Button>
+                  <Button 
+                    className="bg-black text-white hover:bg-slate-800 gap-2"
+                    onClick={() => setShowAddRemittanceModal(true)}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Add Remittance
+                  </Button>
+                  <Button 
+                    className="bg-red-600 hover:bg-red-700 gap-2"
+                    onClick={() => setShowAddAdjustmentModal(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Adjustment
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    onClick={handlePrint}
+                    title="Print Report"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -515,7 +438,6 @@ export default function PayrollPage() {
                           </TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead>Pay Period</TableHead>
                           <TableHead className="text-right">Gross Pay</TableHead>
                           <TableHead className="text-right">Net Pay / Amount</TableHead>
                           <TableHead>Details</TableHead>
@@ -543,21 +465,6 @@ export default function PayrollPage() {
                             </TableCell>
                             <TableCell className="font-medium">
                               {format(new Date(transaction.pay_date), 'MMM d, yyyy')}
-                            </TableCell>
-                            <TableCell>
-                              {transaction.transaction_type === 'Paycheque' && transaction.pay_period_start && transaction.pay_period_end ? (
-                                <div className="text-sm">
-                                  <div>{format(new Date(transaction.pay_period_start), 'MMM d')} -</div>
-                                  <div>{format(new Date(transaction.pay_period_end), 'MMM d, yyyy')}</div>
-                                </div>
-                              ) : transaction.transaction_type === 'Remittance' && transaction.remittance_period_start && transaction.remittance_period_end ? (
-                                <div className="text-sm">
-                                  <div>{format(new Date(transaction.remittance_period_start), 'MMM d')} -</div>
-                                  <div>{format(new Date(transaction.remittance_period_end), 'MMM d, yyyy')}</div>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               {transaction.transaction_type === 'Paycheque' && transaction.gross_pay ? (
@@ -618,7 +525,12 @@ export default function PayrollPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(transaction)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={transaction.is_paid}
+                                className={cn(
+                                  "text-red-600 hover:text-red-700 hover:bg-red-50",
+                                  transaction.is_paid && "opacity-50 cursor-not-allowed text-gray-400 hover:text-gray-400 hover:bg-transparent"
+                                )}
+                                title={transaction.is_paid ? "Cannot delete paid transaction" : "Delete transaction"}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
