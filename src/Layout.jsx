@@ -942,10 +942,14 @@ const navigationItems = [
         onCreateWorkOrder={async (workOrderData) => {
           try {
             const newWorkOrder = await base44.entities.WorkOrder.create(workOrderData);
-            if (newWorkOrder?.stage === 'estimate') {
-              window.location.href = createPageUrl("EstimateEdit") + "?id=" + newWorkOrder.id;
+            const pageName = newWorkOrder?.stage === 'estimate' ? "EstimateEdit" : "WorkOrderEdit";
+            const url = createPageUrl(pageName) + "?id=" + newWorkOrder.ro_number;
+            
+            if (user?.OpenNewWindow === false) {
+              window.location.href = url;
             } else {
-              window.location.href = createPageUrl("WorkOrderEdit") + "?id=" + newWorkOrder.id;
+              const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+              window.open(url, '_blank', windowFeatures);
             }
           } catch (error) {
             console.error("Failed to create work order:", error);
