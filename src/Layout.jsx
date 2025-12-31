@@ -61,6 +61,7 @@ import FindPartModal from './components/work-orders/FindPartModal';
 import NewCustomerModal from './components/customers/NewCustomerModal';
 import NewVehicleModal from './components/vehicles/NewVehicleModal';
 import OpenROModal from './components/work-orders/OpenROModal';
+import NewWorkOrderModal from './components/work-orders/NewWorkOrderModal';
 import TechClockStatusModal from './components/work-orders/TechClockStatusModal';
 import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
@@ -71,6 +72,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [showNewVehicleModal, setShowNewVehicleModal] = useState(false);
   const [showOpenROModal, setShowOpenROModal] = useState(false);
+  const [showNewWorkOrderModal, setShowNewWorkOrderModal] = useState(false);
   const [reportType, setReportType] = useState('');
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
@@ -234,12 +236,16 @@ function LayoutContent({ children, currentPageName }) {
     }
   }, [user]);
 
-  // F4 keyboard shortcut for Search WIP
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'F4') {
         event.preventDefault();
         setShowOpenROModal(true);
+      }
+      if (event.key === 'F3') {
+        event.preventDefault();
+        setShowNewWorkOrderModal(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -356,6 +362,10 @@ function LayoutContent({ children, currentPageName }) {
     setMobileDropdownOpen(null);
     
     switch (action) {
+      case 'openNewWorkOrderModal':
+        console.log('✅ Opening New Work Order Modal');
+        setShowNewWorkOrderModal(true);
+        break;
       case 'openSearchWIPModal':
         console.log('✅ Opening Search WIP Modal');
         setShowOpenROModal(true);
@@ -924,6 +934,24 @@ const navigationItems = [
       <OpenROModal
         open={showOpenROModal}
         onClose={() => setShowOpenROModal(false)}
+      />
+
+      <NewWorkOrderModal
+        open={showNewWorkOrderModal}
+        onClose={() => setShowNewWorkOrderModal(false)}
+        onCreateWorkOrder={async (workOrderData) => {
+          try {
+            const newWorkOrder = await base44.entities.WorkOrder.create(workOrderData);
+            if (newWorkOrder?.stage === 'estimate') {
+              window.location.href = createPageUrl("EstimateEdit") + "?id=" + newWorkOrder.id;
+            } else {
+              window.location.href = createPageUrl("WorkOrderEdit") + "?id=" + newWorkOrder.id;
+            }
+          } catch (error) {
+            console.error("Failed to create work order:", error);
+            alert("Failed to create work order. Please try again.");
+          }
+        }}
       />
 
       <TechClockStatusModal
