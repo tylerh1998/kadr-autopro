@@ -195,7 +195,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         purchase_amount: Math.round(-subtotal * 100) / 100,
         gst_amount: Math.round(-gst * 100) / 100,
         gl_account: '1200',
-        inventory: true
+        inventory: true,
+        inventory_credit: true
       });
 
       // 2. Create SupplierInvoiceLine for adjustment (if any)
