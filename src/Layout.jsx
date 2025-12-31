@@ -83,6 +83,7 @@ function LayoutContent({ children, currentPageName }) {
   const [lastTimeRecord, setLastTimeRecord] = useState(null);
   const [isEmployee, setIsEmployee] = useState(true);
   const [workProName, setWorkProName] = useState(null);
+  const [clockLoading, setClockLoading] = useState(false);
 
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -148,6 +149,7 @@ function LayoutContent({ children, currentPageName }) {
   useEffect(() => {
     const checkClockStatus = async () => {
       if (!user) return;
+      setClockLoading(true);
 
       try {
         // Check if user is an employee in WorkPro
@@ -196,7 +198,7 @@ function LayoutContent({ children, currentPageName }) {
           method: 'filter',
           params: {
             employee_name: empName,
-            status: 'active'
+            status: 'clocked_in'
           }
         });
 
@@ -204,7 +206,7 @@ function LayoutContent({ children, currentPageName }) {
           const data = response.data.data;
           const records = Array.isArray(data) ? data : (data?.records || []);
           
-          const activeRecord = records.find(record => record.clock_in_time && !record.clock_out_time);
+          const activeRecord = records.find(record => !record.clock_out_time);
           
           if (activeRecord) {
             setIsClockedIn(true);
@@ -222,6 +224,8 @@ function LayoutContent({ children, currentPageName }) {
         console.warn('Clock status check unavailable:', error.message || 'Network error');
         setIsClockedIn(false);
         setLastTimeRecord(null);
+      } finally {
+        setClockLoading(false);
       }
     };
 
@@ -691,21 +695,25 @@ const navigationItems = [
               {/* Time Clock */}
               <button
                 onClick={handleClockToggle}
-                disabled={!isEmployee}
+                disabled={!isEmployee || clockLoading}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${
-                  !isEmployee
+                  !isEmployee || clockLoading
                     ? 'bg-blue-600 text-white opacity-90 cursor-not-allowed'
                     : isClockedIn 
                       ? 'bg-red-100 text-red-700 hover:bg-red-200' 
                       : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
                 }`}
               >
-                <Clock className="w-5 h-5" />
+                {clockLoading ? (
+                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                   <Clock className="w-5 h-5" />
+                )}
                 <div className="flex flex-col items-start">
-                  <span className={`text-xs ${isClockedIn || !isEmployee ? 'font-medium' : 'font-bold'}`}>
-                    {!isEmployee ? 'Unavailable' : (isClockedIn ? 'Clock Out' : 'Clock In')}
+                  <span className={`text-xs ${isClockedIn || !isEmployee || clockLoading ? 'font-medium' : 'font-bold'}`}>
+                    {clockLoading ? 'Checking...' : !isEmployee ? 'Unavailable' : (isClockedIn ? 'Clock Out' : 'Clock In')}
                   </span>
-                  {isEmployee && (
+                  {!clockLoading && isEmployee && (
                     <span className="text-xs opacity-90">
                       {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
