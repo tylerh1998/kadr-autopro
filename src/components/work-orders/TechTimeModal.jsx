@@ -212,9 +212,18 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
 
       // 2. Fetch Manual Logs if WorkOrder exists
       let fetchedManualLogs = [];
-      let targetWO = workOrder;
+      let targetWO = null;
 
-      if (!targetWO && project?.work_order) {
+      if (workOrder?.id) {
+        // Fetch latest WO to ensure we have latest tech_time (prop might be stale)
+        try {
+           const wos = await WorkOrder.filter({ id: workOrder.id });
+           targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
+        } catch (e) {
+           console.error("Error fetching latest WO:", e);
+           targetWO = workOrder;
+        }
+      } else if (project?.work_order) {
         // Try to find WO by number - checking wo_number first as per instruction, then fallback to ro_number
         let wos = await WorkOrder.filter({ wo_number: project.work_order });
         
