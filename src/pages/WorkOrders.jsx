@@ -702,25 +702,8 @@ export default function WorkOrdersPage() {
 
   const handleCreateCounterSale = async () => {
     try {
-      const counterSaleCustomer = customers.find(c => 
-        c.first_name?.toLowerCase() === 'counter' && c.last_name?.toLowerCase() === 'sale'
-      );
-      
-      if (!counterSaleCustomer) {
-        alert('Counter Sale customer not found. Please create a customer named "Counter Sale" first.');
-        return;
-      }
-      
-      const counterSaleVehicle = vehicles.find(v => 
-        v.customer_id === counterSaleCustomer.id && 
-        v.make === 'Counter' && 
-        v.model === 'Sale'
-      );
-      
-      if (!counterSaleVehicle) {
-        alert('Counter Sale vehicle not found for the Counter Sale customer. Please create a vehicle with Make: "Counter" and Model: "Sale" for the "Counter Sale" customer.');
-        return;
-      }
+      const counterSaleCustomerId = '695627c50887fec9ade1d9f7';
+      const counterSaleVehicleId = '69562a182efce2529204db01';
       
       // Fetch next RO number from SystemSettings
       const { SystemSettings } = await import('@/entities/all');
@@ -755,8 +738,8 @@ export default function WorkOrdersPage() {
       
       const newWorkOrder = {
         ...numbers,
-        customer_id: counterSaleCustomer.id,
-        vehicle_id: counterSaleVehicle.id,
+        customer_id: counterSaleCustomerId,
+        vehicle_id: counterSaleVehicleId,
         status: "Open",
         priority: "medium",
         stage: "work_order",
