@@ -66,15 +66,39 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
       return sum + (Number(item.hrs) || 0);
     }, 0);
     
-    // Calculate actual labor cost from tech time logs
+    // Calculate actual labor cost from tech time logs (WorkPRO + Manual)
     let laborCost = 0;
     let actualCostCalculated = false;
 
-    if (techTimeLogs.length > 0 && employees.length > 0) {
+    // 1. Parse manual logs from WorkOrder
+    let manualLogs = [];
+    if (workOrder?.tech_time) {
+      try {
+        manualLogs = JSON.parse(workOrder.tech_time);
+      } catch (e) {
+        console.error("Error parsing workOrder.tech_time:", e);
+      }
+    }
+
+    // 2. Combine logs
+    // Normalize manual logs to match structure or handle both in reducer
+    const allLogs = [
+      ...techTimeLogs.map(l => ({ ...l, source: 'workpro' })),
+      ...manualLogs.map(l => ({ 
+        ...l, 
+        source: 'manual', 
+        hours: parseFloat(l.hours) || 0,
+        // Manual logs use 'tech_name'
+        workpro_user_name: l.tech_name 
+      }))
+    ];
+
+    if (allLogs.length > 0 && employees.length > 0) {
       actualCostCalculated = true;
-      laborCost = techTimeLogs.reduce((sum, log) => {
-        // Try to match employee by name since we are fetching live from WorkPRO
-        // The backend function maps 'user_name' or 'employee_name' to 'workpro_user_name'
+      laborCost = allLogs.reduce((sum, log) => {
+        // Try to match employee by name
+        // For WorkPRO logs: workpro_user_name is set by backend function
+        // For Manual logs: we mapped tech_name to workpro_user_name above
         const employee = employees.find(emp => 
           (emp.full_name && log.workpro_user_name && emp.full_name.toLowerCase() === log.workpro_user_name.toLowerCase()) ||
           (emp.email && log.email && emp.email.toLowerCase() === log.email.toLowerCase())
@@ -151,7 +175,20 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     return 'bg-red-100 text-red-800';
   };
 
-  const totalTechHours = techTimeLogs.reduce((sum, log) => sum + (Number(log.hours) || 0), 0);
+  // Calculate total hours including manual logs
+  const totalTechHours = useMemo(() => {
+    let manualLogs = [];
+    if (workOrder?.tech_time) {
+      try {
+        manualLogs = JSON.parse(workOrder.tech_time);
+      } catch (e) {
+        console.error("Error parsing workOrder.tech_time:", e);
+      }
+    }
+    const manualHours = manualLogs.reduce((sum, log) => sum + (parseFloat(log.hours) || 0), 0);
+    const workProHours = techTimeLogs.reduce((sum, log) => sum + (Number(log.hours) || 0), 0);
+    return manualHours + workProHours;
+  }, [workOrder?.tech_time, techTimeLogs]);
 
   // Don't render if no work order data or still loading labor cost
   if (!workOrder) {
