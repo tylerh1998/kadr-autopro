@@ -185,8 +185,13 @@ export default function TechTimeModal({ open, onClose, project }) {
       // 2. Fetch Manual Logs if WorkOrder exists
       let fetchedManualLogs = [];
       if (project.work_order) {
-        // Try to find WO by number (WorkPRO stores RO number in work_order field)
-        const wos = await WorkOrder.filter({ ro_number: project.work_order });
+        // Try to find WO by number - checking wo_number first as per instruction, then fallback to ro_number
+        let wos = await WorkOrder.filter({ wo_number: project.work_order });
+        
+        if (!wos || wos.length === 0) {
+           wos = await WorkOrder.filter({ ro_number: project.work_order });
+        }
+
         if (wos && wos.length > 0) {
           const wo = wos[0];
           setCurrentWorkOrder(wo);
