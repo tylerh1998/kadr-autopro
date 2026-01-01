@@ -464,7 +464,7 @@ export default function TechTimeModal({ open, onClose, project }) {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
-        ) : timeLogs.length === 0 ? (
+        ) : allLogs.length === 0 ? (
           <div className="text-center py-12">
             <Clock className="w-12 h-12 mx-auto text-slate-300 mb-3" />
             <p className="text-slate-600">No tech time sessions recorded yet.</p>
@@ -486,7 +486,7 @@ export default function TechTimeModal({ open, onClose, project }) {
                 </div>
               </div>
             )}
-            {timeLogs.map((log) => (
+            {allLogs.map((log) => (
               <Card key={log.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="px-4 py-2">
                   <div className="flex items-center justify-between">
@@ -496,6 +496,9 @@ export default function TechTimeModal({ open, onClose, project }) {
                         <span className="font-semibold text-slate-900">
                           {log.workpro_user_name || 'Unknown User'}
                         </span>
+                        {log.source === 'manual' && (
+                          <Badge variant="outline" className="text-[10px] h-5 px-1 bg-gray-50">Manual</Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-sm text-slate-600">
                         <span>{formatDate(log.date)}</span>
@@ -510,11 +513,14 @@ export default function TechTimeModal({ open, onClose, project }) {
                     <div className="flex items-center gap-2">
                       {!log.isRunning && (
                         <Select 
-                          value={getCategory(log)} 
+                          value={log.source === 'manual' ? 'manual' : getCategory(log)} 
                           onValueChange={(val) => handleCategoryChange(log, val)}
+                          disabled={log.source === 'manual'}
                         >
-                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${CATEGORIES[getCategory(log)]?.color}`}>
-                            <SelectValue />
+                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${log.source === 'manual' ? 'bg-gray-100 text-gray-800' : CATEGORIES[getCategory(log)]?.color}`}>
+                            <SelectValue>
+                                {log.source === 'manual' ? 'Manual' : undefined}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             {Object.entries(CATEGORIES).map(([key, config]) => (
@@ -522,6 +528,9 @@ export default function TechTimeModal({ open, onClose, project }) {
                                 {config.label}
                               </SelectItem>
                             ))}
+                            {log.source === 'manual' && (
+                               <SelectItem value="manual" className="text-xs">Manual</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       )}
