@@ -210,7 +210,9 @@ Deno.serve(async (req) => {
         } else if (type === 'vehicles') {
             entityName = "Vehicle";
             
-            console.log("CSV Headers detected:", parseResult.meta.fields);
+            if (rows.length > 0) {
+                console.log("Headers detected:", Object.keys(rows[0]));
+            }
 
             // Fetch Customers for mapping cusid to customer_id
             console.log("Fetching Customers for ID mapping...");
