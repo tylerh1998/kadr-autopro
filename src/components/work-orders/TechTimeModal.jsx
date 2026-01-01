@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { WorkOrder } from '@/entities/WorkOrder';
+import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
   billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800' },
@@ -147,6 +149,14 @@ export default function TechTimeModal({ open, onClose, project }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [splitDialogLog, setSplitDialogLog] = useState(null);
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [currentWorkOrder, setCurrentWorkOrder] = useState(null);
+  const [manualLogs, setManualLogs] = useState([]);
+
+  // Manual Add Form State
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualTech, setManualTech] = useState('');
+  const [manualHours, setManualHours] = useState('');
 
   useEffect(() => {
     if (open && project?.id) {
@@ -159,15 +169,40 @@ export default function TechTimeModal({ open, onClose, project }) {
     setError(null);
     
     try {
-      const response = await base44.functions.invoke('getProjectTimeSessions', { 
+      // 1. Fetch WorkPRO Logs
+      const workProResponse = await base44.functions.invoke('getProjectTimeSessions', { 
         projectId: project.id 
       });
 
-      if (response.data?.success) {
-        setTimeLogs(response.data.logs);
+      let fetchedLogs = [];
+      if (workProResponse.data?.success) {
+        fetchedLogs = workProResponse.data.logs;
       } else {
-        throw new Error(response.data?.error || 'Failed to fetch time logs');
+        // Don't throw here, manual might still work. Just log error.
+        console.error('Failed to fetch WorkPRO logs:', workProResponse.data?.error);
       }
+
+      // 2. Fetch Manual Logs if WorkOrder exists
+      let fetchedManualLogs = [];
+      if (project.work_order) {
+        // Try to find WO by number (WorkPRO stores RO number in work_order field)
+        const wos = await WorkOrder.filter({ ro_number: project.work_order });
+        if (wos && wos.length > 0) {
+          const wo = wos[0];
+          setCurrentWorkOrder(wo);
+          if (wo.tech_time) {
+            try {
+              fetchedManualLogs = JSON.parse(wo.tech_time);
+            } catch (e) {
+              console.error('Error parsing tech_time:', e);
+            }
+          }
+        }
+      }
+
+      setTimeLogs(fetchedLogs);
+      setManualLogs(fetchedManualLogs);
+
     } catch (error) {
       console.error('Error loading tech time logs:', error);
       setError(`Failed to load tech time data: ${error.message}`);
@@ -175,6 +210,52 @@ export default function TechTimeModal({ open, onClose, project }) {
       setLoading(false);
     }
   };
+
+  const handleSaveManualTime = async () => {
+    if (!currentWorkOrder || !manualTech || !manualHours) return;
+
+    try {
+      const newLog = {
+        id: `manual-${Date.now()}`,
+        date: manualDate,
+        tech_name: manualTech,
+        hours: parseFloat(manualHours),
+        category: 'manual',
+        created_at: new Date().toISOString()
+      };
+
+      const updatedLogs = [...manualLogs, newLog];
+      
+      // Update WorkOrder
+      await WorkOrder.update(currentWorkOrder.id, {
+        tech_time: JSON.stringify(updatedLogs)
+      });
+
+      // Update state
+      setManualLogs(updatedLogs);
+      setShowManualAdd(false);
+      setManualTech('');
+      setManualHours('');
+      
+    } catch (error) {
+      console.error('Error saving manual time:', error);
+      alert('Failed to save manual time.');
+    }
+  };
+
+  // Merge and sort all logs for display
+  const allLogs = [
+    ...timeLogs.map(l => ({ ...l, source: 'workpro' })),
+    ...manualLogs.map(l => ({
+      id: l.id,
+      date: l.date,
+      hours: l.hours,
+      workpro_user_name: l.tech_name, // Map to display field
+      source: 'manual',
+      category: 'manual', // Force category
+      isRunning: false
+    }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort newest first
 
   const formatTime = (dateTimeString) => {
     if (!dateTimeString) return 'N/A';
@@ -295,12 +376,12 @@ export default function TechTimeModal({ open, onClose, project }) {
   };
 
   const getTotalHours = () => {
-    return timeLogs.reduce((sum, log) => sum + (log.hours || 0), 0).toFixed(1);
+    return allLogs.reduce((sum, log) => sum + (parseFloat(log.hours) || 0), 0).toFixed(1);
   };
 
   const getTechBreakdown = () => {
     const breakdown = {};
-    timeLogs.forEach(log => {
+    allLogs.forEach(log => {
       const name = log.workpro_user_name || 'Unknown User';
       breakdown[name] = (breakdown[name] || 0) + (parseFloat(log.hours) || 0);
     });
@@ -325,7 +406,52 @@ export default function TechTimeModal({ open, onClose, project }) {
               {project.name || project.customer}
             </p>
           )}
+          {currentWorkOrder && !showManualAdd && (
+            <div className="absolute top-4 right-12 mr-4">
+               <Button size="sm" variant="outline" onClick={() => setShowManualAdd(true)}>
+                 <Plus className="w-4 h-4 mr-2" /> Manual Add
+               </Button>
+            </div>
+          )}
         </DialogHeader>
+
+        {showManualAdd && (
+          <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200">
+            <h3 className="font-semibold mb-3 text-sm">Add Manual Time Record</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <Label className="text-xs mb-1.5 block">Date</Label>
+                <Input 
+                  type="date" 
+                  value={manualDate} 
+                  onChange={(e) => setManualDate(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1.5 block">Technician Name</Label>
+                <Input 
+                  placeholder="e.g. John Doe" 
+                  value={manualTech} 
+                  onChange={(e) => setManualTech(e.target.value)} 
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1.5 block">Hours</Label>
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  placeholder="0.0" 
+                  value={manualHours} 
+                  onChange={(e) => setManualHours(e.target.value)} 
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowManualAdd(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveManualTime} disabled={!manualTech || !manualHours}>Save Record</Button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
