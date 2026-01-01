@@ -154,6 +154,19 @@ export default function TechTimeModal({ open, onClose, project }) {
   const [currentWorkOrder, setCurrentWorkOrder] = useState(null);
   const [manualLogs, setManualLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error("Failed to load user", e);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // Manual Add Form State
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
@@ -417,7 +430,7 @@ export default function TechTimeModal({ open, onClose, project }) {
           <DialogTitle className="flex items-center justify-between">
             <span>Tech Time Sessions</span>
             <div className="flex items-center gap-3">
-              {currentWorkOrder && !showManualAdd && (
+              {currentWorkOrder && !showManualAdd && currentUser?.role === 'admin' && (
                  <Button size="sm" variant="outline" onClick={() => setShowManualAdd(true)}>
                    <Plus className="w-4 h-4 mr-2" /> Manual Add
                  </Button>
