@@ -158,7 +158,7 @@ export default function InventoryReturnsPage() {
   });
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
     
     let htmlContent = `
       <html>
