@@ -174,7 +174,7 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
   const [manualHours, setManualHours] = useState('');
 
   useEffect(() => {
-    if (open && project?.id) {
+    if (open && (project?.id || workOrder)) {
       loadTimeLogs();
       loadEmployees();
     }
@@ -196,24 +196,25 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
     setError(null);
     
     try {
-      // 1. Fetch WorkPRO Logs
-      const workProResponse = await base44.functions.invoke('getProjectTimeSessions', { 
-        projectId: project.id 
-      });
-
+      // 1. Fetch WorkPRO Logs (if project exists)
       let fetchedLogs = [];
-      if (workProResponse.data?.success) {
-        fetchedLogs = workProResponse.data.logs;
-      } else {
-        // Don't throw here, manual might still work. Just log error.
-        console.error('Failed to fetch WorkPRO logs:', workProResponse.data?.error);
+      if (project?.id) {
+        const workProResponse = await base44.functions.invoke('getProjectTimeSessions', { 
+          projectId: project.id 
+        });
+
+        if (workProResponse.data?.success) {
+          fetchedLogs = workProResponse.data.logs;
+        } else {
+          console.error('Failed to fetch WorkPRO logs:', workProResponse.data?.error);
+        }
       }
 
       // 2. Fetch Manual Logs if WorkOrder exists
       let fetchedManualLogs = [];
       let targetWO = workOrder;
 
-      if (!targetWO && project.work_order) {
+      if (!targetWO && project?.work_order) {
         // Try to find WO by number - checking wo_number first as per instruction, then fallback to ro_number
         let wos = await WorkOrder.filter({ wo_number: project.work_order });
         
