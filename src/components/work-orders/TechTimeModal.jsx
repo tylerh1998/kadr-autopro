@@ -145,7 +145,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
   );
 }
 
-export default function TechTimeModal({ open, onClose, project }) {
+export default function TechTimeModal({ open, onClose, project, workOrder }) {
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -178,7 +178,7 @@ export default function TechTimeModal({ open, onClose, project }) {
       loadTimeLogs();
       loadEmployees();
     }
-  }, [open, project?.id]);
+  }, [open, project?.id, workOrder]);
 
   const loadEmployees = async () => {
     try {
@@ -211,7 +211,9 @@ export default function TechTimeModal({ open, onClose, project }) {
 
       // 2. Fetch Manual Logs if WorkOrder exists
       let fetchedManualLogs = [];
-      if (project.work_order) {
+      let targetWO = workOrder;
+
+      if (!targetWO && project.work_order) {
         // Try to find WO by number - checking wo_number first as per instruction, then fallback to ro_number
         let wos = await WorkOrder.filter({ wo_number: project.work_order });
         
@@ -220,16 +222,21 @@ export default function TechTimeModal({ open, onClose, project }) {
         }
 
         if (wos && wos.length > 0) {
-          const wo = wos[0];
-          setCurrentWorkOrder(wo);
-          if (wo.tech_time) {
-            try {
-              fetchedManualLogs = JSON.parse(wo.tech_time);
-            } catch (e) {
-              console.error('Error parsing tech_time:', e);
-            }
+          targetWO = wos[0];
+        }
+      }
+
+      if (targetWO) {
+        setCurrentWorkOrder(targetWO);
+        if (targetWO.tech_time) {
+          try {
+            fetchedManualLogs = JSON.parse(targetWO.tech_time);
+          } catch (e) {
+            console.error('Error parsing tech_time:', e);
           }
         }
+      } else {
+        setCurrentWorkOrder(null);
       }
 
       setTimeLogs(fetchedLogs);

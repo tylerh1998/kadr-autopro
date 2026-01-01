@@ -429,7 +429,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         <TechTimeModal 
           open={showTechTimeModal} 
           onClose={() => setShowTechTimeModal(false)} 
-          project={workPROProject} 
+          project={workPROProject}
+          workOrder={workOrder}
         />
       </DialogContent>
     </Dialog>
