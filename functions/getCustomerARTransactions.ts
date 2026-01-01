@@ -55,10 +55,13 @@ Deno.serve(async (req) => {
     allPayments
       .filter(payment => payment && payment.ar_pmt === true && payment.payment_method !== 'on_account')
       .forEach(payment => {
+        const workOrder = allWorkOrders.find(wo => wo && wo.id === payment.work_order_id);
+        const description = workOrder?.description || payment.notes || `${(payment.payment_method || 'unknown').replace('_', ' ').toUpperCase()} Payment`;
+
         transactions.push({
           date: payment.payment_date || new Date().toISOString(),
           type: 'Payment',
-          description: payment.notes || `${(payment.payment_method || 'unknown').replace('_', ' ').toUpperCase()} Payment`,
+          description: description,
           reference: payment.reference || '',
           amount: 0,
           payment: payment.amount || 0,
@@ -79,10 +82,13 @@ Deno.serve(async (req) => {
       const arPaid = adj.ar_paid || 0;
       const isCharge = adjAmount > 0;
       
+      const workOrder = allWorkOrders.find(wo => wo && wo.id === adj.work_order_id);
+      const description = workOrder?.description || adj.description || 'Adjustment';
+
       transactions.push({
         date: adj.adjustment_date || new Date().toISOString(),
         type: isCharge ? 'Charge' : 'Credit',
-        description: adj.description || 'Adjustment',
+        description: description,
         reference: adj.reference || '',
         amount: isCharge ? adjAmount : 0,
         payment: isCharge ? arPaid : Math.abs(adjAmount),
