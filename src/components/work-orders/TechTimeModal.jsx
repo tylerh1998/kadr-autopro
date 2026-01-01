@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { WorkOrder } from '@/entities/WorkOrder';
+import { Employee } from '@/entities/Employee';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
@@ -152,6 +153,7 @@ export default function TechTimeModal({ open, onClose, project }) {
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [currentWorkOrder, setCurrentWorkOrder] = useState(null);
   const [manualLogs, setManualLogs] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   // Manual Add Form State
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
@@ -161,8 +163,20 @@ export default function TechTimeModal({ open, onClose, project }) {
   useEffect(() => {
     if (open && project?.id) {
       loadTimeLogs();
+      loadEmployees();
     }
   }, [open, project?.id]);
+
+  const loadEmployees = async () => {
+    try {
+      const allEmployees = await Employee.list();
+      // Filter for techs as requested
+      const techs = allEmployees.filter(e => e.employee_type === 'tech' && e.is_active !== false);
+      setEmployees(techs);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+    }
+  };
 
   const loadTimeLogs = async () => {
     setLoading(true);
@@ -402,21 +416,21 @@ export default function TechTimeModal({ open, onClose, project }) {
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Tech Time Sessions</span>
-            <Badge variant="outline" className="text-lg font-semibold">
-              Total: {getTotalHours()} hrs
-            </Badge>
+            <div className="flex items-center gap-3">
+              {currentWorkOrder && !showManualAdd && (
+                 <Button size="sm" variant="outline" onClick={() => setShowManualAdd(true)}>
+                   <Plus className="w-4 h-4 mr-2" /> Manual Add
+                 </Button>
+              )}
+              <Badge variant="outline" className="text-lg font-semibold">
+                Total: {getTotalHours()} hrs
+              </Badge>
+            </div>
           </DialogTitle>
           {project && (
             <p className="text-sm text-slate-600 mt-1">
               {project.name || project.customer}
             </p>
-          )}
-          {currentWorkOrder && !showManualAdd && (
-            <div className="absolute top-4 right-12 mr-4">
-               <Button size="sm" variant="outline" onClick={() => setShowManualAdd(true)}>
-                 <Plus className="w-4 h-4 mr-2" /> Manual Add
-               </Button>
-            </div>
           )}
         </DialogHeader>
 
@@ -434,11 +448,18 @@ export default function TechTimeModal({ open, onClose, project }) {
               </div>
               <div>
                 <Label className="text-xs mb-1.5 block">Technician Name</Label>
-                <Input 
-                  placeholder="e.g. John Doe" 
-                  value={manualTech} 
-                  onChange={(e) => setManualTech(e.target.value)} 
-                />
+                <Select value={manualTech} onValueChange={setManualTech}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Technician" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.full_name}>
+                        {emp.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs mb-1.5 block">Hours</Label>
