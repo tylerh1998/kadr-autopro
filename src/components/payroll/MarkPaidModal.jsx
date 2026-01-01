@@ -42,10 +42,26 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
     if (t.transaction_type !== 'Paycheque') return t.amount || 0;
     
     const gross = t.gross_pay || 0;
-    const deductions = (t.income_tax || 0) + 
+    let deductions = (t.income_tax || 0) + 
                       (t.cpp_contribution || 0) + 
                       (t.cpp2_contribution || 0) + 
                       (t.ei_premium || 0);
+                      
+    // Handle additional deductions
+    if (t.additional_deductions) {
+      try {
+        const addDeductions = typeof t.additional_deductions === 'string' 
+          ? JSON.parse(t.additional_deductions) 
+          : t.additional_deductions;
+          
+        if (Array.isArray(addDeductions)) {
+          deductions += addDeductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        }
+      } catch (e) {
+        console.error('Error parsing additional deductions:', e);
+      }
+    }
+    
     return gross - deductions;
   };
 
@@ -86,6 +102,20 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           const totalCppEmployer = (t.cpp_employer || 0) + (t.cpp2_employer || 0);
           const eiEmployer = t.ei_employer || 0;
 
+          // Calculate additional deductions amount
+          let additionalDeductionsTotal = 0;
+          if (t.additional_deductions) {
+            try {
+              const addDeductions = typeof t.additional_deductions === 'string' 
+                ? JSON.parse(t.additional_deductions) 
+                : t.additional_deductions;
+              
+              if (Array.isArray(addDeductions)) {
+                additionalDeductionsTotal = addDeductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+              }
+            } catch (e) {}
+          }
+
           // Credits (Bank + Liabilities)
           totalCredits += netPay;
           totalCredits += incomeTax;
@@ -93,6 +123,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           totalCredits += eiPremium;
           totalCredits += totalCppEmployer;
           totalCredits += eiEmployer;
+          totalCredits += additionalDeductionsTotal;
 
           // Debits (Expenses)
           totalDebits += grossPay;
@@ -194,6 +225,34 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
               source_type: 'payment',
               source_id: transaction.id
             });
+          }
+
+          // Credit Additional Deductions (Dynamic GLs)
+          if (transaction.additional_deductions) {
+            try {
+              const addDeductions = typeof transaction.additional_deductions === 'string' 
+                ? JSON.parse(transaction.additional_deductions) 
+                : transaction.additional_deductions;
+                
+              if (Array.isArray(addDeductions)) {
+                for (const deduction of addDeductions) {
+                  if (deduction.amount > 0 && deduction.gl_account) {
+                    await GLTransaction.create({
+                      account_number: deduction.gl_account,
+                      transaction_date: paymentDate,
+                      description: `${deduction.description} withheld ${transaction.paycheque_number || ''}`,
+                      reference: reference,
+                      debit_amount: 0,
+                      credit_amount: deduction.amount,
+                      source_type: 'payment',
+                      source_id: transaction.id
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('Error creating GL entries for additional deductions:', e);
+            }
           }
 
           // --- Employer Contributions ---

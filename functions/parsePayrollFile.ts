@@ -117,6 +117,33 @@ Deno.serve(async (req) => {
                 parsedData.deductions = parseFloat(deductionsMatch[1].replace(/,/g, ''));
                 console.log('Extracted deductions:', parsedData.deductions);
             }
+
+            // Extract Additional Deductions (with GL codes)
+            const additionalDeductions = [];
+            // Regex to match lines like: "Description (GL: 1234) $ 123.45"
+            // Note: We use global flag 'g' with matchAll
+            const additionalDeductionRegex = /^(.*?)\s+\(GL:\s*(\d+)\)\s+\$?\s*([\d,]+\.?\d*)/gm;
+            
+            // We need to look through the whole file or just the deduction section. 
+            // Since the pattern includes (GL: XXXX), it's likely unique enough to run on the whole file content.
+            const additionalMatches = fileContent.matchAll(additionalDeductionRegex);
+            
+            for (const match of additionalMatches) {
+                const description = match[1].trim();
+                const glAccount = match[2];
+                const amount = parseFloat(match[3].replace(/,/g, ''));
+                
+                additionalDeductions.push({
+                    description: description,
+                    gl_account: glAccount,
+                    amount: amount
+                });
+            }
+            
+            if (additionalDeductions.length > 0) {
+                parsedData.additional_deductions = additionalDeductions;
+                console.log('Extracted additional deductions:', additionalDeductions);
+            }
             
             // Extract CPP Employer Contribution
             const cppEmployerMatch = fileContent.match(/CPP Employer Contribution\s+\$?\s*([\d,]+\.?\d*)/i);

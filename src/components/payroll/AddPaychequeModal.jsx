@@ -31,7 +31,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     notes: '',
     employee_reference: '',
     import_file_name: '',
-    is_bus_driver_wages: ''
+    is_bus_driver_wages: '',
+    additional_deductions: []
   });
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -81,7 +82,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
           notes: parsedData.notes || '',
           employee_reference: parsedData.employee_reference || '',
           import_file_name: parsedData.import_file_name || file.name,
-          is_bus_driver_wages: ''
+          is_bus_driver_wages: '',
+          additional_deductions: parsedData.additional_deductions || []
         };
         
         setFormData(newFormData);
@@ -138,7 +140,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         import_file_name: formData.import_file_name || null,
         import_date: formData.import_file_name ? new Date().toISOString() : null,
         is_paid: false,
-        is_bus_driver_wages: formData.is_bus_driver_wages === 'yes'
+        is_bus_driver_wages: formData.is_bus_driver_wages === 'yes',
+        additional_deductions: JSON.stringify(formData.additional_deductions || [])
       });
 
       setFormData({
@@ -155,7 +158,8 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         notes: '',
         employee_reference: '',
         import_file_name: '',
-        is_bus_driver_wages: ''
+        is_bus_driver_wages: '',
+        additional_deductions: []
       });
       setUploadedFileName('');
 
@@ -173,10 +177,16 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
 
   const calculateNetPay = () => {
     const gross = parseFloat(formData.gross_pay || 0);
-    const deductions = (parseFloat(formData.income_tax || 0) + 
+    let deductions = (parseFloat(formData.income_tax || 0) + 
                         parseFloat(formData.cpp_contribution || 0) + 
                         parseFloat(formData.cpp2_contribution || 0) + 
                         parseFloat(formData.ei_premium || 0));
+    
+    // Add additional deductions
+    if (formData.additional_deductions && formData.additional_deductions.length > 0) {
+      deductions += formData.additional_deductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    }
+    
     return gross - deductions;
   };
 
@@ -381,6 +391,24 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
                 />
               </div>
             </div>
+            
+            {/* Additional Deductions Display */}
+            {formData.additional_deductions && formData.additional_deductions.length > 0 && (
+              <div className="px-4 pb-4 border-t border-slate-100 mt-2 pt-2">
+                <h5 className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Additional Deductions</h5>
+                <div className="space-y-2">
+                  {formData.additional_deductions.map((deduction, index) => (
+                    <div key={index} className="flex justify-between text-sm bg-white p-2 rounded border border-slate-100 shadow-sm">
+                      <span className="text-slate-700">
+                        {deduction.description} 
+                        <span className="text-slate-400 ml-1 text-xs">(GL: {deduction.gl_account})</span>
+                      </span>
+                      <span className="font-mono text-slate-900">${deduction.amount.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Employer Section */}
