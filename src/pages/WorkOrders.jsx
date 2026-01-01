@@ -706,7 +706,6 @@ export default function WorkOrdersPage() {
       const counterSaleVehicleId = '69562a182efce2529204db01';
       
       // Fetch next RO number from SystemSettings
-      const { SystemSettings } = await import('@/entities/all');
       const settings = await SystemSettings.list();
       const systemSettings = settings && settings.length > 0 ? settings[0] : null;
       
