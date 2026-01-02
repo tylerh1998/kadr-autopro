@@ -348,7 +348,14 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
-                                    {suppliers.map((supplier) => (
+                                    {[...suppliers]
+                                        .filter(s => s.inventory_supplier)
+                                        .sort((a, b) => {
+                                            if (a.pin_to_top && !b.pin_to_top) return -1;
+                                            if (!a.pin_to_top && b.pin_to_top) return 1;
+                                            return (a.name || '').localeCompare(b.name || '');
+                                        })
+                                        .map((supplier) => (
                                         <SelectItem key={supplier.id} value={supplier.id}>
                                             {supplier.name}
                                         </SelectItem>
