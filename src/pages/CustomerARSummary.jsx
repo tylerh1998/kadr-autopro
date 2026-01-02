@@ -227,10 +227,13 @@ export default function CustomerARSummaryPage() {
                         </TableRow>
                       ) : arSummaryData.length > 0 ? (
                         <>
-                            {arSummaryData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }) => (
+                            {arSummaryData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }, index) => (
                             <ContextMenu key={customer.id} onOpenChange={() => handleContextMenuOpen(customer)}>
                               <ContextMenuTrigger asChild>
-                                <TableRow className="cursor-pointer hover:bg-slate-50" onClick={() => handleRowClick(customer)}>
+                                <TableRow 
+                                  className={`cursor-pointer hover:bg-blue-50/50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} 
+                                  onClick={() => handleRowClick(customer)}
+                                >
                                   <TableCell className="font-medium">{formatCustomerName(customer)}</TableCell>
                                   <TableCell className="text-right">${balance_0_30.toFixed(2)}</TableCell>
                                   <TableCell className="text-right text-yellow-600">${balance_31_60.toFixed(2)}</TableCell>
