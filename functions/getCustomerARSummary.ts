@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       const total_balance = totalCharges - totalCredits;
       
       // Skip customers with no balance if filter is enabled
-      if (showOnlyWithBalance && total_balance <= 0.01) {
+      if (showOnlyWithBalance && Math.abs(total_balance) <= 0.01) {
         continue;
       }
 
@@ -74,6 +74,11 @@ Deno.serve(async (req) => {
       let balance_0_30 = 0;
       let balance_31_60 = 0;
       let balance_60_plus = 0;
+
+      // If balance is negative (credit), put it all in 0-30 bucket
+      if (total_balance < 0) {
+        balance_0_30 = total_balance;
+      }
 
       // Create a list of all charge items with their dates
       const chargeItems = [];
