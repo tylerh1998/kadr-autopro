@@ -100,7 +100,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
 
             if (matchingRange) {
                 const margin = parseFloat(matchingRange.margin);
-                const sellingPrice = costValue * (1 + margin / 100);
+                const sellingPrice = costValue / (1 - (margin / 100));
                 return {
                     sellingPrice: sellingPrice.toFixed(2),
                     margin: margin.toFixed(2)

@@ -70,7 +70,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
             if (matchingRange) {
                 const margin = parseFloat(matchingRange.margin);
-                const sellingPrice = parsedCost * (1 + margin / 100);
+                const sellingPrice = parsedCost / (1 - (margin / 100));
                 return {
                     sellingPrice: sellingPrice.toFixed(2),
                     margin: margin.toFixed(2)

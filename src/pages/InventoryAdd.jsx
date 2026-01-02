@@ -326,8 +326,8 @@ export default function InventoryAddPage() {
             });
 
             if (matchingRange) {
-                const markupPercentage = parseFloat(matchingRange.margin);
-                const sellingPrice = costValue * (1 + markupPercentage / 100);
+                const marginPercentage = parseFloat(matchingRange.margin);
+                const sellingPrice = costValue / (1 - (marginPercentage / 100));
                 
                 let calculatedProfitMargin = 0;
                 if (sellingPrice > 0) {
