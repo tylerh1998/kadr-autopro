@@ -43,7 +43,17 @@ export default function CustomerARSummaryPage() {
       });
 
       if (response.data.success) {
-        setArSummaryData(response.data.arSummaryData);
+        // Sort alphabetically
+        const sortedData = response.data.arSummaryData.sort((a, b) => {
+           const getName = (c) => {
+               if (c.org_name) return c.org_name;
+               return [c.first_name, c.last_name].filter(Boolean).join(' ');
+           };
+           const nameA = getName(a.customer).toLowerCase();
+           const nameB = getName(b.customer).toLowerCase();
+           return nameA.localeCompare(nameB);
+        });
+        setArSummaryData(sortedData);
       } else {
         console.error('Failed to load AR summary:', response.data.error);
         setArSummaryData([]);
