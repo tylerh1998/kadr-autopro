@@ -496,7 +496,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         <SelectContent>
                             {projectsList.map(p => (
                                 <SelectItem key={p.id} value={p.id}>
-                                    {p.name} {p.task ? ` - ${p.task}` : ''} ({format(new Date(p.created_date), 'MMM d')})
+                                    {p.name} ({format(new Date(p.created_date), 'MMM d')})
                                 </SelectItem>
                             ))}
                         </SelectContent>
