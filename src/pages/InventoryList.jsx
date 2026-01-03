@@ -80,6 +80,7 @@ export default function InventoryListPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -186,6 +187,16 @@ export default function InventoryListPage() {
 
   useEffect(() => {
     loadSharedData(); // Fetch shared data on initial load
+    
+    const fetchUser = async () => {
+      try {
+        const user = await base44.auth.me();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+      }
+    };
+    fetchUser();
   }, []);
 
   const handleSearchChange = (e) => {
@@ -304,11 +315,23 @@ export default function InventoryListPage() {
         <span>Adjust QOH</span>
       </ContextMenuItem>
       <ContextMenuItem onClick={() => handleLocationClick(item)}>
-        <Package className="mr-2 h-4 w-4" />
-        <span>Edit Location</span>
+          <Package className="mr-2 h-4 w-4" />
+          <span>Edit Location</span>
       </ContextMenuItem>
-    </ContextMenuContent>
-  );
+      {currentUser?.role === 'admin' && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => handleDelete(item.id)}
+            className="text-red-600 focus:bg-red-50 focus:text-red-700"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>Delete</span>
+          </ContextMenuItem>
+        </>
+      )}
+      </ContextMenuContent>
+      );
   
   return (
     <>
@@ -717,14 +740,18 @@ export default function InventoryListPage() {
                                       <Package className="mr-2 h-4 w-4" />
                                       <span>Edit Location</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={() => handleDelete(item.id)}
-                                      className="text-red-600 focus:bg-red-50 focus:text-red-700"
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      <span>Delete</span>
-                                    </DropdownMenuItem>
+                                    {currentUser?.role === 'admin' && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          onClick={() => handleDelete(item.id)}
+                                          className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                                        >
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          <span>Delete</span>
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
