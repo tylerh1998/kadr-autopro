@@ -191,7 +191,7 @@ export default function StatementModal({ open, onClose, customer }) {
             </div>
 
             {/* Second Row: Customer Info and Account Summary */}
-            <div className="flex justify-between items-start mb-8" style={{ marginTop: '-5mm' }}>
+            <div className="flex justify-between items-start mb-8" style={{ marginTop: '-4mm' }}>
               <div className="w-1/2 pr-4">
                 <h2 className="text-xl font-bold">
                   {customer.org_name || `${customer.first_name} ${customer.last_name}`}
