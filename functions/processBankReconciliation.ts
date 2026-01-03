@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import Papa from 'npm:papaparse@5.4.1';
+import { parse, isValid, differenceInDays } from 'npm:date-fns@3.6.0';
 
 Deno.serve(async (req) => {
     try {
@@ -38,21 +39,12 @@ Deno.serve(async (req) => {
         const csvRows = parseResult.data;
 
         // 3. Fetch Unreconciled Bank Transactions
-        // We fetch all unreconciled transactions for this account
-        // Note: In a real large app, we might want to date-limit this, but for now we'll fetch all open ones
-        // as the user might be reconciling old stuff.
-        const allTransactions = await base44.entities.BankTransaction.list({
+        // Using filter() instead of list() which doesn't support object params for filtering
+        const systemTransactions = await base44.entities.BankTransaction.filter({
              bank_account_id: bankAccountId,
-             limit: 1000 // Reasonable limit? Or need pagination?
-        });
+             reconciled: false
+        }, '-transaction_date', 2000);
         
-        // Filter in memory for safety if list param didn't work as expected or if we need specific logic
-        // Ensuring we only look at unreconciled ones
-        const systemTransactions = allTransactions.filter(tx => 
-            tx.bank_account_id === bankAccountId && 
-            (tx.reconciled === false || tx.reconciled === null || tx.reconciled === undefined)
-        );
-
         // 4. Matching Logic
         const matches = [];
         const unmatchedCsv = [];
@@ -66,49 +58,68 @@ Deno.serve(async (req) => {
             return isNaN(float) ? 0 : float;
         };
 
+        const parseCsvDate = (dateStr) => {
+            if (!dateStr) return null;
+            // Handle "MM/DD/YYYY HH:mm:ss" -> take first part
+            const cleanDateStr = dateStr.split(' ')[0]; 
+            // Try MM/dd/yyyy (US/Canada standard)
+            let date = parse(cleanDateStr, 'MM/dd/yyyy', new Date());
+            if (!isValid(date)) {
+                // Fallback to yyyy-MM-dd
+                date = parse(cleanDateStr, 'yyyy-MM-dd', new Date());
+            }
+             if (!isValid(date)) {
+                // Fallback to dd/MM/yyyy
+                date = parse(cleanDateStr, 'dd/MM/yyyy', new Date());
+            }
+            return isValid(date) ? date : null;
+        };
+
         for (const row of csvRows) {
-            // CSV columns: "FullAccount",Date,"Description","ChequeNumber","DebitAmount","CreditAmount","Balance"
-            // Note: PapaParse with header:true uses the actual header names.
-            // The user showed headers with quotes in the example: "FullAccount",...
-            // Our transformHeader should clean them.
-            
-            // Expected keys after cleaning: FullAccount, Date, Description, ChequeNumber, DebitAmount, CreditAmount, Balance
-            
             const debit = parseAmount(row['DebitAmount']);
             const credit = parseAmount(row['CreditAmount']);
             const description = row['Description'];
-            const dateStr = row['Date']; // "01/02/2026 00:00:00"
+            const dateStr = row['Date'];
+            const csvDate = parseCsvDate(dateStr);
 
             if (debit === 0 && credit === 0) {
-                continue; // Skip empty rows or rows with no value
+                continue; 
             }
 
             let matchFound = null;
 
-            // Strategy: Find EXACT amount match first
-            // We iterate through available system transactions
+            // Strategy: Find EXACT amount match AND Date match (within buffer)
             for (const sysTx of systemTransactions) {
                 if (matchedSystemIds.has(sysTx.id)) continue;
 
-                let isMatch = false;
-
+                let isAmountMatch = false;
                 if (debit > 0) {
-                    // Looking for a Debit in system
-                    // System Debit is stored in `debit_amount`
-                    // We allow a very small epsilon for float comparison
-                    if (Math.abs((sysTx.debit_amount || 0) - debit) < 0.01) {
-                        isMatch = true;
-                    }
+                    if (Math.abs((sysTx.debit_amount || 0) - debit) < 0.01) isAmountMatch = true;
                 } else if (credit > 0) {
-                    // Looking for a Credit in system
-                    if (Math.abs((sysTx.credit_amount || 0) - credit) < 0.01) {
-                        isMatch = true;
-                    }
+                    if (Math.abs((sysTx.credit_amount || 0) - credit) < 0.01) isAmountMatch = true;
                 }
 
-                if (isMatch) {
-                    matchFound = sysTx;
-                    break; // Stop after first match
+                if (isAmountMatch) {
+                    // Check Date
+                    let isDateMatch = true; 
+                    if (sysTx.transaction_date && csvDate) {
+                         const sysDate = new Date(sysTx.transaction_date);
+                         const diff = Math.abs(differenceInDays(sysDate, csvDate));
+                         // Allow +/- 5 days buffer for bank clearing delays
+                         if (diff > 5) {
+                             isDateMatch = false;
+                         }
+                    }
+                    
+                    // If either date is missing, we might assume match on amount uniqueness? 
+                    // But for safety, let's require date match if dates are present.
+                    // If strict matching is needed, uncomment:
+                    // if (!sysTx.transaction_date || !csvDate) isDateMatch = false;
+
+                    if (isDateMatch) {
+                        matchFound = sysTx;
+                        break; 
+                    }
                 }
             }
 
