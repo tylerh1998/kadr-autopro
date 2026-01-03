@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     const [tagAlongs, setTagAlongs] = useState([]);
     const [inventoryCategories, setInventoryCategories] = useState([]);
     const [searchOpen, setSearchOpen] = useState(false);
+    const lastLoadedId = useRef(null);
 
     const filteredLocations = React.useMemo(() => {
         if (!formData.location) return inventoryLocations || [];
@@ -104,8 +105,9 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     };
 
     useEffect(() => {
-        if (open) {
-            if (item) {
+        if (open && item) {
+            // Only load data if we haven't loaded this item ID yet (prevents overwrite on background refresh)
+            if (item.id !== lastLoadedId.current) {
                 setFormData({
                     part_number: item.part_number || "",
                     description: item.description || "",
@@ -138,8 +140,15 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 } else {
                     calculateMargin(item.cost, item.selling_price);
                 }
-            } else {
-                // Reset form if no item (shouldn't happen for edit modal but good practice)
+                
+                lastLoadedId.current = item.id;
+            }
+        } else if (!open) {
+            // Reset tracker when modal closes so reopening same item reloads fresh data
+            lastLoadedId.current = null;
+            
+            // Also reset form (optional but clean)
+            if (!item) {
                 setFormData({
                     part_number: "", description: "", unit: "", category: "", supplier_id: "", manufacturer: "",
                     cost: "", selling_price: "", sales_class: "", profit_margin: "", quantity_on_hand: "",
@@ -149,7 +158,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 setCalculatedMargin('');
             }
         }
-    }, [open, item?.id]);
+    }, [open, item, calculatePriceFromSalesClass]);
 
     const calculateMargin = (costStr, sellingPriceStr) => {
         if (costStr && sellingPriceStr) {
