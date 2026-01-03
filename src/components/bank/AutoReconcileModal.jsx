@@ -59,6 +59,142 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, onApp
     return isNaN(num) ? '$0.00' : `$${num.toFixed(2)}`;
   };
 
+  const handlePrintReport = () => {
+    if (!results) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert('Please allow popups to print report.');
+
+    const html = `
+      <html>
+        <head>
+          <title>Reconciliation Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            h1 { margin-bottom: 5px; }
+            .summary { display: flex; gap: 20px; margin-bottom: 30px; }
+            .summary-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; text-align: center; min-width: 120px; }
+            .summary-box.green { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+            .summary-box.orange { background-color: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+            .summary-box.blue { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+            .value { font-size: 24px; font-weight: bold; }
+            .label { font-size: 12px; opacity: 0.8; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f8f9fa; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .section-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+            .red { color: #dc2626; }
+            .green { color: #16a34a; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Reconciliation Report</h1>
+          <p>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+          
+          <div class="summary">
+            <div class="summary-box green">
+              <div class="value">${results.stats.matched}</div>
+              <div class="label">Matches</div>
+            </div>
+            <div class="summary-box orange">
+              <div class="value">${results.stats.unmatchedCsv}</div>
+              <div class="label">Unmatched CSV</div>
+            </div>
+            <div class="summary-box blue">
+              <div class="value">${results.stats.unmatchedSystem}</div>
+              <div class="label">Unmatched System</div>
+            </div>
+          </div>
+
+          <div class="section-title">Matched Transactions</div>
+          <table>
+            <thead>
+              <tr>
+                <th>CSV Date/Desc</th>
+                <th class="text-right">Amount</th>
+                <th class="text-center">System Date/Desc</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.matches.map(m => `
+                <tr>
+                  <td>
+                    <div>${m.csv.date}</div>
+                    <div style="color:#666">${m.csv.description}</div>
+                  </td>
+                  <td class="text-right">
+                    ${m.csv.debit > 0 ? `<span class="red">-$${m.csv.debit.toFixed(2)}</span>` : `<span class="green">+$${m.csv.credit.toFixed(2)}</span>`}
+                  </td>
+                  <td>
+                    <div>${m.system.transaction_date}</div>
+                    <div style="color:#666">${m.system.description}</div>
+                  </td>
+                </tr>
+              `).join('')}
+              ${results.matches.length === 0 ? '<tr><td colspan="3" class="text-center">No matches found</td></tr>' : ''}
+            </tbody>
+          </table>
+
+          <div class="section-title">Unmatched CSV Transactions</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th class="text-right">Debit</th>
+                <th class="text-right">Credit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.unmatchedCsv.map(row => `
+                <tr>
+                  <td>${row.date}</td>
+                  <td>${row.description}</td>
+                  <td class="text-right ${row.debit > 0 ? 'red' : ''}">${row.debit > 0 ? '$'+row.debit.toFixed(2) : '-'}</td>
+                  <td class="text-right ${row.credit > 0 ? 'green' : ''}">${row.credit > 0 ? '$'+row.credit.toFixed(2) : '-'}</td>
+                </tr>
+              `).join('')}
+              ${results.unmatchedCsv.length === 0 ? '<tr><td colspan="4" class="text-center">No unmatched CSV transactions</td></tr>' : ''}
+            </tbody>
+          </table>
+
+          <div class="section-title">Unmatched System Transactions</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th class="text-right">Debit</th>
+                <th class="text-right">Credit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.unmatchedSystem.map(tx => `
+                <tr>
+                  <td>${tx.transaction_date}</td>
+                  <td>${tx.description}</td>
+                  <td class="text-right ${tx.debit_amount > 0 ? 'red' : ''}">${tx.debit_amount > 0 ? '$'+tx.debit_amount.toFixed(2) : '-'}</td>
+                  <td class="text-right ${tx.credit_amount > 0 ? 'green' : ''}">${tx.credit_amount > 0 ? '$'+tx.credit_amount.toFixed(2) : '-'}</td>
+                </tr>
+              `).join('')}
+              ${results.unmatchedSystem.length === 0 ? '<tr><td colspan="4" class="text-center">No unmatched system transactions</td></tr>' : ''}
+            </tbody>
+          </table>
+
+          <script>window.print();</script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
