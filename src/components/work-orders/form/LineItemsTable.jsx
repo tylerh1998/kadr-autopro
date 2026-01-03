@@ -266,7 +266,7 @@ export default function LineItemsTable({
     
     try {
         // Fetch necessary data if not already loaded
-        if (suppliers.length === 0) {
+        if (suppliers.length === 0 || inventoryCategories.length === 0) {
             const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
                 Supplier.list(),
                 SalesClass.list(),

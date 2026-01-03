@@ -36,8 +36,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     const [loading, setLoading] = useState(false);
     const [calculatedMargin, setCalculatedMargin] = useState('');
     const [tagAlongs, setTagAlongs] = useState([]);
-    const [inventoryCategories, setInventoryCategories] = useState([]);
+    const [internalCategories, setInternalCategories] = useState([]);
     const [searchOpen, setSearchOpen] = useState(false);
+
+    // Use prop categories if available and populated, otherwise fallback to internal state
+    const categoriesToUse = (propInventoryCategories && propInventoryCategories.length > 0) 
+        ? propInventoryCategories 
+        : internalCategories;
     const lastLoadedId = useRef(null);
 
     const filteredLocations = React.useMemo(() => {
@@ -644,7 +649,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
-                                    {[...inventoryCategories]
+                                    {[...categoriesToUse]
                                         .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
                                         .map(cat => (
                                         <SelectItem key={cat.id} value={cat.name}>
