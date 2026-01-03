@@ -149,7 +149,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 setCalculatedMargin('');
             }
         }
-    }, [open, item, calculatePriceFromSalesClass]);
+    }, [open, item?.id]);
 
     const calculateMargin = (costStr, sellingPriceStr) => {
         if (costStr && sellingPriceStr) {
