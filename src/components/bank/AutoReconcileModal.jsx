@@ -111,35 +111,6 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, onApp
             </div>
           </div>
 
-          <div class="section-title">Matched Transactions</div>
-          <table>
-            <thead>
-              <tr>
-                <th>CSV Date/Desc</th>
-                <th class="text-right">Amount</th>
-                <th class="text-center">System Date/Desc</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${results.matches.map(m => `
-                <tr>
-                  <td>
-                    <div>${m.csv.date}</div>
-                    <div style="color:#666">${m.csv.description}</div>
-                  </td>
-                  <td class="text-right">
-                    ${m.csv.debit > 0 ? `<span class="red">-$${m.csv.debit.toFixed(2)}</span>` : `<span class="green">+$${m.csv.credit.toFixed(2)}</span>`}
-                  </td>
-                  <td>
-                    <div>${m.system.transaction_date}</div>
-                    <div style="color:#666">${m.system.description}</div>
-                  </td>
-                </tr>
-              `).join('')}
-              ${results.matches.length === 0 ? '<tr><td colspan="3" class="text-center">No matches found</td></tr>' : ''}
-            </tbody>
-          </table>
-
           <div class="section-title">Unmatched CSV Transactions</div>
           <table>
             <thead>
@@ -183,6 +154,35 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, onApp
                 </tr>
               `).join('')}
               ${results.unmatchedSystem.length === 0 ? '<tr><td colspan="4" class="text-center">No unmatched system transactions</td></tr>' : ''}
+            </tbody>
+          </table>
+
+          <div class="section-title">Matched Transactions</div>
+          <table>
+            <thead>
+              <tr>
+                <th>CSV Date/Desc</th>
+                <th class="text-right">Amount</th>
+                <th class="text-center">System Date/Desc</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.matches.map(m => `
+                <tr>
+                  <td>
+                    <div>${m.csv.date}</div>
+                    <div style="color:#666">${m.csv.description}</div>
+                  </td>
+                  <td class="text-right">
+                    ${m.csv.debit > 0 ? `<span class="red">-$${m.csv.debit.toFixed(2)}</span>` : `<span class="green">+$${m.csv.credit.toFixed(2)}</span>`}
+                  </td>
+                  <td>
+                    <div>${m.system.transaction_date}</div>
+                    <div style="color:#666">${m.system.description}</div>
+                  </td>
+                </tr>
+              `).join('')}
+              ${results.matches.length === 0 ? '<tr><td colspan="3" class="text-center">No matches found</td></tr>' : ''}
             </tbody>
           </table>
 
