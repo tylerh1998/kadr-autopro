@@ -74,31 +74,28 @@ Deno.serve(async (req) => {
         const amountInWords = numberToWords(payment.amount);
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
-        doc.text(`***** ${amountInWords} *****`, 20, chequeTop + 35);
+        doc.text(`***** ${amountInWords} *****`, 20, chequeTop + 40);
         doc.setFont(undefined, 'normal');
 
-        // Amount in numbers (right side, middle area) with cents
-        const dollars = Math.floor(payment.amount);
-        const cents = Math.round((payment.amount - dollars) * 100);
+        // Amount in numbers (right side, middle area)
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text(cents.toString().padStart(2, '0'), pageWidth - 20, chequeTop + 35, { align: 'right' });
-        doc.text(payment.amount.toFixed(2), pageWidth - 30, chequeTop + 35, { align: 'right' });
+        doc.text('$' + payment.amount.toFixed(2), pageWidth - 20, chequeTop + 40, { align: 'right' });
         doc.setFont(undefined, 'normal');
 
-        // Supplier name and address (moved down to align with TO)
+        // Supplier name and address (moved up 5mm)
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
-        doc.text(supplier.name.toUpperCase(), 20, chequeTop + 60);
+        doc.text(supplier.name.toUpperCase(), 20, chequeTop + 55);
         doc.setFont(undefined, 'normal');
         
         if (supplier.address) {
             doc.setFontSize(9);
-            doc.text(supplier.address.toUpperCase(), 20, chequeTop + 66);
+            doc.text(supplier.address.toUpperCase(), 20, chequeTop + 61);
         }
         if (supplier.town && supplier.province && supplier.postal_code) {
             doc.setFontSize(9);
-            doc.text(`${supplier.town.toUpperCase()}, ${supplier.province.toUpperCase()} ${supplier.postal_code.toUpperCase()}`, 20, chequeTop + 72);
+            doc.text(`${supplier.town.toUpperCase()}, ${supplier.province.toUpperCase()} ${supplier.postal_code.toUpperCase()}`, 20, chequeTop + 67);
         }
 
         // ===== MIDDLE STUB =====
