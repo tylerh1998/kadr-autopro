@@ -161,9 +161,21 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       setProject(foundProject);
 
       if (foundProject) {
-        const assignedEmployeesList = foundProject.employee_assigned 
-          ? foundProject.employee_assigned.split(',').map(name => name.trim())
-          : [];
+        let assignedEmployeesList = [];
+        
+        // Handle various formats of assigned employees (array vs string, plural vs singular)
+        if (Array.isArray(foundProject.employees_assigned) && foundProject.employees_assigned.length > 0) {
+          assignedEmployeesList = foundProject.employees_assigned;
+        } else if (foundProject.employee_assigned) {
+          assignedEmployeesList = typeof foundProject.employee_assigned === 'string' 
+            ? foundProject.employee_assigned.split(',').map(name => name.trim())
+            : Array.isArray(foundProject.employee_assigned) ? foundProject.employee_assigned : [];
+        } else if (foundProject.assigned_employees) {
+           // Fallback for another potential field name
+           assignedEmployeesList = Array.isArray(foundProject.assigned_employees) 
+             ? foundProject.assigned_employees 
+             : (typeof foundProject.assigned_employees === 'string' ? foundProject.assigned_employees.split(',').map(n => n.trim()) : []);
+        }
         
         setFormData({
           priority: foundProject.priority || '',
