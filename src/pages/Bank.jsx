@@ -104,7 +104,11 @@ export default function BankPage() {
       const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
       setBankAccounts(updatedActiveAccounts);
 
-      // Do NOT auto-select first account - let user choose
+      // Auto-select primary account
+      const primaryAccount = updatedActiveAccounts.find(acc => acc.primary === true);
+      if (primaryAccount) {
+        setSelectedAccountId(primaryAccount.id);
+      }
       
       // 4. Load chart of accounts
       const chartData = await ChartOfAccount.list();
