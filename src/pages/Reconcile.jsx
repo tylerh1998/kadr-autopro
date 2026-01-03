@@ -288,6 +288,15 @@ export default function ReconcilePage() {
     });
   }, [filteredTransactions]);
 
+  const handleApplyMatches = (matchedIds) => {
+    setSelectedTransactions(prev => {
+      const newSet = new Set(prev);
+      matchedIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+    alert(`Successfully checked off ${matchedIds.length} matched transactions.`);
+  };
+
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
