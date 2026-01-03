@@ -174,6 +174,34 @@ export default function AdminPage() {
     }
   };
 
+  const handleUpdateRecord = async (updatedRecord) => {
+    if (!selectedEntity || !updatedRecord.id) return;
+    try {
+      // Use the base44 SDK to update the entity directly
+      // This assumes base44.entities[selectedEntity] is available
+      if (base44.entities[selectedEntity]) {
+        await base44.entities[selectedEntity].update(updatedRecord.id, updatedRecord);
+      } else {
+        // Fallback to adminDbTool if direct entity access isn't available/working 
+        // (though direct access is preferred and standard)
+         await base44.functions.invoke('adminDbTool', {
+            mode: 'update',
+            entityName: selectedEntity,
+            id: updatedRecord.id,
+            data: updatedRecord
+        });
+      }
+      
+      // Update local state
+      setResults(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+      setSelectedRecord(updatedRecord);
+      alert('Record updated successfully');
+    } catch (error) {
+      console.error("Update failed", error);
+      throw error;
+    }
+  };
+
   const downloadData = (format) => {
     if (!results.length) return;
 
