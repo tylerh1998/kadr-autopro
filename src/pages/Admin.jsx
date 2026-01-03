@@ -453,7 +453,8 @@ export default function AdminPage() {
         open={!!selectedRecord} 
         onClose={() => setSelectedRecord(null)} 
         record={selectedRecord} 
-        entityName={selectedEntity} 
+        entityName={selectedEntity}
+        onUpdate={handleUpdateRecord}
       />
     </div>
   );
