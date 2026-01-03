@@ -180,7 +180,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   };
 
   const getEmployeeName = (employee) => {
-    return `${employee.first_name} ${employee.last_name}`;
+    return employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
   };
 
   const statusButtons = [
