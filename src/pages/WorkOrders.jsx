@@ -893,6 +893,16 @@ export default function WorkOrdersPage() {
       project.work_order?.toLowerCase().includes(searchLower);
     
     return matchesStatus && matchesSearch;
+  }).sort((a, b) => {
+    // Special sorting for archived tab
+    if (workPROStatusFilter === 'archived') {
+      const dateA = a.date_archived ? new Date(a.date_archived) : new Date(a.created_date);
+      const dateB = b.date_archived ? new Date(b.date_archived) : new Date(b.created_date);
+      // Sort descending (newest first)
+      return dateB - dateA;
+    }
+    // Default sorting (created_date) is already applied in loadWorkPROProjects
+    return 0;
   });
 
   return (
@@ -1362,6 +1372,11 @@ export default function WorkOrdersPage() {
                                 {project.created_date && !isNaN(new Date(project.created_date).getTime()) && (
                                   <p className="text-xs text-slate-500 pl-5">
                                     Created: {format(new Date(project.created_date), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                                {project.status === 'archived' && project.date_archived && !isNaN(new Date(project.date_archived).getTime()) && (
+                                  <p className="text-xs text-slate-500 pl-5">
+                                    Archived: {format(new Date(project.date_archived), 'MMM d, yyyy')}
                                   </p>
                                 )}
                               </div>

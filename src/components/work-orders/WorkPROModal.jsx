@@ -369,6 +369,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         time_estimate: parseFloat(formData.time_estimate) || 0,
         promised_by: formData.promised_by,
         status: formData.status,
+        date_archived: formData.status === 'archived' && project.status !== 'archived' ? new Date().toISOString() : undefined,
         description: formData.description,
         default_category: formData.default_category,
         // Oil change fields
