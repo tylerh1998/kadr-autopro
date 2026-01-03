@@ -24,6 +24,13 @@ import { format } from 'date-fns';
 import { createPageUrl } from '../utils';
 import AutoReconcileModal from '../components/bank/AutoReconcileModal';
 
+// Helper function to parse YYYY-MM-DD date strings as local date
+const parseLocalDate = (dateString) => {
+  if (!dateString) return new Date();
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export default function ReconcilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
