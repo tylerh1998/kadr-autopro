@@ -43,6 +43,7 @@ export default function ReconcilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showScrollButtons, setShowScrollButtons] = useState(false);
+  const [showAutoReconcileModal, setShowAutoReconcileModal] = useState(false);
 
   const applyDateFilter = useCallback((allTxs) => {
     const oneYearAgo = new Date();
