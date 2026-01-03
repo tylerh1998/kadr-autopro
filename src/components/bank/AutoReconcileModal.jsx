@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
-import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer } from 'lucide-react';
 
 export default function AutoReconcileModal({ open, onClose, bankAccountId, onApplyMatches }) {
   const [file, setFile] = useState(null);
