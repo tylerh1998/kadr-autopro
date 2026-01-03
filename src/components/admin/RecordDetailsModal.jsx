@@ -12,8 +12,35 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, Check } from 'lucide-react';
 
-export default function RecordDetailsModal({ open, onClose, record, entityName }) {
+export default function RecordDetailsModal({ open, onClose, record, entityName, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedJson, setEditedJson] = useState('');
+  const [saving, setSaving] = useState(false);
+
   if (!record) return null;
+
+  const handleEdit = () => {
+    setEditedJson(JSON.stringify(record, null, 2));
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedJson('');
+  };
+
+  const handleSave = async () => {
+    try {
+      const parsed = JSON.parse(editedJson);
+      setSaving(true);
+      await onUpdate(parsed);
+      setSaving(false);
+      setIsEditing(false);
+    } catch (e) {
+      setSaving(false);
+      alert('Invalid JSON or update failed: ' + e.message);
+    }
+  };
 
   const sortedKeys = Object.keys(record).sort();
 
@@ -21,65 +48,88 @@ export default function RecordDetailsModal({ open, onClose, record, entityName }
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Record Details - {entityName}</DialogTitle>
+          <DialogTitle>{isEditing ? `Edit Record - ${entityName}` : `Record Details - ${entityName}`}</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto pr-4 -mr-4">
-          <div className="grid gap-4 py-4">
-            {sortedKeys.map((key) => {
-              const value = record[key];
-              let displayValue = '';
+          {isEditing ? (
+            <div className="py-4 h-full">
+              <Textarea 
+                value={editedJson}
+                onChange={(e) => setEditedJson(e.target.value)}
+                className="font-mono text-xs min-h-[500px] h-full resize-none"
+                spellCheck={false}
+              />
+            </div>
+          ) : (
+            <div className="grid gap-4 py-4">
+              {sortedKeys.map((key) => {
+                const value = record[key];
+                let displayValue = '';
 
-              if (value === null || value === undefined) {
-                displayValue = '';
-              } else if (typeof value === 'object') {
-                displayValue = JSON.stringify(value, null, 2);
-              } else if (typeof value === 'string') {
-                try {
-                  const parsed = JSON.parse(value);
-                  if (typeof parsed === 'object' && parsed !== null) {
-                    displayValue = JSON.stringify(parsed, null, 2);
-                  } else {
+                if (value === null || value === undefined) {
+                  displayValue = '';
+                } else if (typeof value === 'object') {
+                  displayValue = JSON.stringify(value, null, 2);
+                } else if (typeof value === 'string') {
+                  try {
+                    const parsed = JSON.parse(value);
+                    if (typeof parsed === 'object' && parsed !== null) {
+                      displayValue = JSON.stringify(parsed, null, 2);
+                    } else {
+                      displayValue = value;
+                    }
+                  } catch (e) {
                     displayValue = value;
                   }
-                } catch (e) {
-                  displayValue = value;
+                } else {
+                  displayValue = String(value);
                 }
-              } else {
-                displayValue = String(value);
-              }
-              
-              const isLongText = displayValue.length > 50 || displayValue.includes('\n');
+                
+                const isLongText = displayValue.length > 50 || displayValue.includes('\n');
 
-              return (
-                <div key={key} className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right pt-2 font-mono text-xs text-slate-500 break-words col-span-1">
-                    {key}
-                  </Label>
-                  <div className="col-span-3 relative group">
-                    {isLongText ? (
-                      <Textarea 
-                        readOnly 
-                        value={displayValue} 
-                        className="font-mono text-xs min-h-[80px] bg-slate-50 resize-y"
-                      />
-                    ) : (
-                      <Input 
-                        readOnly 
-                        value={displayValue} 
-                        className="font-mono text-xs bg-slate-50 h-8"
-                      />
-                    )}
-                    <CopyButton text={displayValue} />
+                return (
+                  <div key={key} className="grid grid-cols-4 items-start gap-4">
+                    <Label className="text-right pt-2 font-mono text-xs text-slate-500 break-words col-span-1">
+                      {key}
+                    </Label>
+                    <div className="col-span-3 relative group">
+                      {isLongText ? (
+                        <Textarea 
+                          readOnly 
+                          value={displayValue} 
+                          className="font-mono text-xs min-h-[80px] bg-slate-50 resize-y"
+                        />
+                      ) : (
+                        <Input 
+                          readOnly 
+                          value={displayValue} 
+                          className="font-mono text-xs bg-slate-50 h-8"
+                        />
+                      )}
+                      <CopyButton text={displayValue} />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
+        <DialogFooter className="gap-2">
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={handleCancel} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleEdit}>Edit</Button>
+              <Button onClick={onClose}>Close</Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
