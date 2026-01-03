@@ -371,7 +371,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   };
 
   const getEmployeeName = (employee) => {
-    return `${employee.first_name} ${employee.last_name}`;
+    return employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
   };
 
   const getStatusBadge = (status) => {
