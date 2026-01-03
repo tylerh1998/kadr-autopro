@@ -560,6 +560,13 @@ export default function ReconcilePage() {
           </>
         )}
       </div>
+
+      <AutoReconcileModal
+        open={showAutoReconcileModal}
+        onClose={() => setShowAutoReconcileModal(false)}
+        bankAccountId={bankAccountId}
+        onApplyMatches={handleApplyMatches}
+      />
     </div>
   );
 }
