@@ -504,7 +504,7 @@ export default function ReconcilePage() {
                               />
                             </td>
                             <td className="p-3">
-                              {format(new Date(tx.transaction_date), 'MMM d, yyyy')}
+                              {format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}
                             </td>
                             <td className="p-3">{tx.description}</td>
                             <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
