@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search } from 'lucide-react';
+import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
@@ -56,6 +56,64 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const [connectSearchTerm, setConnectSearchTerm] = useState("");
   const [connectStatusFilter, setConnectStatusFilter] = useState("in_progress");
   
+  // Multiple projects state
+  const [projectsList, setProjectsList] = useState([]);
+
+  const loadProjectIntoForm = useCallback(async (projectData) => {
+    if (!projectData) return;
+    
+    let assignedEmployeesList = [];
+    
+    // Handle various formats of assigned employees (array vs string, plural vs singular)
+    if (Array.isArray(projectData.employees_assigned) && projectData.employees_assigned.length > 0) {
+      assignedEmployeesList = projectData.employees_assigned;
+    } else if (projectData.employee_assigned) {
+      assignedEmployeesList = typeof projectData.employee_assigned === 'string' 
+        ? projectData.employee_assigned.split(',').map(name => name.trim())
+        : Array.isArray(projectData.employee_assigned) ? projectData.employee_assigned : [];
+    } else if (projectData.assigned_employees) {
+        // Fallback for another potential field name
+        assignedEmployeesList = Array.isArray(projectData.assigned_employees) 
+          ? projectData.assigned_employees 
+          : (typeof projectData.assigned_employees === 'string' ? projectData.assigned_employees.split(',').map(n => n.trim()) : []);
+    }
+    
+    setFormData({
+      priority: projectData.priority || '',
+      task: projectData.task || '',
+      assigned_employees: assignedEmployeesList,
+      time_estimate: projectData.time_estimate || '',
+      promised_by: projectData.promised_by || '',
+      status: projectData.status || '',
+      description: projectData.description || '',
+      default_category: projectData.default_category || 'billable',
+      // Oil change fields
+      filter: projectData.filter || '',
+      oil_qty: projectData.oil_qty || '',
+      oil: projectData.oil || '',
+      oil_type: projectData.oil_type || '',
+      air: projectData.air || '',
+      cabin: projectData.cabin || '',
+      tire_rotation: projectData.tire_rotation || '',
+      tpms_reset: projectData.tpms_reset || '',
+      oil_change_type: projectData.oil_change_type || '',
+      reset_oil_light: projectData.reset_oil_light || '',
+      next_oil_change_odometer: projectData.next_oil_change_odometer || ''
+    });
+    setHasChanges(false);
+
+    // Fetch tech time total from TechTimeLog entity
+    await fetchTechTimeTotal(projectData.id);
+  }, [fetchTechTimeTotal]);
+
+  const handleProjectSwitch = (projectId) => {
+    const selected = projectsList.find(p => p.id === projectId);
+    if (selected) {
+      setProject(selected);
+      loadProjectIntoForm(selected);
+    }
+  };
+
   const [formData, setFormData] = useState({
     priority: '',
     task: '',
@@ -125,6 +183,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     setLoading(true);
     
     try {
+      let foundProjects = [];
       let foundProject = null;
 
       // PRIORITY 1: Try to fetch using workOrderIdentifier
@@ -138,71 +197,44 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         });
 
         if (projectResponse.data.success) {
-          const projects = projectResponse.data.data || [];
-          foundProject = projects.length > 0 ? projects[0] : null;
+          foundProjects = projectResponse.data.data || [];
         }
       }
 
-      // FALLBACK: If no project found and we have initialWorkPROProject.id, fetch by ID
-      if (!foundProject && initialWorkPROProject?.id) {
+      // FALLBACK: If no projects found and we have initialWorkPROProject.id, fetch by ID
+      if (foundProjects.length === 0 && initialWorkPROProject?.id) {
         const projectResponse = await base44.functions.invoke('workProProxy', {
           entityName: 'Project',
           method: 'get',
           id: initialWorkPROProject.id
         });
 
-        if (projectResponse.data.success) {
-          foundProject = projectResponse.data.data;
+        if (projectResponse.data.success && projectResponse.data.data) {
+          foundProjects = [projectResponse.data.data];
         }
       }
 
-      // If no project found, just set project to null (don't set error)
-      // This allows the UI to show the Create/Connect options
+      // Sort projects by created_date descending (newest first)
+      foundProjects.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      
+      setProjectsList(foundProjects);
+
+      // Determine which project to select
+      if (foundProjects.length > 0) {
+        // If initialWorkPROProject is in the list, select it
+        if (initialWorkPROProject?.id) {
+            foundProject = foundProjects.find(p => p.id === initialWorkPROProject.id) || foundProjects[0];
+        } else {
+            // Default to the newest one (first in sorted list)
+            foundProject = foundProjects[0];
+        }
+      }
+
+      // Set the currently active project
       setProject(foundProject);
 
       if (foundProject) {
-        let assignedEmployeesList = [];
-        
-        // Handle various formats of assigned employees (array vs string, plural vs singular)
-        if (Array.isArray(foundProject.employees_assigned) && foundProject.employees_assigned.length > 0) {
-          assignedEmployeesList = foundProject.employees_assigned;
-        } else if (foundProject.employee_assigned) {
-          assignedEmployeesList = typeof foundProject.employee_assigned === 'string' 
-            ? foundProject.employee_assigned.split(',').map(name => name.trim())
-            : Array.isArray(foundProject.employee_assigned) ? foundProject.employee_assigned : [];
-        } else if (foundProject.assigned_employees) {
-           // Fallback for another potential field name
-           assignedEmployeesList = Array.isArray(foundProject.assigned_employees) 
-             ? foundProject.assigned_employees 
-             : (typeof foundProject.assigned_employees === 'string' ? foundProject.assigned_employees.split(',').map(n => n.trim()) : []);
-        }
-        
-        setFormData({
-          priority: foundProject.priority || '',
-          task: foundProject.task || '',
-          assigned_employees: assignedEmployeesList,
-          time_estimate: foundProject.time_estimate || '',
-          promised_by: foundProject.promised_by || '',
-          status: foundProject.status || '',
-          description: foundProject.description || '',
-          default_category: foundProject.default_category || 'billable',
-          // Oil change fields
-          filter: foundProject.filter || '',
-          oil_qty: foundProject.oil_qty || '',
-          oil: foundProject.oil || '',
-          oil_type: foundProject.oil_type || '',
-          air: foundProject.air || '',
-          cabin: foundProject.cabin || '',
-          tire_rotation: foundProject.tire_rotation || '',
-          tpms_reset: foundProject.tpms_reset || '',
-          oil_change_type: foundProject.oil_change_type || '',
-          reset_oil_light: foundProject.reset_oil_light || '',
-          next_oil_change_odometer: foundProject.next_oil_change_odometer || ''
-        });
-        setHasChanges(false);
-
-        // Fetch tech time total from TechTimeLog entity
-        await fetchTechTimeTotal(foundProject.id);
+        await loadProjectIntoForm(foundProject);
       }
     } catch (error) {
       console.error('Error fetching WorkPRO data:', error);
@@ -211,7 +243,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     } finally {
       setLoading(false);
     }
-  }, [workOrderIdentifier, initialWorkPROProject?.id, fetchTechTimeTotal]);
+  }, [workOrderIdentifier, initialWorkPROProject?.id, fetchTechTimeTotal, loadProjectIntoForm]);
 
   useEffect(() => {
     if (open && (workOrderIdentifier || initialWorkPROProject?.id)) {
