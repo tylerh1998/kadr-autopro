@@ -1304,7 +1304,7 @@ export default function WorkOrdersPage() {
                     return (
                       <Card 
                         key={project.id} 
-                        className="hover:shadow-lg transition-all duration-200 overflow-hidden"
+                        className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-black shadow-sm"
                       >
                         <CardContent className="p-0">
                           {/* Header Section - Clickable to open WorkPRO Modal */}
