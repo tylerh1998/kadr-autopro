@@ -17,10 +17,12 @@ import {
   Landmark,
   History,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Upload
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { createPageUrl } from '../utils';
+import AutoReconcileModal from '../components/bank/AutoReconcileModal';
 
 export default function ReconcilePage() {
   const navigate = useNavigate();
