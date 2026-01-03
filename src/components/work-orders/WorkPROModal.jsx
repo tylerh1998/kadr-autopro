@@ -482,7 +482,23 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
             <DialogTitle className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span>WorkPRO Project</span>
-                {project && (
+                {projectsList.length > 1 ? (
+                    <Select 
+                        value={project?.id} 
+                        onValueChange={(val) => handleProjectSwitch(val)}
+                    >
+                        <SelectTrigger className="h-8 min-w-[300px] border-slate-300 bg-white">
+                            <SelectValue placeholder="Select project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {projectsList.map(p => (
+                                <SelectItem key={p.id} value={p.id}>
+                                    {p.name} {p.task ? ` - ${p.task}` : ''} ({format(new Date(p.created_date), 'MMM d')})
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : project && (
                   <div className="flex items-center gap-3 text-sm font-normal text-slate-600">
                     <span>{project.name}</span>
                     {project.work_order && (
@@ -533,6 +549,13 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               </div>
             </DialogTitle>
           </DialogHeader>
+
+          {projectsList.length > 1 && (
+            <div className="bg-orange-50 border-b border-orange-200 px-6 py-2 flex items-center justify-center gap-2 text-sm text-orange-800">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Multiple projects found for this Work Order. Viewing: <strong>{project?.name}</strong></span>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
