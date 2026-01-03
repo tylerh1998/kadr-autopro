@@ -312,6 +312,10 @@ export default function ReconcilePage() {
             </Button>
             <h1 className="text-3xl font-bold text-slate-900">Reconcile Bank Account</h1>
           </div>
+          <Button onClick={() => setShowAutoReconcileModal(true)} variant="outline" className="gap-2">
+            <Upload className="w-4 h-4" />
+            Upload CSV
+          </Button>
         </div>
 
         {loading ? (
