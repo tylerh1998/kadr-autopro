@@ -344,10 +344,14 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, onApp
             <div className="flex justify-between w-full">
               <Button variant="outline" onClick={() => setStep('upload')}>Back to Upload</Button>
               <div className="flex gap-2">
+                 <Button variant="outline" onClick={handlePrintReport}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print Report
+                 </Button>
                  <Button variant="outline" onClick={onClose}>Close</Button>
                  <Button onClick={handleConfirm} disabled={results.matches.length === 0}>
                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                   Confirm & Check Off Matches ({results.matches.length})
+                   Confirm Matches ({results.matches.length})
                  </Button>
               </div>
             </div>
