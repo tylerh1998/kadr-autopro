@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { InventoryItem, InventoryTxs, SupplierInvoiceLine } from '@/entities/all';
+import { InventoryItem, InventoryTxs, SupplierInvoiceLine, Supplier, SalesClass, InventoryLocation } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
   Table,
@@ -40,6 +40,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import SerialNumberModal from '../SerialNumberModal';
+import InventoryEditModal from '@/components/inventory/InventoryEditModal';
 
 export default function LineItemsTable({
   lineItems,
@@ -60,6 +61,13 @@ export default function LineItemsTable({
   const [inventoryPrices, setInventoryPrices] = useState({});
   const [serialNumModalOpen, setSerialNumModalOpen] = useState(false);
   const [serialNumLineIndex, setSerialNumLineIndex] = useState(null);
+
+  // Inventory Edit Modal State
+  const [editInventoryModalOpen, setEditInventoryModalOpen] = useState(false);
+  const [editingInventoryItem, setEditingInventoryItem] = useState(null);
+  const [suppliers, setSuppliers] = useState([]);
+  const [salesClasses, setSalesClasses] = useState([]);
+  const [inventoryLocations, setInventoryLocations] = useState([]);
 
   // Strategic logging as per outline
   console.log('LineItemsTable: selectedLineIndex:', selectedLineIndex);
@@ -252,6 +260,41 @@ export default function LineItemsTable({
     }
   };
 
+  const handlePartDetails = async (line) => {
+    if (!line.inventory_item_id) return;
+    
+    try {
+        // Fetch necessary data if not already loaded
+        if (suppliers.length === 0) {
+            const [suppliersData, salesClassesData, locationsData] = await Promise.all([
+                Supplier.list(),
+                SalesClass.list(),
+                InventoryLocation.list()
+            ]);
+            setSuppliers(suppliersData);
+            setSalesClasses(salesClassesData);
+            setInventoryLocations(locationsData);
+        }
+
+        // Fetch the item details
+        const item = await InventoryItem.get(line.inventory_item_id);
+        setEditingInventoryItem(item);
+        setEditInventoryModalOpen(true);
+    } catch (error) {
+        console.error("Error fetching part details:", error);
+        alert("Failed to load part details.");
+    }
+  };
+
+  const handleInventoryItemUpdate = (updatedItem) => {
+    setInventoryPrices(prev => ({
+        ...prev,
+        [updatedItem.id]: parseFloat(updatedItem.selling_price) || 0
+    }));
+    setEditInventoryModalOpen(false);
+    setEditingInventoryItem(null);
+  };
+
   const renderContextMenu = (line, index) => {
     const inventorySellingPrice = inventoryPrices[line.inventory_item_id];
     const isPriceDifferent = line.part_number && line.inventory_item_id && inventorySellingPrice !== undefined && parseFloat(line.parts_ea) !== inventorySellingPrice;
@@ -295,6 +338,12 @@ export default function LineItemsTable({
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
               <Hash className="mr-2 h-4 w-4" />
               <span>Serial Number</span>
+            </ContextMenuItem>
+          )}
+          {line.inventory_item_id && (
+            <ContextMenuItem onClick={() => handlePartDetails(line)}>
+              <Package className="mr-2 h-4 w-4" />
+              <span>Part Details</span>
             </ContextMenuItem>
           )}
           <ContextMenuSeparator />
@@ -533,6 +582,16 @@ export default function LineItemsTable({
         onClose={() => setSerialNumModalOpen(false)}
         onSave={handleSaveSerialNum}
         currentSerialNum={serialNumLineIndex !== null ? lineItems[serialNumLineIndex]?.serial_num : ''}
+      />
+
+      <InventoryEditModal
+        open={editInventoryModalOpen}
+        onClose={() => setEditInventoryModalOpen(false)}
+        item={editingInventoryItem}
+        onUpdate={handleInventoryItemUpdate}
+        suppliers={suppliers}
+        salesClasses={salesClasses}
+        inventoryLocations={inventoryLocations}
       />
     </>
   );
