@@ -4,6 +4,7 @@ import {
   Supplier,
   SalesClass,
   InventoryLocation,
+  InventoryCategory,
 } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,7 @@ export default function InventoryListPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [salesClasses, setSalesClasses] = useState([]);
   const [inventoryLocations, setInventoryLocations] = useState([]);
+  const [inventoryCategories, setInventoryCategories] = useState([]);
 
   const fetchInventory = useCallback(async () => {
     setLoading(true);
@@ -168,14 +170,16 @@ export default function InventoryListPage() {
   // Function to load data shared by modals
   const loadSharedData = async () => {
     try {
-      const [suppliersData, salesClassesData, locationsData] = await Promise.all([
+      const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
         Supplier.list(),
         SalesClass.list(),
         InventoryLocation.list(),
+        InventoryCategory.list(),
       ]);
       setSuppliers(suppliersData);
       setSalesClasses(salesClassesData);
       setInventoryLocations(locationsData);
+      setInventoryCategories(categoriesData);
     } catch (error) {
       console.error("Error fetching shared data for modals:", error);
     }
@@ -401,6 +405,7 @@ export default function InventoryListPage() {
           suppliers={suppliers}
           salesClasses={salesClasses}
           inventoryLocations={inventoryLocations}
+          inventoryCategories={inventoryCategories}
         />
         <InventoryAdjustQOHModal 
           open={isAdjustQOHModalOpen} 

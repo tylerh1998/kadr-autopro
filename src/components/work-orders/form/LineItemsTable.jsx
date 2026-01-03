@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { InventoryItem, InventoryTxs, SupplierInvoiceLine, Supplier, SalesClass, InventoryLocation } from '@/entities/all';
+import { InventoryItem, InventoryTxs, SupplierInvoiceLine, Supplier, SalesClass, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
   Table,
@@ -68,6 +68,7 @@ export default function LineItemsTable({
   const [suppliers, setSuppliers] = useState([]);
   const [salesClasses, setSalesClasses] = useState([]);
   const [inventoryLocations, setInventoryLocations] = useState([]);
+  const [inventoryCategories, setInventoryCategories] = useState([]);
 
   // Strategic logging as per outline
   console.log('LineItemsTable: selectedLineIndex:', selectedLineIndex);
@@ -266,14 +267,16 @@ export default function LineItemsTable({
     try {
         // Fetch necessary data if not already loaded
         if (suppliers.length === 0) {
-            const [suppliersData, salesClassesData, locationsData] = await Promise.all([
+            const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
                 Supplier.list(),
                 SalesClass.list(),
-                InventoryLocation.list()
+                InventoryLocation.list(),
+                InventoryCategory.list()
             ]);
             setSuppliers(suppliersData);
             setSalesClasses(salesClassesData);
             setInventoryLocations(locationsData);
+            setInventoryCategories(categoriesData);
         }
 
         // Fetch the item details
@@ -585,6 +588,7 @@ export default function LineItemsTable({
       />
 
       <InventoryEditModal
+        key={editingInventoryItem ? editingInventoryItem.id : 'closed'}
         open={editInventoryModalOpen}
         onClose={() => setEditInventoryModalOpen(false)}
         item={editingInventoryItem}
@@ -592,6 +596,7 @@ export default function LineItemsTable({
         suppliers={suppliers}
         salesClasses={salesClasses}
         inventoryLocations={inventoryLocations}
+        inventoryCategories={inventoryCategories}
       />
     </>
   );

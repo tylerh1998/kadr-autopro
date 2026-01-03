@@ -11,7 +11,7 @@ import { TagAlong } from "@/entities/TagAlong";
 import { base44 } from '@/api/base44Client';
 import { Save, Loader2, Search, Check, AlertCircle } from "lucide-react";
 
-export default function InventoryEditModal({ open, onClose, item, onUpdate, suppliers, salesClasses, inventoryLocations }) {
+export default function InventoryEditModal({ open, onClose, item, onUpdate, suppliers, salesClasses, inventoryLocations, inventoryCategories: propInventoryCategories }) {
     const [formData, setFormData] = useState({
         part_number: "",
         description: "",
@@ -89,16 +89,19 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
         if (open) {
             loadData();
         }
-    }, [open]);
+    }, [open, propInventoryCategories]);
 
     const loadData = async () => {
         try {
-            const [tagAlongsData, categoriesData] = await Promise.all([
-                TagAlong.list(),
-                InventoryCategory.list()
-            ]);
+            const tagAlongsData = await TagAlong.list();
             setTagAlongs(tagAlongsData);
-            setInventoryCategories(categoriesData);
+
+            if (propInventoryCategories) {
+                setInventoryCategories(propInventoryCategories);
+            } else {
+                const categoriesData = await InventoryCategory.list();
+                setInventoryCategories(categoriesData);
+            }
         } catch (error) {
             console.error('Error loading data:', error);
         }
