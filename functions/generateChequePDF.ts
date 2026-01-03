@@ -86,19 +86,19 @@ Deno.serve(async (req) => {
         doc.text(payment.amount.toFixed(2), pageWidth - 30, chequeTop + 35, { align: 'right' });
         doc.setFont(undefined, 'normal');
 
-        // Supplier name and address (below amount in words)
+        // Supplier name and address (moved down to align with TO)
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
-        doc.text(supplier.name.toUpperCase(), 20, chequeTop + 50);
+        doc.text(supplier.name.toUpperCase(), 20, chequeTop + 60);
         doc.setFont(undefined, 'normal');
         
         if (supplier.address) {
             doc.setFontSize(9);
-            doc.text(supplier.address.toUpperCase(), 20, chequeTop + 56);
+            doc.text(supplier.address.toUpperCase(), 20, chequeTop + 66);
         }
         if (supplier.town && supplier.province && supplier.postal_code) {
             doc.setFontSize(9);
-            doc.text(`${supplier.town.toUpperCase()}, ${supplier.province.toUpperCase()} ${supplier.postal_code.toUpperCase()}`, 20, chequeTop + 62);
+            doc.text(`${supplier.town.toUpperCase()}, ${supplier.province.toUpperCase()} ${supplier.postal_code.toUpperCase()}`, 20, chequeTop + 72);
         }
 
         // ===== MIDDLE STUB =====
@@ -130,12 +130,6 @@ Deno.serve(async (req) => {
 
 // Helper function to render a stub section
 function renderStub(doc, startY, supplier, payment, appliedInvoices, formattedDate, pageWidth) {
-    // Company name (left)
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text("Ken's Auto & Diesel Repair.", 20, startY + 10);
-    doc.setFont(undefined, 'normal');
-
     // Date and amount (right)
     doc.setFontSize(10);
     doc.text(formattedDate, pageWidth - 60, startY + 10);
