@@ -86,13 +86,7 @@ export default function SetupPage() {
             </Button>
             {currentUser?.role === 'admin' && (
               <>
-                <Button 
-                  onClick={() => window.location.href = createPageUrl('LankarImport')}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Lankar Import
-                </Button>
+
                 <Button 
                   onClick={() => setShowRestoreModal(true)}
                   className="bg-purple-600 hover:bg-purple-700"

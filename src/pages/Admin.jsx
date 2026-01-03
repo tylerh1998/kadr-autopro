@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
-import { Shield, Database, Search, Download, Loader2, Table as TableIcon, Columns } from 'lucide-react';
+import { Shield, Database, Search, Download, Loader2, Table as TableIcon, Columns, Upload } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -249,14 +250,23 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-blue-600 rounded-lg shadow-sm">
-          <Shield className="w-8 h-8 text-white" />
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-600 rounded-lg shadow-sm">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Admin Database Tools</h1>
+            <p className="text-slate-500">Extract and inspect database records for troubleshooting.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Admin Database Tools</h1>
-          <p className="text-slate-500">Extract and inspect database records for troubleshooting.</p>
-        </div>
+        <Button 
+          onClick={() => window.location.href = createPageUrl('LankarImport')}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Lankar Import
+        </Button>
       </div>
 
       <div className="space-y-6">
