@@ -1070,18 +1070,38 @@ export default function AppointmentForm({
                   </div>
 
                   {(formData.reminders_email || formData.reminders_text) && (
-                    <div className="flex items-center space-x-2 h-10 mt-2">
-                      <Label htmlFor="reminder_days" className="font-normal whitespace-nowrap min-w-[154px]">
-                        Days before appointment:
-                      </Label>
-                      <Input
-                        id="reminder_days"
-                        type="number"
-                        min="0"
-                        value={formData.reminder_days_before}
-                        onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 1 }))}
-                        className="h-8 w-20"
-                      />
+                    <div className="space-y-2 mt-2">
+                      <div className="flex items-center space-x-2 h-10">
+                        <Label htmlFor="reminder_days" className="font-normal whitespace-nowrap min-w-[154px]">
+                          Days before appointment:
+                        </Label>
+                        <Input
+                          id="reminder_days"
+                          type="number"
+                          min="0"
+                          value={formData.reminder_days_before}
+                          onChange={(e) => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 0 }))}
+                          className="h-8 w-20"
+                        />
+                        {reminderInfo && (
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="text-sm text-gray-500">Send Date:</span>
+                            <Input 
+                              readOnly 
+                              value={reminderInfo.displayDate} 
+                              className={`h-8 w-32 ${reminderInfo.isPast ? 'text-red-600 border-red-300 bg-red-50' : 'bg-gray-50'}`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {reminderInfo?.isPast && (
+                        <div className="flex items-start gap-2 p-2 bg-red-50 text-red-700 text-sm rounded border border-red-200">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <p>
+                            The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
