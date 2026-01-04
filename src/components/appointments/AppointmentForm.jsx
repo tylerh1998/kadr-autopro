@@ -9,10 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle, ExternalLink } from 'lucide-react';
 
 import SelectCustomerModal from './SelectCustomerModal';
 import SelectWorkOrderModal from './SelectWorkOrderModal';
+import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import { Customer, Vehicle, WorkOrder, SystemSettings } from '@/entities/all';
