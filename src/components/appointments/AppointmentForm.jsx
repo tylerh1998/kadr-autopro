@@ -242,6 +242,9 @@ export default function AppointmentForm({
       if (appointment) {
         // Editing existing appointment - load vehicles first if there's a customer
         const loadAppointmentData = async () => {
+          // Get customer for autofill
+          const customer = customers?.find(c => c.id === appointment.customer_id);
+
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
             try {
@@ -270,8 +273,10 @@ export default function AppointmentForm({
             status: appointment.status || 'Scheduled',
             reminders_email: appointment.reminders_email || false,
             reminders_text: appointment.reminders_text || false,
-            reminder_email_address: appointment.reminder_email_address || '',
-            reminders_phone: appointment.reminders_phone ? appointment.reminders_phone.replace(/^\+1/, '') : '',
+            reminder_email_address: appointment.reminder_email_address || customer?.email || '',
+            reminders_phone: appointment.reminders_phone 
+              ? appointment.reminders_phone.replace(/^\+1/, '') 
+              : (customer?.phone ? customer.phone.replace(/[^0-9]/g, '') : ''),
             reminder_days_before: appointment.reminder_days_before || 1,
           });
         };
