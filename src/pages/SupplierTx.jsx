@@ -553,20 +553,35 @@ export default function SupplierTxPage() {
                 }
 
                 if (updatedLine.gst_override) {
-                    // Manual GST mode - charge and gst are independent, line_total is their sum
-                    updatedLine[field] = value; // Store the raw input for charge/gst
-                    
-                    // Always recalculate line_total based on current charge and gst values
-                    const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-                    const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
-                    
-                    if (!isNaN(numericCharge) && !isNaN(numericGst)) {
-                        updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
-                    } else if (updatedLine.charge === '' || updatedLine.gst === '') {
-                        updatedLine.line_total = 0; // If either is empty, line total can be 0
-                    }
-                    else {
-                        updatedLine.line_total = 'Error';
+                    // Manual GST mode
+                    if (field === 'line_total') {
+                        updatedLine.line_total = value;
+                        const numericTotal = parseFloat(value);
+                        
+                        if (!isNaN(numericTotal)) {
+                            // Reverse calculate Charge = Total - GST
+                            // Use 0 if GST is not a valid number
+                            const currentGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0);
+                            updatedLine.charge = Math.round((numericTotal - currentGst) * 100) / 100;
+                        } else if (value === '' || value === '-') {
+                            updatedLine.charge = 0;
+                        } else {
+                            updatedLine.charge = 'Error';
+                        }
+                    } else {
+                        updatedLine[field] = value; // Store the raw input for charge/gst
+                        
+                        // Recalculate line_total based on current charge and gst values
+                        const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+                        const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
+                        
+                        if (!isNaN(numericCharge) && !isNaN(numericGst)) {
+                            updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
+                        } else if (updatedLine.charge === '' || updatedLine.gst === '') {
+                            updatedLine.line_total = 0;
+                        } else {
+                            updatedLine.line_total = 'Error';
+                        }
                     }
                 } else {
                     // Automatic GST calculation mode (existing logic)
@@ -696,27 +711,30 @@ export default function SupplierTxPage() {
                     const updatedLine = { ...line };
 
                     if (updatedLine.gst_override) {
-                        // Manual GST mode - only round the value, don't recalculate (except for line_total sum)
-                        if (field === 'charge') {
-                            updatedLine.charge = roundedValue;
-                        } else if (field === 'gst') {
-                            updatedLine.gst = roundedValue;
-                        } else if (field === 'line_total') {
-                            // In override mode, line_total is always derived.
-                            // If user tries to manually blur line_total, it will be immediately recalculated.
-                            // The field itself is disabled for input, but this handles potential edge cases.
-                        }
-
-                        // Recalculate line_total as sum after potential field change
-                        const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-                        const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
-
-                        if (!isNaN(numericCharge) && !isNaN(numericGst)) {
-                            updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
-                        } else if (updatedLine.charge === '' || updatedLine.gst === '') {
-                             updatedLine.line_total = 0;
+                        // Manual GST mode
+                        if (field === 'line_total') {
+                            updatedLine.line_total = roundedValue;
+                            // Reverse calculate Charge = Total - GST
+                            const currentGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0);
+                            updatedLine.charge = Math.round((roundedValue - currentGst) * 100) / 100;
                         } else {
-                            updatedLine.line_total = 'Error';
+                            if (field === 'charge') {
+                                updatedLine.charge = roundedValue;
+                            } else if (field === 'gst') {
+                                updatedLine.gst = roundedValue;
+                            }
+
+                            // Recalculate line_total as sum
+                            const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+                            const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
+
+                            if (!isNaN(numericCharge) && !isNaN(numericGst)) {
+                                updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
+                            } else if (updatedLine.charge === '' || updatedLine.gst === '') {
+                                 updatedLine.line_total = 0;
+                            } else {
+                                updatedLine.line_total = 'Error';
+                            }
                         }
                     } else {
                         // Automatic GST calculation mode (existing logic)
@@ -1574,8 +1592,11 @@ export default function SupplierTxPage() {
                                                                 <Input 
                                                                     type="text"
                                                                     value={typeof line.line_total === 'number' ? line.line_total.toFixed(2) : line.line_total || ''} 
-                                                                    className={`text-right bg-slate-100 ${line.line_total === 'Error' ? 'text-red-600' : ''} cursor-default`}
-                                                                    readOnly
+                                                                    onChange={(e) => !isDisabled && handleLineChange(line.id, 'line_total', e.target.value)}
+                                                                    onBlur={(e) => !isDisabled && handleValueBlur(line.id, 'line_total', e.target.value)}
+                                                                    onFocus={() => setSelectedLineId(line.id)}
+                                                                    className={`text-right ${line.line_total === 'Error' ? 'text-red-600 border-red-300' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}
+                                                                    readOnly={isDisabled || line.inventory}
                                                                 />
                                                             </TableCell>
                                                             <TableCell>
