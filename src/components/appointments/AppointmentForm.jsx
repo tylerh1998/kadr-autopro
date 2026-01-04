@@ -399,6 +399,16 @@ export default function AppointmentForm({
       }
     }
 
+    // Check for past reminder warning
+    if (reminderInfo?.isPast) {
+      const confirmed = window.confirm(
+          "The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.\n\nDo you want to proceed anyway?"
+      );
+      if (!confirmed) {
+          return;
+      }
+    }
+
     // Format phone number with +1 prefix if it exists
     const submissionData = { ...formData };
     if (submissionData.reminders_phone) {
