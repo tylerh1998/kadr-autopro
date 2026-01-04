@@ -248,8 +248,21 @@ export default function AppointmentForm({
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
             try {
-              const allVehicles = await Vehicle.list();
+              let allVehicles = vehicles;
+              if (!allVehicles || allVehicles.length === 0) {
+                 allVehicles = await Vehicle.list();
+              }
+              
               const customerVehicles = allVehicles.filter(v => v.customer_id === appointment.customer_id);
+
+              // Ensure the selected vehicle is in the list even if data is inconsistent
+              if (appointment.vehicle_id && !customerVehicles.find(v => v.id === appointment.vehicle_id)) {
+                  const missingVehicle = allVehicles.find(v => v.id === appointment.vehicle_id);
+                  if (missingVehicle) {
+                      customerVehicles.push(missingVehicle);
+                  }
+              }
+
               setAvailableVehicles(customerVehicles || []);
             } catch (error) {
               console.error('Error loading vehicles:', error);
