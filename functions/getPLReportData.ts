@@ -156,12 +156,31 @@ Deno.serve(async (req) => {
 
     roots.forEach(transformNode);
 
-    // Filter and separate into Revenue and Expense roots
-    // We want roots that are of the correct type AND (have non-zero total OR have activity)
-    const hasActivity = (node) => Math.abs(node.total_amount) > 0.001 || node.transactionCount > 0 || (node.children && node.children.some(hasActivity));
+    // Recursive filter function to remove nodes with no balance/activity/children
+    const filterHierarchy = (nodes) => {
+      return nodes.reduce((acc, node) => {
+        // Recursive step: filter children first
+        if (node.children && node.children.length > 0) {
+          node.children = filterHierarchy(node.children);
+        }
 
-    const revenueData = roots.filter(r => r.account_type === 'Revenue' && hasActivity(r));
-    const expenseData = roots.filter(r => r.account_type === 'Expense' && hasActivity(r));
+        // Check if node should be kept
+        // It should be kept if it has a non-zero balance (amount), 
+        // OR it has transaction count (activity this period),
+        // OR it has remaining children.
+        const hasBalance = Math.abs(node.amount) > 0.001;
+        const hasActivity = node.transactionCount > 0;
+        const hasChildren = node.children && node.children.length > 0;
+
+        if (hasBalance || hasActivity || hasChildren) {
+          acc.push(node);
+        }
+        return acc;
+      }, []);
+    };
+
+    const revenueData = filterHierarchy(roots.filter(r => r.account_type === 'Revenue'));
+    const expenseData = filterHierarchy(roots.filter(r => r.account_type === 'Expense'));
 
     // Sort roots
     revenueData.sort((a, b) => a.account_number.localeCompare(b.account_number));
