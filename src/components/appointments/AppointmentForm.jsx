@@ -177,21 +177,14 @@ export default function AppointmentForm({
   }, [customers]); // Depend on customers to find the correct email
 
 
-  // Reset form when modal opens/closes or appointment changes
+  // Reset form when modal opens or selected appointment changes
   useEffect(() => {
-    console.log('=== AppointmentForm: useEffect triggered ===');
-    console.log('open:', open);
-    console.log('appointment prop:', appointment);
-    console.log('appointment.id:', appointment?.id);
-    console.log('slotInfo:', slotInfo);
-    console.log('workOrderForNew:', workOrderForNew);
-    console.log('customerForNew:', customerForNew);
-    console.log('vehicleForNew:', vehicleForNew);
-    
+    // Only run initialization logic when the modal opens or the specific item being edited changes
+    // NOT when background data (like customers list) refreshes
     if (open) {
-      setLocalWorkOrder(null);
+      // NOTE: We do NOT reset localWorkOrder here, so that if we just created one, it persists through re-renders
+      
       if (appointment) {
-        console.log('AppointmentForm: EDITING MODE - appointment.id exists:', appointment.id);
         // Editing existing appointment - load vehicles first if there's a customer
         const loadAppointmentData = async () => {
           // First, load vehicles if there's a customer
@@ -208,26 +201,24 @@ export default function AppointmentForm({
             setAvailableVehicles([]);
           }
 
-          // Then set form data - wrapped in setTimeout to ensure state updates complete
-          setTimeout(() => {
-            setFormData({
-              title: appointment.title || '',
-              notes: appointment.notes || '',
-              start_time: appointment.start_time || '',
-              end_time: appointment.end_time || '',
-              bay: appointment.bay || '',
-              employee_id: appointment.employee_id || '',
-              work_order_id: appointment.work_order_id || '',
-              customer_id: appointment.customer_id || '',
-              vehicle_id: appointment.vehicle_id || '',
-              status: appointment.status || 'Scheduled',
-              reminders_email: appointment.reminders_email || false,
-              reminders_text: appointment.reminders_text || false,
-              reminder_email_address: appointment.reminder_email_address || '',
-              reminders_phone: appointment.reminders_phone ? appointment.reminders_phone.replace(/^\+1/, '') : '',
-              reminder_days_before: appointment.reminder_days_before || 1,
-            });
-          }, 100);
+          // Then set form data
+          setFormData({
+            title: appointment.title || '',
+            notes: appointment.notes || '',
+            start_time: appointment.start_time || '',
+            end_time: appointment.end_time || '',
+            bay: appointment.bay || '',
+            employee_id: appointment.employee_id || '',
+            work_order_id: appointment.work_order_id || '',
+            customer_id: appointment.customer_id || '',
+            vehicle_id: appointment.vehicle_id || '',
+            status: appointment.status || 'Scheduled',
+            reminders_email: appointment.reminders_email || false,
+            reminders_text: appointment.reminders_text || false,
+            reminder_email_address: appointment.reminder_email_address || '',
+            reminders_phone: appointment.reminders_phone ? appointment.reminders_phone.replace(/^\+1/, '') : '',
+            reminder_days_before: appointment.reminder_days_before || 1,
+          });
         };
 
         loadAppointmentData();
@@ -252,29 +243,27 @@ export default function AppointmentForm({
             setAvailableVehicles([]);
           }
 
-          // Get customer for email
+          // Get customer for email (using customers from closure when effect runs)
           const customer = customers?.find(c => c.id === customerId);
 
           // Set form data with pre-filled information
-          setTimeout(() => {
-            setFormData({
-              title: '',
-              notes: '',
-              start_time: slotInfo?.start?.toISOString() || '',
-              end_time: slotInfo?.end?.toISOString() || '',
-              bay: slotInfo?.bay || '',
-              employee_id: '',
-              work_order_id: workOrderId || '',
-              customer_id: customerId || '',
-              vehicle_id: vehicleId || '',
-              status: 'Scheduled',
-              reminders_email: false,
-              reminders_text: false,
-              reminder_email_address: customer?.email || '',
-              reminders_phone: customer?.phone ? customer.phone.replace(/[^0-9]/g, '') : '',
-              reminder_days_before: 1,
-            });
-          }, 100);
+          setFormData({
+            title: '',
+            notes: '',
+            start_time: slotInfo?.start?.toISOString() || '',
+            end_time: slotInfo?.end?.toISOString() || '',
+            bay: slotInfo?.bay || '',
+            employee_id: '',
+            work_order_id: workOrderId || '',
+            customer_id: customerId || '',
+            vehicle_id: vehicleId || '',
+            status: 'Scheduled',
+            reminders_email: false,
+            reminders_text: false,
+            reminder_email_address: customer?.email || '',
+            reminders_phone: customer?.phone ? customer.phone.replace(/[^0-9]/g, '') : '',
+            reminder_days_before: 1,
+          });
         };
 
         loadNewAppointmentData();
@@ -320,7 +309,8 @@ export default function AppointmentForm({
         setAvailableVehicles([]);
       }
     }
-  }, [open, appointment, slotInfo, workOrderForNew, customerForNew, vehicleForNew, customers]); // Added new props and customers to dependency array
+    // Removing customers from dependency array to prevent form reset when data refreshes
+  }, [open, appointment?.id, slotInfo, workOrderForNew?.id, customerForNew?.id, vehicleForNew?.id]); // Added new props and customers to dependency array
 
   const handleFormSubmit = (e) => { // Renamed to avoid conflict with prop onSubmit
     e.preventDefault();
