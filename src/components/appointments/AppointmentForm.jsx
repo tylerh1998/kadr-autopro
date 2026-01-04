@@ -528,6 +528,10 @@ export default function AppointmentForm({
 
       const createdWO = await WorkOrder.create(newWorkOrder);
       
+      if (onDataRefresh) {
+        await onDataRefresh();
+      }
+
       // Attach to appointment
       setFormData(prev => ({ ...prev, work_order_id: createdWO.id }));
       

@@ -65,12 +65,14 @@ export default function SchedulePage() {
   };
 
   const loadCustomersAndVehicles = useCallback(async () => {
-    const [customersData, vehiclesData] = await Promise.all([
+    const [customersData, vehiclesData, workOrdersData] = await Promise.all([
       Customer.list(),
       Vehicle.list(),
+      WorkOrder.list(),
     ]);
     setCustomers(customersData);
     setVehicles(vehiclesData);
+    setWorkOrders(workOrdersData);
   }, []);
 
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
