@@ -97,6 +97,37 @@ export default function BalanceSheetPage() {
     }
   };
 
+  const AccountRow = ({ account, level = 0, colorClass = 'text-slate-900' }) => (
+    <>
+      <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
+        <div style={{ paddingLeft: `${level * 24}px` }}>
+          <span className={`text-slate-900 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
+            {account.account_number}
+          </span>
+          <span className={`text-slate-600 ml-2 ${account.is_synthetic ? 'italic' : ''}`}>
+            {account.account_name}
+          </span>
+          {!account.is_synthetic && (
+            <span className="text-xs text-slate-400 ml-2">
+              ({account.transactionCount} txs{account.children && account.children.length > 0 ? ` + ${account.children.length} sub` : ''})
+            </span>
+          )}
+        </div>
+        <div className={`text-right ${level === 0 ? 'font-bold' : 'font-semibold'} ${colorClass}`}>
+          ${account.balance.toFixed(2)}
+        </div>
+      </div>
+      {account.children && account.children.map((child) => (
+        <AccountRow 
+          key={child.is_synthetic ? `${child.account_number}-synthetic` : child.account_number} 
+          account={child} 
+          level={level + 1}
+          colorClass={colorClass}
+        />
+      ))}
+    </>
+  );
+
   return (
     <>
       {/* Print Styles */}
@@ -329,16 +360,7 @@ export default function BalanceSheetPage() {
                   {reportData.assets.length > 0 ? (
                     <div>
                       {reportData.assets.map((account) => (
-                        <div key={account.account_number} className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
-                          <div>
-                            <span className="font-medium text-slate-900">{account.account_number}</span>
-                            <span className="text-slate-600 ml-2">{account.account_name}</span>
-                            <span className="text-xs text-slate-400 ml-2">({account.transactionCount} transactions)</span>
-                          </div>
-                          <div className="text-right font-semibold text-blue-700">
-                            ${account.balance.toFixed(2)}
-                          </div>
-                        </div>
+                        <AccountRow key={account.account_number} account={account} colorClass="text-blue-700" />
                       ))}
                       <div className="flex justify-between items-center p-4 bg-blue-50 border-t-2 border-blue-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Assets</span>
@@ -368,16 +390,7 @@ export default function BalanceSheetPage() {
                   {reportData.liabilities.length > 0 ? (
                     <div>
                       {reportData.liabilities.map((account) => (
-                        <div key={account.account_number} className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
-                          <div>
-                            <span className="font-medium text-slate-900">{account.account_number}</span>
-                            <span className="text-slate-600 ml-2">{account.account_name}</span>
-                            <span className="text-xs text-slate-400 ml-2">({account.transactionCount} transactions)</span>
-                          </div>
-                          <div className="text-right font-semibold text-red-700">
-                            ${account.balance.toFixed(2)}
-                          </div>
-                        </div>
+                        <AccountRow key={account.account_number} account={account} colorClass="text-red-700" />
                       ))}
                       <div className="flex justify-between items-center p-4 bg-red-50 border-t-2 border-red-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Liabilities</span>
@@ -407,16 +420,7 @@ export default function BalanceSheetPage() {
                   {reportData.equity.length > 0 ? (
                     <div>
                       {reportData.equity.map((account) => (
-                        <div key={account.account_number} className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
-                          <div>
-                            <span className="font-medium text-slate-900">{account.account_number}</span>
-                            <span className="text-slate-600 ml-2">{account.account_name}</span>
-                            <span className="text-xs text-slate-400 ml-2">({account.transactionCount} transactions)</span>
-                          </div>
-                          <div className="text-right font-semibold text-purple-700">
-                            ${account.balance.toFixed(2)}
-                          </div>
-                        </div>
+                        <AccountRow key={account.account_number} account={account} colorClass="text-purple-700" />
                       ))}
                       <div className="flex justify-between items-center p-4 bg-purple-50 border-t-2 border-purple-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Equity</span>

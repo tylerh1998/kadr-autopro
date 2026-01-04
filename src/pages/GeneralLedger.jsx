@@ -38,24 +38,101 @@ export default function GeneralLedgerPage() {
         return txDate >= start && txDate <= end;
       });
 
-      // Calculate balances for each account
-      const balances = {};
+      // --- Build Hierarchy & Calculate Totals (Client-Side) ---
+
+      // 1. Initialize Nodes
+      const accountMap = {};
       activeAccounts.forEach(account => {
+        // Find own transactions
         const accountTxs = filteredTransactions.filter(
           tx => tx.account_number === account.account_number
         );
         
-        const balance = accountTxs.reduce((sum, tx) => {
-          return sum + (tx.debit_amount || 0) - (tx.credit_amount || 0);
-        }, 0);
+        // Calculate basic Dr-Cr
+        const drMinusCr = accountTxs.reduce((sum, tx) => sum + (tx.debit_amount || 0) - (tx.credit_amount || 0), 0);
 
-        balances[account.account_number] = {
-          balance: balance,
+        // Determine Sign based on Type
+        let ownBalance = 0;
+        if (['Asset', 'Expense'].includes(account.account_type)) {
+           ownBalance = drMinusCr;
+        } else {
+           ownBalance = -drMinusCr; // Cr - Dr
+        }
+
+        accountMap[account.account_number] = {
+          ...account,
+          children: [],
+          own_balance: ownBalance,
+          total_balance: 0, // Will be calculated
           transactionCount: accountTxs.length
         };
       });
 
-      setAccountBalances(balances);
+      // 2. Build Tree
+      const roots = [];
+      Object.values(accountMap).forEach(node => {
+        if (node.parent_account && accountMap[node.parent_account]) {
+          accountMap[node.parent_account].children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+
+      // 3. Recursive Totals
+      const calculateTotals = (node) => {
+        let childTotal = 0;
+        node.children.forEach(child => {
+          childTotal += calculateTotals(child);
+        });
+        node.total_balance = node.own_balance + childTotal;
+        return node.total_balance;
+      };
+      roots.forEach(root => calculateTotals(root));
+
+      // 4. Transform (Synthetic nodes & Sorting)
+      const transformNode = (node) => {
+        node.children.sort((a, b) => a.account_number.localeCompare(b.account_number));
+        node.children.forEach(transformNode);
+
+        if (node.children.length > 0 && Math.abs(node.own_balance) > 0.001) {
+           const syntheticChild = {
+             ...node,
+             account_name: `${node.account_name} (Direct)`,
+             total_balance: node.own_balance, // For display, this child holds the own balance
+             transactionCount: node.transactionCount,
+             children: [],
+             is_synthetic: true,
+             id: `${node.id}-synthetic` // Ensure unique ID
+           };
+           node.children.unshift(syntheticChild);
+        }
+      };
+      roots.forEach(transformNode);
+
+      // 5. Update State (No Filtering!)
+      // We need to pass the hierarchical 'roots' to the view, but the current view expects a flat list to group.
+      // Actually, we should probably group the ROOTS by type, and then render hierarchically.
+      
+      // Update accountBalances map for easy lookup in the view (mapped to total_balance now)
+      const newBalances = {};
+      
+      // Helper to populate balances map from tree
+      const populateBalances = (nodes) => {
+        nodes.forEach(node => {
+          newBalances[node.account_number] = {
+            balance: node.total_balance,
+            transactionCount: node.transactionCount
+          };
+          if (node.children) populateBalances(node.children);
+        });
+      };
+      populateBalances(roots);
+      
+      setAccountBalances(newBalances);
+
+      // We replace the flat 'accounts' state with 'roots' so the grouping logic works on top-level accounts
+      setAccounts(roots);
+
     } catch (error) {
       console.error('Error loading general ledger data:', error);
     } finally {
@@ -101,6 +178,75 @@ export default function GeneralLedgerPage() {
   const sortedGroups = Object.keys(groupedAccounts).sort((a, b) => {
     return accountTypeOrder.indexOf(a) - accountTypeOrder.indexOf(b);
   });
+
+  // Recursive component for account row
+  const AccountRow = ({ account, level = 0, accountBalances, onAccountClick }) => {
+    const accountData = accountBalances[account.account_number] || { balance: 0, transactionCount: 0 };
+    const hasChildren = account.children && account.children.length > 0;
+    
+    // If calculating totals recursively, use the 'total_balance' property from the hierarchy build
+    // But since accountBalances is passed separately, we should use that if available. 
+    // Wait, accountBalances comes from the hierarchy calculation below now.
+    
+    return (
+      <React.Fragment>
+        <tr 
+          className="border-b hover:bg-slate-50 cursor-pointer"
+          onClick={() => onAccountClick(account.account_number)}
+        >
+          <td className="p-3 font-mono text-sm" style={{ paddingLeft: `${12 + level * 24}px` }}>
+            {account.account_number}
+          </td>
+          <td className="p-3">
+            <div>
+              <span className={`text-slate-900 ${level === 0 ? 'font-medium' : ''} ${account.is_synthetic ? 'italic' : ''}`}>
+                {account.account_name}
+              </span>
+              {!account.is_synthetic && account.description && (
+                <p className="text-xs text-slate-500">{account.description}</p>
+              )}
+            </div>
+          </td>
+          <td className="p-3 text-right font-semibold">
+            <span className={accountData.balance !== 0 ? 'text-slate-900' : 'text-slate-400'}>
+              ${Math.abs(accountData.balance).toFixed(2)}
+              {accountData.balance < 0 && <span className="text-red-600 ml-1">CR</span>}
+              {accountData.balance > 0 && <span className="text-blue-600 ml-1">DR</span>}
+            </span>
+          </td>
+          <td className="p-3 text-center">
+             {!account.is_synthetic && (
+                <Badge variant="outline">{accountData.transactionCount}</Badge>
+             )}
+          </td>
+          <td className="p-3 text-center">
+            {!account.is_synthetic && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAccountClick(account.account_number);
+                }}
+              >
+                <FileText className="w-4 h-4 mr-1" />
+                View
+              </Button>
+            )}
+          </td>
+        </tr>
+        {hasChildren && account.children.map(child => (
+          <AccountRow 
+            key={child.is_synthetic ? `${child.account_number}-synthetic` : child.id} 
+            account={child} 
+            level={level + 1} 
+            accountBalances={accountBalances}
+            onAccountClick={onAccountClick}
+          />
+        ))}
+      </React.Fragment>
+    );
+  };
 
   return (
     <div className="p-6 min-h-screen">
@@ -286,49 +432,14 @@ export default function GeneralLedgerPage() {
                       <tbody>
                         {groupedAccounts[accountType]
                           .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                          .map(account => {
-                            const accountData = accountBalances[account.account_number] || { balance: 0, transactionCount: 0 };
-                            return (
-                              <tr 
-                                key={account.id} 
-                                className="border-b hover:bg-slate-50 cursor-pointer"
-                                onClick={() => handleAccountClick(account.account_number)}
-                              >
-                                <td className="p-3 font-mono text-sm">{account.account_number}</td>
-                                <td className="p-3">
-                                  <div>
-                                    <span className="font-medium text-slate-900">{account.account_name}</span>
-                                    {account.description && (
-                                      <p className="text-xs text-slate-500">{account.description}</p>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="p-3 text-right font-semibold">
-                                  <span className={accountData.balance !== 0 ? 'text-slate-900' : 'text-slate-400'}>
-                                    ${Math.abs(accountData.balance).toFixed(2)}
-                                    {accountData.balance < 0 && <span className="text-red-600 ml-1">CR</span>}
-                                    {accountData.balance > 0 && <span className="text-blue-600 ml-1">DR</span>}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-center">
-                                  <Badge variant="outline">{accountData.transactionCount}</Badge>
-                                </td>
-                                <td className="p-3 text-center">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAccountClick(account.account_number);
-                                    }}
-                                  >
-                                    <FileText className="w-4 h-4 mr-1" />
-                                    View
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
+                          .map(account => (
+                            <AccountRow 
+                              key={account.id} 
+                              account={account} 
+                              accountBalances={accountBalances}
+                              onAccountClick={handleAccountClick}
+                            />
+                          ))}
                       </tbody>
                     </table>
                   </div>
