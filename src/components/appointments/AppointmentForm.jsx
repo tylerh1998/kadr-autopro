@@ -58,6 +58,45 @@ export default function AppointmentForm({
   const [showSelectWorkOrder, setShowSelectWorkOrder] = useState(false);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
+  const [reminderInfo, setReminderInfo] = useState(null);
+
+  // Calculate reminder date and status
+  useEffect(() => {
+    if (!formData.start_time || (!formData.reminders_email && !formData.reminders_text)) {
+        setReminderInfo(null);
+        return;
+    }
+
+    const mstOffset = -7 * 60 * 60 * 1000;
+    const now = new Date();
+    // Current time in MST context
+    const nowMst = new Date(now.getTime() + mstOffset);
+    
+    const appointmentDate = new Date(formData.start_time);
+    // Appointment start time in MST context
+    const appointmentMst = new Date(appointmentDate.getTime() + mstOffset);
+    
+    // Calculate reminder date
+    const reminderDateMst = new Date(appointmentMst);
+    const daysBefore = parseInt(formData.reminder_days_before) || 0; // Default to 0 if NaN, though form sets 1
+    reminderDateMst.setDate(reminderDateMst.getDate() - daysBefore);
+    
+    // Set to 8:00 AM MST on that date
+    // We use UTC methods because we shifted the time value to represent local time in UTC context
+    const cutoffMst = new Date(Date.UTC(
+        reminderDateMst.getUTCFullYear(),
+        reminderDateMst.getUTCMonth(),
+        reminderDateMst.getUTCDate(),
+        8, 0, 0
+    ));
+    
+    const isPast = nowMst > cutoffMst;
+    
+    setReminderInfo({
+        displayDate: reminderDateMst.toISOString().split('T')[0],
+        isPast
+    });
+  }, [formData.start_time, formData.reminders_email, formData.reminders_text, formData.reminder_days_before]);
 
   // Bay options with new names
   const bayOptions = ['Floor', 'Main Hoist', 'North Hoist', 'Outside', 'Other'];
