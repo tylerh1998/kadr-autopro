@@ -1221,6 +1221,16 @@ export default function AppointmentForm({
           setShowSelectWorkOrder(false);
         }}
       />
-    </>
-  );
-}
+
+      {/* WorkPRO Modal */}
+      <WorkPROModal 
+        open={showWorkPROModal}
+        onClose={() => setShowWorkPROModal(false)}
+        workOrder={selectedWorkOrder}
+        customer={selectedCustomer}
+        customers={customers}
+        vehicles={availableVehicles}
+      />
+      </>
+      );
+      }
