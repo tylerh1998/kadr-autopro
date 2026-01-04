@@ -1097,7 +1097,7 @@ export default function AppointmentForm({
                             <Input 
                               readOnly 
                               value={reminderInfo.displayDate} 
-                              className={`h-8 w-32 ${reminderInfo.isPast ? 'text-red-600 border-red-300 bg-red-50' : 'bg-gray-50'}`}
+                              className={`h-8 w-40 ${reminderInfo.isPast ? 'text-red-600 border-red-300 bg-red-50' : 'bg-gray-50'}`}
                             />
                           </div>
                         )}
