@@ -248,18 +248,18 @@ export default function AppointmentForm({
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
             try {
-              let allVehicles = vehicles;
-              if (!allVehicles || allVehicles.length === 0) {
-                 allVehicles = await Vehicle.list();
-              }
+              // Fetch vehicles specifically for this customer to avoid pagination limits
+              let customerVehicles = await Vehicle.filter({ customer_id: appointment.customer_id });
               
-              const customerVehicles = allVehicles.filter(v => v.customer_id === appointment.customer_id);
-
-              // Ensure the selected vehicle is in the list even if data is inconsistent
+              // Ensure the selected vehicle is in the list (in case it's not linked to customer correctly or other issues)
               if (appointment.vehicle_id && !customerVehicles.find(v => v.id === appointment.vehicle_id)) {
-                  const missingVehicle = allVehicles.find(v => v.id === appointment.vehicle_id);
-                  if (missingVehicle) {
-                      customerVehicles.push(missingVehicle);
+                  try {
+                      const specificVehicle = await Vehicle.get(appointment.vehicle_id);
+                      if (specificVehicle) {
+                          customerVehicles.push(specificVehicle);
+                      }
+                  } catch (e) {
+                      console.warn("Could not fetch specific vehicle", e);
                   }
               }
 
