@@ -773,24 +773,48 @@ export default function AppointmentForm({
                     </Button>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => handleCreateWorkOrder('estimate')}
-                      disabled={!formData.customer_id || !formData.vehicle_id || !!formData.work_order_id}
-                      className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
-                    >
-                      Create Estimate
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleCreateWorkOrder('work_order')}
-                      disabled={!formData.customer_id || !formData.vehicle_id || !!formData.work_order_id}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Create Work Order
-                    </Button>
+                    {formData.work_order_id ? (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={() => setShowWorkPROModal(true)}
+                          className="flex-1 bg-black hover:bg-slate-800 text-white"
+                        >
+                          Open WorkPRO
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const url = `/WorkOrderEdit?id=${selectedWorkOrder?.ro_number}`;
+                            window.open(url, '_blank', 'width=1600,height=1000,scrollbars=yes,resizable=yes');
+                          }}
+                          className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                          Open Work Order
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={() => handleCreateWorkOrder('estimate')}
+                          disabled={!formData.customer_id || !formData.vehicle_id}
+                          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          Create Estimate
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleCreateWorkOrder('work_order')}
+                          disabled={!formData.customer_id || !formData.vehicle_id}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Create Work Order
+                        </Button>
+                      </>
+                    )}
                   </div>
-                </div>
+                  </div>
 
                 {/* Bay Selection - Modern Toggle */}
                 <div className="space-y-2">
