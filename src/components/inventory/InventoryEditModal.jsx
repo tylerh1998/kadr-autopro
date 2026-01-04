@@ -92,25 +92,24 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     // Effect to load data when the modal opens
     useEffect(() => {
         if (open) {
+            const loadData = async () => {
+                try {
+                    // Always load tag alongs
+                    const tagAlongsData = await TagAlong.list();
+                    setTagAlongs(tagAlongsData);
+        
+                    // Only load categories if not provided via props
+                    if (!propInventoryCategories || propInventoryCategories.length === 0) {
+                        const categoriesData = await InventoryCategory.list();
+                        setInternalCategories(categoriesData);
+                    }
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                }
+            };
             loadData();
         }
     }, [open, propInventoryCategories]);
-
-    const loadData = async () => {
-        try {
-            const tagAlongsData = await TagAlong.list();
-            setTagAlongs(tagAlongsData);
-
-            if (propInventoryCategories) {
-                setInventoryCategories(propInventoryCategories);
-            } else {
-                const categoriesData = await InventoryCategory.list();
-                setInventoryCategories(categoriesData);
-            }
-        } catch (error) {
-            console.error('Error loading data:', error);
-        }
-    };
 
     useEffect(() => {
         if (open && item) {
