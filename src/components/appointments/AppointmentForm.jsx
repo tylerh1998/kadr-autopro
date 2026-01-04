@@ -144,7 +144,8 @@ export default function AppointmentForm({
           ...prev,
           customer_id: customerId,
           // Update email address, or fall back to previous if customer has none
-          reminder_email_address: customer.email || prev.reminder_email_address, 
+          reminder_email_address: customer.email || prev.reminder_email_address,
+          reminders_phone: customer.phone ? customer.phone.replace(/[^0-9]/g, '') : prev.reminders_phone,
           // If a vehicle was previously selected, ensure it belongs to the new customer, otherwise clear it.
           vehicle_id: customerVehicles.some(v => v.id === prev.vehicle_id) ? prev.vehicle_id : '',
         }));
@@ -1095,8 +1096,8 @@ export default function AppointmentForm({
                             const val = e.target.value.replace(/[^0-9]/g, '');
                             setFormData(prev => ({ ...prev, reminders_phone: val }));
                           }}
-                          placeholder="5551234567"
-                          className="h-8 flex-1"
+                          placeholder=""
+                          className={`h-8 flex-1 ${(!formData.reminders_phone || formData.reminders_phone.length < 10) ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                           maxLength={10}
                         />
                       </div>
