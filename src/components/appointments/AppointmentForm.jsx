@@ -140,24 +140,29 @@ export default function AppointmentForm({
         const customerVehicles = allVehicles.filter(v => v.customer_id === customerId);
         setAvailableVehicles(customerVehicles || []);
         
-        setFormData(prev => ({
-          ...prev,
-          customer_id: customerId,
-          // Update email address, or fall back to previous if customer has none
-          reminder_email_address: customer.email || prev.reminder_email_address,
-          reminders_phone: customer.phone ? customer.phone.replace(/[^0-9]/g, '') : prev.reminders_phone,
-          // If a vehicle was previously selected, ensure it belongs to the new customer, otherwise clear it.
-          vehicle_id: customerVehicles.some(v => v.id === prev.vehicle_id) ? prev.vehicle_id : '',
-        }));
+        setTimeout(() => {
+          setFormData(prev => ({
+            ...prev,
+            customer_id: customerId,
+            // Update email address, or fall back to previous if customer has none
+            reminder_email_address: customer.email || prev.reminder_email_address,
+            reminders_phone: customer.phone ? customer.phone.replace(/[^0-9]/g, '') : prev.reminders_phone,
+            // If a vehicle was previously selected, ensure it belongs to the new customer, otherwise clear it.
+            vehicle_id: customerVehicles.some(v => v.id === prev.vehicle_id) ? prev.vehicle_id : '',
+          }));
+        }, 0);
       } catch (error) {
         console.error('Error loading vehicles:', error);
         setAvailableVehicles([]);
-        setFormData(prev => ({
-            ...prev,
-            customer_id: customerId,
-            reminder_email_address: customer.email || prev.reminder_email_address, // Keep previous email if new customer has none
-            vehicle_id: '', // Clear vehicle on error loading them
-        }));
+        setTimeout(() => {
+          setFormData(prev => ({
+              ...prev,
+              customer_id: customerId,
+              reminder_email_address: customer.email || prev.reminder_email_address, // Keep previous email if new customer has none
+              reminders_phone: customer.phone ? customer.phone.replace(/[^0-9]/g, '') : prev.reminders_phone,
+              vehicle_id: '', // Clear vehicle on error loading them
+          }));
+        }, 0);
       }
     } else {
       // If customer is unselected or not found, clear customer/vehicle related fields
