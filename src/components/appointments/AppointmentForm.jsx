@@ -57,6 +57,7 @@ export default function AppointmentForm({
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showSelectWorkOrder, setShowSelectWorkOrder] = useState(false);
+  const [showWorkPROModal, setShowWorkPROModal] = useState(false);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
   const [reminderInfo, setReminderInfo] = useState(null);
