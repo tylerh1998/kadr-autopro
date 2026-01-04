@@ -52,6 +52,11 @@ export default function AppointmentForm({
   });
 
   const [availableVehicles, setAvailableVehicles] = useState([]);
+
+  // Debug log for availableVehicles changes
+  useEffect(() => {
+    if (open) console.log('[DEBUG] availableVehicles state updated:', availableVehicles.length, availableVehicles);
+  }, [availableVehicles, open]);
   const [localWorkOrder, setLocalWorkOrder] = useState(null);
   const [showSelectCustomer, setShowSelectCustomer] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
@@ -232,6 +237,13 @@ export default function AppointmentForm({
     // Only run initialization logic when the modal opens or the specific item being edited changes
     // NOT when background data (like customers list) refreshes
     if (open) {
+      console.log('[DEBUG] AppointmentForm open effect', { 
+        appointmentId: appointment?.id,
+        customerId: appointment?.customer_id,
+        vehicleId: appointment?.vehicle_id,
+        vehiclesPropCount: vehicles?.length
+      });
+
       // NOTE: We do NOT reset localWorkOrder here, so that if we just created one, it persists through re-renders
       
       if (appointment) {
@@ -242,19 +254,35 @@ export default function AppointmentForm({
 
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
-            // Optimistically set from props first to ensure immediate UI availability
+            console.log('[DEBUG] Loading vehicles for customer:', appointment.customer_id);
+            
+            // Optimistically set from props first
             const propVehicles = vehicles?.filter(v => v.customer_id === appointment.customer_id) || [];
+            console.log('[DEBUG] Optimistic prop vehicles:', propVehicles.length);
+            
+            if (appointment.vehicle_id) {
+                const foundInProps = propVehicles.find(v => v.id === appointment.vehicle_id);
+                console.log('[DEBUG] Target vehicle', appointment.vehicle_id, 'found in props:', !!foundInProps);
+            }
+
             setAvailableVehicles(propVehicles);
 
-            // Then fetch from server to ensure complete list and update asynchronously
+            // Then fetch from server
             Vehicle.filter({ customer_id: appointment.customer_id })
               .then(serverVehicles => {
+                 console.log('[DEBUG] Server vehicles fetched:', serverVehicles?.length);
                  setAvailableVehicles(serverVehicles || []);
+                 
+                 if (appointment.vehicle_id) {
+                     const foundInServer = serverVehicles?.find(v => v.id === appointment.vehicle_id);
+                     console.log('[DEBUG] Target vehicle found in server list:', !!foundInServer);
+                 }
               })
               .catch(error => {
-                 console.error('Error loading vehicles:', error);
+                 console.error('[DEBUG] Error loading vehicles:', error);
               });
           } else {
+            console.log('[DEBUG] No customer_id, clearing vehicles');
             setAvailableVehicles([]);
           }
 
