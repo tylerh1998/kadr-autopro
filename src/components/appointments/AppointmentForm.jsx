@@ -15,7 +15,7 @@ import SelectCustomerModal from './SelectCustomerModal';
 import SelectWorkOrderModal from './SelectWorkOrderModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
-import { Customer, Vehicle, WorkOrder } from '@/entities/all';
+import { Customer, Vehicle, WorkOrder, SystemSettings } from '@/entities/all';
 
 export default function AppointmentForm({
   open,
@@ -472,20 +472,45 @@ export default function AppointmentForm({
     }
   };
 
-  const generateWorkOrderNumbers = (stage) => {
-    const now = new Date();
-    const timestamp = now.getTime().toString().slice(-6);
-    const randomString = Math.random().toString(36).substring(2, 12).toUpperCase();
+  const generateRandomString = (length) => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const generateWorkOrderNumbers = async (stage) => {
+    // Fetch next RO number from SystemSettings
+    const settings = await SystemSettings.list();
+    const systemSettings = settings && settings.length > 0 ? settings[0] : null;
+    
+    const nextRo = systemSettings?.next_ro_number || 1001;
+    
+    // Increment and save back to SystemSettings
+    if (systemSettings) {
+      await SystemSettings.update(systemSettings.id, {
+        next_ro_number: nextRo + 1
+      });
+    } else {
+      await SystemSettings.create({
+        next_ro_number: nextRo + 1
+      });
+    }
 
     const numbers = {
-      ro_number: `RO${timestamp}`,
-      cp_id: randomString,
+      ro_number: `RO${nextRo}`,
+      cp_id: generateRandomString(10),
     };
 
-    if (stage === 'estimate') {
-      numbers.est_number = `EST${timestamp}`;
-    } else if (stage === 'work_order') {
-      numbers.wo_number = `WO${timestamp}`;
+    switch(stage) {
+      case 'estimate':
+        numbers.est_number = `EST${nextRo}`;
+        break;
+      case 'work_order':
+        numbers.wo_number = `WO${nextRo}`;
+        break;
     }
 
     return numbers;
@@ -498,7 +523,11 @@ export default function AppointmentForm({
     }
 
     try {
-      const numbers = generateWorkOrderNumbers(stage);
+      const numbers = await generateWorkOrderNumbers(stage);
+      
+      // Get selected customer to check default taxable status
+      const customer = customers?.find(c => c.id === formData.customer_id);
+      
       const newWorkOrder = {
         ro_number: numbers.ro_number,
         wo_number: numbers.wo_number || '',
@@ -512,6 +541,7 @@ export default function AppointmentForm({
         stage: stage,
         description: 'New Work Order',
         customer_complaint: '',
+        internal_notes: '',
         estimated_hours: null,
         labor_rate: 120,
         total_amount: 0,
@@ -524,6 +554,7 @@ export default function AppointmentForm({
         approval: 'pending',
         est_date: stage === 'estimate' ? format(new Date(), 'yyyy-MM-dd') : null,
         wo_date: stage === 'work_order' ? format(new Date(), 'yyyy-MM-dd') : null,
+        default_taxable: customer?.default_taxable || false,
       };
 
       const createdWO = await WorkOrder.create(newWorkOrder);
@@ -532,15 +563,18 @@ export default function AppointmentForm({
         await onDataRefresh();
       }
 
-      // Attach to appointment
-      setFormData(prev => ({ ...prev, work_order_id: createdWO.id }));
+      // Attach to appointment immediately
+      setFormData(prev => {
+        console.log('Setting work_order_id to:', createdWO.id);
+        return { ...prev, work_order_id: createdWO.id };
+      });
       
       // Open in new window
       const url = `/WorkOrderEdit?id=${createdWO.ro_number}`;
       window.open(url, '_blank', 'width=1600,height=1000,scrollbars=yes,resizable=yes');
     } catch (error) {
       console.error('Error creating work order:', error);
-      alert('Failed to create work order');
+      alert('Failed to create work order: ' + error.message);
     }
   };
 
