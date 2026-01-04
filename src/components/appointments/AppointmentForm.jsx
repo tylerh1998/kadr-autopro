@@ -241,31 +241,34 @@ export default function AppointmentForm({
           const customer = customers?.find(c => c.id === appointment.customer_id);
 
           // First, load vehicles if there's a customer
+          let customerVehicles = [];
           if (appointment.customer_id) {
             try {
-              // Fetch vehicles specifically for this customer to avoid pagination limits
-              let customerVehicles = await Vehicle.filter({ customer_id: appointment.customer_id });
-              
-              // Ensure the selected vehicle is in the list (in case it's not linked to customer correctly or other issues)
+              // Try to get vehicles from prop first (synchronous/fast)
+              customerVehicles = vehicles?.filter(v => v.customer_id === appointment.customer_id) || [];
+
+              // If specific vehicle is missing from prop list, try to find it in full prop list or fetch it
               if (appointment.vehicle_id && !customerVehicles.find(v => v.id === appointment.vehicle_id)) {
-                  try {
-                      const specificVehicle = await Vehicle.get(appointment.vehicle_id);
-                      if (specificVehicle) {
-                          customerVehicles.push(specificVehicle);
+                  const missingVehicle = vehicles?.find(v => v.id === appointment.vehicle_id);
+                  if (missingVehicle) {
+                      customerVehicles.push(missingVehicle);
+                  } else {
+                      // Only fetch if absolutely necessary
+                      try {
+                          const specificVehicle = await Vehicle.get(appointment.vehicle_id);
+                          if (specificVehicle) {
+                              customerVehicles.push(specificVehicle);
+                          }
+                      } catch (e) {
+                          console.warn("Could not fetch specific vehicle", e);
                       }
-                  } catch (e) {
-                      console.warn("Could not fetch specific vehicle", e);
                   }
               }
-
-              setAvailableVehicles(customerVehicles || []);
             } catch (error) {
-              console.error('Error loading vehicles:', error);
-              setAvailableVehicles([]);
+              console.error('Error processing vehicles:', error);
             }
-          } else {
-            setAvailableVehicles([]);
           }
+          setAvailableVehicles(customerVehicles);
 
           // Then set form data
           setFormData({
