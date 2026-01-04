@@ -237,13 +237,6 @@ export default function AppointmentForm({
     // Only run initialization logic when the modal opens or the specific item being edited changes
     // NOT when background data (like customers list) refreshes
     if (open) {
-      console.log('[DEBUG] AppointmentForm open effect', { 
-        appointmentId: appointment?.id,
-        customerId: appointment?.customer_id,
-        vehicleId: appointment?.vehicle_id,
-        vehiclesPropCount: vehicles?.length
-      });
-
       // NOTE: We do NOT reset localWorkOrder here, so that if we just created one, it persists through re-renders
       
       if (appointment) {
@@ -254,35 +247,19 @@ export default function AppointmentForm({
 
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
-            console.log('[DEBUG] Loading vehicles for customer:', appointment.customer_id);
-            
             // Optimistically set from props first
             const propVehicles = vehicles?.filter(v => v.customer_id === appointment.customer_id) || [];
-            console.log('[DEBUG] Optimistic prop vehicles:', propVehicles.length);
-            
-            if (appointment.vehicle_id) {
-                const foundInProps = propVehicles.find(v => v.id === appointment.vehicle_id);
-                console.log('[DEBUG] Target vehicle', appointment.vehicle_id, 'found in props:', !!foundInProps);
-            }
-
             setAvailableVehicles(propVehicles);
 
-            // Then fetch from server
+            // Then fetch from server to ensure completeness (async)
             Vehicle.filter({ customer_id: appointment.customer_id })
               .then(serverVehicles => {
-                 console.log('[DEBUG] Server vehicles fetched:', serverVehicles?.length);
                  setAvailableVehicles(serverVehicles || []);
-                 
-                 if (appointment.vehicle_id) {
-                     const foundInServer = serverVehicles?.find(v => v.id === appointment.vehicle_id);
-                     console.log('[DEBUG] Target vehicle found in server list:', !!foundInServer);
-                 }
               })
               .catch(error => {
-                 console.error('[DEBUG] Error loading vehicles:', error);
+                 console.error('Error loading vehicles:', error);
               });
           } else {
-            console.log('[DEBUG] No customer_id, clearing vehicles');
             setAvailableVehicles([]);
           }
 
@@ -763,6 +740,7 @@ export default function AppointmentForm({
                   <Label>Vehicle</Label>
                   <div className="flex gap-2">
                     <Select
+                      key={availableVehicles.length} // Force re-render when vehicles load to ensure selected value displays correctly
                       value={formData.vehicle_id}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
                       disabled={!formData.customer_id}
