@@ -68,7 +68,7 @@ export default function SchedulePage() {
     const [customersData, vehiclesData, workOrdersData] = await Promise.all([
       Customer.list(),
       Vehicle.list(),
-      WorkOrder.list(),
+      WorkOrder.list('-created_date', 100),
     ]);
     setCustomers(customersData);
     setVehicles(vehiclesData);
@@ -81,7 +81,7 @@ export default function SchedulePage() {
       const [appointmentsData, employeesData, workOrdersData, customersData, vehiclesData] = await Promise.all([
         Appointment.list(),
         Employee.list(),
-        WorkOrder.list(),
+        WorkOrder.list('-created_date', 100),
         Customer.list(),
         Vehicle.list(),
       ]);

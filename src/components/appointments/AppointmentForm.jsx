@@ -51,6 +51,7 @@ export default function AppointmentForm({
   });
 
   const [availableVehicles, setAvailableVehicles] = useState([]);
+  const [localWorkOrder, setLocalWorkOrder] = useState(null);
   const [showSelectCustomer, setShowSelectCustomer] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
@@ -75,7 +76,7 @@ export default function AppointmentForm({
   const selectedCustomer = customers?.find(c => c.id === formData.customer_id);
 
   // Get selected work order
-  const selectedWorkOrder = workOrders?.find(wo => wo.id === formData.work_order_id);
+  const selectedWorkOrder = workOrders?.find(wo => wo.id === formData.work_order_id) || (localWorkOrder?.id === formData.work_order_id ? localWorkOrder : null);
 
   // Get selected vehicle
   const selectedVehicle = availableVehicles.find(v => v.id === formData.vehicle_id);
@@ -188,6 +189,7 @@ export default function AppointmentForm({
     console.log('vehicleForNew:', vehicleForNew);
     
     if (open) {
+      setLocalWorkOrder(null);
       if (appointment) {
         console.log('AppointmentForm: EDITING MODE - appointment.id exists:', appointment.id);
         // Editing existing appointment - load vehicles first if there's a customer
@@ -558,6 +560,7 @@ export default function AppointmentForm({
       };
 
       const createdWO = await WorkOrder.create(newWorkOrder);
+      setLocalWorkOrder(createdWO);
       
       if (onDataRefresh) {
         await onDataRefresh();
