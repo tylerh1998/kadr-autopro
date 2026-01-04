@@ -136,8 +136,7 @@ export default function AppointmentForm({
     const customer = customers?.find(c => c.id === customerId);
     if (customer) {
       try {
-        const allVehicles = await Vehicle.list();
-        const customerVehicles = allVehicles.filter(v => v.customer_id === customerId);
+        const customerVehicles = await Vehicle.filter({ customer_id: customerId });
         setAvailableVehicles(customerVehicles || []);
         
         setTimeout(() => {
@@ -183,8 +182,7 @@ export default function AppointmentForm({
     // Load vehicles for the work order's customer first
     if (workOrder.customer_id) {
       try {
-        const allVehicles = await Vehicle.list();
-        const customerVehicles = allVehicles.filter(v => v.customer_id === workOrder.customer_id);
+        const customerVehicles = await Vehicle.filter({ customer_id: workOrder.customer_id });
         
         // Set available vehicles FIRST
         setAvailableVehicles(customerVehicles || []);
@@ -192,10 +190,7 @@ export default function AppointmentForm({
         // Get customer for email
         const customer = customers?.find(c => c.id === workOrder.customer_id);
         
-        // Then update form data - use setTimeout to ensure state update completes
-        // This setTimeout is to help ensure `availableVehicles` is fully updated before `formData.vehicle_id`
-        // is potentially evaluated against the new `availableVehicles` list in the UI,
-        // although React batches state updates. It fulfills the specific request from the outline.
+        // Then update form data
         setTimeout(() => {
         setFormData(prev => ({
         ...prev,
@@ -305,8 +300,7 @@ export default function AppointmentForm({
           // Load vehicles if we have a customer
           if (customerId) {
             try {
-              const allVehicles = await Vehicle.list();
-              const customerVehicles = allVehicles.filter(v => v.customer_id === customerId);
+              const customerVehicles = await Vehicle.filter({ customer_id: customerId });
               setAvailableVehicles(customerVehicles || []);
             } catch (error) {
               console.error('Error loading vehicles:', error);
@@ -493,8 +487,7 @@ export default function AppointmentForm({
       
       // Load vehicles for the new customer
       try {
-        const allVehicles = await Vehicle.list();
-        const customerVehicles = allVehicles.filter(v => v.customer_id === newCustomer.id);
+        const customerVehicles = await Vehicle.filter({ customer_id: newCustomer.id });
         setAvailableVehicles(customerVehicles || []);
       } catch (error) {
         console.error('Error loading vehicles:', error);
@@ -526,8 +519,7 @@ export default function AppointmentForm({
       
       // Update local available vehicles list
       try {
-        const allVehicles = await Vehicle.list();
-        const customerVehicles = allVehicles.filter(v => v.customer_id === formData.customer_id);
+        const customerVehicles = await Vehicle.filter({ customer_id: formData.customer_id });
         setAvailableVehicles(customerVehicles);
         
         // Auto-select the new vehicle after state update completes
