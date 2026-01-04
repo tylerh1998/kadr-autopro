@@ -102,6 +102,36 @@ export default function PLReportPage() {
     }
   };
 
+  const AccountRow = ({ account, level = 0 }) => (
+    <>
+      <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
+        <div style={{ paddingLeft: \`\${level * 24}px\` }}>
+          <span className={\`text-slate-900 \${level === 0 ? 'font-semibold' : 'font-medium'}\`}>
+            {account.account_number}
+          </span>
+          <span className={\`text-slate-600 ml-2 \${account.is_synthetic ? 'italic' : ''}\`}>
+            {account.account_name}
+          </span>
+          {!account.is_synthetic && (
+            <span className="text-xs text-slate-400 ml-2">
+              ({account.transactionCount} txs{account.children && account.children.length > 0 ? \` + \${account.children.length} sub\` : ''})
+            </span>
+          )}
+        </div>
+        <div className={\`text-right \${level === 0 ? 'font-bold' : 'font-semibold'} \${account.amount >= 0 ? (account.account_type === 'Revenue' ? 'text-green-700' : 'text-red-700') : 'text-slate-600'}\`}>
+          \${Math.abs(account.amount).toFixed(2)}
+        </div>
+      </div>
+      {account.children && account.children.map((child) => (
+        <AccountRow 
+          key={child.is_synthetic ? \`\${child.account_number}-synthetic\` : child.account_number} 
+          account={child} 
+          level={level + 1} 
+        />
+      ))}
+    </>
+  );
+
   return (
     <>
       {/* Print Styles */}
@@ -325,16 +355,7 @@ export default function PLReportPage() {
                   {reportData.revenue.length > 0 ? (
                     <div>
                       {reportData.revenue.map((account) => (
-                        <div key={account.account_number} className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
-                          <div>
-                            <span className="font-medium text-slate-900">{account.account_number}</span>
-                            <span className="text-slate-600 ml-2">{account.account_name}</span>
-                            <span className="text-xs text-slate-400 ml-2">({account.transactionCount} transactions)</span>
-                          </div>
-                          <div className="text-right font-semibold text-green-700">
-                            ${account.amount.toFixed(2)}
-                          </div>
-                        </div>
+                        <AccountRow key={account.account_number} account={account} />
                       ))}
                       <div className="flex justify-between items-center p-4 bg-green-50 border-t-2 border-green-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Revenue</span>
@@ -364,16 +385,7 @@ export default function PLReportPage() {
                   {reportData.expenses.length > 0 ? (
                     <div>
                       {reportData.expenses.map((account) => (
-                        <div key={account.account_number} className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
-                          <div>
-                            <span className="font-medium text-slate-900">{account.account_number}</span>
-                            <span className="text-slate-600 ml-2">{account.account_name}</span>
-                            <span className="text-xs text-slate-400 ml-2">({account.transactionCount} transactions)</span>
-                          </div>
-                          <div className="text-right font-semibold text-red-700">
-                            ${account.amount.toFixed(2)}
-                          </div>
-                        </div>
+                        <AccountRow key={account.account_number} account={account} />
                       ))}
                       <div className="flex justify-between items-center p-4 bg-red-50 border-t-2 border-red-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Expenses</span>

@@ -59,51 +59,115 @@ Deno.serve(async (req) => {
       };
     };
 
-    // Process Revenue accounts
-    const revenueData = revenueAccounts.map(account => {
+    // Calculate base data for all accounts
+    const accountMap = {};
+    
+    // Initialize map with all accounts
+    allAccounts.forEach(account => {
+      accountMap[account.account_number] = {
+        ...account,
+        children: [],
+        own_amount: 0,
+        total_amount: 0,
+        credits: 0,
+        debits: 0,
+        transactionCount: 0
+      };
+    });
+
+    // Calculate own balances for all accounts (regardless of type for now)
+    Object.values(accountMap).forEach(accNode => {
       const { credits, debits, transactionCount } = calculateAccountBalance(
-        account.account_number, 
+        accNode.account_number, 
         filteredTransactions
       );
       
-      // For revenue: Credits increase revenue, Debits decrease revenue
-      const netRevenue = credits - debits;
-      
-      return {
-        account_number: account.account_number,
-        account_name: account.account_name,
-        credits: credits,
-        debits: debits,
-        amount: netRevenue,
-        transactionCount: transactionCount
-      };
-    }).filter(acc => acc.amount !== 0 || acc.transactionCount > 0); // Only include accounts with activity
+      accNode.credits = credits;
+      accNode.debits = debits;
+      accNode.transactionCount = transactionCount;
 
-    // Process Expense accounts
-    const expenseData = expenseAccounts.map(account => {
-      const { credits, debits, transactionCount } = calculateAccountBalance(
-        account.account_number, 
-        filteredTransactions
-      );
-      
-      // For expenses: Debits increase expense, Credits decrease expense
-      const netExpense = debits - credits;
-      
-      return {
-        account_number: account.account_number,
-        account_name: account.account_name,
-        credits: credits,
-        debits: debits,
-        amount: netExpense,
-        transactionCount: transactionCount
-      };
-    }).filter(acc => acc.amount !== 0 || acc.transactionCount > 0); // Only include accounts with activity
+      // Determine net amount based on type
+      if (accNode.account_type === 'Revenue') {
+        accNode.own_amount = credits - debits;
+      } else if (accNode.account_type === 'Expense') {
+        accNode.own_amount = debits - credits;
+      } else {
+        // For other types, standard approach (Asset/Exp=Dr, Liab/Rev/Eq=Cr)
+        // This report mainly focuses on Rev/Exp, but if others are included:
+        if (['Asset', 'Expense'].includes(accNode.account_type)) {
+           accNode.own_amount = debits - credits;
+        } else {
+           accNode.own_amount = credits - debits;
+        }
+      }
+    });
 
-    // Sort by account number
+    // Build Hierarchy
+    const roots = [];
+    Object.values(accountMap).forEach(accNode => {
+      // If parent exists in map, add to children
+      if (accNode.parent_account && accountMap[accNode.parent_account]) {
+        accountMap[accNode.parent_account].children.push(accNode);
+      } else {
+        // Otherwise it's a root
+        roots.push(accNode);
+      }
+    });
+
+    // Recursive function to calculate totals
+    const calculateTotals = (node) => {
+      let childTotal = 0;
+      node.children.forEach(child => {
+        childTotal += calculateTotals(child);
+      });
+      node.total_amount = node.own_amount + childTotal;
+      return node.total_amount;
+    };
+
+    // Calculate totals for all roots
+    roots.forEach(root => calculateTotals(root));
+
+    // Transform nodes: Insert synthetic child if parent has own balance, and sort children
+    const transformNode = (node) => {
+      // Sort children by account number
+      node.children.sort((a, b) => a.account_number.localeCompare(b.account_number));
+      
+      // Recursively transform children
+      node.children.forEach(transformNode);
+
+      // "If the parent account has a balance of it's own, have it appear as a child account"
+      if (node.children.length > 0 && Math.abs(node.own_amount) > 0.001) {
+        const syntheticChild = {
+          ...node,
+          account_name: `${node.account_name} (Direct)`,
+          amount: node.own_amount, // Display amount is own amount
+          children: [],
+          is_synthetic: true,
+          // Unset parent to avoid confusion in recursion if any (though we are done with hierarchy building)
+          parent_account: node.account_number 
+        };
+        // Add to children (at top)
+        node.children.unshift(syntheticChild);
+      }
+
+      // Set the display amount for this node to its total (rolled up) amount
+      node.amount = node.total_amount;
+    };
+
+    roots.forEach(transformNode);
+
+    // Filter and separate into Revenue and Expense roots
+    // We want roots that are of the correct type AND (have non-zero total OR have activity)
+    const hasActivity = (node) => Math.abs(node.total_amount) > 0.001 || node.transactionCount > 0 || (node.children && node.children.some(hasActivity));
+
+    const revenueData = roots.filter(r => r.account_type === 'Revenue' && hasActivity(r));
+    const expenseData = roots.filter(r => r.account_type === 'Expense' && hasActivity(r));
+
+    // Sort roots
     revenueData.sort((a, b) => a.account_number.localeCompare(b.account_number));
     expenseData.sort((a, b) => a.account_number.localeCompare(b.account_number));
 
-    // Calculate totals
+    // Calculate report totals
     const totalRevenue = revenueData.reduce((sum, acc) => sum + acc.amount, 0);
     const totalExpenses = expenseData.reduce((sum, acc) => sum + acc.amount, 0);
     const netIncome = totalRevenue - totalExpenses;
