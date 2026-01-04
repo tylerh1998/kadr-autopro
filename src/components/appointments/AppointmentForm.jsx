@@ -80,9 +80,17 @@ export default function AppointmentForm({
     const reminderDateMst = new Date(appointmentMst);
     const daysBefore = parseInt(formData.reminder_days_before) || 0; // Default to 0 if NaN, though form sets 1
     reminderDateMst.setDate(reminderDateMst.getDate() - daysBefore);
+
+    // Adjust for weekend (Saturday/Sunday -> Friday)
+    // using UTC methods because we shifted the time value to represent local time in UTC context
+    const dayOfWeek = reminderDateMst.getUTCDay(); // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek === 6) { // Saturday
+        reminderDateMst.setDate(reminderDateMst.getDate() - 1); // Shift to Friday
+    } else if (dayOfWeek === 0) { // Sunday
+        reminderDateMst.setDate(reminderDateMst.getDate() - 2); // Shift to Friday
+    }
     
     // Set to 8:00 AM MST on that date
-    // We use UTC methods because we shifted the time value to represent local time in UTC context
     const cutoffMst = new Date(Date.UTC(
         reminderDateMst.getUTCFullYear(),
         reminderDateMst.getUTCMonth(),
@@ -93,7 +101,7 @@ export default function AppointmentForm({
     const isPast = nowMst > cutoffMst;
     
     setReminderInfo({
-        displayDate: reminderDateMst.toISOString().split('T')[0],
+        displayDate: reminderDateMst.toISOString().split('T')[0] + ' 8:00AM',
         isPast
     });
   }, [formData.start_time, formData.reminders_email, formData.reminders_text, formData.reminder_days_before]);
