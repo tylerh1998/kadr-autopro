@@ -35,6 +35,16 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     return colorMap;
   };
 
+  // Helper function to get customer display name
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return 'Unknown Customer';
+    
+    if (customer.org_name && customer.org_name.trim() !== '') {
+      return customer.org_name;
+    }
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unnamed Customer';
+  };
+
   const loadData = useCallback(async () => {
     if (!open) return;
     setLoading(true);
@@ -47,14 +57,30 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       ]);
       
       const techMap = new Map(employeesData.map(e => [e.id, e]));
+      const customerMap = new Map(customersData.map(c => [c.id, c]));
       
-      const formattedEvents = allAppointments.map(app => ({
-        ...app,
-        start: new Date(app.start_time),
-        end: new Date(app.end_time),
-        tech: techMap.get(app.employee_id),
-        displayTitle: app.title || 'Appointment',
-      }));
+      const formattedEvents = allAppointments.map(app => {
+        const customer = customerMap.get(app.customer_id);
+        
+        let displayTitle = '';
+        if (customer) {
+          displayTitle = getCustomerDisplayName(customer);
+        } else if (app.notes) {
+          const firstLine = app.notes.split('\n')[0];
+          displayTitle = firstLine.length > 30 ? firstLine.substring(0, 27) + '...' : firstLine;
+        } else {
+          displayTitle = 'Appointment';
+        }
+
+        return {
+          ...app,
+          start: new Date(app.start_time),
+          end: new Date(app.end_time),
+          tech: techMap.get(app.employee_id),
+          displayTitle: displayTitle,
+          customer: customer
+        };
+      });
 
       setEvents(formattedEvents);
       setEmployees(employeesData);
