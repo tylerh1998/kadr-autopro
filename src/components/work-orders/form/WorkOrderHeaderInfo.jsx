@@ -289,7 +289,11 @@ export default function WorkOrderHeaderInfo({
                 <div className="space-y-1 text-sm">
                   <p className="text-slate-900 font-semibold text-base">WO #{workOrder?.wo_number || workOrder?.ro_number || 'N/A'}</p>
 
-                  {workOrder?.wo_date && (
+                  {workOrder?.stage === 'estimate' && workOrder?.est_date && (
+                    <p className="text-slate-700">{formatDateDisplay(workOrder.est_date)}</p>
+                  )}
+
+                  {workOrder?.stage !== 'estimate' && workOrder?.wo_date && (
                     <p className="text-slate-700">{formatDateDisplay(workOrder.wo_date)}</p>
                   )}
 
