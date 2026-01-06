@@ -69,7 +69,9 @@ function WorkOrderList({
   onEdit,   
   onStatusUpdate,
   currentUser,
-  workOrderStatuses
+  workOrderStatuses,
+  currentSort,
+  onSortChange
 }) {
   // Helper function to get customer display name
   const getCustomerName = (customerId) => {
@@ -167,6 +169,8 @@ function WorkOrderList({
         onSelect={onSelect}
         currentUser={currentUser}
         workOrderStatuses={workOrderStatuses}
+        currentSort={currentSort}
+        onSortChange={onSortChange}
       />
     );
   }

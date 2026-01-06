@@ -610,6 +610,20 @@ export default function WorkOrdersPage() {
       
       case "amount_lowest":
         return sorted.sort((a, b) => (a.total_amount || 0) - (b.total_amount || 0));
+
+      case "number_asc":
+        return sorted.sort((a, b) => {
+          const numA = a.wo_number || a.ro_number || "";
+          const numB = b.wo_number || b.ro_number || "";
+          return numA.localeCompare(numB, undefined, { numeric: true });
+        });
+
+      case "number_desc":
+        return sorted.sort((a, b) => {
+          const numA = a.wo_number || a.ro_number || "";
+          const numB = b.wo_number || b.ro_number || "";
+          return numB.localeCompare(numA, undefined, { numeric: true });
+        });
       
       default:
         return sorted;
@@ -1231,6 +1245,8 @@ export default function WorkOrdersPage() {
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
+                currentSort={estimatesSort}
+                onSortChange={setEstimatesSort}
               />
             </TabsContent>
 
@@ -1252,6 +1268,8 @@ export default function WorkOrdersPage() {
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
+                currentSort={wipSort}
+                onSortChange={setWipSort}
               />
             </TabsContent>
 
@@ -1269,6 +1287,8 @@ export default function WorkOrdersPage() {
                 onStatusUpdate={handleStatusUpdate}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
+                currentSort={invoicesSort}
+                onSortChange={setInvoicesSort}
               />
             </TabsContent>
 
