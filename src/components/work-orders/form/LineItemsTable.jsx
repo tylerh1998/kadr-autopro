@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   DollarSign,
   Hash,
+  GripVertical
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -104,6 +105,24 @@ export default function LineItemsTable({
 
   // Maximum characters for description (3 lines at 70 chars per line)
   const MAX_DESCRIPTION_LENGTH = 210;
+
+  const onDragEnd = (result) => {
+    if (!result.destination) return;
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+    if (sourceIndex === destinationIndex) return;
+
+    setLineItems(prev => {
+        // Filter out undefined/null items to match the rendered list indices
+        // ensuring 1:1 mapping for drag operations
+        const validItems = prev.filter(line => line !== undefined && line !== null);
+        
+        const newItems = Array.from(validItems);
+        const [reorderedItem] = newItems.splice(sourceIndex, 1);
+        newItems.splice(destinationIndex, 0, reorderedItem);
+        return newItems;
+    });
+  };
 
   // Renamed from handleLineItemChange to handleFieldChange as per outline's implicit naming convention.
   const handleFieldChange = (index, field, value) => {
@@ -373,7 +392,7 @@ export default function LineItemsTable({
     );
   };
 
-  const renderLineItem = (line, index) => {
+  const renderLineItem = (line, index, draggableProvided) => {
     const isSelected = selectedLineIndex === index;
     const isBold = line.bold;
     const hasPartNumber = !!line.part_number;
@@ -394,6 +413,9 @@ export default function LineItemsTable({
       <ContextMenu key={line.id || `line-${index}`}>
         <ContextMenuTrigger asChild>
           <TableRow
+            ref={draggableProvided.innerRef}
+            {...draggableProvided.draggableProps}
+            style={draggableProvided.draggableProps.style}
             onClick={() => handleLineItemClick(index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             tabIndex={0}
@@ -404,6 +426,13 @@ export default function LineItemsTable({
               ${line.complete ? 'bg-green-50' : ''}
             `}
           >
+            {/* Drag Handle Column */}
+            <TableCell className="w-10 p-1 align-middle text-center">
+               <div {...draggableProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing flex justify-center items-center h-full text-slate-400 hover:text-slate-600">
+                 <GripVertical className="w-4 h-4" />
+               </div>
+            </TableCell>
+
             {/* Qty Column */}
             <TableCell className="w-20 p-1 align-top">
               <Input
@@ -554,28 +583,40 @@ export default function LineItemsTable({
       <Card>
         <CardContent className="p-6"> {/* Preserved original padding */}
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-100">
-                  <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
-                  <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
-                  {/* Description column now also includes Part #, so min-width is changed to 300px */}
-                  <TableHead className="min-w-[300px] text-left text-xs font-semibold p-2">Description / Part #</TableHead> 
-                  <TableHead className="w-24 text-center text-xs font-semibold p-2">Parts EA</TableHead>
-                  <TableHead className="w-16 text-center text-xs font-semibold p-2">Unit</TableHead> {/* New Unit column header */}
-                  <TableHead className="w-24 text-right text-xs font-semibold p-2">Tot. Parts</TableHead>
-                  <TableHead className="w-24 text-right text-xs font-semibold p-2">Labour</TableHead>
-                  <TableHead className="w-16 text-center text-xs font-semibold p-2">TX</TableHead>
-                  <TableHead className="w-24 text-right text-xs font-semibold p-2">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lineItems && lineItems
-                  .filter(line => line !== undefined && line !== null) // Filter out undefined/null items
-                  .map((line, index) => renderLineItem(line, index)
-                )}
-              </TableBody>
-            </Table>
+            <DragDropContext onDragEnd={onDragEnd}>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-100">
+                    <TableHead className="w-10 p-2"></TableHead>
+                    <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
+                    <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
+                    {/* Description column now also includes Part #, so min-width is changed to 300px */}
+                    <TableHead className="min-w-[300px] text-left text-xs font-semibold p-2">Description / Part #</TableHead> 
+                    <TableHead className="w-24 text-center text-xs font-semibold p-2">Parts EA</TableHead>
+                    <TableHead className="w-16 text-center text-xs font-semibold p-2">Unit</TableHead> {/* New Unit column header */}
+                    <TableHead className="w-24 text-right text-xs font-semibold p-2">Tot. Parts</TableHead>
+                    <TableHead className="w-24 text-right text-xs font-semibold p-2">Labour</TableHead>
+                    <TableHead className="w-16 text-center text-xs font-semibold p-2">TX</TableHead>
+                    <TableHead className="w-24 text-right text-xs font-semibold p-2">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <Droppable droppableId="line-items">
+                  {(droppableProvided) => (
+                    <TableBody ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
+                      {lineItems && lineItems
+                        .filter(line => line !== undefined && line !== null) // Filter out undefined/null items
+                        .map((line, index) => (
+                          <Draggable key={line.id || `line-${index}`} draggableId={line.id || `line-${index}`} index={index}>
+                            {(draggableProvided) => renderLineItem(line, index, draggableProvided)}
+                          </Draggable>
+                        )
+                      )}
+                      {droppableProvided.placeholder}
+                    </TableBody>
+                  )}
+                </Droppable>
+              </Table>
+            </DragDropContext>
           </div>
         </CardContent>
       </Card>
