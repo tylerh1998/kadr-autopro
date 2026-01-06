@@ -1061,7 +1061,7 @@ export default function WorkOrderForm({
   }, [selectedLineIndex, displayLineItems, handleGetPart, handleOtherCharge, handleAddPart, handleReceivePart, handleDeleteLine, handleBoldLine, handleInsertLine, onOpenPaymentModal]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-32">
       <WorkOrderHeaderInfo
         workOrder={editedWorkOrder}
         customer={customer}
@@ -1095,7 +1095,9 @@ export default function WorkOrderForm({
         mode={mode} // Pass mode to LineItemsTable
       />
 
-      <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} shopSupplyRate={shopSupplyRate} />
+      <div className="sticky bottom-0 z-10 py-2 bg-slate-50/95 backdrop-blur border-t border-slate-200">
+        <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} shopSupplyRate={shopSupplyRate} />
+      </div>
       
       {/* Modal Components */}
       <GetPartModal
