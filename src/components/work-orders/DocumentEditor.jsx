@@ -641,7 +641,18 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       // Financial Calculations
       const currentLineItemsState = lineItemsAfterInventoryProcessing;
       const lineItemsToCalculate = currentLineItemsState.filter(item =>
-        item && (item.description || item.part_number || item.qty || item.hrs || item.is_other_charge)
+        item && (
+          item.description || 
+          item.part_number || 
+          item.inventory_item_id || 
+          item.is_other_charge || 
+          item.manually_inserted ||
+          (parseFloat(item.qty) || 0) !== 0 ||
+          (parseFloat(item.hrs) || 0) !== 0 ||
+          (parseFloat(item.labour) || 0) !== 0 ||
+          (parseFloat(item.parts_ea) || 0) !== 0 ||
+          (parseFloat(item.total) || 0) !== 0
+        )
       );
 
       const calculatedLineItems = lineItemsToCalculate.map(item => {

@@ -145,10 +145,10 @@ export default function WorkOrderForm({
           line.inventory_item_id || 
           line.is_other_charge || 
           line.manually_inserted ||
-          (parseFloat(line.qty) || 0) > 0 ||
-          (parseFloat(line.hrs) || 0) > 0 ||
-          (parseFloat(line.labour) || 0) > 0 ||
-          (parseFloat(line.parts_ea) || 0) > 0
+          (parseFloat(line.qty) || 0) !== 0 ||
+          (parseFloat(line.hrs) || 0) !== 0 ||
+          (parseFloat(line.labour) || 0) !== 0 ||
+          (parseFloat(line.parts_ea) || 0) !== 0
         )
       );
       
