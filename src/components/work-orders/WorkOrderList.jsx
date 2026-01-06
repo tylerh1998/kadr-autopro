@@ -157,7 +157,7 @@ function WorkOrderList({
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-2">
         {workOrders.map((workOrder) => {
           const customer = customers.find(c => c.id === workOrder.customer_id);
           const vehicle = vehicles.find(v => v.id === workOrder.vehicle_id);
@@ -180,43 +180,45 @@ function WorkOrderList({
               className="hover:shadow-lg transition-all duration-200 cursor-pointer"
               onClick={() => handleEditClick(workOrder)}
             >
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="text-lg font-bold text-slate-900">
+              <CardContent className="p-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-bold text-slate-900">
                         {getCustomerName(workOrder.customer_id)}
                       </h3>
                       {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
-                        <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium`}>
+                        <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
                           {workOrder.stage === 'credit_invoice' ? 'Credit Invoice' : 'Invoice'}
                         </Badge>
                       ) : (
-                        <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
+                        <div className="scale-90 origin-left">
+                          <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
+                        </div>
                       )}
                       
                       {isLocked && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div>
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 flex items-center gap-1 cursor-help">
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 flex items-center gap-1 cursor-help h-5 px-2 text-xs">
                                 <Lock className="w-3 h-3" />
                                 Locked
                               </Badge>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="bg-slate-900 text-white">
-                            <p className="text-sm">
+                            <p className="text-xs">
                               Locked by: <span className="font-semibold">{workOrder.LockedByUser}</span>
                             </p>
                           </TooltipContent>
                         </Tooltip>
                       )}
                       
-                      <span className="text-slate-600 text-base font-normal">{workOrder.description}</span>
+                      <span className="text-slate-600 text-sm font-normal">{workOrder.description}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                       <div className="flex items-center gap-1">
                         <FileText className="w-4 h-4" />
                         <span>{displayNumber || `RO ${workOrder.ro_number}`}</span>
@@ -264,20 +266,20 @@ function WorkOrderList({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-lg font-bold text-slate-900">
-                        <DollarSign className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <div className="text-right min-w-[80px]">
+                      <div className="flex items-center justify-end gap-0.5 text-base font-bold text-slate-900">
+                        <DollarSign className="w-3 h-3" />
                         {(workOrder.total_amount || 0).toFixed(2)}
                       </div>
                       {workOrder.estimated_hours && (
-                        <div className="text-sm text-slate-500">
-                          {workOrder.estimated_hours}h estimated
+                        <div className="text-xs text-slate-500">
+                          {workOrder.estimated_hours}h est
                         </div>
                       )}
                     </div>
 
-                    <ChevronRight className="w-5 h-5 text-slate-400" />
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
                   </div>
                 </div>
               </CardContent>
