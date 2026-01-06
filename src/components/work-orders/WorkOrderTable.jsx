@@ -54,7 +54,7 @@ const StatusBadge = ({ status, workOrderStatuses }) => {
   const badgeClass = colorMap[colorKey] || colorMap['slate'];
   
   return (
-    <Badge className={`${badgeClass} border font-medium h-5 px-2 text-xs`}>
+    <Badge className={`${badgeClass} border font-medium h-5 px-2 text-[10px] whitespace-nowrap`}>
       {status}
     </Badge>
   );
@@ -232,7 +232,7 @@ export default function WorkOrderTable({
                       >
                         <td className="px-4 py-2">
                           {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
-                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
+                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-[10px] whitespace-nowrap`}>
                               {workOrder.stage === 'credit_invoice' ? 'Credit Inv' : 'Invoice'}
                             </Badge>
                           ) : (
