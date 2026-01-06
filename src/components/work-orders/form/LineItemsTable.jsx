@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { InventoryItem, InventoryTxs, SupplierInvoiceLine, Supplier, SalesClass, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
