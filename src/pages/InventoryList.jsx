@@ -67,7 +67,7 @@ export default function InventoryListPage() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [activeSearchTerm, setActiveSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "part_number", direction: "ascending" });
   const [filter, setFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -134,7 +134,7 @@ export default function InventoryListPage() {
     try {
       const isInventoryCount = filter === 'inventory-count';
       const response = await base44.functions.invoke('searchInventory', {
-        searchTerm: debouncedSearchTerm,
+        searchTerm: activeSearchTerm,
         filter: filter,
         sortBy: isInventoryCount ? 'location' : sortConfig.key,
         sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
@@ -156,16 +156,15 @@ export default function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearchTerm, filter, sortConfig, currentPage, itemsPerPage]);
+  }, [activeSearchTerm, filter, sortConfig, currentPage, itemsPerPage]);
 
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // Search triggered on Enter key
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setActiveSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }
+  };
 
   // Function to load data shared by modals
   const loadSharedData = async () => {
@@ -205,7 +204,6 @@ export default function InventoryListPage() {
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on new search
   };
 
   const handleSort = (key) => {
@@ -475,9 +473,10 @@ export default function InventoryListPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  placeholder="Search by Part # or Description"
+                  placeholder="Search by Part # or Description (Press Enter)"
                   value={searchTerm}
                   onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   className="pl-10"
                   autoFocus
                 />
