@@ -214,7 +214,13 @@ export default function WorkOrderTable({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {workOrders.map((workOrder) => {
+                const customer = customers.find(c => c.id === workOrder.customer_id);
                 const vehicle = vehicles.find(v => v.id === workOrder.vehicle_id);
+                
+                const contactPerson = (customer && customer.org_name && (customer.first_name || customer.last_name)) 
+                  ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() 
+                  : null;
+
                 const displayNumber = workOrder.stage === 'estimate' ? workOrder.est_number :
                                     workOrder.stage === 'invoice' ? workOrder.inv_number :
                                     workOrder.stage === 'credit_invoice' ? workOrder.crinv_number :
@@ -243,10 +249,12 @@ export default function WorkOrderTable({
                           {isLocked ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
-                                  <Lock className="w-3 h-3" />
-                                  <span>{displayNumber || workOrder.ro_number}</span>
-                                </Badge>
+                                <div>
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
+                                    <Lock className="w-3 h-3" />
+                                    <span>{displayNumber || workOrder.ro_number}</span>
+                                  </Badge>
+                                </div>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="bg-slate-900 text-white">
                                 <p className="text-xs">Locked by: <span className="font-bold">{workOrder.LockedByUser}</span></p>
@@ -256,7 +264,7 @@ export default function WorkOrderTable({
                             <span>{displayNumber || workOrder.ro_number}</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={getCustomerName(workOrder.customer_id)}>
+                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder.customer_id)}>
                           {getCustomerName(workOrder.customer_id)}
                         </td>
                         <td className="px-4 py-2 text-black truncate max-w-[250px]">
