@@ -8,10 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SalesClass, TagAlong, OtherChargeList } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
-import { debounce } from 'lodash';
+
 
 export default function GetPartModal({ open, onClose, onAddParts, contextLineItem, workOrder, mode = 'work_order' }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [selectedParts, setSelectedParts] = useState([]);
   const [salesClasses, setSalesClasses] = useState([]);
   const [tagAlongs, setTagAlongs] = useState([]);
@@ -99,15 +100,15 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     handleContextItem();
   }, [open, contextLineItem, selectedParts, showQuantityPrompt]);
 
-  // Debounced search function
-  const debouncedSearch = useMemo(
-    () => debounce(async (term) => {
+  // Handle search when activeSearchTerm changes
+  useEffect(() => {
+    const performSearch = async () => {
       setSearching(true);
       setSearchError('');
       try {
         const response = await base44.functions.invoke('searchInventory', {
-          searchTerm: term,
-          limit: 100
+          searchTerm: activeSearchTerm,
+          limit: activeSearchTerm.trim() === '' ? 50 : 100
         });
         
         if (response?.data?.records) {
@@ -122,34 +123,16 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       } finally {
         setSearching(false);
       }
-    }, 300),
-    []
-  );
+    };
 
-  // Handle search term changes
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      // If search is cleared, load default 50 items
-      const loadDefault = async () => {
-        setSearching(true);
-        setSearchError('');
-        try {
-          const response = await base44.functions.invoke('searchInventory', { limit: 50 });
-          if (response?.data?.records) {
-            setInventoryResults(response.data.records);
-          }
-        } catch (error) {
-          console.error('Error loading default inventory:', error);
-          setSearchError('Failed to load inventory. Please try again.');
-        } finally {
-          setSearching(false);
-        }
-      };
-      loadDefault();
-    } else {
-      debouncedSearch(searchTerm);
+    performSearch();
+  }, [activeSearchTerm]);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setActiveSearchTerm(searchTerm);
     }
-  }, [searchTerm, debouncedSearch]);
+  };
 
   const calculatePrice = useCallback((item, quantity) => {
     if (!item.sales_class || salesClasses.length === 0) {
@@ -460,9 +443,10 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                placeholder="Search by part number, description, or manufacturer..."
+                placeholder="Search by part number, description, or manufacturer (Press Enter)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="pl-10"
               />
               {searching && (
