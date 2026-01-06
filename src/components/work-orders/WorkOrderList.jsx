@@ -17,10 +17,18 @@ import {
   DollarSign,
   ChevronRight,
   FileText,
-  Lock
+  Lock,
+  Copy
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import WorkOrderTable from "./WorkOrderTable";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 
 const StatusBadge = ({ status, workOrderStatuses }) => {
   // Map color names to Tailwind classes
@@ -195,12 +203,142 @@ function WorkOrderList({
             : null;
           
           return (
-            <Card 
-              key={workOrder.id} 
-              className="hover:shadow-lg transition-all duration-200 cursor-pointer"
-              onClick={() => handleEditClick(workOrder)}
-            >
-              <CardContent className="p-3">
+            <ContextMenu key={workOrder.id}>
+              <ContextMenuTrigger>
+                <Card 
+                  className="hover:shadow-lg transition-all duration-200 cursor-pointer"
+                  onClick={() => handleEditClick(workOrder)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base font-bold text-slate-900">
+                            {getCustomerName(workOrder.customer_id)}
+                          </h3>
+                          {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
+                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
+                              {workOrder.stage === 'credit_invoice' ? 'Credit Invoice' : 'Invoice'}
+                            </Badge>
+                          ) : (
+                            <div className="scale-90 origin-left">
+                              <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
+                            </div>
+                          )}
+                          
+                          {isLocked && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 flex items-center gap-1 cursor-help h-5 px-2 text-xs">
+                                    <Lock className="w-3 h-3" />
+                                    Locked
+                                  </Badge>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-slate-900 text-white">
+                                <p className="text-xs">
+                                  Locked by: <span className="font-semibold">{workOrder.LockedByUser}</span>
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          
+                          <span className="text-black text-sm font-normal">{workOrder.description}</span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-black">
+                          <div className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            <span>{displayNumber || `RO ${workOrder.ro_number}`}</span>
+                          </div>
+
+                          {vehicle && (
+                            <div className="flex items-center gap-1">
+                                <Car className="w-4 h-4" />
+                                <span>{vehicle.year} {vehicle.make} {vehicle.model}</span>
+                            </div>
+                          )}
+
+                          {contactPerson && (
+                            <div className="flex items-center gap-1">
+                              <User className="w-4 h-4" />
+                              <span>{contactPerson}</span>
+                            </div>
+                          )}
+
+                          {stageDate && stageDate.date && (() => {
+                            const parsedDate = parseLocalDate(stageDate.date);
+                            return parsedDate && !isNaN(parsedDate.getTime()) && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                <span>{stageDate.label}: {format(parsedDate, 'MMM d, yyyy')}</span>
+                              </div>
+                            );
+                          })()}
+                          
+                          {workOrder.scheduled_date && (() => {
+                            const parsedDate = parseLocalDate(workOrder.scheduled_date);
+                            return parsedDate && !isNaN(parsedDate.getTime()) && (
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                <span>Sched: {format(parsedDate, 'MMM d, yyyy')}</span>
+                              </div>
+                            );
+                          })()}
+                          
+                          {workOrder.technician && (
+                            <div className="flex items-center gap-1">
+                              <span>Tech: {workOrder.technician}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="text-right min-w-[80px]">
+                          <div className="flex items-center justify-end gap-0.5 text-base font-bold text-slate-900">
+                            <DollarSign className="w-3 h-3" />
+                            {(workOrder.total_amount || 0).toFixed(2)}
+                          </div>
+                          {workOrder.estimated_hours && (
+                            <div className="text-xs text-slate-500">
+                              {workOrder.estimated_hours}h est
+                            </div>
+                          )}
+                        </div>
+
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const woNum = workOrder.ro_number ? workOrder.ro_number.replace(/^RO/i, '') : '';
+                    navigator.clipboard.writeText(woNum);
+                  }}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy WO#
+                </ContextMenuItem>
+                <ContextMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (vehicle?.vin) {
+                      navigator.clipboard.writeText(vehicle.vin);
+                    }
+                  }}
+                  disabled={!vehicle?.vin}
+                >
+                  <Car className="mr-2 h-4 w-4" />
+                  Copy VIN
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">

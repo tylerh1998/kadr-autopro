@@ -6,8 +6,16 @@ import {
   DollarSign,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Copy,
+  Car as CarIcon
 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -216,66 +224,93 @@ export default function WorkOrderTable({
                 const stageDate = getStageDate(workOrder);
                 
                 return (
-                  <tr 
-                    key={workOrder.id} 
-                    className="hover:bg-slate-50 cursor-pointer transition-colors"
-                    onClick={() => handleRowClick(workOrder)}
-                  >
-                    <td className="px-4 py-2">
-                      {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
-                        <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
-                          {workOrder.stage === 'credit_invoice' ? 'Credit Inv' : 'Invoice'}
-                        </Badge>
-                      ) : (
-                        <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
-                      )}
-                    </td>
-                    <td className="px-4 py-2 font-medium text-slate-700">
-                      {isLocked ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
-                              <Lock className="w-3 h-3" />
-                              <span>{displayNumber || workOrder.ro_number}</span>
+                  <ContextMenu key={workOrder.id}>
+                    <ContextMenuTrigger asChild>
+                      <tr 
+                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={() => handleRowClick(workOrder)}
+                      >
+                        <td className="px-4 py-2">
+                          {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
+                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
+                              {workOrder.stage === 'credit_invoice' ? 'Credit Inv' : 'Invoice'}
                             </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="bg-slate-900 text-white">
-                            <p className="text-xs">Locked by: <span className="font-bold">{workOrder.LockedByUser}</span></p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span>{displayNumber || workOrder.ro_number}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={getCustomerName(workOrder.customer_id)}>
-                      {getCustomerName(workOrder.customer_id)}
-                    </td>
-                    <td className="px-4 py-2 text-black truncate max-w-[250px]">
-                      {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '-'}
-                    </td>
-                    <td className="px-4 py-2 text-black truncate max-w-[300px]">
-                      {workOrder.description}
-                    </td>
-                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">
-                      {stageDate && stageDate.date && (() => {
-                        const parsedDate = parseLocalDate(stageDate.date);
-                        return parsedDate && !isNaN(parsedDate.getTime()) ? (
-                          <span>{format(parsedDate, 'MMM d, yyyy')}</span>
-                        ) : null;
-                      })()}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="flex items-center justify-end gap-0.5 font-bold text-slate-900">
-                        <DollarSign className="w-3 h-3" />
-                        {(workOrder.total_amount || 0).toFixed(2)}
-                      </div>
-                      {workOrder.estimated_hours && (
-                        <div className="text-xs text-slate-500">
-                          {workOrder.estimated_hours}h est
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                          ) : (
+                            <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
+                          )}
+                        </td>
+                        <td className="px-4 py-2 font-medium text-slate-700">
+                          {isLocked ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
+                                  <Lock className="w-3 h-3" />
+                                  <span>{displayNumber || workOrder.ro_number}</span>
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="bg-slate-900 text-white">
+                                <p className="text-xs">Locked by: <span className="font-bold">{workOrder.LockedByUser}</span></p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span>{displayNumber || workOrder.ro_number}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={getCustomerName(workOrder.customer_id)}>
+                          {getCustomerName(workOrder.customer_id)}
+                        </td>
+                        <td className="px-4 py-2 text-black truncate max-w-[250px]">
+                          {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '-'}
+                        </td>
+                        <td className="px-4 py-2 text-black truncate max-w-[300px]">
+                          {workOrder.description}
+                        </td>
+                        <td className="px-4 py-2 text-slate-500 whitespace-nowrap">
+                          {stageDate && stageDate.date && (() => {
+                            const parsedDate = parseLocalDate(stageDate.date);
+                            return parsedDate && !isNaN(parsedDate.getTime()) ? (
+                              <span>{format(parsedDate, 'MMM d, yyyy')}</span>
+                            ) : null;
+                          })()}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <div className="flex items-center justify-end gap-0.5 font-bold text-slate-900">
+                            <DollarSign className="w-3 h-3" />
+                            {(workOrder.total_amount || 0).toFixed(2)}
+                          </div>
+                          {workOrder.estimated_hours && (
+                            <div className="text-xs text-slate-500">
+                              {workOrder.estimated_hours}h est
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const woNum = workOrder.ro_number ? workOrder.ro_number.replace(/^RO/i, '') : '';
+                          navigator.clipboard.writeText(woNum);
+                        }}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy WO#
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (vehicle?.vin) {
+                            navigator.clipboard.writeText(vehicle.vin);
+                          }
+                        }}
+                        disabled={!vehicle?.vin}
+                      >
+                        <CarIcon className="mr-2 h-4 w-4" />
+                        Copy VIN
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 );
               })}
             </tbody>

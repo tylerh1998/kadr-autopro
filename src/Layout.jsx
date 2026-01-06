@@ -814,7 +814,6 @@ const navigationItems = [
                           )}
                           <DropdownMenuItem onClick={handleToggleWOCards} className="cursor-pointer">
                             <span className="mr-2">{user?.wo_cards !== false ? 'Work Order Table View' : 'Work Order Card View'}</span>
-                            <span>Toggle View</span>
                           </DropdownMenuItem>
                       <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
