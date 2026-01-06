@@ -20,6 +20,7 @@ import {
   Lock
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import WorkOrderTable from "./WorkOrderTable";
 
 const StatusBadge = ({ status, workOrderStatuses }) => {
   // Map color names to Tailwind classes
@@ -152,6 +153,21 @@ function WorkOrderList({
           <p className="text-slate-600 mb-4">No work orders match your current filters.</p>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Check preference: if wo_cards is explicitly false, show table. 
+  // If undefined or true, show cards.
+  if (currentUser?.wo_cards === false) {
+    return (
+      <WorkOrderTable 
+        workOrders={workOrders}
+        customers={customers}
+        vehicles={vehicles}
+        onSelect={onSelect}
+        currentUser={currentUser}
+        workOrderStatuses={workOrderStatuses}
+      />
     );
   }
 

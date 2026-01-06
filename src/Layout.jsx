@@ -140,6 +140,24 @@ function LayoutContent({ children, currentPageName }) {
     }
   };
 
+  const handleToggleWOCards = async () => {
+    const newWOCards = user?.wo_cards === undefined ? false : !user?.wo_cards; // Default to true if undefined, so toggle to false
+    // Correction: if undefined, it defaults to true in schema, so we treat undefined as true.
+    // If user.wo_cards is true (or undefined), new value is false.
+    const currentVal = user?.wo_cards !== false; // true by default
+    const newVal = !currentVal;
+    
+    try {
+      await base44.auth.updateMe({ wo_cards: newVal });
+      setUser({ ...user, wo_cards: newVal });
+      // Force a reload to propagate changes to child components since we don't have a context for this yet
+      // and WorkOrdersPage fetches its own user
+      window.location.reload(); 
+    } catch (error) {
+      console.error("Failed to save WO Cards preference", error);
+    }
+  };
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -792,8 +810,12 @@ const navigationItems = [
                             <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
                             <span>Open New Windows</span>
                           </DropdownMenuItem>
-                        </>
-                      )}
+                          </>
+                          )}
+                          <DropdownMenuItem onClick={handleToggleWOCards} className="cursor-pointer">
+                          <span className="mr-2">{user?.wo_cards !== false ? 'Card View' : 'Table View'}</span>
+                          <span>Toggle View</span>
+                          </DropdownMenuItem>
                       <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
