@@ -18,7 +18,7 @@ export default function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [activeSearchTerm, setActiveSearchTerm] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -45,16 +45,15 @@ export default function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
     loadCustomers(1);
-  }, [debouncedSearchTerm]);
+  }, [activeSearchTerm]);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setActiveSearchTerm(searchTerm);
+    }
+  };
 
   useEffect(() => {
     loadCustomers(pagination.page);
@@ -70,7 +69,7 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const response = await base44.functions.invoke('searchCustomers', { 
-        searchTerm: debouncedSearchTerm,
+        searchTerm: activeSearchTerm,
         page: pageToLoad,
         limit: 50 
       });
@@ -178,16 +177,12 @@ export default function CustomersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <Input
-                ref={searchInputRef}
-                placeholder="Search customers by name, organization, phone, or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setDebouncedSearchTerm(searchTerm);
-                  }
-                }}
-                className="pl-10"
+              ref={searchInputRef}
+              placeholder="Search customers by name, organization, phone, or email (Press Enter)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              className="pl-10"
               />
             </div>
           </CardContent>

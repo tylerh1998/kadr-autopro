@@ -25,6 +25,7 @@ export default function CustomerARSummaryPage() {
   const [workOrders, setWorkOrders] = useState([]); // Keep for context menu on Statement
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
@@ -38,7 +39,7 @@ export default function CustomerARSummaryPage() {
     try {
       // Fetch AR summary data from backend
       const response = await base44.functions.invoke('getCustomerARSummary', { 
-        searchTerm,
+        searchTerm: activeSearchTerm,
         showOnlyWithBalance
       });
 
@@ -69,7 +70,7 @@ export default function CustomerARSummaryPage() {
     } finally {
       setLoading(false);
     }
-    }, [searchTerm, showOnlyWithBalance]);
+    }, [activeSearchTerm, showOnlyWithBalance]);
 
   useEffect(() => {
     loadData();
@@ -200,9 +201,14 @@ export default function CustomerARSummaryPage() {
                   <div className="relative no-print">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <Input
-                      placeholder="Search Customers..."
+                      placeholder="Search Customers (Press Enter)..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setActiveSearchTerm(searchTerm);
+                        }
+                      }}
                       className="pl-10 w-96"
                     />
                   </div>

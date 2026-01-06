@@ -27,6 +27,7 @@ export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showFlushConfirm, setShowFlushConfirm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -40,7 +41,7 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     loadSuppliers();
-  }, [searchTerm]);
+  }, [activeSearchTerm]);
 
   useEffect(() => {
     if (!loading && searchInputRef.current) {
@@ -60,7 +61,7 @@ export default function SuppliersPage() {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('searchSuppliers', { searchTerm });
+      const response = await base44.functions.invoke('searchSuppliers', { searchTerm: activeSearchTerm });
       if (response.data.success) {
         setSuppliers(response.data.suppliers);
       } else {
@@ -181,9 +182,14 @@ export default function SuppliersPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
                   ref={searchInputRef}
-                  placeholder="Search suppliers by name..."
+                  placeholder="Search suppliers by name (Press Enter)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setActiveSearchTerm(searchTerm);
+                    }
+                  }}
                   className="pl-10"
                 />
               </div>

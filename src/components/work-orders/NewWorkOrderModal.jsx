@@ -18,6 +18,7 @@ export default function NewWorkOrderModal({
   const [localCustomers, setLocalCustomers] = useState([]);
   const [localVehicles, setLocalVehicles] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeSearchTerm, setActiveSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [step, setStep] = useState(1);
@@ -59,11 +60,11 @@ export default function NewWorkOrderModal({
   }, [open]);
 
   useEffect(() => {
-    if (open && searchTerm !== '') {
+    if (open && activeSearchTerm !== '') {
       const searchCustomers = async () => {
         setLoading(true);
         try {
-          const response = await base44.functions.invoke('searchCustomers', { searchTerm });
+          const response = await base44.functions.invoke('searchCustomers', { searchTerm: activeSearchTerm });
           if (response.data.success) {
             setLocalCustomers(response.data.customers || []);
           }
@@ -75,11 +76,11 @@ export default function NewWorkOrderModal({
       };
       searchCustomers();
     }
-  }, [searchTerm, open]);
+  }, [activeSearchTerm, open]);
 
   // Customers are now filtered by the backend function
   // Limit to 10 if no search term
-  const filteredCustomers = searchTerm ? (localCustomers || []) : (localCustomers || []).slice(0, 10);
+  const filteredCustomers = activeSearchTerm ? (localCustomers || []) : (localCustomers || []).slice(0, 10);
 
   const customerVehicles = (localVehicles || []).filter(v => v.customer_id === selectedCustomer?.id);
 
@@ -185,6 +186,7 @@ export default function NewWorkOrderModal({
 
   const handleClose = () => {
     setSearchTerm("");
+    setActiveSearchTerm("");
     setSelectedCustomer(null);
     setSelectedVehicle(null);
     setStep(1);
@@ -281,7 +283,18 @@ export default function NewWorkOrderModal({
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input ref={searchInputRef} placeholder="Search customers..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                <Input 
+                  ref={searchInputRef} 
+                  placeholder="Search customers (Press Enter)..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setActiveSearchTerm(searchTerm);
+                    }
+                  }}
+                  className="pl-10" 
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
                 {filteredCustomers.map((customer) => (

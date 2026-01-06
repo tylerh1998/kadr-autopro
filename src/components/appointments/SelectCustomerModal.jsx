@@ -7,6 +7,7 @@ import { Search, Phone, Mail } from 'lucide-react';
 
 export default function SelectCustomerModal({ open, onClose, customers, onSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   const getCustomerDisplayName = (customer) => {
@@ -25,11 +26,11 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
   };
 
   const filteredCustomers = (customers || []).filter(customer => {
-    const searchLower = searchTerm.toLowerCase();
+    const searchLower = activeSearchTerm.toLowerCase();
     const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase();
     const orgName = (customer.org_name || '').toLowerCase();
     
-    return !searchTerm || 
+    return !activeSearchTerm || 
       fullName.includes(searchLower) ||
       orgName.includes(searchLower) ||
       customer.phone?.toLowerCase().includes(searchLower) ||
@@ -41,12 +42,14 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
       onSelect(selectedCustomer);
       setSelectedCustomer(null);
       setSearchTerm('');
+      setActiveSearchTerm('');
     }
   };
 
   const handleClose = () => {
     setSelectedCustomer(null);
     setSearchTerm('');
+    setActiveSearchTerm('');
     onClose();
   };
 
@@ -62,9 +65,14 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
-              placeholder="Search customers by name, phone, or email..."
+              placeholder="Search customers by name, phone, or email (Press Enter)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setActiveSearchTerm(searchTerm);
+                }
+              }}
               className="pl-10"
             />
           </div>
