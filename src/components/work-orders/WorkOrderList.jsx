@@ -215,10 +215,10 @@ function WorkOrderList({
                         </Tooltip>
                       )}
                       
-                      <span className="text-slate-600 text-sm font-normal">{workOrder.description}</span>
+                      <span className="text-black text-sm font-normal">{workOrder.description}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-black">
                       <div className="flex items-center gap-1">
                         <FileText className="w-4 h-4" />
                         <span>{displayNumber || `RO ${workOrder.ro_number}`}</span>
