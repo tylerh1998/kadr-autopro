@@ -914,7 +914,6 @@ export default function SupplierTxPage() {
 
             if (response.data.success) {
                 await loadData();
-                alert('Changes saved successfully!');
                 return true;
             } else {
                 throw new Error(response.data.error || 'Unknown error');
