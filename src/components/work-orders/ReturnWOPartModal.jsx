@@ -40,14 +40,18 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     e.preventDefault();
     if (!lineItem) return;
 
+    const qtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
+    const currentQty = parseFloat(lineItem.qty) || 0;
+    const maxReturnable = Math.max(0, currentQty - qtyOnOrder);
+
     const qtyReturned = parseInt(returnQuantity, 10);
     if (isNaN(qtyReturned) || qtyReturned <= 0) {
         alert("Please enter a valid quantity to return.");
         return;
     }
 
-    if (qtyReturned > lineItem.qty) {
-        alert(`Cannot return more than ${lineItem.qty} units.`);
+    if (qtyReturned > maxReturnable) {
+        alert(`Cannot return more than ${maxReturnable} units (Qty: ${currentQty} - On Order: ${qtyOnOrder}).`);
         return;
     }
 
@@ -162,7 +166,8 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
               <p className="font-semibold">{lineItem.part_number || 'No Part Number'}</p>
               <p className="text-sm text-slate-500">{lineItem.description || 'No Description'}</p>
               <p className="text-xs text-slate-400 mt-1">
-                Available to return: {lineItem.qty} {lineItem.unit || ''}
+                Available to return: {Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))} {lineItem.unit || ''} 
+                <span className="ml-1 text-slate-300">(Qty: {lineItem.qty} - On Order: {lineItem.qty_on_order || 0})</span>
               </p>
             </div>
           </div>
@@ -173,7 +178,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
               id="returnQuantity"
               type="number"
               min="1"
-              max={lineItem.qty}
+              max={Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))}
               value={returnQuantity}
               onChange={(e) => setReturnQuantity(e.target.value)}
               required
