@@ -511,7 +511,7 @@ export default function CustomCalendar({
     
     return (
       <div
-        className="bg-blue-50 border-2 border-blue-300 rounded p-1 cursor-pointer hover:bg-blue-100 transition-colors h-full flex flex-col justify-start overflow-hidden"
+        className="w-full bg-blue-50 border-2 border-blue-300 rounded p-1 cursor-pointer hover:bg-blue-100 transition-colors h-full flex flex-col justify-start overflow-hidden"
         onClick={onClick}
       >
         <div className="flex items-center gap-1 mb-1 px-1 flex-shrink-0">
