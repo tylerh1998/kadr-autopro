@@ -8,7 +8,6 @@ import WorkPROModal from '../work-orders/WorkPROModal';
 // Constants for layout
 const SLOT_DURATION_MINUTES = 30;
 const MIN_SLOT_HEIGHT_PX = 60;
-const EVENT_CARD_STACK_HEIGHT_PX = 50;
 
 export default function CustomCalendar({
   events,
@@ -26,7 +25,6 @@ export default function CustomCalendar({
   const [view, setView] = useState('week');
   const [draggedEvent, setDraggedEvent] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
-  const calendarRef = useRef(null);
   const updateTimeoutRef = useRef(null);
 
   const [contextMenu, setContextMenu] = useState(null);
@@ -41,20 +39,6 @@ export default function CustomCalendar({
   // State for WorkPRO Modal
   const [showWorkPROModal, setShowWorkPROModal] = useState(false);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
-
-  // Color palette for week view appointments
-  const weekViewColors = [
-    'bg-blue-100 border-blue-300',
-    'bg-green-100 border-green-300',
-    'bg-yellow-100 border-yellow-300',
-    'bg-orange-100 border-orange-300',
-    'bg-indigo-100 border-indigo-300',
-    'bg-purple-100 border-purple-300',
-    'bg-pink-100 border-pink-300',
-    'bg-teal-100 border-teal-300',
-    'bg-cyan-100 border-cyan-300',
-    'bg-rose-100 border-rose-300',
-  ];
 
   const parseTimeString = useCallback((timeString, day) => {
     const [hour, minute] = timeString.split(':').map(Number);
@@ -509,12 +493,8 @@ export default function CustomCalendar({
 
   const renderDayView = () => {
     const day = currentDate;
-    
-    // Create a map to track which cells are covered by rowSpan for each bay
     const coveredCells = {};
-    bayOptions.forEach(bay => {
-      coveredCells[bay] = {};
-    });
+    bayOptions.forEach(bay => { coveredCells[bay] = {}; });
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -523,169 +503,111 @@ export default function CustomCalendar({
             <tr>
               <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
               {bayOptions.map(bay => (
-                <th key={bay} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">
-                  {bay}
-                </th>
+                <th key={bay} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{bay}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour < 12;
-            }).map((timeString, slotIndex) => {
+            {timeSlots.map((timeString, slotIndex) => {
+              if (parseInt(timeString.split(':')[0]) >= 12 && parseInt(timeString.split(':')[0]) < 13) return null; // Skip lunch manually in loop if needed, but array logic handles it via filtering in blocks below. Actually the logic below splits array.
+              return null; 
+            })}
+            
+            {/* Morning Block */}
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, day);
-
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
                   {bayOptions.map(bay => {
-                    // Check if this cell is covered by a previous rowSpan
-                    if (coveredCells[bay][timeString]) {
-                      return null; // Skip rendering this cell
-                    }
+                    if (coveredCells[bay][timeString]) return null;
 
-                    const cellSlotTime = parseTimeString(timeString, day);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString, null, bay);
-                    
-                    // Filter to only events that START in this slot
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-                    
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (eventsStartingHere.length > 1) {
-                      // Multiple events starting here - show summary card (no spanning)
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, bay, null, null);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      // Single event starting here - calculate rowSpan
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
-                      
-                      // Mark covered cells
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = slotIndex + i;
-                        if (nextSlotIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[bay][nextTimeString] = true;
-                        }
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      // Calculate rowSpan considering future conflicts
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        // Break at lunch visual gap
+                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
+                        
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, null, bay);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        
+                        rowSpan++;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                          useTechColors={true}
-                        />
-                      );
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[bay][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} useTechColors={true} />;
                     }
 
                     return (
-                      <td
-                        key={bay}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, day, null, bay)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, bay, null, null)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
+                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
                   })}
                 </tr>
               );
             })}
-            
+
+            {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">
-                LUNCH
-              </td>
-              {bayOptions.map(bay => (
-                <td key={bay} className="border border-slate-300 bg-black"></td>
-              ))}
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {bayOptions.map(bay => <td key={bay} className="border border-slate-300 bg-black"></td>)}
             </tr>
 
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour >= 13;
-            }).map((timeString, slotIndex) => {
-              const actualSlotIndex = timeSlots.findIndex(t => t === timeString);
+            {/* Afternoon Block */}
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, day);
-
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
                   {bayOptions.map(bay => {
-                    // Check if this cell is covered by a previous rowSpan
-                    if (coveredCells[bay][timeString]) {
-                      return null;
-                    }
+                    if (coveredCells[bay][timeString]) return null;
 
-                    const cellSlotTime = parseTimeString(timeString, day);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString, null, bay);
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-                    
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (eventsStartingHere.length > 1) {
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, bay, null, null);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
-                      
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = actualSlotIndex + i;
-                        if (nextSlotIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[bay][nextTimeString] = true;
-                        }
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, null, bay);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                          useTechColors={true}
-                        />
-                      );
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[bay][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} useTechColors={true} />;
                     }
 
                     return (
-                      <td
-                        key={bay}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, day, null, bay)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, bay, null, null)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
+                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
                   })}
@@ -701,218 +623,134 @@ export default function CustomCalendar({
   const renderWeekView = () => {
     const days = displayDays;
     const columnWidthPercent = (100 - 5) / 7;
-
-    // Create a map to track which cells are covered by rowSpan for each day
     const coveredCells = {};
-    days.forEach(day => {
-      coveredCells[day.toISOString()] = {};
-    });
+    days.forEach(day => { coveredCells[day.toISOString()] = {}; });
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-          <table className="w-full border-collapse table-fixed">
-            <colgroup>
-              <col style={{ width: '80px' }} />
-              {days.map((day, index) => (
-                <col key={index} style={{ width: columnWidthPercent + '%' }} />
-              ))}
-            </colgroup>
-            <thead className="sticky top-0 bg-white z-10">
-              <tr>
-                <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
-                {days.map(day => (
-                  <th
-                    key={day.toISOString()}
-                    onClick={() => {
-                      setCurrentDate(day);
-                      setView('day');
-                    }}
-                    className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${
-                      isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900 hover:bg-blue-200' : 'text-slate-700'
-                    }`}
-                  >
-                    <div>{format(day, 'EEE')}</div>
-                    <div className="text-lg">{format(day, 'd')}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.filter(t => {
-                const hour = parseInt(t.split(':')[0]);
-                return hour < 12;
-              }).map((timeString, slotIndex) => {
-                const slotTime = parseTimeString(timeString, currentDate);
-
-                return (
-                  <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                    <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                      {format(slotTime, 'h:mm a')}
-                    </td>
-                    {days.map(day => {
-                      const dayKey = day.toISOString();
-                      
-                      // Check if this cell is covered by a previous rowSpan
-                      if (coveredCells[dayKey][timeString]) {
-                        return null;
-                      }
-
-                      const cellSlotTime = parseTimeString(timeString, day);
-                      const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
-                      const cellEvents = getEventsForCellSlot(day, timeString);
-                      const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-
-                      let rowSpan = 1;
-                      let cellContent = null;
-
-                      if (eventsStartingHere.length > 1) {
-                        cellContent = (
-                          <OverlapSummaryCard 
-                            cellEvents={cellEvents} 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null);
-                            }}
-                          />
-                        );
-                      } else if (eventsStartingHere.length === 1) {
-                        const event = eventsStartingHere[0];
-                        rowSpan = calculateEventSlotSpan(event);
-                        
-                        for (let i = 1; i < rowSpan; i++) {
-                          const nextSlotIndex = slotIndex + i;
-                          if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
-                            const nextTimeString = timeSlots[nextSlotIndex];
-                            coveredCells[dayKey][nextTimeString] = true;
-                          }
-                        }
-                        
-                        cellContent = (
-                          <SingleAppointmentCard 
-                            event={event}
-                            colorClass={getBayColorClass(event.bayId)}
-                          />
-                        );
-                      }
-
-                      return (
-                        <td
-                          key={day.toISOString()}
-                          rowSpan={rowSpan}
-                          className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => handleDrop(e, timeString, day)}
-                          onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null)}
-                        >
-                          <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                            {cellContent}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-
-            <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">
-                LUNCH
-              </td>
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '80px' }} />
+            {days.map((day, index) => <col key={index} style={{ width: columnWidthPercent + '%' }} />)}
+          </colgroup>
+          <thead className="sticky top-0 bg-white z-10">
+            <tr>
+              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
               {days.map(day => (
-                <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>
+                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900' : 'text-slate-700'}`}>
+                  <div>{format(day, 'EEE')}</div>
+                  <div className="text-lg">{format(day, 'd')}</div>
+                </th>
               ))}
             </tr>
-
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour >= 13;
-            }).map((timeString, slotIndex) => {
-              const actualSlotIndex = timeSlots.findIndex(t => t === timeString);
+          </thead>
+          <tbody>
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, currentDate);
-
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
                   {days.map(day => {
                     const dayKey = day.toISOString();
-                    
-                    if (coveredCells[dayKey][timeString]) {
-                      return null;
-                    }
+                    if (coveredCells[dayKey][timeString]) return null;
 
-                    const cellSlotTime = parseTimeString(timeString, day);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString);
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-                    
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (eventsStartingHere.length > 1) {
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
-                      
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = actualSlotIndex + i;
-                        if (nextSlotIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[dayKey][nextTimeString] = true;
-                        }
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                          colorClass={getBayColorClass(event.bayId)}
-                        />
-                      );
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[dayKey][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
                     }
 
                     return (
-                      <td
-                        key={day.toISOString()}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, day)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, null, null)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
                   })}
                 </tr>
               );
             })}
-            </tbody>
-          </table>
-        </div>
+
+            <tr style={{ height: '60px' }}>
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {days.map(day => <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>)}
+            </tr>
+
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, currentDate);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {days.map(day => {
+                    const dayKey = day.toISOString();
+                    if (coveredCells[dayKey][timeString]) return null;
+
+                    const cellEvents = getEventsForCellSlot(day, timeString);
+                    let rowSpan = 1;
+                    let cellContent = null;
+
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
+                      }
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[dayKey][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                    }
+
+                    return (
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
   const renderTechView = () => {
     const day = currentDate;
     const resources = techResources;
-
-    // Create a map to track which cells are covered by rowSpan for each resource
     const coveredCells = {};
-    resources.forEach(resource => {
-      coveredCells[resource.id] = {};
-    });
+    resources.forEach(resource => { coveredCells[resource.id] = {}; });
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -920,81 +758,48 @@ export default function CustomCalendar({
           <thead className="sticky top-0 bg-white z-10">
             <tr>
               <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
-              {resources.map(resource => (
-                <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">
-                  {resource.title}
-                </th>
-              ))}
+              {resources.map(resource => <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{resource.title}</th>)}
             </tr>
           </thead>
           <tbody>
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour < 12;
-            }).map((timeString, slotIndex) => {
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, day);
-
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
                   {resources.map(resource => {
-                    // Check if this cell is covered by a previous rowSpan
-                    if (coveredCells[resource.id][timeString]) {
-                      return null;
-                    }
+                    if (coveredCells[resource.id][timeString]) return null;
 
-                    const cellDay = day;
-                    const cellSlotTime = parseTimeString(timeString, cellDay);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
-                    const cellEvents = getEventsForCellSlot(cellDay, timeString, resource.id);
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-
+                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (eventsStartingHere.length > 1) {
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, resource.id, resource.title);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
-                      
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = slotIndex + i;
-                        if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[resource.id][nextTimeString] = true;
-                        }
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                        />
-                      );
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} />;
                     }
 
                     return (
-                      <td
-                        key={resource.id}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, cellDay, resource.id)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, resource.id, resource.title)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
                   })}
@@ -1003,81 +808,47 @@ export default function CustomCalendar({
             })}
 
             <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">
-                LUNCH
-              </td>
-              {resources.map(resource => (
-                <td key={resource.id} className="border border-slate-300 bg-black"></td>
-              ))}
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {resources.map(resource => <td key={resource.id} className="border border-slate-300 bg-black"></td>)}
             </tr>
 
-            {timeSlots.filter(t => {
-              const hour = parseInt(t.split(':')[0]);
-              return hour >= 13;
-            }).map((timeString, slotIndex) => {
-              const actualSlotIndex = timeSlots.findIndex(t => t === timeString);
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, day);
-
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">
-                    {format(slotTime, 'h:mm a')}
-                  </td>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
                   {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) {
-                      return null;
-                    }
+                    if (coveredCells[resource.id][timeString]) return null;
 
-                    const cellDay = day;
-                    const cellSlotTime = parseTimeString(timeString, cellDay);
-                    const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
-                    const cellEvents = getEventsForCellSlot(cellDay, timeString, resource.id);
-                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
-                    
+                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (eventsStartingHere.length > 1) {
-                      cellContent = (
-                        <OverlapSummaryCard 
-                          cellEvents={cellEvents} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, resource.id, resource.title);
-                          }}
-                        />
-                      );
-                    } else if (eventsStartingHere.length === 1) {
-                      const event = eventsStartingHere[0];
-                      rowSpan = calculateEventSlotSpan(event);
-                      
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextSlotIndex = actualSlotIndex + i;
-                        if (nextSlotIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextSlotIndex];
-                          coveredCells[resource.id][nextTimeString] = true;
-                        }
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
                       }
-                      
-                      cellContent = (
-                        <SingleAppointmentCard 
-                          event={event}
-                        />
-                      );
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} />;
                     }
 
                     return (
-                      <td
-                        key={resource.id}
-                        rowSpan={rowSpan}
-                        className={`border border-slate-300 p-1 relative transition-colors bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, timeString, cellDay, resource.id)}
-                        onClick={() => handleCellClick(cellEvents, cellSlotTime, cellSlotEnd, null, resource.id, resource.title)}
-                      >
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>
-                          {cellContent}
-                        </div>
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
                   })}
@@ -1418,6 +1189,6 @@ export default function CustomCalendar({
         }}
         workOrder={selectedWorkOrder}
       />
-      </div>
-      );
-      }
+    </div>
+  );
+}
