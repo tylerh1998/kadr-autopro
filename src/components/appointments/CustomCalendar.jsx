@@ -551,11 +551,14 @@ export default function CustomCalendar({
                     const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString, null, bay);
                     
+                    // Filter to only events that START in this slot
+                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
+                    
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (cellEvents.length > 1) {
-                      // Overlapping events (start or continuation) - show summary card
+                    if (eventsStartingHere.length > 1) {
+                      // Multiple events starting here - show summary card (no spanning)
                       cellContent = (
                         <OverlapSummaryCard 
                           cellEvents={cellEvents} 
@@ -565,33 +568,10 @@ export default function CustomCalendar({
                           }}
                         />
                       );
-                    } else if (cellEvents.length === 1) {
-                      // Single event (start or continuation)
-                      const event = cellEvents[0];
-                      
-                      // Calculate rowSpan dynamically checking for future conflicts
-                      rowSpan = 1;
-                      for (let i = 1; ; i++) {
-                        const nextSlotIndex = slotIndex + i;
-                        if (nextSlotIndex >= timeSlots.length) break;
-                        
-                        const nextTimeString = timeSlots[nextSlotIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        
-                        // If the event does not cover this slot, we are done spanning
-                        if (nextSlotTime >= event.end) break;
-                        
-                        // Check conflicts in the next slot
-                        const nextCellEvents = getEventsForCellSlot(day, nextTimeString, null, bay);
-                        const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-                        
-                        // Stop if conflict ahead (multi-event overlap or new event starting)
-                        if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                          break;
-                        }
-                        
-                        rowSpan++;
-                      }
+                    } else if (eventsStartingHere.length === 1) {
+                      // Single event starting here - calculate rowSpan
+                      const event = eventsStartingHere[0];
+                      rowSpan = calculateEventSlotSpan(event);
                       
                       // Mark covered cells
                       for (let i = 1; i < rowSpan; i++) {
@@ -659,11 +639,12 @@ export default function CustomCalendar({
                     const cellSlotTime = parseTimeString(timeString, day);
                     const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString, null, bay);
+                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
                     
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (cellEvents.length > 1) {
+                    if (eventsStartingHere.length > 1) {
                       cellContent = (
                         <OverlapSummaryCard 
                           cellEvents={cellEvents} 
@@ -673,35 +654,14 @@ export default function CustomCalendar({
                           }}
                         />
                       );
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      
-                      rowSpan = 1;
-                      for (let i = 1; ; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        
-                        if (nextRealIndex >= timeSlots.length) break;
-                        
-                        const nextTimeString = timeSlots[nextRealIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        
-                        if (nextSlotTime >= event.end) break;
-                        
-                        const nextCellEvents = getEventsForCellSlot(day, nextTimeString, null, bay);
-                        const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-                        
-                        if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                          break;
-                        }
-                        rowSpan++;
-                      }
+                    } else if (eventsStartingHere.length === 1) {
+                      const event = eventsStartingHere[0];
+                      rowSpan = calculateEventSlotSpan(event);
                       
                       for (let i = 1; i < rowSpan; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        if (nextRealIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextRealIndex];
+                        const nextSlotIndex = actualSlotIndex + i;
+                        if (nextSlotIndex < timeSlots.length) {
+                          const nextTimeString = timeSlots[nextSlotIndex];
                           coveredCells[bay][nextTimeString] = true;
                         }
                       }
@@ -800,11 +760,12 @@ export default function CustomCalendar({
                       const cellSlotTime = parseTimeString(timeString, day);
                       const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                       const cellEvents = getEventsForCellSlot(day, timeString);
+                      const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
 
                       let rowSpan = 1;
                       let cellContent = null;
 
-                      if (cellEvents.length > 1) {
+                      if (eventsStartingHere.length > 1) {
                         cellContent = (
                           <OverlapSummaryCard 
                             cellEvents={cellEvents} 
@@ -814,67 +775,14 @@ export default function CustomCalendar({
                             }}
                           />
                         );
-                      } else if (cellEvents.length === 1) {
-                        const event = cellEvents[0];
+                      } else if (eventsStartingHere.length === 1) {
+                        const event = eventsStartingHere[0];
+                        rowSpan = calculateEventSlotSpan(event);
                         
-                        // Calculate rowSpan dynamically checking for future conflicts
-                        rowSpan = 1;
-                        for (let i = 1; ; i++) {
-                          const nextSlotIndex = slotIndex + i;
-                          // Note: Week view splits timeSlots rendering into morning/afternoon blocks in the JSX,
-                          // but the timeSlots array is unified. We must ensure we don't index out of bounds.
-                          // However, the week view logic iterates filtered timeSlots. 
-                          // The `slotIndex` here comes from `timeSlots.filter(...).map`.
-                          // This means slotIndex is 0..3 (for 8am-10am) etc.
-                          // Accessing `timeSlots` via `slotIndex` directly is WRONG if we are iterating a filtered subset.
-                          
-                          // Correction: We need the ACTUAL index in the full `timeSlots` array.
-                          // The render loops use `timeSlots.filter(...)`.
-                          // Let's get the real index.
-                          const currentRealIndex = timeSlots.indexOf(timeString);
-                          const nextRealIndex = currentRealIndex + i;
-                          
-                          if (nextRealIndex >= timeSlots.length) break;
-                          
-                          const nextTimeString = timeSlots[nextRealIndex];
-                          // Ensure we don't span across the lunch break visual split if that's undesired?
-                          // Actually, week view renders two separate TBODIES or loops?
-                          // No, it renders one loop for morning, then a lunch row, then loop for afternoon.
-                          // If we span across lunch, we might break the visual layout if we use rowSpan > remaining rows in this block.
-                          
-                          // Check if nextTimeString is in the current block (morning vs afternoon)
-                          // Morning: < 12. Afternoon: >= 13.
-                          // If current is < 12 and next is >= 13, we are crossing lunch.
-                          const currentHour = parseInt(timeString.split(':')[0]);
-                          const nextHour = parseInt(nextTimeString.split(':')[0]);
-                          
-                          if (currentHour < 12 && nextHour >= 13) {
-                             // We are crossing lunch. RowSpan cannot cross the visual "Lunch" tr.
-                             // We must stop here. The event will continue in the afternoon block.
-                             break;
-                          }
-                          
-                          const nextSlotTime = parseTimeString(nextTimeString, day);
-                          
-                          if (nextSlotTime >= event.end) break;
-                          
-                          const nextCellEvents = getEventsForCellSlot(day, nextTimeString);
-                          const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-                          
-                          if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                            break;
-                          }
-                          
-                          rowSpan++;
-                        }
-                        
-                        // Mark covered cells
-                        // We need to find the specific nextTimeString to mark
                         for (let i = 1; i < rowSpan; i++) {
-                          const currentRealIndex = timeSlots.indexOf(timeString);
-                          const nextRealIndex = currentRealIndex + i;
-                          if (nextRealIndex < timeSlots.length) {
-                            const nextTimeString = timeSlots[nextRealIndex];
+                          const nextSlotIndex = slotIndex + i;
+                          if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
+                            const nextTimeString = timeSlots[nextSlotIndex];
                             coveredCells[dayKey][nextTimeString] = true;
                           }
                         }
@@ -937,11 +845,12 @@ export default function CustomCalendar({
                     const cellSlotTime = parseTimeString(timeString, day);
                     const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(day, timeString);
+                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
                     
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (cellEvents.length > 1) {
+                    if (eventsStartingHere.length > 1) {
                       cellContent = (
                         <OverlapSummaryCard 
                           cellEvents={cellEvents} 
@@ -951,35 +860,14 @@ export default function CustomCalendar({
                           }}
                         />
                       );
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      
-                      rowSpan = 1;
-                      for (let i = 1; ; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        
-                        if (nextRealIndex >= timeSlots.length) break;
-                        
-                        const nextTimeString = timeSlots[nextRealIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        
-                        if (nextSlotTime >= event.end) break;
-                        
-                        const nextCellEvents = getEventsForCellSlot(day, nextTimeString);
-                        const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-                        
-                        if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                          break;
-                        }
-                        rowSpan++;
-                      }
+                    } else if (eventsStartingHere.length === 1) {
+                      const event = eventsStartingHere[0];
+                      rowSpan = calculateEventSlotSpan(event);
                       
                       for (let i = 1; i < rowSpan; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        if (nextRealIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextRealIndex];
+                        const nextSlotIndex = actualSlotIndex + i;
+                        if (nextSlotIndex < timeSlots.length) {
+                          const nextTimeString = timeSlots[nextSlotIndex];
                           coveredCells[dayKey][nextTimeString] = true;
                         }
                       }
@@ -1061,11 +949,12 @@ export default function CustomCalendar({
                     const cellSlotTime = parseTimeString(timeString, cellDay);
                     const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(cellDay, timeString, resource.id);
+                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
 
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (cellEvents.length > 1) {
+                    if (eventsStartingHere.length > 1) {
                       cellContent = (
                         <OverlapSummaryCard 
                           cellEvents={cellEvents} 
@@ -1075,44 +964,18 @@ export default function CustomCalendar({
                           }}
                         />
                       );
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-
-                      rowSpan = 1;
-                      for (let i = 1; ; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-
-                        if (nextRealIndex >= timeSlots.length) break;
-
-                        const nextTimeString = timeSlots[nextRealIndex];
-                        const currentHour = parseInt(timeString.split(':')[0]);
-                        const nextHour = parseInt(nextTimeString.split(':')[0]);
-
-                        // Stop at lunch break (visual gap)
-                        if (currentHour < 12 && nextHour >= 13) break;
-
-                        const nextSlotTime = parseTimeString(nextTimeString, cellDay);
-                        if (nextSlotTime >= event.end) break;
-
-                        const nextCellEvents = getEventsForCellSlot(cellDay, nextTimeString, resource.id);
-                        const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-
-                        if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                          break;
-                        }
-                        rowSpan++;
-                      }
-
+                    } else if (eventsStartingHere.length === 1) {
+                      const event = eventsStartingHere[0];
+                      rowSpan = calculateEventSlotSpan(event);
+                      
                       for (let i = 1; i < rowSpan; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        if (nextRealIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextRealIndex];
+                        const nextSlotIndex = slotIndex + i;
+                        if (nextSlotIndex < timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).length) {
+                          const nextTimeString = timeSlots[nextSlotIndex];
                           coveredCells[resource.id][nextTimeString] = true;
                         }
                       }
-
+                      
                       cellContent = (
                         <SingleAppointmentCard 
                           event={event}
@@ -1169,11 +1032,12 @@ export default function CustomCalendar({
                     const cellSlotTime = parseTimeString(timeString, cellDay);
                     const cellSlotEnd = addMinutes(cellSlotTime, SLOT_DURATION_MINUTES);
                     const cellEvents = getEventsForCellSlot(cellDay, timeString, resource.id);
+                    const eventsStartingHere = cellEvents.filter(event => eventStartsAtSlot(event, cellSlotTime));
                     
                     let rowSpan = 1;
                     let cellContent = null;
 
-                    if (cellEvents.length > 1) {
+                    if (eventsStartingHere.length > 1) {
                       cellContent = (
                         <OverlapSummaryCard 
                           cellEvents={cellEvents} 
@@ -1183,35 +1047,14 @@ export default function CustomCalendar({
                           }}
                         />
                       );
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      
-                      rowSpan = 1;
-                      for (let i = 1; ; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        
-                        if (nextRealIndex >= timeSlots.length) break;
-                        
-                        const nextTimeString = timeSlots[nextRealIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, cellDay);
-                        
-                        if (nextSlotTime >= event.end) break;
-                        
-                        const nextCellEvents = getEventsForCellSlot(cellDay, nextTimeString, resource.id);
-                        const nextStarts = nextCellEvents.filter(e => eventStartsAtSlot(e, nextSlotTime));
-                        
-                        if (nextCellEvents.length > 1 || nextStarts.length > 0) {
-                          break;
-                        }
-                        rowSpan++;
-                      }
+                    } else if (eventsStartingHere.length === 1) {
+                      const event = eventsStartingHere[0];
+                      rowSpan = calculateEventSlotSpan(event);
                       
                       for (let i = 1; i < rowSpan; i++) {
-                        const currentRealIndex = timeSlots.indexOf(timeString);
-                        const nextRealIndex = currentRealIndex + i;
-                        if (nextRealIndex < timeSlots.length) {
-                          const nextTimeString = timeSlots[nextRealIndex];
+                        const nextSlotIndex = actualSlotIndex + i;
+                        if (nextSlotIndex < timeSlots.length) {
+                          const nextTimeString = timeSlots[nextSlotIndex];
                           coveredCells[resource.id][nextTimeString] = true;
                         }
                       }
