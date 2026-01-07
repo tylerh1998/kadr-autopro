@@ -1576,7 +1576,9 @@ export default function CustomCalendar({
           <h2 className="text-xl font-semibold text-slate-900 ml-2">
             {view === 'month' 
               ? format(currentDate, 'MMMM yyyy')
-              : (view === 'week' || view === 'day' || view === 'tech')
+              : (view === 'day' || view === 'tech')
+              ? format(currentDate, 'EEEE, MMM d, yyyy')
+              : (view === 'week')
               ? `${format(displayDays[0], 'MMM d')} - ${format(displayDays[displayDays.length - 1], 'MMM d, yyyy')}`
               : format(currentDate, 'EEEE, MMMM d, yyyy')
             }
