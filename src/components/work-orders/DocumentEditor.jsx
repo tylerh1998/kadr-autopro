@@ -130,6 +130,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
   // NEW: Ref to track previous line items for deletion detection
   const previousLineItemsRef = useRef([]);
+  // Ref to track latest line items to prevent race conditions during save
+  const latestLineItemsRef = useRef(lineItems);
+
+  useEffect(() => {
+    latestLineItemsRef.current = lineItems;
+  }, [lineItems]);
 
   const [showOdometerSimpleUpdateModal, setShowOdometerSimpleUpdateModal] = useState(false);
 
@@ -636,7 +642,21 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         }
       }));
 
-      setLineItems(lineItemsAfterInventoryProcessing);
+      // Use functional update to merge processed inventory data with any user edits made during save
+      setLineItems(currentLines => {
+        const processedMap = new Map(lineItemsAfterInventoryProcessing.map(l => [l.id, l]));
+        return currentLines.map(currentLine => {
+          const processedLine = processedMap.get(currentLine.id);
+          if (!processedLine) return currentLine;
+          return {
+            ...currentLine,
+            // Only update system/backend fields, preserving user edits (desc, qty, etc.)
+            qty_on_order: processedLine.qty_on_order,
+            inventory_processed: processedLine.inventory_processed,
+            supplier_invoice_line_id: processedLine.supplier_invoice_line_id,
+          };
+        });
+      });
 
       // Financial Calculations
       const currentLineItemsState = lineItemsAfterInventoryProcessing;
@@ -770,7 +790,23 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       // The automatic clearing logic has been removed to prevent clearing lock on intermediate saves (like sending email).
 
       setWorkOrder(workOrderData);
-      setHasUnsavedChanges(false);
+      
+      // Check if user made changes during the save process
+      // We compare the JSON string of critical fields to see if "latest" differs from what we just saved ("working")
+      const getLineFingerprint = (lines) => JSON.stringify(lines.map(l => ({ 
+        id: l.id, d: l.description, q: l.qty, p: l.part_number, h: l.hrs, m: l.manually_inserted 
+      })));
+      
+      const latestFingerprint = getLineFingerprint(latestLineItemsRef.current || []);
+      const savedFingerprint = getLineFingerprint(workingLineItems || []);
+      
+      if (latestFingerprint !== savedFingerprint) {
+        console.log('User made changes during save - keeping unsaved changes flag active');
+        setHasUnsavedChanges(true);
+      } else {
+        setHasUnsavedChanges(false);
+      }
+
       previousLineItemsRef.current = [...lineItemsAfterInventoryProcessing];
 
       if (showAlertOnSuccess) {
