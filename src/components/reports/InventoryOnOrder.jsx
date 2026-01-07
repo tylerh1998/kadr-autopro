@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { InventoryItem, InventoryTxs, Supplier } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -17,32 +17,14 @@ export default function InventoryOnOrder() {
       setLoading(true);
       setError('');
       try {
-        const [allInventory, allSuppliers, recentTxs] = await Promise.all([
-          InventoryItem.list(),
-          Supplier.list(),
-          InventoryTxs.filter({ tx_type: 'Ordered' }, '-tx_date', 1000)
-        ]);
-
-        const supplierMap = Object.fromEntries(allSuppliers.map(s => [s.id, s]));
-
-        const itemsOnOrder = allInventory
-          .filter(item => (item.quantity_on_order || 0) > 0)
-          .map(item => {
-            const supplier = supplierMap[item.supplier_id] || null;
-            const recentOrderTx = recentTxs
-              .filter(tx => tx.inventory_item_id === item.id)
-              .sort((a, b) => new Date(b.tx_date) - new Date(a.tx_date))[0];
-
-            return {
-              ...item,
-              supplier_name: supplier ? supplier.name : 'No Supplier',
-              total_value: (item.quantity_on_order || 0) * (item.cost || 0),
-              last_ordered_date: recentOrderTx ? recentOrderTx.tx_date : null,
-              last_ordered_ro: recentOrderTx ? recentOrderTx.ro_number : null,
-            };
-          });
-
-        setInventoryData(itemsOnOrder);
+        // Use backend function for real-time calculation from Work Orders
+        const response = await base44.functions.invoke('getRealTimeInventoryOnOrder');
+        
+        if (response.data && response.data.success) {
+           setInventoryData(response.data.data);
+        } else {
+           throw new Error(response.data?.error || 'Failed to fetch real-time data');
+        }
 
       } catch (err) {
         console.error('Error fetching inventory on order data:', err);
