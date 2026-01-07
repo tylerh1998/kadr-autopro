@@ -929,6 +929,259 @@ export default function CustomCalendar({
     );
   };
 
+  const renderWeekView = () => {
+    const days = displayDays;
+    const columnWidthPercent = (100 - 5) / days.length;
+    const coveredCells = {};
+    days.forEach(day => { coveredCells[day.toISOString()] = {}; });
+
+    // Build row map
+    const rowMap = [];
+    timeSlots.forEach(t => {
+      if (parseInt(t.split(':')[0]) < 12) rowMap.push({ time: t, type: 'morning' });
+    });
+    rowMap.push({ time: 'LUNCH', type: 'lunch' });
+    timeSlots.forEach(t => {
+      if (parseInt(t.split(':')[0]) >= 13) rowMap.push({ time: t, type: 'afternoon' });
+    });
+
+    const getRowSpan = (start, end) => {
+      const startTimeStr = format(start, 'HH:mm');
+      let startIndex = rowMap.findIndex(r => r.time === startTimeStr);
+      
+      if (startIndex === -1) {
+        const startMins = start.getHours() * 60 + start.getMinutes();
+        startIndex = rowMap.findIndex(r => {
+          if (r.type === 'lunch') return false;
+          const [h, m] = r.time.split(':').map(Number);
+          const slotMins = h * 60 + m;
+          return startMins >= slotMins && startMins < slotMins + 30;
+        });
+      }
+      if (startIndex === -1) return 1;
+
+      const endTimeStr = format(end, 'HH:mm');
+      let endIndex = rowMap.findIndex(r => r.time === endTimeStr);
+      
+      if (endIndex === -1) {
+        const endMins = end.getHours() * 60 + end.getMinutes();
+        for (let i = startIndex; i < rowMap.length; i++) {
+          const r = rowMap[i];
+          if (r.type === 'lunch') {
+            if (endMins > 12 * 60) continue;
+            else { endIndex = i; break; }
+          }
+          const [h, m] = r.time.split(':').map(Number);
+          const slotMins = h * 60 + m;
+          if (endMins <= slotMins) {
+            endIndex = i;
+            break;
+          }
+        }
+        if (endIndex === -1) endIndex = rowMap.length;
+      }
+      
+      return Math.max(1, endIndex - startIndex);
+    };
+
+    return (
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '80px' }} />
+            {days.map((day, index) => <col key={index} style={{ width: columnWidthPercent + '%' }} />)}
+          </colgroup>
+          <thead className="sticky top-0 bg-white z-10">
+            <tr>
+              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
+              {days.map(day => (
+                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900' : 'text-slate-700'}`}>
+                  <div>{format(day, 'EEE')}</div>
+                  <div className="text-lg">{format(day, 'd')}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Morning Block */}
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, currentDate);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {days.map(day => {
+                    const dayKey = day.toISOString();
+                    if (coveredCells[dayKey][timeString]) return null;
+
+                    const dayClusters = groupedWeekAppointments[dayKey] || [];
+                    // Find cluster that starts at or overlaps this slot
+                    const daySlotTime = parseTimeString(timeString, day);
+                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
+                    const cluster = dayClusters.find(c => 
+                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
+                    );
+                    
+                    let cellContent = null;
+                    let rowSpan = 1;
+
+                    if (cluster) {
+                      rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd);
+                      
+                      if (cluster.type === 'group') {
+                        cellContent = <MultiAppointmentCard 
+                          appointments={cluster.appointments}
+                          earliestStart={cluster.earliestStart}
+                          latestEnd={cluster.latestEnd}
+                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                        />;
+                      } else {
+                        const event = cluster.appointments[0];
+                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                      }
+
+                      // Mark all covered cells from cluster start to cluster end
+                      const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
+                      let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
+                      
+                      // If exact match not found, find the slot that contains the start time
+                      if (markingIndex === -1) {
+                        const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
+                        markingIndex = rowMap.findIndex(r => {
+                          if (r.type === 'lunch') return false;
+                          const [h, m] = r.time.split(':').map(Number);
+                          const slotMins = h * 60 + m;
+                          return startMins >= slotMins && startMins < slotMins + 30;
+                        });
+                      }
+                      
+                      if (markingIndex !== -1) {
+                        for (let i = 0; i < rowSpan; i++) {
+                          if (markingIndex + i < rowMap.length) {
+                            const r = rowMap[markingIndex + i];
+                            if (r.time === 'LUNCH') {
+                              coveredCells[dayKey]['LUNCH'] = true;
+                            } else {
+                              coveredCells[dayKey][r.time] = true;
+                            }
+                          }
+                        }
+                      }
+                    } else {
+                      return (
+                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+
+            {/* Lunch Row */}
+            <tr style={{ height: '60px' }}>
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {days.map(day => {
+                const dayKey = day.toISOString();
+                if (coveredCells[dayKey]['LUNCH']) return null;
+                return <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>;
+              })}
+            </tr>
+
+            {/* Afternoon Block */}
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, currentDate);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {days.map(day => {
+                    const dayKey = day.toISOString();
+                    if (coveredCells[dayKey][timeString]) return null;
+
+                    const dayClusters = groupedWeekAppointments[dayKey] || [];
+                    // Find cluster that starts at or overlaps this slot
+                    const daySlotTime = parseTimeString(timeString, day);
+                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
+                    const cluster = dayClusters.find(c => 
+                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
+                    );
+                    
+                    let cellContent = null;
+                    let rowSpan = 1;
+
+                    if (cluster) {
+                      rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd);
+                      
+                      if (cluster.type === 'group') {
+                        cellContent = <MultiAppointmentCard 
+                          appointments={cluster.appointments}
+                          earliestStart={cluster.earliestStart}
+                          latestEnd={cluster.latestEnd}
+                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                        />;
+                      } else {
+                        const event = cluster.appointments[0];
+                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                      }
+
+                      // Mark all covered cells from cluster start to cluster end
+                      const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
+                      let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
+                      
+                      // If exact match not found, find the slot that contains the start time
+                      if (markingIndex === -1) {
+                        const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
+                        markingIndex = rowMap.findIndex(r => {
+                          if (r.type === 'lunch') return false;
+                          const [h, m] = r.time.split(':').map(Number);
+                          const slotMins = h * 60 + m;
+                          return startMins >= slotMins && startMins < slotMins + 30;
+                        });
+                      }
+                      
+                      if (markingIndex !== -1) {
+                        for (let i = 0; i < rowSpan; i++) {
+                          if (markingIndex + i < rowMap.length) {
+                            const r = rowMap[markingIndex + i];
+                            if (r.time === 'LUNCH') {
+                              coveredCells[dayKey]['LUNCH'] = true;
+                            } else {
+                              coveredCells[dayKey][r.time] = true;
+                            }
+                          }
+                        }
+                      }
+                    } else {
+                      return (
+                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderTechView = () => {
     const day = currentDate;
     const resources = techResources;
