@@ -346,7 +346,6 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       
       if (result.success) {
         if (!chequeNumber) {
-          alert('Payment processed successfully!');
           if (onPaymentComplete) {
             onPaymentComplete();
           }
