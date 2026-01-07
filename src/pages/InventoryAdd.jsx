@@ -8,7 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search, RotateCcw } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -164,6 +165,8 @@ export default function InventoryAddPage() {
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
     const [isCategorySuggested, setIsCategorySuggested] = useState(false);
+    const [showFlushConfirm, setShowFlushConfirm] = useState(false);
+    const [flushing, setFlushing] = useState(false);
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -742,6 +745,44 @@ export default function InventoryAddPage() {
         }
     };
 
+    const handleFlushLocks = async () => {
+        setFlushing(true);
+        try {
+            const allSuppliers = await Supplier.list();
+            const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
+            
+            if (lockedSuppliers.length === 0) {
+                alert('No locked suppliers found.');
+                setShowFlushConfirm(false);
+                setFlushing(false);
+                return;
+            }
+
+            const updatePromises = lockedSuppliers.map(supplier => 
+                Supplier.update(supplier.id, { LockedByUser: null })
+            );
+
+            await Promise.all(updatePromises);
+            
+            alert(`Successfully unlocked ${lockedSuppliers.length} supplier(s).`);
+            
+            // Refresh suppliers list
+            const suppliersData = await Supplier.filter({ inventory_supplier: true }, 'name');
+            setSuppliers(suppliersData);
+            
+            // Re-check current supplier lock status
+            if (selectedSupplier) {
+                checkSupplierLock(selectedSupplier);
+            }
+        } catch (error) {
+            console.error('Error flushing supplier locks:', error);
+            alert('Failed to flush supplier locks. Please try again.');
+        } finally {
+            setShowFlushConfirm(false);
+            setFlushing(false);
+        }
+    };
+
     return (
         <div className="container mx-auto p-6 max-w-4xl">
             <div className="flex items-center justify-between mb-6">
@@ -752,10 +793,20 @@ export default function InventoryAddPage() {
                     </Button>
                     <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
                 </div>
-                <Button variant="outline" onClick={() => handleNavigateAway(createPageUrl('Suppliers'))}>
-                    <Truck className="w-4 h-4 mr-2" />
-                    Suppliers
-                </Button>
+                <div className="flex gap-2">
+                    <Button 
+                        variant="destructive" 
+                        onClick={() => setShowFlushConfirm(true)}
+                        className="bg-red-600 hover:bg-red-700"
+                    >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Flush Supplier
+                    </Button>
+                    <Button variant="outline" onClick={() => handleNavigateAway(createPageUrl('Suppliers'))}>
+                        <Truck className="w-4 h-4 mr-2" />
+                        Suppliers
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -1229,6 +1280,34 @@ export default function InventoryAddPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Dialog open={showFlushConfirm} onOpenChange={setShowFlushConfirm}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Flush All Supplier Locks</DialogTitle>
+                        <DialogDescription>
+                            This will unlock all supplier records. Progress of any unsaved changes may be lost. 
+                            Verify that all open supplier forms are saved and closed across the platform before executing this.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowFlushConfirm(false)}
+                            disabled={flushing}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleFlushLocks}
+                            disabled={flushing}
+                        >
+                            {flushing ? 'Flushing...' : 'Confirm Flush'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
