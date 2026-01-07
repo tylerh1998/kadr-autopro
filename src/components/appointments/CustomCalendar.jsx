@@ -887,14 +887,30 @@ export default function CustomCalendar({
                         cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
                       }
 
-                      let currentRowIndex = rowMap.findIndex(r => r.time === timeString);
-                      for (let i = 0; i < rowSpan; i++) {
-                        if (currentRowIndex + i < rowMap.length) {
-                          const r = rowMap[currentRowIndex + i];
-                          if (r.time === 'LUNCH') {
-                            coveredCells[dayKey]['LUNCH'] = true;
-                          } else {
-                            coveredCells[dayKey][r.time] = true;
+                      // Mark all covered cells from cluster start to cluster end
+                      const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
+                      let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
+                      
+                      // If exact match not found, find the slot that contains the start time
+                      if (markingIndex === -1) {
+                        const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
+                        markingIndex = rowMap.findIndex(r => {
+                          if (r.type === 'lunch') return false;
+                          const [h, m] = r.time.split(':').map(Number);
+                          const slotMins = h * 60 + m;
+                          return startMins >= slotMins && startMins < slotMins + 30;
+                        });
+                      }
+                      
+                      if (markingIndex !== -1) {
+                        for (let i = 0; i < rowSpan; i++) {
+                          if (markingIndex + i < rowMap.length) {
+                            const r = rowMap[markingIndex + i];
+                            if (r.time === 'LUNCH') {
+                              coveredCells[dayKey]['LUNCH'] = true;
+                            } else {
+                              coveredCells[dayKey][r.time] = true;
+                            }
                           }
                         }
                       }
