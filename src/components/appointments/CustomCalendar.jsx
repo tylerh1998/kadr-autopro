@@ -909,3 +909,450 @@ export default function CustomCalendar({
       </div>
     );
   };
+
+  const renderTechView = () => {
+    const day = currentDate;
+    const resources = techResources;
+    const coveredCells = {};
+    resources.forEach(resource => { coveredCells[resource.id] = {}; });
+
+    return (
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <table className="w-full border-collapse">
+          <thead className="sticky top-0 bg-white z-10">
+            <tr>
+              <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
+              {resources.map(resource => <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{resource.title}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, day);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {resources.map(resource => {
+                    if (coveredCells[resource.id][timeString]) return null;
+
+                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
+                    let rowSpan = 1;
+                    let cellContent = null;
+
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
+                      }
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} />;
+                    }
+
+                    return (
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+
+            <tr style={{ height: '60px' }}>
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {resources.map(resource => <td key={resource.id} className="border border-slate-300 bg-black"></td>)}
+            </tr>
+
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, day);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {resources.map(resource => {
+                    if (coveredCells[resource.id][timeString]) return null;
+
+                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
+                    let rowSpan = 1;
+                    let cellContent = null;
+
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
+                      }
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} />;
+                    }
+
+                    return (
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderMonthView = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    return (
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <div className="grid grid-cols-7 bg-slate-100 border-b-2 border-slate-300">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center py-3 text-sm font-semibold text-slate-700 border-r border-slate-200 last:border-r-0">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7">
+          {days.map((day, idx) => {
+            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+            const isToday = isSameDay(day, new Date());
+            const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
+
+            return (
+              <div
+                key={day.toString()}
+                className={`min-h-[120px] border-r border-b border-slate-200 p-2 cursor-pointer hover:bg-slate-50 transition-colors ${
+                  !isCurrentMonth ? 'bg-slate-50' : 'bg-white'
+                } ${idx % 7 === 6 ? 'border-r-0' : ''} ${moveMode ? 'cursor-crosshair bg-blue-50' : ''}`}
+                onClick={() => {
+                  if (moveMode && appointmentToMove) {
+                    const newStart = new Date(day);
+                    newStart.setHours(appointmentToMove.start.getHours(), appointmentToMove.start.getMinutes(), 0, 0);
+                    handleMoveToCell(format(newStart, 'HH:mm'), newStart, appointmentToMove.employee_id);
+                  } else {
+                    handleDateClick(day);
+                  }
+                }}
+              >
+                <div className={`text-sm font-semibold mb-2 ${
+                  isToday ? 'bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center' : 
+                  !isCurrentMonth ? 'text-slate-400' : 'text-slate-900'
+                }`}>
+                  {format(day, 'd')}
+                </div>
+
+                <div className="space-y-1">
+                  {dayEvents.slice(0, 3).map(event => {
+                    const customerName = event.customer 
+                      ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
+                      : event.displayTitle || 'Appointment';
+                    
+                    const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
+                    
+                    const hoverText = [
+                      event.bayId ? `Bay: ${event.bayId}` : null,
+                      event.tech ? `Tech: ${event.tech.first_name} ${event.tech.last_name}` : null,
+                      event.status ? `Status: ${event.status}` : null
+                    ].filter(Boolean).join(' | ') || 'No additional info';
+
+                    return (
+                      <div
+                        key={event.id}
+                        className={`text-xs px-2 py-1 bg-slate-100 rounded border border-slate-200 truncate hover:bg-slate-200 transition-colors cursor-pointer ${
+                          isCancelledOrNoShow ? 'opacity-50' : ''
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!moveMode) {
+                            handleAppointmentClick(e, event);
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!moveMode) {
+                            handleAppointmentClick(e, event);
+                          }
+                        }}
+                        title={hoverText}
+                      >
+                        <div className={`font-medium text-slate-900 truncate ${
+                          isCancelledOrNoShow ? 'line-through' : ''
+                        }`}>
+                          {customerName}
+                        </div>
+                        <div className={`text-[10px] text-slate-600 ${
+                          isCancelledOrNoShow ? 'line-through' : ''
+                        }`}>
+                          {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {dayEvents.length > 3 && (
+                    <div className="text-xs text-slate-600 font-medium pl-1">
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {moveMode && (
+        <div className="bg-blue-100 border-2 border-blue-500 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Move className="w-6 h-6 text-blue-600" />
+            <div>
+              <p className="font-semibold text-blue-900">Move Mode Active</p>
+              <p className="text-sm text-blue-700">Click on a time slot to move the appointment "{appointmentToMove?.displayTitle}"</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setMoveMode(false);
+              setAppointmentToMove(null);
+            }}
+            className="border-blue-500 text-blue-700 hover:bg-blue-50"
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => handleNavigate('PREV')}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleNavigate('TODAY')}>
+            Today
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleNavigate('NEXT')}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          <h2 className="text-xl font-semibold text-slate-900 ml-2">
+            {view === 'month' 
+              ? format(currentDate, 'MMMM yyyy')
+              : (view === 'week' || view === 'day' || view === 'tech')
+              ? `${format(displayDays[0], 'MMM d')} - ${format(displayDays[displayDays.length - 1], 'MMM d, yyyy')}`
+              : format(currentDate, 'EEEE, MMMM d, yyyy')
+            }
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {view === 'day' && employees.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600">Techs:</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                {employees.map(tech => (
+                  <div key={tech.id} className="flex items-center gap-1.5">
+                    <div 
+                      className="w-3 h-3 rounded-full border-2"
+                      style={{ 
+                        backgroundColor: techColors[tech.id] + '40',
+                        borderColor: techColors[tech.id]
+                      }}
+                    ></div>
+                    <span className="text-xs text-slate-700">
+                      {tech.first_name} {tech.last_name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {view === 'week' && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
+              <span className="text-xs font-semibold text-slate-600">Bays:</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                {bayOptions.map(bay => (
+                  <div key={bay} className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded border-2 ${getBayColorClass(bay)}`}></div>
+                    <span className="text-xs text-slate-700">{bay}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setView('month')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === 'month'
+                  ? 'bg-black text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setView('week')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === 'week'
+                  ? 'bg-black text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setView('day')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === 'day'
+                  ? 'bg-black text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Day
+            </button>
+            <button
+              onClick={() => setView('tech')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === 'tech'
+                  ? 'bg-black text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tech
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {view === 'month' && renderMonthView()}
+      {view === 'week' && renderWeekView()}
+      {view === 'day' && renderDayView()}
+      {view === 'tech' && renderTechView()}
+
+      {contextMenu && (
+        <div
+          className="fixed bg-white shadow-lg rounded-lg border border-slate-200 py-1 z-50 min-w-[180px]"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+            onClick={handleContextEdit}
+          >
+            <Edit2 className="w-4 h-4" />
+            Edit Details
+          </button>
+          <button
+            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+            onClick={handleContextMove}
+          >
+            <Move className="w-4 h-4" />
+            Move Appointment
+          </button>
+          {contextMenu.event.workOrder && (
+            <>
+              <button
+                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={handleContextOpenWorkOrder}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M19.5 6.75A3 3 0 0016.5 3H7.5A3 3 0 004.5 6.75v10.5A3 3 0 007.5 20.25h9A3 3 0 0019.5 17.25V6.75zM17.25 9a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V6.75a.75.75 0 01.75-.75H16.5a.75.75 0 01.75.75V9z" />
+                  <path fillRule="evenodd" d="M12 11.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V12a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M13.253 11.854a.75.75 0 00-1.06 0l-.75.75a.75.75 0 101.06 1.06l.75-.75a.75.75 0 000-1.06z" clipRule="evenodd" />
+                </svg>
+                Open Work Order
+              </button>
+              <button
+                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                onClick={handleContextOpenWorkPRO}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M11.25 4.533A9.707 9.707 0 006 3a9.735 9.735 0 00-3.25.555.75.75 0 00-.5.707v14.25a.75.75 0 001 .707A8.237 8.237 0 016 18.75c1.995 0 3.823.707 5.25 1.886V4.533zM12.75 20.636A8.214 8.214 0 0118 18.75c.966 0 1.89.166 2.75.47a.75.75 0 001-.708V4.262a.75.75 0 00-.5-.707A9.735 9.735 0 0018 3a9.707 9.707 0 00-5.25 1.533v16.103z" />
+                </svg>
+                WorkPRO Project
+              </button>
+            </>
+          )}
+          <button 
+            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            onClick={handleContextDelete}
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Appointment
+          </button>
+        </div>
+      )}
+
+      <CellAppointmentsModal
+        open={showCellAppointmentsModal}
+        onClose={() => setShowCellAppointmentsModal(false)}
+        appointments={selectedCellAppointments}
+        slotInfo={selectedCellSlotInfo}
+        onSelectAppointment={handleSelectEvent}
+        onOpenWorkOrder={onOpenWorkOrder}
+        onDeleteAppointment={onDeleteAppointment}
+        bayColors={bayColors}
+        techColors={techColors}
+        employees={employees}
+        getEventStyle={getEventStyle}
+        handleAppointmentClick={handleAppointmentClick}
+      />
+
+      <WorkPROModal
+        open={showWorkPROModal}
+        onClose={() => {
+          setShowWorkPROModal(false);
+          setSelectedWorkOrder(null);
+        }}
+        workOrder={selectedWorkOrder}
+      />
+    </div>
+  );
+}
