@@ -1304,6 +1304,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     }
   };
 
+  const handleSendClick = useCallback(async () => {
+    // Save before opening send modal to ensure snapshot is created with latest data
+    await handleSave({}, false);
+    openModal('send');
+  }, [handleSave, openModal]);
+
   // Show loading until both data and lock check are complete
   if ((loading && !workOrder) || !lockCheckComplete) {
     return (
@@ -1544,7 +1550,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
                   <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>
-                <Button variant="outline" onClick={() => openModal('send')}>
+                <Button variant="outline" onClick={handleSendClick}>
                   <Send className="w-4 h-4 mr-2" />
                   Send
                 </Button>
