@@ -955,8 +955,6 @@ export default function CustomCalendar({
   };
 
   const renderTechView = () => {
-
-  const renderTechView = () => {
     const day = currentDate;
     const resources = techResources;
     const coveredCells = {};
