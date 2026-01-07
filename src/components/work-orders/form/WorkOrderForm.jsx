@@ -17,7 +17,13 @@ import ROCoreModal from '../ROCoreModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
-  const paddedLines = [...lines];
+  // Ensure all existing lines have an ID to support drag-and-drop
+  const paddedLines = lines.map(line => {
+    if (!line.id) {
+       return { ...line, id: `_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
+    }
+    return line;
+  });
   
   while (paddedLines.length < minLines) {
     paddedLines.push({ 

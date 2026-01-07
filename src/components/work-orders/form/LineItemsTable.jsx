@@ -607,7 +607,7 @@ export default function LineItemsTable({
                       {lineItems && lineItems
                         .filter(line => line !== undefined && line !== null) // Filter out undefined/null items
                         .map((line, index) => (
-                          <Draggable key={line.id || `line-${index}`} draggableId={line.id || `line-${index}`} index={index}>
+                          <Draggable key={String(line.id || `line-${index}`)} draggableId={String(line.id || `line-${index}`)} index={index}>
                             {(draggableProvided) => renderLineItem(line, index, draggableProvided)}
                           </Draggable>
                         )
