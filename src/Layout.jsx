@@ -311,7 +311,6 @@ function LayoutContent({ children, currentPageName }) {
         if (updateResponse.data.success) {
           setIsClockedIn(false);
           setLastTimeRecord(null);
-          alert(`Clocked out at ${now.toLocaleTimeString()}. Total hours: ${Math.round(totalHours * 100) / 100}`);
         } else {
             console.error(`Error clocking out: ${updateResponse.data?.error || 'Unknown error'}`);
             alert('Error clocking out. Please try again.');
@@ -337,7 +336,6 @@ function LayoutContent({ children, currentPageName }) {
           const newRecord = createResponse.data.data;
           setIsClockedIn(true);
           setLastTimeRecord(newRecord);
-          alert(`Clocked in at ${now.toLocaleTimeString()}`);
         } else {
             console.error(`Error clocking in: ${createResponse.data?.error || 'Unknown error'}`);
             alert('Error clocking in. Please try again.');
@@ -352,7 +350,6 @@ function LayoutContent({ children, currentPageName }) {
   const handleGlobalClockInSuccess = (newRecord) => {
     setIsClockedIn(true);
     setLastTimeRecord(newRecord);
-    alert(`Clocked in successfully at ${new Date(newRecord.clock_in_time).toLocaleTimeString()}`);
   };
 
   const handleMouseEnter = (itemTitle) => {
