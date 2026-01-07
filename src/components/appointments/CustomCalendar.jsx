@@ -114,6 +114,60 @@ export default function CustomCalendar({
     }
   }, [currentDate, view]);
 
+  // Group appointments by day for week view (must be at component level, not inside render function)
+  const groupedWeekAppointments = useMemo(() => {
+    if (view !== 'week') return {};
+    
+    const grouped = {};
+    displayDays.forEach(day => {
+      const dayKey = day.toISOString();
+      const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
+      dayEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+      
+      const dayClusters = [];
+      const processedIds = new Set();
+
+      for (const event of dayEvents) {
+        if (processedIds.has(event.id)) continue;
+
+        let cluster = {
+          appointments: [event],
+          earliestStart: event.start,
+          latestEnd: event.end,
+          type: 'single'
+        };
+        processedIds.add(event.id);
+
+        // Find all overlapping events
+        let expanded = true;
+        while (expanded) {
+          expanded = false;
+          for (const other of dayEvents) {
+            if (!processedIds.has(other.id)) {
+              if (other.start < cluster.latestEnd && other.end > cluster.earliestStart) {
+                cluster.appointments.push(other);
+                cluster.earliestStart = new Date(Math.min(cluster.earliestStart.getTime(), other.start.getTime()));
+                cluster.latestEnd = new Date(Math.max(cluster.latestEnd.getTime(), other.end.getTime()));
+                cluster.type = 'group';
+                processedIds.add(other.id);
+                expanded = true;
+              }
+            }
+          }
+        }
+        
+        if (cluster.appointments.length > 1) {
+          cluster.appointments.sort((a, b) => a.start.getTime() - b.start.getTime());
+        }
+        
+        dayClusters.push(cluster);
+      }
+      
+      grouped[dayKey] = dayClusters;
+    });
+    return grouped;
+  }, [view, displayDays, formattedEvents]);
+
   // Helper: Calculate how many 30-minute slots an event spans
   const calculateEventSlotSpan = useCallback((event) => {
     const durationMinutes = differenceInMinutes(event.end, event.start);
@@ -652,58 +706,6 @@ export default function CustomCalendar({
     const columnWidthPercent = (100 - 5) / days.length;
     const coveredCells = {};
     days.forEach(day => { coveredCells[day.toISOString()] = {}; });
-
-    // Group appointments by day and identify overlapping clusters
-    const groupedWeekAppointments = useMemo(() => {
-      const grouped = {};
-      days.forEach(day => {
-        const dayKey = day.toISOString();
-        const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
-        dayEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
-        
-        const dayClusters = [];
-        const processedIds = new Set();
-
-        for (const event of dayEvents) {
-          if (processedIds.has(event.id)) continue;
-
-          let cluster = {
-            appointments: [event],
-            earliestStart: event.start,
-            latestEnd: event.end,
-            type: 'single'
-          };
-          processedIds.add(event.id);
-
-          // Find all overlapping events
-          let expanded = true;
-          while (expanded) {
-            expanded = false;
-            for (const other of dayEvents) {
-              if (!processedIds.has(other.id)) {
-                if (other.start < cluster.latestEnd && other.end > cluster.earliestStart) {
-                  cluster.appointments.push(other);
-                  cluster.earliestStart = new Date(Math.min(cluster.earliestStart.getTime(), other.start.getTime()));
-                  cluster.latestEnd = new Date(Math.max(cluster.latestEnd.getTime(), other.end.getTime()));
-                  cluster.type = 'group';
-                  processedIds.add(other.id);
-                  expanded = true;
-                }
-              }
-            }
-          }
-          
-          if (cluster.appointments.length > 1) {
-            cluster.appointments.sort((a, b) => a.start.getTime() - b.start.getTime());
-          }
-          
-          dayClusters.push(cluster);
-        }
-        
-        grouped[dayKey] = dayClusters;
-      });
-      return grouped;
-    }, [days, formattedEvents]);
 
     // Build row map
     const rowMap = [];
