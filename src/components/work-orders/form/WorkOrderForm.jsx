@@ -89,9 +89,6 @@ export default function WorkOrderForm({
   // New state for padded line items
   const [displayLineItems, setDisplayLineItems] = useState([]);
 
-  // Use a ref to track if we're currently updating to avoid re-initialization loops
-  const isInternalUpdate = useRef(false);
-  
   const [modals, setModals] = useState({
     getPart: false,
     otherCharge: false,
@@ -101,55 +98,53 @@ export default function WorkOrderForm({
     cores: false,
   });
 
-  // Initialize displayLineItems ONLY on mount or when initialLineItems reference actually changes externally
-  // Use a ref to track if we're currently updating to avoid re-initialization loops
+  // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
+  const getNonBlankLines = useCallback((lines) => {
+    return lines.filter(line => 
+      line && (
+        line.description || 
+        line.part_number || 
+        line.inventory_item_id || 
+        line.is_other_charge || 
+        line.manually_inserted ||
+        (parseFloat(line.qty) || 0) !== 0 ||
+        (parseFloat(line.hrs) || 0) !== 0 ||
+        (parseFloat(line.labour) || 0) !== 0 ||
+        (parseFloat(line.parts_ea) || 0) !== 0
+      )
+    );
+  }, []);
+
+  // Sync state with props using deep comparison to avoid infinite loops
   useEffect(() => {
-    console.log('WorkOrderForm: Initialization useEffect triggered');
-    console.log('isInternalUpdate.current:', isInternalUpdate.current);
+    if (!initialLineItems) return;
+
+    const currentActualLines = getNonBlankLines(displayLineItems);
     
-    // Skip re-initialization if this is from our own internal update
-    if (isInternalUpdate.current) {
-      console.log('WorkOrderForm: Skipping re-initialization (internal update)');
-      isInternalUpdate.current = false; // Reset flag
-      return;
-    }
-    
-    console.log('WorkOrderForm: Initializing displayLineItems from initialLineItems');
-    if (initialLineItems) {
+    // Compare current local actual lines with incoming props
+    // We use JSON.stringify for a deep value comparison
+    const isSynced = JSON.stringify(currentActualLines) === JSON.stringify(initialLineItems);
+
+    if (!isSynced) {
+      console.log('WorkOrderForm: Prop update detected, syncing displayLineItems');
       const defaultTaxable = editedWorkOrder?.default_taxable !== undefined 
         ? editedWorkOrder.default_taxable 
-        : true; // Get default_taxable from editedWorkOrder
-      setDisplayLineItems(padLines(initialLineItems, 20, defaultTaxable)); // Pass defaultTaxable
+        : true;
+      setDisplayLineItems(padLines(initialLineItems, 20, defaultTaxable));
+    } else {
+      // console.log('WorkOrderForm: Props match local state, skipping sync');
     }
-  }, [initialLineItems, editedWorkOrder?.default_taxable]); // Add editedWorkOrder?.default_taxable to dependencies
+  }, [initialLineItems, editedWorkOrder?.default_taxable, getNonBlankLines]); // Removed displayLineItems from deps to avoid render loop, relies on functional update if needed or just re-render cycle
 
-  // Wrap setLineItems to trace calls and manage padding - REMOVED DEBOUNCE for reliability
+  // Wrap setLineItems to trace calls and manage padding
   const tracedSetLineItems = useCallback((updater) => {
-    console.log('WorkOrderForm: tracedSetLineItems called');
-    
     setDisplayLineItems(prevDisplayLines => {
       const updatedDisplayLines = typeof updater === 'function' ? updater(prevDisplayLines) : updater;
       
       // Extract actual (non-blank) lines to send to parent
-      // UPDATED FILTER: Include lines with numeric values even if description/part_number are blank
-      const actualLines = updatedDisplayLines.filter(line => 
-        line && (
-          line.description || 
-          line.part_number || 
-          line.inventory_item_id || 
-          line.is_other_charge || 
-          line.manually_inserted ||
-          (parseFloat(line.qty) || 0) !== 0 ||
-          (parseFloat(line.hrs) || 0) !== 0 ||
-          (parseFloat(line.labour) || 0) !== 0 ||
-          (parseFloat(line.parts_ea) || 0) !== 0
-        )
-      );
+      const actualLines = getNonBlankLines(updatedDisplayLines);
       
-      console.log('WorkOrderForm: Updating parent immediately with actual lines:', actualLines.length);
-      
-      // Update parent immediately (Removed debounce for reliability)
-      isInternalUpdate.current = true;
+      // Update parent immediately
       setParentLineItems(actualLines);
       
       const defaultTaxable = editedWorkOrder?.default_taxable !== undefined 
@@ -159,7 +154,7 @@ export default function WorkOrderForm({
       // Return the padded version immediately for local state
       return padLines(actualLines, 20, defaultTaxable);
     });
-  }, [setParentLineItems, editedWorkOrder?.default_taxable]);
+  }, [setParentLineItems, editedWorkOrder?.default_taxable, getNonBlankLines]);
 
   // Update editedWorkOrder when initialWorkOrder prop changes
   useEffect(() => {
