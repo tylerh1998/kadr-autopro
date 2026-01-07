@@ -125,14 +125,14 @@ export default function WorkOrderForm({
     // We use JSON.stringify for a deep value comparison
     const isSynced = JSON.stringify(currentActualLines) === JSON.stringify(initialLineItems);
 
-    if (!isSynced) {
-      console.log('WorkOrderForm: Prop update detected, syncing displayLineItems');
+    if (!isSynced || displayLineItems.length < 20) {
+      console.log('WorkOrderForm: Prop update detected or padding needed, syncing displayLineItems');
       const defaultTaxable = editedWorkOrder?.default_taxable !== undefined 
         ? editedWorkOrder.default_taxable 
         : true;
       setDisplayLineItems(padLines(initialLineItems, 20, defaultTaxable));
     } else {
-      // console.log('WorkOrderForm: Props match local state, skipping sync');
+      // console.log('WorkOrderForm: Props match local state and padding is sufficient, skipping sync');
     }
   }, [initialLineItems, editedWorkOrder?.default_taxable, getNonBlankLines]); // Removed displayLineItems from deps to avoid render loop, relies on functional update if needed or just re-render cycle
 
