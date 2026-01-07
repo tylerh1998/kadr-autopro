@@ -984,7 +984,6 @@ export default function WorkOrdersPage() {
               </Button>
             )}
 
-            {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
               <Button
                 variant="destructive"
                 onClick={() => setShowFlushConfirm(true)}
@@ -993,7 +992,6 @@ export default function WorkOrdersPage() {
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Flush Locks
               </Button>
-            )}
             <Button 
               onClick={handleCreateCounterSale}
               className="bg-green-600 hover:bg-green-700 whitespace-nowrap"

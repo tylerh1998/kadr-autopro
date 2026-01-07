@@ -163,7 +163,6 @@ export default function SuppliersPage() {
                 <Plus className="w-4 h-4 mr-2" />
                 Add Supplier
               </Button>
-              {(currentUser?.access_level === 'lvl2_user' || currentUser?.access_level === 'lvl3_user') && (
                 <Button
                   variant="destructive"
                   onClick={() => setShowFlushConfirm(true)}
@@ -172,7 +171,6 @@ export default function SuppliersPage() {
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Flush Locks
                 </Button>
-              )}
             </div>
           </div>
 
