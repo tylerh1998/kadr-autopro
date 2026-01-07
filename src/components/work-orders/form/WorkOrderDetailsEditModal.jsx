@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Save, X, FileText } from 'lucide-react';
+import { Save, X, FileText, Ban } from 'lucide-react';
 
 export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, onSave, lineItems, onUpdateLineItems }) {
   const [formData, setFormData] = useState({
@@ -68,6 +68,25 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
       }
     } else {
       onClose();
+    }
+  };
+
+  const handleVoid = () => {
+    // Validation: No lines can contain an inventory item id
+    if (lineItems) {
+      const hasParts = lineItems.some(item => item.inventory_item_id);
+      if (hasParts) {
+        alert("cannot void a work order with parts on it, please remove the parts and try again.");
+        return;
+      }
+    }
+
+    if (window.confirm("Are you sure you want to void this repair order?")) {
+      onSave({ stage: 'void' });
+      onClose();
+      // If the intent was to close the whole window/tab (as per user instruction "closes the window"), 
+      // we might need to rely on the parent or user action, but onClose closes this modal.
+      // Assuming user meant the modal window.
     }
   };
 
@@ -140,15 +159,23 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            <X className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!hasChanges}>
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
+        <DialogFooter className="flex justify-between sm:justify-between">
+          <div className="flex justify-start">
+            <Button variant="destructive" onClick={handleVoid}>
+              <Ban className="w-4 h-4 mr-2" />
+              Void
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCancel}>
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!hasChanges}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Changes
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
