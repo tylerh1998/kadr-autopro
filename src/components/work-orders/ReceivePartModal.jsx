@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
-import { InventoryItem } from '@/entities/InventoryItem';
+import { InventoryItem } from '@/entities/all';
 import { Package, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, onReceive }) {
@@ -122,7 +122,7 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
           <div className="flex flex-col items-center justify-center p-8 text-center">
              <AlertCircle className="w-10 h-10 text-red-500 mb-3" />
              <h3 className="text-lg font-semibold text-slate-900">Details Unavailable</h3>
-             <p className="text-slate-500 mt-1 mb-4">Could not load inventory or line item details.</p>
+             <p className="text-slate-500 mt-1 mb-4">{error || "Could not load inventory or line item details."}</p>
              <Button onClick={onClose} variant="secondary">Close</Button>
           </div>
         ) : (
