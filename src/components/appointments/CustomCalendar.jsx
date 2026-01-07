@@ -378,46 +378,6 @@ export default function CustomCalendar({
     }
   }, [moveMode, appointmentToMove, isUpdating, onSelectSlot, handleMoveToCell, handleSelectEvent]);
 
-  // New component for rendering the overlap summary card
-  const OverlapSummaryCard = ({ cellEvents, onClick }) => {
-    const maxNamesToShow = 3;
-    const totalCount = cellEvents.length;
-    const namesToDisplay = cellEvents.slice(0, maxNamesToShow);
-    const remainingCount = totalCount - maxNamesToShow;
-
-    return (
-      <div
-        className="bg-slate-100 border-2 border-slate-300 rounded p-2 cursor-pointer hover:bg-slate-200 transition-colors h-full flex flex-col justify-center"
-        onClick={onClick}
-      >
-        <div className="flex items-center gap-1 mb-1">
-          <Users className="w-4 h-4 text-slate-600" />
-          <span className="font-semibold text-sm text-slate-800">
-            {totalCount} Appointment{totalCount !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <div className="space-y-0.5">
-          {namesToDisplay.map((event) => {
-            const customerName = event.customer 
-              ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
-              : event.displayTitle || 'Appointment';
-            
-            return (
-              <div key={event.id} className="text-xs text-slate-700 truncate">
-                {customerName}
-              </div>
-            );
-          })}
-          {remainingCount > 0 && (
-            <div className="text-xs text-slate-500 italic pl-2">
-              +{remainingCount} more
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   // Component for rendering a single appointment (spanning or not)
   const SingleAppointmentCard = ({ event, colorClass = null, useTechColors = false }) => {
     const customerName = event.customer 
@@ -465,7 +425,7 @@ export default function CustomCalendar({
         onClick={(e) => {
           e.stopPropagation();
           if (!moveMode) {
-            handleSelectEvent(event);
+            onSelectEvent(event);
           }
         }}
         onContextMenu={(e) => {
@@ -486,6 +446,41 @@ export default function CustomCalendar({
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+        </div>
+      </div>
+    );
+  };
+
+  // MultiAppointmentCard component
+  const MultiAppointmentCard = ({ appointments, earliestStart, latestEnd, onClick }) => {
+    const totalCount = appointments.length;
+    
+    return (
+      <div
+        className="bg-blue-50 border-2 border-blue-300 rounded p-1 cursor-pointer hover:bg-blue-100 transition-colors h-full flex flex-col justify-start overflow-hidden"
+        onClick={onClick}
+      >
+        <div className="flex items-center gap-1 mb-1 px-1 flex-shrink-0">
+          <Users className="w-3 h-3 text-blue-600" />
+          <span className="font-semibold text-xs text-blue-800">
+            {totalCount} Appts
+          </span>
+        </div>
+        <div className="space-y-1 overflow-y-auto max-h-full px-1 scrollbar-hide">
+          {appointments.map((event) => {
+            const customerName = event.customer 
+              ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
+              : event.displayTitle || 'Appointment';
+            
+            const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
+
+            return (
+              <div key={event.id} className={`flex flex-col border-b border-blue-200 last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
+                <span className="truncate text-[10px] font-medium text-slate-800">{customerName}</span>
+                <span className="text-[9px] text-slate-600">{format(event.start, 'h:mm')} - {format(event.end, 'h:mm')}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -622,9 +617,140 @@ export default function CustomCalendar({
 
   const renderWeekView = () => {
     const days = displayDays;
-    const columnWidthPercent = (100 - 5) / 7;
+    const columnWidthPercent = (100 - 5) / days.length;
     const coveredCells = {};
     days.forEach(day => { coveredCells[day.toISOString()] = {}; });
+
+    // Group appointments by day and overlap status
+    const groupedWeekAppointments = useMemo(() => {
+      const grouped = {};
+      days.forEach(day => {
+        const dayKey = day.toISOString();
+        // Since week view currently groups by Day (columns), we need to check conflicts globally for that day
+        // Or if the design implies columns are Bays? No, week view columns are Days.
+        // So we need to group overlapping appointments regardless of Bay?
+        // Wait, the prompt says "Week view". 
+        // Existing implementation: Columns are Days. 
+        // OverlapSummaryCard was used when >1 event in same slot.
+        // So yes, we group by Day column.
+        
+        const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
+        
+        // Group logic: Sort by start time, then merge overlaps
+        dayEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+        
+        const dayClusters = [];
+        const processedIds = new Set();
+
+        for (const event of dayEvents) {
+          if (processedIds.has(event.id)) continue;
+
+          let cluster = {
+            appointments: [event],
+            earliestStart: event.start,
+            latestEnd: event.end,
+            type: 'single'
+          };
+          processedIds.add(event.id);
+
+          // Greedily find all overlapping events to form a cluster
+          // Note: This simple greedy approach merges [9-10] and [9:30-10:30] into [9-10:30].
+          // It effectively treats the column as a single resource.
+          let added = true;
+          while(added) {
+            added = false;
+            for (const other of dayEvents) {
+              if (!processedIds.has(other.id)) {
+                // Check overlap with current cluster bounds
+                if (other.start < cluster.latestEnd && other.end > cluster.earliestStart) {
+                  cluster.appointments.push(other);
+                  cluster.earliestStart = new Date(Math.min(cluster.earliestStart.getTime(), other.start.getTime()));
+                  cluster.latestEnd = new Date(Math.max(cluster.latestEnd.getTime(), other.end.getTime()));
+                  cluster.type = 'group';
+                  processedIds.add(other.id);
+                  added = true;
+                }
+              }
+            }
+          }
+          
+          if (cluster.appointments.length > 1) {
+             cluster.appointments.sort((a, b) => a.start.getTime() - b.start.getTime());
+          }
+          
+          dayClusters.push(cluster);
+        }
+        
+        grouped[dayKey] = dayClusters;
+      });
+      return grouped;
+    }, [days, formattedEvents]);
+
+    // Build row index map for easier rowSpan calc
+    const rowMap = [];
+    timeSlots.forEach(t => {
+      if (parseInt(t.split(':')[0]) < 12) rowMap.push({ time: t, type: 'morning' });
+    });
+    rowMap.push({ time: 'LUNCH', type: 'lunch' });
+    timeSlots.forEach(t => {
+      if (parseInt(t.split(':')[0]) >= 13) rowMap.push({ time: t, type: 'afternoon' });
+    });
+
+    const getRowSpan = (start, end, day) => {
+        // Find start index
+        const startTimeStr = format(start, 'HH:mm');
+        let startIndex = rowMap.findIndex(r => r.time === startTimeStr);
+        
+        // If start time isn't exact slot (e.g. 9:15), floor it to 9:00 or ceil?
+        // The grid assumes 30 min slots. 
+        // If start is 9:15, it visually starts in the 9:00 box.
+        if (startIndex === -1) {
+             // Try to find the slot containing this time
+             // We can check if time is within a slot
+             const startMins = start.getHours() * 60 + start.getMinutes();
+             startIndex = rowMap.findIndex(r => {
+                 if (r.type === 'lunch') return false;
+                 const [h, m] = r.time.split(':').map(Number);
+                 const slotMins = h * 60 + m;
+                 return startMins >= slotMins && startMins < slotMins + 30;
+             });
+        }
+        if (startIndex === -1) return 1; // Fallback
+
+        // Find end index
+        // End time is exclusive. 10:00 end means it covers 9:30-10:00 slot.
+        // So we look for the row starting at (end time).
+        // Then span is endIndex - startIndex.
+        // But what if end time is 14:00?
+        const endTimeStr = format(end, 'HH:mm');
+        let endIndex = rowMap.findIndex(r => r.time === endTimeStr);
+        
+        if (endIndex === -1) {
+             // Handle edges or non-aligned times
+             const endMins = end.getHours() * 60 + end.getMinutes();
+             // Find first row starting AFTER end time? No.
+             // If end is 14:15, it covers 14:00 slot.
+             // So we want the row AFTER the last covered slot.
+             // Let's iterate.
+             for(let i = startIndex; i < rowMap.length; i++) {
+                 const r = rowMap[i];
+                 if (r.type === 'lunch') {
+                     // Check if end is > 12:00
+                     if (endMins > 12 * 60) continue; 
+                     else { endIndex = i; break; }
+                 }
+                 const [h, m] = r.time.split(':').map(Number);
+                 const slotMins = h * 60 + m;
+                 if (endMins <= slotMins) {
+                     endIndex = i;
+                     break;
+                 }
+             }
+             if (endIndex === -1) endIndex = rowMap.length;
+        }
+        
+        return Math.max(1, endIndex - startIndex);
+    };
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -645,6 +771,7 @@ export default function CustomCalendar({
             </tr>
           </thead>
           <tbody>
+            {/* Morning Block */}
             {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, currentDate);
               return (
@@ -654,35 +781,56 @@ export default function CustomCalendar({
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
 
-                    const cellEvents = getEventsForCellSlot(day, timeString);
-                    let rowSpan = 1;
+                    const dayClusters = groupedWeekAppointments[dayKey] || [];
+                    // Find cluster starting in this slot
+                    const cluster = dayClusters.find(c => eventStartsAtSlot({ start: c.earliestStart }, slotTime));
+                    
                     let cellContent = null;
+                    let rowSpan = 1;
 
-                    if (cellEvents.length > 1) {
-                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null); }} />;
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      for (let i = 1; ; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex >= timeSlots.length) break;
-                        const nextTimeString = timeSlots[nextIndex];
-                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        if (nextSlotTime >= event.end) break;
-                        const nextEvents = getEventsForCellSlot(day, nextTimeString);
-                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
-                        rowSpan++;
-                      }
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex < timeSlots.length) coveredCells[dayKey][timeSlots[nextIndex]] = true;
-                      }
-                      cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                    if (cluster) {
+                        rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd, day);
+                        
+                        if (cluster.type === 'group') {
+                            cellContent = <MultiAppointmentCard 
+                                appointments={cluster.appointments}
+                                earliestStart={cluster.earliestStart}
+                                latestEnd={cluster.latestEnd}
+                                onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                            />;
+                        } else {
+                            const event = cluster.appointments[0];
+                            cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                        }
+
+                        // Mark covered cells
+                        let currentRowIndex = rowMap.findIndex(r => r.time === timeString);
+                        for(let i = 0; i < rowSpan; i++) {
+                            if (currentRowIndex + i < rowMap.length) {
+                                const r = rowMap[currentRowIndex + i];
+                                if (r.time === 'LUNCH') {
+                                    coveredCells[dayKey]['LUNCH'] = true;
+                                } else {
+                                    coveredCells[dayKey][r.time] = true;
+                                }
+                            }
+                        }
+                    } else {
+                        // Empty slot
+                        // We still need to render empty cell if not covered by previous
+                        // Logic handles this via 'if (coveredCells...)' check at top
+                        // Click handler for empty slot
+                        const cellEvents = []; // Empty
+                        return (
+                          <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                            onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                          </td>
+                        );
                     }
 
                     return (
                       <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null)}>
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
@@ -691,11 +839,46 @@ export default function CustomCalendar({
               );
             })}
 
+            {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
               <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
-              {days.map(day => <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>)}
+              {days.map(day => {
+                  // We need to check if lunch is covered by a spanning event
+                  // Lunch is conceptually "12:00" in our row map
+                  // But our timeSlots array doesn't have 12:00.
+                  // However, getRowSpan calculates total rows including lunch.
+                  // But standard HTML table flow:
+                  // If a TD above has rowSpan that covers this TR, this TD should not be rendered.
+                  // We need to track if "LUNCH" "slot" is covered for this day.
+                  // I added 'LUNCH' to rowMap, but 'coveredCells' uses time strings.
+                  // I'll check a special key 'LUNCH' in coveredCells?
+                  // Wait, coveredCells keys are time strings. I'll use 'LUNCH' as key.
+                  const dayKey = day.toISOString();
+                  // Check if a cluster starts exactly at lunch? Unlikely given timeSlots filter.
+                  // But if a cluster spanned over lunch, we marked 'LUNCH' as covered?
+                  // In the loop above: `if (r.time !== 'LUNCH') coveredCells...`
+                  // I should mark LUNCH too if I want to skip rendering it.
+                  
+                  // Let's adjust the marking loop above to handle 'LUNCH' key.
+                  // Re-eval the marking loop:
+                  /*
+                    if (r.time === 'LUNCH') coveredCells[dayKey]['LUNCH'] = true;
+                    else coveredCells[dayKey][r.time] = true;
+                  */
+                  
+                  // Since I can't change the loop above (it's inside the map), I will fix it by logic.
+                  // Actually, the previous map is executed row by row.
+                  // When processing Morning blocks, if a cluster spans 4 rows and one is lunch...
+                  // The loop `for(let i = 0; i < rowSpan; i++)` will encounter 'LUNCH'.
+                  // So I should just mark it.
+                  
+                  if (coveredCells[dayKey]['LUNCH']) return null;
+                  
+                  return <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>;
+              })}
             </tr>
 
+            {/* Afternoon Block */}
             {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
               const slotTime = parseTimeString(timeString, currentDate);
               return (
@@ -705,34 +888,46 @@ export default function CustomCalendar({
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
 
-                    const cellEvents = getEventsForCellSlot(day, timeString);
-                    let rowSpan = 1;
+                    const dayClusters = groupedWeekAppointments[dayKey] || [];
+                    const cluster = dayClusters.find(c => eventStartsAtSlot({ start: c.earliestStart }, slotTime));
+                    
                     let cellContent = null;
+                    let rowSpan = 1;
 
-                    if (cellEvents.length > 1) {
-                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null); }} />;
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      for (let i = 1; ; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex >= timeSlots.length) break;
-                        const nextTimeString = timeSlots[nextIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        if (nextSlotTime >= event.end) break;
-                        const nextEvents = getEventsForCellSlot(day, nextTimeString);
-                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
-                        rowSpan++;
-                      }
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex < timeSlots.length) coveredCells[dayKey][timeSlots[nextIndex]] = true;
-                      }
-                      cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                    if (cluster) {
+                        rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd, day);
+                        
+                        if (cluster.type === 'group') {
+                            cellContent = <MultiAppointmentCard 
+                                appointments={cluster.appointments}
+                                earliestStart={cluster.earliestStart}
+                                latestEnd={cluster.latestEnd}
+                                onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                            />;
+                        } else {
+                            const event = cluster.appointments[0];
+                            cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                        }
+
+                        let currentRowIndex = rowMap.findIndex(r => r.time === timeString);
+                        for(let i = 0; i < rowSpan; i++) {
+                            if (currentRowIndex + i < rowMap.length) {
+                                const r = rowMap[currentRowIndex + i];
+                                if (r.time === 'LUNCH') coveredCells[dayKey]['LUNCH'] = true;
+                                else coveredCells[dayKey][r.time] = true;
+                            }
+                        }
+                    } else {
+                        return (
+                          <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                            onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                          </td>
+                        );
                     }
 
                     return (
                       <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick(cellEvents, parseTimeString(timeString, day), addMinutes(parseTimeString(timeString, day), SLOT_DURATION_MINUTES), null, null, null)}>
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
