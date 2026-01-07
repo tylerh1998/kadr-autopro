@@ -786,7 +786,11 @@ export default function CustomCalendar({
                     if (coveredCells[dayKey][timeString]) return null;
 
                     const dayClusters = groupedWeekAppointments[dayKey] || [];
-                    const cluster = dayClusters.find(c => eventStartsAtSlot({ start: c.earliestStart }, slotTime));
+                    // Find cluster that starts at or overlaps this slot
+                    const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+                    const cluster = dayClusters.find(c => 
+                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
+                    );
                     
                     let cellContent = null;
                     let rowSpan = 1;
@@ -857,7 +861,11 @@ export default function CustomCalendar({
                     if (coveredCells[dayKey][timeString]) return null;
 
                     const dayClusters = groupedWeekAppointments[dayKey] || [];
-                    const cluster = dayClusters.find(c => eventStartsAtSlot({ start: c.earliestStart }, slotTime));
+                    // Find cluster that starts at or overlaps this slot
+                    const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+                    const cluster = dayClusters.find(c => 
+                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
+                    );
                     
                     let cellContent = null;
                     let rowSpan = 1;
