@@ -698,10 +698,11 @@ export default function WorkOrderForm({
       closeModal('returnPart');
   };
   
-  const handleReceiveWorkOrderPart = async (lineItem, receivedQuantity) => {
+  const handleReceiveWorkOrderPart = async (lineItem, receivedQuantity, freshInventoryItem) => {
       console.log('=== DEBUG: handleReceiveWorkOrderPart called ===');
       console.log('Line item:', lineItem);
       console.log('Received quantity:', receivedQuantity);
+      console.log('Fresh inventory item:', freshInventoryItem);
       
       if (!lineItem || !lineItem.inventory_item_id) {
           console.error('Cannot receive part: missing line item or inventory_item_id');
@@ -733,7 +734,8 @@ export default function WorkOrderForm({
                       return { 
                           ...li, 
                           qty_on_order: newQtyOnOrder,
-                          inventory_processed: true
+                          inventory_processed: true,
+                          cost_ea: freshInventoryItem?.cost || inventoryItem?.cost || 0
                       };
                   }
                   return li;

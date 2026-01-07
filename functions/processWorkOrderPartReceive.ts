@@ -78,7 +78,8 @@ Deno.serve(async (req) => {
     lineItems[lineItemIndex] = {
       ...lineItem,
       qty_on_order: newQtyOnOrder,
-      inventory_processed: true
+      inventory_processed: true,
+      cost_ea: inventoryItem.cost || 0
     };
 
     await base44.asServiceRole.entities.WorkOrder.update(workOrderId, {

@@ -92,7 +92,7 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
       }
 
       // Call the parent callback to trigger UI refresh
-      onReceive(lineItem, qtyToReceive);
+      onReceive(lineItem, qtyToReceive, currentInventoryItem);
 
       // Close modal
       onClose();
