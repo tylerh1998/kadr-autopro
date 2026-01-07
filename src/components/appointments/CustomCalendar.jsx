@@ -1065,8 +1065,165 @@ export default function CustomCalendar({
                 </tr>
               );
             })}
+
+            <tr style={{ height: '60px' }}>
+              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              {resources.map(resource => <td key={resource.id} className="border border-slate-300 bg-black"></td>)}
+            </tr>
+
+            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
+              const slotTime = parseTimeString(timeString, day);
+              return (
+                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
+                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  {resources.map(resource => {
+                    if (coveredCells[resource.id][timeString]) return null;
+
+                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
+                    let rowSpan = 1;
+                    let cellContent = null;
+
+                    if (cellEvents.length > 1) {
+                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
+                    } else if (cellEvents.length === 1) {
+                      const event = cellEvents[0];
+                      for (let i = 1; ; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex >= timeSlots.length) break;
+                        const nextTimeString = timeSlots[nextIndex];
+                        const nextSlotTime = parseTimeString(nextTimeString, day);
+                        if (nextSlotTime >= event.end) break;
+                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
+                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
+                        rowSpan++;
+                      }
+                      for (let i = 1; i < rowSpan; i++) {
+                        const nextIndex = timeSlots.indexOf(timeString) + i;
+                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
+                      }
+                      cellContent = <SingleAppointmentCard event={event} />;
+                    }
+
+                    return (
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+      </div>
+    );
+  };
+
+  const renderMonthView = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    
+    return (
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+        <div className="grid grid-cols-7 bg-slate-100 border-b-2 border-slate-300">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center py-3 text-sm font-semibold text-slate-700 border-r border-slate-200 last:border-r-0">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7">
+          {days.map((day, idx) => {
+            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+            const isToday = isSameDay(day, new Date());
+            const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
+
+            return (
+              <div
+                key={day.toString()}
+                className={`min-h-[120px] border-r border-b border-slate-200 p-2 cursor-pointer hover:bg-slate-50 transition-colors ${
+                  !isCurrentMonth ? 'bg-slate-50' : 'bg-white'
+                } ${idx % 7 === 6 ? 'border-r-0' : ''} ${moveMode ? 'cursor-crosshair bg-blue-50' : ''}`}
+                onClick={() => {
+                  if (moveMode && appointmentToMove) {
+                    const newStart = new Date(day);
+                    newStart.setHours(appointmentToMove.start.getHours(), appointmentToMove.start.getMinutes(), 0, 0);
+                    handleMoveToCell(format(newStart, 'HH:mm'), newStart, appointmentToMove.employee_id);
+                  } else {
+                    handleDateClick(day);
+                  }
+                }}
+              >
+                <div className={`text-sm font-semibold mb-2 ${
+                  isToday ? 'bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center' : 
+                  !isCurrentMonth ? 'text-slate-400' : 'text-slate-900'
+                }`}>
+                  {format(day, 'd')}
+                </div>
+
+                <div className="space-y-1">
+                  {dayEvents.slice(0, 3).map(event => {
+                    const customerName = event.customer 
+                      ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
+                      : event.displayTitle || 'Appointment';
+                    
+                    const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
+                    
+                    const hoverText = [
+                      event.bayId ? `Bay: ${event.bayId}` : null,
+                      event.tech ? `Tech: ${event.tech.first_name} ${event.tech.last_name}` : null,
+                      event.status ? `Status: ${event.status}` : null
+                    ].filter(Boolean).join(' | ') || 'No additional info';
+
+                    return (
+                      <div
+                        key={event.id}
+                        className={`text-xs px-2 py-1 bg-slate-100 rounded border border-slate-200 truncate hover:bg-slate-200 transition-colors cursor-pointer ${
+                          isCancelledOrNoShow ? 'opacity-50' : ''
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!moveMode) {
+                            handleAppointmentClick(e, event);
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!moveMode) {
+                            handleAppointmentClick(e, event);
+                          }
+                        }}
+                        title={hoverText}
+                      >
+                        <div className={`font-medium text-slate-900 truncate ${
+                          isCancelledOrNoShow ? 'line-through' : ''
+                        }`}>
+                          {customerName}
+                        </div>
+                        <div className={`text-[10px] text-slate-600 ${
+                          isCancelledOrNoShow ? 'line-through' : ''
+                        }`}>
+                          {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {dayEvents.length > 3 && (
+                    <div className="text-xs text-slate-600 font-medium pl-1">
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
