@@ -203,7 +203,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   const handleConfirmQuantity = () => {
     if (!partForQuantityPrompt) return;
     
-    const qty = parseInt(quantityInput);
+    const qty = parseFloat(quantityInput);
     if (isNaN(qty) || qty <= 0) {
       alert('Please enter a valid quantity greater than 0');
       return;
@@ -230,7 +230,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   };
 
   const handleQuantityChange = (itemId, newQuantity) => {
-    const qty = Math.max(0, parseInt(newQuantity) || 0);
+    const qty = Math.max(0, parseFloat(newQuantity) || 0);
     setSelectedParts(prev => prev.map(part => {
       if (part.id === itemId) {
         const newPrice = calculatePrice(part, qty);
