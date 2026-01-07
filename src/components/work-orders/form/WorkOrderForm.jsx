@@ -92,9 +92,6 @@ export default function WorkOrderForm({
   // Use a ref to track if we're currently updating to avoid re-initialization loops
   const isInternalUpdate = useRef(false);
   
-  // Ref for debounce timeout
-  const parentUpdateTimeout = useRef(null);
-  
   const [modals, setModals] = useState({
     getPart: false,
     otherCharge: false,
@@ -103,15 +100,6 @@ export default function WorkOrderForm({
     receivePart: false,
     cores: false,
   });
-
-  // Cleanup debounce timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (parentUpdateTimeout.current) {
-        clearTimeout(parentUpdateTimeout.current);
-      }
-    };
-  }, []);
 
   // Initialize displayLineItems ONLY on mount or when initialLineItems reference actually changes externally
   // Use a ref to track if we're currently updating to avoid re-initialization loops
@@ -135,7 +123,7 @@ export default function WorkOrderForm({
     }
   }, [initialLineItems, editedWorkOrder?.default_taxable]); // Add editedWorkOrder?.default_taxable to dependencies
 
-  // Wrap setLineItems to trace calls and manage padding - NOW WITH DEBOUNCE
+  // Wrap setLineItems to trace calls and manage padding - REMOVED DEBOUNCE for reliability
   const tracedSetLineItems = useCallback((updater) => {
     console.log('WorkOrderForm: tracedSetLineItems called');
     
@@ -158,27 +146,17 @@ export default function WorkOrderForm({
         )
       );
       
-      console.log('WorkOrderForm: Preparing to update parent with actual lines:', actualLines.length);
+      console.log('WorkOrderForm: Updating parent immediately with actual lines:', actualLines.length);
       
-      // Clear existing timeout
-      if (parentUpdateTimeout.current) {
-        clearTimeout(parentUpdateTimeout.current);
-      }
-      
-      // Debounce the parent update by 300ms
-      parentUpdateTimeout.current = setTimeout(() => {
-        console.log('WorkOrderForm: DEBOUNCED - Updating parent with actual lines:', actualLines.length);
-        // Set flag to prevent re-initialization when parent updates come back
-        isInternalUpdate.current = true;
-        // Communicate the *unpadded actual lines* back to the parent
-        setParentLineItems(actualLines);
-      }, 300);
+      // Update parent immediately (Removed debounce for reliability)
+      isInternalUpdate.current = true;
+      setParentLineItems(actualLines);
       
       const defaultTaxable = editedWorkOrder?.default_taxable !== undefined 
         ? editedWorkOrder.default_taxable 
         : true;
 
-      // Return the padded version immediately for local state (no delay for UI)
+      // Return the padded version immediately for local state
       return padLines(actualLines, 20, defaultTaxable);
     });
   }, [setParentLineItems, editedWorkOrder?.default_taxable]);
