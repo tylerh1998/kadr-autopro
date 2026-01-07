@@ -228,8 +228,8 @@ Deno.serve(async (req) => {
                         transaction_date: invoiceDate,
                         description: `${line.description} - ${reference}`,
                         reference: reference,
-                        debit_amount: 0,
-                        credit_amount: ocTotal,
+                        debit_amount: ocTotal < 0 ? Math.abs(ocTotal) : 0,
+                        credit_amount: ocTotal > 0 ? ocTotal : 0,
                         source_type: 'work_order',
                         source_id: workOrder.id
                     };
