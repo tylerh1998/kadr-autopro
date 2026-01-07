@@ -925,11 +925,11 @@ export default function CustomCalendar({
     );
   };
 
-  const renderWeekView = () => {
-    const days = displayDays;
-    const columnWidthPercent = (100 - 5) / days.length;
+  const renderTechView = () => {
+    const day = currentDate;
+    const resources = techResources;
     const coveredCells = {};
-    days.forEach(day => { coveredCells[day.toISOString()] = {}; });
+    resources.forEach(resource => { coveredCells[resource.id] = {}; });
 
     // Build row map
     const rowMap = [];
@@ -982,39 +982,27 @@ export default function CustomCalendar({
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <table className="w-full border-collapse table-fixed">
-          <colgroup>
-            <col style={{ width: '80px' }} />
-            {days.map((day, index) => <col key={index} style={{ width: columnWidthPercent + '%' }} />)}
-          </colgroup>
+        <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-white z-10">
             <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
-              {days.map(day => (
-                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900' : 'text-slate-700'}`}>
-                  <div>{format(day, 'EEE')}</div>
-                  <div className="text-lg">{format(day, 'd')}</div>
-                </th>
-              ))}
+              <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
+              {resources.map(resource => <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{resource.title}</th>)}
             </tr>
           </thead>
           <tbody>
-            {/* Morning Block */}
             {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, currentDate);
+              const slotTime = parseTimeString(timeString, day);
+              const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
                   <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {days.map(day => {
-                    const dayKey = day.toISOString();
-                    if (coveredCells[dayKey][timeString]) return null;
+                  {resources.map(resource => {
+                    if (coveredCells[resource.id][timeString]) return null;
 
-                    const dayClusters = groupedWeekAppointments[dayKey] || [];
-                    // Find cluster that starts at or overlaps this slot
-                    const daySlotTime = parseTimeString(timeString, day);
-                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
-                    const cluster = dayClusters.find(c => 
-                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
+                    const techClusters = groupedTechAppointments[resource.id] || [];
+                    const cluster = techClusters.find(c => 
+                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
                     );
                     
                     let cellContent = null;
@@ -1028,18 +1016,17 @@ export default function CustomCalendar({
                           appointments={cluster.appointments}
                           earliestStart={cluster.earliestStart}
                           latestEnd={cluster.latestEnd}
-                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, resource.id, resource.title); }}
                         />;
                       } else {
                         const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                        cellContent = <SingleAppointmentCard event={event} />;
                       }
 
-                      // Mark all covered cells from cluster start to cluster end
+                      // Mark all covered cells
                       const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
                       let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
                       
-                      // If exact match not found, find the slot that contains the start time
                       if (markingIndex === -1) {
                         const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
                         markingIndex = rowMap.findIndex(r => {
@@ -1055,24 +1042,24 @@ export default function CustomCalendar({
                           if (markingIndex + i < rowMap.length) {
                             const r = rowMap[markingIndex + i];
                             if (r.time === 'LUNCH') {
-                              coveredCells[dayKey]['LUNCH'] = true;
+                              coveredCells[resource.id]['LUNCH'] = true;
                             } else {
-                              coveredCells[dayKey][r.time] = true;
+                              coveredCells[resource.id][r.time] = true;
                             }
                           }
                         }
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                        <td key={resource.id} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
+                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
@@ -1084,29 +1071,26 @@ export default function CustomCalendar({
             {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
               <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
-              {days.map(day => {
-                const dayKey = day.toISOString();
-                if (coveredCells[dayKey]['LUNCH']) return null;
-                return <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>;
+              {resources.map(resource => {
+                if (coveredCells[resource.id]['LUNCH']) return null;
+                return <td key={resource.id} className="border border-slate-300 bg-black"></td>;
               })}
             </tr>
 
             {/* Afternoon Block */}
             {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, currentDate);
+              const slotTime = parseTimeString(timeString, day);
+              const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
                   <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {days.map(day => {
-                    const dayKey = day.toISOString();
-                    if (coveredCells[dayKey][timeString]) return null;
+                  {resources.map(resource => {
+                    if (coveredCells[resource.id][timeString]) return null;
 
-                    const dayClusters = groupedWeekAppointments[dayKey] || [];
-                    // Find cluster that starts at or overlaps this slot
-                    const daySlotTime = parseTimeString(timeString, day);
-                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
-                    const cluster = dayClusters.find(c => 
-                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
+                    const techClusters = groupedTechAppointments[resource.id] || [];
+                    const cluster = techClusters.find(c => 
+                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
                     );
                     
                     let cellContent = null;
@@ -1120,18 +1104,17 @@ export default function CustomCalendar({
                           appointments={cluster.appointments}
                           earliestStart={cluster.earliestStart}
                           latestEnd={cluster.latestEnd}
-                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, null, null); }}
+                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, resource.id, resource.title); }}
                         />;
                       } else {
                         const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(event.bayId)} />;
+                        cellContent = <SingleAppointmentCard event={event} />;
                       }
 
-                      // Mark all covered cells from cluster start to cluster end
+                      // Mark all covered cells
                       const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
                       let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
                       
-                      // If exact match not found, find the slot that contains the start time
                       if (markingIndex === -1) {
                         const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
                         markingIndex = rowMap.findIndex(r => {
@@ -1147,188 +1130,24 @@ export default function CustomCalendar({
                           if (markingIndex + i < rowMap.length) {
                             const r = rowMap[markingIndex + i];
                             if (r.time === 'LUNCH') {
-                              coveredCells[dayKey]['LUNCH'] = true;
+                              coveredCells[resource.id]['LUNCH'] = true;
                             } else {
-                              coveredCells[dayKey][r.time] = true;
+                              coveredCells[resource.id][r.time] = true;
                             }
                           }
                         }
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                        <td key={resource.id} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderTechView = () => {
-    const day = currentDate;
-    const resources = techResources;
-    const coveredCells = {};
-    resources.forEach(resource => { coveredCells[resource.id] = {}; });
-
-    return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <table className="w-full border-collapse">
-          <thead className="sticky top-0 bg-white z-10">
-            <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
-              {resources.map(resource => <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{resource.title}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, day);
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) return null;
-
-                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
-                    let rowSpan = 1;
-                    let cellContent = null;
-
-                    if (cellEvents.length > 1) {
-                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      for (let i = 1; ; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex >= timeSlots.length) break;
-                        const nextTimeString = timeSlots[nextIndex];
-                        if (parseInt(timeString.split(':')[0]) < 12 && parseInt(nextTimeString.split(':')[0]) >= 13) break;
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        if (nextSlotTime >= event.end) break;
-                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
-                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
-                        rowSpan++;
-                      }
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
-                      }
-                      cellContent = <SingleAppointmentCard event={event} />;
-                    }
-
-                    return (
                       <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-
-            <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
-              {resources.map(resource => <td key={resource.id} className="border border-slate-300 bg-black"></td>)}
-            </tr>
-
-            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, day);
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) return null;
-
-                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
-                    let rowSpan = 1;
-                    let cellContent = null;
-
-                    if (cellEvents.length > 1) {
-                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      for (let i = 1; ; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex >= timeSlots.length) break;
-                        const nextTimeString = timeSlots[nextIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        if (nextSlotTime >= event.end) break;
-                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
-                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
-                        rowSpan++;
-                      }
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
-                      }
-                      cellContent = <SingleAppointmentCard event={event} />;
-                    }
-
-                    return (
-                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-
-            <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
-              {resources.map(resource => <td key={resource.id} className="border border-slate-300 bg-black"></td>)}
-            </tr>
-
-            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, day);
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) return null;
-
-                    const cellEvents = getEventsForCellSlot(day, timeString, resource.id);
-                    let rowSpan = 1;
-                    let cellContent = null;
-
-                    if (cellEvents.length > 1) {
-                      cellContent = <OverlapSummaryCard cellEvents={cellEvents} onClick={(e) => { e.stopPropagation(); handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title); }} />;
-                    } else if (cellEvents.length === 1) {
-                      const event = cellEvents[0];
-                      for (let i = 1; ; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex >= timeSlots.length) break;
-                        const nextTimeString = timeSlots[nextIndex];
-                        const nextSlotTime = parseTimeString(nextTimeString, day);
-                        if (nextSlotTime >= event.end) break;
-                        const nextEvents = getEventsForCellSlot(day, nextTimeString, resource.id);
-                        if (nextEvents.length > 1 || (nextEvents.length === 1 && nextEvents[0].id !== event.id)) break;
-                        rowSpan++;
-                      }
-                      for (let i = 1; i < rowSpan; i++) {
-                        const nextIndex = timeSlots.indexOf(timeString) + i;
-                        if (nextIndex < timeSlots.length) coveredCells[resource.id][timeSlots[nextIndex]] = true;
-                      }
-                      cellContent = <SingleAppointmentCard event={event} />;
-                    }
-
-                    return (
-                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick(cellEvents, slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
+                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
                     );
