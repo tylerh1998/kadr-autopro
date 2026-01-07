@@ -4,32 +4,50 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
-import { Package, TrendingDown, AlertCircle } from 'lucide-react';
+import { InventoryItem } from '@/entities/InventoryItem';
+import { Package, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem, workOrderId, onReceive }) {
+export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, onReceive }) {
   const [quantityToReceive, setQuantityToReceive] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentInventoryItem, setCurrentInventoryItem] = useState(initialInventoryItem);
 
+  // Fetch latest inventory data when modal opens
   useEffect(() => {
-    if (open && lineItem && inventoryItem) {
-      // Calculate the default quantity to receive
-      // It should be the minimum of:
-      // 1. Current QOH (what's available in inventory)
-      // 2. qty_on_order (what's expected on this work order line)
-      const currentQOH = inventoryItem.quantity_on_hand || 0;
-      const qtyOnOrder = lineItem.qty_on_order || 0;
-      const defaultQty = Math.min(currentQOH, qtyOnOrder);
+    const fetchLatestInventory = async () => {
+      const inventoryItemId = lineItem?.inventory_item_id || initialInventoryItem?.id;
       
-      setQuantityToReceive(defaultQty > 0 ? defaultQty.toString() : '');
-      setError('');
-    }
-  }, [open, lineItem, inventoryItem]);
+      if (open && inventoryItemId) {
+        setFetchLoading(true);
+        try {
+          const freshItem = await InventoryItem.get(inventoryItemId);
+          setCurrentInventoryItem(freshItem);
+          
+          // Calculate default quantity based on FRESH data
+          const currentQOH = freshItem?.quantity_on_hand || 0;
+          const qtyOnOrder = lineItem?.qty_on_order || 0;
+          const defaultQty = Math.min(currentQOH, qtyOnOrder);
+          
+          setQuantityToReceive(defaultQty > 0 ? defaultQty.toString() : '');
+          setError('');
+        } catch (err) {
+          console.error("Failed to fetch inventory item:", err);
+          setError("Failed to fetch latest inventory data.");
+        } finally {
+          setFetchLoading(false);
+        }
+      }
+    };
+
+    fetchLatestInventory();
+  }, [open, lineItem, initialInventoryItem]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!lineItem || !inventoryItem) {
+    if (!lineItem || !currentInventoryItem) {
       setError('Missing line item or inventory item information.');
       return;
     }
@@ -41,7 +59,7 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
       return;
     }
 
-    const currentQOH = inventoryItem.quantity_on_hand || 0;
+    const currentQOH = currentInventoryItem.quantity_on_hand || 0;
     const qtyOnOrder = lineItem.qty_on_order || 0;
 
     // Validation: Can't receive more than what's on order
@@ -86,11 +104,24 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
     }
   };
 
-  if (!lineItem || !inventoryItem) {
+  if (!open) return null;
+
+  if (fetchLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-md flex flex-col items-center justify-center p-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+          <p className="text-slate-600">Checking inventory...</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!lineItem || !currentInventoryItem) {
     return null;
   }
 
-  const currentQOH = inventoryItem.quantity_on_hand || 0;
+  const currentQOH = currentInventoryItem.quantity_on_hand || 0;
   const qtyOnOrder = lineItem.qty_on_order || 0;
   const maxReceivable = Math.min(currentQOH, qtyOnOrder);
 
