@@ -744,7 +744,11 @@ export default function CustomCalendar({
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '80px' }} />
+            {bayOptions.map(bay => <col key={bay} />)}
+          </colgroup>
           <thead className="sticky top-0 bg-white z-10">
             <tr>
               <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
@@ -982,7 +986,11 @@ export default function CustomCalendar({
 
     return (
       <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse table-fixed">
+          <colgroup>
+            <col style={{ width: '80px' }} />
+            {resources.map(resource => <col key={resource.id} />)}
+          </colgroup>
           <thead className="sticky top-0 bg-white z-10">
             <tr>
               <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
