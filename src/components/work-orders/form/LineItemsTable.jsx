@@ -428,9 +428,9 @@ export default function LineItemsTable({
             `}
           >
             {/* Drag Handle Column */}
-            <TableCell className="w-10 p-1 align-middle text-center">
-               <div {...draggableProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing flex justify-center items-center h-full text-slate-400 hover:text-slate-600">
-                 <GripVertical className="w-4 h-4" />
+            <TableCell className="w-12 p-0 align-middle text-center">
+               <div {...draggableProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing flex justify-center items-center w-full h-full min-h-[42px] text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                 <GripVertical className="w-6 h-6" />
                </div>
             </TableCell>
 
@@ -588,7 +588,7 @@ export default function LineItemsTable({
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-100">
-                    <TableHead className="w-10 p-2"></TableHead>
+                    <TableHead className="w-12 p-2"></TableHead>
                     <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
                     <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
                     {/* Description column now also includes Part #, so min-width is changed to 300px */}
