@@ -765,10 +765,9 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
       await WorkOrder.update(workOrder.id, apiPayload);
 
-      if (!updatedDetails.LockedByUser && workOrderData.LockedByUser !== null && workOrderData.LockedByUser !== '') {
-          await WorkOrder.update(workOrder.id, { LockedByUser: null });
-          workOrderData.LockedByUser = null;
-      }
+      // Lock is ONLY cleared when handleHeaderSaveClick explicitly requests it (by calling update separately)
+      // or when updatedDetails.LockedByUser is explicitly set to null (which is not typically done via handleSave calls here)
+      // The automatic clearing logic has been removed to prevent clearing lock on intermediate saves (like sending email).
 
       setWorkOrder(workOrderData);
       setHasUnsavedChanges(false);
