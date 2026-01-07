@@ -546,7 +546,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                               <Label className="text-xs">Qty:</Label>
                               <Input
                                 type="number"
-                                min="1"
+                                min="0"
+                                step="any"
                                 value={part.selectedQuantity}
                                 onChange={(e) => handleQuantityChange(part.id, e.target.value)}
                                 className="w-20 h-7 text-sm"
@@ -636,7 +637,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             <Input
               id="quantity-input"
               type="number"
-              min="1"
+              min="0"
+              step="any"
               value={quantityInput}
               onChange={(e) => setQuantityInput(e.target.value)}
               onKeyDown={(e) => {
