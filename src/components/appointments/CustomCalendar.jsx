@@ -787,9 +787,10 @@ export default function CustomCalendar({
 
                     const dayClusters = groupedWeekAppointments[dayKey] || [];
                     // Find cluster that starts at or overlaps this slot
-                    const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+                    const daySlotTime = parseTimeString(timeString, day);
+                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
                     const cluster = dayClusters.find(c => 
-                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
+                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
                     );
                     
                     let cellContent = null;
@@ -862,9 +863,10 @@ export default function CustomCalendar({
 
                     const dayClusters = groupedWeekAppointments[dayKey] || [];
                     // Find cluster that starts at or overlaps this slot
-                    const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
+                    const daySlotTime = parseTimeString(timeString, day);
+                    const slotEnd = addMinutes(daySlotTime, SLOT_DURATION_MINUTES);
                     const cluster = dayClusters.find(c => 
-                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
+                      c.earliestStart >= daySlotTime && c.earliestStart < slotEnd
                     );
                     
                     let cellContent = null;
@@ -899,7 +901,7 @@ export default function CustomCalendar({
                     } else {
                       return (
                         <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, null, null)}>
+                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
                         </td>
                       );
                     }
