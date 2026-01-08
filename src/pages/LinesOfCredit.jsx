@@ -16,9 +16,18 @@ import {
   History,
   Plus,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  RotateCcw
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import LinesOfCreditEditModal from '../components/lines-of-credit/LinesOfCreditEditModal';
 import LineOfCreditPaymentModal from '../components/lines-of-credit/LineOfCreditPaymentModal';
 import LineOfCreditTransactionModal from '../components/lines-of-credit/LineOfCreditTransactionModal';
@@ -47,6 +56,8 @@ export default function LinesOfCreditPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('transactions'); // 'transactions' or 'payments'
   const [currentUser, setCurrentUser] = useState(null);
+  const [showFlushConfirm, setShowFlushConfirm] = useState(false);
+  const [flushing, setFlushing] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -307,6 +318,39 @@ export default function LinesOfCreditPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleFlushLocks = async () => {
+    setFlushing(true);
+    try {
+      const allAccounts = await LinesOfCredit.list();
+      const lockedAccounts = allAccounts.filter(acc => acc.locked_by_user);
+      
+      if (lockedAccounts.length === 0) {
+        alert('No locked accounts found.');
+        setShowFlushConfirm(false);
+        setFlushing(false);
+        return;
+      }
+
+      const updatePromises = lockedAccounts.map(account => 
+        LinesOfCredit.update(account.id, { 
+          locked_by_user: null,
+          locked_timestamp: null
+        })
+      );
+
+      await Promise.all(updatePromises);
+      
+      alert(`Successfully unlocked ${lockedAccounts.length} account(s).`);
+      loadData();
+    } catch (error) {
+      console.error('Error flushing locks:', error);
+      alert('Failed to flush locks. Please try again.');
+    } finally {
+      setShowFlushConfirm(false);
+      setFlushing(false);
+    }
   };
 
   const handleScrollToTop = () => {
@@ -670,6 +714,34 @@ export default function LinesOfCreditPage() {
         onTransactionMade={handleTransactionMade}
         currentUser={currentUser}
       />
+
+      <Dialog open={showFlushConfirm} onOpenChange={setShowFlushConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Flush All Account Locks</DialogTitle>
+            <DialogDescription>
+              This will unlock all line of credit accounts. Progress of any unsaved changes by other users may be lost. 
+              Verify that all open edit forms are saved and closed across the platform before executing this.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowFlushConfirm(false)}
+              disabled={flushing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleFlushLocks}
+              disabled={flushing}
+            >
+              {flushing ? 'Flushing...' : 'Confirm Flush'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
