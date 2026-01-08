@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Printer, Loader2, AlertTriangle } from 'lucide-react';
@@ -10,6 +11,46 @@ export default function StockReorderReport() {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleToggleItem = (itemId) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleRemoveAsStocked = async () => {
+    if (!window.confirm(`Are you sure you want to remove ${selectedItems.size} items from stocked list? This will clear their Min/Max levels.`)) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const updates = Array.from(selectedItems).map(id => 
+        base44.entities.InventoryItem.update(id, {
+          stocked_item: false,
+          minimum_quantity: 0,
+          maximum_quantity: 0
+        })
+      );
+
+      await Promise.all(updates);
+      
+      setSelectedItems(new Set());
+      loadReportData(); // Reload to refresh the list
+      
+    } catch (error) {
+      console.error('Error updating items:', error);
+      alert('Failed to update some items. Please try again.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   useEffect(() => {
     loadReportData();
@@ -155,6 +196,7 @@ export default function StockReorderReport() {
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-slate-50">
+                            <TableHead className="w-[50px] no-print"></TableHead>
                             <TableHead className="font-semibold">Part Number</TableHead>
                             <TableHead className="font-semibold">Description</TableHead>
                             <TableHead className="text-center font-semibold">QOH</TableHead>
@@ -168,6 +210,12 @@ export default function StockReorderReport() {
                         <TableBody>
                           {supplierGroup.items.map((item) => (
                             <TableRow key={item.id} className="hover:bg-slate-50">
+                              <TableCell className="no-print">
+                                <Checkbox 
+                                  checked={selectedItems.has(item.id)} 
+                                  onCheckedChange={() => handleToggleItem(item.id)} 
+                                />
+                              </TableCell>
                               <TableCell className="font-medium">{item.part_number}</TableCell>
                               <TableCell>{item.description || '-'}</TableCell>
                               <TableCell className="text-center text-red-600 font-semibold">
@@ -187,7 +235,7 @@ export default function StockReorderReport() {
                             </TableRow>
                           ))}
                           <TableRow className="bg-slate-100 font-bold">
-                            <TableCell colSpan={7} className="text-right">
+                            <TableCell colSpan={8} className="text-right">
                               Supplier Total:
                             </TableCell>
                             <TableCell className="text-right">
@@ -230,6 +278,30 @@ export default function StockReorderReport() {
           </div>
         </div>
       </div>
+
+      {selectedItems.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border border-slate-200 rounded-lg p-4 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5 no-print">
+          <span className="text-sm font-medium text-slate-600 whitespace-nowrap">{selectedItems.size} items selected</span>
+          <div className="h-6 w-px bg-slate-200" />
+          <Button variant="outline" disabled title="Coming soon">
+            Add to On Order
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={handleRemoveAsStocked}
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              'Remove as Stocked Item'
+            )}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
