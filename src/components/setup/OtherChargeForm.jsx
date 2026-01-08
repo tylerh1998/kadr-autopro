@@ -52,6 +52,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
         apply_cost: charge.apply_cost ?? false,
         linked_supplier_id: charge.linked_supplier_id || '',
         levy: charge.levy ?? false,
+        reportable_levy: charge.reportable_levy ?? false,
       });
     } else {
       setFormData({
@@ -63,6 +64,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
         apply_cost: false,
         linked_supplier_id: '',
         levy: false,
+        reportable_levy: false,
       });
     }
   }, [charge, open]);
@@ -178,6 +180,17 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
                 <Switch
                     checked={formData.levy}
                     onCheckedChange={(checked) => handleChange('levy', checked)}
+                />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                    <Label>Reportable Levy</Label>
+                    <p className="text-sm text-muted-foreground">Track this charge as a reportable levy (e.g. Tire Tax).</p>
+                </div>
+                <Switch
+                    checked={formData.reportable_levy}
+                    onCheckedChange={(checked) => handleChange('reportable_levy', checked)}
                 />
             </div>
 

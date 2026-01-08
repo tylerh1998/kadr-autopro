@@ -809,6 +809,16 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
       previousLineItemsRef.current = [...lineItemsAfterInventoryProcessing];
 
+      // NEW: Sync Levies
+      try {
+        await base44.functions.invoke('syncLevies', {
+          workOrderId: workOrder.id,
+          lineItems: lineItemsToSave
+        });
+      } catch (levyError) {
+        console.error('Failed to sync levies:', levyError);
+      }
+
       if (showAlertOnSuccess) {
         alert('Work order saved successfully!');
         await refetchWorkOrder();
