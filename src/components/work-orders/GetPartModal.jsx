@@ -254,74 +254,107 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     const partsToAdd = [];
     const inventoryAdjustments = [];
 
+    // Prepare payload for bulk processing
+    const itemsPayload = [];
+    
+    // Map selected parts to payload items
+    // First validation pass to ensure items exist in results
     for (const selectedPart of selectedParts) {
-      await new Promise(r => setTimeout(r, 100)); // Small delay to prevent concurrency issues on backend
       const invItem = inventoryResults.find(item => item.id === selectedPart.id);
       if (!invItem) {
         console.warn(`Inventory item with ID ${selectedPart.id} not found.`);
         continue;
       }
+      itemsPayload.push({
+        inventoryItemId: invItem.id,
+        requestedQuantity: selectedPart.selectedQuantity,
+        lineDescription: invItem.description,
+        linePartNumber: invItem.part_number,
+        // Carry over selectedPart specific data for later use (calculated price)
+        _calculatedPrice: selectedPart.calculatedPrice,
+        _invItem: invItem // Carry original item for tag along lookup
+      });
+    }
 
-      const requestedQuantity = selectedPart.selectedQuantity;
+    if (itemsPayload.length === 0) {
+      alert('No valid parts selected.');
+      setLoading(false);
+      return;
+    }
 
-      // Call the backend function to adjust inventory (ONLY if mode is 'work_order')
-      try {
-        let issuedQuantity = 0;
-        let onOrderQuantity = 0;
-        let newInventoryQOH = invItem.quantity_on_hand;
-        let newInventoryQOO = invItem.quantity_on_order;
-        let inventoryProcessed = false;
+    let processedResults = [];
 
-        if (mode === 'work_order') {
-          const adjustmentResponse = await base44.functions.invoke('WOGetPart', {
-            inventoryItemId: invItem.id,
-            requestedQuantity: requestedQuantity,
-            workOrderId: workOrder.id,
-            roNumber: workOrder.ro_number,
-            lineDescription: invItem.description,
-            linePartNumber: invItem.part_number
-          });
+    try {
+      if (mode === 'work_order') {
+        // Bulk transaction call
+        const response = await base44.functions.invoke('WOBulkGetParts', {
+          items: itemsPayload.map(({ _calculatedPrice, _invItem, ...rest }) => rest), // Clean payload
+          workOrderId: workOrder.id,
+          roNumber: workOrder.ro_number
+        });
 
-          if (!adjustmentResponse.data.success) {
-            alert(`Failed to adjust inventory for ${invItem.part_number}: ${adjustmentResponse.data.message}`);
-            continue;
-          }
-
-          issuedQuantity = adjustmentResponse.data.issuedQuantity;
-          onOrderQuantity = adjustmentResponse.data.onOrderQuantity;
-          newInventoryQOH = adjustmentResponse.data.newInventoryQOH;
-          newInventoryQOO = adjustmentResponse.data.newInventoryQOO;
-          inventoryProcessed = true;
-        } else {
-          // Estimate Mode: Don't call backend, just add line item without processing inventory
-          issuedQuantity = 0; // Not issued yet
-          onOrderQuantity = 0; // Not on order yet (will be calculated on convert)
-          inventoryProcessed = false;
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Bulk transaction failed');
         }
+
+        processedResults = response.data.results;
+      } else {
+        // Estimate Mode: Mock results without backend call
+        processedResults = itemsPayload.map(item => ({
+          inventoryItemId: item.inventoryItemId,
+          issuedQuantity: 0,
+          onOrderQuantity: 0,
+          newInventoryQOH: item._invItem.quantity_on_hand, // Unchanged
+          newInventoryQOO: item._invItem.quantity_on_order, // Unchanged
+          cost: item._invItem.cost || 0,
+          unit: item._invItem.unit,
+          part_number: item._invItem.part_number,
+          description: item._invItem.description,
+          core: item._invItem.core,
+          core_cost: item._invItem.core_cost,
+          tag_along_id: item._invItem.tag_along_id
+        }));
+      }
+
+      // Process results into line items
+      processedResults.forEach((result, index) => {
+        // Find original payload item to get calculated price and TagAlong info
+        // Note: We assume the backend returns results in same order, but safer to match by ID if possible.
+        // Since we loop sequentially in backend, order should be preserved.
+        const originalPayloadItem = itemsPayload[index];
+        if (originalPayloadItem.inventoryItemId !== result.inventoryItemId) {
+          console.error("Result mismatch order detected");
+          // Fallback search
+          // This shouldn't happen with sequential processing, but for safety:
+        }
+
+        const calculatedPrice = originalPayloadItem._calculatedPrice;
+        const requestedQuantity = originalPayloadItem.requestedQuantity;
+        const invItem = originalPayloadItem._invItem; // Use cached item for tag along lookups
 
         // Create the line item with the processed inventory data
         const partLineItem = {
           id: crypto.randomUUID(),
-          inventory_item_id: invItem.id,
+          inventory_item_id: result.inventoryItemId,
           qty: requestedQuantity, // Total requested quantity
-          qty_on_order: onOrderQuantity, // Quantity that needs to be ordered
+          qty_on_order: result.onOrderQuantity, // Quantity that needs to be ordered
           hrs: 0,
-          description: invItem.description || '',
-          part_number: invItem.part_number || '',
-          unit: invItem.unit || '',
-          parts_ea: selectedPart.calculatedPrice,
-          tot_parts: requestedQuantity * selectedPart.calculatedPrice, // Total for full requested quantity
+          description: result.description || '',
+          part_number: result.part_number || '',
+          unit: result.unit || '',
+          parts_ea: calculatedPrice,
+          tot_parts: requestedQuantity * calculatedPrice, // Total for full requested quantity
           labour: 0,
-          total: requestedQuantity * selectedPart.calculatedPrice, // Total for full requested quantity
+          total: requestedQuantity * calculatedPrice, // Total for full requested quantity
           taxable: workOrder?.default_taxable !== undefined ? workOrder.default_taxable : true,
           complete: false,
           bold: false,
-          cost_ea: invItem.cost || 0,
-          Core_num: invItem.core ? requestedQuantity : 0,
+          cost_ea: result.cost || 0,
+          Core_num: result.core ? requestedQuantity : 0,
           core_ret: 0,
-          core_cost: invItem.core_cost || 0,
-          core_osamt: invItem.core ? ((invItem.core_cost || 0) * requestedQuantity) : 0,
-          inventory_processed: inventoryProcessed, // True for WO, False for Estimate
+          core_cost: result.core_cost || 0,
+          core_osamt: result.core ? ((result.core_cost || 0) * requestedQuantity) : 0,
+          inventory_processed: mode === 'work_order', // True for WO, False for Estimate
           is_other_charge: false,
           oc_total: 0,
           supplier_invoice_line_id: null,
@@ -331,12 +364,11 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         partsToAdd.push(partLineItem);
 
         // Store the adjustment info for updating local inventory list in parent component
-        // Only if we actually changed inventory
         if (mode === 'work_order') {
           inventoryAdjustments.push({
-            inventoryItemId: invItem.id,
-            newQOH: newInventoryQOH,
-            newQOO: newInventoryQOO
+            inventoryItemId: result.inventoryItemId,
+            newQOH: result.newInventoryQOH,
+            newQOO: result.newInventoryQOO
           });
         }
 
@@ -351,7 +383,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
               const tagAlongTotal = (otherCharge.base_amount || 0) * requestedQuantity;
               
               const tagAlongLineItem = {
-                id: Date.now() + Math.random() + 0.1,
+                id: `tagalong_${Date.now()}_${Math.random()}`,
                 qty: requestedQuantity,
                 hrs: 0,
                 description: tagAlong.description || otherCharge.description,
@@ -384,11 +416,13 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             }
           }
         }
+      });
 
-      } catch (error) {
-        console.error('Error calling WOGetPart:', error);
-        alert(`Failed to process inventory for ${invItem.part_number}. Please try again.`);
-      }
+    } catch (error) {
+      console.error('Error in bulk part addition:', error);
+      alert(`Failed to add parts: ${error.message}`);
+      setLoading(false);
+      return; // Stop here, nothing added
     }
 
     if (partsToAdd.length > 0) {
