@@ -19,6 +19,10 @@ export default function StockReorderReport() {
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
     } else {
+      if (newSelected.size >= 50) {
+        alert("You can only select up to 50 items at a time to ensure optimal performance.");
+        return;
+      }
       newSelected.add(itemId);
     }
     setSelectedItems(newSelected);
@@ -209,11 +213,16 @@ export default function StockReorderReport() {
                         </TableHeader>
                         <TableBody>
                           {supplierGroup.items.map((item) => (
-                            <TableRow key={item.id} className="hover:bg-slate-50">
+                            <TableRow 
+                              key={item.id} 
+                              className="hover:bg-slate-50 cursor-pointer"
+                              onClick={() => handleToggleItem(item.id)}
+                            >
                               <TableCell className="no-print">
                                 <Checkbox 
                                   checked={selectedItems.has(item.id)} 
-                                  onCheckedChange={() => handleToggleItem(item.id)} 
+                                  onCheckedChange={() => handleToggleItem(item.id)}
+                                  onClick={(e) => e.stopPropagation()}
                                 />
                               </TableCell>
                               <TableCell className="font-medium">{item.part_number}</TableCell>
