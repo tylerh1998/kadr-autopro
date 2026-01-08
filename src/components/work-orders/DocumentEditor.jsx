@@ -379,8 +379,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           setIsAlreadyOpenByMe(true);
           setLockCheckComplete(true);
         } else {
-          await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email });
-          setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email }));
+          const now = new Date().toISOString();
+          await WorkOrder.update(freshWorkOrder.id, { 
+            LockedByUser: currentUser.email,
+            locked_timestamp: now
+          });
+          setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: now }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
           lockAcquiredRef.current = true;
@@ -434,13 +438,13 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     const currentUserEmail = currentUser?.email;
 
     const releaseLock = async () => {
-      if (!currentWorkOrderId || !currentRoNumber || !currentUserEmail || !lockAcquiredRef.current) {
+      if (!currentWorkOrderId || !currentUserEmail || !lockAcquiredRef.current) {
         return;
       }
 
       try {
-        const freshWorkOrders = await WorkOrder.filter({ ro_number: currentRoNumber });
-        const freshWorkOrder = freshWorkOrders.length > 0 ? freshWorkOrders[0] : null;
+        // Optimized: Use get instead of filter for faster response during unmount
+        const freshWorkOrder = await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
           await WorkOrder.update(currentWorkOrderId, { LockedByUser: null });
@@ -452,7 +456,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     };
 
     const handleBeforeUnload = (e) => {
-      if (lockAcquiredRef.current && currentWorkOrderId && currentRoNumber) {
+      if (lockAcquiredRef.current && currentWorkOrderId) {
+        // Best effort to release lock on tab close
         WorkOrder.update(currentWorkOrderId, { LockedByUser: null })
           .then(() => {})
           .catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
@@ -820,13 +825,18 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         delete apiPayload.inv_number;
       }
 
+      // Update locked_timestamp to keep the lock fresh
+      if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser')) {
+          apiPayload.locked_timestamp = new Date().toISOString();
+      }
+
       await WorkOrder.update(workOrder.id, apiPayload);
 
       // Lock is ONLY cleared when handleHeaderSaveClick explicitly requests it (by calling update separately)
       // or when updatedDetails.LockedByUser is explicitly set to null (which is not typically done via handleSave calls here)
       // The automatic clearing logic has been removed to prevent clearing lock on intermediate saves (like sending email).
 
-      setWorkOrder(workOrderData);
+      setWorkOrder(prev => ({ ...prev, ...workOrderData, locked_timestamp: apiPayload.locked_timestamp }));
       
       // Check if user made changes during the save process
       // We compare the JSON string of critical fields to see if "latest" differs from what we just saved ("working")
@@ -1235,7 +1245,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
       setTimeout(() => {
         successMessage.remove();
-        window.close();
+        // Try to close the window, fallback to navigating away to ensure user doesn't stay on an unlocked page
+        if (window.opener) {
+            window.close();
+        } else {
+            navigate(createPageUrl('WorkOrders'));
+        }
       }, 1000);
 
     } catch (error) {
