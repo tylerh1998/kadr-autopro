@@ -256,7 +256,7 @@ export default function WorkOrderViewPage() {
         }
       `}</style>
 
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen">
         {/* Screen View */}
         {!isPrinting && (
           <div className="p-6">
