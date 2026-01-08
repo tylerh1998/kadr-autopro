@@ -300,7 +300,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
 
         // Create the line item with the processed inventory data
         const partLineItem = {
-          id: Date.now() + Math.random(),
+          id: crypto.randomUUID(),
           inventory_item_id: invItem.id,
           qty: requestedQuantity, // Total requested quantity
           qty_on_order: onOrderQuantity, // Quantity that needs to be ordered

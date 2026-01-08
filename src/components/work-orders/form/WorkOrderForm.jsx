@@ -27,7 +27,7 @@ function padLines(lines, minLines = 20, defaultTaxable = true) {
   
   while (paddedLines.length < minLines) {
     paddedLines.push({ 
-      id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // UUID-style ID to prevent collisions
+      id: `_blank_${crypto.randomUUID()}`, // UUID-style ID to prevent collisions
       qty: 0,
       hrs: 0,
       description: '',
@@ -412,20 +412,23 @@ export default function WorkOrderForm({
             
             let targetIndex = -1;
 
-            if (idx === 0 && selectedLineIndex !== null && selectedLineIndex >= 0 && selectedLineIndex < updated.length) {
-                if (isLineEmpty(updated[selectedLineIndex])) {
-                    targetIndex = selectedLineIndex;
-                }
+            // Prioritize the currently selected line if it's empty AND it's the first part being added
+            if (idx === 0 && selectedLineIndex !== null && selectedLineIndex >= 0 && selectedLineIndex < updated.length && isLineEmpty(updated[selectedLineIndex])) {
+                targetIndex = selectedLineIndex;
             }
 
+            // If no specific target index, find the first available empty line
             if (targetIndex === -1) {
                 targetIndex = updated.findIndex(l => isLineEmpty(l));
             }
 
+            // If an empty slot is found, use it; otherwise, append to the end
             if (targetIndex !== -1) {
-                updated[targetIndex] = { ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` };
+                // Use the new item directly, but ensure it has a unique ID if not already present (it should be from modal)
+                // Note: parts from GetPartModal now have crypto.randomUUID() IDs.
+                updated[targetIndex] = lineWithTaxable; 
             } else {
-                updated.push({ ...lineWithTaxable, id: `_blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` });
+                updated.push(lineWithTaxable);
             }
         });
 
@@ -951,7 +954,7 @@ export default function WorkOrderForm({
       : true;
     
     const newBlankLine = {
-      id: `blank_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `blank_${crypto.randomUUID()}`,
       qty: 0,
       hrs: 0,
       description: '',
