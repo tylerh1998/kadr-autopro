@@ -27,14 +27,18 @@ export default function WorkOrderViewLineItemsTable({
   onReturnForWarranty,
   workOrder,
 }) {
-  const renderLineItem = (line, index) => {
+  // Pre-filter visible items to ensure alternating colors work correctly
+  const visibleLineItems = lineItems.filter(line => {
     const isEmptyLine = !line.description && (!line.part_number || line.part_number.trim() === '') && !line.qty && !line.hrs && !line.parts_ea;
-    const hasPartNumber = line.part_number && line.part_number.trim() !== '';
+    return !isEmptyLine;
+  });
 
-    // Don't render completely empty lines in view mode
-    if (isEmptyLine) {
-      return null;
-    }
+  const renderLineItem = (line, index) => {
+    const hasPartNumber = line.part_number && line.part_number.trim() !== '';
+    
+    // Zebra striping
+    const isEven = index % 2 === 0;
+    const rowBgClass = isEven ? 'bg-white' : 'bg-slate-50';
 
     // Determine if line should be bold
     const isBold = line.bold === true;
@@ -48,7 +52,7 @@ export default function WorkOrderViewLineItemsTable({
     const coreOsamt = coreOutstanding * coreCost;
 
     const rowContent = (
-      <TableRow key={line.id || index} className="hover:bg-slate-50 transition-colors">
+      <TableRow key={line.id || index} className={`${rowBgClass} hover:bg-slate-100 transition-colors`}>
         {/* Qty Column */}
         <TableCell className={`w-20 p-2 align-top text-center ${boldClass}`}>
           {line.qty || '-'}
@@ -137,7 +141,7 @@ export default function WorkOrderViewLineItemsTable({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-slate-100">
@@ -153,7 +157,7 @@ export default function WorkOrderViewLineItemsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {lineItems.map((line, index) => renderLineItem(line, index))}
+          {visibleLineItems.map((line, index) => renderLineItem(line, index))}
         </TableBody>
       </Table>
     </div>
