@@ -11,6 +11,10 @@ export default Deno.serve(async (req) => {
 
         const { workOrderId, lineItems } = await req.json();
 
+        console.log('--- syncLevies Invoked ---');
+        console.log('WorkOrder:', workOrderId);
+        console.log('Line Items Count:', lineItems?.length);
+
         if (!workOrderId || !lineItems) {
             return Response.json({ error: 'Missing required parameters' }, { status: 400 });
         }
