@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Printer, Calendar as CalendarIcon, DollarSign, FileText } from 'lucide-react';
+import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown } from 'lucide-react';
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -31,6 +31,7 @@ export default function APSummaryPage() {
   });
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
 
   const navigate = useNavigate();
 
@@ -120,8 +121,32 @@ export default function APSummaryPage() {
     });
 
     // Filter out suppliers with no balance
-    return supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01);
-  }, [suppliers, supplierInvoicesMap, loading, asOfDate]);
+    const filtered = supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01);
+
+    // Sort
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        // Handle string comparison for names
+        if (typeof aValue === 'string') {
+           aValue = aValue.toLowerCase();
+           bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [suppliers, supplierInvoicesMap, loading, asOfDate, sortConfig]);
 
   const totals = useMemo(() => {
     const result = summaryData.reduce((acc, curr) => {
@@ -200,6 +225,14 @@ export default function APSummaryPage() {
     }
   };
 
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
   return (
     <>
        <style>{`
@@ -266,12 +299,60 @@ export default function APSummaryPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="text-left p-3 font-semibold text-slate-700">Supplier</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Not Due</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">0-30 Days</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">31-60 Days</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">60+ Days</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Total Balance</th>
+                        <th 
+                          className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('name')}
+                        >
+                          <div className="flex items-center">
+                            Supplier
+                            {sortConfig.key === 'name' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('not_due')}
+                        >
+                          <div className="flex items-center justify-end">
+                            Not Due
+                            {sortConfig.key === 'not_due' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('balance_0_30')}
+                        >
+                          <div className="flex items-center justify-end">
+                            0-30 Days
+                            {sortConfig.key === 'balance_0_30' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('balance_31_60')}
+                        >
+                          <div className="flex items-center justify-end">
+                            31-60 Days
+                            {sortConfig.key === 'balance_31_60' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('balance_60_plus')}
+                        >
+                          <div className="flex items-center justify-end">
+                            60+ Days
+                            {sortConfig.key === 'balance_60_plus' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                          onClick={() => handleSort('total_balance')}
+                        >
+                          <div className="flex items-center justify-end">
+                            Total Balance
+                            {sortConfig.key === 'total_balance' && <ArrowUpDown className="ml-2 h-4 w-4" />}
+                          </div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
