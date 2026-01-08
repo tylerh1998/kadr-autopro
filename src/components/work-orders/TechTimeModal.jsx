@@ -145,7 +145,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
   );
 }
 
-export default function TechTimeModal({ open, onClose, project, workOrder }) {
+export default function TechTimeModal({ open, onClose, project, projects = [], workOrder }) {
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -174,11 +174,11 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
   const [manualHours, setManualHours] = useState('');
 
   useEffect(() => {
-    if (open && (project?.id || workOrder)) {
+    if (open && (projects.length > 0 || project?.id || workOrder)) {
       loadTimeLogs();
       loadEmployees();
     }
-  }, [open, project?.id, workOrder]);
+  }, [open, projects, project?.id, workOrder]);
 
   const loadEmployees = async () => {
     try {
@@ -196,18 +196,26 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
     setError(null);
     
     try {
-      // 1. Fetch WorkPRO Logs (if project exists)
+      // 1. Fetch WorkPRO Logs (from ALL projects)
       let fetchedLogs = [];
-      if (project?.id) {
-        const workProResponse = await base44.functions.invoke('getProjectTimeSessions', { 
-          projectId: project.id 
-        });
+      const projectsToLoad = projects.length > 0 ? projects : (project?.id ? [project] : []);
 
-        if (workProResponse.data?.success) {
-          fetchedLogs = workProResponse.data.logs;
-        } else {
-          console.error('Failed to fetch WorkPRO logs:', workProResponse.data?.error);
-        }
+      if (projectsToLoad.length > 0) {
+        const promises = projectsToLoad.map(p => 
+          base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+        );
+        const responses = await Promise.all(promises);
+        
+        responses.forEach(response => {
+           if (response.data?.success && Array.isArray(response.data.logs)) {
+             fetchedLogs = [...fetchedLogs, ...response.data.logs];
+           } else {
+             console.error('Failed to fetch WorkPRO logs for a project:', response.data?.error);
+           }
+        });
+        
+        // Remove duplicates if any
+        fetchedLogs = Array.from(new Map(fetchedLogs.map(log => [log.id, log])).values());
       }
 
       // 2. Fetch Manual Logs if WorkOrder exists
@@ -223,13 +231,21 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
            console.error("Error fetching latest WO:", e);
            targetWO = workOrder;
         }
-      } else if (project?.work_order) {
-        // Try to find WO by number - checking wo_number first as per instruction, then fallback to ro_number
-        let wos = await WorkOrder.filter({ wo_number: project.work_order });
-        
-        if (!wos || wos.length === 0) {
-           wos = await WorkOrder.filter({ ro_number: project.work_order });
+      } else {
+        // Try to find WO from project(s)
+        const proj = projects.length > 0 ? projects[0] : project;
+        if (proj?.work_order) {
+          let wos = await WorkOrder.filter({ wo_number: proj.work_order });
+          
+          if (!wos || wos.length === 0) {
+             wos = await WorkOrder.filter({ ro_number: proj.work_order });
+          }
+
+          if (wos && wos.length > 0) {
+            targetWO = wos[0];
+          }
         }
+      }
 
         if (wos && wos.length > 0) {
           targetWO = wos[0];
@@ -356,7 +372,9 @@ export default function TechTimeModal({ open, onClose, project, workOrder }) {
         // ignore error
       }
     }
-    return project?.default_category || 'billable';
+    // Fallback to project default if available, or billable
+    const proj = projects.find(p => p.id === log.project_id) || project;
+    return proj?.default_category || 'billable';
   };
 
   const handleCategoryChange = (log, newCategory) => {
