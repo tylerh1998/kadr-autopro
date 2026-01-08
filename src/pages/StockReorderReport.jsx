@@ -18,8 +18,8 @@ export default function StockReorderReport() {
   const loadReportData = async () => {
     setLoading(true);
     try {
-      // Fetch all active inventory items
-      const inventoryItems = await base44.entities.InventoryItem.filter({ is_active: true });
+      // Fetch all active inventory items that are stocked
+      const inventoryItems = await base44.entities.InventoryItem.filter({ is_active: true, stocked_item: true });
       
       // Filter items that need reordering (QOH < Min Qty)
       const itemsNeedingReorder = inventoryItems.filter(item => 
