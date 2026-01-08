@@ -595,41 +595,59 @@ export default function InventoryAddPage() {
         }
 
         setSaving(true);
+        const results = []; // Array to store results of each invoice processing
         try {
             // Process each invoice group
             for (const invoiceGroup of batchItems) {
-                const response = await base44.functions.invoke('processInventoryReceipt', {
-                    supplier_id: invoiceGroup.supplier_id,
-                    invoice_number: invoiceGroup.invoice_number,
-                    invoice_date: invoiceGroup.invoice_date,
-                    items: invoiceGroup.partItems,
-                    action: 'create'
-                });
+                const invoiceIdentifier = `${getSupplierName(invoiceGroup.supplier_id)} - Invoice #${invoiceGroup.invoice_number}`;
+                try {
+                    const response = await base44.functions.invoke('processInventoryReceipt', {
+                        supplier_id: invoiceGroup.supplier_id,
+                        invoice_number: invoiceGroup.invoice_number,
+                        invoice_date: invoiceGroup.invoice_date,
+                        items: invoiceGroup.partItems,
+                        action: 'create'
+                    });
 
-                if (!response.data.success) {
-                    console.error('Error processing invoice:', invoiceGroup.invoice_number, response.data);
-                    
-                    if (response.data.errors && response.data.errors.length > 0) {
-                        const errorMessages = response.data.errors.map(err => 
-                            err.error || JSON.stringify(err)
-                        ).join('\n');
-                        alert(`Error processing invoice ${invoiceGroup.invoice_number}:\n${errorMessages}`);
+                    if (!response.data.success) {
+                        const errorMessages = response.data.errors && response.data.errors.length > 0
+                            ? response.data.errors.map(err => err.error || JSON.stringify(err)).join('\n')
+                            : (response.data.message || 'Unknown error');
+                        results.push({ success: false, invoice: invoiceIdentifier, message: errorMessages });
                     } else {
-                        alert(`Error processing invoice ${invoiceGroup.invoice_number}: ${response.data.message || 'Unknown error'}`);
+                        results.push({ success: true, invoice: invoiceIdentifier });
                     }
-                    
-                    setSaving(false);
-                    return; // Stop processing further invoices if one fails
+                } catch (error) {
+                    console.error('Error processing invoice:', invoiceGroup.invoice_number, error);
+                    results.push({ success: false, invoice: invoiceIdentifier, message: `An unexpected error occurred: ${error.message || 'Unknown'}` });
                 }
-
-                console.log(`Successfully processed invoice ${invoiceGroup.invoice_number}:`, response.data);
             }
 
-            alert('All batches received and inventory updated successfully!');
-            window.location.reload();
+            // Summarize results
+            const successfulInvoices = results.filter(r => r.success);
+            const failedInvoices = results.filter(r => !r.success);
+
+            let summaryMessage = '';
+            if (successfulInvoices.length > 0) {
+                summaryMessage += `Successfully processed ${successfulInvoices.length} invoice(s):\n${successfulInvoices.map(r => `- ${r.invoice}`).join('\n')}`;
+            }
+            if (failedInvoices.length > 0) {
+                if (summaryMessage) summaryMessage += '\n\n';
+                summaryMessage += `Failed to process ${failedInvoices.length} invoice(s):\n${failedInvoices.map(r => `- ${r.invoice}: ${r.message}`).join('\n')}`;
+            }
+
+            alert(summaryMessage || 'No invoices were processed.');
+
+            // Only reload if at least one invoice succeeded (or if user wants to clear)
+            // Ideally, we might want to keep failed ones, but reload is safest for state sync if partial success.
+            // If ALL failed, we don't reload so user can retry.
+            if (successfulInvoices.length > 0) {
+                window.location.reload();
+            }
+
         } catch (error) {
-            console.error('Error saving received items:', error);
-            alert(`An error occurred while saving: ${error.message || 'Please check console for details.'}`);
+            console.error('Overall error saving received items:', error);
+            alert(`An overall error occurred during batch processing: ${error.message || 'Please check console for details.'}`);
         } finally {
             setSaving(false);
         }
