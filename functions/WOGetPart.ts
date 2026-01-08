@@ -53,39 +53,49 @@ Deno.serve(async (req) => {
             quantity_on_order: updatedQOO
         });
 
-        const now = new Date().toISOString();
-        const partNum = linePartNumber || inventoryItem.part_number;
-        const description = lineDescription || inventoryItem.description;
+        try {
+            const now = new Date().toISOString();
+            const partNum = linePartNumber || inventoryItem.part_number;
+            const description = lineDescription || inventoryItem.description;
 
-        // Create InventoryTxs record for issued quantity (if any)
-        if (qty_to_issue > 0) {
-            await base44.asServiceRole.entities.InventoryTxs.create({
-                inventory_item_id: inventoryItemId,
-                ro_number: roNumber,
-                part_num: partNum,
-                tx_date: now,
-                tx_type: 'Issued to WO',
-                quantity_change: -qty_to_issue,
-                quantity_ordered_change: 0,
-                source_record_id: workOrderId,
-                description: `Issued to WO ${roNumber} - ${description}`
-            });
-        }
+            // Create InventoryTxs record for issued quantity (if any)
+            if (qty_to_issue > 0) {
+                await base44.asServiceRole.entities.InventoryTxs.create({
+                    inventory_item_id: inventoryItemId,
+                    ro_number: roNumber,
+                    part_num: partNum,
+                    tx_date: now,
+                    tx_type: 'Issued to WO',
+                    quantity_change: -qty_to_issue,
+                    quantity_ordered_change: 0,
+                    source_record_id: workOrderId,
+                    description: `Issued to WO ${roNumber} - ${description}`
+                });
+            }
 
-        // Create InventoryTxs record for ordered quantity (if any)
-        if (qty_to_order > 0) {
-            await base44.asServiceRole.entities.InventoryTxs.create({
-                inventory_item_id: inventoryItemId,
-                ro_number: roNumber,
-                part_num: partNum,
-                tx_date: now,
-                tx_type: 'Ordered',
-                quantity_change: 0,
-                quantity_ordered_change: qty_to_order,
-                source_record_id: workOrderId,
-                supplier_id: inventoryItem.supplier_id,
-                description: `Ordered for WO ${roNumber} - ${description}`
+            // Create InventoryTxs record for ordered quantity (if any)
+            if (qty_to_order > 0) {
+                await base44.asServiceRole.entities.InventoryTxs.create({
+                    inventory_item_id: inventoryItemId,
+                    ro_number: roNumber,
+                    part_num: partNum,
+                    tx_date: now,
+                    tx_type: 'Ordered',
+                    quantity_change: 0,
+                    quantity_ordered_change: qty_to_order,
+                    source_record_id: workOrderId,
+                    supplier_id: inventoryItem.supplier_id,
+                    description: `Ordered for WO ${roNumber} - ${description}`
+                });
+            }
+        } catch (txError) {
+            console.error('Failed to create InventoryTxs, rolling back InventoryItem update:', txError);
+            // ROLLBACK
+            await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
+                quantity_on_hand: currentQOH,
+                quantity_on_order: currentQOO
             });
+            throw new Error(`Failed to create inventory transaction: ${txError.message}`);
         }
 
         return Response.json({

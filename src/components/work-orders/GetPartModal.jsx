@@ -255,6 +255,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     const inventoryAdjustments = [];
 
     for (const selectedPart of selectedParts) {
+      await new Promise(r => setTimeout(r, 100)); // Small delay to prevent concurrency issues on backend
       const invItem = inventoryResults.find(item => item.id === selectedPart.id);
       if (!invItem) {
         console.warn(`Inventory item with ID ${selectedPart.id} not found.`);

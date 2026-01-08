@@ -388,10 +388,6 @@ export default function WorkOrderForm({
   }, [openModal]);
   
   const handleMultiplePartsAdded = useCallback((partsArrayWithProcessedFlags, inventoryAdjustments) => {
-    console.log('=== DEBUG: handleMultiplePartsAdded (WorkOrderForm) called ===');
-    console.log('Parts array from GetPartModal:', partsArrayWithProcessedFlags);
-    console.log('Inventory adjustments:', inventoryAdjustments);
-    
     setHasUnsavedChanges(true);
     tracedSetLineItems(prev => {
         let updated = [...prev];
@@ -432,8 +428,6 @@ export default function WorkOrderForm({
             }
         });
 
-        console.log('=== DEBUG: Updated line items in WorkOrderForm ===');
-        console.log('Line items after adding parts:', updated);
         return updated;
     });
 
