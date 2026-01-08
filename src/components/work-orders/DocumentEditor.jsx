@@ -113,6 +113,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
   // Add state for WorkPRO project data and new modals
   const [workPROProject, setWorkPROProject] = useState(null);
+  const [workPROProjects, setWorkPROProjects] = useState([]);
   const [workPROComments, setWorkPROComments] = useState([]);
   const [loadingWorkPRO, setLoadingWorkPRO] = useState(false);
 
@@ -499,6 +500,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           const projects = projectResponse.data.data || [];
           const foundProject = projects.length > 0 ? projects[0] : null;
           setWorkPROProject(foundProject);
+          setWorkPROProjects(projects);
 
           if (foundProject) {
             // Use backend proxy for comments fetching
@@ -1955,6 +1957,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               workOrder={workOrder}
               lineItems={lineItems}
               workPROProject={workPROProject}
+              workPROProjects={workPROProjects}
               employees={employees}
             />
           )}
