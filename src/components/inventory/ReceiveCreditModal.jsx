@@ -202,13 +202,16 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 2. Create SupplierInvoiceLine for adjustment (if any)
       if (adj !== 0) {
         const adjustmentDescription = `Adjustment: ${adjustmentReason || 'Miscellaneous'}`;
+        // Invert adj and adjGst because a negative adjustment in UI means we want to REDUCE the credit invoice total (absolute value).
+        // Since credit invoice lines are negative, adding a POSITIVE amount reduces the magnitude of the credit.
+        // e.g. -100 (part) + 10 (adjustment) = -90 (total credit).
         await SupplierInvoiceLine.create({
           supplier_id: supplierIdForInvoice,
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           description: adjustmentDescription,
-          purchase_amount: Math.round(adj * 100) / 100,
-          gst_amount: Math.round(adjGst * 100) / 100,
+          purchase_amount: Math.round(-adj * 100) / 100,
+          gst_amount: Math.round(-adjGst * 100) / 100,
           gl_account: glAccount,
           inventory: false
         });
@@ -262,12 +265,14 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         const adjustmentGlDescription = `Inventory Return Adjustment: ${adjustmentReason || 'Miscellaneous'} (Inv: ${invoiceNumber})`;
         
         // Debit the selected GL account for the adjustment amount
+        // If adj is negative (fee/charge), we DEBIT the expense account to balance the smaller AP Debit.
+        // If adj is positive (extra credit), we CREDIT the account to balance the larger AP Debit.
         await GLTransaction.create({
           transaction_date: invoiceDate,
           account_number: glAccount,
           description: adjustmentGlDescription,
-          debit_amount: adj >= 0 ? adj : 0,
-          credit_amount: adj < 0 ? Math.abs(adj) : 0,
+          debit_amount: adj < 0 ? Math.abs(adj) : 0,
+          credit_amount: adj >= 0 ? adj : 0,
           reference: `Adjustment: ${invoiceNumber}`,
           source_type: 'inventory_return_adjustment',
           source_id: returnItem.id
@@ -279,8 +284,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
             transaction_date: invoiceDate,
             account_number: '2003',
             description: `Adjustment GST: ${adjustmentReason || 'Miscellaneous'} (Inv: ${invoiceNumber})`,
-            debit_amount: adjGst >= 0 ? adjGst : 0,
-            credit_amount: adjGst < 0 ? Math.abs(adjGst) : 0,
+            debit_amount: adjGst < 0 ? Math.abs(adjGst) : 0,
+            credit_amount: adjGst >= 0 ? adjGst : 0,
             reference: `Adjustment GST: ${invoiceNumber}`,
             source_type: 'inventory_return_adjustment',
             source_id: returnItem.id
