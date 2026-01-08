@@ -420,6 +420,14 @@ export default function LinesOfCreditPage() {
                 <Printer className="w-4 h-4 mr-2" />
                 Print
               </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setShowFlushConfirm(true)}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Flush Locks
+              </Button>
             </div>
           </div>
 
