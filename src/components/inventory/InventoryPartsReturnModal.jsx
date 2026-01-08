@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InventoryReturn, ReturnReason, InventoryItem, InventoryTxs, Supplier } from '@/entities/all';
 import { Package, RotateCcw } from 'lucide-react';
+import { format } from 'date-fns';
+import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function InventoryPartsReturnModal({ open, onClose, item, onUpdate, source, onReturnWorkOrderPart, workOrderNumber, workOrderId }) {
   const [returnQuantity, setReturnQuantity] = useState('1');
@@ -92,7 +94,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         return_reason: returnReason,
         cost_per_unit: item.cost,
         total_cost: item.cost * qtyReturned,
-        return_date: new Date().toISOString(),
+        return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
         status: 'On-site',
         notes: returnNotes || ''
       };
