@@ -137,6 +137,13 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     latestLineItemsRef.current = lineItems;
   }, [lineItems]);
 
+  // Initialize previousLineItemsRef on first load of valid data to enable deletion tracking
+  useEffect(() => {
+    if (lineItems && lineItems.length > 0 && previousLineItemsRef.current.length === 0) {
+       previousLineItemsRef.current = JSON.parse(JSON.stringify(lineItems));
+    }
+  }, [lineItems]);
+
   const [showOdometerSimpleUpdateModal, setShowOdometerSimpleUpdateModal] = useState(false);
 
   // NEW: State for system settings
