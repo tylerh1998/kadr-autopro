@@ -301,7 +301,14 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">None</SelectItem>
-                                    {suppliers.map((supplier) => (
+                                    {[...suppliers]
+                                        .filter(s => s.inventory_supplier)
+                                        .sort((a, b) => {
+                                            if (a.pin_to_top && !b.pin_to_top) return -1;
+                                            if (!a.pin_to_top && b.pin_to_top) return 1;
+                                            return (a.name || '').localeCompare(b.name || '');
+                                        })
+                                        .map((supplier) => (
                                         <SelectItem key={supplier.id} value={supplier.id}>
                                             {supplier.name}
                                         </SelectItem>
@@ -361,7 +368,8 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 id="quantity_on_hand"
                                 type="number"
                                 value={formData.quantity_on_hand}
-                                onChange={(e) => handleInputChange("quantity_on_hand", e.target.value)}
+                                disabled
+                                className="bg-gray-100"
                             />
                         </div>
                         <div className="space-y-2">
