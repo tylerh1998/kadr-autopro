@@ -751,7 +751,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           is_other_charge: item.is_other_charge || false,
           oc_total: item.oc_total || 0,
           gl_account: item.gl_account || '',
-          serial_num: item.serial_num || ''
+          serial_num: item.serial_num || '',
+          other_charge_id: item.other_charge_id || null // Ensure this is preserved for Levies tracking
         };
         if (item.supplier_invoice_line_id) {
           baseLineItem.supplier_invoice_line_id = item.supplier_invoice_line_id;

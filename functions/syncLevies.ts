@@ -19,25 +19,35 @@ export default Deno.serve(async (req) => {
         const otherCharges = await base44.asServiceRole.entities.OtherChargeList.list(null, 1000);
         const reportableLevyMap = new Map();
         otherCharges.forEach(oc => {
-            if (oc.reportable_levy) reportableLevyMap.set(oc.id, oc);
+            if (oc.reportable_levy) {
+                reportableLevyMap.set(oc.id, oc);
+            }
         });
+        
+        console.log('Reportable Levy Types found:', reportableLevyMap.size);
 
         // 2. Build Target State (What should be on the Work Order)
         // Map: line_item_id -> { qty, amount, other_charge_id, ... }
         const targetState = new Map();
         
         for (const line of lineItems) {
-            if (line.is_other_charge && line.other_charge_id) {
-                const oc = reportableLevyMap.get(line.other_charge_id);
-                if (oc) {
-                    const lid = String(line.id);
-                    targetState.set(lid, {
-                        other_charge_id: oc.id,
-                        qty: parseFloat(line.qty || 0),
-                        amount: parseFloat(line.oc_total || 0),
-                        base_amount: parseFloat(line.oc_total || 0) / (parseFloat(line.qty) || 1), // implied base amount
-                        supplier_invoice_line_id: line.supplier_invoice_line_id || null
-                    });
+            if (line.is_other_charge) {
+                // Debug log for other charges
+                // console.log(`Checking line ${line.id}: is_other_charge=true, other_charge_id=${line.other_charge_id}`);
+                
+                if (line.other_charge_id) {
+                    const oc = reportableLevyMap.get(line.other_charge_id);
+                    if (oc) {
+                        console.log(`Found reportable levy on line ${line.id} (Charge ID: ${oc.id})`);
+                        const lid = String(line.id);
+                        targetState.set(lid, {
+                            other_charge_id: oc.id,
+                            qty: parseFloat(line.qty || 0),
+                            amount: parseFloat(line.oc_total || 0),
+                            base_amount: parseFloat(line.oc_total || 0) / (parseFloat(line.qty) || 1), // implied base amount
+                            supplier_invoice_line_id: line.supplier_invoice_line_id || null
+                        });
+                    }
                 }
             }
         }
