@@ -1,19 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TagAlong } from "@/entities/TagAlong";
+import { InventoryCategory } from "@/entities/InventoryCategory";
+import { base44 } from '@/api/base44Client';
+import { Save, Loader2, Search, Check } from "lucide-react";
 
 export default function InventoryAddModal({ open, onClose, onAdd, suppliers, salesClasses, inventoryLocations }) {
     const [tagAlongs, setTagAlongs] = useState([]);
+    const [internalCategories, setInternalCategories] = useState([]);
     const [formData, setFormData] = useState({
         part_number: "",
         description: "",
-        unit: "", // NEW: Add unit field
-        category: "other",
+        unit: "",
+        category: "",
         supplier_id: "",
         manufacturer: "",
         sales_class: "",
@@ -32,13 +37,26 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
     });
     const [loading, setLoading] = useState(false);
     const [calculatedMargin, setCalculatedMargin] = useState('');
+    const [locationSearchOpen, setLocationSearchOpen] = useState(false);
+    
+    // Smart Category State
+    const [suggestingCategory, setSuggestingCategory] = useState(false);
+    const [isCategorySuggested, setIsCategorySuggested] = useState(false);
+
+    const filteredLocations = React.useMemo(() => {
+        if (!formData.location) return inventoryLocations || [];
+        const searchLower = formData.location.toLowerCase();
+        return (inventoryLocations || []).filter(loc => 
+            (loc.location_name || '').toLowerCase().includes(searchLower)
+        );
+    }, [formData.location, inventoryLocations]);
 
     const resetForm = () => {
         setFormData({
             part_number: "",
             description: "",
-            unit: "", // Reset unit
-            category: "other",
+            unit: "",
+            category: "",
             supplier_id: "",
             manufacturer: "",
             cost: "",
@@ -56,24 +74,68 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
             is_active: true,
         });
         setCalculatedMargin('');
+        setIsCategorySuggested(false);
     };
 
     useEffect(() => {
         if (open) {
             resetForm();
-            loadTagAlongs();
+            loadData();
         }
     }, [open]);
 
-    const loadTagAlongs = async () => {
+    const loadData = async () => {
         try {
-            const tagAlongsData = await TagAlong.list();
+            const [tagAlongsData, categoriesData] = await Promise.all([
+                TagAlong.list(),
+                InventoryCategory.list()
+            ]);
             setTagAlongs(tagAlongsData);
+            setInternalCategories(categoriesData);
         } catch (error) {
-            console.error('Error loading tag alongs:', error);
-            // Optionally, handle error display to the user
+            console.error('Error loading data:', error);
         }
     };
+
+    // Smart Category Suggestion Logic
+    useEffect(() => {
+        const fetchSuggestion = async () => {
+            if (formData.part_number && 
+                formData.description && 
+                !formData.category && 
+                !suggestingCategory) {
+                
+                setSuggestingCategory(true);
+                try {
+                    const supplier = suppliers.find(s => s.id === formData.supplier_id);
+                    const supplierName = supplier ? supplier.name : '';
+                    
+                    const response = await base44.functions.invoke('suggestInventoryCategory', {
+                        part_number: formData.part_number,
+                        description: formData.description,
+                        supplier_name: supplierName
+                    });
+                    
+                    if (response.data && response.data.category) {
+                        setFormData(prev => {
+                            if (!prev.category) {
+                                setTimeout(() => setIsCategorySuggested(true), 0);
+                                return { ...prev, category: response.data.category };
+                            }
+                            return prev;
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error fetching category suggestion:", error);
+                } finally {
+                    setSuggestingCategory(false);
+                }
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestion, 1000); // Debounce
+        return () => clearTimeout(timer);
+    }, [formData.part_number, formData.description, formData.category, formData.supplier_id, suppliers]);
 
     const calculatePriceFromSalesClass = useCallback((cost, salesClassId) => {
         if (!cost || !salesClassId || !salesClasses) return null;
@@ -82,16 +144,17 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
         if (!selectedSalesClass || !selectedSalesClass.pricing_matrix) return null;
 
         try {
-            const parsedData = JSON.parse(selectedSalesClass.pricing_matrix);
-            // Ensure pricing_matrix is an array. If it's an object `{}`, this will fail gracefully.
+            let parsedData = selectedSalesClass.pricing_matrix;
+            if (typeof parsedData === 'string') {
+                parsedData = JSON.parse(parsedData);
+            }
             if (!Array.isArray(parsedData)) {
-                console.warn(`Pricing matrix for sales class "${selectedSalesClass.name}" is not a valid array.`, parsedData);
                 return null;
             }
+            
             const pricingRanges = parsedData;
             const costValue = parseFloat(cost);
 
-            // Find the matching range based on cost
             const matchingRange = pricingRanges.find(range => {
                 const minCost = parseFloat(range.min_cost);
                 const maxCost = parseFloat(range.max_cost);
@@ -117,63 +180,64 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
         setFormData(prev => {
             const newFormData = { ...prev, [field]: value };
 
-            // Auto-calculate selling price and margin when cost or sales class changes
+            let newCalculatedMargin = '';
+
+            const currentCost = parseFloat(field === 'cost' ? value : newFormData.cost);
+            const currentSalesClass = field === 'sales_class' ? value : newFormData.sales_class;
+            const currentSellingPrice = parseFloat(field === 'selling_price' ? value : newFormData.selling_price);
+
             if (field === 'cost' || field === 'sales_class') {
-                const currentCost = field === 'cost' ? value : newFormData.cost;
-                const currentSalesClass = field === 'sales_class' ? value : newFormData.sales_class;
-
-                if (currentCost !== "" && currentSalesClass !== "") {
+                if (currentCost > 0 && currentSalesClass) {
                     const calculation = calculatePriceFromSalesClass(currentCost, currentSalesClass);
-
                     if (calculation) {
                         newFormData.selling_price = calculation.sellingPrice;
                         newFormData.profit_margin = calculation.margin;
-                        setCalculatedMargin(calculation.margin);
+                        newCalculatedMargin = calculation.margin;
                     } else {
-                        // If no calculation is found, clear selling price and margin
-                        newFormData.selling_price = "";
-                        newFormData.profit_margin = "";
-                        setCalculatedMargin('');
+                        if (currentSellingPrice > 0) {
+                             const margin = ((currentSellingPrice - currentCost) / currentSellingPrice) * 100;
+                             newCalculatedMargin = margin.toFixed(2);
+                        }
                     }
-                } else {
-                    // If cost or sales class is empty, clear selling price and margin
-                    newFormData.selling_price = "";
-                    newFormData.profit_margin = "";
-                    setCalculatedMargin('');
+                } else if (currentCost > 0 && currentSellingPrice > 0) {
+                     const margin = ((currentSellingPrice - currentCost) / currentSellingPrice) * 100;
+                     newCalculatedMargin = margin.toFixed(2);
                 }
-            } else if (field === 'selling_price') {
-                // If selling price is manually changed, calculate margin based on it
-                const cost = parseFloat(newFormData.cost) || 0;
-                const sellingPrice = parseFloat(value) || 0;
-
-                if (cost > 0 && sellingPrice > cost) {
-                    const margin = ((sellingPrice - cost) / sellingPrice) * 100;
+            }
+            else if (field === 'selling_price') {
+                if (currentCost > 0 && currentSellingPrice > 0 && currentSellingPrice > currentCost) {
+                    const margin = ((currentSellingPrice - currentCost) / currentSellingPrice) * 100;
                     newFormData.profit_margin = margin.toFixed(2);
-                    setCalculatedMargin(margin.toFixed(2));
-                } else if (cost === 0 && sellingPrice > 0) {
+                    newCalculatedMargin = margin.toFixed(2);
+                } else if (currentCost === 0 && currentSellingPrice > 0) {
                     newFormData.profit_margin = "100.00";
-                    setCalculatedMargin("100.00");
+                    newCalculatedMargin = "100.00";
                 } else {
                     newFormData.profit_margin = "";
-                    setCalculatedMargin('');
+                    newCalculatedMargin = '';
                 }
             }
-            // If profit_margin is manually changed, calculate selling price based on it
             else if (field === 'profit_margin') {
-                const cost = parseFloat(newFormData.cost) || 0;
-                const margin = parseFloat(value) || 0;
-
-                if (cost > 0 && margin >= 0 && margin < 100) {
-                    const sellingPrice = cost / (1 - margin / 100);
+                if (currentCost > 0 && parseFloat(value) >= 0 && parseFloat(value) < 100) {
+                    const sellingPrice = currentCost / (1 - parseFloat(value) / 100);
                     newFormData.selling_price = sellingPrice.toFixed(2);
-                    // Do not update calculatedMargin here as it's driven by direct input
-                } else if (cost === 0 && margin === 100) {
-                    newFormData.selling_price = ""; // Cannot determine selling price with 0 cost and 100% margin
+                    newCalculatedMargin = parseFloat(value).toFixed(2);
                 } else {
-                    newFormData.selling_price = "";
+                    newCalculatedMargin = '';
                 }
             }
 
+            if (field !== 'profit_margin' && newCalculatedMargin === '' && newFormData.profit_margin) {
+                 newCalculatedMargin = newFormData.profit_margin;
+            }
+
+            setCalculatedMargin(newCalculatedMargin);
+            
+            // Reset smart category highlight if user manually changes category
+            if (field === 'category') {
+                setIsCategorySuggested(false);
+            }
+            
             return newFormData;
         });
     };
@@ -189,7 +253,6 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
         try {
             const itemToCreate = {
                 ...formData,
-                // Convert numeric string fields to actual numbers
                 cost: parseFloat(formData.cost) || 0,
                 selling_price: parseFloat(formData.selling_price) || 0,
                 profit_margin: parseFloat(formData.profit_margin) || 0,
@@ -197,11 +260,13 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                 minimum_quantity: formData.minimum_quantity === "" ? null : parseInt(formData.minimum_quantity, 10),
                 maximum_quantity: formData.maximum_quantity === "" ? null : parseInt(formData.maximum_quantity, 10),
                 core_cost: parseFloat(formData.core_cost) || 0,
-                // Ensure IDs and location are null if empty string
                 supplier_id: formData.supplier_id === "" ? null : formData.supplier_id,
                 sales_class: formData.sales_class === "" ? null : formData.sales_class,
                 location: formData.location === "" ? null : formData.location,
                 tag_along_id: formData.tag_along_id === "" ? null : formData.tag_along_id,
+                manufacturer: formData.manufacturer === "" ? null : formData.manufacturer,
+                category: formData.category === "" ? null : formData.category,
+                unit: formData.unit === "" ? null : formData.unit,
             };
 
             await onAdd(itemToCreate);
@@ -214,11 +279,9 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
         }
     };
 
-    const categories = ["oil_fluids", "filters", "brakes", "engine", "transmission", "electrical", "tires", "belts_hoses", "suspension", "exhaust", "other"];
-
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Add New Inventory Item</DialogTitle>
                     <DialogDescription>
@@ -226,54 +289,9 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="part_number">Part Number *</Label>
-                            <Input
-                                id="part_number"
-                                value={formData.part_number}
-                                onChange={(e) => handleInputChange("part_number", e.target.value.toUpperCase())}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="category">Category</Label>
-                            <Select value={formData.category} onValueChange={(val) => handleInputChange('category', val)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map(cat => <SelectItem key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="description">Description *</Label>
-                            <Input
-                                id="description"
-                                value={formData.description}
-                                onChange={(e) => handleInputChange("description", e.target.value.replace(/\b\w/g, l => l.toUpperCase()))}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="unit">Unit (e.g., /ea, /lb, /gal)</Label>
-                            <Input
-                                id="unit"
-                                value={formData.unit}
-                                onChange={(e) => handleInputChange("unit", e.target.value.slice(0, 5))}
-                                placeholder="/ea"
-                                maxLength={5}
-                            />
-                        </div>
-                    </div>
-
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    
+                    {/* Supplier Row */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="supplier_id">Supplier</Label>
@@ -301,9 +319,53 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="cost">Cost *</Label>
+                    {/* Row 1: Part #, Description, Unit */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="part_number">Part Number *</Label>
+                            <Input
+                                id="part_number"
+                                value={formData.part_number}
+                                onChange={(e) => handleInputChange("part_number", e.target.value.toUpperCase())}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-1 md:col-span-2 grid grid-cols-3 gap-2">
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="description">Description *</Label>
+                                <Input
+                                    id="description"
+                                    value={formData.description}
+                                    onChange={(e) => handleInputChange("description", e.target.value.replace(/\b\w/g, l => l.toUpperCase()))}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2 col-span-1">
+                                <Label htmlFor="unit">Unit</Label>
+                                <Input
+                                    id="unit"
+                                    value={formData.unit}
+                                    onChange={(e) => handleInputChange("unit", e.target.value.slice(0, 5))}
+                                    placeholder="/ea"
+                                    maxLength={5}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 2: Qty On Hand, Cost, Sales Class, Tag Along */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="quantity_on_hand">Qty On Hand</Label>
+                            <Input
+                                id="quantity_on_hand"
+                                type="number"
+                                value={formData.quantity_on_hand}
+                                onChange={(e) => handleInputChange("quantity_on_hand", e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="cost">Part Cost *</Label>
                             <Input
                                 id="cost"
                                 type="number"
@@ -311,12 +373,10 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 value={formData.cost}
                                 onChange={(e) => handleInputChange("cost", e.target.value)}
                                 required
-                                placeholder="0.00"
                             />
                         </div>
-
-                        <div>
-                            <Label htmlFor="sales_class">Sales Class</Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="sales_class">Sales Class *</Label>
                             <Select
                                 value={formData.sales_class}
                                 onValueChange={(value) => handleInputChange('sales_class', value === 'none' ? '' : value)}
@@ -334,11 +394,31 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="tag_along_id">Tag Along</Label>
+                            <Select
+                                value={formData.tag_along_id}
+                                onValueChange={(value) => handleInputChange('tag_along_id', value === 'none' ? '' : value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="None" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {tagAlongs.map((tagAlong) => (
+                                        <SelectItem key={tagAlong.id} value={tagAlong.id}>
+                                            {tagAlong.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="selling_price">Selling Price *</Label>
+                    {/* Row 3: List Price, Margin, Core, Stocked */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="selling_price">List Price *</Label>
                             <div className="relative">
                                 <Input
                                     id="selling_price"
@@ -355,8 +435,8 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 )}
                             </div>
                         </div>
-                        <div>
-                            <Label htmlFor="profit_margin">Profit Margin %</Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="profit_margin">Margin % (Auto)</Label>
                             <Input
                                 id="profit_margin"
                                 type="number"
@@ -365,45 +445,47 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 onChange={(e) => handleInputChange("profit_margin", e.target.value)}
                             />
                         </div>
+                        <div className="space-y-2 flex items-end pb-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="core"
+                                    checked={formData.core}
+                                    onCheckedChange={(checked) => handleInputChange('core', checked)}
+                                />
+                                <Label htmlFor="core" className="cursor-pointer">Core Item</Label>
+                            </div>
+                        </div>
+                        <div className="space-y-2 flex items-end pb-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="stocked_item"
+                                    checked={formData.stocked_item}
+                                    onCheckedChange={(checked) => handleInputChange('stocked_item', checked)}
+                                />
+                                <Label htmlFor="stocked_item" className="cursor-pointer">Stocked Item</Label>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="core" checked={formData.core} onCheckedChange={(checked) => handleInputChange('core', checked)} />
-                            <Label htmlFor="core">Core Item</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="stocked_item" checked={formData.stocked_item} onCheckedChange={(checked) => handleInputChange('stocked_item', checked)} />
-                            <Label htmlFor="stocked_item">Stocked Item</Label>
-                        </div>
-                    </div>
-
+                    {/* Conditional Fields: Core Cost */}
                     {formData.core && (
-                        <div className="grid grid-cols-4 items-center gap-4 pl-6">
-                            <Label htmlFor="core_cost" className="text-right">Core Cost</Label>
+                        <div className="mb-4">
+                            <Label htmlFor="core_cost">Core Cost</Label>
                             <Input
                                 id="core_cost"
                                 type="number"
                                 step="0.01"
                                 value={formData.core_cost}
                                 onChange={(e) => handleInputChange('core_cost', e.target.value)}
-                                className="col-span-3"
+                                className="max-w-xs"
                             />
                         </div>
                     )}
 
+                    {/* Conditional Fields: Stocked Item Details */}
                     {formData.stocked_item && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pl-6">
-                            <div className="space-y-1">
-                                <Label htmlFor="quantity_on_hand">QOH</Label>
-                                <Input
-                                    id="quantity_on_hand"
-                                    type="number"
-                                    value={formData.quantity_on_hand}
-                                    onChange={(e) => handleInputChange('quantity_on_hand', e.target.value)}
-                                />
-                            </div>
-                            <div className="space-y-1">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                            <div className="space-y-2">
                                 <Label htmlFor="minimum_quantity">Minimum</Label>
                                 <Input
                                     id="minimum_quantity"
@@ -412,7 +494,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                     onChange={(e) => handleInputChange('minimum_quantity', e.target.value)}
                                 />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 <Label htmlFor="maximum_quantity">Maximum</Label>
                                 <Input
                                     id="maximum_quantity"
@@ -421,52 +503,119 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                     onChange={(e) => handleInputChange('maximum_quantity', e.target.value)}
                                 />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                                 <Label htmlFor="location">Location</Label>
-                                <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value === 'none' ? '' : value)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select location" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">None</SelectItem>
-                                        {inventoryLocations.map((loc) => (
-                                            <SelectItem key={loc.id} value={loc.id}>
-                                                {loc.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={locationSearchOpen} onOpenChange={setLocationSearchOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={locationSearchOpen}
+                                            className="w-full justify-between font-normal"
+                                        >
+                                            {formData.location || "Select location..."}
+                                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[300px] p-0" align="start">
+                                        <div className="p-2">
+                                            <Input
+                                                placeholder="Search locations..."
+                                                value={formData.location || ''}
+                                                onChange={(e) => handleInputChange('location', e.target.value)}
+                                                className="mb-2"
+                                                autoFocus
+                                            />
+                                            <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                                <div
+                                                    onClick={() => {
+                                                        handleInputChange('location', '');
+                                                        setLocationSearchOpen(false);
+                                                    }}
+                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                >
+                                                    <span className="text-slate-500 italic">No Location</span>
+                                                    {(!formData.location || formData.location === '') && <Check className="ml-auto h-4 w-4" />}
+                                                </div>
+                                                {filteredLocations.length === 0 ? (
+                                                    <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                ) : (
+                                                    filteredLocations.map((loc) => (
+                                                        <div
+                                                            key={loc.id}
+                                                            onClick={() => {
+                                                                handleInputChange('location', loc.location_name);
+                                                                setLocationSearchOpen(false);
+                                                            }}
+                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                        >
+                                                            <span>{loc.location_name}</span>
+                                                            {formData.location === loc.location_name && (
+                                                                <Check className="ml-auto h-4 w-4" />
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
                     )}
 
-                    {/* Tag Along Field */}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="tag_along_id" className="text-right">Tag Along</Label>
-                        <Select
-                            value={formData.tag_along_id}
-                            onValueChange={(value) => handleInputChange('tag_along_id', value === 'null' ? null : value)}
-                        >
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select tag along (optional)" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="null">None</SelectItem>
-                                {tagAlongs.map((tagAlong) => (
-                                    <SelectItem key={tagAlong.id} value={tagAlong.id}>
-                                        {tagAlong.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {/* Row 4: Category, Is Active, Buttons */}
+                    <div className="flex items-end justify-between gap-4 pt-4 border-t">
+                        <div className="w-64 space-y-2">
+                            <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
+                            <Select 
+                                value={formData.category || 'none'} 
+                                onValueChange={(val) => handleInputChange('category', val === 'none' ? '' : val)}
+                            >
+                                <SelectTrigger className={isCategorySuggested ? "border-green-500 ring-1 ring-green-500" : ""}>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None</SelectItem>
+                                    {[...internalCategories]
+                                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                        .map(cat => (
+                                        <SelectItem key={cat.id} value={cat.name}>
+                                            {cat.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={onClose} type="button" disabled={loading}>Cancel</Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Adding..." : "Add Item"}
-                        </Button>
-                    </DialogFooter>
+                        <div className="flex items-center space-x-2 pb-2">
+                            <Checkbox 
+                                id="is_active" 
+                                checked={formData.is_active} 
+                                onCheckedChange={(checked) => handleInputChange('is_active', checked)} 
+                            />
+                            <Label htmlFor="is_active" className="cursor-pointer">Is Active</Label>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={onClose} type="button" disabled={loading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={loading}>
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                        Adding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4 mr-2" />
+                                        Add Item
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
                 </form>
             </DialogContent>
         </Dialog>
