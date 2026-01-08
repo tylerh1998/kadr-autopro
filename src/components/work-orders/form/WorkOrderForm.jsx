@@ -77,6 +77,7 @@ export default function WorkOrderForm({
   onOpenApprovals,
   mode = 'work_order', // Add mode prop with default
   shopSupplyRate = 0.07,
+  onLineItemProcessed,
 }) {
   const [editedWorkOrder, setEditedWorkOrder] = useState(initialWorkOrder);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -637,7 +638,8 @@ export default function WorkOrderForm({
           const updatedLines = prev.map((line, idx) => {
               if (idx === currentLineIndex) {
                   const updatedLine = { ...line };
-                  updatedLine.qty = (parseFloat(updatedLine.qty) || 0) - qtyReturned;
+                  const newQty = (parseFloat(updatedLine.qty) || 0) - qtyReturned;
+                  updatedLine.qty = newQty;
                   
                   if (updatedLine.is_other_charge) {
                       if (line.qty > 0) {
@@ -654,7 +656,13 @@ export default function WorkOrderForm({
                   
                   console.log('Updated line qty:', updatedLine.qty);
                   
-                  return updatedLine.qty > 0 ? updatedLine : null;
+                  if (newQty <= 0) {
+                      if (onLineItemProcessed) {
+                          onLineItemProcessed(line.id);
+                      }
+                      return null;
+                  }
+                  return updatedLine;
               }
               return line;
           }).filter(line => line !== null);

@@ -133,6 +133,13 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   // Ref to track latest line items to prevent race conditions during save
   const latestLineItemsRef = useRef(lineItems);
 
+  // Helper to handle processed returns to prevent double-dipping in handleSave
+  const handleLineItemProcessed = useCallback((lineId) => {
+    if (previousLineItemsRef.current) {
+        previousLineItemsRef.current = previousLineItemsRef.current.filter(line => line.id !== lineId);
+    }
+  }, []);
+
   useEffect(() => {
     latestLineItemsRef.current = lineItems;
   }, [lineItems]);
@@ -1840,6 +1847,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               onOpenApprovals={() => openModal('approvals')}
               mode={mode} // Pass mode to WorkOrderForm
               shopSupplyRate={systemSettings.shop_supply_rate}
+              onLineItemProcessed={handleLineItemProcessed}
             />
           )}
         </div>
