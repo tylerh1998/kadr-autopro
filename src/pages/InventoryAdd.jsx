@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search, RotateCcw } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search, RotateCcw, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -158,6 +158,7 @@ export default function InventoryAddPage() {
     });
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
+    const invoiceNumberRef = React.useRef(null);
     const partNumberRef = React.useRef(null);
     const quantityReceivedRef = React.useRef(null);
     const descriptionRef = React.useRef(null);
@@ -297,6 +298,16 @@ export default function InventoryAddPage() {
         
         // Check lock status for the new supplier
         checkSupplierLock(newSupplierId);
+    };
+
+    const handleClearInvoice = () => {
+        setInvoiceNumber('');
+        setInvoiceDate('');
+        setInvoiceDateInput('');
+        setDateError(null);
+        setTimeout(() => {
+            invoiceNumberRef.current?.focus();
+        }, 100);
     };
 
     const calculatePriceFromSalesClass = (cost, salesClassId) => {
@@ -839,13 +850,27 @@ export default function InventoryAddPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="invoice_number">Invoice # *</Label>
-                            <Input
-                                id="invoice_number"
-                                value={invoiceNumber}
-                                onChange={(e) => setInvoiceNumber(e.target.value)}
-                                placeholder="Invoice number"
-                                required
-                            />
+                            <div className="relative">
+                                <Input
+                                    ref={invoiceNumberRef}
+                                    id="invoice_number"
+                                    value={invoiceNumber}
+                                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                                    placeholder="Invoice number"
+                                    required
+                                    className="pr-8"
+                                />
+                                {invoiceNumber && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClearInvoice}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        tabIndex={-1}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Invoice Date *</Label>
