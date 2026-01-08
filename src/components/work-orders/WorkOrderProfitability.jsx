@@ -6,7 +6,7 @@ import { DollarSign, TrendingUp, Package, Wrench, Loader2, Clock } from 'lucide-
 import { base44 } from '@/api/base44Client';
 import TechTimeModal from './TechTimeModal';
 
-export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, employees = [] }) {
+export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, workPROProjects = [], employees = [] }) {
   // Memoize safeLineItems to prevent unnecessary re-renders and ensure stable reference
   // This helps optimize profitabilityData's useMemo dependency.
   const safeLineItems = useMemo(() => {
@@ -19,22 +19,33 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
 
   useEffect(() => {
     const fetchTechTimeLogs = async () => {
-      if (!open || !workPROProject?.id) {
+      const projectsToFetch = workPROProjects && workPROProjects.length > 0 
+        ? workPROProjects 
+        : (workPROProject?.id ? [workPROProject] : []);
+
+      if (!open || projectsToFetch.length === 0) {
         setTechTimeLogs([]);
         return;
       }
       setLoadingLaborCost(true);
       try {
-        const response = await base44.functions.invoke('getProjectTimeSessions', { 
-          projectId: workPROProject.id 
+        const promises = projectsToFetch.map(p => 
+          base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+        );
+        
+        const responses = await Promise.all(promises);
+        let allLogs = [];
+        
+        responses.forEach(response => {
+          if (response.data?.success && Array.isArray(response.data.logs)) {
+            allLogs = [...allLogs, ...response.data.logs];
+          }
         });
+        
+        // Remove duplicates if any
+        const uniqueLogs = Array.from(new Map(allLogs.map(log => [log.id, log])).values());
+        setTechTimeLogs(uniqueLogs);
 
-        if (response.data?.success) {
-          setTechTimeLogs(response.data.logs);
-        } else {
-          console.error('Failed to fetch time logs:', response.data?.error);
-          setTechTimeLogs([]);
-        }
       } catch (error) {
         console.error('Failed to fetch TechTimeLogs:', error);
         setTechTimeLogs([]);
@@ -43,7 +54,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
       }
     };
     fetchTechTimeLogs();
-  }, [open, workPROProject?.id]);
+  }, [open, workPROProjects, workPROProject]);
 
   const profitabilityData = useMemo(() => {
     if (!safeLineItems || safeLineItems.length === 0) {
@@ -429,7 +440,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         <TechTimeModal 
           open={showTechTimeModal} 
           onClose={() => setShowTechTimeModal(false)} 
-          project={workPROProject}
+          projects={workPROProjects && workPROProjects.length > 0 ? workPROProjects : (workPROProject ? [workPROProject] : [])}
           workOrder={workOrder}
         />
       </DialogContent>
