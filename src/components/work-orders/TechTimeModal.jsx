@@ -247,11 +247,6 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         }
       }
 
-        if (wos && wos.length > 0) {
-          targetWO = wos[0];
-        }
-      }
-
       if (targetWO) {
         setCurrentWorkOrder(targetWO);
         if (targetWO.tech_time) {
