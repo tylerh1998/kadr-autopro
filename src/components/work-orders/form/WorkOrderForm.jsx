@@ -849,71 +849,8 @@ export default function WorkOrderForm({
     }
 
     // Handle inventory updates for parts
-    if (itemToDelete.inventory_item_id) {
-      try {
-        const inventoryItem = await InventoryItem.get(itemToDelete.inventory_item_id);
-        if (!inventoryItem) {
-          console.warn('WorkOrderForm: Inventory item not found for ID:', itemToDelete.inventory_item_id);
-        } else {
-          let newQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
-          let newQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
-          let txDescriptions = [];
-          let txTypes = [];
-          let quantityChange = 0; // Total QOH change
-          let quantityOrderedChange = 0; // Total QOO change
-
-          // Calculate the portion that was actually issued from QOH
-          if (itemToDelete.inventory_processed && (parseFloat(itemToDelete.qty) || 0) > 0) {
-            const totalQty = parseFloat(itemToDelete.qty) || 0;
-            const qtyOnOrder = parseFloat(itemToDelete.qty_on_order) || 0;
-            
-            const issuedFromQOH = totalQty - qtyOnOrder;
-            
-            if (issuedFromQOH > 0) {
-              const qtyToReturn = issuedFromQOH;
-              newQOH += qtyToReturn;
-              quantityChange += qtyToReturn;
-              txTypes.push('Returned from WO');
-              txDescriptions.push(`Returned ${qtyToReturn} to stock from WO ${initialWorkOrder.ro_number}`);
-            }
-          }
-
-          // Handle parts on order
-          if ((parseFloat(itemToDelete.qty_on_order) || 0) > 0) {
-            const qtyOnOrderToCancel = parseFloat(itemToDelete.qty_on_order);
-            newQOO = Math.max(0, newQOO - qtyOnOrderToCancel);
-            quantityOrderedChange -= qtyOnOrderToCancel;
-            txTypes.push('Order cancelled from WO');
-            txDescriptions.push(`Cancelled ${qtyOnOrderToCancel} from order for WO ${initialWorkOrder.ro_number}`);
-          }
-
-          // Only perform inventory update and create transaction if there were actual changes
-          if (quantityChange !== 0 || quantityOrderedChange !== 0) {
-            await InventoryItem.update(itemToDelete.inventory_item_id, {
-              quantity_on_hand: newQOH,
-              quantity_on_order: newQOO
-            });
-
-            await InventoryTxs.create({
-              inventory_item_id: itemToDelete.inventory_item_id,
-              part_num: itemToDelete.part_number,
-              tx_date: new Date().toISOString(),
-              tx_type: txTypes.length > 0 ? txTypes.join(' & ') : 'WO Line Deleted',
-              quantity_change: quantityChange,
-              quantity_ordered_change: quantityOrderedChange,
-              ro_number: initialWorkOrder.ro_number,
-              source_record_id: initialWorkOrder.id,
-              description: txDescriptions.join('; ') || `Line item deleted from WO ${initialWorkOrder.ro_number}`
-            });
-            console.log(`WorkOrderForm: Successfully updated inventory for line ${lineIndex}. New QOH: ${newQOH}, New QOO: ${newQOO}`);
-          }
-        }
-      } catch (error) {
-        console.error('WorkOrderForm: Failed to update inventory or create transaction on line delete:', error);
-        alert(`Failed to update inventory for line deletion: ${error.message}. Please check inventory history manually.`);
-        return; 
-      }
-    }
+    // MOVED TO DocumentEditor.js handleSave logic to prevent double counting and ensure consistency
+    // if (itemToDelete.inventory_item_id) { ... }
 
     tracedSetLineItems(prev => {
       const updated = [...prev];

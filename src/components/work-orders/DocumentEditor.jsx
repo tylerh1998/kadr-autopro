@@ -546,28 +546,57 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         if (deletedLines.length > 0) {
           for (const deletedLine of deletedLines) {
             try {
-              const qtyToReturn = parseFloat(deletedLine.qty) || 0;
-              if (qtyToReturn <= 0) continue;
+              const totalQty = parseFloat(deletedLine.qty) || 0;
+              const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
+              
+              if (totalQty <= 0 && qtyOnOrder <= 0) continue;
 
               const inventoryItem = await InventoryItem.get(deletedLine.inventory_item_id);
-              const currentQOH = inventoryItem.quantity_on_hand || 0;
-              const newQOH = currentQOH + qtyToReturn;
+              if (!inventoryItem) continue;
 
-              await InventoryItem.update(deletedLine.inventory_item_id, {
-                quantity_on_hand: newQOH
-              });
+              let newQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
+              let newQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
+              let quantityChange = 0;
+              let quantityOrderedChange = 0;
+              let txDescriptions = [];
+              let txTypes = [];
 
-              await InventoryTxs.create({
-                inventory_item_id: deletedLine.inventory_item_id,
-                part_num: deletedLine.part_number || inventoryItem.part_number,
-                tx_date: new Date().toISOString(),
-                tx_type: 'Returned from WO',
-                quantity_change: qtyToReturn,
-                quantity_ordered_change: 0,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                description: `Returned ${qtyToReturn} units to inventory from deleted line on ${workOrder.ro_number}`
-              });
+              // Handle return to QOH (only if it was issued from QOH)
+              const issuedFromQOH = Math.max(0, totalQty - qtyOnOrder);
+              
+              if (issuedFromQOH > 0) {
+                newQOH += issuedFromQOH;
+                quantityChange = issuedFromQOH;
+                txTypes.push('Returned from WO');
+                txDescriptions.push(`Returned ${issuedFromQOH} units to inventory from deleted line on ${workOrder.ro_number}`);
+              }
+
+              // Handle cancellation of on-order
+              if (qtyOnOrder > 0) {
+                newQOO = Math.max(0, newQOO - qtyOnOrder);
+                quantityOrderedChange = -qtyOnOrder;
+                txTypes.push('Order cancelled from WO');
+                txDescriptions.push(`Cancelled ${qtyOnOrder} on order from deleted line on ${workOrder.ro_number}`);
+              }
+
+              if (quantityChange !== 0 || quantityOrderedChange !== 0) {
+                await InventoryItem.update(deletedLine.inventory_item_id, {
+                  quantity_on_hand: newQOH,
+                  quantity_on_order: newQOO
+                });
+
+                await InventoryTxs.create({
+                  inventory_item_id: deletedLine.inventory_item_id,
+                  part_num: deletedLine.part_number || inventoryItem.part_number,
+                  tx_date: new Date().toISOString(),
+                  tx_type: txTypes.length > 0 ? txTypes.join(' & ') : 'WO Line Deleted',
+                  quantity_change: quantityChange,
+                  quantity_ordered_change: quantityOrderedChange,
+                  ro_number: workOrder.ro_number,
+                  source_record_id: workOrder.id,
+                  description: txDescriptions.join('; ') || `Line item deleted from WO ${workOrder.ro_number}`
+                });
+              }
             } catch (error) {
               console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
             }
