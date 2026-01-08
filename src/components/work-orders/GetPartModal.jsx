@@ -258,21 +258,18 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     const itemsPayload = [];
     
     // Map selected parts to payload items
-    // First validation pass to ensure items exist in results
     for (const selectedPart of selectedParts) {
-      const invItem = inventoryResults.find(item => item.id === selectedPart.id);
-      if (!invItem) {
-        console.warn(`Inventory item with ID ${selectedPart.id} not found.`);
-        continue;
-      }
+      // Use the selectedPart data directly as it contains the snapshot of the item when it was selected
+      // Do NOT look up in inventoryResults because that array changes with subsequent searches
+      
       itemsPayload.push({
-        inventoryItemId: invItem.id,
+        inventoryItemId: selectedPart.id,
         requestedQuantity: selectedPart.selectedQuantity,
-        lineDescription: invItem.description,
-        linePartNumber: invItem.part_number,
+        lineDescription: selectedPart.description,
+        linePartNumber: selectedPart.part_number,
         // Carry over selectedPart specific data for later use (calculated price)
         _calculatedPrice: selectedPart.calculatedPrice,
-        _invItem: invItem // Carry original item for tag along lookup
+        _invItem: selectedPart // Carry original item for tag along lookup
       });
     }
 
