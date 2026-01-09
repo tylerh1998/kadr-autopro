@@ -152,10 +152,11 @@ export default function LinesOfCreditPage() {
       let startingBalance = 0;
       const transactionsBeforeRange = allTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
       for (const tx of transactionsBeforeRange) {
-        if (tx.source_type !== 'payment_made') {
+        if (tx.source_type === 'payment_made') {
+          startingBalance -= (tx.payment_amount || 0);
+        } else {
           startingBalance += (tx.charge_amount || 0);
           startingBalance -= (tx.credit_amount || 0);
-          startingBalance -= (tx.payment_amount || 0);
         }
       }
       
@@ -191,11 +192,12 @@ export default function LinesOfCreditPage() {
     
     let cumulativeBalance = startingBalance;
     const finalTransactions = txData.map(tx => {
-      // Only process transactions that are not payment_made
-      if (tx.source_type !== 'payment_made') {
+      // Process all transactions
+      if (tx.source_type === 'payment_made') {
+        cumulativeBalance -= (tx.payment_amount || 0);
+      } else {
         cumulativeBalance += (tx.charge_amount || 0);
         cumulativeBalance -= (tx.credit_amount || 0);
-        cumulativeBalance -= (tx.payment_amount || 0);
       }
       return {
         ...tx,
@@ -210,7 +212,8 @@ export default function LinesOfCreditPage() {
     if (viewMode === 'payments') {
       return transactionsWithBalance.filter(tx => tx.source_type === 'payment_made');
     } else {
-      return transactionsWithBalance.filter(tx => tx.source_type !== 'payment_made');
+      // Show all transactions in default view
+      return transactionsWithBalance;
     }
   }, [transactionsWithBalance, viewMode]);
 

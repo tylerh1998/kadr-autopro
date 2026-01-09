@@ -25,15 +25,19 @@ Deno.serve(async (req) => {
             line_of_credit_id: lineOfCreditId,
         });
 
-        // Filter out payment_made transactions from balance calculation
-        const balanceTransactions = transactions.filter(tx => tx.source_type !== 'payment_made');
+        // Use all transactions for balance calculation
+        const balanceTransactions = transactions;
 
         let cumulativeBalance = 0;
 
         for (const tx of balanceTransactions) {
-            cumulativeBalance += (tx.charge_amount || 0);
-            cumulativeBalance -= (tx.credit_amount || 0);
-            cumulativeBalance -= (tx.payment_amount || 0);
+            if (tx.source_type === 'payment_made') {
+                cumulativeBalance -= (tx.payment_amount || 0);
+            } else {
+                cumulativeBalance += (tx.charge_amount || 0);
+                cumulativeBalance -= (tx.credit_amount || 0);
+                // We ignore payment_amount on charges as we track payments via payment_made records
+            }
         }
 
         const newCurrentBalance = cumulativeBalance;
