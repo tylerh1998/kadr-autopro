@@ -87,6 +87,7 @@ export default function LinesOfCreditPage() {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showReconcileModal, setShowReconcileModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('transactions'); // 'transactions' or 'payments'
@@ -336,11 +337,18 @@ export default function LinesOfCreditPage() {
       alert('Please select a line of credit account first.');
       return;
     }
+    setEditingTransaction(null);
+    setShowTransactionModal(true);
+  };
+
+  const handleEditTransaction = (tx) => {
+    setEditingTransaction(tx);
     setShowTransactionModal(true);
   };
 
   const handleTransactionMade = async () => {
     setShowTransactionModal(false);
+    setEditingTransaction(null);
     
     // Recalculate balance
     if (selectedAccountId) {
@@ -719,7 +727,16 @@ export default function LinesOfCreditPage() {
                               <td className="p-3"><SafeDateFormat dateString={tx.transaction_date} /></td>
                               <td className="p-3">
                                 <div>
-                                  <span className="font-medium text-slate-900">{tx.description}</span>
+                                  {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) ? (
+                                    <span 
+                                      className="font-medium text-blue-600 hover:underline cursor-pointer"
+                                      onClick={() => handleEditTransaction(tx)}
+                                    >
+                                      {tx.description}
+                                    </span>
+                                  ) : (
+                                    <span className="font-medium text-slate-900">{tx.description}</span>
+                                  )}
                                 </div>
                               </td>
                               <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
@@ -804,10 +821,14 @@ export default function LinesOfCreditPage() {
 
       <LineOfCreditTransactionModal
         open={showTransactionModal}
-        onClose={() => setShowTransactionModal(false)}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setEditingTransaction(null);
+        }}
         lineOfCredit={selectedAccount}
         onTransactionMade={handleTransactionMade}
         currentUser={currentUser}
+        transaction={editingTransaction}
       />
 
       <LOCReconciliationModal

@@ -27,6 +27,8 @@ Deno.serve(async (req) => {
     // Parse request body
     const payload = await req.json();
     const { 
+      id,
+      action,
       line_of_credit_id, 
       transaction_date, 
       description, 
@@ -37,187 +39,227 @@ Deno.serve(async (req) => {
       source_type
     } = payload;
 
-    // Validate required fields
-    if (!line_of_credit_id) {
-      return Response.json({ 
-        success: false, 
-        error: 'Line of credit ID is required' 
-      }, { status: 400 });
+    // Common Validations
+    if (action !== 'delete') {
+      if (!line_of_credit_id) return Response.json({ success: false, error: 'Line of credit ID is required' }, { status: 400 });
+      if (!transaction_date) return Response.json({ success: false, error: 'Transaction date is required' }, { status: 400 });
+      if (!description) return Response.json({ success: false, error: 'Description is required' }, { status: 400 });
+      if (!transaction_type || !['charge', 'credit'].includes(transaction_type)) return Response.json({ success: false, error: 'Transaction type must be "charge" or "credit"' }, { status: 400 });
+      if (!amount || parseFloat(amount) <= 0) return Response.json({ success: false, error: 'Amount must be greater than 0' }, { status: 400 });
+      if (!offset_gl_account) return Response.json({ success: false, error: 'Offset GL account is required' }, { status: 400 });
+
+      // Validate date format (YYYY-MM-DD)
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(transaction_date)) return Response.json({ success: false, error: 'Invalid date format. Must be YYYY-MM-DD' }, { status: 400 });
     }
 
-    if (!transaction_date) {
-      return Response.json({ 
-        success: false, 
-        error: 'Transaction date is required' 
-      }, { status: 400 });
+    // Check fiscal period status for the transaction date (or existing date for delete)
+    if (transaction_date) {
+      const fiscalCheck = await checkFiscalPeriodStatus(base44, transaction_date);
+      if (!fiscalCheck.isValid) return Response.json({ success: false, error: 'Fiscal period closed', message: fiscalCheck.message }, { status: 400 });
     }
 
-    if (!description) {
-      return Response.json({ 
-        success: false, 
-        error: 'Description is required' 
-      }, { status: 400 });
-    }
+    // Handle Edit/Delete
+    if (id) {
+        const existingTx = await base44.asServiceRole.entities.LinesOfCreditTransaction.get(id);
+        if (!existingTx) return Response.json({ success: false, error: 'Transaction not found' }, { status: 404 });
 
-    if (!transaction_type || !['charge', 'credit'].includes(transaction_type)) {
-      return Response.json({ 
-        success: false, 
-        error: 'Transaction type must be "charge" or "credit"' 
-      }, { status: 400 });
-    }
+        // Check fiscal period for original date too
+        const originalFiscalCheck = await checkFiscalPeriodStatus(base44, existingTx.transaction_date);
+        if (!originalFiscalCheck.isValid) return Response.json({ success: false, error: 'Original transaction date is in a closed fiscal period', message: originalFiscalCheck.message }, { status: 400 });
 
-    if (!amount || parseFloat(amount) <= 0) {
-      return Response.json({ 
-        success: false, 
-        error: 'Amount must be greater than 0' 
-      }, { status: 400 });
-    }
+        // Fetch account
+        const locAccount = await base44.asServiceRole.entities.LinesOfCredit.get(existingTx.line_of_credit_id);
+        if (!locAccount) return Response.json({ success: false, error: 'Line of credit account not found' }, { status: 404 });
 
-    if (!offset_gl_account) {
-      return Response.json({ 
-        success: false, 
-        error: 'Offset GL account is required' 
-      }, { status: 400 });
-    }
+        // 1. Delete associated GL transactions
+        const existingGLs = await base44.asServiceRole.entities.GLTransaction.filter({ source_id: id });
+        if (existingGLs.length > 0) {
+            await Promise.all(existingGLs.map(gl => base44.asServiceRole.entities.GLTransaction.delete(gl.id)));
+        }
 
-    // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(transaction_date)) {
-      return Response.json({ 
-        success: false, 
-        error: 'Invalid date format. Must be YYYY-MM-DD' 
-      }, { status: 400 });
-    }
+        // 2. Reverse effect on balance
+        let currentBalance = locAccount.current_balance || 0;
+        // Reversal: Subtract charge, Add credit
+        currentBalance = currentBalance - (existingTx.charge_amount || 0) + (existingTx.credit_amount || 0);
 
-    // Check fiscal period status
-    const fiscalCheck = await checkFiscalPeriodStatus(base44, transaction_date);
-    if (!fiscalCheck.isValid) {
-      return Response.json({ 
-        success: false, 
-        error: 'Fiscal period closed',
-        message: fiscalCheck.message
-      }, { status: 400 });
-    }
+        if (action === 'delete') {
+            // Delete the transaction
+            await base44.asServiceRole.entities.LinesOfCreditTransaction.delete(id);
+            
+            // Update balance
+            await base44.asServiceRole.entities.LinesOfCredit.update(locAccount.id, {
+                current_balance: currentBalance,
+                available_credit: (locAccount.credit_limit || 0) - currentBalance
+            });
 
-    // Fetch the line of credit account
-    const locAccount = await base44.asServiceRole.entities.LinesOfCredit.get(line_of_credit_id);
-    if (!locAccount) {
-      return Response.json({ 
-        success: false, 
-        error: 'Line of credit account not found' 
-      }, { status: 404 });
-    }
+            return Response.json({ success: true, message: 'Transaction deleted successfully' });
+        } else {
+            // Update (Edit)
+            const amountValue = parseFloat(amount);
+            const charge_amount = transaction_type === 'charge' ? amountValue : 0;
+            const credit_amount = transaction_type === 'credit' ? amountValue : 0;
+            const payment_amount = 0;
 
-    if (!locAccount.gl_account) {
-      return Response.json({ 
-        success: false, 
-        error: 'Line of credit account does not have a GL account configured' 
-      }, { status: 400 });
-    }
+            // Apply new effect
+            currentBalance = currentBalance + charge_amount - credit_amount;
 
-    const amountValue = parseFloat(amount);
-    
-    // Determine charge and credit amounts based on transaction type
-    const charge_amount = transaction_type === 'charge' ? amountValue : 0;
-    const credit_amount = transaction_type === 'credit' ? amountValue : 0;
-    const payment_amount = 0; // Manual transactions don't use payment_amount
+            // Update Transaction
+            await base44.asServiceRole.entities.LinesOfCreditTransaction.update(id, {
+                transaction_date,
+                description,
+                reference: reference || '',
+                charge_amount,
+                credit_amount,
+                payment_amount,
+                balance: currentBalance, // Note: running balance might be inaccurate for surrounding txs, typically requires full recalc. But for this single tx, we set it.
+                source_type: source_type || existingTx.source_type
+            });
 
-    // Calculate new balance
-    const currentBalance = locAccount.current_balance || 0;
-    const newBalance = currentBalance + charge_amount - credit_amount;
+            // Update Account Balance
+            await base44.asServiceRole.entities.LinesOfCredit.update(locAccount.id, {
+                current_balance: currentBalance,
+                available_credit: (locAccount.credit_limit || 0) - currentBalance
+            });
 
-    // Create the LOC transaction
-    const locTransaction = await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
-      line_of_credit_id: line_of_credit_id,
-      transaction_date: transaction_date,
-      description: description,
-      reference: reference || '',
-      charge_amount: charge_amount,
-      credit_amount: credit_amount,
-      payment_amount: payment_amount,
-      balance: newBalance,
-      source_type: source_type || 'manual',
-      source_id: ''
-    });
+            // Create New GL Transactions
+             const glTransactions = [];
+             if (transaction_type === 'charge') {
+                glTransactions.push({
+                    account_number: offset_gl_account,
+                    transaction_date: transaction_date,
+                    description: `LOC Draw: ${description}`,
+                    reference: reference || id,
+                    debit_amount: amountValue,
+                    credit_amount: 0,
+                    source_type: 'manual',
+                    source_id: id
+                });
+                glTransactions.push({
+                    account_number: locAccount.gl_account,
+                    transaction_date: transaction_date,
+                    description: `LOC Draw: ${description}`,
+                    reference: reference || id,
+                    debit_amount: 0,
+                    credit_amount: amountValue,
+                    source_type: 'manual',
+                    source_id: id
+                });
+            } else {
+                glTransactions.push({
+                    account_number: locAccount.gl_account,
+                    transaction_date: transaction_date,
+                    description: `LOC Credit: ${description}`,
+                    reference: reference || id,
+                    debit_amount: amountValue,
+                    credit_amount: 0,
+                    source_type: 'manual',
+                    source_id: id
+                });
+                glTransactions.push({
+                    account_number: offset_gl_account,
+                    transaction_date: transaction_date,
+                    description: `LOC Credit: ${description}`,
+                    reference: reference || id,
+                    debit_amount: 0,
+                    credit_amount: amountValue,
+                    source_type: 'manual',
+                    source_id: id
+                });
+            }
 
-    // Update the LOC account balance
-    await base44.asServiceRole.entities.LinesOfCredit.update(line_of_credit_id, {
-      current_balance: newBalance,
-      available_credit: (locAccount.credit_limit || 0) - newBalance
-    });
+            await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
 
-    // Create GL transactions
-    // For a CHARGE (draw from LOC):
-    //   - Debit: offset_gl_account (increase asset/expense or decrease liability)
-    //   - Credit: LOC gl_account (increase liability)
-    // For a CREDIT (payment to LOC):
-    //   - Debit: LOC gl_account (decrease liability)
-    //   - Credit: offset_gl_account (decrease asset or increase liability)
+            return Response.json({ success: true, message: 'Transaction updated successfully' });
+        }
 
-    const glTransactions = [];
-
-    if (transaction_type === 'charge') {
-      // Draw from LOC
-      // Debit the offset account
-      glTransactions.push({
-        account_number: offset_gl_account,
-        transaction_date: transaction_date,
-        description: `LOC Draw: ${description}`,
-        reference: reference || locTransaction.id,
-        debit_amount: amountValue,
-        credit_amount: 0,
-        source_type: 'manual',
-        source_id: locTransaction.id
-      });
-
-      // Credit the LOC account
-      glTransactions.push({
-        account_number: locAccount.gl_account,
-        transaction_date: transaction_date,
-        description: `LOC Draw: ${description}`,
-        reference: reference || locTransaction.id,
-        debit_amount: 0,
-        credit_amount: amountValue,
-        source_type: 'manual',
-        source_id: locTransaction.id
-      });
     } else {
-      // Credit to LOC (refund/return)
-      // Debit the LOC account (reduces liability)
-      glTransactions.push({
-        account_number: locAccount.gl_account,
-        transaction_date: transaction_date,
-        description: `LOC Credit: ${description}`,
-        reference: reference || locTransaction.id,
-        debit_amount: amountValue,
-        credit_amount: 0,
-        source_type: 'manual',
-        source_id: locTransaction.id
-      });
+        // Create (Existing Logic)
+        const locAccount = await base44.asServiceRole.entities.LinesOfCredit.get(line_of_credit_id);
+        if (!locAccount) return Response.json({ success: false, error: 'Line of credit account not found' }, { status: 404 });
+        if (!locAccount.gl_account) return Response.json({ success: false, error: 'Line of credit account does not have a GL account configured' }, { status: 400 });
 
-      // Credit the offset account
-      glTransactions.push({
-        account_number: offset_gl_account,
-        transaction_date: transaction_date,
-        description: `LOC Credit: ${description}`,
-        reference: reference || locTransaction.id,
-        debit_amount: 0,
-        credit_amount: amountValue,
-        source_type: 'manual',
-        source_id: locTransaction.id
-      });
+        const amountValue = parseFloat(amount);
+        const charge_amount = transaction_type === 'charge' ? amountValue : 0;
+        const credit_amount = transaction_type === 'credit' ? amountValue : 0;
+        const payment_amount = 0;
+
+        const currentBalance = locAccount.current_balance || 0;
+        const newBalance = currentBalance + charge_amount - credit_amount;
+
+        const locTransaction = await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
+            line_of_credit_id: line_of_credit_id,
+            transaction_date: transaction_date,
+            description: description,
+            reference: reference || '',
+            charge_amount: charge_amount,
+            credit_amount: credit_amount,
+            payment_amount: payment_amount,
+            balance: newBalance,
+            source_type: source_type || 'manual',
+            source_id: ''
+        });
+
+        await base44.asServiceRole.entities.LinesOfCredit.update(line_of_credit_id, {
+            current_balance: newBalance,
+            available_credit: (locAccount.credit_limit || 0) - newBalance
+        });
+
+        const glTransactions = [];
+        if (transaction_type === 'charge') {
+            glTransactions.push({
+                account_number: offset_gl_account,
+                transaction_date: transaction_date,
+                description: `LOC Draw: ${description}`,
+                reference: reference || locTransaction.id,
+                debit_amount: amountValue,
+                credit_amount: 0,
+                source_type: 'manual',
+                source_id: locTransaction.id
+            });
+            glTransactions.push({
+                account_number: locAccount.gl_account,
+                transaction_date: transaction_date,
+                description: `LOC Draw: ${description}`,
+                reference: reference || locTransaction.id,
+                debit_amount: 0,
+                credit_amount: amountValue,
+                source_type: 'manual',
+                source_id: locTransaction.id
+            });
+        } else {
+            glTransactions.push({
+                account_number: locAccount.gl_account,
+                transaction_date: transaction_date,
+                description: `LOC Credit: ${description}`,
+                reference: reference || locTransaction.id,
+                debit_amount: amountValue,
+                credit_amount: 0,
+                source_type: 'manual',
+                source_id: locTransaction.id
+            });
+            glTransactions.push({
+                account_number: offset_gl_account,
+                transaction_date: transaction_date,
+                description: `LOC Credit: ${description}`,
+                reference: reference || locTransaction.id,
+                debit_amount: 0,
+                credit_amount: amountValue,
+                source_type: 'manual',
+                source_id: locTransaction.id
+            });
+        }
+
+        const createdGLTransactions = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
+
+        return Response.json({
+            success: true,
+            message: 'Transaction processed successfully',
+            loc_transaction_id: locTransaction.id,
+            gl_transaction_ids: createdGLTransactions.map(tx => tx.id),
+            new_balance: newBalance
+        });
     }
-
-    // Create both GL transactions
-    const createdGLTransactions = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
-
-    return Response.json({
-      success: true,
-      message: 'Transaction processed successfully',
-      loc_transaction_id: locTransaction.id,
-      gl_transaction_ids: createdGLTransactions.map(tx => tx.id),
-      new_balance: newBalance
-    });
 
   } catch (error) {
     console.error('Error processing LOC transaction:', error);

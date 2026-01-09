@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, LinesOfCredit } from '@/entities/all';
+import { ChartOfAccount, LinesOfCredit, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function LineOfCreditTransactionModal({ open, onClose, lineOfCredit, onTransactionMade, currentUser }) {
+export default function LineOfCreditTransactionModal({ open, onClose, lineOfCredit, onTransactionMade, currentUser, transaction }) {
   const [formData, setFormData] = useState({
     transaction_date: format(new Date(), 'yyyy-MM-dd'),
     description: '',
@@ -66,18 +66,46 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     if (open) {
       handleModalOpen();
       // Reset form when opening
-      setFormData({
-        transaction_date: format(new Date(), 'yyyy-MM-dd'),
-        description: '',
-        reference: '',
-        charge_amount: '',
-        credit_amount: '',
-        source_type: 'manual',
-        offset_gl_account: ''
-      });
+      if (transaction) {
+        // Edit mode - Populate form
+        setFormData({
+            transaction_date: transaction.transaction_date,
+            description: transaction.description,
+            reference: transaction.reference || '',
+            charge_amount: transaction.charge_amount || '',
+            credit_amount: transaction.credit_amount || '',
+            source_type: transaction.source_type || 'manual',
+            offset_gl_account: '' // Will load
+        });
+
+        // Load Offset GL
+        const fetchOffsetGL = async () => {
+             // Find GL transaction where source_id = tx.id and account != loc.gl_account
+             if (lineOfCredit?.gl_account) {
+                 const glTxs = await GLTransaction.filter({ source_id: transaction.id });
+                 const offsetTx = glTxs.find(tx => tx.account_number !== lineOfCredit.gl_account);
+                 if (offsetTx) {
+                     setFormData(prev => ({ ...prev, offset_gl_account: offsetTx.account_number }));
+                 }
+             }
+        };
+        fetchOffsetGL();
+
+      } else {
+          // Create mode
+          setFormData({
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            description: '',
+            reference: '',
+            charge_amount: '',
+            credit_amount: '',
+            source_type: 'manual',
+            offset_gl_account: ''
+          });
+      }
       setError(null);
     }
-  }, [open, lineOfCredit, currentUser]);
+  }, [open, lineOfCredit, currentUser, transaction]);
 
   // Release lock on close
   useEffect(() => {
@@ -157,6 +185,31 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     setError(null);
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this transaction? This will reverse the GL entries and update the account balance.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await base44.functions.invoke('processLineOfCreditTransaction', {
+        id: transaction.id,
+        action: 'delete'
+      });
+
+      if (response.data && response.data.success) {
+        if (onTransactionMade) onTransactionMade();
+        onClose();
+      } else {
+         setError(response.data?.error || 'Failed to delete transaction');
+      }
+    } catch (err) {
+      setError(err.message || 'Error deleting transaction');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -198,6 +251,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       const isCharge = chargeAmt > 0;
 
       const response = await base44.functions.invoke('processLineOfCreditTransaction', {
+        id: transaction?.id, // Pass ID for edit
         line_of_credit_id: lineOfCredit.id,
         transaction_date: formData.transaction_date,
         description: formData.description,
@@ -232,7 +286,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     <Dialog open={open} onOpenChange={loading ? undefined : handleClose}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add Manual Transaction</DialogTitle>
+          <DialogTitle>{transaction ? 'Edit Transaction' : 'Add Manual Transaction'}</DialogTitle>
         </DialogHeader>
 
         {isLocked ? (
@@ -386,12 +440,18 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
             </div>
           </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
+            <DialogFooter className={transaction ? "sm:justify-between" : ""}>
+              {transaction && (
+                <Button type="button" variant="destructive" onClick={handleDelete} disabled={loading} className="mr-auto">
+                   Delete
+                </Button>
+              )}
+              <div className={transaction ? "flex gap-2" : "flex gap-2 w-full justify-end"}>
+                  <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit"
                 disabled={loading || !formData.description || (!formData.charge_amount && !formData.credit_amount) || !formData.offset_gl_account || isLocked}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -401,7 +461,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
                     Processing...
                   </>
                 ) : (
-                  'Create Transaction'
+                  transaction ? 'Update Transaction' : 'Create Transaction'
                 )}
               </Button>
             </DialogFooter>
