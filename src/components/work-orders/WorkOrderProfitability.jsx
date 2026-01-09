@@ -29,18 +29,29 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
       }
       setLoadingLaborCost(true);
       try {
-        const promises = projectsToFetch.map(p => 
-          base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
-        );
-        
-        const responses = await Promise.all(promises);
         let allLogs = [];
         
-        responses.forEach(response => {
-          if (response.data?.success && Array.isArray(response.data.logs)) {
-            allLogs = [...allLogs, ...response.data.logs];
+        // Process in batches to avoid rate limits
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < projectsToFetch.length; i += BATCH_SIZE) {
+          const batch = projectsToFetch.slice(i, i + BATCH_SIZE);
+          const promises = batch.map(p => 
+            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+          );
+          
+          const responses = await Promise.all(promises);
+          
+          responses.forEach(response => {
+            if (response.data?.success && Array.isArray(response.data.logs)) {
+              allLogs = [...allLogs, ...response.data.logs];
+            }
+          });
+
+          // Small delay between batches
+          if (i + BATCH_SIZE < projectsToFetch.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
           }
-        });
+        }
         
         // Remove duplicates if any
         const uniqueLogs = Array.from(new Map(allLogs.map(log => [log.id, log])).values());

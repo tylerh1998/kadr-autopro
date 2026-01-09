@@ -174,11 +174,16 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
   const [manualHours, setManualHours] = useState('');
 
   useEffect(() => {
-    if (open && (projects.length > 0 || project?.id || workOrder)) {
-      loadTimeLogs();
-      loadEmployees();
+    let timeoutId;
+    if (open && (projects.length > 0 || project?.id || workOrder?.id)) {
+      // Debounce the load to prevent rapid multiple calls
+      timeoutId = setTimeout(() => {
+        loadTimeLogs();
+        loadEmployees();
+      }, 300);
     }
-  }, [open, projects, project?.id, workOrder]);
+    return () => clearTimeout(timeoutId);
+  }, [open, projects.length, project?.id, workOrder?.id]);
 
   const loadEmployees = async () => {
     try {
