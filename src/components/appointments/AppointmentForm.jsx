@@ -388,10 +388,7 @@ export default function AppointmentForm({
       alert('Bay is required');
       return;
     }
-    if (!formData.employee_id) {
-      alert('Technician is required');
-      return;
-    }
+
     if (!formData.start_time) {
       alert('Start date/time is required');
       return;
@@ -853,15 +850,16 @@ export default function AppointmentForm({
                 {/* Technician and Status - Two Columns */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Technician *</Label>
+                    <Label>Technician</Label>
                     <Select
                       value={formData.employee_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value === 'unassigned' ? '' : value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select technician..." />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {employees && employees.map(emp => (
                           <SelectItem key={emp.id} value={emp.id}>
                             {emp.first_name} {emp.last_name}
