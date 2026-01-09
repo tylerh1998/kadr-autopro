@@ -8,7 +8,11 @@ import { LinesOfCreditTransaction } from '@/entities/all';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer, FileCheck } from 'lucide-react';
 import { format, parse, isValid, addDays, subDays, differenceInDays } from 'date-fns';
 
+const SERVUS_ID = '68cbcdf3f171308eee277c73';
+const ATB_ID = '695c358b0d127adfb929951e';
+
 export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }) {
+  const isSupported = [SERVUS_ID, ATB_ID].includes(lineOfCreditId);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload', 'report'
@@ -36,36 +40,71 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
             const line = lines[i].trim();
             if (!line) continue;
             
-            // Skip header if it exists and looks like header
-            if (i === 0 && line.toLowerCase().includes('card number')) continue;
+            // SERVUS Parsing
+            if (lineOfCreditId === SERVUS_ID) {
+                // Skip header if it exists
+                if (i === 0 && line.toLowerCase().includes('card number')) continue;
 
-            // Split by semicolon
-            // Simple split assuming no semicolons inside quotes for now based on sample
-            // The sample uses semicolon delimiter
-            const parts = line.split(';');
-            
-            if (parts.length >= 5) {
-                const dateStr = clean(parts[2]);
-                const desc = clean(parts[3]);
-                const amountStr = clean(parts[4]);
+                const parts = line.split(';');
+                if (parts.length >= 5) {
+                    const dateStr = clean(parts[2]);
+                    const desc = clean(parts[3]);
+                    const amountStr = clean(parts[4]);
 
-                // Parse Date: "Jan 5, 2026"
-                // Try parsing
-                const date = new Date(dateStr);
+                    // Parse Date: "Jan 5, 2026"
+                    const date = new Date(dateStr);
+                    
+                    // Parse Amount: "$66.58"
+                    const amountClean = amountStr.replace(/[$,]/g, '');
+                    const amount = parseFloat(amountClean);
+
+                    if (isValid(date) && !isNaN(amount)) {
+                        rows.push({
+                            date: format(date, 'yyyy-MM-dd'),
+                            originalDate: date,
+                            description: desc,
+                            amount: Math.abs(amount),
+                            originalAmount: amount,
+                            id: `csv-${i}`
+                        });
+                    }
+                }
+            }
+            // ATB Parsing
+            else if (lineOfCreditId === ATB_ID) {
+                // Skip header
+                if (i === 0) continue; 
+                // Basic CSV split by comma (warning: basic split, won't handle commas in quotes perfectly but sufficient for standard simple CSVs)
+                const parts = line.split(','); 
                 
-                // Parse Amount: "$66.58"
-                const amountClean = amountStr.replace(/[$,]/g, '');
-                const amount = parseFloat(amountClean);
+                // Indices: 0=Date, 5=Debit, 6=Credit, 7=Extended Text
+                if (parts.length >= 8) {
+                    const dateStr = clean(parts[0]);
+                    const desc = clean(parts[7]);
+                    const debitStr = clean(parts[5]);
+                    const creditStr = clean(parts[6]);
 
-                if (isValid(date) && !isNaN(amount)) {
-                    rows.push({
-                        date: format(date, 'yyyy-MM-dd'),
-                        originalDate: date,
-                        description: desc,
-                        amount: Math.abs(amount), // Treat as magnitude
-                        originalAmount: amount, // Positive for charge usually
-                        id: `csv-${i}`
-                    });
+                    // Parse Date: "1/7/2026" -> M/d/yyyy
+                    const date = parse(dateStr, 'M/d/yyyy', new Date());
+
+                    // Determine amount (Debit or Credit)
+                    let amount = 0;
+                    if (debitStr && parseFloat(debitStr) !== 0) {
+                        amount = parseFloat(debitStr); // Charge
+                    } else if (creditStr && parseFloat(creditStr) !== 0) {
+                        amount = parseFloat(creditStr); // Payment/Credit
+                    }
+
+                    if (isValid(date) && !isNaN(amount) && amount !== 0) {
+                        rows.push({
+                            date: format(date, 'yyyy-MM-dd'),
+                            originalDate: date,
+                            description: desc,
+                            amount: Math.abs(amount),
+                            originalAmount: amount,
+                            id: `csv-${i}`
+                        });
+                    }
                 }
             }
           }
@@ -326,22 +365,28 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-4">
-          {step === 'upload' && (
+          {!isSupported ? (
+             <div className="flex flex-col items-center justify-center h-full py-12 text-slate-500">
+               <AlertCircle className="w-12 h-12 mb-4 text-slate-400" />
+               <p className="text-lg font-medium text-slate-900">Auto Reconcile Unavailable</p>
+               <p className="text-sm">This feature is not supported for this account type.</p>
+             </div>
+          ) : step === 'upload' ? (
             <div className="flex flex-col items-center justify-center space-y-4 py-8">
               <div className="w-full max-w-sm items-center gap-1.5">
                 <Label htmlFor="csv-upload">Statement CSV</Label>
                 <Input id="csv-upload" type="file" accept=".csv" onChange={handleFileChange} />
               </div>
               <p className="text-sm text-slate-500 text-center max-w-md">
-                Supported format: Semicolon delimited (Card number; Card holder name; Date; Description; Amount)
+                {lineOfCreditId === SERVUS_ID 
+                  ? "Servus Format: Semicolon delimited (Date; Description; Amount)" 
+                  : "ATB Format: Comma delimited (Date, Debit, Credit, Text)"}
               </p>
               <Button onClick={processFile} disabled={!file || loading} className="bg-purple-600 hover:bg-purple-700">
                 {loading ? "Processing..." : "Analyze Statement"}
               </Button>
             </div>
-          )}
-
-          {step === 'report' && results && (
+          ) : step === 'report' && results ? (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4 mb-4">
                  <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
@@ -455,7 +500,9 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
         </div>
 
         <DialogFooter>
-          {step === 'upload' ? (
+          {!isSupported ? (
+            <Button variant="outline" onClick={onClose}>Close</Button>
+        ) : step === 'upload' ? (
              <Button variant="outline" onClick={onClose}>Cancel</Button>
           ) : (
             <div className="flex justify-between w-full">
