@@ -101,7 +101,7 @@ export default function CustomCalendar({
   const bayOptions = ['Floor', 'Main Hoist', 'North Hoist', 'Outside', 'Other'];
 
   const displayDays = useMemo(() => {
-    if (view === 'day' || view === 'tech') {
+    if (view === 'day') {
       return [currentDate];
     } else if (view === 'week') {
       const start = startOfWeek(currentDate);
@@ -222,59 +222,7 @@ export default function CustomCalendar({
     return grouped;
   }, [view, currentDate, formattedEvents, bayOptions]);
 
-  // Group appointments by Tech for Tech view
-  const groupedTechAppointments = useMemo(() => {
-    if (view !== 'tech') return {};
-    
-    const grouped = {};
-    const day = currentDate;
-    const dayEvents = formattedEvents.filter(event => isSameDay(event.start, day));
-    
-    techResources.forEach(resource => {
-      const techEvents = dayEvents.filter(event => event.employee_id === resource.id);
-      techEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
-      
-      const techClusters = [];
-      const processedIds = new Set();
 
-      for (const event of techEvents) {
-        if (processedIds.has(event.id)) continue;
-
-        let cluster = {
-          appointments: [event],
-          earliestStart: event.start,
-          latestEnd: event.end,
-          type: 'single'
-        };
-        processedIds.add(event.id);
-
-        let expanded = true;
-        while (expanded) {
-          expanded = false;
-          for (const other of techEvents) {
-            if (!processedIds.has(other.id)) {
-              if (other.start < cluster.latestEnd && other.end > cluster.earliestStart) {
-                cluster.appointments.push(other);
-                cluster.earliestStart = new Date(Math.min(cluster.earliestStart.getTime(), other.start.getTime()));
-                cluster.latestEnd = new Date(Math.max(cluster.latestEnd.getTime(), other.end.getTime()));
-                cluster.type = 'group';
-                processedIds.add(other.id);
-                expanded = true;
-              }
-            }
-          }
-        }
-        
-        if (cluster.appointments.length > 1) {
-          cluster.appointments.sort((a, b) => a.start.getTime() - b.start.getTime());
-        }
-        
-        techClusters.push(cluster);
-      }
-      grouped[resource.id] = techClusters;
-    });
-    return grouped;
-  }, [view, currentDate, formattedEvents, techResources]);
 
   // Helper: Calculate how many 30-minute slots an event spans
   const calculateEventSlotSpan = useCallback((event) => {
@@ -449,10 +397,7 @@ export default function CustomCalendar({
       end: newEnd,
     };
 
-    if (view === 'tech' && targetResourceId) {
-      updatedSlot.employee_id = targetResourceId;
-      updatedSlot.bay = appointmentToMove.bayId;
-    } else if (view === 'day' && targetBay) {
+    if (view === 'day' && targetBay) {
       updatedSlot.employee_id = appointmentToMove.employee_id;
       updatedSlot.bay = targetBay;
     } else {
@@ -492,10 +437,7 @@ export default function CustomCalendar({
       end: newEnd,
     };
 
-    if (view === 'tech' && targetResourceId) {
-      updatedSlot.employee_id = targetResourceId;
-      updatedSlot.bay = draggedEvent.bayId;
-    } else if (view === 'day' && targetBay) {
+    if (view === 'day' && targetBay) {
       updatedSlot.employee_id = draggedEvent.employee_id;
       updatedSlot.bay = targetBay;
     } else {
@@ -1192,245 +1134,7 @@ export default function CustomCalendar({
     );
   };
 
-  const renderTechView = () => {
-    const day = currentDate;
-    const resources = techResources;
-    const coveredCells = {};
-    resources.forEach(resource => { coveredCells[resource.id] = {}; });
 
-    // Build row map
-    const rowMap = [];
-    timeSlots.forEach(t => {
-      if (parseInt(t.split(':')[0]) < 12) rowMap.push({ time: t, type: 'morning' });
-    });
-    rowMap.push({ time: 'LUNCH', type: 'lunch' });
-    timeSlots.forEach(t => {
-      if (parseInt(t.split(':')[0]) >= 13) rowMap.push({ time: t, type: 'afternoon' });
-    });
-
-    const getRowSpan = (start, end) => {
-      const startTimeStr = format(start, 'HH:mm');
-      let startIndex = rowMap.findIndex(r => r.time === startTimeStr);
-      
-      if (startIndex === -1) {
-        const startMins = start.getHours() * 60 + start.getMinutes();
-        startIndex = rowMap.findIndex(r => {
-          if (r.type === 'lunch') return false;
-          const [h, m] = r.time.split(':').map(Number);
-          const slotMins = h * 60 + m;
-          return startMins >= slotMins && startMins < slotMins + 30;
-        });
-      }
-      if (startIndex === -1) return 1;
-
-      const endTimeStr = format(end, 'HH:mm');
-      let endIndex = rowMap.findIndex(r => r.time === endTimeStr);
-      
-      if (endIndex === -1) {
-        const endMins = end.getHours() * 60 + end.getMinutes();
-        for (let i = startIndex; i < rowMap.length; i++) {
-          const r = rowMap[i];
-          if (r.type === 'lunch') {
-            if (endMins > 12 * 60) continue;
-            else { endIndex = i; break; }
-          }
-          const [h, m] = r.time.split(':').map(Number);
-          const slotMins = h * 60 + m;
-          if (endMins <= slotMins) {
-            endIndex = i;
-            break;
-          }
-        }
-        if (endIndex === -1) endIndex = rowMap.length;
-      }
-      
-      return Math.max(1, endIndex - startIndex);
-    };
-
-    return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <table className="w-full border-collapse table-fixed">
-          <colgroup>
-            <col style={{ width: '80px' }} />
-            {resources.map(resource => <col key={resource.id} />)}
-          </colgroup>
-          <thead className="sticky top-0 bg-white z-10">
-            <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
-              {resources.map(resource => <th key={resource.id} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{resource.title}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {timeSlots.filter(t => parseInt(t.split(':')[0]) < 12).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, day);
-              const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
-
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) return null;
-
-                    const techClusters = groupedTechAppointments[resource.id] || [];
-                    const cluster = techClusters.find(c => 
-                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
-                    );
-                    
-                    let cellContent = null;
-                    let rowSpan = 1;
-
-                    if (cluster) {
-                      rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd);
-                      
-                      if (cluster.type === 'group') {
-                        cellContent = <MultiAppointmentCard 
-                          appointments={cluster.appointments}
-                          earliestStart={cluster.earliestStart}
-                          latestEnd={cluster.latestEnd}
-                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, resource.id, resource.title); }}
-                        />;
-                      } else {
-                        const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} />;
-                      }
-
-                      // Mark all covered cells
-                      const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
-                      let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
-                      
-                      if (markingIndex === -1) {
-                        const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
-                        markingIndex = rowMap.findIndex(r => {
-                          if (r.type === 'lunch') return false;
-                          const [h, m] = r.time.split(':').map(Number);
-                          const slotMins = h * 60 + m;
-                          return startMins >= slotMins && startMins < slotMins + 30;
-                        });
-                      }
-                      
-                      if (markingIndex !== -1) {
-                        for (let i = 0; i < rowSpan; i++) {
-                          if (markingIndex + i < rowMap.length) {
-                            const r = rowMap[markingIndex + i];
-                            if (r.time === 'LUNCH') {
-                              coveredCells[resource.id]['LUNCH'] = true;
-                            } else {
-                              coveredCells[resource.id][r.time] = true;
-                            }
-                          }
-                        }
-                      }
-                    } else {
-                      return (
-                        <td key={resource.id} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
-                        </td>
-                      );
-                    }
-
-                    return (
-                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => {}}>
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-
-            {/* Lunch Row */}
-            <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
-              {resources.map(resource => {
-                if (coveredCells[resource.id]['LUNCH']) return null;
-                return <td key={resource.id} className="border border-slate-300 bg-black"></td>;
-              })}
-            </tr>
-
-            {/* Afternoon Block */}
-            {timeSlots.filter(t => parseInt(t.split(':')[0]) >= 13).map((timeString, _idx) => {
-              const slotTime = parseTimeString(timeString, day);
-              const slotEnd = addMinutes(slotTime, SLOT_DURATION_MINUTES);
-
-              return (
-                <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
-                  {resources.map(resource => {
-                    if (coveredCells[resource.id][timeString]) return null;
-
-                    const techClusters = groupedTechAppointments[resource.id] || [];
-                    const cluster = techClusters.find(c => 
-                      c.earliestStart >= slotTime && c.earliestStart < slotEnd
-                    );
-                    
-                    let cellContent = null;
-                    let rowSpan = 1;
-
-                    if (cluster) {
-                      rowSpan = getRowSpan(cluster.earliestStart, cluster.latestEnd);
-                      
-                      if (cluster.type === 'group') {
-                        cellContent = <MultiAppointmentCard 
-                          appointments={cluster.appointments}
-                          earliestStart={cluster.earliestStart}
-                          latestEnd={cluster.latestEnd}
-                          onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, null, resource.id, resource.title); }}
-                        />;
-                      } else {
-                        const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} />;
-                      }
-
-                      // Mark all covered cells
-                      const clusterStartTime = format(cluster.earliestStart, 'HH:mm');
-                      let markingIndex = rowMap.findIndex(r => r.time === clusterStartTime);
-                      
-                      if (markingIndex === -1) {
-                        const startMins = cluster.earliestStart.getHours() * 60 + cluster.earliestStart.getMinutes();
-                        markingIndex = rowMap.findIndex(r => {
-                          if (r.type === 'lunch') return false;
-                          const [h, m] = r.time.split(':').map(Number);
-                          const slotMins = h * 60 + m;
-                          return startMins >= slotMins && startMins < slotMins + 30;
-                        });
-                      }
-                      
-                      if (markingIndex !== -1) {
-                        for (let i = 0; i < rowSpan; i++) {
-                          if (markingIndex + i < rowMap.length) {
-                            const r = rowMap[markingIndex + i];
-                            if (r.time === 'LUNCH') {
-                              coveredCells[resource.id]['LUNCH'] = true;
-                            } else {
-                              coveredCells[resource.id][r.time] = true;
-                            }
-                          }
-                        }
-                      }
-                    } else {
-                      return (
-                        <td key={resource.id} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                          onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), null, resource.id, resource.title)}>
-                        </td>
-                      );
-                    }
-
-                    return (
-                      <td key={resource.id} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
-                        onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, resource.id)} onClick={() => {}}>
-                        <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
 
   const renderMonthView = () => {
     const monthStart = startOfMonth(currentDate);
@@ -1586,7 +1290,7 @@ export default function CustomCalendar({
           <h2 className="text-xl font-semibold text-slate-900 ml-2">
             {view === 'month' 
               ? format(currentDate, 'MMMM yyyy')
-              : (view === 'day' || view === 'tech')
+              : (view === 'day')
               ? format(currentDate, 'EEEE, MMM d, yyyy')
               : (view === 'week')
               ? `${format(displayDays[0], 'MMM d')} - ${format(displayDays[displayDays.length - 1], 'MMM d, yyyy')}`
@@ -1663,16 +1367,7 @@ export default function CustomCalendar({
             >
               Day
             </button>
-            <button
-              onClick={() => setView('tech')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === 'tech'
-                  ? 'bg-black text-white'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Tech
-            </button>
+
           </div>
         </div>
       </div>
@@ -1680,7 +1375,6 @@ export default function CustomCalendar({
       {view === 'month' && renderMonthView()}
       {view === 'week' && renderWeekView()}
       {view === 'day' && renderDayView()}
-      {view === 'tech' && renderTechView()}
 
       {contextMenu && (
         <div
