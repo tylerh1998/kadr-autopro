@@ -31,6 +31,7 @@ import {
 import LinesOfCreditEditModal from '../components/lines-of-credit/LinesOfCreditEditModal';
 import LineOfCreditPaymentModal from '../components/lines-of-credit/LineOfCreditPaymentModal';
 import LineOfCreditTransactionModal from '../components/lines-of-credit/LineOfCreditTransactionModal';
+import PaymentTransactionItem from '../components/lines-of-credit/PaymentTransactionItem';
 
 // Helper function to parse YYYY-MM-DD date strings
 const parseLocalDate = (dateString) => {
@@ -43,6 +44,7 @@ export default function LinesOfCreditPage() {
   const [linesOfCredit, setLinesOfCredit] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
+  const [allTransactions, setAllTransactions] = useState([]); // Store all transactions for lookup
   const [fromDate, setFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [appliedFromDate, setAppliedFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
@@ -168,6 +170,7 @@ export default function LinesOfCreditPage() {
       
       // Attach starting balance to be used in the display calculation
       setTransactions({ data: filteredTransactions, startingBalance });
+      setAllTransactions(allTransactionsData); // Save full list for PaymentTransactionItem lookups
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {
@@ -608,74 +611,109 @@ export default function LinesOfCreditPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b">
-                      <tr>
-                        <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                        <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                        <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Charges</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Credits</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loading ? (
-                        Array(5).fill(0).map((_, i) => (
-                          <tr key={i} className="border-b animate-pulse">
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                          </tr>
-                        ))
-                      ) : displayedTransactions.length > 0 ? (
-                        displayedTransactions.map((tx) => (
-                          <tr key={tx.id} className="border-b hover:bg-slate-50">
-                            <td className="p-3">{format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}</td>
-                            <td className="p-3">
-                              <div>
-                                <span className="font-medium text-slate-900">{tx.description}</span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
-                            <td className="p-3 text-right">
-                              {tx.charge_amount > 0 && (
-                                <span className="font-medium text-red-600">${tx.charge_amount.toFixed(2)}</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              {tx.credit_amount > 0 && (
-                                <span className="font-medium text-blue-600">${tx.credit_amount.toFixed(2)}</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              {tx.payment_amount > 0 && (
-                                <span className="font-medium text-green-600">${tx.payment_amount.toFixed(2)}</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="6" className="p-12 text-center">
-                            <div className="text-slate-400 mb-4">
-                              <CreditCard className="w-12 h-12 mx-auto" />
+              <CardContent className={viewMode === 'payments' ? "p-4" : "p-0"}>
+                {viewMode === 'payments' ? (
+                  <div className="space-y-0">
+                    {loading ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <Card key={i} className="mb-2 border">
+                          <div className="p-4 flex items-center justify-between">
+                            <div className="flex gap-6 w-full">
+                              <div className="h-4 bg-slate-200 rounded w-32 animate-pulse"></div>
+                              <div className="h-4 bg-slate-200 rounded w-1/2 animate-pulse"></div>
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                            <p className="text-slate-600">
-                              {selectedAccount ? 'No transactions found for the selected date range.' : 'Select a line of credit account to view transactions.'}
-                            </p>
-                          </td>
+                          </div>
+                        </Card>
+                      ))
+                    ) : displayedTransactions.length > 0 ? (
+                      displayedTransactions.map((tx) => (
+                        <PaymentTransactionItem 
+                          key={tx.id} 
+                          payment={tx} 
+                          allTransactions={allTransactions}
+                        />
+                      ))
+                    ) : (
+                       <div className="p-12 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                        <div className="text-slate-400 mb-4">
+                          <DollarSign className="w-12 h-12 mx-auto" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Payments</h3>
+                        <p className="text-slate-600">
+                          {selectedAccount ? 'No payments found for the selected date range.' : 'Select a line of credit account to view payments.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 border-b">
+                        <tr>
+                          <th className="text-left p-3 font-semibold text-slate-700">Date</th>
+                          <th className="text-left p-3 font-semibold text-slate-700">Description</th>
+                          <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
+                          <th className="text-right p-3 font-semibold text-slate-700">Charges</th>
+                          <th className="text-right p-3 font-semibold text-slate-700">Credits</th>
+                          <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          Array(5).fill(0).map((_, i) => (
+                            <tr key={i} className="border-b animate-pulse">
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                            </tr>
+                          ))
+                        ) : displayedTransactions.length > 0 ? (
+                          displayedTransactions.map((tx) => (
+                            <tr key={tx.id} className="border-b hover:bg-slate-50">
+                              <td className="p-3">{format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}</td>
+                              <td className="p-3">
+                                <div>
+                                  <span className="font-medium text-slate-900">{tx.description}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
+                              <td className="p-3 text-right">
+                                {tx.charge_amount > 0 && (
+                                  <span className="font-medium text-red-600">${tx.charge_amount.toFixed(2)}</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                {tx.credit_amount > 0 && (
+                                  <span className="font-medium text-blue-600">${tx.credit_amount.toFixed(2)}</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                {tx.payment_amount > 0 && (
+                                  <span className="font-medium text-green-600">${tx.payment_amount.toFixed(2)}</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="6" className="p-12 text-center">
+                              <div className="text-slate-400 mb-4">
+                                <CreditCard className="w-12 h-12 mx-auto" />
+                              </div>
+                              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
+                              <p className="text-slate-600">
+                                {selectedAccount ? 'No transactions found for the selected date range.' : 'Select a line of credit account to view transactions.'}
+                              </p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
