@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
       reference,
       transaction_type,
       amount,
-      offset_gl_account
+      offset_gl_account,
+      source_type
     } = payload;
 
     // Validate required fields
@@ -135,7 +136,7 @@ Deno.serve(async (req) => {
       credit_amount: credit_amount,
       payment_amount: payment_amount,
       balance: newBalance,
-      source_type: 'manual',
+      source_type: source_type || 'manual',
       source_id: ''
     });
 

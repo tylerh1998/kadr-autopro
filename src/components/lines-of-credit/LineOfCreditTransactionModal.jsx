@@ -17,8 +17,9 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     transaction_date: format(new Date(), 'yyyy-MM-dd'),
     description: '',
     reference: '',
-    transaction_type: 'charge',
-    amount: '',
+    charge_amount: '',
+    credit_amount: '',
+    source_type: 'manual',
     offset_gl_account: ''
   });
 
@@ -69,8 +70,9 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
         transaction_date: format(new Date(), 'yyyy-MM-dd'),
         description: '',
         reference: '',
-        transaction_type: 'charge',
-        amount: '',
+        charge_amount: '',
+        credit_amount: '',
+        source_type: 'manual',
         offset_gl_account: ''
       });
       setError(null);
@@ -118,7 +120,40 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updates = { [field]: value };
+      
+      // Auto-fill logic for source_type
+      if (field === 'source_type') {
+        if (value === 'fee') updates.offset_gl_account = '5150';
+        else if (value === 'interest') updates.offset_gl_account = '5152';
+        else if (value === 'cashback') updates.offset_gl_account = '4014';
+        else if (value === 'manual') updates.offset_gl_account = '';
+      }
+
+      // Logic for mutually exclusive amount fields
+      if (field === 'charge_amount') {
+        // Prevent negative
+        if (parseFloat(value) < 0) return prev;
+        
+        // If entering charge, clear credit
+        if (value && parseFloat(value) !== 0) {
+          updates.credit_amount = '';
+        }
+      }
+
+      if (field === 'credit_amount') {
+        // Prevent negative
+        if (parseFloat(value) < 0) return prev;
+        
+        // If entering credit, clear charge
+        if (value && parseFloat(value) !== 0) {
+          updates.charge_amount = '';
+        }
+      }
+
+      return { ...prev, ...updates };
+    });
     setError(null);
   };
 
@@ -136,8 +171,16 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       return;
     }
 
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      setError('Amount must be greater than 0');
+    const chargeAmt = parseFloat(formData.charge_amount || 0);
+    const creditAmt = parseFloat(formData.credit_amount || 0);
+
+    if (chargeAmt <= 0 && creditAmt <= 0) {
+      setError('Please enter a valid Charge or Credit amount');
+      return;
+    }
+
+    if (chargeAmt > 0 && creditAmt > 0) {
+      setError('Cannot enter both Charge and Credit amounts');
       return;
     }
 
@@ -150,14 +193,19 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     setError(null);
 
     try {
+      const chargeAmt = parseFloat(formData.charge_amount || 0);
+      const creditAmt = parseFloat(formData.credit_amount || 0);
+      const isCharge = chargeAmt > 0;
+
       const response = await base44.functions.invoke('processLineOfCreditTransaction', {
         line_of_credit_id: lineOfCredit.id,
         transaction_date: formData.transaction_date,
         description: formData.description,
         reference: formData.reference,
-        transaction_type: formData.transaction_type,
-        amount: parseFloat(formData.amount),
-        offset_gl_account: formData.offset_gl_account
+        transaction_type: isCharge ? 'charge' : 'credit',
+        amount: isCharge ? chargeAmt : creditAmt,
+        offset_gl_account: formData.offset_gl_account,
+        source_type: formData.source_type
       });
 
       if (response.data && response.data.success) {
@@ -245,56 +293,74 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="transaction_type">Transaction Type *</Label>
+              <Label htmlFor="charge_amount" className="text-red-600 font-medium">Charge Amount</Label>
+              <Input
+                id="charge_amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.charge_amount}
+                onChange={(e) => handleChange('charge_amount', e.target.value)}
+                disabled={loading || (parseFloat(formData.credit_amount) > 0)}
+                className="border-red-200 focus:border-red-500 text-red-700 font-medium"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="credit_amount" className="text-green-600 font-medium">Credit Amount</Label>
+              <Input
+                id="credit_amount"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.credit_amount}
+                onChange={(e) => handleChange('credit_amount', e.target.value)}
+                disabled={loading || (parseFloat(formData.charge_amount) > 0)}
+                className="border-green-200 focus:border-green-500 text-green-700 font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="source_type">Source Type</Label>
               <Select
-                value={formData.transaction_type}
-                onValueChange={(value) => handleChange('transaction_type', value)}
+                value={formData.source_type}
+                onValueChange={(value) => handleChange('source_type', value)}
                 disabled={loading}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="charge">Charge (Draw from LOC)</SelectItem>
-                  <SelectItem value="credit">Credit (Refund/Return)</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="fee">Fee</SelectItem>
+                  <SelectItem value="interest">Interest</SelectItem>
+                  <SelectItem value="cashback">Cashback</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount *</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={formData.amount}
-                onChange={(e) => handleChange('amount', e.target.value)}
+              <Label htmlFor="offset_gl_account">Offset GL Account *</Label>
+              <Select
+                value={formData.offset_gl_account}
+                onValueChange={(value) => handleChange('offset_gl_account', value)}
                 disabled={loading}
                 required
-              />
+              >
+                <SelectTrigger className={!formData.offset_gl_account ? 'border-red-300' : ''}>
+                  <SelectValue placeholder="Select GL Account..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {chartOfAccounts.filter(account => !account.controlled).map((account) => (
+                    <SelectItem key={account.id} value={account.account_number}>
+                      {account.account_number} - {account.account_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="offset_gl_account">Offset GL Account *</Label>
-            <Select
-              value={formData.offset_gl_account}
-              onValueChange={(value) => handleChange('offset_gl_account', value)}
-              disabled={loading}
-              required
-            >
-              <SelectTrigger className={!formData.offset_gl_account ? 'border-red-300' : ''}>
-                <SelectValue placeholder="Select GL Account..." />
-              </SelectTrigger>
-              <SelectContent>
-                {chartOfAccounts.filter(account => !account.controlled).map((account) => (
-                  <SelectItem key={account.id} value={account.account_number}>
-                    {account.account_number} - {account.account_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Summary */}
@@ -308,13 +374,13 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
               <div className="flex justify-between">
                 <span className="text-sm text-slate-700">Type:</span>
                 <span className="text-sm font-medium text-slate-900">
-                  {formData.transaction_type === 'charge' ? 'Charge (Draw)' : 'Credit (Refund)'}
+                  {parseFloat(formData.charge_amount) > 0 ? 'Charge (Draw)' : 'Credit (Refund)'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-700">Amount:</span>
-                <span className={`text-sm font-bold ${formData.transaction_type === 'charge' ? 'text-red-600' : 'text-blue-600'}`}>
-                  {formData.transaction_type === 'charge' ? '+' : '-'}${parseFloat(formData.amount || 0).toFixed(2)}
+                <span className={`text-sm font-bold ${parseFloat(formData.charge_amount) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {parseFloat(formData.charge_amount) > 0 ? '+' : '-'}${(parseFloat(formData.charge_amount || 0) + parseFloat(formData.credit_amount || 0)).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -326,7 +392,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
               </Button>
               <Button 
                 type="submit"
-                disabled={loading || !formData.description || !formData.amount || !formData.offset_gl_account || isLocked}
+                disabled={loading || !formData.description || (!formData.charge_amount && !formData.credit_amount) || !formData.offset_gl_account || isLocked}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {loading ? (
