@@ -604,11 +604,18 @@ export default function CustomCalendar({
         }`}>
           {customerName}
         </div>
-        <div className={`text-[10px] text-black ${
+        <div className={`text-xs text-black ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
         </div>
+        {event.bayId && (
+          <div className={`text-xs text-black ${
+            isCancelledOrNoShow ? 'line-through' : ''
+          }`}>
+            {event.bayId}
+          </div>
+        )}
       </div>
     );
   };
@@ -639,7 +646,10 @@ export default function CustomCalendar({
             return (
               <div key={event.id} className={`flex flex-col border-b border-blue-200 last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
                 <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
-                <span className="text-[10px] text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+                <span className="text-xs text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+                {event.bayId && (
+                  <span className="text-xs text-black">{event.bayId}</span>
+                )}
               </div>
             );
           })}
