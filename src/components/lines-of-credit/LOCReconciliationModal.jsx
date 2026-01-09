@@ -150,6 +150,14 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
               unmatchedCsv.push(csvRow);
           }
       }
+      
+      // Filter out fully paid transactions from unmatched system results
+      // Keep if credit_amount > 0 (refunds/credits) or if charge is not fully paid
+      unmatchedSystem = unmatchedSystem.filter(tx => {
+        if (tx.credit_amount > 0) return true;
+        const paid = tx.payment_amount || 0;
+        return paid < tx.charge_amount;
+      });
 
       setResults({
           matches: matched,
@@ -223,7 +231,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
             </div>
           </div>
 
-          <div class="section-title">Unmatched CSV Transactions</div>
+          <div class="section-title">Unmatched Statement Transactions</div>
           <table>
             <thead>
               <tr>
@@ -240,7 +248,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                   <td class="text-right">$${row.amount.toFixed(2)}</td>
                 </tr>
               `).join('')}
-              ${results.unmatchedCsv.length === 0 ? '<tr><td colspan="3" class="text-center">No unmatched CSV transactions</td></tr>' : ''}
+              ${results.unmatchedCsv.length === 0 ? '<tr><td colspan="3" class="text-center">No unmatched statement transactions</td></tr>' : ''}
             </tbody>
           </table>
 
@@ -342,7 +350,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                  </div>
                  <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 text-center">
                     <div className="text-2xl font-bold text-orange-700">{results.stats.unmatchedCsv}</div>
-                    <div className="text-sm text-orange-600">Unmatched CSV</div>
+                    <div className="text-sm text-orange-600">Unmatched Statement</div>
                  </div>
                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
                     <div className="text-2xl font-bold text-blue-700">{results.stats.unmatchedSystem}</div>
@@ -353,7 +361,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
               <Tabs defaultValue="matched" className="w-full">
                 <TabsList className="w-full justify-start">
                   <TabsTrigger value="matched">Matched ({results.stats.matched})</TabsTrigger>
-                  <TabsTrigger value="unmatched-csv">Unmatched CSV ({results.stats.unmatchedCsv})</TabsTrigger>
+                  <TabsTrigger value="unmatched-csv">Unmatched Statement ({results.stats.unmatchedCsv})</TabsTrigger>
                   <TabsTrigger value="unmatched-system">Unmatched System ({results.stats.unmatchedSystem})</TabsTrigger>
                 </TabsList>
 
@@ -409,7 +417,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                                <td className="p-2 text-right">${row.amount.toFixed(2)}</td>
                             </tr>
                           ))}
-                          {results.unmatchedCsv.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500">No unmatched CSV transactions.</td></tr>}
+                          {results.unmatchedCsv.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500">No unmatched statement transactions.</td></tr>}
                         </tbody>
                       </table>
                    </div>
