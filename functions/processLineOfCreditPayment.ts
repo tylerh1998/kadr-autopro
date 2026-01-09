@@ -150,25 +150,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create the LOC payment transaction (informational record)
-    const paymentDescription = description || `${locAccount.name} Payment`;
-    const locTransaction = await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
-      line_of_credit_id: line_of_credit_id,
-      transaction_date: payment_date,
-      description: paymentDescription,
-      reference: from_account_id,
-      charge_amount: 0,
-      credit_amount: 0,
-      payment_amount: amountValue, // Total payment amount (informational)
-      source_type: 'payment_made',
-      source_id: from_account_id
-    });
-
+    // Prepare applied data JSON
+    const paymentAppliedData = [];
+    
     // Update specific charges if provided
     if (applied_charges && Array.isArray(applied_charges) && applied_charges.length > 0) {
       for (const charge of applied_charges) {
         if (charge.id && charge.amount > 0) {
           try {
+            // Add to tracking array
+            paymentAppliedData.push({
+              id: charge.id,
+              amount: charge.amount
+            });
+
             // Get current charge transaction to ensure we add to existing payment amount
             const chargeTx = await base44.asServiceRole.entities.LinesOfCreditTransaction.get(charge.id);
             if (chargeTx) {
@@ -183,6 +178,21 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // Create the LOC payment transaction (informational record)
+    const paymentDescription = description || `${locAccount.name} Payment`;
+    const locTransaction = await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
+      line_of_credit_id: line_of_credit_id,
+      transaction_date: payment_date,
+      description: paymentDescription,
+      reference: '', // Reference removed as per user request
+      charge_amount: 0,
+      credit_amount: 0,
+      payment_amount: amountValue, // Total payment amount (informational)
+      source_type: 'payment_made',
+      source_id: from_account_id,
+      payment_applied_data: JSON.stringify(paymentAppliedData)
+    });
 
     // Create transaction in source account
     if (payment_method === 'other_line_of_credit') {
