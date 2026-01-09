@@ -496,7 +496,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 </TabsContent>
               </Tabs>
             </div>
-          )}
+          ) : null}
         </div>
 
         <DialogFooter>
