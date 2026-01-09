@@ -31,12 +31,13 @@ Deno.serve(async (req) => {
         let cumulativeBalance = 0;
 
         for (const tx of balanceTransactions) {
+            cumulativeBalance += (tx.charge_amount || 0);
+            cumulativeBalance -= (tx.credit_amount || 0);
+            
+            // Only reduce balance for payment_made transactions
+            // payment_amount on charge records is informational only
             if (tx.source_type === 'payment_made') {
                 cumulativeBalance -= (tx.payment_amount || 0);
-            } else {
-                cumulativeBalance += (tx.charge_amount || 0);
-                cumulativeBalance -= (tx.credit_amount || 0);
-                // We ignore payment_amount on charges as we track payments via payment_made records
             }
         }
 

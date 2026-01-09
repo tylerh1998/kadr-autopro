@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
       payment_amount,
       payment_method,
       from_account_id,
-      description
+      description,
+      applied_charges
     } = payload;
 
     // Validate required fields
@@ -163,8 +164,25 @@ Deno.serve(async (req) => {
       source_id: from_account_id
     });
 
-    // Note: LOC balance will be updated by calculateLOCBalances after we update charge lines
-    // The balance calculation filters out payment_made records
+    // Update specific charges if provided
+    if (applied_charges && Array.isArray(applied_charges) && applied_charges.length > 0) {
+      for (const charge of applied_charges) {
+        if (charge.id && charge.amount > 0) {
+          try {
+            // Get current charge transaction to ensure we add to existing payment amount
+            const chargeTx = await base44.asServiceRole.entities.LinesOfCreditTransaction.get(charge.id);
+            if (chargeTx) {
+              const currentPayment = chargeTx.payment_amount || 0;
+              await base44.asServiceRole.entities.LinesOfCreditTransaction.update(charge.id, {
+                payment_amount: currentPayment + charge.amount
+              });
+            }
+          } catch (err) {
+            console.error(`Failed to update charge ${charge.id} with payment:`, err);
+          }
+        }
+      }
+    }
 
     // Create transaction in source account
     if (payment_method === 'other_line_of_credit') {

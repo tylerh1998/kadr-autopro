@@ -152,11 +152,11 @@ export default function LinesOfCreditPage() {
       let startingBalance = 0;
       const transactionsBeforeRange = allTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
       for (const tx of transactionsBeforeRange) {
+        startingBalance += (tx.charge_amount || 0);
+        startingBalance -= (tx.credit_amount || 0);
+        
         if (tx.source_type === 'payment_made') {
           startingBalance -= (tx.payment_amount || 0);
-        } else {
-          startingBalance += (tx.charge_amount || 0);
-          startingBalance -= (tx.credit_amount || 0);
         }
       }
       
@@ -192,13 +192,15 @@ export default function LinesOfCreditPage() {
     
     let cumulativeBalance = startingBalance;
     const finalTransactions = txData.map(tx => {
-      // Process all transactions
+      // Process all transactions for the running balance calculation
+      // even if they are filtered out of the display later
+      cumulativeBalance += (tx.charge_amount || 0);
+      cumulativeBalance -= (tx.credit_amount || 0);
+      
       if (tx.source_type === 'payment_made') {
         cumulativeBalance -= (tx.payment_amount || 0);
-      } else {
-        cumulativeBalance += (tx.charge_amount || 0);
-        cumulativeBalance -= (tx.credit_amount || 0);
       }
+      
       return {
         ...tx,
         calculatedBalance: cumulativeBalance
@@ -212,8 +214,9 @@ export default function LinesOfCreditPage() {
     if (viewMode === 'payments') {
       return transactionsWithBalance.filter(tx => tx.source_type === 'payment_made');
     } else {
-      // Show all transactions in default view
-      return transactionsWithBalance;
+      // Show only non-payment transactions in default view (charges/credits)
+      // Payments are shown in the payments column of charges
+      return transactionsWithBalance.filter(tx => tx.source_type !== 'payment_made');
     }
   }, [transactionsWithBalance, viewMode]);
 

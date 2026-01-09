@@ -85,8 +85,13 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
           // Group transactions that represent "charges" (positive amounts that need payment)
           // Filter out fully paid charges (where payment_amount >= charge_amount)
+          // Also exclude payment_made records themselves
           const charges = transactionsData
-            .filter(tx => tx.charge_amount > 0 && (tx.payment_amount || 0) < tx.charge_amount)
+            .filter(tx => 
+              tx.charge_amount > 0 && 
+              tx.source_type !== 'payment_made' && 
+              (tx.payment_amount || 0) < tx.charge_amount
+            )
             .sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
 
           setOutstandingCharges(charges);
@@ -169,12 +174,24 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
     setIsProcessing(true);
     try {
+      // Prepare applied charges list if paying specific charges
+      let appliedCharges = [];
+      if (activeTab === 'pay_charges') {
+        appliedCharges = outstandingCharges
+          .filter(charge => selectedCharges[charge.id])
+          .map(charge => ({
+            id: charge.id,
+            amount: charge.charge_amount - (charge.payment_amount || 0) // Pay the remaining balance
+          }));
+      }
+
       const response = await base44.functions.invoke('processLineOfCreditPayment', {
         line_of_credit_id: lineOfCredit.id,
         payment_date: format(paymentData.payment_date, 'yyyy-MM-dd'),
         payment_amount: paymentAmount,
         payment_method: paymentData.payment_method,
-        from_account_id: paymentData.from_account_id
+        from_account_id: paymentData.from_account_id,
+        applied_charges: appliedCharges
       });
 
       if (response.data && response.data.success) {
