@@ -109,6 +109,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   const [lockAcquired, setLockAcquired] = useState(false);
   const [lockCheckComplete, setLockCheckComplete] = useState(false);
   const lockAcquiredRef = useRef(false);
+  const isClosingAfterSaveRef = useRef(false);
   const [lockError, setLockError] = useState(null);
 
   // Add state for WorkPRO project data and new modals
@@ -425,19 +426,20 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Warn user about unsaved changes
+  // Warn user to save when closing
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
+      if (!isClosingAfterSaveRef.current) {
+        const message = "Please Save the Work Order When Closing";
         e.preventDefault();
-        e.returnValue = '';
-        return '';
+        e.returnValue = message;
+        return message;
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, []);
 
   // Release lock on unmount
   useEffect(() => {
@@ -1255,6 +1257,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       setTimeout(() => {
         successMessage.remove();
         // Try to close the window, fallback to navigating away to ensure user doesn't stay on an unlocked page
+        isClosingAfterSaveRef.current = true;
         if (window.opener) {
             window.close();
         } else {
