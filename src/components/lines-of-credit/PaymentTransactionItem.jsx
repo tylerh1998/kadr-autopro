@@ -5,8 +5,31 @@ import { format } from 'date-fns';
 
 const parseLocalDate = (dateString) => {
   if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  try {
+    const cleanDateString = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const parts = cleanDateString.split('-');
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        const date = new Date(year, month - 1, day);
+        if (!isNaN(date.getTime())) return date;
+      }
+    }
+    const fallbackDate = new Date(dateString);
+    return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
+  } catch (e) {
+    return null;
+  }
+};
+
+const formatDateSafe = (dateString) => {
+  const date = parseLocalDate(dateString);
+  if (!date) return '-';
+  try {
+    return format(date, 'MMM d, yyyy');
+  } catch (e) {
+    return '-';
+  }
 };
 
 export default function PaymentTransactionItem({ payment, allTransactions }) {
@@ -33,7 +56,7 @@ export default function PaymentTransactionItem({ payment, allTransactions }) {
       >
         <div className="flex items-center gap-6">
           <div className="w-32 font-medium text-slate-700">
-            {payment.transaction_date ? format(parseLocalDate(payment.transaction_date), 'MMM d, yyyy') : '-'}
+            {formatDateSafe(payment.transaction_date)}
           </div>
           <div className="flex-1 font-medium text-slate-900">
             {payment.description}
@@ -65,7 +88,7 @@ export default function PaymentTransactionItem({ payment, allTransactions }) {
                   {appliedDetails.map((detail, index) => (
                     <tr key={index} className="border-b last:border-0 border-slate-100">
                       <td className="py-2 px-3 text-slate-600">
-                        {detail.date ? format(parseLocalDate(detail.date), 'MMM d, yyyy') : '-'}
+                        {formatDateSafe(detail.date)}
                       </td>
                       <td className="py-2 px-3 text-slate-700">{detail.description}</td>
                       <td className="py-2 px-3 text-right font-medium text-slate-700">

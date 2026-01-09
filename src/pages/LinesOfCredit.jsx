@@ -36,8 +36,38 @@ import PaymentTransactionItem from '../components/lines-of-credit/PaymentTransac
 // Helper function to parse YYYY-MM-DD date strings
 const parseLocalDate = (dateString) => {
   if (!dateString) return null;
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  try {
+    // Handle ISO strings or other formats by taking the first part if it contains T
+    const cleanDateString = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    const parts = cleanDateString.split('-');
+    
+    if (parts.length === 3) {
+      const [year, month, day] = parts.map(Number);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        const date = new Date(year, month - 1, day);
+        // Validate the date object
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+    }
+    // Fallback to standard constructor
+    const fallbackDate = new Date(dateString);
+    return isNaN(fallbackDate.getTime()) ? null : fallbackDate;
+  } catch (e) {
+    console.error("Date parsing error:", e);
+    return null;
+  }
+};
+
+const SafeDateFormat = ({ dateString }) => {
+  const date = parseLocalDate(dateString);
+  if (!date) return <span>-</span>;
+  try {
+    return <span>{format(date, 'MMM d, yyyy')}</span>;
+  } catch (e) {
+    return <span>-</span>;
+  }
 };
 
 export default function LinesOfCreditPage() {
@@ -677,7 +707,7 @@ export default function LinesOfCreditPage() {
                         ) : displayedTransactions.length > 0 ? (
                           displayedTransactions.map((tx) => (
                             <tr key={tx.id} className="border-b hover:bg-slate-50">
-                              <td className="p-3">{format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}</td>
+                              <td className="p-3"><SafeDateFormat dateString={tx.transaction_date} /></td>
                               <td className="p-3">
                                 <div>
                                   <span className="font-medium text-slate-900">{tx.description}</span>
