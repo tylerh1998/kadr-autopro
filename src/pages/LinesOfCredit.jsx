@@ -17,7 +17,8 @@ import {
   Plus,
   ArrowUp,
   ArrowDown,
-  RotateCcw
+  RotateCcw,
+  FileCheck
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import {
@@ -32,6 +33,7 @@ import LinesOfCreditEditModal from '../components/lines-of-credit/LinesOfCreditE
 import LineOfCreditPaymentModal from '../components/lines-of-credit/LineOfCreditPaymentModal';
 import LineOfCreditTransactionModal from '../components/lines-of-credit/LineOfCreditTransactionModal';
 import PaymentTransactionItem from '../components/lines-of-credit/PaymentTransactionItem';
+import LOCReconciliationModal from '../components/lines-of-credit/LOCReconciliationModal';
 
 // Helper function to parse YYYY-MM-DD date strings
 const parseLocalDate = (dateString) => {
@@ -83,6 +85,7 @@ export default function LinesOfCreditPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -455,6 +458,12 @@ export default function LinesOfCreditPage() {
                   Edit Account
                 </Button>
               )}
+              {selectedAccountId && (
+                <Button onClick={() => setShowReconcileModal(true)} className="bg-purple-600 hover:bg-purple-700">
+                  <FileCheck className="w-4 h-4 mr-2" />
+                  Reconcile
+                </Button>
+              )}
               <Button onClick={handleMakePayment} className="bg-green-600 hover:bg-green-700" disabled={!selectedAccount}>
                 <DollarSign className="w-4 h-4 mr-2" />
                 Make Payment
@@ -799,6 +808,12 @@ export default function LinesOfCreditPage() {
         lineOfCredit={selectedAccount}
         onTransactionMade={handleTransactionMade}
         currentUser={currentUser}
+      />
+
+      <LOCReconciliationModal
+        open={showReconcileModal}
+        onClose={() => setShowReconcileModal(false)}
+        lineOfCreditId={selectedAccountId}
       />
 
       <Dialog open={showFlushConfirm} onOpenChange={setShowFlushConfirm}>
