@@ -604,7 +604,7 @@ export default function CustomCalendar({
         }`}>
           {customerName}
         </div>
-        <div className={`text-[10px] text-slate-600 ${
+        <div className={`text-[10px] text-black ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
@@ -638,8 +638,8 @@ export default function CustomCalendar({
 
             return (
               <div key={event.id} className={`flex flex-col border-b border-blue-200 last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
-                <span className="truncate text-[10px] font-medium text-slate-800">{customerName}</span>
-                <span className="text-[9px] text-slate-600">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+                <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
+                <span className="text-[10px] text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
               </div>
             );
           })}
