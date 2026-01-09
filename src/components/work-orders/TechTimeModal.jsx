@@ -201,18 +201,29 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const projectsToLoad = projects.length > 0 ? projects : (project?.id ? [project] : []);
 
       if (projectsToLoad.length > 0) {
-        const promises = projectsToLoad.map(p => 
-          base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
-        );
-        const responses = await Promise.all(promises);
-        
-        responses.forEach(response => {
-           if (response.data?.success && Array.isArray(response.data.logs)) {
-             fetchedLogs = [...fetchedLogs, ...response.data.logs];
-           } else {
-             console.error('Failed to fetch WorkPRO logs for a project:', response.data?.error);
-           }
-        });
+        // Process in batches to avoid 429 errors
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < projectsToLoad.length; i += BATCH_SIZE) {
+          const batch = projectsToLoad.slice(i, i + BATCH_SIZE);
+          const promises = batch.map(p => 
+            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+          );
+          
+          const responses = await Promise.all(promises);
+          
+          responses.forEach(response => {
+             if (response.data?.success && Array.isArray(response.data.logs)) {
+               fetchedLogs = [...fetchedLogs, ...response.data.logs];
+             } else {
+               console.error('Failed to fetch WorkPRO logs for a project:', response.data?.error);
+             }
+          });
+
+          // Small delay between batches to respect rate limits
+          if (i + BATCH_SIZE < projectsToLoad.length) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+        }
         
         // Remove duplicates if any
         fetchedLogs = Array.from(new Map(fetchedLogs.map(log => [log.id, log])).values());
