@@ -464,6 +464,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
                   transaction ? 'Update Transaction' : 'Create Transaction'
                 )}
               </Button>
+              </div>
             </DialogFooter>
           </form>
         )}
