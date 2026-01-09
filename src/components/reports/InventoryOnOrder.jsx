@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
+import { createPageUrl } from '../../utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -204,7 +205,16 @@ export default function InventoryOnOrder() {
                        <td className="px-4 py-2 text-center text-slate-500">
                          {item.last_ordered_date ? format(new Date(item.last_ordered_date), 'MMM d, yyyy') : '-'}
                        </td>
-                       <td className="px-4 py-2 text-center text-slate-500">{item.last_ordered_ro || '-'}</td>
+                       <td className="px-4 py-2 text-center text-slate-500">
+                         {item.last_ordered_ro ? (
+                           <span 
+                             className="text-blue-600 hover:underline cursor-pointer"
+                             onClick={() => window.open(createPageUrl('WorkOrderEdit') + '?id=' + item.last_ordered_ro, '_blank')}
+                           >
+                             {item.last_ordered_ro}
+                           </span>
+                         ) : '-'}
+                       </td>
                      </tr>
                    ))}
                  </tbody>
