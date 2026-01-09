@@ -727,7 +727,7 @@ export default function LinesOfCreditPage() {
                               <td className="p-3"><SafeDateFormat dateString={tx.transaction_date} /></td>
                               <td className="p-3">
                                 <div>
-                                  {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) ? (
+                                  {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) && (!tx.payment_amount || tx.payment_amount === 0) ? (
                                     <span 
                                       className="font-medium text-blue-600 hover:underline cursor-pointer"
                                       onClick={() => handleEditTransaction(tx)}
