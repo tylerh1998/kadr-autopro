@@ -223,7 +223,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
             </div>
             <div class="summary-box orange">
               <div class="value">${results.stats.unmatchedCsv}</div>
-              <div class="label">Unmatched CSV</div>
+              <div class="label">Unmatched Statement</div>
             </div>
             <div class="summary-box blue">
               <div class="value">${results.stats.unmatchedSystem}</div>
