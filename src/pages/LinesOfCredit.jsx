@@ -413,14 +413,18 @@ export default function LinesOfCreditPage() {
               <p className="text-slate-600 mt-1">Manage credit card and line of credit accounts</p>
             </div>
             <div className="flex gap-3">
-              <Button onClick={() => handleEditAccount()} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Account
-              </Button>
-              <Button onClick={() => handleEditAccount(selectedAccount)} variant="outline" disabled={!selectedAccount}>
-                <Edit3 className="w-4 h-4 mr-2" />
-                Edit Account
-              </Button>
+              {!selectedAccountId && (
+                <Button onClick={() => handleEditAccount()} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Account
+                </Button>
+              )}
+              {selectedAccountId && (
+                <Button onClick={() => handleEditAccount(selectedAccount)} variant="outline">
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Edit Account
+                </Button>
+              )}
               <Button onClick={handleMakePayment} className="bg-green-600 hover:bg-green-700" disabled={!selectedAccount}>
                 <DollarSign className="w-4 h-4 mr-2" />
                 Make Payment
