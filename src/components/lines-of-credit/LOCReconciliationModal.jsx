@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LinesOfCreditTransaction } from '@/entities/all';
+import { LinesOfCreditTransaction, LinesOfCredit } from '@/entities/all';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer, FileCheck } from 'lucide-react';
 import { format, parse, isValid, addDays, subDays, differenceInDays } from 'date-fns';
 
@@ -17,6 +17,23 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload', 'report'
   const [results, setResults] = useState(null);
+  const [accountName, setAccountName] = useState('');
+
+  React.useEffect(() => {
+    const fetchAccountName = async () => {
+      if (lineOfCreditId) {
+        try {
+          const account = await LinesOfCredit.get(lineOfCreditId);
+          if (account) {
+            setAccountName(account.name);
+          }
+        } catch (error) {
+          console.error("Failed to fetch account name", error);
+        }
+      }
+    };
+    fetchAccountName();
+  }, [lineOfCreditId]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -206,6 +223,10 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
               matched: matched.length,
               unmatchedCsv: unmatchedCsv.length,
               unmatchedSystem: unmatchedSystem.length
+          },
+          dateRange: {
+            start: minDate,
+            end: maxDate
           }
       });
       setStep('report');
@@ -253,7 +274,11 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
         </head>
         <body>
           <h1>Line of Credit Reconciliation Report</h1>
-          <p>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+          ${accountName ? `<h2>${accountName}</h2>` : ''}
+          <p>
+            <strong>Report Date:</strong> ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}<br/>
+            <strong>Period:</strong> ${results.dateRange ? `${format(results.dateRange.start, 'MMM d, yyyy')} - ${format(results.dateRange.end, 'MMM d, yyyy')}` : 'N/A'}
+          </p>
           
           <div class="summary">
             <div class="summary-box green">
