@@ -5,14 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Printer, Search } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
 
 export default function ReportableLeviesReport() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
   const [dateRange, setDateRange] = useState({
-    startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
-    endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+    startDate: format(startOfQuarter(new Date()), 'yyyy-MM-dd'),
+    endDate: format(endOfQuarter(new Date()), 'yyyy-MM-dd')
   });
   const [summary, setSummary] = useState({ totalQty: 0, totalAmount: 0 });
 
@@ -48,8 +48,77 @@ export default function ReportableLeviesReport() {
     fetchReport();
   }, []); // Fetch on mount with default range
 
+  const handleLastQuarter = () => {
+    const lastQuarterDate = subQuarters(new Date(), 1);
+    setDateRange({
+      startDate: format(startOfQuarter(lastQuarterDate), 'yyyy-MM-dd'),
+      endDate: format(endOfQuarter(lastQuarterDate), 'yyyy-MM-dd')
+    });
+  };
+
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert('Please allow popups to print report.');
+
+    const html = `
+      <html>
+        <head>
+          <title>Reportable Levies Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            h1 { margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f8f9fa; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: bold; }
+            .bg-slate-100 { background-color: #f1f5f9; }
+            @media print {
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Reportable Levies Report</h1>
+          <p><strong>Period:</strong> ${dateRange.startDate} to ${dateRange.endDate}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>RO #</th>
+                <th>Description</th>
+                <th class="text-right">Qty</th>
+                <th class="text-right">Base Amount</th>
+                <th class="text-right">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(item => `
+                <tr>
+                  <td>${format(new Date(item.date_applied), 'MMM d, yyyy')}</td>
+                  <td>${item.ro_number}</td>
+                  <td>${item.description}</td>
+                  <td class="text-right">${item.qty}</td>
+                  <td class="text-right">$${parseFloat(item.base_amount).toFixed(2)}</td>
+                  <td class="text-right">$${parseFloat(item.total_amount).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr class="bg-slate-100 font-bold">
+                <td colspan="3" class="text-right">Totals:</td>
+                <td class="text-right">${summary.totalQty}</td>
+                <td class="text-right"></td>
+                <td class="text-right">$${summary.totalAmount.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   return (
@@ -78,6 +147,9 @@ export default function ReportableLeviesReport() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Run Report
           </Button>
+          <Button variant="ghost" onClick={handleLastQuarter} className="mb-[2px] text-blue-600 hover:text-blue-800">
+            Last Quarter
+          </Button>
         </div>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="w-4 h-4 mr-2" />
@@ -85,20 +157,7 @@ export default function ReportableLeviesReport() {
         </Button>
       </div>
 
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          body { font-size: 12px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 4px; }
-        }
-      `}</style>
-
-      <div className="print-only hidden mb-4">
-        <h1 className="text-2xl font-bold">Reportable Levies Report</h1>
-        <p className="text-sm text-gray-500">Period: {dateRange.startDate} to {dateRange.endDate}</p>
-      </div>
+      {/* Styles removed as they are now handled in the HTML report window */}
 
       <Card>
         <CardContent className="p-0">
