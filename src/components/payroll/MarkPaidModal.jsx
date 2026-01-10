@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PayrollTransaction, BankAccount, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { PayrollTransaction, BankAccount, GLTransaction, BankTransaction } from '@/entities/all';
 import {
   Dialog,
   DialogContent,
@@ -150,6 +151,53 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         const paymentDate = transaction.pay_date;
         const reference = transaction.paycheque_number || 
                          `${transaction.transaction_type}-${format(new Date(paymentDate), 'yyyy-MM-dd')}`;
+
+        // Create Bank Transaction
+        if (transaction.transaction_type === 'Paycheque') {
+          const netPay = getNetPay(transaction);
+          await BankTransaction.create({
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Paycheque ${transaction.paycheque_number || ''}`,
+            reference: reference,
+            debit_amount: netPay,
+            credit_amount: 0,
+            cleared: false,
+            source_type: 'payment',
+            source_id: transaction.id,
+            gl_account: 'Split' 
+          });
+        } else if (transaction.transaction_type === 'Remittance') {
+          await BankTransaction.create({
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Remittance ${reference}`,
+            reference: reference,
+            debit_amount: transaction.amount || 0,
+            credit_amount: 0,
+            cleared: false,
+            source_type: 'payment',
+            source_id: transaction.id,
+            gl_account: '2050' // Payroll Liabilities
+          });
+        } else if (transaction.transaction_type === 'Adjustment') {
+          const amount = Math.abs(transaction.amount || 0);
+          const isPositive = (transaction.amount || 0) >= 0;
+          // If positive (cost to company/payment out): Debit BankTransaction (Withdrawal)
+          // If negative (refund/money in): Credit BankTransaction (Deposit)
+          await BankTransaction.create({
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Payroll Adjustment - ${transaction.adjustment_reason || ''}`,
+            reference: reference,
+            debit_amount: isPositive ? amount : 0,
+            credit_amount: isPositive ? 0 : amount,
+            cleared: false,
+            source_type: isPositive ? 'payment' : 'deposit',
+            source_id: transaction.id,
+            gl_account: '5000'
+          });
+        }
 
         if (transaction.transaction_type === 'Paycheque') {
           const netPay = getNetPay(transaction);
@@ -397,6 +445,9 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           });
         }
       }
+
+      // Recalculate bank balance
+      await base44.functions.invoke('calculateBankBalances', { bankAccountId: selectedAccount.id });
 
       onSuccess();
       onClose();
