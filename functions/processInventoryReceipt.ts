@@ -342,9 +342,15 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
         results.created_inventory_items.push(newRecord.id);
       }
 
+      // Determine default tax settings from supplier
+      const isDefaultTaxable = supplier.default_taxable === true;
+
       // Create supplier invoice line for the part with forced 2 decimal rounding
       const lineAmount = Math.round(parseFloat(item.cost) * quantityReceived * 100) / 100;
-      const lineGst = Math.round(lineAmount * 0.05 * 100) / 100;
+      // If default_taxable is true, use manual GST mode (gst_override=true) and set GST to 0.
+      // Otherwise, calculate GST normally.
+      const lineGst = isDefaultTaxable ? 0 : Math.round(lineAmount * 0.05 * 100) / 100;
+      
       invoiceLinesToCreate.push({
         supplier_id: supplier.id,
         invoice_number: invoice_number,
@@ -354,13 +360,16 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
         purchase_amount: lineAmount,
         gst_amount: lineGst,
         gl_account: '1200',
-        inventory: true
+        inventory: true,
+        gst_override: isDefaultTaxable
       });
 
       // If core item, create additional invoice line for core deposit with forced 2 decimal rounding
       if (item.core && parseFloat(item.core_cost || 0) > 0) {
         const coreDepositAmount = Math.round(parseFloat(item.core_cost) * quantityReceived * 100) / 100;
-        const coreGst = Math.round(coreDepositAmount * 0.05 * 100) / 100;
+        // Same logic for core deposit GST
+        const coreGst = isDefaultTaxable ? 0 : Math.round(coreDepositAmount * 0.05 * 100) / 100;
+        
         invoiceLinesToCreate.push({
           supplier_id: supplier.id,
           invoice_number: invoice_number,
@@ -370,7 +379,8 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
           purchase_amount: coreDepositAmount,
           gst_amount: coreGst,
           gl_account: '1200',
-          inventory: true
+          inventory: true,
+          gst_override: isDefaultTaxable
         });
       }
 
