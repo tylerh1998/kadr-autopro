@@ -21,6 +21,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
     default_gl_account: '',
     inventory_supplier: true,
     pin_to_top: false,
+    default_taxable: false,
     notes: ''
   });
 
@@ -60,6 +61,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
         default_gl_account: supplier.default_gl_account || '',
         inventory_supplier: supplier.inventory_supplier !== undefined ? supplier.inventory_supplier : true,
         pin_to_top: supplier.pin_to_top || false,
+        default_taxable: supplier.default_taxable || false,
         notes: supplier.notes || ''
       });
     } else {
@@ -76,6 +78,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
         default_gl_account: '',
         inventory_supplier: true,
         pin_to_top: false,
+        default_taxable: false,
         notes: ''
       });
     }
@@ -188,6 +191,16 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
             <Label htmlFor="pin_to_top">Pin to Top</Label>
           </div>
           <p className="text-sm text-slate-500">Show this supplier at the top of the list</p>
+
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox
+              id="default_taxable"
+              checked={formData.default_taxable}
+              onCheckedChange={(checked) => handleCheckboxChange('default_taxable', checked)}
+            />
+            <Label htmlFor="default_taxable">Default Manual GST</Label>
+          </div>
+          <p className="text-sm text-slate-500">Default new lines to Manual GST mode (0.00)</p>
         </div>
       </div>
 

@@ -248,7 +248,7 @@ export default function SupplierTxPage() {
         );
     }, [invoiceLines, searchTerm]);
 
-    const ensureEmptyLine = useCallback((lines, defaultGlAccount) => {
+    const ensureEmptyLine = useCallback((lines, defaultGlAccount, defaultTaxable) => {
         const lastLine = lines[lines.length - 1];
         const isLastLineMeaningful = lastLine && (
             (lastLine.invoice_number && lastLine.invoice_number !== '') ||
@@ -271,7 +271,7 @@ export default function SupplierTxPage() {
                 gl_account: defaultGlAccount || '',
                 isNew: true,
                 inventory: false,
-                gst_override: false,
+                gst_override: defaultTaxable || false,
                 paid_amount: 0, // Initialize paid_amount for new lines
                 dateError: null // New state for date validation errors
             }];
@@ -481,7 +481,7 @@ export default function SupplierTxPage() {
                 dateError: null // Initialize dateError for loaded lines
             }));
 
-            setInvoiceLines(ensureEmptyLine(roundedLines, supplierData?.default_gl_account));
+            setInvoiceLines(ensureEmptyLine(roundedLines, supplierData?.default_gl_account, supplierData?.default_taxable));
             setAllInvoiceLines(roundedAllLines);
             setModifiedLineIds(new Set());
             setDeletedLineIds(new Set());
@@ -637,7 +637,7 @@ export default function SupplierTxPage() {
                 return updatedLine;
             });
 
-            return ensureEmptyLine(updatedLines, supplier?.default_gl_account);
+            return ensureEmptyLine(updatedLines, supplier?.default_gl_account, supplier?.default_taxable);
         });
 
         if (!lineId.startsWith('temp_')) {
@@ -1093,10 +1093,10 @@ export default function SupplierTxPage() {
 
         if (window.confirm("Are you sure you want to delete this line?")) {
             if (line.isNew || line.id.startsWith('temp_')) {
-                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account));
+                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable));
             } else {
                 setDeletedLineIds(prev => new Set(prev).add(lineId));
-                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account));
+                setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable));
             }
             setHasUnsavedChanges(true);
         }
