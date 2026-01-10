@@ -10,6 +10,7 @@ import { createPageUrl } from '@/utils';
 
 import InventoryOnOrder from './InventoryOnOrder'; // Import the new component (for 'Parts on Order')
 import OtherChargesBreakdownReport from './OtherChargesBreakdownReport';
+import ReportableLeviesReport from './ReportableLeviesReport';
 
 // Map icon names to Lucide React components
 const iconMap = {
@@ -38,6 +39,7 @@ export default function ReportModal({ open, onClose, reportType }) {
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [showPartsOnOrder, setShowPartsOnOrder] = useState(false);
   const [showOtherChargesBreakdown, setShowOtherChargesBreakdown] = useState(false);
+  const [showReportableLevies, setShowReportableLevies] = useState(false);
 
   const getReportOptions = () => {
     switch (reportType) {
@@ -100,6 +102,12 @@ export default function ReportModal({ open, onClose, reportType }) {
             description: 'Parts currently on order from suppliers',
             icon: 'ShoppingCart',
             reportKey: 'inventory_on_order'
+          },
+          {
+            name: 'Reportable Levies Report',
+            description: 'Detailed report of all reportable levies (e.g. Tire Tax)',
+            icon: 'FileText',
+            reportKey: 'reportable_levies'
           }
         ];
 
@@ -171,6 +179,7 @@ export default function ReportModal({ open, onClose, reportType }) {
       setSelectedReportId(null);
       setShowPartsOnOrder(false);
       setShowOtherChargesBreakdown(false);
+      setShowReportableLevies(false);
     }
   }, [open, reportType]);
 
@@ -178,6 +187,7 @@ export default function ReportModal({ open, onClose, reportType }) {
     setSelectedReportId(null);
     setShowPartsOnOrder(false);
     setShowOtherChargesBreakdown(false);
+    setShowReportableLevies(false);
   };
 
   const handleReportClick = (report) => {
@@ -189,6 +199,8 @@ export default function ReportModal({ open, onClose, reportType }) {
       setShowPartsOnOrder(true);
     } else if (report.reportKey === 'other_charges_breakdown') {
       setShowOtherChargesBreakdown(true);
+    } else if (report.reportKey === 'reportable_levies') {
+      setShowReportableLevies(true);
     } else if (report.reportKey === 'inventory_valuation') {
       window.open(createPageUrl('InventoryValuation'), '_blank', 'width=1400,height=900');
       onClose();
@@ -212,13 +224,13 @@ export default function ReportModal({ open, onClose, reportType }) {
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(showPartsOnOrder || showOtherChargesBreakdown || selectedReportId) && (
+            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || selectedReportId) && (
               <Button variant="ghost" size="icon" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <FileText className="w-5 h-5" />
-            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : getCategoryTitle(reportType)}
+            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : getCategoryTitle(reportType)}
           </DialogTitle>
         </DialogHeader>
 
@@ -227,6 +239,8 @@ export default function ReportModal({ open, onClose, reportType }) {
             <InventoryOnOrder />
           ) : showOtherChargesBreakdown ? (
             <OtherChargesBreakdownReport />
+          ) : showReportableLevies ? (
+            <ReportableLeviesReport />
           ) : (
             <div className="space-y-3">
               {getReportOptions().map((report) => (
@@ -234,7 +248,7 @@ export default function ReportModal({ open, onClose, reportType }) {
                   key={report.reportKey || report.name}
                   onClick={() => handleReportClick(report)}
                   className={`flex justify-between items-center p-4 border rounded-lg transition-colors ${
-                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown'
+                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies'
                       ? 'cursor-pointer hover:bg-slate-50'
                       : 'cursor-not-allowed bg-slate-50 text-slate-400'
                   }`}
@@ -246,7 +260,7 @@ export default function ReportModal({ open, onClose, reportType }) {
                       {report.description && <p className="text-sm text-slate-500">{report.description}</p>}
                     </div>
                   </div>
-                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown') && <ChevronRight className="w-5 h-5" />}
+                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies') && <ChevronRight className="w-5 h-5" />}
                 </div>
               ))}
             </div>
