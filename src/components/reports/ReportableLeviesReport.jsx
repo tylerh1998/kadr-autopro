@@ -98,6 +98,7 @@ export default function ReportableLeviesReport() {
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f8f9fa; }
             .text-right { text-align: right; }
+            .text-center { text-align: center; }
             .font-bold { font-weight: bold; }
             .bg-slate-100 { background-color: #f1f5f9; }
             @media print {
@@ -118,6 +119,7 @@ export default function ReportableLeviesReport() {
                 <th class="text-right">Qty</th>
                 <th class="text-right">Base Amount</th>
                 <th class="text-right">Total Amount</th>
+                <th class="text-center">Remitted</th>
               </tr>
             </thead>
             <tbody>
@@ -129,6 +131,9 @@ export default function ReportableLeviesReport() {
                   <td class="text-right">${item.qty}</td>
                   <td class="text-right">$${parseFloat(item.base_amount).toFixed(2)}</td>
                   <td class="text-right">$${parseFloat(item.total_amount).toFixed(2)}</td>
+                  <td class="text-center" style="color: ${item.supplier_invoice_line_id ? '#16a34a' : '#dc2626'}">
+                    ${item.supplier_invoice_line_id ? 'Yes' : 'No'}
+                  </td>
                 </tr>
               `).join('')}
               <tr class="bg-slate-100 font-bold">
@@ -136,6 +141,7 @@ export default function ReportableLeviesReport() {
                 <td class="text-right">${summary.totalQty}</td>
                 <td class="text-right"></td>
                 <td class="text-right">$${summary.totalAmount.toFixed(2)}</td>
+                <td></td>
               </tr>
             </tbody>
           </table>
@@ -208,6 +214,7 @@ export default function ReportableLeviesReport() {
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-right">Base Amount</TableHead>
                 <TableHead className="text-right">Total Amount</TableHead>
+                <TableHead className="text-center">Remitted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,6 +241,9 @@ export default function ReportableLeviesReport() {
                       <TableCell className="text-right">{item.qty}</TableCell>
                       <TableCell className="text-right">${parseFloat(item.base_amount).toFixed(2)}</TableCell>
                       <TableCell className="text-right">${parseFloat(item.total_amount).toFixed(2)}</TableCell>
+                      <TableCell className={`text-center font-medium ${item.supplier_invoice_line_id ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.supplier_invoice_line_id ? 'Yes' : 'No'}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {/* Totals Row */}
@@ -242,6 +252,7 @@ export default function ReportableLeviesReport() {
                     <TableCell className="text-right">{summary.totalQty}</TableCell>
                     <TableCell className="text-right"></TableCell>
                     <TableCell className="text-right">${summary.totalAmount.toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 </>
               )}
