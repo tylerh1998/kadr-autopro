@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { InventoryItem, InventoryCategory } from '@/entities/all';
 import { TagAlong } from "@/entities/TagAlong";
 import { base44 } from '@/api/base44Client';
-import { Save, Loader2, Search, Check, AlertCircle } from "lucide-react";
+import { Save, Loader2, Search, Check, AlertCircle, Merge } from "lucide-react";
+import MergeInventoryModal from './MergeInventoryModal';
 
 export default function InventoryEditModal({ open, onClose, item, onUpdate, suppliers, salesClasses, inventoryLocations, inventoryCategories: propInventoryCategories }) {
     const [formData, setFormData] = useState({
@@ -38,6 +39,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
     const [tagAlongs, setTagAlongs] = useState([]);
     const [internalCategories, setInternalCategories] = useState([]);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
 
     // Use prop categories if available and populated, otherwise fallback to internal state
     const categoriesToUse = (propInventoryCategories && propInventoryCategories.length > 0) 
@@ -669,6 +671,10 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         </div>
 
                         <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setIsMergeModalOpen(true)} type="button" className="mr-auto">
+                                <Merge className="w-4 h-4 mr-2" />
+                                Merge
+                            </Button>
                             <Button variant="outline" onClick={onClose} type="button" disabled={loading}>
                                 Cancel
                             </Button>
@@ -689,6 +695,16 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     </div>
                 </form>
             </DialogContent>
+
+            <MergeInventoryModal
+                open={isMergeModalOpen}
+                onClose={() => setIsMergeModalOpen(false)}
+                onMergeComplete={() => {
+                    onClose(); // Close edit modal as item data changed
+                    if (onUpdate) onUpdate(); // Refresh list
+                }}
+                preselectedMaster={item}
+            />
         </Dialog>
     );
 }

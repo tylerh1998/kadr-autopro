@@ -6,9 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Search, ArrowRight, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-export default function MergeInventoryModal({ open, onClose, onMergeComplete }) {
-  const [step, setStep] = useState(1); // 1: Select Master, 2: Select Duplicate, 3: Confirm
-  const [masterItem, setMasterItem] = useState(null);
+export default function MergeInventoryModal({ open, onClose, onMergeComplete, preselectedMaster }) {
+  const [step, setStep] = useState(preselectedMaster ? 2 : 1); // 1: Select Master, 2: Select Duplicate, 3: Confirm
+  const [masterItem, setMasterItem] = useState(preselectedMaster || null);
   const [duplicateItem, setDuplicateItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -18,13 +18,18 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete }) 
   // Reset state when opening
   useEffect(() => {
     if (open) {
-      setStep(1);
-      setMasterItem(null);
+      if (preselectedMaster) {
+        setMasterItem(preselectedMaster);
+        setStep(2);
+      } else {
+        setMasterItem(null);
+        setStep(1);
+      }
       setDuplicateItem(null);
       setSearchTerm("");
       setSearchResults([]);
     }
-  }, [open]);
+  }, [open, preselectedMaster]);
 
   // Search inventory
   useEffect(() => {
@@ -146,7 +151,9 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete }) 
                     <span className="font-bold mr-2">{masterItem.part_number}</span>
                     <span>{masterItem.description}</span>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setStep(1); setMasterItem(null); setSearchTerm(""); }}>Change</Button>
+                  {!preselectedMaster && (
+                    <Button variant="ghost" size="sm" onClick={() => { setStep(1); setMasterItem(null); setSearchTerm(""); }}>Change</Button>
+                  )}
                 </div>
               </div>
             )}
