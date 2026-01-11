@@ -65,9 +65,9 @@ export default function WorkOrderSummaryReport() {
     count: value
   }));
 
-  const openVsClosedData = [
-    { name: 'Open WOs', value: data.totalWorkOrders },
-    { name: 'Closed (30d)', value: data.closedLast30Days }
+  const comparisonData = [
+    { name: 'Count', open: data.totalWorkOrders, closed: data.closedLast30Days },
+    { name: 'Revenue', open: data.wipRevenue.total, closed: data.closedRevenueLast30Days }
   ];
 
   return (
@@ -198,76 +198,50 @@ export default function WorkOrderSummaryReport() {
         </Card>
       </div>
 
-      {/* Breakdown Table & Closed Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="col-span-1 lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Detailed Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <table className="w-full text-sm">
-              <tbody className="divide-y">
-                <tr>
-                  <td className="py-3 font-medium">Labor</td>
-                  <td className="py-3 text-right">{formatCurrency(data.wipRevenue.labor)}</td>
-                  <td className="py-3 text-right text-muted-foreground">
-                    {data.wipRevenue.total ? ((data.wipRevenue.labor / data.wipRevenue.total) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-medium">Parts</td>
-                  <td className="py-3 text-right">{formatCurrency(data.wipRevenue.parts)}</td>
-                  <td className="py-3 text-right text-muted-foreground">
-                     {data.wipRevenue.total ? ((data.wipRevenue.parts / data.wipRevenue.total) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-medium">Shop Supplies</td>
-                  <td className="py-3 text-right">{formatCurrency(data.wipRevenue.shopSupplies)}</td>
-                  <td className="py-3 text-right text-muted-foreground">
-                     {data.wipRevenue.total ? ((data.wipRevenue.shopSupplies / data.wipRevenue.total) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-medium">Other Charges</td>
-                  <td className="py-3 text-right">{formatCurrency(data.wipRevenue.otherCharges)}</td>
-                  <td className="py-3 text-right text-muted-foreground">
-                     {data.wipRevenue.total ? ((data.wipRevenue.otherCharges / data.wipRevenue.total) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
-                <tr className="font-bold bg-slate-50">
-                  <td className="py-3 pl-2">Total WIP Revenue</td>
-                  <td className="py-3 text-right">{formatCurrency(data.wipRevenue.total)}</td>
-                  <td className="py-3 text-right">100%</td>
-                </tr>
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+      {/* Closed vs Open Comparison */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Open vs Closed (Last 30 Days)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Volume Comparison */}
+            <div className="h-64">
+                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600">Volume (Count)</h4>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[comparisonData[0]]}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" hide />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Legend />
+                        <Bar dataKey="open" name="Active WOs" fill="#3b82f6" radius={[4, 4, 0, 0]} label={{ position: 'top' }} />
+                        <Bar dataKey="closed" name="Closed (30d)" fill="#10b981" radius={[4, 4, 0, 0]} label={{ position: 'top' }} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
 
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Closed vs Open</CardTitle>
-          </CardHeader>
-          <CardContent className="h-60">
-             <ResponsiveContainer width="100%" height="100%">
-               <BarChart data={openVsClosedData}>
-                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                 <XAxis dataKey="name" fontSize={12} />
-                 <YAxis allowDecimals={false} />
-                 <Tooltip cursor={{fill: 'transparent'}} />
-                 <Bar dataKey="value" fill="#8884d8" name="Count">
-                    <Cell fill="#3b82f6" /> {/* Open */}
-                    <Cell fill="#10b981" /> {/* Closed */}
-                 </Bar>
-               </BarChart>
-             </ResponsiveContainer>
-             <p className="text-xs text-center text-muted-foreground mt-2">
-                Comparing current Open WOs to Invoices closed in last 30 days
-             </p>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Revenue Comparison */}
+            <div className="h-64">
+                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600">Revenue (Value)</h4>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[comparisonData[1]]}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="name" hide />
+                        <YAxis tickFormatter={(val) => `$${val/1000}k`} />
+                        <Tooltip cursor={{fill: 'transparent'}} formatter={(val) => formatCurrency(val)} />
+                        <Legend />
+                        <Bar dataKey="open" name="WIP Potential Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (val) => formatCurrency(val) }} />
+                        <Bar dataKey="closed" name="Closed Revenue (30d)" fill="#10b981" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (val) => formatCurrency(val) }} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+          </div>
+          <p className="text-xs text-center text-muted-foreground mt-6">
+            Comparing currently active Work Orders against Invoices closed in the last 30 days. Revenue figures are pre-tax.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

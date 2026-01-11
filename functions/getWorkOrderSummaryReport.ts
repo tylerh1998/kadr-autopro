@@ -24,6 +24,17 @@ Deno.serve(async (req) => {
         invoice_date: { "$gte": thirtyDaysAgoStr }
     });
 
+    let closedRevenue = 0;
+    for (const inv of recentInvoices) {
+        // total_amount is typically tax inclusive, but usually sales reports want pre-tax?
+        // However, standard "Sales" usually refers to Revenue. 
+        // Let's stick to total_amount (which is revenue + tax usually) OR calculate pre-tax if we want consistency with WIP Revenue (which is pre-tax in my previous calc: wipRevenue.total = totalAmount - taxAmount).
+        // Let's calculate pre-tax for consistency.
+        const total = inv.total_amount || 0;
+        const tax = inv.tax_amount || 0;
+        closedRevenue += (total - tax);
+    }
+
     let summary = {
         totalWorkOrders: 0,
         totalEstimates: 0,
@@ -45,7 +56,8 @@ Deno.serve(async (req) => {
             "15-30 Days": 0,
             "30+ Days": 0
         },
-        closedLast30Days: recentInvoices.length
+        closedLast30Days: recentInvoices.length,
+        closedRevenueLast30Days: closedRevenue
     };
 
     const now = new Date();
