@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Printer, Search } from 'lucide-react';
+import { Loader2, Printer, Search, Send } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
 
 export default function ReportableLeviesReport() {
@@ -15,6 +15,7 @@ export default function ReportableLeviesReport() {
     endDate: format(endOfQuarter(new Date()), 'yyyy-MM-dd')
   });
   const [summary, setSummary] = useState({ totalQty: 0, totalAmount: 0 });
+  const [posting, setPosting] = useState(false);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -54,6 +55,32 @@ export default function ReportableLeviesReport() {
       startDate: format(startOfQuarter(lastQuarterDate), 'yyyy-MM-dd'),
       endDate: format(endOfQuarter(lastQuarterDate), 'yyyy-MM-dd')
     });
+  };
+
+  const handlePostToAP = async () => {
+    if (!window.confirm("Are you sure you want to post these levies to Accounts Payable? This will create supplier invoice lines for the current quarter.")) {
+      return;
+    }
+
+    setPosting(true);
+    try {
+      const response = await base44.functions.invoke('postLeviesToAP', {
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
+
+      if (response.data.success) {
+        alert(response.data.message);
+        fetchReport(); // Refresh data
+      } else {
+        alert('Failed to post to AP: ' + response.data.error);
+      }
+    } catch (error) {
+      console.error('Error posting to AP:', error);
+      alert('An error occurred while posting to AP.');
+    } finally {
+      setPosting(false);
+    }
   };
 
   const handlePrint = () => {
@@ -151,10 +178,21 @@ export default function ReportableLeviesReport() {
             Last Quarter
           </Button>
         </div>
-        <Button variant="outline" onClick={handlePrint}>
-          <Printer className="w-4 h-4 mr-2" />
-          Print
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="default" 
+            onClick={handlePostToAP} 
+            disabled={loading || posting || data.length === 0}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {posting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+            Post to AP
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="w-4 h-4 mr-2" />
+            Print
+          </Button>
+        </div>
       </div>
 
       {/* Styles removed as they are now handled in the HTML report window */}
