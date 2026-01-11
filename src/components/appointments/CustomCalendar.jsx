@@ -764,11 +764,12 @@ export default function CustomCalendar({
                           appointments={cluster.appointments}
                           earliestStart={cluster.earliestStart}
                           latestEnd={cluster.latestEnd}
+                          colorClass={getBayColorClass(bay)}
                           onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, bay, null, null); }}
                         />;
                       } else {
                         const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} useTechColors={true} />;
+                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(bay)} />;
                       }
 
                       // Mark all covered cells
@@ -852,11 +853,12 @@ export default function CustomCalendar({
                           appointments={cluster.appointments}
                           earliestStart={cluster.earliestStart}
                           latestEnd={cluster.latestEnd}
+                          colorClass={getBayColorClass(bay)}
                           onClick={(e) => { e.stopPropagation(); handleCellClick(cluster.appointments, cluster.earliestStart, cluster.latestEnd, bay, null, null); }}
                         />;
                       } else {
                         const event = cluster.appointments[0];
-                        cellContent = <SingleAppointmentCard event={event} useTechColors={true} />;
+                        cellContent = <SingleAppointmentCard event={event} colorClass={getBayColorClass(bay)} />;
                       }
 
                       // Mark all covered cells
