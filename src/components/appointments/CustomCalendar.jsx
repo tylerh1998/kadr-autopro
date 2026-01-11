@@ -61,12 +61,17 @@ export default function CustomCalendar({
       
       const tech = employees.find(emp => emp.id === event.employee_id);
 
+      let bayId = event.bay;
+      if (bayId === 'Floor') {
+          bayId = 'Main Floor';
+      }
+
       return {
         ...event,
         start: startDate,
         end: endDate,
         resourceId: event.employee_id,
-        bayId: event.bay,
+        bayId: bayId,
         tech: tech,
       };
     });
@@ -75,7 +80,9 @@ export default function CustomCalendar({
   const getBayColorClass = useCallback((bay) => {
     const bayColorMap = {
       'Floor': 'bg-blue-100 border-blue-300',
+      'Main Floor': 'bg-blue-100 border-blue-300',
       'Main Hoist': 'bg-green-100 border-green-300',
+      'North Floor': 'bg-cyan-100 border-cyan-300',
       'North Hoist': 'bg-amber-100 border-amber-300',
       'Outside': 'bg-purple-100 border-purple-300',
       'Other': 'bg-red-100 border-red-300',
@@ -98,7 +105,7 @@ export default function CustomCalendar({
     return slots;
   }, []);
 
-  const bayOptions = ['Floor', 'Main Hoist', 'North Hoist', 'Outside', 'Other'];
+  const bayOptions = ['Main Floor', 'Main Hoist', 'North Floor', 'North Hoist', 'Other'];
 
   const displayDays = useMemo(() => {
     if (view === 'day') {

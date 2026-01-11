@@ -114,7 +114,7 @@ export default function AppointmentForm({
   }, [formData.start_time, formData.reminders_email, formData.reminders_text, formData.reminder_days_before]);
 
   // Bay options with new names
-  const bayOptions = ['Floor', 'Main Hoist', 'North Hoist', 'Outside', 'Other'];
+  const bayOptions = ['Main Floor', 'Main Hoist', 'North Floor', 'North Hoist', 'Other'];
 
   // Helper function to get customer display name
   const getCustomerDisplayName = (customer) => {
@@ -269,7 +269,7 @@ export default function AppointmentForm({
             notes: appointment.notes || '',
             start_time: appointment.start_time || '',
             end_time: appointment.end_time || '',
-            bay: appointment.bay || '',
+            bay: appointment.bay === 'Floor' ? 'Main Floor' : (appointment.bay || ''),
             employee_id: appointment.employee_id || '',
             work_order_id: appointment.work_order_id || '',
             customer_id: appointment.customer_id || '',
