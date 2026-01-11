@@ -37,16 +37,34 @@ Deno.serve(async (req) => {
 
         if (roList.length > 0) {
             // Fetch Projects matching these ROs
-            const projectsRes = await base44.functions.invoke('workProProxy', { 
-                entityName: 'Project', 
-                method: 'list', 
-                limit: 1000,
-                query: { work_order: { "$in": roList } }
-            });
+            // Batch the project fetching to avoid URL length limits
+            const chunkArray = (arr, size) => {
+                return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+                    arr.slice(i * size, i * size + size)
+                );
+            };
 
-            if (projectsRes.data?.success) {
-                projects = projectsRes.data.data;
+            const roBatches = chunkArray(roList, 30); // 30 ROs per batch to be safe
+            console.log(`WorkOrderSummary: Fetching projects in ${roBatches.length} batches.`);
 
+            for (const batch of roBatches) {
+                try {
+                    const projectsRes = await base44.functions.invoke('workProProxy', { 
+                        entityName: 'Project', 
+                        method: 'list', 
+                        limit: 1000,
+                        query: { work_order: { "$in": batch } }
+                    });
+
+                    if (projectsRes.data?.success) {
+                        projects = [...projects, ...projectsRes.data.data];
+                    }
+                } catch (err) {
+                    console.error("Error fetching project batch:", err);
+                }
+            }
+
+            if (projects.length > 0) {
                 const projectIds = projects.map(p => p.id);
                 console.log(`WorkOrderSummary: Found ${projects.length} projects. IDs: ${JSON.stringify(projectIds.slice(0, 5))}...`);
 
