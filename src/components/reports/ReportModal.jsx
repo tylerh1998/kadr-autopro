@@ -36,7 +36,7 @@ const renderIcon = (iconName) => {
 };
 
 
-export default function ReportModal({ open, onClose, reportType }) {
+export default function ReportModal({ open, onClose, reportType, currentUser }) {
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [showPartsOnOrder, setShowPartsOnOrder] = useState(false);
   const [showOtherChargesBreakdown, setShowOtherChargesBreakdown] = useState(false);
@@ -206,7 +206,11 @@ export default function ReportModal({ open, onClose, reportType }) {
     } else if (report.reportKey === 'reportable_levies') {
       setShowReportableLevies(true);
     } else if (report.reportKey === 'sales_analysis') {
-      setShowSalesAnalysis(true);
+      if (currentUser?.role === 'admin' || ['lvl2_user', 'lvl3_user'].includes(currentUser?.access_level)) {
+        setShowSalesAnalysis(true);
+      } else {
+        alert("You do not have access to this report.");
+      }
     } else if (report.reportKey === 'inventory_valuation') {
       window.open(createPageUrl('InventoryValuation'), '_blank', 'width=1400,height=900');
       onClose();

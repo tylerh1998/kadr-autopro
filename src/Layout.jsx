@@ -947,6 +947,7 @@ const navigationItems = [
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
         reportType={reportType}
+        currentUser={user}
       />
 
       <OpenROModal
