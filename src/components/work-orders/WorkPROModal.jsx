@@ -78,6 +78,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     oil_type: '',
     air: '',
     cabin: '',
+    wind_wash: '',
     tire_rotation: '',
     tpms_reset: '',
     oil_change_type: '',
@@ -162,6 +163,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       oil_type: projectData.oil_type || '',
       air: projectData.air || '',
       cabin: projectData.cabin || '',
+      wind_wash: projectData.wind_wash || '',
       tire_rotation: projectData.tire_rotation || '',
       tpms_reset: projectData.tpms_reset || '',
       oil_change_type: projectData.oil_change_type || '',
@@ -379,6 +381,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         oil_type: formData.oil_type,
         air: formData.air,
         cabin: formData.cabin,
+        wind_wash: formData.wind_wash,
         tire_rotation: formData.tire_rotation,
         tpms_reset: formData.tpms_reset,
         oil_change_type: formData.oil_change_type,
@@ -937,8 +940,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                           </div>
                         </div>
 
-                        {/* Air Filter, Cabin Filter - 2 columns */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Air Filter, Cabin Filter, Wind Wash - 3 columns */}
+                        <div className="grid grid-cols-3 gap-3">
                           <div>
                             <Label className="text-xs font-medium text-slate-700">Air Filter</Label>
                             <Input
@@ -954,6 +957,15 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                               value={formData.cabin}
                               onChange={(e) => handleFieldChange('cabin', e.target.value)}
                               placeholder="Cabin filter details"
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium text-slate-700">Windshield Wash (Jugs)</Label>
+                            <Input
+                              value={formData.wind_wash}
+                              onChange={(e) => handleFieldChange('wind_wash', e.target.value)}
+                              placeholder="e.g. 1"
                               className="text-sm"
                             />
                           </div>
