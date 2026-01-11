@@ -22,28 +22,50 @@ Deno.serve(async (req) => {
     // Fetch WorkPRO Data (Projects and Time Sessions) for Labor Cost
     let projects = [];
     let timeSessions = [];
-    
+
     try {
-        // Increase limits and sort by newest first to ensure we catch active WO data
-        const [projectsRes, sessionsRes] = await Promise.all([
-            base44.functions.invoke('workProProxy', { 
+        // Collect all RO numbers to query efficiently
+        const roNumbers = new Set();
+        activeDocs.forEach(doc => {
+            if (doc.ro_number) roNumbers.add(doc.ro_number);
+            if (doc.wo_number) roNumbers.add(doc.wo_number);
+            // Also try stripped versions just in case
+            if (doc.ro_number) roNumbers.add(doc.ro_number.replace(/\D/g, ''));
+        });
+
+        const roList = Array.from(roNumbers).filter(Boolean);
+
+        if (roList.length > 0) {
+            // Fetch Projects matching these ROs
+            const projectsRes = await base44.functions.invoke('workProProxy', { 
                 entityName: 'Project', 
                 method: 'list', 
-                limit: 5000, 
-                sort: '-created_date' 
-            }),
-            base44.functions.invoke('workProProxy', { 
-                entityName: 'ProjectTimeSession', 
-                method: 'list', 
-                limit: 10000, 
-                sort: '-created_date' 
-            })
-        ]);
+                limit: 1000,
+                query: { work_order: { "$in": roList } }
+            });
 
-        if (projectsRes.data?.success) projects = projectsRes.data.data;
-        if (sessionsRes.data?.success) timeSessions = sessionsRes.data.data;
+            if (projectsRes.data?.success) {
+                projects = projectsRes.data.data;
 
-        console.log(`WorkOrderSummary: Fetched ${projects.length} projects and ${timeSessions.length} time sessions from WorkPRO.`);
+                const projectIds = projects.map(p => p.id);
+
+                if (projectIds.length > 0) {
+                    // Fetch Sessions matching these Projects
+                    const sessionsRes = await base44.functions.invoke('workProProxy', { 
+                        entityName: 'ProjectTimeSession', 
+                        method: 'list', 
+                        limit: 5000,
+                        query: { project_id: { "$in": projectIds } }
+                    });
+
+                    if (sessionsRes.data?.success) {
+                        timeSessions = sessionsRes.data.data;
+                    }
+                }
+            }
+
+            console.log(`WorkOrderSummary: Querying for ${roList.length} ROs. Found ${projects.length} projects and ${timeSessions.length} sessions.`);
+        }
     } catch (e) {
         console.warn("Failed to fetch WorkPRO data for labor cost:", e);
     }
