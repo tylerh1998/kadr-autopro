@@ -570,17 +570,38 @@ export default function CustomCalendar({
   };
 
   // MultiAppointmentCard component - shows duration and individual times
-  const MultiAppointmentCard = ({ appointments, earliestStart, latestEnd, onClick }) => {
+  const MultiAppointmentCard = ({ appointments, earliestStart, latestEnd, onClick, colorClass }) => {
     const totalCount = appointments.length;
     
+    // Extract border color for text/icon if possible, or default to slate/black
+    // Default blue style
+    let containerClass = "w-full bg-blue-50 border-2 border-blue-300 hover:bg-blue-100";
+    let iconClass = "text-blue-600";
+    let titleClass = "text-blue-800";
+    let dividerClass = "border-blue-200";
+
+    if (colorClass) {
+      // Assuming colorClass is like "bg-blue-100 border-blue-300"
+      // We want to make it look like a group card (maybe slightly different or just use the colors)
+      // Let's use the passed color class but add border-2
+      containerClass = `w-full border-2 rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden ${colorClass} hover:opacity-90`;
+      
+      // Attempt to derive text colors or just use slate-900
+      iconClass = "text-slate-700";
+      titleClass = "text-slate-900";
+      dividerClass = "border-slate-300";
+    } else {
+      containerClass += " rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden";
+    }
+
     return (
       <div
-        className="w-full bg-blue-50 border-2 border-blue-300 rounded p-1 cursor-pointer hover:bg-blue-100 transition-colors h-full flex flex-col justify-start overflow-hidden"
+        className={containerClass}
         onClick={onClick}
       >
         <div className="flex items-center gap-1 mb-1 px-1 flex-shrink-0">
-          <Users className="w-3 h-3 text-blue-600" />
-          <span className="font-semibold text-xs text-blue-800">
+          <Users className={`w-3 h-3 ${iconClass}`} />
+          <span className={`font-semibold text-xs ${titleClass}`}>
             {totalCount} Appts
           </span>
         </div>
@@ -593,7 +614,7 @@ export default function CustomCalendar({
             const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
 
             return (
-              <div key={event.id} className={`flex flex-col border-b border-blue-200 last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
+              <div key={event.id} className={`flex flex-col border-b ${dividerClass} last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
                 <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
                 <span className="text-xs text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
                 {event.bayId && (
@@ -1307,29 +1328,7 @@ export default function CustomCalendar({
         </div>
 
         <div className="flex items-center gap-4">
-          {view === 'day' && employees.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-xs font-semibold text-slate-600">Techs:</span>
-              <div className="flex items-center gap-3 flex-wrap">
-                {employees.map(tech => (
-                  <div key={tech.id} className="flex items-center gap-1.5">
-                    <div 
-                      className="w-3 h-3 rounded-full border-2"
-                      style={{ 
-                        backgroundColor: techColors[tech.id] + '40',
-                        borderColor: techColors[tech.id]
-                      }}
-                    ></div>
-                    <span className="text-xs text-slate-700">
-                      {tech.first_name} {tech.last_name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {view === 'week' && (
+          {(view === 'week' || view === 'day') && (
             <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
               <span className="text-xs font-semibold text-slate-600">Bays:</span>
               <div className="flex items-center gap-3 flex-wrap">
