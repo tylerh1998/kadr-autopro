@@ -79,13 +79,13 @@ export default function CustomCalendar({
 
   const getBayColorClass = useCallback((bay) => {
     const bayColorMap = {
-      'Floor': 'bg-blue-100 border-blue-300',
-      'Main Floor': 'bg-blue-100 border-blue-300',
+      'Floor': 'bg-orange-100 border-orange-300',
+      'Main Floor': 'bg-orange-100 border-orange-300',
       'Main Hoist': 'bg-green-100 border-green-300',
-      'North Floor': 'bg-cyan-100 border-cyan-300',
-      'North Hoist': 'bg-amber-100 border-amber-300',
-      'Outside': 'bg-purple-100 border-purple-300',
-      'Other': 'bg-red-100 border-red-300',
+      'North Floor': 'bg-purple-100 border-purple-300',
+      'North Hoist': 'bg-yellow-100 border-yellow-300',
+      'Outside': 'bg-slate-100 border-slate-300',
+      'Other': 'bg-pink-100 border-pink-300',
     };
     return bayColorMap[bay] || 'bg-slate-100 border-slate-300';
   }, []);
