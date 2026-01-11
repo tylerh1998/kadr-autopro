@@ -618,7 +618,9 @@ export default function CustomCalendar({
                 <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
                 <span className="text-xs text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
                 {event.bayId && (
-                  <span className="text-xs text-black">{event.bayId}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border w-fit mt-0.5 ${getBayColorClass(event.bayId)} text-slate-800`}>
+                    {event.bayId}
+                  </span>
                 )}
               </div>
             );
