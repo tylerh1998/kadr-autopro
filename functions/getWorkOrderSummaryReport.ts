@@ -26,14 +26,13 @@ Deno.serve(async (req) => {
 
     let closedRevenue = 0;
     for (const inv of recentInvoices) {
-        // total_amount is typically tax inclusive, but usually sales reports want pre-tax?
-        // However, standard "Sales" usually refers to Revenue. 
-        // Let's stick to total_amount (which is revenue + tax usually) OR calculate pre-tax if we want consistency with WIP Revenue (which is pre-tax in my previous calc: wipRevenue.total = totalAmount - taxAmount).
-        // Let's calculate pre-tax for consistency.
-        const total = inv.total_amount || 0;
-        const tax = inv.tax_amount || 0;
+        // Ensure values are numbers
+        const total = parseFloat(inv.total_amount) || 0;
+        const tax = parseFloat(inv.tax_amount) || 0;
         closedRevenue += (total - tax);
     }
+    
+    console.log(`Found ${recentInvoices.length} invoices in last 30 days. Total Closed Revenue: ${closedRevenue}`);
 
     let summary = {
         totalWorkOrders: 0,
@@ -87,12 +86,12 @@ Deno.serve(async (req) => {
         }
 
         // Revenue Breakdown
-        // Using fields for consistency
-        const partsRev = doc.parts_total || 0;
-        const laborRev = doc.labor_total || 0;
-        const suppliesRev = doc.shop_supply_total || 0;
-        const totalAmount = doc.total_amount || 0;
-        const taxAmount = doc.tax_amount || 0;
+        // Using fields for consistency - Force number conversion
+        const partsRev = parseFloat(doc.parts_total) || 0;
+        const laborRev = parseFloat(doc.labor_total) || 0;
+        const suppliesRev = parseFloat(doc.shop_supply_total) || 0;
+        const totalAmount = parseFloat(doc.total_amount) || 0;
+        const taxAmount = parseFloat(doc.tax_amount) || 0;
         
         // Calculate Other Charges as residual: Total - Tax - (Parts + Labor + Supplies)
         // Note: total_amount includes tax.
