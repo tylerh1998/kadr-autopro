@@ -14,6 +14,44 @@ Deno.serve(async (req) => {
       stage: { "$in": ["work_order", "estimate"] }
     });
 
+    // Fetch Employees (for pay rates)
+    const employees = await base44.entities.Employee.list();
+    const employeeMap = new Map(employees.map(e => [e.full_name?.toLowerCase(), e]));
+    const employeeEmailMap = new Map(employees.map(e => [e.email?.toLowerCase(), e]));
+
+    // Fetch WorkPRO Data (Projects and Time Sessions) for Labor Cost
+    let projects = [];
+    let timeSessions = [];
+    
+    try {
+        const [projectsRes, sessionsRes] = await Promise.all([
+            base44.functions.invoke('workProProxy', { entityName: 'Project', method: 'list', limit: 500 }),
+            base44.functions.invoke('workProProxy', { entityName: 'ProjectTimeSession', method: 'list', limit: 2000 })
+        ]);
+
+        if (projectsRes.data?.success) projects = projectsRes.data.data;
+        if (sessionsRes.data?.success) timeSessions = sessionsRes.data.data;
+    } catch (e) {
+        console.warn("Failed to fetch WorkPRO data for labor cost:", e);
+    }
+
+    // Create lookup maps for WorkPRO data
+    const woToProjectMap = new Map();
+    projects.forEach(p => {
+        if (p.work_order) {
+            if (!woToProjectMap.has(p.work_order)) woToProjectMap.set(p.work_order, []);
+            woToProjectMap.get(p.work_order).push(p.id);
+        }
+    });
+
+    const projectToSessionsMap = new Map();
+    timeSessions.forEach(s => {
+        if (s.project_id) {
+            if (!projectToSessionsMap.has(s.project_id)) projectToSessionsMap.set(s.project_id, []);
+            projectToSessionsMap.get(s.project_id).push(s);
+        }
+    });
+
     // Fetch Invoiced WOs from last 30 days for comparison
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -47,8 +85,9 @@ Deno.serve(async (req) => {
         },
         wipCost: {
             parts: 0,
-            labor: 0 // We'll try to estimate or sum manual logs
+            labor: 0
         },
+        totalLaborHours: 0,
         aging: {
             "0-7 Days": 0,
             "8-14 Days": 0,
@@ -126,14 +165,62 @@ Deno.serve(async (req) => {
                     if (!isLabor) {
                          summary.inventoryValueInWIP += totalCost;
                          summary.wipCost.parts += totalCost;
-                    } else {
-                         summary.wipCost.labor += totalCost;
                     }
+                    // Note: We ignore line item cost for labor here, as we calculate actuals below
                 });
             } catch (e) {
                 console.error("Error parsing line items for WO", doc.id);
             }
         }
+
+        // Calculate Actual Labor Cost & Hours
+        let woLaborHours = 0;
+        let woLaborCost = 0;
+
+        // A. Manual Logs
+        if (doc.tech_time) {
+            try {
+                const manualLogs = JSON.parse(doc.tech_time);
+                manualLogs.forEach(log => {
+                    const hours = parseFloat(log.hours) || 0;
+                    woLaborHours += hours;
+
+                    const techName = log.tech_name?.toLowerCase();
+                    const emp = employeeMap.get(techName);
+                    if (emp && emp.pay_rate) {
+                        woLaborCost += hours * emp.pay_rate;
+                    }
+                });
+            } catch (e) {
+                console.error("Error parsing tech_time for WO", doc.id);
+            }
+        }
+
+        // B. WorkPRO Logs
+        const roNum = doc.ro_number || doc.wo_number;
+        const projectIds = woToProjectMap.get(roNum) || [];
+        
+        projectIds.forEach(projectId => {
+            const sessions = projectToSessionsMap.get(projectId) || [];
+            sessions.forEach(session => {
+                const hours = parseFloat(session.total_hours) || 0;
+                woLaborHours += hours;
+
+                const empName = session.employee_name?.toLowerCase();
+                let emp = employeeMap.get(empName);
+                
+                if (!emp && session.user_email) {
+                    emp = employeeEmailMap.get(session.user_email.toLowerCase());
+                }
+
+                if (emp && emp.pay_rate) {
+                    woLaborCost += hours * emp.pay_rate;
+                }
+            });
+        });
+
+        summary.wipCost.labor += woLaborCost;
+        summary.totalLaborHours += woLaborHours;
     }
 
     // Calculate Margins
