@@ -24,13 +24,26 @@ Deno.serve(async (req) => {
     let timeSessions = [];
     
     try {
+        // Increase limits and sort by newest first to ensure we catch active WO data
         const [projectsRes, sessionsRes] = await Promise.all([
-            base44.functions.invoke('workProProxy', { entityName: 'Project', method: 'list', limit: 500 }),
-            base44.functions.invoke('workProProxy', { entityName: 'ProjectTimeSession', method: 'list', limit: 2000 })
+            base44.functions.invoke('workProProxy', { 
+                entityName: 'Project', 
+                method: 'list', 
+                limit: 5000, 
+                sort: '-created_date' 
+            }),
+            base44.functions.invoke('workProProxy', { 
+                entityName: 'ProjectTimeSession', 
+                method: 'list', 
+                limit: 10000, 
+                sort: '-created_date' 
+            })
         ]);
 
         if (projectsRes.data?.success) projects = projectsRes.data.data;
         if (sessionsRes.data?.success) timeSessions = sessionsRes.data.data;
+
+        console.log(`WorkOrderSummary: Fetched ${projects.length} projects and ${timeSessions.length} time sessions from WorkPRO.`);
     } catch (e) {
         console.warn("Failed to fetch WorkPRO data for labor cost:", e);
     }
