@@ -61,6 +61,7 @@ import InventoryPartsReturnModal from "@/components/inventory/InventoryPartsRetu
 import InventoryHistoryModal from "@/components/inventory/InventoryHistoryModal";
 import LocationModal from "@/components/inventory/LocationModal";
 import InventoryTransactionsModal from "@/components/inventory/InventoryTransactionsModal";
+import MergeInventoryModal from "@/components/inventory/MergeInventoryModal";
 
 export default function InventoryListPage() {
   const navigate = useNavigate();
@@ -81,6 +82,7 @@ export default function InventoryListPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
@@ -430,6 +432,11 @@ export default function InventoryListPage() {
           onClose={() => setIsTransactionsModalOpen(false)}
           inventoryItemId={selectedItem?.id}
         />
+        <MergeInventoryModal
+          open={isMergeModalOpen}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMergeComplete={fetchInventory}
+        />
 
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6 no-print">
@@ -454,6 +461,16 @@ export default function InventoryListPage() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Inventory
               </Button>
+              {currentUser?.role === 'admin' && (
+                <Button 
+                  onClick={() => setIsMergeModalOpen(true)} 
+                  variant="outline"
+                  className="bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                >
+                  <PackagePlus className="h-4 w-4 mr-2" />
+                  Merge Items
+                </Button>
+              )}
               <Button onClick={handlePrint} variant="outline">
                 <Printer className="h-4 w-4 mr-2" />
                 Print
