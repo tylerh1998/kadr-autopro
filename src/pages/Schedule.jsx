@@ -24,11 +24,11 @@ export default function SchedulePage() {
 
   // Color mappings
   const bayColors = {
-    'Bay 1': '#3B82F6', // Blue
-    'Bay 2': '#10B981', // Green
-    'Bay 3': '#F59E0B', // Amber
-    'Alignment Rack': '#8B5CF6', // Purple
-    'Mobile': '#EF4444', // Red
+    'Main Floor': '#3B82F6', // Blue
+    'Main Hoist': '#10B981', // Green
+    'North Floor': '#06b6d4', // Cyan
+    'North Hoist': '#F59E0B', // Amber
+    'Other': '#EF4444', // Red
   };
 
   // Generate tech colors dynamically with more distinct, vibrant colors
@@ -104,8 +104,12 @@ export default function SchedulePage() {
           displayTitle = 'Appointment';
         }
 
+        let bay = app.bay;
+        if (bay === 'Floor') bay = 'Main Floor';
+
         return {
           ...app,
+          bay: bay,
           start: new Date(app.start_time),
           end: new Date(app.end_time),
           tech: techMap.get(app.employee_id),
