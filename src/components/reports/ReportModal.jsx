@@ -12,6 +12,7 @@ import InventoryOnOrder from './InventoryOnOrder'; // Import the new component (
 import OtherChargesBreakdownReport from './OtherChargesBreakdownReport';
 import ReportableLeviesReport from './ReportableLeviesReport';
 import SalesAnalysisReport from './SalesAnalysisReport';
+import WorkOrderSummaryReport from './WorkOrderSummaryReport';
 
 // Map icon names to Lucide React components
 const iconMap = {
@@ -42,6 +43,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
   const [showOtherChargesBreakdown, setShowOtherChargesBreakdown] = useState(false);
   const [showReportableLevies, setShowReportableLevies] = useState(false);
   const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
+  const [showWorkOrderSummary, setShowWorkOrderSummary] = useState(false);
 
   const getReportOptions = () => {
     switch (reportType) {
@@ -183,6 +185,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       setShowOtherChargesBreakdown(false);
       setShowReportableLevies(false);
       setShowSalesAnalysis(false);
+      setShowWorkOrderSummary(false);
     }
   }, [open, reportType]);
 
@@ -192,6 +195,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
     setShowOtherChargesBreakdown(false);
     setShowReportableLevies(false);
     setShowSalesAnalysis(false);
+    setShowWorkOrderSummary(false);
   };
 
   const handleReportClick = (report) => {
@@ -211,6 +215,8 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       } else {
         alert("You do not have access to this report.");
       }
+    } else if (report.reportKey === 'wo_summary') {
+      setShowWorkOrderSummary(true);
     } else if (report.reportKey === 'inventory_valuation') {
       window.open(createPageUrl('InventoryValuation'), '_blank', 'width=1400,height=900');
       onClose();
@@ -231,16 +237,16 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); setSelectedReportId(null); setShowPartsOnOrder(false); setShowOtherChargesBreakdown(false); } }}>
-      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary ? 'max-w-7xl' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || selectedReportId) && (
+            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || selectedReportId) && (
               <Button variant="ghost" size="icon" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <FileText className="w-5 h-5" />
-            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : getCategoryTitle(reportType)}
+            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : showWorkOrderSummary ? 'Work Order Summary' : getCategoryTitle(reportType)}
           </DialogTitle>
         </DialogHeader>
 
@@ -253,6 +259,8 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
             <ReportableLeviesReport />
           ) : showSalesAnalysis ? (
             <SalesAnalysisReport />
+          ) : showWorkOrderSummary ? (
+            <WorkOrderSummaryReport />
           ) : (
             <div className="space-y-3">
               {getReportOptions().map((report) => (
@@ -260,7 +268,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                   key={report.reportKey || report.name}
                   onClick={() => handleReportClick(report)}
                   className={`flex justify-between items-center p-4 border rounded-lg transition-colors ${
-                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis'
+                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary'
                       ? 'cursor-pointer hover:bg-slate-50'
                       : 'cursor-not-allowed bg-slate-50 text-slate-400'
                   }`}
@@ -272,7 +280,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                       {report.description && <p className="text-sm text-slate-500">{report.description}</p>}
                     </div>
                   </div>
-                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis') && <ChevronRight className="w-5 h-5" />}
+                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary') && <ChevronRight className="w-5 h-5" />}
                 </div>
               ))}
             </div>
