@@ -49,9 +49,18 @@ Deno.serve(async (req) => {
                 // For list, params can be sort order and limit passed in the body or separate properties
                 const listSort = params?.sort || sort;
                 const listLimit = params?.limit || limit;
+                const listSkip = params?.skip;
+                const listQuery = params?.query;
                 
-                if (listSort) url += `?sort=${encodeURIComponent(listSort)}`;
-                if (listLimit) url += `${listSort ? '&' : '?'}limit=${listLimit}`;
+                const queryParams = new URLSearchParams();
+                if (listSort) queryParams.append('sort', listSort);
+                if (listLimit) queryParams.append('limit', listLimit);
+                if (listSkip) queryParams.append('skip', listSkip);
+                if (listQuery) queryParams.append('query', JSON.stringify(listQuery));
+                
+                if (Array.from(queryParams).length > 0) {
+                    url += `?${queryParams.toString()}`;
+                }
                 
                 options.method = 'GET';
                 const listResponse = await fetch(url, options);
