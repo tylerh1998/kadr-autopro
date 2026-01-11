@@ -48,27 +48,58 @@ Deno.serve(async (req) => {
                 projects = projectsRes.data.data;
 
                 const projectIds = projects.map(p => p.id);
+                console.log(`WorkOrderSummary: Found ${projects.length} projects. IDs: ${JSON.stringify(projectIds.slice(0, 5))}...`);
 
                 if (projectIds.length > 0) {
                     // Fetch Sessions matching these Projects
-                    const sessionsRes = await base44.functions.invoke('workProProxy', { 
-                        entityName: 'ProjectTimeSession', 
-                        method: 'list', 
-                        limit: 5000,
-                        query: { project_id: { "$in": projectIds } }
-                    });
+                    // Batch the session fetching to avoid URL length limits if many projects
+                    const chunkArray = (arr, size) => {
+                        return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+                            arr.slice(i * size, i * size + size)
+                        );
+                    };
 
-                    if (sessionsRes.data?.success) {
-                        timeSessions = sessionsRes.data.data;
+                    const batches = chunkArray(projectIds, 50); // 50 IDs per batch
+                    console.log(`WorkOrderSummary: Fetching sessions in ${batches.length} batches.`);
+
+                    for (const batch of batches) {
+                        try {
+                            const sessionsRes = await base44.functions.invoke('workProProxy', { 
+                                entityName: 'ProjectTimeSession', 
+                                method: 'list', 
+                                limit: 5000,
+                                query: { project_id: { "$in": batch } }
+                            });
+
+                            if (sessionsRes.data?.success) {
+                                timeSessions = [...timeSessions, ...sessionsRes.data.data];
+                            }
+                        } catch (err) {
+                            console.error("Error fetching session batch:", err);
+                        }
                     }
                 }
             }
 
             console.log(`WorkOrderSummary: Querying for ${roList.length} ROs. Found ${projects.length} projects and ${timeSessions.length} sessions.`);
-        }
-    } catch (e) {
-        console.warn("Failed to fetch WorkPRO data for labor cost:", e);
-    }
+
+            // Debug: Log some mappings
+            const sampleWO = activeDocs.find(d => d.wo_number || d.ro_number);
+            if (sampleWO) {
+                const ro = sampleWO.ro_number || sampleWO.wo_number;
+                const matchingProjects = projects.filter(p => p.work_order === ro || p.work_order === ro.replace(/\D/g, ''));
+                console.log(`Debug WO ${ro}: Found ${matchingProjects.length} projects.`);
+                matchingProjects.forEach(p => {
+                    const pSessions = timeSessions.filter(s => s.project_id === p.id);
+                    const totalHours = pSessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
+                    console.log(`  - Project ${p.id}: ${pSessions.length} sessions, ${totalHours} hours`);
+                });
+            }
+
+            }
+            } catch (e) {
+            console.warn("Failed to fetch WorkPRO data for labor cost:", e);
+            }
 
     // Create lookup maps for WorkPRO data
     const woToProjectMap = new Map();
