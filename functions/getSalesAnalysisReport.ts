@@ -30,26 +30,78 @@ Deno.serve(async (req) => {
     let projects = [];
     let timeSessions = [];
     
-    try {
-        const [projectsRes, sessionsRes] = await Promise.all([
-            base44.functions.invoke('workProProxy', { entityName: 'Project', method: 'list', limit: 2000 }),
-            base44.functions.invoke('workProProxy', { entityName: 'ProjectTimeSession', method: 'list', limit: 5000 })
-        ]);
+    // Helper for normalizing RO/WO numbers
+    const normalize = (str) => String(str || '').replace(/\D/g, '');
 
-        if (projectsRes.data?.success) projects = projectsRes.data.data;
-        if (sessionsRes.data?.success) timeSessions = sessionsRes.data.data;
+    try {
+        console.log("SalesAnalysis: Starting direct WorkPRO fetch...");
+        
+        const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
+        const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
+        const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+
+        if (!WORKPRO_API_KEY) {
+            console.error("WORKPRO_API_KEY is not set");
+        } else {
+            const headers = { 
+                'api_key': WORKPRO_API_KEY,
+                'Content-Type': 'application/json'
+            };
+
+            // A. Fetch ALL recent projects directly
+            // Using a high limit to capture as much as possible for analysis period
+            // If the analysis period is very old, this might miss data if limit is hit. 
+            // But usually analysis is recent. 
+            // Ideally we could filter by date created > startDate but Projects created_date might differ from Invoice Date.
+            // Let's stick to grabbing recent 5000 for now.
+            const projectsUrl = `${API_BASE_URL}/Project?limit=5000&sort=-created_date`;
+            const pRes = await fetch(projectsUrl, { headers });
+            
+            if (pRes.ok) {
+                const pData = await pRes.json();
+                projects = Array.isArray(pData) ? pData : (pData?.records || []);
+                console.log(`SalesAnalysis: Fetched ${projects.length} total projects direct.`);
+            } else {
+                console.error(`Failed to fetch projects direct: ${pRes.status} ${await pRes.text()}`);
+            }
+
+            // B. Fetch ALL recent time sessions directly
+            const sessionsUrl = `${API_BASE_URL}/ProjectTimeSession?limit=5000&sort=-created_date`;
+            const sRes = await fetch(sessionsUrl, { headers });
+            
+            if (sRes.ok) {
+                const sData = await sRes.json();
+                timeSessions = Array.isArray(sData) ? sData : (sData?.records || []);
+                console.log(`SalesAnalysis: Fetched ${timeSessions.length} total sessions direct.`);
+            } else {
+                console.error(`Failed to fetch sessions direct: ${sRes.status} ${await sRes.text()}`);
+            }
+        }
+
     } catch (e) {
         console.warn("Failed to fetch WorkPRO data for labor cost:", e);
     }
 
     // Create lookup maps for WorkPRO data
-    // Map WO ID (or RO Number) to Project IDs
+    // Map WO ID (or RO Number) to Project IDs using robust matching
     const woToProjectMap = new Map();
+    
     projects.forEach(p => {
-        if (p.work_order) {
-            if (!woToProjectMap.has(p.work_order)) woToProjectMap.set(p.work_order, []);
-            woToProjectMap.get(p.work_order).push(p.id);
-        }
+        // Map both raw and normalized work_order/name to the project ID
+        const refs = [p.work_order, p.name].filter(Boolean);
+        
+        refs.forEach(ref => {
+             // Map raw
+             if (!woToProjectMap.has(ref)) woToProjectMap.set(ref, []);
+             if (!woToProjectMap.get(ref).includes(p.id)) woToProjectMap.get(ref).push(p.id);
+
+             // Map normalized
+             const norm = normalize(ref);
+             if (norm !== ref && norm.length > 0) {
+                 if (!woToProjectMap.has(norm)) woToProjectMap.set(norm, []);
+                 if (!woToProjectMap.get(norm).includes(p.id)) woToProjectMap.get(norm).push(p.id);
+             }
+        });
     });
 
     // Map Project ID to Sessions
