@@ -178,8 +178,30 @@ Deno.serve(async (req) => {
         }
 
         // B. WorkPRO Logs
-        const roNum = wo.ro_number || wo.wo_number; // Project links usually via RO number
-        const projectIds = woToProjectMap.get(roNum) || [];
+        const roNum = wo.ro_number;
+        const woNum = wo.wo_number;
+        
+        // Try matching both raw and normalized numbers
+        let projectIds = [];
+        
+        const tryMatch = (ref) => {
+            if (!ref) return;
+            // Try raw
+            if (woToProjectMap.has(ref)) {
+                projectIds.push(...woToProjectMap.get(ref));
+            }
+            // Try normalized
+            const norm = normalize(ref);
+            if (norm && woToProjectMap.has(norm)) {
+                projectIds.push(...woToProjectMap.get(norm));
+            }
+        };
+
+        tryMatch(roNum);
+        tryMatch(woNum);
+        
+        // Deduplicate project IDs
+        projectIds = [...new Set(projectIds)];
         
         projectIds.forEach(projectId => {
             const sessions = projectToSessionsMap.get(projectId) || [];
