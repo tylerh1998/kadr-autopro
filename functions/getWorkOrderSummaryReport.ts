@@ -27,55 +27,62 @@ Deno.serve(async (req) => {
     const normalize = (str) => String(str || '').replace(/\D/g, '');
 
     try {
-        console.log("WorkOrderSummary: Starting broad WorkPRO fetch with extensive logging...");
-
-        // 1. Fetch ALL recent projects (limit 5000)
-        // We do this because targeted queries seem to be failing or data is mismatched
-        const projectsRes = await base44.functions.invoke('workProProxy', { 
-            entityName: 'Project', 
-            method: 'list', 
-            limit: 5000,
-            sort: '-created_date'
-        });
-
-        if (projectsRes.data?.success) {
-            projects = projectsRes.data.data || [];
-        }
-
-        console.log(`WorkOrderSummary: Fetched ${projects.length} total projects from WorkPRO.`);
+        console.log("WorkOrderSummary: Starting direct WorkPRO fetch...");
         
-        // DEBUG: Log sample project data
-        if (projects.length > 0) {
-            console.log("DEBUG SAMPLE PROJECTS:", JSON.stringify(projects.slice(0, 3).map(p => ({
-                id: p.id,
-                name: p.name,
-                work_order: p.work_order,
-                created_date: p.created_date
-            }))));
-        }
+        const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
+        const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
+        const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
 
-        // 2. Fetch ALL recent time sessions (limit 5000)
-        // Fetching sessions for *matched* projects would be better, but let's be safe first
-        const sessionsRes = await base44.functions.invoke('workProProxy', { 
-            entityName: 'ProjectTimeSession', 
-            method: 'list', 
-            limit: 5000,
-            sort: '-created_date'
-        });
+        if (!WORKPRO_API_KEY) {
+            console.error("WORKPRO_API_KEY is not set");
+        } else {
+            const headers = { 
+                'api_key': WORKPRO_API_KEY,
+                'Content-Type': 'application/json'
+            };
 
-        if (sessionsRes.data?.success) {
-            timeSessions = sessionsRes.data.data || [];
-        }
+            // 1. Fetch ALL recent projects directly
+            const projectsUrl = `${API_BASE_URL}/Project?limit=5000&sort=-created_date`;
+            const pRes = await fetch(projectsUrl, { headers });
+            
+            if (pRes.ok) {
+                const pData = await pRes.json();
+                projects = Array.isArray(pData) ? pData : (pData?.records || []);
+                console.log(`WorkOrderSummary: Fetched ${projects.length} total projects direct.`);
+                
+                // DEBUG: Log sample project data
+                if (projects.length > 0) {
+                    console.log("DEBUG SAMPLE PROJECTS:", JSON.stringify(projects.slice(0, 3).map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        work_order: p.work_order,
+                        created_date: p.created_date
+                    }))));
+                }
+            } else {
+                console.error(`Failed to fetch projects direct: ${pRes.status} ${await pRes.text()}`);
+            }
 
-        console.log(`WorkOrderSummary: Fetched ${timeSessions.length} total time sessions from WorkPRO.`);
-        
-        // DEBUG: Log sample session data
-        if (timeSessions.length > 0) {
-            console.log("DEBUG SAMPLE SESSIONS:", JSON.stringify(timeSessions.slice(0, 3).map(s => ({
-                id: s.id,
-                project_id: s.project_id,
-                hours: s.total_hours
-            }))));
+            // 2. Fetch ALL recent time sessions directly
+            const sessionsUrl = `${API_BASE_URL}/ProjectTimeSession?limit=5000&sort=-created_date`;
+            const sRes = await fetch(sessionsUrl, { headers });
+            
+            if (sRes.ok) {
+                const sData = await sRes.json();
+                timeSessions = Array.isArray(sData) ? sData : (sData?.records || []);
+                console.log(`WorkOrderSummary: Fetched ${timeSessions.length} total sessions direct.`);
+                
+                // DEBUG: Log sample session data
+                if (timeSessions.length > 0) {
+                    console.log("DEBUG SAMPLE SESSIONS:", JSON.stringify(timeSessions.slice(0, 3).map(s => ({
+                        id: s.id,
+                        project_id: s.project_id,
+                        hours: s.total_hours
+                    }))));
+                }
+            } else {
+                console.error(`Failed to fetch sessions direct: ${sRes.status} ${await sRes.text()}`);
+            }
         }
 
     } catch (e) {
