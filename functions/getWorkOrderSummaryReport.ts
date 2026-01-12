@@ -32,14 +32,21 @@ Deno.serve(async (req) => {
         // 1. Collect all potential Work Order identifiers
         const identifiers = new Set();
         activeDocs.forEach(doc => {
-            if (doc.ro_number) {
-                identifiers.add(doc.ro_number);
-                identifiers.add(normalize(doc.ro_number)); // Add stripped version "12345"
-            }
-            if (doc.wo_number) {
-                identifiers.add(doc.wo_number);
-                identifiers.add(normalize(doc.wo_number));
-            }
+            // User instruction: WorkPRO work_order field is WO#####
+            // We ensure we search for "WO" + digits
+            const addVariants = (val) => {
+                if (!val) return;
+                identifiers.add(val); // Raw
+                const norm = normalize(val); // "12345"
+                if (norm) {
+                    identifiers.add(norm);
+                    identifiers.add(`WO${norm}`); // "WO12345"
+                    identifiers.add(`RO${norm}`); // "RO12345"
+                }
+            };
+
+            addVariants(doc.ro_number);
+            addVariants(doc.wo_number);
         });
         
         // Remove empty strings
