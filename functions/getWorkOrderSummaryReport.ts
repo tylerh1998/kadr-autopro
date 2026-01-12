@@ -24,111 +24,54 @@ Deno.serve(async (req) => {
     let timeSessions = [];
 
     try {
-        // Collect all RO numbers to query efficiently
-        const roNumbers = new Set();
-        activeDocs.forEach(doc => {
-            if (doc.ro_number) roNumbers.add(doc.ro_number);
-            if (doc.wo_number) roNumbers.add(doc.wo_number);
-            // Also try stripped versions just in case
-            if (doc.ro_number) roNumbers.add(doc.ro_number.replace(/\D/g, ''));
-        });
+        // Fetch ALL recent projects and sessions to avoid query syntax issues
+        // and perform robust matching in memory.
+        console.log("WorkOrderSummary: Fetching all recent WorkPRO projects and sessions...");
+        
+        const [projectsRes, sessionsRes] = await Promise.all([
+            base44.functions.invoke('workProProxy', { 
+                entityName: 'Project', 
+                method: 'list', 
+                limit: 3000,
+                sort: '-created_date'
+            }),
+            base44.functions.invoke('workProProxy', { 
+                entityName: 'ProjectTimeSession', 
+                method: 'list', 
+                limit: 5000,
+                sort: '-created_date'
+            })
+        ]);
 
-        const roList = Array.from(roNumbers).filter(Boolean);
+        if (projectsRes.data?.success) {
+            projects = projectsRes.data.data;
+        }
+        if (sessionsRes.data?.success) {
+            timeSessions = sessionsRes.data.data;
+        }
 
-        if (roList.length > 0) {
-            // Fetch Projects matching these ROs
-            // Batch the project fetching to avoid URL length limits
-            const chunkArray = (arr, size) => {
-                return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-                    arr.slice(i * size, i * size + size)
-                );
-            };
+        console.log(`WorkOrderSummary: Fetched ${projects.length} projects and ${timeSessions.length} sessions.`);
 
-            const roBatches = chunkArray(roList, 30); // 30 ROs per batch to be safe
-            console.log(`WorkOrderSummary: Fetching projects in ${roBatches.length} batches.`);
-
-            for (const batch of roBatches) {
-                try {
-                    const projectsRes = await base44.functions.invoke('workProProxy', { 
-                        entityName: 'Project', 
-                        method: 'list', 
-                        limit: 1000,
-                        params: {
-                            query: { work_order: { "$in": batch } }
-                        }
-                    });
-
-                    if (projectsRes.data?.success) {
-                        projects = [...projects, ...projectsRes.data.data];
-                    }
-                } catch (err) {
-                    console.error("Error fetching project batch:", err);
-                }
-            }
-
-            if (projects.length > 0) {
-                const projectIds = projects.map(p => p.id);
-                console.log(`WorkOrderSummary: Found ${projects.length} projects. IDs: ${JSON.stringify(projectIds.slice(0, 5))}...`);
-
-                if (projectIds.length > 0) {
-                    // Fetch Sessions matching these Projects
-                    // Batch the session fetching to avoid URL length limits if many projects
-                    const chunkArray = (arr, size) => {
-                        return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-                            arr.slice(i * size, i * size + size)
-                        );
-                    };
-
-                    const batches = chunkArray(projectIds, 50); // 50 IDs per batch
-                    console.log(`WorkOrderSummary: Fetching sessions in ${batches.length} batches.`);
-
-                    for (const batch of batches) {
-                        try {
-                            const sessionsRes = await base44.functions.invoke('workProProxy', { 
-                                entityName: 'ProjectTimeSession', 
-                                method: 'list', 
-                                limit: 5000,
-                                params: {
-                                    query: { project_id: { "$in": batch } }
-                                }
-                            });
-
-                            if (sessionsRes.data?.success) {
-                                timeSessions = [...timeSessions, ...sessionsRes.data.data];
-                            }
-                        } catch (err) {
-                            console.error("Error fetching session batch:", err);
-                        }
-                    }
-                }
-            }
-
-            console.log(`WorkOrderSummary: Querying for ${roList.length} ROs. Found ${projects.length} projects and ${timeSessions.length} sessions.`);
-
-            // Debug: Log some mappings
-            const sampleWO = activeDocs.find(d => d.wo_number || d.ro_number);
-            if (sampleWO) {
-                const ro = sampleWO.ro_number || sampleWO.wo_number;
-                const matchingProjects = projects.filter(p => p.work_order === ro || p.work_order === ro.replace(/\D/g, ''));
-                console.log(`Debug WO ${ro}: Found ${matchingProjects.length} projects.`);
-                matchingProjects.forEach(p => {
-                    const pSessions = timeSessions.filter(s => s.project_id === p.id);
-                    const totalHours = pSessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
-                    console.log(`  - Project ${p.id}: ${pSessions.length} sessions, ${totalHours} hours`);
-                });
-            }
-
-            }
-            } catch (e) {
-            console.warn("Failed to fetch WorkPRO data for labor cost:", e);
-            }
+    } catch (e) {
+        console.warn("Failed to fetch WorkPRO data for labor cost:", e);
+    }
 
     // Create lookup maps for WorkPRO data
-    const woToProjectMap = new Map();
+    // We match by cleaning up numbers (removing non-digits) to handle formatting differences
+    // e.g. "RO-1234" vs "1234"
+    // Helper function moved to top scope to avoid reference error
+    const normalize = (str) => String(str || '').replace(/\D/g, '');
+    
+    const woToProjectMap = new Map(); // Maps normalized RO/WO to array of Project IDs
+    
     projects.forEach(p => {
-        if (p.work_order) {
-            if (!woToProjectMap.has(p.work_order)) woToProjectMap.set(p.work_order, []);
-            woToProjectMap.get(p.work_order).push(p.id);
+        const woRef = p.work_order || p.name; // Fallback to name if work_order is empty
+        if (woRef) {
+            const cleanRef = normalize(woRef);
+            if (cleanRef) {
+                if (!woToProjectMap.has(cleanRef)) woToProjectMap.set(cleanRef, []);
+                woToProjectMap.get(cleanRef).push(p.id);
+            }
         }
     });
 
@@ -285,8 +228,23 @@ Deno.serve(async (req) => {
         }
 
         // B. WorkPRO Logs
-        const roNum = doc.ro_number || doc.wo_number;
-        const projectIds = woToProjectMap.get(roNum) || [];
+        const roNum = doc.ro_number;
+        const woNum = doc.wo_number;
+        
+        // Try matching both numbers
+        const cleanRo = normalize(roNum);
+        const cleanWo = normalize(woNum);
+        
+        let projectIds = [];
+        if (cleanRo && woToProjectMap.has(cleanRo)) {
+            projectIds = [...projectIds, ...woToProjectMap.get(cleanRo)];
+        }
+        if (cleanWo && cleanWo !== cleanRo && woToProjectMap.has(cleanWo)) {
+            projectIds = [...projectIds, ...woToProjectMap.get(cleanWo)];
+        }
+        
+        // Deduplicate project IDs
+        projectIds = [...new Set(projectIds)];
         
         projectIds.forEach(projectId => {
             const sessions = projectToSessionsMap.get(projectId) || [];
