@@ -27,83 +27,55 @@ Deno.serve(async (req) => {
     const normalize = (str) => String(str || '').replace(/\D/g, '');
 
     try {
-        console.log("WorkOrderSummary: Starting targeted WorkPRO fetch...");
+        console.log("WorkOrderSummary: Starting broad WorkPRO fetch with extensive logging...");
 
-        // 1. Collect all potential Work Order identifiers
-        const identifiers = new Set();
-        activeDocs.forEach(doc => {
-            // User instruction: WorkPRO work_order field is WO#####
-            // We ensure we search for "WO" + digits
-            const addVariants = (val) => {
-                if (!val) return;
-                identifiers.add(val); // Raw
-                const norm = normalize(val); // "12345"
-                if (norm) {
-                    identifiers.add(norm);
-                    identifiers.add(`WO${norm}`); // "WO12345"
-                    identifiers.add(`RO${norm}`); // "RO12345"
-                }
-            };
-
-            addVariants(doc.ro_number);
-            addVariants(doc.wo_number);
+        // 1. Fetch ALL recent projects (limit 5000)
+        // We do this because targeted queries seem to be failing or data is mismatched
+        const projectsRes = await base44.functions.invoke('workProProxy', { 
+            entityName: 'Project', 
+            method: 'list', 
+            limit: 5000,
+            sort: '-created_date'
         });
+
+        if (projectsRes.data?.success) {
+            projects = projectsRes.data.data || [];
+        }
+
+        console.log(`WorkOrderSummary: Fetched ${projects.length} total projects from WorkPRO.`);
         
-        // Remove empty strings
-        const searchTerms = Array.from(identifiers).filter(Boolean);
-        console.log(`WorkOrderSummary: Searching for ${searchTerms.length} RO identifiers`);
+        // DEBUG: Log sample project data
+        if (projects.length > 0) {
+            console.log("DEBUG SAMPLE PROJECTS:", JSON.stringify(projects.slice(0, 3).map(p => ({
+                id: p.id,
+                name: p.name,
+                work_order: p.work_order,
+                created_date: p.created_date
+            }))));
+        }
 
-        if (searchTerms.length > 0) {
-            // 2. Fetch Projects matching these identifiers (Batched)
-            const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
-            const projectBatches = chunk(searchTerms, 50);
+        // 2. Fetch ALL recent time sessions (limit 5000)
+        // Fetching sessions for *matched* projects would be better, but let's be safe first
+        const sessionsRes = await base44.functions.invoke('workProProxy', { 
+            entityName: 'ProjectTimeSession', 
+            method: 'list', 
+            limit: 5000,
+            sort: '-created_date'
+        });
 
-            for (const batch of projectBatches) {
-                const res = await base44.functions.invoke('workProProxy', { 
-                    entityName: 'Project', 
-                    method: 'list',
-                    params: {
-                        query: {
-                            // Search both work_order field and name field
-                            "$or": [
-                                { work_order: { "$in": batch } },
-                                { name: { "$in": batch } }
-                            ]
-                        }
-                    },
-                    limit: 1000
-                });
-                
-                if (res.data?.success && Array.isArray(res.data.data)) {
-                    projects = [...projects, ...res.data.data];
-                }
-            }
-            
-            // Remove duplicate projects
-            projects = Array.from(new Map(projects.map(p => [p.id, p])).values());
-            console.log(`WorkOrderSummary: Found ${projects.length} matching projects`);
+        if (sessionsRes.data?.success) {
+            timeSessions = sessionsRes.data.data || [];
+        }
 
-            // 3. Fetch Time Sessions for these projects (Batched)
-            if (projects.length > 0) {
-                const projectIds = projects.map(p => p.id);
-                const sessionBatches = chunk(projectIds, 50);
-
-                for (const batch of sessionBatches) {
-                    const res = await base44.functions.invoke('workProProxy', { 
-                        entityName: 'ProjectTimeSession', 
-                        method: 'list',
-                        params: {
-                            query: { project_id: { "$in": batch } }
-                        },
-                        limit: 5000
-                    });
-
-                    if (res.data?.success && Array.isArray(res.data.data)) {
-                        timeSessions = [...timeSessions, ...res.data.data];
-                    }
-                }
-            }
-            console.log(`WorkOrderSummary: Found ${timeSessions.length} time sessions`);
+        console.log(`WorkOrderSummary: Fetched ${timeSessions.length} total time sessions from WorkPRO.`);
+        
+        // DEBUG: Log sample session data
+        if (timeSessions.length > 0) {
+            console.log("DEBUG SAMPLE SESSIONS:", JSON.stringify(timeSessions.slice(0, 3).map(s => ({
+                id: s.id,
+                project_id: s.project_id,
+                hours: s.total_hours
+            }))));
         }
 
     } catch (e) {
