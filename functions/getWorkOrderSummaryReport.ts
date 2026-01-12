@@ -23,56 +23,106 @@ Deno.serve(async (req) => {
     let projects = [];
     let timeSessions = [];
 
+    // Helper for normalizing RO/WO numbers
+    const normalize = (str) => String(str || '').replace(/\D/g, '');
+
     try {
-        // Fetch ALL recent projects and sessions to avoid query syntax issues
-        // and perform robust matching in memory.
-        console.log("WorkOrderSummary: Fetching all recent WorkPRO projects and sessions...");
+        console.log("WorkOrderSummary: Starting targeted WorkPRO fetch...");
+
+        // 1. Collect all potential Work Order identifiers
+        const identifiers = new Set();
+        activeDocs.forEach(doc => {
+            if (doc.ro_number) {
+                identifiers.add(doc.ro_number);
+                identifiers.add(normalize(doc.ro_number)); // Add stripped version "12345"
+            }
+            if (doc.wo_number) {
+                identifiers.add(doc.wo_number);
+                identifiers.add(normalize(doc.wo_number));
+            }
+        });
         
-        const [projectsRes, sessionsRes] = await Promise.all([
-            base44.functions.invoke('workProProxy', { 
-                entityName: 'Project', 
-                method: 'list', 
-                limit: 3000,
-                sort: '-created_date'
-            }),
-            base44.functions.invoke('workProProxy', { 
-                entityName: 'ProjectTimeSession', 
-                method: 'list', 
-                limit: 5000,
-                sort: '-created_date'
-            })
-        ]);
+        // Remove empty strings
+        const searchTerms = Array.from(identifiers).filter(Boolean);
+        console.log(`WorkOrderSummary: Searching for ${searchTerms.length} RO identifiers`);
 
-        if (projectsRes.data?.success) {
-            projects = projectsRes.data.data;
-        }
-        if (sessionsRes.data?.success) {
-            timeSessions = sessionsRes.data.data;
-        }
+        if (searchTerms.length > 0) {
+            // 2. Fetch Projects matching these identifiers (Batched)
+            const chunk = (arr, size) => Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size));
+            const projectBatches = chunk(searchTerms, 50);
 
-        console.log(`WorkOrderSummary: Fetched ${projects.length} projects and ${timeSessions.length} sessions.`);
+            for (const batch of projectBatches) {
+                const res = await base44.functions.invoke('workProProxy', { 
+                    entityName: 'Project', 
+                    method: 'list',
+                    params: {
+                        query: {
+                            // Search both work_order field and name field
+                            "$or": [
+                                { work_order: { "$in": batch } },
+                                { name: { "$in": batch } }
+                            ]
+                        }
+                    },
+                    limit: 1000
+                });
+                
+                if (res.data?.success && Array.isArray(res.data.data)) {
+                    projects = [...projects, ...res.data.data];
+                }
+            }
+            
+            // Remove duplicate projects
+            projects = Array.from(new Map(projects.map(p => [p.id, p])).values());
+            console.log(`WorkOrderSummary: Found ${projects.length} matching projects`);
+
+            // 3. Fetch Time Sessions for these projects (Batched)
+            if (projects.length > 0) {
+                const projectIds = projects.map(p => p.id);
+                const sessionBatches = chunk(projectIds, 50);
+
+                for (const batch of sessionBatches) {
+                    const res = await base44.functions.invoke('workProProxy', { 
+                        entityName: 'ProjectTimeSession', 
+                        method: 'list',
+                        params: {
+                            query: { project_id: { "$in": batch } }
+                        },
+                        limit: 5000
+                    });
+
+                    if (res.data?.success && Array.isArray(res.data.data)) {
+                        timeSessions = [...timeSessions, ...res.data.data];
+                    }
+                }
+            }
+            console.log(`WorkOrderSummary: Found ${timeSessions.length} time sessions`);
+        }
 
     } catch (e) {
         console.warn("Failed to fetch WorkPRO data for labor cost:", e);
     }
 
     // Create lookup maps for WorkPRO data
-    // We match by cleaning up numbers (removing non-digits) to handle formatting differences
-    // e.g. "RO-1234" vs "1234"
-    // Helper function moved to top scope to avoid reference error
-    const normalize = (str) => String(str || '').replace(/\D/g, '');
-    
     const woToProjectMap = new Map(); // Maps normalized RO/WO to array of Project IDs
     
     projects.forEach(p => {
-        const woRef = p.work_order || p.name; // Fallback to name if work_order is empty
-        if (woRef) {
-            const cleanRef = normalize(woRef);
-            if (cleanRef) {
-                if (!woToProjectMap.has(cleanRef)) woToProjectMap.set(cleanRef, []);
-                woToProjectMap.get(cleanRef).push(p.id);
-            }
-        }
+        // Map both raw and normalized work_order/name to the project ID
+        // This ensures we catch "RO-1234" even if we search for "1234"
+        const refs = [p.work_order, p.name].filter(Boolean);
+        
+        refs.forEach(ref => {
+             // Map raw
+             if (!woToProjectMap.has(ref)) woToProjectMap.set(ref, []);
+             if (!woToProjectMap.get(ref).includes(p.id)) woToProjectMap.get(ref).push(p.id);
+
+             // Map normalized
+             const norm = normalize(ref);
+             if (norm !== ref && norm.length > 0) {
+                 if (!woToProjectMap.has(norm)) woToProjectMap.set(norm, []);
+                 if (!woToProjectMap.get(norm).includes(p.id)) woToProjectMap.get(norm).push(p.id);
+             }
+        });
     });
 
     const projectToSessionsMap = new Map();
@@ -231,17 +281,24 @@ Deno.serve(async (req) => {
         const roNum = doc.ro_number;
         const woNum = doc.wo_number;
         
-        // Try matching both numbers
-        const cleanRo = normalize(roNum);
-        const cleanWo = normalize(woNum);
-        
+        // Try matching both raw and normalized numbers
         let projectIds = [];
-        if (cleanRo && woToProjectMap.has(cleanRo)) {
-            projectIds = [...projectIds, ...woToProjectMap.get(cleanRo)];
-        }
-        if (cleanWo && cleanWo !== cleanRo && woToProjectMap.has(cleanWo)) {
-            projectIds = [...projectIds, ...woToProjectMap.get(cleanWo)];
-        }
+        
+        const tryMatch = (ref) => {
+            if (!ref) return;
+            // Try raw
+            if (woToProjectMap.has(ref)) {
+                projectIds.push(...woToProjectMap.get(ref));
+            }
+            // Try normalized
+            const norm = normalize(ref);
+            if (norm && woToProjectMap.has(norm)) {
+                projectIds.push(...woToProjectMap.get(norm));
+            }
+        };
+
+        tryMatch(roNum);
+        tryMatch(woNum);
         
         // Deduplicate project IDs
         projectIds = [...new Set(projectIds)];
