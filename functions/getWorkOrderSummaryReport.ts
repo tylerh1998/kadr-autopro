@@ -53,7 +53,9 @@ Deno.serve(async (req) => {
                         entityName: 'Project', 
                         method: 'list', 
                         limit: 1000,
-                        query: { work_order: { "$in": batch } }
+                        params: {
+                            query: { work_order: { "$in": batch } }
+                        }
                     });
 
                     if (projectsRes.data?.success) {
@@ -86,7 +88,9 @@ Deno.serve(async (req) => {
                                 entityName: 'ProjectTimeSession', 
                                 method: 'list', 
                                 limit: 5000,
-                                query: { project_id: { "$in": batch } }
+                                params: {
+                                    query: { project_id: { "$in": batch } }
+                                }
                             });
 
                             if (sessionsRes.data?.success) {
