@@ -136,12 +136,21 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Autofill GL Account based on source_type
-      if (field === 'source_type') {
-        if (value === 'fee') newData.gl_account = '5150';
-        else if (value === 'interest') newData.gl_account = '5152';
-        else if (value === 'payment_card_fee') newData.gl_account = '5151';
-        else if (value === 'registries') newData.gl_account = '4101';
+      // Helper to determine active values
+      const type = field === 'source_type' ? value : newData.source_type;
+      const debit = parseFloat(field === 'debit_amount' ? value : newData.debit_amount) || 0;
+      const credit = parseFloat(field === 'credit_amount' ? value : newData.credit_amount) || 0;
+
+      // Autofill GL Account logic
+      // We run this if source_type changes, OR if amounts change while source_type is 'interest'
+      if (field === 'source_type' || (type === 'interest' && (field === 'debit_amount' || field === 'credit_amount'))) {
+        if (type === 'fee') newData.gl_account = '5150';
+        else if (type === 'payment_card_fee') newData.gl_account = '5151';
+        else if (type === 'registries') newData.gl_account = '4101';
+        else if (type === 'interest') {
+          if (debit > 0) newData.gl_account = '5152';
+          else if (credit > 0) newData.gl_account = '4013';
+        }
       }
       
       return newData;
@@ -335,18 +344,20 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                 <Checkbox
                   id="cleared"
                   checked={formData.cleared}
+                  disabled={true}
                   onCheckedChange={(checked) => handleChange('cleared', checked)}
                 />
-                <Label htmlFor="cleared" className="cursor-pointer">Cleared</Label>
+                <Label htmlFor="cleared" className="cursor-not-allowed opacity-70">Cleared</Label>
               </div>
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="reconciled"
                   checked={formData.reconciled}
+                  disabled={true}
                   onCheckedChange={(checked) => handleChange('reconciled', checked)}
                 />
-                <Label htmlFor="reconciled" className="cursor-pointer">Reconciled</Label>
+                <Label htmlFor="reconciled" className="cursor-not-allowed opacity-70">Reconciled</Label>
               </div>
             </div>
 
