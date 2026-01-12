@@ -133,7 +133,19 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Autofill GL Account based on source_type
+      if (field === 'source_type') {
+        if (value === 'fee') newData.gl_account = '5150';
+        else if (value === 'interest') newData.gl_account = '5152';
+        else if (value === 'payment_card_fee') newData.gl_account = '5151';
+        else if (value === 'registries') newData.gl_account = '4101';
+      }
+      
+      return newData;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -289,11 +301,10 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manual">Manual Entry</SelectItem>
-                    <SelectItem value="payment">Payment</SelectItem>
-                    <SelectItem value="deposit">Deposit</SelectItem>
                     <SelectItem value="fee">Bank Fee</SelectItem>
                     <SelectItem value="interest">Interest</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="payment_card_fee">Payment Card Fee</SelectItem>
+                    <SelectItem value="registries">Registries</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
