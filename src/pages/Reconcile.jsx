@@ -284,16 +284,7 @@ export default function ReconcilePage() {
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
   };
 
-  const transactionsWithBalance = useMemo(() => {
-    let runningBalance = 0;
-    return filteredTransactions.map(tx => {
-      runningBalance += (tx.credit_amount || 0) - (tx.debit_amount || 0);
-      return {
-        ...tx,
-        calculatedBalance: runningBalance
-      };
-    });
-  }, [filteredTransactions]);
+
 
   const handleApplyMatches = (matchedIds) => {
     setSelectedTransactions(prev => {
@@ -487,11 +478,10 @@ export default function ReconcilePage() {
                           <th className="text-left p-3 font-medium">Reference</th>
                           <th className="text-right p-3 font-medium">Debit</th>
                           <th className="text-right p-3 font-medium">Credit</th>
-                          <th className="text-right p-3 font-medium">Balance</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {transactionsWithBalance.map((tx) => (
+                        {filteredTransactions.map((tx) => (
                           <tr 
                             key={tx.id} 
                             className={`border-b cursor-pointer transition-colors ${selectedTransactions.has(tx.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
@@ -513,9 +503,6 @@ export default function ReconcilePage() {
                             </td>
                             <td className="p-3 text-right text-green-600">
                               {tx.credit_amount > 0 ? `$${tx.credit_amount.toFixed(2)}` : '-'}
-                            </td>
-                            <td className="p-3 text-right font-semibold">
-                              ${tx.calculatedBalance.toFixed(2)}
                             </td>
                           </tr>
                         ))}
