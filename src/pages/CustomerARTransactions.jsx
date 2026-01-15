@@ -50,6 +50,7 @@ export default function CustomerARTransactionsPage() {
   const [transactionsTabData, setTransactionsTabData] = useState([]);
   const [paymentsTabData, setPaymentsTabData] = useState([]);
   const [currentBalance, setCurrentBalance] = useState(0);
+  const [openingBalance, setOpeningBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
