@@ -114,6 +114,7 @@ export default function CustomerARTransactionsPage() {
         setTransactionsTabData(response.data.transactionsTab);
         setPaymentsTabData(response.data.paymentsTab);
         setCurrentBalance(response.data.allTimeBalance);
+        setOpeningBalance(response.data.openingBalance || 0);
       } else {
         console.error('Failed to load transactions:', response.data.error);
       }
