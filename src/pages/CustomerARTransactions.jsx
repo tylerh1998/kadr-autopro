@@ -562,7 +562,24 @@ export default function CustomerARTransactionsPage() {
           </tr>
         </thead>
         <tbody>
-          {data.length === 0 ? (
+          {!showPaymentDetails && Math.abs(openingBalance) > 0.005 && (
+            <tr className="bg-slate-50/80 border-b border-slate-200 font-medium italic">
+              <td className="p-3 text-slate-500">
+                {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'Prior'}
+              </td>
+              <td className="p-3 text-slate-500"></td>
+              <td className="p-3 text-slate-900">Previous Balance</td>
+              <td className="p-3 text-right"></td>
+              <td className="p-3 text-right"></td>
+              <td className="p-3 text-right">
+                <span className={`${openingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  ${Math.abs(openingBalance).toFixed(2)}
+                  {openingBalance < 0 && ' CR'}
+                </span>
+              </td>
+            </tr>
+          )}
+          {data.length === 0 && (!showPaymentDetails && Math.abs(openingBalance) < 0.005) ? (
             <tr>
               <td colSpan={showPaymentDetails ? 5 : 6} className="text-center py-12"> {/* Adjusted colSpan */}
                 <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
