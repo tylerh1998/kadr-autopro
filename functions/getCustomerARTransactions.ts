@@ -58,14 +58,32 @@ Deno.serve(async (req) => {
         const workOrder = allWorkOrders.find(wo => wo && wo.id === payment.work_order_id);
         const description = workOrder?.description || payment.notes || `${(payment.payment_method || 'unknown').replace('_', ' ').toUpperCase()} Payment`;
 
+        // Calculate unapplied amount
+        let appliedAmount = 0;
+        if (payment.ar_applyto) {
+            const entries = payment.ar_applyto.split(',');
+            entries.forEach(entry => {
+                const parts = entry.split(':');
+                if (parts.length >= 2) {
+                    appliedAmount += parseFloat(parts[1]) || 0;
+                }
+            });
+        }
+        
+        const totalAmount = payment.amount || 0;
+        // Float safety
+        const unapplied = Math.max(0, totalAmount - appliedAmount);
+        // If unapplied < 0.01, treat as 0
+        const effectiveUnapplied = unapplied < 0.01 ? 0 : unapplied;
+
         transactions.push({
           date: payment.payment_date || new Date().toISOString(),
           type: 'Payment',
           description: description,
           reference: payment.reference || '',
           amount: 0,
-          payment: payment.amount || 0,
-          balance: 0,
+          payment: totalAmount,
+          balance: -effectiveUnapplied, // Negative balance for credit
           source: 'payment',
           sourceId: payment.id || 'unknown',
           ar_pmt: true,
