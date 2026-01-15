@@ -113,8 +113,10 @@ Deno.serve(async (req) => {
     const transactionsTabOnly = transactions.filter(t => t.ar_pmt !== true);
     const allTimeBalance = transactionsTabOnly.reduce((total, t) => total + (t.balance || 0), 0);
 
-    // Apply date filters
+    // Calculate Opening Balance and Apply date filters
     let filtered = transactions;
+    let openingBalance = 0;
+
     if (dateFrom || dateTo) {
       const fromDate = dateFrom ? new Date(dateFrom) : null;
       if (fromDate) fromDate.setHours(0, 0, 0, 0);
@@ -122,6 +124,12 @@ Deno.serve(async (req) => {
       const toDate = dateTo ? new Date(dateTo) : null;
       if (toDate) toDate.setHours(23, 59, 59, 999);
       
+      if (fromDate) {
+        openingBalance = transactionsTabOnly
+          .filter(t => new Date(t.date) < fromDate)
+          .reduce((total, t) => total + (t.balance || 0), 0);
+      }
+
       filtered = filtered.filter(t => {
         const transactionDate = new Date(t.date);
         return (!fromDate || transactionDate >= fromDate) && (!toDate || transactionDate <= toDate);
