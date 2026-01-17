@@ -166,7 +166,8 @@ Deno.serve(async (req) => {
             "30+ Days": 0
         },
         closedLast30Days: recentInvoices.length,
-        closedRevenueLast30Days: closedRevenue
+        closedRevenueLast30Days: closedRevenue,
+        statusBreakdown: {}
     };
 
     const now = new Date();
