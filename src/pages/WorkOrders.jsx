@@ -50,6 +50,8 @@ export default function WorkOrdersPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFlushConfirm, setShowFlushConfirm] = useState(false);
+  const [showVoidConfirm, setShowVoidConfirm] = useState(false);
+  const [voidTarget, setVoidTarget] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   
   // WorkPRO state
@@ -828,6 +830,26 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleVoidClick = (workOrder) => {
+    setVoidTarget(workOrder);
+    setShowVoidConfirm(true);
+  };
+
+  const handleVoidConfirm = async () => {
+    if (!voidTarget) return;
+    
+    try {
+      await WorkOrder.update(voidTarget.id, { stage: 'void' });
+      loadData();
+    } catch (error) {
+      console.error('Error voiding work order:', error);
+      alert('Failed to void work order. Please try again.');
+    } finally {
+      setShowVoidConfirm(false);
+      setVoidTarget(null);
+    }
+  };
+
   const getCurrentSort = () => {
     switch(activeTab) {
       case "estimates": return estimatesSort;
@@ -1037,6 +1059,28 @@ export default function WorkOrdersPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Void/Expire Confirmation Dialog */}
+        <Dialog open={showVoidConfirm} onOpenChange={setShowVoidConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Expire/Void Estimate</DialogTitle>
+              <DialogDescription className="text-red-600 font-medium space-y-2">
+                <p>Are you sure you want to mark this Estimate as Expired/Void?</p>
+                <p>This is a permanent change.</p>
+                <p>It will remove it from the estimate tabs but it will still be visible as void under the vehicle history.</p>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowVoidConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleVoidConfirm}>
+                Confirm Void
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* New Work Order Creation Modal */}
         <NewWorkOrderModal
           open={showNewWorkOrderModal}
@@ -1241,6 +1285,7 @@ export default function WorkOrdersPage() {
                 onSelect={handleEdit}
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
+                onVoid={handleVoidClick}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
                 currentSort={estimatesSort}
@@ -1264,6 +1309,7 @@ export default function WorkOrdersPage() {
                 onSelect={handleEdit}
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
+                onVoid={handleVoidClick}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
                 currentSort={wipSort}
@@ -1283,6 +1329,7 @@ export default function WorkOrdersPage() {
                 onSelect={handleEdit}
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
+                onVoid={handleVoidClick}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
                 currentSort={invoicesSort}
@@ -1574,6 +1621,7 @@ export default function WorkOrdersPage() {
                   kanbanColumnSizes={kanbanColumnSizes}
                   handleEdit={handleEdit}
                   refreshData={loadData}
+                  onVoid={handleVoidClick}
                 />
               </div>
             </TabsContent>
