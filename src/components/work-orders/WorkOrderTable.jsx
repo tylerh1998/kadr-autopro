@@ -8,13 +8,15 @@ import {
   ArrowUp,
   ArrowDown,
   Copy,
-  Car as CarIcon
+  Car as CarIcon,
+  Ban
 } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
+  ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
   Tooltip,
@@ -68,7 +70,8 @@ export default function WorkOrderTable({
   currentUser,
   workOrderStatuses,
   currentSort,
-  onSortChange
+  onSortChange,
+  onVoid
 }) {
   const getCustomerName = (customerId) => {
     const customer = customers.find(c => c.id === customerId);
@@ -317,6 +320,21 @@ export default function WorkOrderTable({
                         <CarIcon className="mr-2 h-4 w-4" />
                         Copy VIN
                       </ContextMenuItem>
+                      {workOrder.stage === 'estimate' && onVoid && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onVoid(workOrder);
+                            }}
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Expired/Void
+                          </ContextMenuItem>
+                        </>
+                      )}
                     </ContextMenuContent>
                   </ContextMenu>
                 );
