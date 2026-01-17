@@ -18,7 +18,8 @@ import {
   ChevronRight,
   FileText,
   Lock,
-  Copy
+  Copy,
+  Ban
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import WorkOrderTable from "./WorkOrderTable";
@@ -76,6 +77,7 @@ function WorkOrderList({
   onSelect,
   onEdit,   
   onStatusUpdate,
+  onVoid,
   currentUser,
   workOrderStatuses,
   currentSort,
@@ -179,6 +181,7 @@ function WorkOrderList({
         workOrderStatuses={workOrderStatuses}
         currentSort={currentSort}
         onSortChange={onSortChange}
+        onVoid={onVoid}
       />
     );
   }
@@ -337,6 +340,21 @@ function WorkOrderList({
                   <Car className="mr-2 h-4 w-4" />
                   Copy VIN
                 </ContextMenuItem>
+                {workOrder.stage === 'estimate' && onVoid && (
+                  <>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onVoid(workOrder);
+                      }}
+                      className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                    >
+                      <Ban className="mr-2 h-4 w-4" />
+                      Expired/Void
+                    </ContextMenuItem>
+                  </>
+                )}
               </ContextMenuContent>
             </ContextMenu>
           );
