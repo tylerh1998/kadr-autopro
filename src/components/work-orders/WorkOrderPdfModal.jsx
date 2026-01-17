@@ -114,13 +114,8 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                 <DialogHeader className="p-4 border-b flex flex-row items-center justify-between">
                     <DialogTitle>Work Order Report</DialogTitle>
                     <div className="flex gap-2 mr-8">
-                        <Button variant="outline" size="sm" onClick={handlePrint} disabled={!blobUrl}>
-                            <Printer className="w-4 h-4 mr-2" />
-                            Print
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleDownload} disabled={!blobUrl}>
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
+                        <Button variant="outline" size="sm" onClick={onClose}>
+                            Close
                         </Button>
                     </div>
                 </DialogHeader>
