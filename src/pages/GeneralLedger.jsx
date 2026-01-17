@@ -411,7 +411,6 @@ export default function GeneralLedgerPage() {
                             <AccountRow 
                               key={account.id} 
                               account={account} 
-                              accountBalances={accountBalances}
                               onAccountClick={handleAccountClick}
                             />
                           ))}
