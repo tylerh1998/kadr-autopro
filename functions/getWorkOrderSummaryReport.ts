@@ -319,8 +319,9 @@ Deno.serve(async (req) => {
         summary.totalLaborHours += woLaborHours;
 
         // Aggregate by Status
-        const statusId = doc.status;
-        const statusName = statusMap.get(statusId) || 'Unassigned';
+        const statusVal = doc.status;
+        // Check if statusVal is an ID in our map, otherwise assume it's the name itself
+        const statusName = statusMap.get(statusVal) || statusVal || 'Unassigned';
 
         if (!summary.statusBreakdown[statusName]) {
             summary.statusBreakdown[statusName] = {
