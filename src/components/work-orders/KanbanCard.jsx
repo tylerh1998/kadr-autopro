@@ -105,6 +105,22 @@ export default function KanbanCard({ wo, index, customers, vehicles, handleEdit,
                 </div>
             </div>
             </Card>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              {wo.stage === 'estimate' && onVoid && (
+                <ContextMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVoid(wo);
+                  }}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Expired/Void
+                </ContextMenuItem>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
         </div>
       )}
     </Draggable>
