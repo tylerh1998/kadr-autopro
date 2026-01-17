@@ -11,7 +11,6 @@ import { format, subDays } from 'date-fns';
 
 export default function GeneralLedgerPage() {
   const [accounts, setAccounts] = useState([]);
-  const [accountBalances, setAccountBalances] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 365), 'yyyy-MM-dd'));
