@@ -19,6 +19,10 @@ Deno.serve(async (req) => {
     const employeeMap = new Map(employees.map(e => [e.full_name?.toLowerCase(), e]));
     const employeeEmailMap = new Map(employees.map(e => [e.email?.toLowerCase(), e]));
 
+    // Fetch WorkOrderStatus
+    const statuses = await base44.entities.WorkOrderStatus.list();
+    const statusMap = new Map(statuses.map(s => [s.id, s.name]));
+
     // Fetch WorkPRO Data (Projects and Time Sessions) for Labor Cost
     let projects = [];
     let timeSessions = [];
