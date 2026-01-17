@@ -108,18 +108,16 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
 
   // Release lock on close
   useEffect(() => {
-    return () => {
-      if (!open && lockAcquired && currentUser && bankAccountId) {
-        // Release lock when modal closes
-        BankAccount.update(bankAccountId, {
-          locked_by_user: null,
-          locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
-        });
-        setLockAcquired(false);
-      }
-    };
+    if (!open && lockAcquired && currentUser && bankAccountId) {
+      // Release lock when modal closes
+      BankAccount.update(bankAccountId, {
+        locked_by_user: null,
+        locked_timestamp: null
+      }).catch(error => {
+        console.error('Error releasing lock:', error);
+      });
+      setLockAcquired(false);
+    }
   }, [open, lockAcquired, currentUser, bankAccountId]);
 
   const loadChartOfAccounts = async () => {
