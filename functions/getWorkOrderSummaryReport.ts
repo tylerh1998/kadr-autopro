@@ -317,6 +317,33 @@ Deno.serve(async (req) => {
 
         summary.wipCost.labor += woLaborCost;
         summary.totalLaborHours += woLaborHours;
+
+        // Aggregate by Status
+        const statusId = doc.status;
+        const statusName = statusMap.get(statusId) || 'Unassigned';
+
+        if (!summary.statusBreakdown[statusName]) {
+            summary.statusBreakdown[statusName] = {
+                partsCost: 0,
+                partsRevenue: 0,
+                laborCost: 0,
+                laborRevenue: 0,
+                otherCharges: 0,
+                shopSupplies: 0,
+                gst: 0,
+                total: 0
+            };
+        }
+
+        const breakdown = summary.statusBreakdown[statusName];
+        breakdown.partsCost += woPartsCost;
+        breakdown.partsRevenue += partsRev;
+        breakdown.laborCost += woLaborCost;
+        breakdown.laborRevenue += laborRev;
+        breakdown.otherCharges += otherRev;
+        breakdown.shopSupplies += suppliesRev;
+        breakdown.gst += taxAmount;
+        breakdown.total += totalAmount;
     }
 
     // Calculate Margins
