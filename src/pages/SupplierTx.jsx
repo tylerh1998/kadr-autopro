@@ -1628,8 +1628,8 @@ export default function SupplierTxPage() {
                                                                         <TooltipProvider>
                                                                             <Tooltip>
                                                                                 <TooltipTrigger asChild>
-                                                                                    <div className="inline-flex items-center justify-center w-8 h-8"> {/* Mimics button size */}
-                                                                                        <Lock className="w-4 h-4 text-slate-400" />
+                                                                                    <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md"> {/* Mimics button size */}
+                                                                                        <Lock className="w-4 h-4 text-orange-600" />
                                                                                     </div>
                                                                                 </TooltipTrigger>
                                                                                 <TooltipContent>
