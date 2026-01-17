@@ -72,21 +72,20 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
   };
 
   const handleVoid = () => {
-    // Validation: No lines can contain an inventory item id
-    if (lineItems) {
-      const hasParts = lineItems.some(item => item.inventory_item_id);
-      if (hasParts) {
-        alert("cannot void a work order with parts on it, please remove the parts and try again.");
-        return;
+    // Only check for inventory parts if it's NOT an estimate
+    if (workOrder?.stage !== 'estimate') {
+      if (lineItems) {
+        const hasParts = lineItems.some(item => item.inventory_item_id);
+        if (hasParts) {
+          alert("Cannot void a work order with parts on it, please remove the parts and try again.");
+          return;
+        }
       }
     }
 
     if (window.confirm("Are you sure you want to void this repair order?")) {
       onSave({ stage: 'void' });
       onClose();
-      // If the intent was to close the whole window/tab (as per user instruction "closes the window"), 
-      // we might need to rely on the parent or user action, but onClose closes this modal.
-      // Assuming user meant the modal window.
     }
   };
 
