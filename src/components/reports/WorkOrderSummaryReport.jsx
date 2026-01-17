@@ -247,6 +247,61 @@ export default function WorkOrderSummaryReport() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Status Breakdown Table */}
+      {data.statusBreakdown && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Breakdown by Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Parts Cost</TableHead>
+                    <TableHead className="text-right">Parts Revenue</TableHead>
+                    <TableHead className="text-right">Labour Cost</TableHead>
+                    <TableHead className="text-right">Labour Revenue</TableHead>
+                    <TableHead className="text-right">Other Charges</TableHead>
+                    <TableHead className="text-right">Shop Supplies</TableHead>
+                    <TableHead className="text-right">GST</TableHead>
+                    <TableHead className="text-right font-bold">Total (Inc. Tax)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(data.statusBreakdown).map(([status, values]) => (
+                    <TableRow key={status}>
+                      <TableCell className="font-medium">{status}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.partsCost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.partsRevenue)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.laborCost)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.laborRevenue)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.otherCharges)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.shopSupplies)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(values.gst)}</TableCell>
+                      <TableCell className="text-right font-bold">{formatCurrency(values.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Totals Row */}
+                  <TableRow className="bg-slate-50 font-bold">
+                    <TableCell>Totals</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.partsCost, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.partsRevenue, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.laborCost, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.laborRevenue, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.otherCharges, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.shopSupplies, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.gst, 0))}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.total, 0))}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
