@@ -180,13 +180,10 @@ export default function GeneralLedgerPage() {
   });
 
   // Recursive component for account row
-  const AccountRow = ({ account, level = 0, accountBalances, onAccountClick }) => {
-    const accountData = accountBalances[account.account_number] || { balance: 0, transactionCount: 0 };
+  const AccountRow = ({ account, level = 0, onAccountClick }) => {
+    const balance = account.total_balance || 0;
+    const transactionCount = account.transactionCount || 0;
     const hasChildren = account.children && account.children.length > 0;
-    
-    // If calculating totals recursively, use the 'total_balance' property from the hierarchy build
-    // But since accountBalances is passed separately, we should use that if available. 
-    // Wait, accountBalances comes from the hierarchy calculation below now.
     
     return (
       <React.Fragment>
@@ -208,15 +205,15 @@ export default function GeneralLedgerPage() {
             </div>
           </td>
           <td className="p-3 text-right font-semibold">
-            <span className={accountData.balance !== 0 ? 'text-slate-900' : 'text-slate-400'}>
-              ${Math.abs(accountData.balance).toFixed(2)}
-              {accountData.balance < 0 && <span className="text-red-600 ml-1">CR</span>}
-              {accountData.balance > 0 && <span className="text-blue-600 ml-1">DR</span>}
+            <span className={balance !== 0 ? 'text-slate-900' : 'text-slate-400'}>
+              ${Math.abs(balance).toFixed(2)}
+              {balance < 0 && <span className="text-red-600 ml-1">CR</span>}
+              {balance > 0 && <span className="text-blue-600 ml-1">DR</span>}
             </span>
           </td>
           <td className="p-3 text-center">
              {!account.is_synthetic && (
-                <Badge variant="outline">{accountData.transactionCount}</Badge>
+                <Badge variant="outline">{transactionCount}</Badge>
              )}
           </td>
           <td className="p-3 text-center">
@@ -240,7 +237,6 @@ export default function GeneralLedgerPage() {
             key={child.is_synthetic ? `${child.account_number}-synthetic` : child.id} 
             account={child} 
             level={level + 1} 
-            accountBalances={accountBalances}
             onAccountClick={onAccountClick}
           />
         ))}
