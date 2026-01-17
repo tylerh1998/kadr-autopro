@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Plus, Search, BookOpen, Edit3, Eye, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Search, BookOpen, Edit3, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import AccountForm from '../components/accounts/AccountForm';
 import { Link } from 'react-router-dom';
@@ -82,17 +82,7 @@ export default function ChartOfAccountsPage() {
     window.open(`${createPageUrl('GLAcct')}?account=${account.account_number}`, '_blank', features);
   };
 
-  const handleDelete = async (accountId) => {
-    if (window.confirm("Are you sure you want to delete this account? This action cannot be undone.")) {
-      try {
-        await ChartOfAccount.delete(accountId);
-        loadAccounts();
-      } catch (error) {
-        console.error('Error deleting account:', error);
-        alert('Failed to delete account.');
-      }
-    }
-  };
+
 
   const filteredAccounts = accounts.filter(account => {
     const searchLower = searchTerm.toLowerCase();
