@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import KanbanCard from './KanbanCard';
 
-export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes, customers, vehicles, handleEdit }) {
+export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes, customers, vehicles, handleEdit, onVoid }) {
   
   const config = kanbanColumnSizes[statusObj.name] || { visible: true, row: 'top', columnPosition: 1, width: 280, height: 600 };
   
@@ -82,6 +82,7 @@ export default function KanbanColumn({ statusObj, workOrders, kanbanColumnSizes,
                 vehicles={vehicles}
                 handleEdit={handleEdit}
                 kanbanColumnSizes={kanbanColumnSizes}
+                onVoid={onVoid}
               />
             ))}
             {provided.placeholder}
