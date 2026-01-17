@@ -1703,15 +1703,15 @@ export default function SupplierTxPage() {
                                <CardContent className="p-0">
                                    <div className="divide-y divide-slate-200">
                                        {conceptualInvoices.length > 0 ? (
-                                           conceptualInvoices.map((invoice) => {
+                                           conceptualInvoices.map((invoice, index) => {
                                                const invoiceKey = `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
                                                const isExpanded = expandedInvoices[invoiceKey];
 
                                                return (
-                                                   <div key={invoiceKey} className="bg-white">
+                                                   <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                                        {/* Invoice Header Row */}
                                                        <div
-                                                           className="flex items-center justify-between p-4 hover:bg-slate-50 cursor-pointer"
+                                                           className="flex items-center justify-between p-4 hover:bg-slate-100 cursor-pointer transition-colors"
                                                            onClick={() => toggleInvoiceExpansion(invoiceKey)}
                                                        >
                                                            <div className="flex items-center gap-4 flex-1">
