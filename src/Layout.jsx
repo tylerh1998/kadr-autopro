@@ -284,23 +284,50 @@ function LayoutContent({ children, currentPageName }) {
   };
 
   const handleClockToggle = async () => {
-    if (!user || !isEmployee) return;
+    if (!user || !isEmployee || clockLoading) return;
     const empName = workProName || user.full_name;
     if (!empName) return;
 
+    setClockLoading(true);
+
     try {
+      // Fetch latest status to prevent duplicates/race conditions
+      const statusResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'TimeRecord',
+        method: 'filter',
+        params: {
+          employee_name: empName,
+          status: 'clocked_in'
+        }
+      });
+      
+      let serverActiveRecord = null;
+      if (statusResponse.data.success) {
+          const data = statusResponse.data.data;
+          const records = Array.isArray(data) ? data : (data?.records || []);
+          serverActiveRecord = records.find(record => !record.clock_out_time);
+      }
+
       const now = new Date();
 
-      if (isClockedIn && lastTimeRecord) {
-        // Clock out - update existing record
+      if (serverActiveRecord) {
+        // Server says we are CLOCKED IN
+        if (!isClockedIn) {
+             // UI out of sync - just update UI
+             setIsClockedIn(true);
+             setLastTimeRecord(serverActiveRecord);
+             return; 
+        }
+
+        // Proceed to Clock Out
         const clockOutTime = now.toISOString();
-        const clockInTime = new Date(lastTimeRecord.clock_in_time);
+        const clockInTime = new Date(serverActiveRecord.clock_in_time);
         const totalHours = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
 
         const updateResponse = await base44.functions.invoke('workProProxy', {
           entityName: 'TimeRecord',
           method: 'update',
-          id: lastTimeRecord.id,
+          id: serverActiveRecord.id,
           params: {
             clock_out_time: clockOutTime,
             total_hours: Math.round(totalHours * 100) / 100,
@@ -315,8 +342,17 @@ function LayoutContent({ children, currentPageName }) {
             console.error(`Error clocking out: ${updateResponse.data?.error || 'Unknown error'}`);
             alert('Error clocking out. Please try again.');
         }
+
       } else {
-        // Clock in - create new record
+        // Server says we are NOT CLOCKED IN
+        if (isClockedIn) {
+            // UI out of sync - just update UI
+            setIsClockedIn(false);
+            setLastTimeRecord(null);
+            return;
+        }
+
+        // Proceed to Clock In
         const clockInTime = now.toISOString();
 
         const createResponse = await base44.functions.invoke('workProProxy', {
@@ -344,6 +380,8 @@ function LayoutContent({ children, currentPageName }) {
     } catch (error) {
       console.error('Error toggling clock:', error);
       alert('Error updating time record. Please try again.');
+    } finally {
+      setClockLoading(false);
     }
   };
 
