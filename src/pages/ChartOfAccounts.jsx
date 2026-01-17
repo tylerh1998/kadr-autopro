@@ -280,10 +280,7 @@ export default function ChartOfAccountsPage() {
                                       <Edit3 className="w-4 h-4 mr-2" />
                                       Edit Account
                                     </ContextMenuItem>
-                                    <ContextMenuItem onClick={() => handleDelete(account.id)} className="text-red-600">
-                                      <Trash2 className="w-4 h-4 mr-2" />
-                                      Delete Account
-                                    </ContextMenuItem>
+
                                   </ContextMenuContent>
                                 </ContextMenu>
                               ))}
