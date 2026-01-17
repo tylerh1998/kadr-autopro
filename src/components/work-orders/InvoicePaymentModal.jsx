@@ -27,7 +27,8 @@ export default function InvoicePaymentModal({
   customer, // Added for cheque name default
   totalAmount, // Added as a prop
   existingPayments = [], // Added as a prop
-  onProcessPayment
+  onProcessPayment,
+  onNavigateAway // Added to suppress unsaved changes warning
 }) {
   const [payments, setPayments] = useState([]);
   const [newPayment, setNewPayment] = useState({
@@ -201,6 +202,11 @@ export default function InvoicePaymentModal({
       // This ensures the unsaved changes flag is cleared in DocumentEditor before navigation
       if (onSubmit) {
         await onSubmit({ invoice_date: invoiceDate });
+      }
+
+      // Signal navigation to parent to suppress unsaved changes warning
+      if (onNavigateAway) {
+        onNavigateAway();
       }
       
       // Navigate in the same window/tab, replacing WorkOrderEdit

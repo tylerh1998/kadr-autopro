@@ -1419,6 +1419,10 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     openModal('send');
   }, [handleSave, openModal]);
 
+  const handlePaymentModalNavigate = useCallback(() => {
+    isClosingAfterSaveRef.current = true;
+  }, []);
+
   // Show loading until both data and lock check are complete
   if ((loading && !workOrder) || !lockCheckComplete) {
     return (
@@ -2056,6 +2060,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
             totalAmount={workOrder?.total_amount || 0}
             existingPayments={existingPayments}
             onProcessPayment={handleProcessInvoicePayment}
+            onNavigateAway={handlePaymentModalNavigate}
           />
 
           <WorkOrderPdfModal
