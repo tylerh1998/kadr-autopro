@@ -15,7 +15,113 @@ import { format, parseISO, differenceInDays, parse } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
+import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { BankAccount, LinesOfCredit } from '@/entities/all';
+
+// Helper function to safely parse date for calendar component
+const safeParseDateForCalendar = (dateString) => {
+    if (!dateString || dateString === '') return undefined;
+    try {
+        const parsed = parseISO(dateString);
+        if (isNaN(parsed.getTime())) return undefined;
+        return parsed;
+    } catch (error) {
+        console.error('Date parsing error for calendar:', error, dateString);
+        return undefined;
+    }
+};
+
+// Helper function to format date for input field (MM/DD/YYYY)
+const formatDateForInput = (dateString) => {
+    if (!dateString || dateString === '') return '';
+    try {
+        const parsed = parseISO(dateString);
+        if (isNaN(parsed.getTime())) return '';
+        return format(parsed, 'MM/dd/yyyy');
+    } catch (error) {
+        console.error('Date formatting error for input:', error, dateString);
+        return '';
+    }
+};
+
+// Helper function to parse and validate date input with autofill
+const parseAndValidateDateInput = (inputDate) => {
+    if (!inputDate || inputDate.trim() === '') return { valid: false, date: null, error: 'Date is required' };
+    
+    const trimmed = inputDate.trim();
+    let month, day, year;
+    
+    try {
+        const parts = trimmed.split('/');
+        
+        if (parts.length === 2) {
+            // MM/DD format - autofill current year
+            month = parts[0];
+            day = parts[1];
+            year = new Date().getFullYear().toString();
+        } else if (parts.length === 3) {
+            // MM/DD/YY or MM/DD/YYYY format
+            month = parts[0];
+            day = parts[1];
+            year = parts[2];
+            
+            // Convert 2-digit year to 4-digit
+            if (year.length === 2) {
+                const currentYear = new Date().getFullYear();
+                const currentCentury = Math.floor(currentYear / 100) * 100;
+                const twoDigitYear = parseInt(year);
+                year = (currentCentury + twoDigitYear > currentYear + 10) ? (currentCentury - 100 + twoDigitYear).toString() : (currentCentury + twoDigitYear).toString();
+            }
+        } else {
+            return { valid: false, date: null, error: 'Invalid date format. Use MM/DD or MM/DD/YYYY' };
+        }
+        
+        // Pad month and day
+        month = month.padStart(2, '0');
+        day = day.padStart(2, '0');
+        
+        // Validate numeric values
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (isNaN(monthNum) || isNaN(dayNum) || isNaN(yearNum)) {
+            return { valid: false, date: null, error: 'Date must contain valid numbers' };
+        }
+        
+        if (monthNum < 1 || monthNum > 12) {
+            return { valid: false, date: null, error: 'Month must be between 1 and 12' };
+        }
+        
+        if (dayNum < 1 || dayNum > 31) {
+            return { valid: false, date: null, error: 'Day must be between 1 and 31' };
+        }
+        
+        if (year.length !== 4 || yearNum < 1900 || yearNum > 2100) { // Arbitrary but reasonable year range
+            return { valid: false, date: null, error: 'Year must be a valid 4-digit year (1900-2100)' };
+        }
+        
+        // Create date and validate it's a real date
+        const isoDate = `${year}-${month}-${day}`;
+        const testDate = new Date(isoDate + 'T00:00:00'); // Use T00:00:00 to avoid timezone issues
+        
+        if (isNaN(testDate.getTime())) {
+            return { valid: false, date: null, error: 'Invalid date' };
+        }
+        
+        // Verify the date components match (catches invalid dates like Feb 30)
+        if (testDate.getFullYear() !== yearNum || 
+            testDate.getMonth() + 1 !== monthNum || 
+            testDate.getDate() !== dayNum) {
+            return { valid: false, date: null, error: 'Invalid date (e.g., Feb 30, April 31 do not exist)' };
+        }
+        
+        return { valid: true, date: isoDate, error: null };
+    } catch (error) {
+        console.error('Date parsing error:', error, inputDate);
+        return { valid: false, date: null, error: 'Error parsing date' };
+    }
+};
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const [loading, setLoading] = useState(false);
@@ -49,7 +155,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     payment_method: '',
     from_account_id: '',
     amount: '',
-    notes: ''
+    notes: '',
+    dateError: null
   });
 
   // Calculate total balance owing (sum of all balances, including credits as negative)
@@ -105,7 +212,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       payment_method: '',
       from_account_id: '',
       amount: '',
-      notes: ''
+      notes: '',
+      dateError: null
     });
     setChequeNumberInput('');
     setShowChequeNumberPrompt(false);
@@ -184,6 +292,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   };
 
   const handleSubmit = async () => {
+    if (paymentData.dateError) {
+      alert(`Invalid date: ${paymentData.dateError}`);
+      return;
+    }
+
     if (!paymentData.payment_method) {
       alert('Please select a payment method');
       return;
@@ -490,27 +603,32 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                   <Input
                     type="text"
                     value={paymentData.payment_date_display}
-                    onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date_display: e.target.value }))}
-                    onBlur={(e) => {
+                    onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date_display: e.target.value, dateError: null }))}
+                    onBlur={async (e) => {
                       const value = e.target.value;
-                      try {
-                        const parsedDate = parse(value, 'MM/dd/yyyy', new Date());
-                        if (!isNaN(parsedDate.getTime())) {
-                          setPaymentData(prev => ({
-                            ...prev,
-                            payment_date: format(parsedDate, 'yyyy-MM-dd'),
-                            payment_date_display: format(parsedDate, 'MM/dd/yyyy')
-                          }));
-                        }
-                      } catch (error) {
-                        setPaymentData(prev => ({
-                          ...prev,
-                          payment_date_display: format(parseISO(prev.payment_date), 'MM/dd/yyyy')
-                        }));
+                      const parseResult = parseAndValidateDateInput(value);
+                      
+                      if (!parseResult.valid) {
+                        setPaymentData(prev => ({ ...prev, dateError: parseResult.error }));
+                        return;
                       }
+
+                      const fiscalCheck = await checkFiscalPeriodStatus(parseResult.date);
+                      if (!fiscalCheck.isValid) {
+                        setPaymentData(prev => ({ ...prev, dateError: fiscalCheck.message }));
+                        return;
+                      }
+
+                      setPaymentData(prev => ({
+                        ...prev,
+                        payment_date: parseResult.date,
+                        payment_date_display: formatDateForInput(parseResult.date),
+                        dateError: null
+                      }));
                     }}
                     placeholder="MM/DD/YYYY"
-                    className="flex-1"
+                    className={`flex-1 ${paymentData.dateError ? 'border-red-500 text-red-600' : ''}`}
+                    title={paymentData.dateError || ''}
                   />
                   <Popover>
                     <PopoverTrigger asChild>
@@ -521,13 +639,22 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={parseISO(paymentData.payment_date)}
-                        onSelect={(date) => {
+                        selected={safeParseDateForCalendar(paymentData.payment_date)}
+                        onSelect={async (date) => {
                           if (date) {
+                            const isoDate = format(date, 'yyyy-MM-dd');
+                            const fiscalCheck = await checkFiscalPeriodStatus(isoDate);
+                            
+                            if (!fiscalCheck.isValid) {
+                                alert(fiscalCheck.message);
+                                return;
+                            }
+
                             setPaymentData(prev => ({
                               ...prev,
-                              payment_date: format(date, 'yyyy-MM-dd'),
-                              payment_date_display: format(date, 'MM/dd/yyyy')
+                              payment_date: isoDate,
+                              payment_date_display: formatDateForInput(isoDate),
+                              dateError: null
                             }));
                           }
                         }}
@@ -535,6 +662,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     </PopoverContent>
                   </Popover>
                 </div>
+                {paymentData.dateError && <p className="text-xs text-red-600">{paymentData.dateError}</p>}
               </div>
 
               <div className="space-y-2">
