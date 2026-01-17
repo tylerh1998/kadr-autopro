@@ -1,10 +1,17 @@
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import { Card } from "@/components/ui/card";
-import { FileText, Car, Calendar, User } from "lucide-react";
+import { FileText, Car, Calendar, User, Ban } from "lucide-react";
 import { format } from "date-fns";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 
-export default function KanbanCard({ wo, index, customers, vehicles, handleEdit, kanbanColumnSizes }) {
+export default function KanbanCard({ wo, index, customers, vehicles, handleEdit, kanbanColumnSizes, onVoid }) {
   const getCustomerName = (customerId) => {
     const customer = customers.find(c => c.id === customerId);
     if (!customer) return '';
@@ -38,6 +45,8 @@ export default function KanbanCard({ wo, index, customers, vehicles, handleEdit,
             }}
             onClick={() => handleEdit(wo)}
         >
+          <ContextMenu>
+            <ContextMenuTrigger>
             <Card 
             style={{
                 opacity: snapshot.isDragging ? 0.5 : 1,
