@@ -216,6 +216,7 @@ Deno.serve(async (req) => {
         summary.wipRevenue.total += (totalAmount - taxAmount); // Pre-tax total
 
         // Inventory Value (Cost Analysis)
+        let woPartsCost = 0;
         if (doc.line_items) {
             try {
                 const items = JSON.parse(doc.line_items);
@@ -237,6 +238,7 @@ Deno.serve(async (req) => {
                     if (!isLabor) {
                          summary.inventoryValueInWIP += totalCost;
                          summary.wipCost.parts += totalCost;
+                         woPartsCost += totalCost;
                     }
                     // Note: We ignore line item cost for labor here, as we calculate actuals below
                 });
