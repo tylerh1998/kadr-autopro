@@ -108,27 +108,7 @@ export default function GeneralLedgerPage() {
       };
       roots.forEach(transformNode);
 
-      // 5. Update State (No Filtering!)
-      // We need to pass the hierarchical 'roots' to the view, but the current view expects a flat list to group.
-      // Actually, we should probably group the ROOTS by type, and then render hierarchically.
-      
-      // Update accountBalances map for easy lookup in the view (mapped to total_balance now)
-      const newBalances = {};
-      
-      // Helper to populate balances map from tree
-      const populateBalances = (nodes) => {
-        nodes.forEach(node => {
-          newBalances[node.account_number] = {
-            balance: node.total_balance,
-            transactionCount: node.transactionCount
-          };
-          if (node.children) populateBalances(node.children);
-        });
-      };
-      populateBalances(roots);
-      
-      setAccountBalances(newBalances);
-
+      // 5. Update State
       // We replace the flat 'accounts' state with 'roots' so the grouping logic works on top-level accounts
       setAccounts(roots);
 
