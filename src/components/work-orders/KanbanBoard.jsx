@@ -10,7 +10,8 @@ export default function KanbanBoard({
   workOrderStatuses, 
   kanbanColumnSizes, 
   handleEdit,
-  refreshData
+  refreshData,
+  onVoid
 }) {
   const [isBrowser, setIsBrowser] = React.useState(false);
 
@@ -111,6 +112,7 @@ export default function KanbanBoard({
                         customers={customers}
                         vehicles={vehicles}
                         handleEdit={handleEdit}
+                        onVoid={onVoid}
                     />
                 );
             });
