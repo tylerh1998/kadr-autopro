@@ -10,6 +10,15 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        if (blobUrl && !loading && !error) {
+             const timer = setTimeout(() => {
+                 handlePrint();
+             }, 500);
+             return () => clearTimeout(timer);
+        }
+    }, [blobUrl, loading, error]);
+
+    useEffect(() => {
         if (!open || !workOrder) {
             setBlobUrl(null);
             setError(null);
