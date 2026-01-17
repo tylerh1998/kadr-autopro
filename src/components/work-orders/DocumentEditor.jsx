@@ -430,7 +430,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (!isClosingAfterSaveRef.current) {
-        const message = "Please Save the Work Order When Closing";
+        const entityName = mode === 'estimate' ? 'an estimate' : 'a work order';
+        const message = `Please use the save button when closing ${entityName}.`;
         e.preventDefault();
         e.returnValue = message;
         return message;
@@ -439,7 +440,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [mode]);
 
   // Release lock on unmount
   useEffect(() => {
