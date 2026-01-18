@@ -26,6 +26,9 @@ export default function CustomerARSummaryPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
+  const [asOfDate, setAsOfDate] = useState(() => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+  });
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
@@ -40,7 +43,8 @@ export default function CustomerARSummaryPage() {
       // Fetch AR summary data from backend
       const response = await base44.functions.invoke('getCustomerARSummary', { 
         searchTerm: activeSearchTerm,
-        showOnlyWithBalance
+        showOnlyWithBalance,
+        asOfDate
       });
 
       if (response.data.success) {
@@ -70,7 +74,7 @@ export default function CustomerARSummaryPage() {
     } finally {
       setLoading(false);
     }
-    }, [activeSearchTerm, showOnlyWithBalance]);
+    }, [activeSearchTerm, showOnlyWithBalance, asOfDate]);
 
   useEffect(() => {
     loadData();
@@ -196,6 +200,19 @@ export default function CustomerARSummaryPage() {
                       >
                         Only display customers with a balance
                       </label>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 no-print ml-4 border-l pl-4 border-slate-200">
+                      <label htmlFor="as-of-date" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                        As Of:
+                      </label>
+                      <Input
+                        id="as-of-date"
+                        type="date"
+                        value={asOfDate}
+                        onChange={(e) => setAsOfDate(e.target.value)}
+                        className="w-40"
+                      />
                     </div>
                   </div>
                   <div className="relative no-print">

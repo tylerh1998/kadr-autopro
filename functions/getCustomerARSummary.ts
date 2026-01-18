@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchTerm = '', showOnlyWithBalance = true } = await req.json();
+    const { searchTerm = '', showOnlyWithBalance = true, asOfDate } = await req.json();
 
     // Fetch all necessary data
     const [allCustomers, allPayments, allAdjustments] = await Promise.all([
@@ -34,13 +34,21 @@ Deno.serve(async (req) => {
              email.includes(searchLower);
     });
 
-    const today = new Date();
+    const targetDateStr = asOfDate || new Date().toISOString().substring(0, 10);
+    const today = new Date(targetDateStr);
     const arSummaryData = [];
 
     // Calculate aged balances for each customer
     for (const customer of filteredCustomers) {
-      const customerPayments = allPayments.filter(p => p.customer_id === customer.id);
-      const customerAdj = allAdjustments.filter(adj => adj.customer_id === customer.id);
+      // Filter payments and adjustments by the As Of Date
+      const customerPayments = allPayments.filter(p => 
+        p.customer_id === customer.id && 
+        (!p.payment_date || p.payment_date.substring(0, 10) <= targetDateStr)
+      );
+      const customerAdj = allAdjustments.filter(adj => 
+        adj.customer_id === customer.id && 
+        (!adj.adjustment_date || adj.adjustment_date.substring(0, 10) <= targetDateStr)
+      );
 
       // Separate payments into charges ('on_account') and actual payments
       const onAccountCharges = customerPayments.filter(p => p.payment_method === 'on_account');
