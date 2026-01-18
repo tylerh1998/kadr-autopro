@@ -24,7 +24,29 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
                          'Work Order';
       const number = workOrder.inv_number || workOrder.wo_number || workOrder.est_number || workOrder.ro_number;
       const total = workOrder.total_amount || 0;
-      const paid = workOrder.amount_paid || 0;
+      
+      // Calculate paid amount excluding 'on_account' payments
+      let paid = 0;
+      try {
+        if (workOrder.payments) {
+          const paymentsList = JSON.parse(workOrder.payments);
+          if (Array.isArray(paymentsList)) {
+            paid = paymentsList.reduce((sum, p) => {
+              // Check both payment_method and method fields just in case
+              const method = p.payment_method || p.method;
+              if (method === 'on_account') {
+                return sum;
+              }
+              return sum + (Number(p.amount) || 0);
+            }, 0);
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing payments for email balance calculation", e);
+        // Fallback to total amount_paid if parsing fails, but warn
+        paid = workOrder.amount_paid || 0;
+      }
+      
       const balance = total - paid;
       
       setEmailData({

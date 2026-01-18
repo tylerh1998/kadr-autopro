@@ -91,6 +91,29 @@ Deno.serve(async (req) => {
     // Line items snapshot (from work order's line_items field)
     const lineItemsSnapshot = workOrder.line_items || '[]';
 
+    // Calculate paid amount excluding 'on_account' payments for the snapshot
+    // This ensures the portal displays the correct balance due (customer still owes on_account amounts)
+    let adjustedAmountPaid = 0;
+    try {
+      if (workOrder.payments) {
+        const paymentsList = JSON.parse(workOrder.payments);
+        if (Array.isArray(paymentsList)) {
+          adjustedAmountPaid = paymentsList.reduce((sum, p) => {
+            // Check both payment_method and method fields
+            const method = p.payment_method || p.method;
+            if (method === 'on_account') {
+              return sum;
+            }
+            return sum + (Number(p.amount) || 0);
+          }, 0);
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing payments for snapshot balance calculation", e);
+      // Fallback
+      adjustedAmountPaid = workOrder.amount_paid || 0;
+    }
+
     // Determine ref_number and ref_date based on stage
     let refNumber;
     let refDate;
@@ -130,7 +153,7 @@ Deno.serve(async (req) => {
       tax_amount: workOrder.tax_amount || 0,
       total_amount: workOrder.total_amount || 0,
       payments: workOrder.payments || '[]',
-      amount_paid: workOrder.amount_paid || 0,
+      amount_paid: adjustedAmountPaid,
       po_number: workOrder.po_number || '',
       stage: stage,
       approval: 'pending'
