@@ -19,6 +19,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearchTerm, setActiveSearchTerm] = useState("");
+  const [includeInactive, setIncludeInactive] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -47,7 +48,7 @@ export default function CustomersPage() {
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
     loadCustomers(1);
-  }, [activeSearchTerm]);
+  }, [activeSearchTerm, includeInactive]);
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -71,7 +72,8 @@ export default function CustomersPage() {
       const response = await base44.functions.invoke('searchCustomers', { 
         searchTerm: activeSearchTerm,
         page: pageToLoad,
-        limit: 50 
+        limit: 50,
+        includeInactive
       });
       if (response.data.success) {
         setCustomers(response.data.customers);
@@ -184,6 +186,18 @@ export default function CustomersPage() {
               onKeyDown={handleSearchKeyDown}
               className="pl-10"
               />
+            </div>
+            <div className="flex items-center space-x-2 mt-4">
+              <input
+                type="checkbox"
+                id="includeInactive"
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={includeInactive}
+                onChange={(e) => setIncludeInactive(e.target.checked)}
+              />
+              <label htmlFor="includeInactive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-700">
+                Include Inactive Customers
+              </label>
             </div>
           </CardContent>
         </Card>

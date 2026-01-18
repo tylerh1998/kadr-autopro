@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchTerm, page = 1, limit = 50 } = await req.json();
+    const { searchTerm, page = 1, limit = 50, includeInactive = false } = await req.json();
     const skip = (page - 1) * limit;
 
     // Optimization: If no search term, use efficient DB pagination
@@ -21,10 +21,17 @@ Deno.serve(async (req) => {
       // Use service role to ensure we get all customers regardless of ownership
       // Fetch up to 5000 customers to ensure we cover the dataset for now
       const allCustomers = await base44.entities.Customer.list(undefined, 5000);
-      const total = allCustomers.length;
+      
+      // Filter based on active status if includeInactive is false
+      // Treat undefined/null as true (active) for backward compatibility
+      const filteredCustomers = includeInactive 
+        ? allCustomers 
+        : allCustomers.filter(c => c.is_active !== false);
+
+      const total = filteredCustomers.length;
       const totalPages = Math.ceil(total / limit);
       
-      const sorted = allCustomers.sort((a, b) => {
+      const sorted = filteredCustomers.sort((a, b) => {
         const nameA = a.org_name || `${a.last_name || ''} ${a.first_name || ''}`;
         const nameB = b.org_name || `${b.last_name || ''} ${b.first_name || ''}`;
         return nameA.localeCompare(nameB);
@@ -47,9 +54,15 @@ Deno.serve(async (req) => {
     // Search Logic (Ranking)
     // Use service role to ensure we search across all customers
     const allCustomers = await base44.asServiceRole.entities.Customer.list(null, 5000);
+    
+    // Filter based on active status if includeInactive is false before scoring
+    const candidates = includeInactive 
+      ? allCustomers 
+      : allCustomers.filter(c => c.is_active !== false);
+
     const searchLower = searchTerm.toLowerCase().trim();
     
-    const scoredCustomers = allCustomers
+    const scoredCustomers = candidates
       .map(customer => {
         const orgName = (customer.org_name || '').toLowerCase();
         const firstName = (customer.first_name || '').toLowerCase();

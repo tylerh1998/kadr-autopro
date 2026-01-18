@@ -20,6 +20,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     zip_code: '',
     notes: '',
     default_taxable: true,
+    is_active: true,
   });
 
   // Format phone number as XXX XXX XXXX
@@ -59,7 +60,8 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
         state: customer.state || '',
         zip_code: customer.zip_code || '',
         notes: customer.notes || '',
-        default_taxable: customer.default_taxable || false,
+        default_taxable: customer.default_taxable !== undefined ? customer.default_taxable : false,
+        is_active: customer.is_active !== undefined ? customer.is_active : true,
       });
     }
   }, [customer]);
@@ -244,6 +246,17 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
           />
           <Label htmlFor="default_taxable" className="cursor-pointer">
             Default Taxable (new work orders for this customer will be taxable by default)
+          </Label>
+        </div>
+
+        <div className="md:col-span-2 flex items-center space-x-2">
+          <Checkbox
+            id="is_active"
+            checked={formData.is_active}
+            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+          />
+          <Label htmlFor="is_active" className="cursor-pointer">
+            Active
           </Label>
         </div>
       </div>
