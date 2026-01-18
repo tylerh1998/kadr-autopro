@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,23 +24,32 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     notes: vehicle?.notes || ""
   });
   const [decoding, setDecoding] = useState(false); // Renamed from isDecodingVin
+  const prevVehicleRef = useRef(vehicle);
 
   useEffect(() => {
     if (vehicle) {
-      setFormData({
-        customer_id: vehicle.customer_id || "",
-        year: vehicle.year || "",
-        make: vehicle.make || "",
-        model: vehicle.model || "",
-        trim: vehicle.trim || "", // Initialize trim from vehicle prop
-        vin: vehicle.vin || "",
-        license_plate: vehicle.license_plate || "",
-        unit_number: vehicle.unit_number || "",
-        color: vehicle.color || "",
-        engine: vehicle.engine || "",
-        mileage: vehicle.mileage || "",
-        notes: vehicle.notes || ""
-      });
+        // Deep compare (via JSON stringify) to prevent resetting form on reference change
+        // when the content hasn't actually changed.
+        const prevVehicleStr = prevVehicleRef.current ? JSON.stringify(prevVehicleRef.current) : '';
+        const currVehicleStr = JSON.stringify(vehicle);
+
+        if (prevVehicleStr !== currVehicleStr) {
+            setFormData({
+                customer_id: vehicle.customer_id || "",
+                year: vehicle.year || "",
+                make: vehicle.make || "",
+                model: vehicle.model || "",
+                trim: vehicle.trim || "", // Initialize trim from vehicle prop
+                vin: vehicle.vin || "",
+                license_plate: vehicle.license_plate || "",
+                unit_number: vehicle.unit_number || "",
+                color: vehicle.color || "",
+                engine: vehicle.engine || "",
+                mileage: vehicle.mileage || "",
+                notes: vehicle.notes || ""
+            });
+            prevVehicleRef.current = vehicle;
+        }
     }
   }, [vehicle]);
 

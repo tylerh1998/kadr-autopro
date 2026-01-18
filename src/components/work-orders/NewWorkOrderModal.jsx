@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -386,7 +386,7 @@ export default function NewWorkOrderModal({
         <DialogContent className="max-w-3xl">
           <VehicleForm
             customers={[selectedCustomer]}
-            vehicle={{ customer_id: selectedCustomer?.id }}
+            vehicle={useMemo(() => ({ customer_id: selectedCustomer?.id }), [selectedCustomer?.id])}
             onSubmit={handleNewVehicleSubmit}
             onCancel={() => setShowVehicleForm(false)}
           />
