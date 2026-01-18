@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
     // Fetch all invoices within the date range
     const workOrders = await base44.entities.WorkOrder.filter({
-      stage: 'invoice',
+      stage: { $in: ['invoice', 'credit_invoice'] },
       invoice_date: { $gte: startDate, $lte: endDate }
     });
 
