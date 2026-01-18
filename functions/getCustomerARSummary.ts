@@ -14,11 +14,12 @@ Deno.serve(async (req) => {
     // Determine cutoff date (inclusive). Default to UTC today if not provided.
     const cutoffDate = asOfDate || new Date().toISOString().slice(0, 10);
 
-    // Fetch all necessary data
+    // Fetch all necessary data with higher limits to ensure accuracy
+    // Using a high limit to capture history. For production with huge datasets, pagination would be needed.
     const [allCustomers, allPayments, allAdjustments] = await Promise.all([
-      base44.entities.Customer.list(),
-      base44.entities.CustomerPayments.list(),
-      base44.entities.CustomerARAdjustment.list(),
+      base44.entities.Customer.list(null, 2000),
+      base44.entities.CustomerPayments.list(null, 5000),
+      base44.entities.CustomerARAdjustment.list(null, 5000),
     ]);
 
     // Filter customers by search term
@@ -38,20 +39,30 @@ Deno.serve(async (req) => {
     });
 
     // Use cutoffDate for aging calculation anchor
+    // Force the time to noon to avoid timezone edge cases with strictly midnight dates
     const today = new Date(cutoffDate);
+    // Add 12 hours to today to ensure it captures the full day if comparing with times
+    const todayTime = today.getTime() + (12 * 60 * 60 * 1000); 
+    
+    // Strict comparison string for filtering
+    const cutoffDateString = cutoffDate;
+
     const arSummaryData = [];
 
     // Calculate aged balances for each customer
     for (const customer of filteredCustomers) {
       // Filter payments and adjustments by the As Of Date
-      const customerPayments = allPayments.filter(p => 
-        p.customer_id === customer.id && 
-        (!p.payment_date || p.payment_date.slice(0, 10) <= cutoffDate)
-      );
-      const customerAdj = allAdjustments.filter(adj => 
-        adj.customer_id === customer.id && 
-        (!adj.adjustment_date || adj.adjustment_date.slice(0, 10) <= cutoffDate)
-      );
+      const customerPayments = allPayments.filter(p => {
+        if (p.customer_id !== customer.id) return false;
+        if (!p.payment_date) return true; // Include if no date
+        return p.payment_date.slice(0, 10) <= cutoffDateString;
+      });
+
+      const customerAdj = allAdjustments.filter(adj => {
+        if (adj.customer_id !== customer.id) return false;
+        if (!adj.adjustment_date) return true; // Include if no date
+        return adj.adjustment_date.slice(0, 10) <= cutoffDateString;
+      });
 
       // Separate payments into charges ('on_account') and actual payments
       const onAccountCharges = customerPayments.filter(p => p.payment_method === 'on_account');
@@ -98,7 +109,13 @@ Deno.serve(async (req) => {
       onAccountCharges.forEach(charge => {
         if (charge.payment_date) {
           const chargeDate = new Date(charge.payment_date);
+          // Calculate days old. If chargeDate > today, daysOld will be negative.
           const daysOld = Math.floor((today.getTime() - chargeDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Double check: if it's a future transaction relative to asOfDate, exclude it
+          // This is a safety net in case the main filter missed something (e.g. timezone diffs)
+          if (daysOld < -1) return; // Allow small tolerance (-1) for same-day timezone differences
+
           chargeItems.push({
             date: chargeDate,
             daysOld,
@@ -112,6 +129,10 @@ Deno.serve(async (req) => {
         if (adj.amount > 0 && !adj.overpayment) {
           const adjDate = new Date(adj.adjustment_date);
           const daysOld = Math.floor((today.getTime() - adjDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Safety net for future transactions
+          if (daysOld < -1) return;
+
           chargeItems.push({
             date: adjDate,
             daysOld,
