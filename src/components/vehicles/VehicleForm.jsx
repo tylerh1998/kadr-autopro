@@ -184,7 +184,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                     className="font-mono uppercase"
                   />
                   <div className="font-mono text-sm text-slate-400 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
-                    {'                *'}
+                    {'       * *      *'}
                   </div>
                 </div>
                 <Button type="button" variant="outline" onClick={handleVinDecode} disabled={decoding}> {/* Changed onClick and disabled prop */}
