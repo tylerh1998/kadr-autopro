@@ -11,6 +11,9 @@ Deno.serve(async (req) => {
 
     const { searchTerm = '', showOnlyWithBalance = true, asOfDate } = await req.json();
 
+    // Determine cutoff date (inclusive). Default to UTC today if not provided.
+    const cutoffDate = asOfDate || new Date().toISOString().slice(0, 10);
+
     // Fetch all necessary data
     const [allCustomers, allPayments, allAdjustments] = await Promise.all([
       base44.entities.Customer.list(),
@@ -34,8 +37,8 @@ Deno.serve(async (req) => {
              email.includes(searchLower);
     });
 
-    const targetDateStr = asOfDate || new Date().toISOString().substring(0, 10);
-    const today = new Date(targetDateStr);
+    // Use cutoffDate for aging calculation anchor
+    const today = new Date(cutoffDate);
     const arSummaryData = [];
 
     // Calculate aged balances for each customer
@@ -43,11 +46,11 @@ Deno.serve(async (req) => {
       // Filter payments and adjustments by the As Of Date
       const customerPayments = allPayments.filter(p => 
         p.customer_id === customer.id && 
-        (!p.payment_date || p.payment_date.substring(0, 10) <= targetDateStr)
+        (!p.payment_date || p.payment_date.slice(0, 10) <= cutoffDate)
       );
       const customerAdj = allAdjustments.filter(adj => 
         adj.customer_id === customer.id && 
-        (!adj.adjustment_date || adj.adjustment_date.substring(0, 10) <= targetDateStr)
+        (!adj.adjustment_date || adj.adjustment_date.slice(0, 10) <= cutoffDate)
       );
 
       // Separate payments into charges ('on_account') and actual payments
