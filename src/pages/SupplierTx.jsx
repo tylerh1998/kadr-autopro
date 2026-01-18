@@ -531,7 +531,8 @@ export default function SupplierTxPage() {
         setInvoiceLines(prev => {
             const updatedLines = prev.map(line => {
                 if (line.id !== lineId) return line;
-                if (isLineLocked(line)) return line; // Prevent changes to locked lines
+                // Allow GL Account changes even if line is locked
+                if (isLineLocked(line) && field !== 'gl_account') return line; 
 
                 // For inventory lines, only allow GST-related changes
                 if (line.inventory) {
@@ -644,6 +645,25 @@ export default function SupplierTxPage() {
             setModifiedLineIds(prev => new Set(prev).add(lineId));
         }
         setHasUnsavedChanges(true);
+    };
+
+    const handleGlAccountChange = async (line, newValue) => {
+        // Inventory Check
+        if (line.inventory) {
+            alert("Inventory items can only be posted to the inventory account");
+            return;
+        }
+
+        // Fiscal Period Check
+        const fiscalCheck = await checkFiscalPeriodStatus(line.invoice_date);
+        
+        if (!fiscalCheck.isValid) {
+             alert(fiscalCheck.message);
+             return;
+        }
+
+        handleLineChange(line.id, 'gl_account', newValue);
+        setSelectedLineId(line.id);
     };
 
     const handleDateBlur = async (lineId, value) => {
@@ -873,7 +893,7 @@ export default function SupplierTxPage() {
             // Validate GL accounts
             const invalidGLLines = linesToSave.filter(line =>
                 (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0) || line.charge !== 0 || line.gst !== 0) &&
-                !line.gl_account?.trim() && !line.inventory && !isLineLocked(line)
+                !line.gl_account?.trim() && !line.inventory
             );
 
             if (invalidGLLines.length > 0) {
@@ -1601,10 +1621,13 @@ export default function SupplierTxPage() {
                                                             <TableCell>
                                                                 <Select
                                                                     value={line.gl_account || ''}
-                                                                    onValueChange={(value) => { !isDisabled && handleLineChange(line.id, 'gl_account', value); setSelectedLineId(line.id); }}
-                                                                    disabled={isDisabled || line.inventory}
+                                                                    onValueChange={(value) => { 
+                                                                        if (isLockedByOtherUser || !lockAcquired) return;
+                                                                        handleGlAccountChange(line, value); 
+                                                                    }}
+                                                                    disabled={isLockedByOtherUser || !lockAcquired}
                                                                 >
-                                                                    <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`}>
+                                                                    <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
                                                                         <SelectValue placeholder="Select GL Account *">
                                                                             {line.gl_account ? (() => {
                                                                                 const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
