@@ -138,7 +138,7 @@ export default function SetupPage() {
           </TabsContent>
 
           <TabsContent value="wip">
-            <WIPSettings />
+            <WIPSettings currentUser={currentUser} />
           </TabsContent>
         </Tabs>
       </div>

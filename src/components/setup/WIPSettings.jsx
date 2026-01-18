@@ -9,7 +9,7 @@ import { Save, Loader2 } from "lucide-react";
 import { SystemSettings } from "@/entities/all";
 import WorkOrderStatusManager from "./WorkOrderStatusManager";
 
-export default function WIPSettings() {
+export default function WIPSettings({ currentUser }) {
   const [activeSubTab, setActiveSubTab] = useState("statuses");
   const [legalText, setLegalText] = useState("");
   const [defaultMessage, setDefaultMessage] = useState("");
@@ -149,7 +149,7 @@ export default function WIPSettings() {
                   <h3 className="text-lg font-semibold text-slate-900">Numbering Settings</h3>
                   <Button
                     onClick={handleSaveNumbering}
-                    disabled={!numberingHasChanges || saving}
+                    disabled={!numberingHasChanges || saving || currentUser?.role !== 'admin'}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? (
@@ -179,6 +179,7 @@ export default function WIPSettings() {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
+                        disabled={currentUser?.role !== 'admin'}
                       />
                       <p className="text-xs text-slate-500 mt-1">
                         The next RO number that will be assigned (e.g., 1001 becomes RO1001)
@@ -197,6 +198,7 @@ export default function WIPSettings() {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
+                        disabled={currentUser?.role !== 'admin'}
                       />
                       <p className="text-xs text-slate-500 mt-1">
                         The next Invoice number that will be assigned (e.g., 1001 becomes INV1001)
