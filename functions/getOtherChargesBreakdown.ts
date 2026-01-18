@@ -16,6 +16,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch invoices and work orders within the date range
+    // Using a high limit to ensure we get all records for the report
     const workOrders = await base44.entities.WorkOrder.filter({
       $or: [
         {
@@ -27,14 +28,16 @@ Deno.serve(async (req) => {
           wo_date: { $gte: startDate, $lte: endDate }
         }
       ]
-    });
+    }, undefined, 1000);
 
     // Fetch customers for the work orders
     const customerIds = [...new Set(workOrders.map(wo => wo.customer_id).filter(Boolean))];
     let customerMap = {};
     
     if (customerIds.length > 0) {
-      const customers = await base44.entities.Customer.filter({ id: { $in: customerIds } });
+      // Fetch customers with a high limit to avoid missing names
+      // If there are more than 1000 customers, we might need batching, but 1000 is a safe upper bound for a report period usually
+      const customers = await base44.entities.Customer.filter({ id: { $in: customerIds } }, undefined, 1000);
       customerMap = customers.reduce((acc, c) => {
         acc[c.id] = c;
         return acc;
@@ -60,6 +63,21 @@ Deno.serve(async (req) => {
       const customer = customerMap[wo.customer_id];
       if (customer) {
         customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
+      } else if (wo.customer_snapshot) {
+        // Fallback to snapshot if customer not found in map (e.g. deleted or limit reached)
+        try {
+          const snapshot = JSON.parse(wo.customer_snapshot);
+          // Snapshot structure might vary, try to find best name
+          if (snapshot.name) {
+             customerName = snapshot.name;
+          } else if (snapshot.org_name) {
+             customerName = snapshot.org_name;
+          } else if (snapshot.first_name || snapshot.last_name) {
+             customerName = `${snapshot.first_name || ''} ${snapshot.last_name || ''}`.trim();
+          }
+        } catch (e) {
+          // ignore parse error
+        }
       }
 
       for (const line of lineItems) {
