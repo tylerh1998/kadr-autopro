@@ -29,6 +29,18 @@ Deno.serve(async (req) => {
       ]
     });
 
+    // Fetch customers for the work orders
+    const customerIds = [...new Set(workOrders.map(wo => wo.customer_id).filter(Boolean))];
+    let customerMap = {};
+    
+    if (customerIds.length > 0) {
+      const customers = await base44.entities.Customer.filter({ id: { $in: customerIds } });
+      customerMap = customers.reduce((acc, c) => {
+        acc[c.id] = c;
+        return acc;
+      }, {});
+    }
+
     // Aggregate other charges by description
     const chargesMap = {};
 
@@ -41,6 +53,13 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`Failed to parse line_items for WO ${wo.ro_number}:`, e);
         continue;
+      }
+
+      // Determine customer name
+      let customerName = 'Unknown';
+      const customer = customerMap[wo.customer_id];
+      if (customer) {
+        customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
       }
 
       for (const line of lineItems) {
@@ -74,7 +93,7 @@ Deno.serve(async (req) => {
           work_order_id: wo.id,
           date: wo.invoice_date || wo.wo_date,
           stage: wo.stage,
-          customer_name: wo.customer_snapshot ? JSON.parse(wo.customer_snapshot).name : 'Unknown', // basic fallback, might not be available
+          customer_name: customerName,
           amount: ocTotal
         });
       }

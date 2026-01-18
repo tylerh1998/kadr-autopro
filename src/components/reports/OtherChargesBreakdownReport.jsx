@@ -246,6 +246,7 @@ export default function OtherChargesBreakdownReport() {
               <TableHeader>
                 <TableRow>
                   <TableHead>RO #</TableHead>
+                  <TableHead>Customer</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Stage</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -256,6 +257,7 @@ export default function OtherChargesBreakdownReport() {
                 {selectedCharge?.details?.map((detail, idx) => (
                   <TableRow key={idx}>
                     <TableCell className="font-medium">{detail.ro_number}</TableCell>
+                    <TableCell>{detail.customer_name}</TableCell>
                     <TableCell>{detail.date}</TableCell>
                     <TableCell className="capitalize">{detail.stage?.replace('_', ' ')}</TableCell>
                     <TableCell className="text-right">${detail.amount.toFixed(2)}</TableCell>
@@ -263,7 +265,11 @@ export default function OtherChargesBreakdownReport() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => window.open(`${createPageUrl('WorkOrderEdit')}?id=${detail.ro_number}`, '_blank')}
+                        onClick={() => {
+                          const url = `${createPageUrl('WorkOrderEdit')}?id=${detail.ro_number}`;
+                          const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+                          window.open(url, '_blank', windowFeatures);
+                        }}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </Button>
