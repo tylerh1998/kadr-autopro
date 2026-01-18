@@ -15,10 +15,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'startDate and endDate are required' }, { status: 400 });
     }
 
-    // Fetch all invoices within the date range
+    // Fetch invoices and work orders within the date range
     const workOrders = await base44.entities.WorkOrder.filter({
-      stage: { $in: ['invoice', 'credit_invoice'] },
-      invoice_date: { $gte: startDate, $lte: endDate }
+      $or: [
+        {
+          stage: { $in: ['invoice', 'credit_invoice'] },
+          invoice_date: { $gte: startDate, $lte: endDate }
+        },
+        {
+          stage: 'work_order',
+          wo_date: { $gte: startDate, $lte: endDate }
+        }
+      ]
     });
 
     // Aggregate other charges by description
@@ -52,16 +60,23 @@ Deno.serve(async (req) => {
             gl_account: glAccount,
             other_charge_id: otherChargeId,
             total_amount: 0,
-            count: 0
+            count: 0,
+            details: []
           };
         }
-        
-        // If we grouped by ID, keep the first description we found, or maybe update it?
-        // Let's stick to the first one for consistency, or maybe the most frequent one?
-        // For now, simple aggregation.
 
         chargesMap[key].total_amount += ocTotal;
         chargesMap[key].count += 1;
+        
+        // Add detail record
+        chargesMap[key].details.push({
+          ro_number: wo.ro_number,
+          work_order_id: wo.id,
+          date: wo.invoice_date || wo.wo_date,
+          stage: wo.stage,
+          customer_name: wo.customer_snapshot ? JSON.parse(wo.customer_snapshot).name : 'Unknown', // basic fallback, might not be available
+          amount: ocTotal
+        });
       }
     }
 

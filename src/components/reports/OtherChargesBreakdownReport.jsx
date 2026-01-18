@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, FileText, Printer } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, FileText, Printer, ExternalLink } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { createPageUrl } from "@/utils";
 
 export default function OtherChargesBreakdownReport() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -13,6 +15,7 @@ export default function OtherChargesBreakdownReport() {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedCharge, setSelectedCharge] = useState(null);
 
   const handlePrint = () => {
     if (!reportData) return;
@@ -200,7 +203,11 @@ export default function OtherChargesBreakdownReport() {
               <TableBody>
                 {reportData.charges.length > 0 ? (
                   reportData.charges.map((charge, index) => (
-                    <TableRow key={index}>
+                    <TableRow 
+                      key={index} 
+                      className="cursor-pointer hover:bg-slate-50"
+                      onClick={() => setSelectedCharge(charge)}
+                    >
                       <TableCell className="font-medium">{charge.description}</TableCell>
                       <TableCell>{charge.gl_account || '-'}</TableCell>
                       <TableCell className="text-center">{charge.count}</TableCell>
@@ -227,6 +234,47 @@ export default function OtherChargesBreakdownReport() {
           </div>
         </div>
       )}
+
+      {/* Details Dialog */}
+      <Dialog open={!!selectedCharge} onOpenChange={(open) => !open && setSelectedCharge(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Charge Details: {selectedCharge?.description}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>RO #</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedCharge?.details?.map((detail, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{detail.ro_number}</TableCell>
+                    <TableCell>{detail.date}</TableCell>
+                    <TableCell className="capitalize">{detail.stage?.replace('_', ' ')}</TableCell>
+                    <TableCell className="text-right">${detail.amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => window.open(`${createPageUrl('WorkOrderEdit')}?id=${detail.ro_number}`, '_blank')}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
