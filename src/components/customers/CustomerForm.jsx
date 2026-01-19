@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
+import { Loader2, GitMerge } from 'lucide-react';
+import MergeCustomerModal from './MergeCustomerModal';
 
 export default function CustomerForm({ customer, onSubmit, onCancel, isSubmitting }) {
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const [formData, setFormData] = useState({
     org_name: '',
     first_name: '',
@@ -66,6 +68,15 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
       });
     }
   }, [customer]);
+
+  const handleMergeComplete = () => {
+    // If merge is successful, we probably want to reload the customer data or close the form
+    // Since the form is currently editing the MASTER customer (which might have been updated during merge),
+    // calling onCancel (which usually acts as a "done" or "back" action) might be appropriate,
+    // OR we could trigger a refresh. 
+    // Given the context of "Edit Customer", usually finishing a major action closes the edit mode.
+    if (onCancel) onCancel();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -274,15 +285,39 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {customer ? 'Update Customer' : 'Create Customer'}
-        </Button>
+      <div className="flex justify-between items-center pt-4 border-t">
+        <div>
+          {customer && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowMergeModal(true)}
+              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
+            >
+              <GitMerge className="w-4 h-4 mr-2" />
+              Merge Customer
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-3">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {customer ? 'Update Customer' : 'Create Customer'}
+          </Button>
+        </div>
       </div>
+      
+      {customer && (
+        <MergeCustomerModal 
+          open={showMergeModal} 
+          onClose={() => setShowMergeModal(false)}
+          masterCustomer={customer}
+          onMergeComplete={handleMergeComplete}
+        />
+      )}
     </form>
   );
 }
