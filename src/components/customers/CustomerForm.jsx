@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, GitMerge } from 'lucide-react';
+import { Loader2, Merge } from 'lucide-react';
 import MergeCustomerModal from './MergeCustomerModal';
 
 export default function CustomerForm({ customer, onSubmit, onCancel, isSubmitting }) {
@@ -285,29 +285,25 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
         </div>
       </div>
 
-      <div className="flex justify-between items-center pt-4 border-t">
-        <div>
-          {customer && (
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setShowMergeModal(true)}
-              className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
-            >
-              <GitMerge className="w-4 h-4 mr-2" />
-              Merge Customer
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        {customer && (
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => setShowMergeModal(true)}
+            className="mr-auto"
+          >
+            <Merge className="w-4 h-4 mr-2" />
+            Merge
           </Button>
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {customer ? 'Update Customer' : 'Create Customer'}
-          </Button>
-        </div>
+        )}
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          {customer ? 'Update Customer' : 'Create Customer'}
+        </Button>
       </div>
       
       {customer && (
