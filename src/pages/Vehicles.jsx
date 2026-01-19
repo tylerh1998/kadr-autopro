@@ -30,7 +30,7 @@ export default function VehiclesPage() {
   const [editingVehicle, setEditingVehicle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -39,19 +39,13 @@ export default function VehiclesPage() {
     total: 0
   });
 
-  // Debounce logic
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
-  // Reload when debounced search, page, or includeInactive changes
+
+  // Reload when applied search, page, or includeInactive changes
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on new search
     loadData(1);
-  }, [debouncedSearchTerm, includeInactive]);
+  }, [appliedSearchTerm, includeInactive]);
 
   useEffect(() => {
     loadData(pagination.page);
@@ -62,7 +56,7 @@ export default function VehiclesPage() {
     try {
       // Use new backend search function
       const response = await base44.functions.invoke('searchVehicles', { 
-        searchTerm: debouncedSearchTerm,
+        searchTerm: appliedSearchTerm,
         page: pageToLoad,
         limit: 50,
         includeInactive
@@ -160,7 +154,7 @@ export default function VehiclesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    setDebouncedSearchTerm(searchTerm);
+                    setAppliedSearchTerm(searchTerm);
                   }
                 }}
                 className="pl-10"
