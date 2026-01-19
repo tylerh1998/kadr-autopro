@@ -160,10 +160,10 @@ export default function MergeVehicleModal({ open, onClose, onMergeComplete, mast
                       <div>
                         <div className="font-medium">{getVehicleName(vehicle)}</div>
                         <div className="text-sm text-gray-500">
-                          VIN: {vehicle.vin} • Plate: {vehicle.license_plate}
+                          VIN: {vehicle.vin} • Customer: {vehicle.customer_name || 'Unknown'}
                         </div>
-                        {vehicle.customer_name && (
-                           <div className="text-xs text-blue-600 mt-0.5">Owner: {vehicle.customer_name}</div>
+                        {vehicle.license_plate && (
+                           <div className="text-xs text-gray-400 mt-0.5">Plate: {vehicle.license_plate}</div>
                         )}
                       </div>
                       <div className="text-right text-sm text-gray-400">
