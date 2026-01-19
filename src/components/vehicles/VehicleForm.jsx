@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Car, Loader2 } from "lucide-react";
 import { base44 } from '@/api/base44Client'; // Added base44 import
 
@@ -21,7 +22,8 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     color: vehicle?.color || "",
     engine: vehicle?.engine || "",
     mileage: vehicle?.mileage || "",
-    notes: vehicle?.notes || ""
+    notes: vehicle?.notes || "",
+    is_active: vehicle?.is_active !== undefined ? vehicle.is_active : true
   });
   const [decoding, setDecoding] = useState(false); // Renamed from isDecodingVin
   const prevVehicleRef = useRef(vehicle);
@@ -46,7 +48,8 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                 color: vehicle.color || "",
                 engine: vehicle.engine || "",
                 mileage: vehicle.mileage || "",
-                notes: vehicle.notes || ""
+                notes: vehicle.notes || "",
+                is_active: vehicle.is_active !== undefined ? vehicle.is_active : true
             });
             prevVehicleRef.current = vehicle;
         }
@@ -263,6 +266,17 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               onChange={(e) => handleChange('notes', e.target.value)}
               rows={3}
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="is_active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => handleChange('is_active', checked)}
+            />
+            <Label htmlFor="is_active" className="cursor-pointer">
+              Active
+            </Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

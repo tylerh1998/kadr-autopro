@@ -9,16 +9,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchTerm, page = 1, limit = 50 } = await req.json();
+    const { searchTerm, page = 1, limit = 50, includeInactive = false } = await req.json();
     const skip = (page - 1) * limit;
 
     // Fetch necessary data
     // Note: Ideally we would filter at DB level, but for comprehensive search across joined fields (customer name),
     // and custom ranking, we'll fetch and process in memory for now.
-    const [vehicles, customers] = await Promise.all([
+    const [allVehicles, customers] = await Promise.all([
       base44.entities.Vehicle.list(),
       base44.entities.Customer.list()
     ]);
+    
+    // Filter based on active status if includeInactive is false
+    // Treat undefined/null as true (active) for backward compatibility
+    const vehicles = includeInactive 
+      ? allVehicles 
+      : allVehicles.filter(v => v.is_active !== false);
 
     const customerMap = new Map(customers.map(c => [c.id, c]));
 

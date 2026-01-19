@@ -31,6 +31,7 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [includeInactive, setIncludeInactive] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -46,11 +47,11 @@ export default function VehiclesPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Reload when debounced search or page changes
+  // Reload when debounced search, page, or includeInactive changes
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on new search
     loadData(1);
-  }, [debouncedSearchTerm]);
+  }, [debouncedSearchTerm, includeInactive]);
 
   useEffect(() => {
     loadData(pagination.page);
@@ -63,7 +64,8 @@ export default function VehiclesPage() {
       const response = await base44.functions.invoke('searchVehicles', { 
         searchTerm: debouncedSearchTerm,
         page: pageToLoad,
-        limit: 50
+        limit: 50,
+        includeInactive
       });
 
       if (response.data.success) {
@@ -163,6 +165,18 @@ export default function VehiclesPage() {
                 }}
                 className="pl-10"
               />
+            </div>
+            <div className="flex items-center space-x-2 mt-4">
+              <input
+                type="checkbox"
+                id="includeInactive"
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={includeInactive}
+                onChange={(e) => setIncludeInactive(e.target.checked)}
+              />
+              <label htmlFor="includeInactive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-700">
+                Include Inactive Vehicles
+              </label>
             </div>
           </CardContent>
         </Card>
