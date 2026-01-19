@@ -6,10 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, X, Car, Loader2 } from "lucide-react";
+import { Save, X, Car, Loader2, Merge } from "lucide-react";
 import { base44 } from '@/api/base44Client'; // Added base44 import
+import MergeVehicleModal from './MergeVehicleModal';
 
 export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, isSubmitting }) {
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const [formData, setFormData] = useState({
     customer_id: vehicle?.customer_id || "",
     year: vehicle?.year || "",
@@ -94,6 +96,10 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     } finally {
       setDecoding(false); // Changed from setIsDecodingVin
     }
+  };
+
+  const handleMergeComplete = () => {
+    if (onCancel) onCancel();
   };
 
   const handleSubmit = (e) => {
@@ -280,6 +286,17 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
+            {vehicle?.id && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowMergeModal(true)}
+                className="mr-auto"
+              >
+                <Merge className="w-4 h-4 mr-2" />
+                Merge
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
               <X className="w-4 h-4 mr-2" />
               Cancel
@@ -289,6 +306,15 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               {vehicle?.id ? 'Update' : 'Create'} Vehicle
             </Button>
           </div>
+
+          {vehicle?.id && (
+            <MergeVehicleModal 
+              open={showMergeModal} 
+              onClose={() => setShowMergeModal(false)}
+              masterVehicle={vehicle}
+              onMergeComplete={handleMergeComplete}
+            />
+          )}
         </form>
       </CardContent>
     </Card>
