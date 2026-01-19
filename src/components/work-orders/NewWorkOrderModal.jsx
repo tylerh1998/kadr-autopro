@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
 import { Customer, Vehicle, SystemSettings } from "@/entities/all"; // Added SystemSettings
@@ -22,6 +24,7 @@ export default function NewWorkOrderModal({
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [step, setStep] = useState(1);
+  const [includeInactive, setIncludeInactive] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ export default function NewWorkOrderModal({
           setLocalVehicles(vehiclesData || []);
           
           // Load customers using search function
-          const response = await base44.functions.invoke('searchCustomers', { searchTerm: '' });
+          const response = await base44.functions.invoke('searchCustomers', { searchTerm: '', includeInactive });
           if (response.data.success) {
             setLocalCustomers(response.data.customers || []);
           }
@@ -60,11 +63,15 @@ export default function NewWorkOrderModal({
   }, [open]);
 
   useEffect(() => {
-    if (open && activeSearchTerm !== '') {
+    // Reload customers when search term or includeInactive changes
+    if (open) {
       const searchCustomers = async () => {
         setLoading(true);
         try {
-          const response = await base44.functions.invoke('searchCustomers', { searchTerm: activeSearchTerm });
+          const response = await base44.functions.invoke('searchCustomers', { 
+            searchTerm: activeSearchTerm,
+            includeInactive 
+          });
           if (response.data.success) {
             setLocalCustomers(response.data.customers || []);
           }
@@ -76,13 +83,15 @@ export default function NewWorkOrderModal({
       };
       searchCustomers();
     }
-  }, [activeSearchTerm, open]);
+  }, [activeSearchTerm, includeInactive, open]);
 
   // Customers are now filtered by the backend function
   // Limit to 10 if no search term
   const filteredCustomers = activeSearchTerm ? (localCustomers || []) : (localCustomers || []).slice(0, 10);
 
-  const customerVehicles = (localVehicles || []).filter(v => v.customer_id === selectedCustomer?.id);
+  const customerVehicles = (localVehicles || []).filter(v => 
+    v.customer_id === selectedCustomer?.id && (includeInactive || v.is_active !== false)
+  );
 
   const getCustomerDisplayName = (customer) => {
     if (customer.org_name && customer.org_name.trim() !== '') {
@@ -152,6 +161,14 @@ export default function NewWorkOrderModal({
     if (!selectedCustomer || !selectedVehicle) {
       alert("Please select both a customer and a vehicle.");
       return;
+    }
+
+    // Reactivate customer or vehicle if they are inactive
+    if (selectedCustomer.is_active === false) {
+      await Customer.update(selectedCustomer.id, { is_active: true });
+    }
+    if (selectedVehicle.is_active === false) {
+      await Vehicle.update(selectedVehicle.id, { is_active: true });
     }
 
     const numbers = await generateNumbers(stage);
@@ -361,8 +378,20 @@ export default function NewWorkOrderModal({
           )}
           </div>
 
-          <div className="flex justify-between pt-4 border-t mt-4 flex-shrink-0">
+          <div className="flex justify-between items-center pt-4 border-t mt-4 flex-shrink-0">
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="showInactive" 
+                checked={includeInactive}
+                onCheckedChange={setIncludeInactive}
+              />
+              <Label htmlFor="showInactive" className="text-sm cursor-pointer">
+                Show Inactive Customers/Vehicles
+              </Label>
+            </div>
+
             <div className="flex gap-2">
               <Button onClick={() => handleCreate('estimate')} disabled={!selectedCustomer || !selectedVehicle} className="bg-yellow-500 hover:bg-yellow-600">Create Estimate</Button>
               <Button onClick={() => handleCreate('work_order')} disabled={!selectedCustomer || !selectedVehicle} className="bg-green-600 hover:bg-green-700">Create Work Order</Button>
