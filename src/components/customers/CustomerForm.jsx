@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,7 +67,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     }
   }, [customer]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validation: Must have either org_name OR (first_name AND last_name)
@@ -83,6 +84,18 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     if (!strippedPhone || strippedPhone.trim() === '') {
       alert('Primary phone number is required.');
       return;
+    }
+
+    // Check if customer is being deactivated and deactivate associated vehicles
+    if (customer && (customer.is_active !== false) && !formData.is_active) {
+      try {
+        const vehicles = await base44.entities.Vehicle.filter({ customer_id: customer.id }, undefined, 1000);
+        if (vehicles && vehicles.length > 0) {
+          await Promise.all(vehicles.map(v => base44.entities.Vehicle.update(v.id, { is_active: false })));
+        }
+      } catch (error) {
+        console.error("Failed to deactivate customer vehicles:", error);
+      }
     }
     
     // Prepare data for submission with stripped phone formatting
