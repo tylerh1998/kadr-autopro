@@ -86,7 +86,11 @@ Deno.serve(async (req) => {
 
     const total = resultVehicles.length;
     const totalPages = Math.ceil(total / limit);
-    const paginatedVehicles = resultVehicles.slice(skip, skip + limit);
+    const paginatedVehicles = resultVehicles.slice(skip, skip + limit).map(v => {
+      const c = customerMap.get(v.customer_id);
+      const customer_name = c ? (c.org_name || `${c.first_name || ''} ${c.last_name || ''}`.trim()) : 'Unknown';
+      return { ...v, customer_name };
+    });
 
     return Response.json({ 
       success: true, 
