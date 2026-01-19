@@ -82,7 +82,7 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
                     <Car className="w-6 h-6 text-blue-600" />
                     <div>
                       <p className="font-semibold text-slate-800">{v.year} {v.make} {v.model}</p>
-                      <p className="text-sm text-slate-500">{v.license_plate || 'No Plate'}</p>
+                      <p className="text-sm text-slate-500">{v.vin || 'No VIN'}</p>
                     </div>
                   </div>
                 </div>
