@@ -1,6 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
-import { jsPDF } from 'npm:jspdf@2.5.1';
-import { format } from 'npm:date-fns@2.30.0';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { jsPDF } from 'npm:jspdf@2.5.2';
+import { format } from 'npm:date-fns@3.6.0';
 
 Deno.serve(async (req) => {
     try {
@@ -183,7 +183,7 @@ function renderStub(doc, startY, supplier, payment, appliedInvoices, formattedDa
 
 // Helper function to convert number to words
 function numberToWords(amount) {
-    const dollars = Math.floor(amount);
+    let dollars = Math.floor(amount);
     const cents = Math.round((amount - dollars) * 100);
     
     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
