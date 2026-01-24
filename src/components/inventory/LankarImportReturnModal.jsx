@@ -277,13 +277,26 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       return false;
     }
     
-    // Check if at least one cost field is populated and > 0
+    // Check costs based on return type
     const hasCost = (formData.cost_per_unit && parseFloat(formData.cost_per_unit) > 0);
     const hasCore = (formData.core_cost && parseFloat(formData.core_cost) > 0);
     
-    if (!hasCost && !hasCore) {
-      alert('Either Original Cost or Core Cost must be provided and greater than 0.');
-      return false;
+    if (formData.return_type === 'warranty') {
+      if (!hasCost) {
+        alert('Original Cost is required for Warranty returns.');
+        return false;
+      }
+    } else if (formData.return_type === 'core') {
+      if (!hasCore) {
+        alert('Core Cost is required for Core returns.');
+        return false;
+      }
+    } else if (formData.return_type === 'return') {
+      // For standard return type, we generally want at least one cost
+       if (!hasCost && !hasCore) {
+        alert('Either Original Cost or Core Cost must be provided for returns.');
+        return false;
+      }
     }
 
     if (!formData.supplier_id) {
@@ -342,9 +355,24 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       
       const notesText = notesParts.join(' - ');
 
-      // Calculate total cost (using original cost)
-      const cost = formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0;
-      const totalCost = cost * parseFloat(formData.quantity_returned);
+      // Calculate total return value per part based on return type
+      let unitReturnValue = 0;
+      const originalCost = formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0;
+      const coreCost = formData.core_cost ? parseFloat(formData.core_cost) : 0;
+
+      if (formData.return_type === 'warranty') {
+        unitReturnValue = originalCost;
+      } else if (formData.return_type === 'core') {
+        unitReturnValue = coreCost;
+      } else if (formData.return_type === 'return') {
+        unitReturnValue = originalCost + coreCost;
+      } else {
+        unitReturnValue = originalCost;
+      }
+
+      const totalCost = unitReturnValue * parseFloat(formData.quantity_returned);
+      // We still store cost_per_unit as original cost in DB for reference
+      const cost = originalCost;
 
       // Determine status and sent_back date
       let status = 'On-site';
@@ -677,12 +705,23 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
             </div>
           </div>
 
-          {formData.quantity_returned && formData.cost_per_unit && (
+          {formData.quantity_returned && (
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-slate-700">Total Return Value:</span>
                 <span className="text-lg font-bold text-slate-900">
-                  ${(parseFloat(formData.quantity_returned) * parseFloat(formData.cost_per_unit)).toFixed(2)}
+                  ${(() => {
+                    const qty = parseFloat(formData.quantity_returned) || 0;
+                    const originalCost = parseFloat(formData.cost_per_unit) || 0;
+                    const coreCost = parseFloat(formData.core_cost) || 0;
+                    let unitVal = 0;
+                    if (formData.return_type === 'warranty') unitVal = originalCost;
+                    else if (formData.return_type === 'core') unitVal = coreCost;
+                    else if (formData.return_type === 'return') unitVal = originalCost + coreCost;
+                    else unitVal = originalCost; // Fallback
+                    
+                    return (qty * unitVal).toFixed(2);
+                  })()}
                 </span>
               </div>
             </div>
