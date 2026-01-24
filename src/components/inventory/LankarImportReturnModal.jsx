@@ -132,8 +132,10 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
     description: '',
     quantity_returned: '',
     cost_per_unit: '',
+    core_cost: '',
     supplier_id: '',
-    return_date: new Date(),
+    return_date: format(new Date(), 'yyyy-MM-dd'),
+    sent_back: '', // Optional date sent back
     return_reason: 'Parts Only',
     return_type: 'warranty', // Default to warranty
     lankar_wo: '',
@@ -184,8 +186,10 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       description: '',
       quantity_returned: '',
       cost_per_unit: '',
+      core_cost: '',
       supplier_id: '',
-      return_date: new Date(),
+      return_date: format(new Date(), 'yyyy-MM-dd'),
+      sent_back: '',
       return_reason: 'Parts Only',
       return_type: 'warranty',
       lankar_wo: '',
@@ -218,6 +222,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         ...prev,
         description: found.description || '',
         cost_per_unit: (found.cost || 0).toFixed(2),
+        core_cost: (found.core_cost || 0).toFixed(2),
         supplier_id: found.supplier_id || '',
       }));
     } else {
@@ -227,12 +232,33 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         ...prev,
         description: '',
         cost_per_unit: '',
+        core_cost: '',
       }));
     }
   };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDateBlur = (field, value) => {
+    if (!value || value.trim() === '') {
+        // If optional field (sent_back), allow empty
+        if (field === 'sent_back') {
+             setFormData(prev => ({ ...prev, [field]: '' }));
+             return;
+        }
+        // If required (return_date), keep as is or revert to default? 
+        // For now, if invalid/empty, validation will catch it or user sees error
+        return;
+    }
+
+    const parseResult = parseAndValidateDateInput(value);
+    if (parseResult.valid) {
+        setFormData(prev => ({ ...prev, [field]: parseResult.date }));
+    } else {
+        alert(parseResult.error);
+    }
   };
 
   const validateForm = () => {
@@ -248,10 +274,16 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       alert('Quantity Returned must be greater than 0.');
       return false;
     }
-    if (!formData.cost_per_unit || parseFloat(formData.cost_per_unit) <= 0) {
-      alert('Original Cost must be greater than 0.');
+    
+    // Check if at least one cost field is populated and > 0
+    const hasCost = (formData.cost_per_unit && parseFloat(formData.cost_per_unit) > 0);
+    const hasCore = (formData.core_cost && parseFloat(formData.core_cost) > 0);
+    
+    if (!hasCost && !hasCore) {
+      alert('Either Original Cost or Core Cost must be provided and greater than 0.');
       return false;
     }
+
     if (!formData.supplier_id) {
       alert('Supplier is required.');
       return false;
@@ -283,8 +315,9 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         const newInventoryItem = await InventoryItem.create({
           part_number: formData.part_number,
           description: formData.description,
-          cost: parseFloat(formData.cost_per_unit),
-          selling_price: parseFloat(formData.cost_per_unit), // Default to cost
+          cost: formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0,
+          core_cost: formData.core_cost ? parseFloat(formData.core_cost) : 0,
+          selling_price: formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0, // Default to cost
           profit_margin: 0,
           quantity_on_hand: 0,
           quantity_on_order: 0,
@@ -294,13 +327,30 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         });
         inventoryItemId = newInventoryItem.id;
         console.log('Created new inventory item:', newInventoryItem);
+      } else {
+          // Update existing part with core cost if provided
+          if (formData.core_cost) {
+              await InventoryItem.update(existingPart.id, { 
+                  core_cost: parseFloat(formData.core_cost) 
+              });
+          }
       }
 
       // Build the notes field
       const notesText = `LANKAR WO#: ${formData.lankar_wo}${formData.additional_notes ? ' - ' + formData.additional_notes : ''}`;
 
-      // Calculate total cost
-      const totalCost = parseFloat(formData.cost_per_unit) * parseFloat(formData.quantity_returned);
+      // Calculate total cost (using original cost)
+      const cost = formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0;
+      const totalCost = cost * parseFloat(formData.quantity_returned);
+
+      // Determine status and sent_back date
+      let status = 'On-site';
+      let sentBackDate = 'N/A';
+      
+      if (formData.sent_back) {
+          status = 'Returned';
+          sentBackDate = formData.sent_back; // Assuming it is already a valid ISO string from our date handler
+      }
 
       // Create the InventoryReturn record
       const returnData = {
@@ -308,13 +358,14 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         part_number: formData.part_number,
         description: formData.description,
         quantity_returned: parseFloat(formData.quantity_returned),
-        cost_per_unit: parseFloat(formData.cost_per_unit),
+        cost_per_unit: cost,
         total_cost: totalCost,
         supplier: formData.supplier_id,
-        return_date: format(formData.return_date, 'yyyy-MM-dd'),
+        return_date: typeof formData.return_date === 'string' ? formData.return_date : format(formData.return_date, 'yyyy-MM-dd'),
         return_type: formData.return_type,
         return_reason: formData.return_reason,
-        status: 'On-site',
+        status: status,
+        sent_back: sentBackDate,
         notes: notesText,
       };
 
@@ -430,17 +481,31 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
               />
             </div>
 
-            <div>
-              <Label htmlFor="cost_per_unit">Original Cost *</Label>
-              <Input
-                id="cost_per_unit"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={formData.cost_per_unit}
-                onChange={(e) => handleInputChange('cost_per_unit', e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="cost_per_unit">Original Cost</Label>
+                  <Input
+                    id="cost_per_unit"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={formData.cost_per_unit}
+                    onChange={(e) => handleInputChange('cost_per_unit', e.target.value)}
+                    placeholder="At least one cost required"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="core_cost">Core Cost</Label>
+                  <Input
+                    id="core_cost"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={formData.core_cost}
+                    onChange={(e) => handleInputChange('core_cost', e.target.value)}
+                    placeholder="At least one cost required"
+                  />
+                </div>
             </div>
 
             <div>
@@ -463,27 +528,79 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="return_date">Return Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.return_date ? format(formData.return_date, 'PPP') : 'Pick a date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.return_date}
-                    onSelect={(date) => handleInputChange('return_date', date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="return_date">Return Date *</Label>
+                  <div className="flex items-center gap-1">
+                      <Input
+                          id="return_date"
+                          type="text"
+                          value={formatDateForInput(formData.return_date)}
+                          onChange={(e) => handleInputChange('return_date', e.target.value)}
+                          onBlur={(e) => handleDateBlur('return_date', e.target.value)}
+                          placeholder="MM/DD/YYYY"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={safeParseDateForCalendar(formData.return_date)}
+                            onSelect={(date) => {
+                                if (date) {
+                                    handleInputChange('return_date', format(date, 'yyyy-MM-dd'));
+                                }
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="sent_back">Date Sent Back (Optional)</Label>
+                  <div className="flex items-center gap-1">
+                      <Input
+                          id="sent_back"
+                          type="text"
+                          value={formatDateForInput(formData.sent_back)}
+                          onChange={(e) => handleInputChange('sent_back', e.target.value)}
+                          onBlur={(e) => handleDateBlur('sent_back', e.target.value)}
+                          placeholder="MM/DD/YYYY"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={safeParseDateForCalendar(formData.sent_back)}
+                            onSelect={(date) => {
+                                if (date) {
+                                    handleInputChange('sent_back', format(date, 'yyyy-MM-dd'));
+                                }
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                  </div>
+                </div>
             </div>
 
             <div>
