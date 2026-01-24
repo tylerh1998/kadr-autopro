@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
 
-export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCharge, editingChargeLine }) {
+export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCharge, editingChargeLine, workOrderNumber }) {
   const [chargeTypes, setChargeTypes] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [glAccounts, setGlAccounts] = useState([]);
@@ -268,9 +268,15 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
     
     setSubmitting(true);
     
+    let finalDescription = description.trim();
+    if (applyCost && workOrderNumber) {
+        finalDescription = `${finalDescription} - ${workOrderNumber}`;
+    }
+
     const chargeData = {
       id: editingChargeLine?.id || Date.now(),
-      description: description.trim(),
+      description: description.trim(), // Keep original description for the Work Order line item
+      supplierLineDescription: finalDescription, // Pass the augmented description for the Supplier Invoice Line
       qty,
       oc_total: subtotal,
       total: subtotal,
