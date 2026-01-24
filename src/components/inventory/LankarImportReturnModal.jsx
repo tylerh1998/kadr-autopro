@@ -538,7 +538,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
                       <Input
                           id="return_date"
                           type="text"
-                          value={formatDateForInput(formData.return_date)}
+                          value={formData.return_date && formData.return_date.length === 10 && formData.return_date.includes('-') ? formatDateForInput(formData.return_date) : formData.return_date || ''}
                           onChange={(e) => handleInputChange('return_date', e.target.value)}
                           onBlur={(e) => handleDateBlur('return_date', e.target.value)}
                           placeholder="MM/DD/YYYY"
@@ -574,7 +574,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
                       <Input
                           id="sent_back"
                           type="text"
-                          value={formatDateForInput(formData.sent_back)}
+                          value={formData.sent_back && formData.sent_back.length === 10 && formData.sent_back.includes('-') ? formatDateForInput(formData.sent_back) : formData.sent_back || ''}
                           onChange={(e) => handleInputChange('sent_back', e.target.value)}
                           onBlur={(e) => handleDateBlur('sent_back', e.target.value)}
                           placeholder="MM/DD/YYYY"
