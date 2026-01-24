@@ -259,7 +259,7 @@ function WorkOrderList({
                           {vehicle && (
                             <div className="flex items-center gap-1">
                                 <Car className="w-4 h-4" />
-                                <span>{vehicle.year} {vehicle.make} {vehicle.model}</span>
+                                <span>{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.unit_number ? `(Unit #: ${vehicle.unit_number})` : ''}</span>
                             </div>
                           )}
 

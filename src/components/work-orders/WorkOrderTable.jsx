@@ -270,7 +270,7 @@ export default function WorkOrderTable({
                         <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder.customer_id)}>
                           {getCustomerName(workOrder.customer_id)}
                         </td>
-                        <td className="px-4 py-2 text-black truncate max-w-[250px]">
+                        <td className="px-4 py-2 text-black truncate max-w-[250px]" title={vehicle?.unit_number ? `Unit #: ${vehicle.unit_number}` : ''}>
                           {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '-'}
                         </td>
                         <td className="px-4 py-2 text-black truncate max-w-[300px]">

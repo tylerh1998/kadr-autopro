@@ -75,7 +75,7 @@ export default function KanbanCard({ wo, index, customers, vehicles, handleEdit,
                   {(cardFields.showVehicle !== false) && vehicle && (
                   <p className="text-xs text-slate-500 flex items-center gap-1">
                       <Car className="w-3 h-3" />
-                      {vehicle.year} {vehicle.make} {vehicle.model}
+                      {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.unit_number ? `(Unit #: ${vehicle.unit_number})` : ''}
                   </p>
                   )}
                   {contactPerson && (
