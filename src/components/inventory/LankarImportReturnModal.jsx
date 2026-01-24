@@ -292,9 +292,8 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
         return false;
       }
     } else if (formData.return_type === 'return') {
-      // For standard return type, we generally want at least one cost
-       if (!hasCost && !hasCore) {
-        alert('Either Original Cost or Core Cost must be provided for returns.');
+       if (!hasCost) {
+        alert('Original Cost is required for returns.');
         return false;
       }
     }
