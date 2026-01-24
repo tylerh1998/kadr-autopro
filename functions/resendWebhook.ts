@@ -111,6 +111,31 @@ Deno.serve(async (req) => {
         if (Object.keys(updates).length > 0) {
             await base44.asServiceRole.entities.SentEmailLog.update(emailLog.id, updates);
             console.log(`Updated email log ${emailLog.id}:`, updates);
+
+            // Send notification for critical failures
+            if (updates.status === 'bounced' || updates.status === 'complained') {
+                try {
+                    await base44.integrations.Core.SendEmail({
+                        to: 'shop@kensauto.ca',
+                        subject: `Email Delivery Failed (${updates.status}): ${emailLog.subject || 'No Subject'}`,
+                        body: `
+An email delivery failure occurred.
+
+Status: ${updates.status}
+Reason: ${updates.status_message}
+
+Details:
+To: ${emailLog.to_email}
+Subject: ${emailLog.subject}
+Tracking ID: ${trackingId}
+Date: ${new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' })}
+                        `
+                    });
+                    console.log('Failure notification sent to shop@kensauto.ca');
+                } catch (notifyError) {
+                    console.error('Failed to send failure notification:', notifyError);
+                }
+            }
         }
 
         return Response.json({ 

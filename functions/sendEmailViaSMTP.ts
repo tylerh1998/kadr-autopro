@@ -84,6 +84,27 @@ Deno.serve(async (req) => {
             }).catch(e => console.error("Failed to update log on error:", e.message));
         }
 
+        // Send internal notification about the failure
+        try {
+            await base44.integrations.Core.SendEmail({
+                to: 'shop@kensauto.ca',
+                subject: `Email Sending Failed: ${subject || 'No Subject'}`,
+                body: `
+An email failed to send immediately via the API.
+
+Error: ${error.message}
+
+Details:
+To: ${to}
+Subject: ${subject}
+Date: ${new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' })}
+                `
+            });
+            console.log('Failure notification sent to shop@kensauto.ca');
+        } catch (notifyError) {
+            console.error('Failed to send failure notification:', notifyError);
+        }
+
         return Response.json({ error: error.message }, { status: 500 });
     }
 });
