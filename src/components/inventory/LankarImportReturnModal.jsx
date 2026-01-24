@@ -8,8 +8,123 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { InventoryItem, InventoryReturn, Supplier } from '@/entities/all';
+
+// Helper function to safely parse and format dates
+const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
+    if (!dateString || dateString === '') return 'N/A';
+    try {
+        const parsed = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+        if (isNaN(parsed.getTime())) return 'N/A';
+        return format(parsed, formatString);
+    } catch (error) {
+        console.error('Date parsing error:', error, dateString);
+        return 'N/A';
+    }
+};
+
+// Helper function to safely parse date for calendar component
+const safeParseDateForCalendar = (dateString) => {
+    if (!dateString || dateString === '') return undefined;
+    try {
+        const parsed = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+        if (isNaN(parsed.getTime())) return undefined;
+        return parsed;
+    } catch (error) {
+        return undefined;
+    }
+};
+
+// Helper function to format date for input field (MM/DD/YYYY)
+const formatDateForInput = (dateString) => {
+    if (!dateString || dateString === '') return '';
+    try {
+        const parsed = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+        if (isNaN(parsed.getTime())) return '';
+        return format(parsed, 'MM/dd/yyyy');
+    } catch (error) {
+        return '';
+    }
+};
+
+// Helper function to parse and validate date input with autofill
+const parseAndValidateDateInput = (inputDate) => {
+    if (!inputDate || inputDate.trim() === '') return { valid: false, date: null, error: 'Date is required' };
+    
+    const trimmed = inputDate.trim();
+    let month, day, year;
+    
+    try {
+        const parts = trimmed.split('/');
+        
+        if (parts.length === 2) {
+            // MM/DD format - autofill current year
+            month = parts[0];
+            day = parts[1];
+            year = new Date().getFullYear().toString();
+        } else if (parts.length === 3) {
+            // MM/DD/YY or MM/DD/YYYY format
+            month = parts[0];
+            day = parts[1];
+            year = parts[2];
+            
+            // Convert 2-digit year to 4-digit
+            if (year.length === 2) {
+                const currentYear = new Date().getFullYear();
+                const currentCentury = Math.floor(currentYear / 100) * 100;
+                const twoDigitYear = parseInt(year);
+                year = (currentCentury + twoDigitYear > currentYear + 10) ? (currentCentury - 100 + twoDigitYear).toString() : (currentCentury + twoDigitYear).toString();
+            }
+        } else {
+            return { valid: false, date: null, error: 'Invalid date format. Use MM/DD or MM/DD/YYYY' };
+        }
+        
+        // Pad month and day
+        month = month.padStart(2, '0');
+        day = day.padStart(2, '0');
+        
+        // Validate numeric values
+        const monthNum = parseInt(month);
+        const dayNum = parseInt(day);
+        const yearNum = parseInt(year);
+        
+        if (isNaN(monthNum) || isNaN(dayNum) || isNaN(yearNum)) {
+            return { valid: false, date: null, error: 'Date must contain valid numbers' };
+        }
+        
+        if (monthNum < 1 || monthNum > 12) {
+            return { valid: false, date: null, error: 'Month must be between 1 and 12' };
+        }
+        
+        if (dayNum < 1 || dayNum > 31) {
+            return { valid: false, date: null, error: 'Day must be between 1 and 31' };
+        }
+        
+        if (year.length !== 4 || yearNum < 1900 || yearNum > 2100) { 
+            return { valid: false, date: null, error: 'Year must be a valid 4-digit year (1900-2100)' };
+        }
+        
+        // Create date and validate it's a real date
+        const isoDate = `${year}-${month}-${day}`;
+        const testDate = new Date(isoDate + 'T00:00:00'); 
+        
+        if (isNaN(testDate.getTime())) {
+            return { valid: false, date: null, error: 'Invalid date' };
+        }
+        
+        // Verify the date components match
+        if (testDate.getFullYear() !== yearNum || 
+            testDate.getMonth() + 1 !== monthNum || 
+            testDate.getDate() !== dayNum) {
+            return { valid: false, date: null, error: 'Invalid date' };
+        }
+        
+        return { valid: true, date: isoDate, error: null };
+    } catch (error) {
+        return { valid: false, date: null, error: 'Error parsing date' };
+    }
+};
 
 export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
