@@ -439,7 +439,7 @@ export default function WorkOrderForm({
           supplier_id: chargeWithTaxable.linkedSupplierId,
           invoice_number: chargeWithTaxable.supplierInvoiceNumber,
           invoice_date: chargeWithTaxable.supplierInvoiceDate,
-          description: chargeWithTaxable.description,
+          description: chargeWithTaxable.supplierLineDescription || chargeWithTaxable.description,
           purchase_amount: chargeWithTaxable.supplierPurchaseAmount,
           gst_amount: chargeWithTaxable.supplierGstAmount,
           gl_account: chargeWithTaxable.supplierGlAccount,
@@ -495,7 +495,7 @@ export default function WorkOrderForm({
           supplier_id: updatedChargeData.linkedSupplierId,
           invoice_number: updatedChargeData.supplierInvoiceNumber,
           invoice_date: updatedChargeData.supplierInvoiceDate,
-          description: updatedChargeData.description,
+          description: updatedChargeData.supplierLineDescription || updatedChargeData.description,
           purchase_amount: updatedChargeData.supplierPurchaseAmount,
           gst_amount: updatedChargeData.supplierGstAmount,
           gl_account: updatedChargeData.supplierGlAccount,
@@ -862,6 +862,7 @@ export default function WorkOrderForm({
         onAddCharge={handleAddOtherCharge}
         onEditCharge={currentLineItem?.is_other_charge ? handleEditOtherCharge : null}
         editingChargeLine={currentLineItem?.is_other_charge ? currentLineItem : null}
+        workOrderNumber={initialWorkOrder?.ro_number}
       />
       <AddPartToWOModal 
         open={modals.addPart}

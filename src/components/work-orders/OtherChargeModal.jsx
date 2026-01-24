@@ -270,7 +270,10 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
     
     let finalDescription = description.trim();
     if (applyCost && workOrderNumber) {
-        finalDescription = `${finalDescription} - ${workOrderNumber}`;
+        const formattedRO = workOrderNumber.startsWith('RO') && !workOrderNumber.includes('#') 
+            ? workOrderNumber.replace(/^RO/, 'RO#') 
+            : workOrderNumber;
+        finalDescription = `${finalDescription} - ${formattedRO}`;
     }
 
     const chargeData = {
