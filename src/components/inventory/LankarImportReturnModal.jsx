@@ -139,6 +139,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
     return_reason: 'Parts Only',
     return_type: 'warranty', // Default to warranty
     lankar_wo: '',
+    supplier_inv: '',
     additional_notes: '',
   });
 
@@ -193,6 +194,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       return_reason: 'Parts Only',
       return_type: 'warranty',
       lankar_wo: '',
+      supplier_inv: '',
       additional_notes: '',
     });
     setExistingPart(null);
@@ -292,10 +294,6 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       alert('Return Reason is required.');
       return false;
     }
-    if (!formData.lankar_wo.trim()) {
-      alert('LANKAR WO# is required.');
-      return false;
-    }
     return true;
   };
 
@@ -337,7 +335,12 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       }
 
       // Build the notes field
-      const notesText = `LANKAR WO#: ${formData.lankar_wo}${formData.additional_notes ? ' - ' + formData.additional_notes : ''}`;
+      const notesParts = [];
+      if (formData.lankar_wo) notesParts.push(`LANKAR WO#: ${formData.lankar_wo}`);
+      if (formData.supplier_inv) notesParts.push(`Supplier Inv#: ${formData.supplier_inv}`);
+      if (formData.additional_notes) notesParts.push(formData.additional_notes);
+      
+      const notesText = notesParts.join(' - ');
 
       // Calculate total cost (using original cost)
       const cost = formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : 0;
@@ -385,7 +388,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">LANKAR Return Import</DialogTitle>
           <p className="text-sm text-slate-600 mt-1">
@@ -641,15 +644,25 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="lankar_wo">LANKAR WO# *</Label>
-              <Input
-                id="lankar_wo"
-                value={formData.lankar_wo}
-                onChange={(e) => handleInputChange('lankar_wo', e.target.value)}
-                placeholder="e.g., WO-12345"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4 md:col-span-2">
+                <div>
+                  <Label htmlFor="lankar_wo">LANKAR WO#</Label>
+                  <Input
+                    id="lankar_wo"
+                    value={formData.lankar_wo}
+                    onChange={(e) => handleInputChange('lankar_wo', e.target.value)}
+                    placeholder="e.g., WO-12345"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="supplier_inv">Supplier Inv#</Label>
+                  <Input
+                    id="supplier_inv"
+                    value={formData.supplier_inv}
+                    onChange={(e) => handleInputChange('supplier_inv', e.target.value)}
+                    placeholder="e.g., INV-98765"
+                  />
+                </div>
             </div>
 
             <div className="md:col-span-2">
