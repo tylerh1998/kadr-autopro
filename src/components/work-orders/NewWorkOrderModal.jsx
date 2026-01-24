@@ -370,6 +370,9 @@ export default function NewWorkOrderModal({
                     <CardContent className="p-4">
                       <h4 className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</h4>
                       <p className="text-sm text-slate-500">VIN: {vehicle.vin}</p>
+                      {vehicle.unit_number && (
+                        <p className="text-sm text-slate-500">Unit #: {vehicle.unit_number}</p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
