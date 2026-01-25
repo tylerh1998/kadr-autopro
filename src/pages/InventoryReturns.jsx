@@ -49,6 +49,8 @@ export default function InventoryReturnsPage() {
   const [showLegacyWarrantyModal, setShowLegacyWarrantyModal] = useState(false);
   const [selectedReturnItem, setSelectedReturnItem] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'part_number', direction: 'asc' });
+  const [stagedReturns, setStagedReturns] = useState(new Set());
+  const [bulkReturnDate, setBulkReturnDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' }));
 
   useEffect(() => {
     loadReturns();
@@ -81,19 +83,53 @@ export default function InventoryReturnsPage() {
     return supplier ? supplier.name : 'Unknown Supplier';
   };
 
-  const handleStatusToggle = async (returnItem) => {
-    const newStatus = returnItem.status === 'On-site' ? 'Returned' : 'On-site';
-    const updateData = {
-      status: newStatus,
-      date_returned: newStatus === 'Returned' ? new Date().toISOString() : null,
-      sent_back: newStatus === 'Returned' ? format(new Date(), 'yyyy-MM-dd') : 'N/A',
-    };
+  const handleStatusClick = async (returnItem) => {
+    if (returnItem.status === 'Returned') {
+        // Immediate revert to On-site
+        const updateData = {
+          status: 'On-site',
+          date_returned: null,
+          sent_back: 'N/A',
+        };
+        try {
+          await InventoryReturn.update(returnItem.id, updateData);
+          loadReturns();
+        } catch (error) {
+          console.error('Error reverting status:', error);
+          alert('Failed to revert status.');
+        }
+    } else {
+        // Toggle staging for return
+        setStagedReturns(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(returnItem.id)) {
+                newSet.delete(returnItem.id);
+            } else {
+                newSet.add(returnItem.id);
+            }
+            return newSet;
+        });
+    }
+  };
+
+  const handleBulkReturn = async () => {
+    if (stagedReturns.size === 0) return;
+
     try {
-      await InventoryReturn.update(returnItem.id, updateData);
-      loadReturns();
+        const promises = Array.from(stagedReturns).map(id => 
+            InventoryReturn.update(id, {
+                status: 'Returned',
+                date_returned: new Date().toISOString(),
+                sent_back: bulkReturnDate
+            })
+        );
+        
+        await Promise.all(promises);
+        setStagedReturns(new Set());
+        loadReturns();
     } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Failed to update status.');
+        console.error('Error performing bulk return:', error);
+        alert('Failed to process bulk return.');
     }
   };
 
@@ -485,10 +521,18 @@ export default function InventoryReturnsPage() {
                                     <TooltipProvider><Tooltip>
                                       <TooltipTrigger asChild>
                                         <Badge
-                                          onClick={() => handleStatusToggle(returnItem)}
-                                          variant={returnItem.status === 'Returned' ? 'default' : 'outline'}
-                                          className={`cursor-pointer ${returnItem.status === 'Returned' ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-yellow-800 bg-yellow-100 border-yellow-200'}`}
-                                        >{returnItem.status}</Badge>
+                                          onClick={() => handleStatusClick(returnItem)}
+                                          variant={returnItem.status === 'Returned' || stagedReturns.has(returnItem.id) ? 'default' : 'outline'}
+                                          className={`cursor-pointer ${
+                                            returnItem.status === 'Returned' 
+                                                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                                : stagedReturns.has(returnItem.id)
+                                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                    : 'text-yellow-800 bg-yellow-100 border-yellow-200'
+                                          }`}
+                                        >
+                                          {stagedReturns.has(returnItem.id) ? 'RETURN' : returnItem.status}
+                                        </Badge>
                                       </TooltipTrigger>
                                       {returnItem.status === 'Returned' && returnItem.date_returned && (<TooltipContent>Returned on: {(() => {
                                         try {
@@ -501,7 +545,7 @@ export default function InventoryReturnsPage() {
                                 </tr>
                               </ContextMenuTrigger>
                               <ContextMenuContent>
-                                <ContextMenuItem disabled={returnItem.status === 'On-site'} onClick={() => openModal(setShowReceiveCreditModal, returnItem)}>
+                                <ContextMenuItem onClick={() => openModal(setShowReceiveCreditModal, returnItem)}>
                                   <CreditCard className="w-4 h-4 mr-2" /> Receive Credit/Refund
                                 </ContextMenuItem>
                                 <ContextMenuItem disabled={returnItem.status === 'Returned' || returnItem.return_type === 'warranty' || returnItem.return_type === 'core'} onClick={() => handleReturnToInventory(returnItem)}>
@@ -533,6 +577,29 @@ export default function InventoryReturnsPage() {
         </div>
       </div>
       
+      {stagedReturns.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border rounded-lg p-4 z-50 flex gap-4 items-center animate-in slide-in-from-bottom-5">
+            <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm whitespace-nowrap">{stagedReturns.size} item{stagedReturns.size !== 1 ? 's' : ''} selected</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <label className="text-sm font-medium whitespace-nowrap">Sent Back Date:</label>
+                <Input 
+                    type="date" 
+                    value={bulkReturnDate} 
+                    onChange={(e) => setBulkReturnDate(e.target.value)}
+                    className="w-40"
+                />
+            </div>
+            <Button onClick={handleBulkReturn} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Mark Returned
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setStagedReturns(new Set())} className="h-8 w-8 ml-2">
+                <ArrowUpDown className="w-4 h-4 rotate-45" />
+            </Button>
+        </div>
+      )}
+
       <ChangeSupplierModal open={showChangeSupplierModal} onClose={() => setShowChangeSupplierModal(false)} returnItem={selectedReturnItem} onSupplierChange={handleUpdate} />
       <ReceiveCreditModal open={showReceiveCreditModal} onClose={() => setShowReceiveCreditModal(false)} returnItem={selectedReturnItem} onUpdate={handleUpdate} />
       <EditReturnInfoModal open={showEditReturnInfoModal} onClose={() => setShowEditReturnInfoModal(false)} returnItem={selectedReturnItem} onUpdate={handleUpdate} />
