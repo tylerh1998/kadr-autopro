@@ -553,7 +553,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent 
+        className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
