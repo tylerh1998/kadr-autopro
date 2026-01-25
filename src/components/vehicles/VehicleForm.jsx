@@ -61,7 +61,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
   const handleChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: field === 'vin' ? value.toUpperCase() : value
     }));
   };
 
@@ -112,6 +112,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
 
     const submissionData = {
       ...formData,
+      vin: formData.vin ? formData.vin.toUpperCase() : "",
       year: formData.year ? parseInt(formData.year) : null,
       mileage: formData.mileage ? parseFloat(formData.mileage) : null
     };
