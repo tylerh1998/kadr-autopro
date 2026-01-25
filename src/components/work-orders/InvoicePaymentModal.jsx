@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 
@@ -54,12 +54,25 @@ export default function InvoicePaymentModal({
   useEffect(() => {
     if (open) {
       // Initialize payments directly from existingPayments prop
-      setPayments(Array.isArray(existingPayments) ? existingPayments : []);
-      // Reset cheque_name to customer display name when modal opens
+      const initialPayments = Array.isArray(existingPayments) ? existingPayments : [];
+      setPayments(initialPayments);
+
+      // Calculate initial balance for auto-population
+      const safeTotal = Math.round((totalAmount + Number.EPSILON) * 100) / 100;
+      const rawPaid = initialPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const safePaid = Math.round((rawPaid + Number.EPSILON) * 100) / 100;
+      const initialBalance = Math.round((safeTotal - safePaid + Number.EPSILON) * 100) / 100;
+      
+      // Auto-populate amount with remaining balance if positive
+      const initialAmount = initialBalance > 0 ? initialBalance : 0;
+
+      // Reset cheque_name to customer display name and set default amount when modal opens
       setNewPayment(prev => ({
         ...prev,
+        amount: initialAmount,
         cheque_name: getCustomerDisplayName()
       }));
+
       // Check if invoice date already exists on work order
       if (workOrder?.invoice_date) {
         setInvoiceDate(workOrder.invoice_date);
@@ -69,7 +82,7 @@ export default function InvoicePaymentModal({
         setInvoiceDateLocked(false);
       }
     }
-  }, [open, existingPayments, customer, workOrder]); // Dependency on existingPayments prop, customer, and workOrder
+  }, [open, existingPayments, customer, workOrder, totalAmount]);
 
   const { totalPaid, balanceDue, safeTotalAmount } = useMemo(() => {
     // Round the totalAmount prop to 2 decimals to ensure consistency between display and calculation
@@ -249,14 +262,27 @@ export default function InvoicePaymentModal({
             <h4 className="text-lg font-semibold border-b pb-2 mb-4">Add Payment</h4>
             <div className="space-y-2">
               <Label htmlFor="payment-amount">Amount *</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                placeholder="0.00"
-                value={newPayment.amount === 0 ? '' : newPayment.amount} // Show empty string for 0 for better UX
-                onChange={(e) => handleNewPaymentChange('amount', e.target.value)}
-                disabled={loading}
-              />
+              <div className="relative">
+                <Input
+                  id="payment-amount"
+                  type="number"
+                  placeholder="0.00"
+                  value={newPayment.amount === 0 ? '' : newPayment.amount} // Show empty string for 0 for better UX
+                  onChange={(e) => handleNewPaymentChange('amount', e.target.value)}
+                  disabled={loading}
+                  className="pr-8"
+                />
+                {newPayment.amount !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleNewPaymentChange('amount', 0)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                    disabled={loading}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               <Button variant="link" size="sm" className="p-0 h-auto" onClick={setAmountToBalance} disabled={loading}>
                 Pay remaining balance
               </Button>
