@@ -22,10 +22,10 @@ Deno.serve(async (req) => {
 
         // Construct the external API URL with query parameters
         const url = new URL(BASE_URL);
-        // DEBUG: Fetch latest 5 records to inspect schema if specific query fails, or just log them
-        // For now, let's keep the query but I'll add a separate fetch for debugging if the result is empty
-        url.searchParams.append('query', JSON.stringify({ work_order_id: work_order_id }));
+        // DEBUGGING MODE: List all to see structure
+        // url.searchParams.append('query', JSON.stringify({ work_order_id: work_order_id }));
         url.searchParams.append('sort', '-created_date');
+        url.searchParams.append('limit', '5');
 
         console.log(`Fetching portal approvals for WO: ${work_order_id}`);
 
