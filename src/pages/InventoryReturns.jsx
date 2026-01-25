@@ -28,7 +28,8 @@ import {
   ArchiveRestore,
   Pencil,
   List,
-  FileWarning
+  FileWarning,
+  ArrowUpDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { createPageUrl } from '@/utils';
@@ -47,6 +48,7 @@ export default function InventoryReturnsPage() {
   const [showEditReturnInfoModal, setShowEditReturnInfoModal] = useState(false);
   const [showLegacyWarrantyModal, setShowLegacyWarrantyModal] = useState(false);
   const [selectedReturnItem, setSelectedReturnItem] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'part_number', direction: 'asc' });
 
   useEffect(() => {
     loadReturns();
@@ -148,13 +150,39 @@ export default function InventoryReturnsPage() {
     return acc;
   }, {});
 
-  // Sort suppliers alphabetically and parts within each supplier by part number
+  const handleSort = (key) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Sort suppliers alphabetically
   const sortedSupplierNames = Object.keys(returnsBySupplier).sort((a, b) => a.localeCompare(b));
   
+  // Sort items within each supplier based on sortConfig
   sortedSupplierNames.forEach(supplierName => {
-    returnsBySupplier[supplierName].sort((a, b) => 
-      (a.part_number || '').localeCompare(b.part_number || '')
-    );
+    returnsBySupplier[supplierName].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Handle null/undefined
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      // Numeric sort for cost and qty
+      if (sortConfig.key === 'total_cost' || sortConfig.key === 'quantity_returned') {
+        return sortConfig.direction === 'asc' ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue);
+      }
+      
+      // String sort for others
+      const aString = String(aValue).toLowerCase();
+      const bString = String(bValue).toLowerCase();
+      
+      if (aString < bString) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aString > bString) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
   });
 
   const handlePrint = () => {
@@ -395,15 +423,33 @@ export default function InventoryReturnsPage() {
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b">
                           <tr>
-                            <th className="text-left p-3 font-semibold text-slate-700">Part #</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Type</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Qty</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Reason</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Cost</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Return Date</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Sent Back</th>
-                            <th className="text-left p-3 font-semibold text-slate-700">Status</th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('part_number')}>
+                              <div className="flex items-center gap-1">Part # <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('description')}>
+                              <div className="flex items-center gap-1">Description <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_type')}>
+                              <div className="flex items-center gap-1">Type <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('quantity_returned')}>
+                              <div className="flex items-center gap-1">Qty <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_reason')}>
+                              <div className="flex items-center gap-1">Reason <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('total_cost')}>
+                              <div className="flex items-center gap-1">Cost <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_date')}>
+                              <div className="flex items-center gap-1">Return Date <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('sent_back')}>
+                              <div className="flex items-center gap-1">Sent Back <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
+                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
+                              <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
