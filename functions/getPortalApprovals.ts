@@ -20,22 +20,19 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'work_order_id is required' }, { status: 400 });
         }
 
-        // Construct the external API URL with query parameters
-        const url = new URL(BASE_URL);
-        // TEST: Empty query to see if query param itself breaks it
-        const query = {}; 
-        url.searchParams.append('query', JSON.stringify(query));
-        url.searchParams.append('sort', '-created_date');
-        console.error(`Request URL: ${url.toString()}`);
-
         console.log(`Fetching portal approvals for WO: ${work_order_id}`);
 
-        const response = await fetch(url.toString(), {
-            method: 'GET',
+        // Use POST /filter endpoint for more robust querying
+        const response = await fetch(`${BASE_URL}/filter`, {
+            method: 'POST',
             headers: {
                 'api_key': PORTAL_API_KEY,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                query: { work_order_id: work_order_id },
+                sort: { created_date: -1 }
+            })
         });
 
         if (!response.ok) {
@@ -46,6 +43,13 @@ Deno.serve(async (req) => {
 
         const data = await response.json();
         
+        // The filter endpoint returns the array directly or inside 'items'/'data' depending on version
+        // Usually returns [ ...items ] or { items: [...] }
+        // Let's inspect the response structure if needed, but usually it's the list.
+        // Wait, standard Base44 API response for /filter might be an array.
+        // Let's log it to be sure.
+        // console.log("Data received:", data);
+
         return Response.json({ success: true, data: data });
 
     } catch (error) {
