@@ -48,6 +48,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const [isCategorySuggested, setIsCategorySuggested] = useState(false);
   const [isExistingPart, setIsExistingPart] = useState(false);
   const [existingPartId, setExistingPartId] = useState(null);
+  const [existingPartQOH, setExistingPartQOH] = useState(0);
   
   const [partSearchOpen, setPartSearchOpen] = useState(false);
   const partNumberRef = useRef(null);
@@ -114,6 +115,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     setIsCategorySuggested(false);
     setIsExistingPart(false);
     setExistingPartId(null);
+    setExistingPartQOH(0);
   };
 
   const loadDropdownData = async () => {
@@ -166,6 +168,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     setIsCategorySuggested(false);
     setIsExistingPart(true);
     setExistingPartId(itemToSelect.id);
+    setExistingPartQOH(itemToSelect.quantity_on_hand || 0);
     
     setFormData(prev => {
         const updatedItem = {
@@ -239,6 +242,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       if (field === 'part_number') {
         setIsExistingPart(false);
         setExistingPartId(null);
+        setExistingPartQOH(0);
       }
       
       if (field === 'category') {
@@ -651,9 +655,16 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     </PopoverContent>
                 </Popover>
                 {isExistingPart && (
-                    <div className="mt-1 flex items-center gap-1.5 text-xs text-blue-600 font-medium">
-                        <Check className="w-3 h-3" />
-                        Existing Part Selected
+                    <div className={`mt-2 p-2 rounded-md border ${existingPartQOH !== 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                        <div className="flex items-center gap-1.5 text-sm font-semibold">
+                            {existingPartQOH !== 0 ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                            Existing Part Selected (QOH: {existingPartQOH})
+                        </div>
+                        {existingPartQOH !== 0 && (
+                            <div className="mt-1 text-xs">
+                                Use <strong>Get Part</strong> to reduce QOH. Using <strong>Add Part</strong> will only mark this part ordered.
+                            </div>
+                        )}
                     </div>
                 )}
                 </div>
