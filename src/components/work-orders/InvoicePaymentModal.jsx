@@ -75,8 +75,13 @@ export default function InvoicePaymentModal({
     // totalAmount is now passed as a prop, no need to calculate it here from line_items
 
     // totalPaid calculation uses numeric amount from payments state
-    const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-    const balanceDue = totalAmount - totalPaid;
+    const rawTotalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    // Round totalPaid to 2 decimals to avoid accumulation errors
+    const totalPaid = Math.round((rawTotalPaid + Number.EPSILON) * 100) / 100;
+    
+    // Calculate balance due and round
+    const rawBalanceDue = totalAmount - totalPaid;
+    const balanceDue = Math.round((rawBalanceDue + Number.EPSILON) * 100) / 100;
 
     return { totalPaid, balanceDue };
   }, [totalAmount, payments]); // totalAmount is now a dependency
