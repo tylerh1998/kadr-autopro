@@ -7,14 +7,14 @@ import { AlertCircle, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
 import { Approvals } from "@/entities/Approvals";
 
-export default function ROApprovalsModal({ open, onClose, workOrderCpId, onStatusSync, onRefreshComplete }) {
+export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusSync, onRefreshComplete }) {
     const [approvals, setApprovals] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const fetchApprovals = useCallback(async () => {
-        if (!workOrderCpId) {
-            setError("Work Order has no Customer Portal ID (cp_id). Cannot fetch approvals.");
+        if (!workOrderId) {
+            setError("Work Order ID is missing. Cannot fetch approvals.");
             setApprovals([]);
             return;
         }
@@ -23,10 +23,10 @@ export default function ROApprovalsModal({ open, onClose, workOrderCpId, onStatu
         setError(null);
         
         try {
-            console.log(`Fetching approvals for cp_id: ${workOrderCpId}`);
+            console.log(`Fetching approvals for work_order_id: ${workOrderId}`);
             
             // Fetch approvals from local entity
-            const records = await Approvals.filter({ cp_id: workOrderCpId }, '-created_date');
+            const records = await Approvals.filter({ work_order_id: workOrderId }, '-created_date');
             
             console.log('Fetched approvals:', records);
             setApprovals(records);
@@ -51,14 +51,14 @@ export default function ROApprovalsModal({ open, onClose, workOrderCpId, onStatu
         } finally {
             setLoading(false);
         }
-    }, [workOrderCpId, onStatusSync, onRefreshComplete]);
+    }, [workOrderId, onStatusSync, onRefreshComplete]);
 
     // Only fetch when modal opens, not when dependencies change
     useEffect(() => {
-        if (open && workOrderCpId) {
+        if (open && workOrderId) {
             fetchApprovals();
         }
-    }, [open, workOrderCpId, fetchApprovals]);
+    }, [open, workOrderId, fetchApprovals]);
 
     const getStatusBadge = (type) => {
         const isApproved = type?.toLowerCase() === 'approved';
@@ -87,7 +87,7 @@ export default function ROApprovalsModal({ open, onClose, workOrderCpId, onStatu
                 <DialogHeader>
                     <DialogTitle>Customer Approvals</DialogTitle>
                     <DialogDescription>
-                        This log shows all approval decisions made by the customer for work order with Portal ID: {workOrderCpId}
+                        This log shows all approval decisions made by the customer for this work order.
                     </DialogDescription>
                 </DialogHeader>
 

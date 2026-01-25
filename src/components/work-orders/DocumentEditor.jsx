@@ -1917,7 +1917,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           )}
 
           <ROInspectionModal open={modals.inspections} onClose={() => closeModal('inspections')} roNumber={workOrder.ro_number} />
-          <ROApprovalsModal open={modals.approvals} onClose={() => closeModal('approvals')} cpId={workOrder.cp_id} />
+          <ROApprovalsModal open={modals.approvals} onClose={() => closeModal('approvals')} workOrderId={workOrder.id} />
           <AdvancePaymentModal
             open={modals.payments}
             onClose={() => closeModal('payments')}
