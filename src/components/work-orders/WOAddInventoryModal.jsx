@@ -74,8 +74,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             handleAddToBatch({ preventDefault: () => {} });
         }
         
-        // Ctrl + S to Process Batch
-        if (e.ctrlKey && e.key === 's') {
+        // Ctrl + Enter to Process Batch
+        if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             if (batchItems.length > 0 && !processingBatch) {
                 handleProcessBatch();
@@ -951,7 +951,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 Cancel
             </Button>
             <div className="flex gap-2 items-center">
-                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + S to Process</span>}
+                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + Enter to Process</span>}
                 <Button 
                     onClick={handleProcessBatch} 
                     disabled={batchItems.length === 0 || processingBatch}
