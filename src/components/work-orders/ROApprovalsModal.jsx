@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { format } from 'date-fns';
-import { Approvals } from "@/entities/Approvals";
+import { base44 } from '@/api/base44Client';
 
 export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusSync, onRefreshComplete }) {
     const [approvals, setApprovals] = useState([]);
