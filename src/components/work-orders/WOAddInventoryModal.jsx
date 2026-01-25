@@ -30,7 +30,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     core: false,
     core_cost: '',
     tag_along_id: '',
-    stocked_item: true,
+    stocked_item: false,
     is_active: true,
   });
 
@@ -87,7 +87,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, batchItems, processingBatch, formData]); // Depend on formData for add
 
-  const resetForm = () => {
+  const resetForm = (overrides = {}) => {
     setFormData({
       part_number: '',
       description: '',
@@ -106,8 +106,9 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       core: false,
       core_cost: '',
       tag_along_id: '',
-      stocked_item: true,
+      stocked_item: false,
       is_active: true,
+      ...overrides
     });
     setCalculatedMargin('');
     setIsCategorySuggested(false);
@@ -321,9 +322,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
     setBatchItems(prev => [...prev, newItem]);
     
-    // Reset form but keep some context if needed? 
-    // Usually resetting is safer to avoid accidental duplication of details
-    resetForm();
+    // Reset form but keep the supplier selected
+    resetForm({ supplier_id: formData.supplier_id });
     
     // Focus part number for next entry
     setTimeout(() => {
@@ -553,7 +553,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
-            Add New Inventory Item & Order for Work Order
+            Add Part
           </DialogTitle>
         </DialogHeader>
 
@@ -965,7 +965,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     ) : (
                         <>
                             <Save className="w-4 h-4 mr-2" />
-                            Process Batch & Add to WO
+                            Save Batch & Add to WO
                         </>
                     )}
                 </Button>
