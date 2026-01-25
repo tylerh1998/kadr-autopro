@@ -230,6 +230,26 @@ export default function SupplierTxPage() {
 
     // State to track currently focused/selected line for keyboard shortcuts
     const [selectedLineId, setSelectedLineId] = useState(null);
+    const [sourceMap, setSourceMap] = useState({});
+
+    useEffect(() => {
+        const fetchSources = async () => {
+            try {
+                const [locs, banks] = await Promise.all([
+                    base44.entities.LinesOfCredit.list(),
+                    base44.entities.BankAccount.list()
+                ]);
+                
+                const map = {};
+                locs.forEach(loc => map[loc.id] = loc.name);
+                banks.forEach(bank => map[bank.id] = bank.name);
+                setSourceMap(map);
+            } catch (err) {
+                console.error("Error fetching sources", err);
+            }
+        };
+        fetchSources();
+    }, []);
 
     // paymentDetails useMemo removed as the new payment history tab iterates directly over the `payments` state
     // and parses the JSON invoice_number directly.
@@ -1864,6 +1884,7 @@ export default function SupplierTxPage() {
                                           <TableHead className="font-semibold">Date</TableHead>
                                           <TableHead className="font-semibold">Method</TableHead>
                                           <TableHead className="font-semibold">Reference</TableHead>
+                                          <TableHead className="font-semibold">Source</TableHead>
                                           <TableHead className="font-semibold text-right">Amount</TableHead>
                                           <TableHead className="w-[50px]"></TableHead>
                                         </TableRow>
@@ -1934,6 +1955,9 @@ export default function SupplierTxPage() {
                                                 <TableCell className="text-slate-600">
                                                   {payment.cheque_number || payment.bank_transaction_id || '-'}
                                                 </TableCell>
+                                                <TableCell className="text-slate-600">
+                                                  {sourceMap[payment.source] || '-'}
+                                                </TableCell>
                                                 <TableCell className="text-right font-semibold text-slate-900">
                                                   ${payment.amount.toFixed(2)}
                                                 </TableCell>
@@ -1986,7 +2010,7 @@ export default function SupplierTxPage() {
 
                                               {isExpanded && appliedInvoices.length === 0 && payment.invoice_number === 'On Account' && (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="bg-slate-50 p-0">
+                                                    <TableCell colSpan={7} className="bg-slate-50 p-0">
                                                         <div className="p-4 pl-12 text-sm text-slate-600">
                                                             This payment was applied "On Account" and not allocated to specific invoices.
                                                         </div>
