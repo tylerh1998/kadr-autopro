@@ -6,6 +6,7 @@ const BASE_URL = `https://app.base44.com/api/apps/${PORTAL_APP_ID}/entities/Appr
 
 Deno.serve(async (req) => {
     try {
+        // Authenticate the user making the request
         const base44 = createClientFromRequest(req);
         const user = await base44.auth.me();
         
@@ -21,20 +22,11 @@ Deno.serve(async (req) => {
 
         console.log(`Fetching portal approvals for WO: ${work_order_id}`);
 
+        // WORKAROUND: The external API seems to return empty results when using ?query= parameter
+        // So we fetch the latest 100 approvals and filter manually in memory.
         const url = new URL(BASE_URL);
-        
-        // TEST: Query by specific ID to verify query mechanism
-        // The ID comes from the record we saw in the dump
-        const knownId = "695d9297e17ba5e19880dfae";
-        
-        // Use standard query param construction
-        const query = { id: knownId };
-        
-        // If this works, then 'work_order_id' is the problem (maybe indexing?)
-        // If this fails, then passing 'query' param is the problem
-        url.searchParams.append('query', JSON.stringify(query));
-        
-        console.error(`Request URL: ${url.toString()}`);
+        url.searchParams.append('sort', '-created_date');
+        url.searchParams.append('limit', '100');
 
         const response = await fetch(url.toString(), {
             method: 'GET',
@@ -50,29 +42,18 @@ Deno.serve(async (req) => {
             throw new Error(`Portal API responded with ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-        console.log(`Found ${data.length} records`);
+        const allApprovals = await response.json();
+        
+        // Filter manually
+        const filteredApprovals = allApprovals.filter(approval => 
+            approval.work_order_id === work_order_id || 
+            // Also try trimming just in case
+            (approval.work_order_id && approval.work_order_id.trim() === work_order_id.trim())
+        );
+        
+        console.log(`Fetched ${allApprovals.length} total, found ${filteredApprovals.length} matching.`);
 
-        // If we found the record by ID, then try by work_order_id
-        if (data.length > 0) {
-            console.log("Query by ID worked! Now trying by work_order_id...");
-            
-            const url2 = new URL(BASE_URL);
-            url2.searchParams.append('query', JSON.stringify({ work_order_id: work_order_id }));
-            url2.searchParams.append('sort', '-created_date');
-            
-            const resp2 = await fetch(url2.toString(), {
-                method: 'GET',
-                headers: { 'api_key': PORTAL_API_KEY }
-            });
-            const data2 = await resp2.json();
-            console.log(`Query by work_order_id found ${data2.length} records`);
-            
-            return Response.json({ success: true, data: data2 });
-        } else {
-            console.error("Query by ID FAILED. Returning empty.");
-            return Response.json({ success: true, data: [] });
-        }
+        return Response.json({ success: true, data: filteredApprovals });
 
     } catch (error) {
         console.error('Error in getPortalApprovals:', error);
