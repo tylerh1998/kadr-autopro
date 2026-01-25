@@ -32,12 +32,14 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
             setApprovals(records);
 
             // Update work order approval status based on latest approval
-            if (records.length > 0) {
-                const latestApproval = records[0];
-                const newStatus = latestApproval.type?.toLowerCase() === 'approved' ? 'approved' : 'skip_deny';
-                onStatusSync(newStatus);
-            } else {
-                onStatusSync('pending');
+            if (onStatusSync && typeof onStatusSync === 'function') {
+                if (records.length > 0) {
+                    const latestApproval = records[0];
+                    const newStatus = latestApproval.type?.toLowerCase() === 'approved' ? 'approved' : 'skip_deny';
+                    onStatusSync(newStatus);
+                } else {
+                    onStatusSync('pending');
+                }
             }
 
             // Notify parent that refresh is complete
