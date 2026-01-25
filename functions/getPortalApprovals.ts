@@ -22,10 +22,10 @@ Deno.serve(async (req) => {
 
         // Construct the external API URL with query parameters
         const url = new URL(BASE_URL);
-        // DEBUGGING MODE: List all to see structure
-        // url.searchParams.append('query', JSON.stringify({ work_order_id: work_order_id }));
+        const query = { work_order_id: work_order_id.trim() };
+        url.searchParams.append('query', JSON.stringify(query));
         url.searchParams.append('sort', '-created_date');
-        url.searchParams.append('limit', '5');
+        console.log(`Request URL: ${url.toString()}`);
 
         console.log(`Fetching portal approvals for WO: ${work_order_id}`);
 
