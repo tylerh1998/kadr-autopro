@@ -71,8 +71,9 @@ export default function InvoicePaymentModal({
     }
   }, [open, existingPayments, customer, workOrder]); // Dependency on existingPayments prop, customer, and workOrder
 
-  const { totalPaid, balanceDue } = useMemo(() => {
-    // totalAmount is now passed as a prop, no need to calculate it here from line_items
+  const { totalPaid, balanceDue, safeTotalAmount } = useMemo(() => {
+    // Round the totalAmount prop to 2 decimals to ensure consistency between display and calculation
+    const safeTotalAmount = Math.round((totalAmount + Number.EPSILON) * 100) / 100;
 
     // totalPaid calculation uses numeric amount from payments state
     const rawTotalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -80,11 +81,11 @@ export default function InvoicePaymentModal({
     const totalPaid = Math.round((rawTotalPaid + Number.EPSILON) * 100) / 100;
     
     // Calculate balance due and round
-    const rawBalanceDue = totalAmount - totalPaid;
+    const rawBalanceDue = safeTotalAmount - totalPaid;
     const balanceDue = Math.round((rawBalanceDue + Number.EPSILON) * 100) / 100;
 
-    return { totalPaid, balanceDue };
-  }, [totalAmount, payments]); // totalAmount is now a dependency
+    return { totalPaid, balanceDue, safeTotalAmount };
+  }, [totalAmount, payments]);
 
   const handleNewPaymentChange = (field, value) => {
     setNewPayment(prev => {
@@ -328,7 +329,7 @@ export default function InvoicePaymentModal({
               <CardContent className="space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <span>Total Invoice:</span>
-                  <span className="font-semibold text-lg">${totalAmount.toFixed(2)}</span>
+                  <span className="font-semibold text-lg">${safeTotalAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>Total Paid:</span>
