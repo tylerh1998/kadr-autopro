@@ -33,7 +33,7 @@ export default function InvoicePaymentModal({
   const [payments, setPayments] = useState([]);
   const [newPayment, setNewPayment] = useState({
     amount: 0,
-    method: 'cash', // Default to schema value
+    method: null, // No default method, user must select
     cheque_name: '',
     cheque_number: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -70,6 +70,7 @@ export default function InvoicePaymentModal({
       setNewPayment(prev => ({
         ...prev,
         amount: initialAmount,
+        method: null, // Reset method to null when modal opens
         cheque_name: getCustomerDisplayName()
       }));
 
@@ -115,6 +116,12 @@ export default function InvoicePaymentModal({
 
     try {
       setLoading(true);
+
+      if (!newPayment.method) {
+        alert('Please select a payment method.');
+        setLoading(false);
+        return;
+      }
 
       let finalAmount = parseFloat(newPayment.amount);
       let pennyAdjustment = 0;
@@ -167,7 +174,7 @@ export default function InvoicePaymentModal({
       // Reset form
       setNewPayment({
         amount: 0,
-        method: 'cash',
+        method: null,
         cheque_name: '',
         cheque_number: '',
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -270,7 +277,7 @@ export default function InvoicePaymentModal({
                   value={newPayment.amount === 0 ? '' : newPayment.amount} // Show empty string for 0 for better UX
                   onChange={(e) => handleNewPaymentChange('amount', e.target.value)}
                   disabled={loading}
-                  className="pr-8"
+                  className="pr-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 {newPayment.amount !== 0 && (
                   <button
@@ -341,7 +348,7 @@ export default function InvoicePaymentModal({
                 </div>
               </>
             )}
-            <Button onClick={handleAddPayment} className="w-full" disabled={loading}>
+            <Button onClick={handleAddPayment} className="w-full" disabled={loading || !newPayment.method}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />} Add Payment
             </Button>
           </div>
