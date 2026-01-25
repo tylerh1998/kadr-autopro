@@ -22,7 +22,8 @@ Deno.serve(async (req) => {
 
         // Construct the external API URL with query parameters
         const url = new URL(BASE_URL);
-        const query = { work_order_id: work_order_id.trim() };
+        // TEST: Hardcode query by cp_id to verify mechanism
+        const query = { cp_id: "wLoiajj8o6" };
         url.searchParams.append('query', JSON.stringify(query));
         url.searchParams.append('sort', '-created_date');
         console.log(`Request URL: ${url.toString()}`);
