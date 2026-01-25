@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusSync, onRefreshComplete }) {
     const [approvals, setApprovals] = useState([]);
@@ -127,8 +128,16 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                             <span className="font-semibold">{approval.customer_name || 'Customer'}</span>
                                         </div>
                                         <div className="text-sm text-gray-500">
-                                            {approval.date_approved ? format(new Date(approval.date_approved), 'MMM d, yyyy') : 
-                                             approval.created_date ? format(new Date(approval.created_date), 'MMM d, yyyy') : 'No date'}
+                                            {(() => {
+                                                const dateStr = approval.date_approved || approval.created_date;
+                                                if (!dateStr) return 'No date';
+                                                try {
+                                                    const mtDate = toMountainTime(dateStr);
+                                                    return format(mtDate, 'MMM d, yyyy h:mm a');
+                                                } catch (e) {
+                                                    return 'Invalid date';
+                                                }
+                                            })()}
                                         </div>
                                     </div>
                                     
@@ -153,6 +162,20 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                     {approval.customer_email && (
                                         <div className="text-xs text-gray-500 mt-2">
                                             Email: {approval.customer_email}
+                                        </div>
+                                    )}
+
+                                    {approval.cp_id && (
+                                        <div className="mt-3 flex justify-end">
+                                            <a 
+                                                href={`https://portal.kensauto.ca/WorkOrder?cp_id=${approval.cp_id}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                Open Approved Order
+                                            </a>
                                         </div>
                                     )}
                                 </div>
