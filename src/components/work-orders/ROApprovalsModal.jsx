@@ -25,8 +25,14 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
         try {
             console.log(`Fetching approvals for work_order_id: ${workOrderId}`);
             
-            // Fetch approvals from local entity
-            const records = await Approvals.filter({ work_order_id: workOrderId }, '-created_date');
+            // Fetch approvals from Customer Portal via proxy
+            const response = await base44.functions.invoke('getPortalApprovals', { work_order_id: workOrderId });
+            
+            if (!response.data.success) {
+                throw new Error(response.data.error || 'Failed to fetch approvals from portal');
+            }
+            
+            const records = response.data.data;
             
             console.log('Fetched approvals:', records);
             setApprovals(records);
