@@ -141,17 +141,34 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                         </div>
                                     </div>
                                     
-                                    {approval.approval_amount && (
-                                        <div className="text-sm text-gray-600 mb-1">
-                                            Amount: <span className="font-medium">${approval.approval_amount.toFixed(2)}</span>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            {approval.approval_amount && (
+                                                <div className="text-sm text-gray-600 mb-1">
+                                                    Amount: <span className="font-medium">${approval.approval_amount.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            
+                                            {approval.method_approved && (
+                                                <div className="text-sm text-gray-600 mb-1">
+                                                    Method: <span className="font-medium">{approval.method_approved}</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                    
-                                    {approval.method_approved && (
-                                        <div className="text-sm text-gray-600 mb-1">
-                                            Method: <span className="font-medium">{approval.method_approved}</span>
-                                        </div>
-                                    )}
+                                        
+                                        {approval.cp_id && (
+                                            <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-8" asChild>
+                                                <a 
+                                                    href={`https://portal.kensauto.ca/WorkOrder?cp_id=${approval.cp_id}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                                    Open Approved Order
+                                                </a>
+                                            </Button>
+                                        )}
+                                    </div>
                                     
                                     {approval.customer_comments && (
                                         <div className="text-sm text-gray-700 mt-2 p-2 bg-white rounded border">
@@ -162,20 +179,6 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                     {approval.customer_email && (
                                         <div className="text-xs text-gray-500 mt-2">
                                             Email: {approval.customer_email}
-                                        </div>
-                                    )}
-
-                                    {approval.cp_id && (
-                                        <div className="mt-3 flex justify-end">
-                                            <a 
-                                                href={`https://portal.kensauto.ca/WorkOrder?cp_id=${approval.cp_id}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                                            >
-                                                <ExternalLink className="w-4 h-4" />
-                                                Open Approved Order
-                                            </a>
                                         </div>
                                     )}
                                 </div>
