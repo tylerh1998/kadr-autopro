@@ -1980,7 +1980,7 @@ export default function SupplierTxPage() {
 
                                               {isExpanded && appliedInvoices.length > 0 && (
                                                 <TableRow>
-                                                  <TableCell colSpan={6} className="bg-slate-50 p-0">
+                                                  <TableCell colSpan={7} className="bg-slate-50 p-0">
                                                     <div className="p-4 pl-12">
                                                       <h4 className="text-sm font-semibold text-slate-700 mb-2">Invoices Paid:</h4>
                                                       <div className="bg-white rounded border">
