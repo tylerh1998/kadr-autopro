@@ -33,14 +33,22 @@ import LineEditModal from '../components/suppliers/LineEditModal';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from "@/components/ui/badge";
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
+import { toMountainTime } from '../components/utils/mountainTimeUtils';
 
 const GST_RATE = 0.05; // 5% GST
 
 // Helper function to safely parse and format dates
-const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
+const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy', useMountainTime = false) => {
     if (!dateString || dateString === '') return 'N/A';
     try {
-        const parsed = parseISO(dateString);
+        let parsed;
+        // Only convert to Mountain Time if it's a full timestamp (length > 10) to avoid shifting plain dates (YYYY-MM-DD)
+        if (useMountainTime && dateString.length > 10) {
+            parsed = toMountainTime(dateString);
+        } else {
+            parsed = parseISO(dateString);
+        }
+        
         if (isNaN(parsed.getTime())) return 'N/A';
         return format(parsed, formatString);
     } catch (error) {
@@ -1932,7 +1940,7 @@ export default function SupplierTxPage() {
                                                     ))}
                                                 </TableCell>
                                                 <TableCell>
-                                                  {safeFormatDate(payment.payment_date)}
+                                                  {safeFormatDate(payment.payment_date, 'MMM dd, yyyy', true)}
                                                 </TableCell>
                                                 <TableCell>
                                                   {payment.payment_method === 'Cheque' && payment.cheque_number ? (
