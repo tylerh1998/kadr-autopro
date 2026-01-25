@@ -22,11 +22,11 @@ Deno.serve(async (req) => {
 
         // Construct the external API URL with query parameters
         const url = new URL(BASE_URL);
-        // TEST: Hardcode query by cp_id to verify mechanism
-        const query = { cp_id: "wLoiajj8o6" };
+        // TEST: Empty query to see if query param itself breaks it
+        const query = {}; 
         url.searchParams.append('query', JSON.stringify(query));
         url.searchParams.append('sort', '-created_date');
-        console.log(`Request URL: ${url.toString()}`);
+        console.error(`Request URL: ${url.toString()}`);
 
         console.log(`Fetching portal approvals for WO: ${work_order_id}`);
 
