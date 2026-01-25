@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.11';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 
 const PORTAL_APP_ID = '68c2336578e56a2a43619143';
 const PORTAL_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
