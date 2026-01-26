@@ -151,8 +151,12 @@ Deno.serve(async (req) => {
                 responseData = await updateResponse.json();
                 break;
             case 'create':
+                let createParams = params || {};
+                if (entityName === 'TimeRecord' && user && user.email) {
+                    createParams.created_by = user.email;
+                }
                 options.method = 'POST';
-                options.body = JSON.stringify(params || {});
+                options.body = JSON.stringify(createParams);
                 const createResponse = await fetch(url, options);
                 if (!createResponse.ok) {
                     const errorText = await createResponse.text();
