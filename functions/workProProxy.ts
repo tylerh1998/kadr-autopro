@@ -152,9 +152,22 @@ Deno.serve(async (req) => {
                 break;
             case 'create':
                 let createParams = params || {};
+                
+                // Explicitly log for debugging
+                if (entityName === 'TimeRecord') {
+                    console.log(`[WorkProProxy] Attempting to set created_by for TimeRecord. Auth User: ${user?.email} (${user?.id})`);
+                }
+
                 if (entityName === 'TimeRecord' && user && user.email) {
                     createParams.created_by = user.email;
+                    // Also try setting created_by_id if we can map it, but email should suffice if supported
+                    console.log(`[WorkProProxy] Overriding created_by to: ${createParams.created_by}`);
                 }
+                
+                if (entityName === 'TimeRecord') {
+                     console.log('[WorkProProxy] Final Create Payload:', JSON.stringify(createParams));
+                }
+
                 options.method = 'POST';
                 options.body = JSON.stringify(createParams);
                 const createResponse = await fetch(url, options);
