@@ -151,21 +151,18 @@ Deno.serve(async (req) => {
                 responseData = await updateResponse.json();
                 break;
             case 'create':
-                let createParams = params || {};
+                let createParams = { ...params }; // Create a copy
                 
-                // Explicitly log for debugging
-                if (entityName === 'TimeRecord') {
-                    console.log(`[WorkProProxy] Attempting to set created_by for TimeRecord. Auth User: ${user?.email} (${user?.id})`);
-                }
-
                 if (entityName === 'TimeRecord' && user && user.email) {
+                    // Attempt to override created_by fields
+                    // Note: This requires the target app to allow writing to these system fields, 
+                    // or for the API Key to have sufficient privileges.
+                    // If the target is a standard Base44 app with a User API Key, this might be ignored.
                     createParams.created_by = user.email;
-                    // Also try setting created_by_id if we can map it, but email should suffice if supported
-                    console.log(`[WorkProProxy] Overriding created_by to: ${createParams.created_by}`);
-                }
-                
-                if (entityName === 'TimeRecord') {
-                     console.log('[WorkProProxy] Final Create Payload:', JSON.stringify(createParams));
+                    if (user.id) {
+                        createParams.created_by_id = user.id;
+                    }
+                    console.log(`[WorkProProxy] Injection - created_by: ${createParams.created_by}`);
                 }
 
                 options.method = 'POST';
