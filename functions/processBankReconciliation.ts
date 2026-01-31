@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
 
             let matchFound = null;
 
-            // Strategy: Find EXACT amount match AND Date match (within buffer)
+            // Strategy: Find EXACT amount match only (Date ignored)
             for (const sysTx of systemTransactions) {
                 if (matchedSystemIds.has(sysTx.id)) continue;
 
@@ -100,26 +100,8 @@ Deno.serve(async (req) => {
                 }
 
                 if (isAmountMatch) {
-                    // Check Date
-                    let isDateMatch = true; 
-                    if (sysTx.transaction_date && csvDate) {
-                         const sysDate = new Date(sysTx.transaction_date);
-                         const diff = Math.abs(differenceInDays(sysDate, csvDate));
-                         // Allow +/- 5 days buffer for bank clearing delays
-                         if (diff > 5) {
-                             isDateMatch = false;
-                         }
-                    }
-                    
-                    // If either date is missing, we might assume match on amount uniqueness? 
-                    // But for safety, let's require date match if dates are present.
-                    // If strict matching is needed, uncomment:
-                    // if (!sysTx.transaction_date || !csvDate) isDateMatch = false;
-
-                    if (isDateMatch) {
-                        matchFound = sysTx;
-                        break; 
-                    }
+                    matchFound = sysTx;
+                    break;
                 }
             }
 
