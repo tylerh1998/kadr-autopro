@@ -75,20 +75,43 @@ Deno.serve(async (req) => {
             return isValid(date) ? date : null;
         };
 
+        // Identify duplicate amounts in CSV to prevent ambiguity
+        const csvAmountCounts = new Map();
+        for (const row of csvRows) {
+            const debit = parseAmount(row['DebitAmount']);
+            const credit = parseAmount(row['CreditAmount']);
+            const amount = debit > 0 ? debit : credit;
+            if (amount > 0) {
+                csvAmountCounts.set(amount, (csvAmountCounts.get(amount) || 0) + 1);
+            }
+        }
+        const duplicateCsvAmounts = new Set();
+        for (const [amount, count] of csvAmountCounts) {
+            if (count > 1) duplicateCsvAmounts.add(amount);
+        }
+
         for (const row of csvRows) {
             const debit = parseAmount(row['DebitAmount']);
             const credit = parseAmount(row['CreditAmount']);
             const description = row['Description'];
             const dateStr = row['Date'];
             const csvDate = parseCsvDate(dateStr);
+            const csvTxAmount = debit > 0 ? debit : credit;
 
             if (debit === 0 && credit === 0) {
                 continue; 
             }
 
+            // Skip auto-matching if this amount appears multiple times in the CSV
+            // This prevents false positives by forcing manual review for ambiguous amounts
+            if (duplicateCsvAmounts.has(csvTxAmount)) {
+                unmatchedCsv.push({ date: dateStr, description, debit, credit });
+                continue;
+            }
+
             let matchFound = null;
 
-            // Strategy: Find EXACT amount match AND Date match (within buffer)
+            // Strategy: Find EXACT amount match only (Date matching removed)
             for (const sysTx of systemTransactions) {
                 if (matchedSystemIds.has(sysTx.id)) continue;
 
@@ -100,26 +123,8 @@ Deno.serve(async (req) => {
                 }
 
                 if (isAmountMatch) {
-                    // Check Date
-                    let isDateMatch = true; 
-                    if (sysTx.transaction_date && csvDate) {
-                         const sysDate = new Date(sysTx.transaction_date);
-                         const diff = Math.abs(differenceInDays(sysDate, csvDate));
-                         // Allow +/- 5 days buffer for bank clearing delays
-                         if (diff > 5) {
-                             isDateMatch = false;
-                         }
-                    }
-                    
-                    // If either date is missing, we might assume match on amount uniqueness? 
-                    // But for safety, let's require date match if dates are present.
-                    // If strict matching is needed, uncomment:
-                    // if (!sysTx.transaction_date || !csvDate) isDateMatch = false;
-
-                    if (isDateMatch) {
-                        matchFound = sysTx;
-                        break; 
-                    }
+                    matchFound = sysTx;
+                    break; 
                 }
             }
 
