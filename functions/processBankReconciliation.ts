@@ -88,20 +88,20 @@ Deno.serve(async (req) => {
 
             let matchFound = null;
 
-            // Strategy: Find EXACT amount match only (Date ignored)
+            // Strategy: Find match based on amount only (tolerance <= 0.005), ignoring dates
             for (const sysTx of systemTransactions) {
                 if (matchedSystemIds.has(sysTx.id)) continue;
 
                 let isAmountMatch = false;
                 if (debit > 0) {
-                    if (Math.abs((sysTx.debit_amount || 0) - debit) < 0.01) isAmountMatch = true;
+                    if (Math.abs((sysTx.debit_amount || 0) - debit) <= 0.005) isAmountMatch = true;
                 } else if (credit > 0) {
-                    if (Math.abs((sysTx.credit_amount || 0) - credit) < 0.01) isAmountMatch = true;
+                    if (Math.abs((sysTx.credit_amount || 0) - credit) <= 0.005) isAmountMatch = true;
                 }
 
                 if (isAmountMatch) {
                     matchFound = sysTx;
-                    break;
+                    break; 
                 }
             }
 
