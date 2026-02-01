@@ -1469,59 +1469,98 @@ export default function SupplierTxPage() {
                         </div>
                     </div>
 
-                    <div className="mb-4 flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <Label htmlFor="daysBackInput">Days Back:</Label>
-                                <Input
-                                    id="daysBackInput"
-                                    type="number"
-                                    value={pendingDaysBack}
-                                    onChange={(e) => handlePendingDaysBackChange(e.target.value)}
-                                    className="w-20 bg-white"
-                                    disabled={isLockedByOtherUser || !lockAcquired}
-                                />
-                            </div>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className="w-64 justify-start text-left font-normal"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {pendingDateRange.from && pendingDateRange.to ?
-                                            `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
-                                            "Select a date range"
-                                        }
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="end">
-                                    <Calendar
-                                        mode="range"
-                                        selected={pendingDateRange}
-                                        onSelect={handlePendingDateRangeChange}
-                                        numberOfMonths={2}
+                    <div className="mb-4 flex justify-between items-start">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="daysBackInput">Days Back:</Label>
+                                    <Input
+                                        id="daysBackInput"
+                                        type="number"
+                                        value={pendingDaysBack}
+                                        onChange={(e) => handlePendingDaysBackChange(e.target.value)}
+                                        className="w-20 bg-white"
                                         disabled={isLockedByOtherUser || !lockAcquired}
                                     />
-                                </PopoverContent>
-                            </Popover>
-                            <Button
-                                onClick={handleApplyDateRange}
-                                disabled={isLockedByOtherUser || !lockAcquired || loading || isSaving}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                Apply
-                            </Button>
-                            <div className="flex items-center gap-2">
-                                <Search className="w-4 h-4 text-slate-400" />
-                                <Input
-                                    placeholder="Search invoice #, description, or amount..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-64 bg-white"
+                                </div>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className="w-64 justify-start text-left font-normal"
+                                            disabled={isLockedByOtherUser || !lockAcquired}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {pendingDateRange.from && pendingDateRange.to ?
+                                                `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
+                                                "Select a date range"
+                                            }
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <Calendar
+                                            mode="range"
+                                            selected={pendingDateRange}
+                                            onSelect={handlePendingDateRangeChange}
+                                            numberOfMonths={2}
+                                            disabled={isLockedByOtherUser || !lockAcquired}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <Button
+                                    onClick={handleApplyDateRange}
+                                    disabled={isLockedByOtherUser || !lockAcquired || loading || isSaving}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    Apply
+                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Search className="w-4 h-4 text-slate-400" />
+                                    <Input
+                                        placeholder="Search invoice #, description, or amount..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-64 bg-white"
+                                        disabled={isLockedByOtherUser || !lockAcquired}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-4 text-sm px-1">
+                                <button 
+                                    onClick={() => handleQuickRange('thisMonth')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={isLockedByOtherUser || !lockAcquired}
-                                />
+                                >
+                                    This Month
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('lastMonth')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    Last Month
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('thisQuarter')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    This Quarter
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('thisYear')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    This Year
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('lastYear')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    Last Year
+                                </button>
                             </div>
                         </div>
                         <Card className="bg-white shadow-sm">
