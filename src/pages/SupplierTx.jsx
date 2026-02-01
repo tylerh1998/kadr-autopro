@@ -555,6 +555,41 @@ export default function SupplierTxPage() {
         setDaysBack(pendingDaysBack);
     };
 
+    const handleQuickRange = (type) => {
+        const today = new Date();
+        let from, to;
+
+        switch (type) {
+            case 'thisMonth':
+                from = startOfMonth(today);
+                to = endOfMonth(today);
+                break;
+            case 'lastMonth':
+                from = startOfMonth(subMonths(today, 1));
+                to = endOfMonth(subMonths(today, 1));
+                break;
+            case 'thisQuarter':
+                from = startOfQuarter(today);
+                to = endOfQuarter(today);
+                break;
+            case 'thisYear':
+                from = startOfYear(today);
+                to = endOfYear(today);
+                break;
+            case 'lastYear':
+                from = startOfYear(subYears(today, 1));
+                to = endOfYear(subYears(today, 1));
+                break;
+            default:
+                return;
+        }
+
+        setPendingDateRange({ from, to });
+        setPendingDaysBack('');
+        setDateRange({ from, to });
+        setDaysBack('');
+    };
+
     const handleLineChange = (lineId, field, value) => {
         setInvoiceLines(prev => {
             const updatedLines = prev.map(line => {
