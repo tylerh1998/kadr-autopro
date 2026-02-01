@@ -556,34 +556,44 @@ export default function SupplierTxPage() {
     };
 
     const handleQuickRange = (type) => {
-        const today = new Date();
+        // Use Mountain Time to determine the current year/month
+        // This ensures "Last Year" is relative to the business's timezone, not the browser's
+        const mountainNow = toMountainTime(new Date().toISOString());
+        const currentYear = mountainNow.getFullYear();
+        const currentMonth = mountainNow.getMonth(); // 0-indexed
+        
         let from, to;
 
         switch (type) {
             case 'thisMonth':
-                from = startOfMonth(today);
-                to = endOfMonth(today);
+                from = new Date(currentYear, currentMonth, 1);
+                to = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
                 break;
             case 'lastMonth':
-                from = startOfMonth(subMonths(today, 1));
-                to = endOfMonth(subMonths(today, 1));
+                from = new Date(currentYear, currentMonth - 1, 1);
+                to = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
                 break;
             case 'thisQuarter':
-                from = startOfQuarter(today);
-                to = endOfQuarter(today);
+                const quarterMonth = Math.floor(currentMonth / 3) * 3;
+                from = new Date(currentYear, quarterMonth, 1);
+                to = new Date(currentYear, quarterMonth + 3, 0, 23, 59, 59, 999);
                 break;
             case 'thisYear':
-                from = startOfYear(today);
-                to = endOfYear(today);
+                from = new Date(currentYear, 0, 1);
+                to = new Date(currentYear, 11, 31, 23, 59, 59, 999);
                 break;
             case 'lastYear':
-                from = startOfYear(subYears(today, 1));
-                to = endOfYear(subYears(today, 1));
+                from = new Date(currentYear - 1, 0, 1);
+                to = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999);
                 break;
             default:
                 return;
         }
 
+        // Adjust dates to ensure full coverage in backend filtering
+        // Resetting 'from' to 00:00:00 local
+        from.setHours(0, 0, 0, 0);
+        
         setPendingDateRange({ from, to });
         setPendingDaysBack('');
         setDateRange({ from, to });
