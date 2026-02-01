@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Receipt, Printer, Loader2, FileText, Calculator, ArrowUp, ArrowDown } from 'lucide-react';
-import { format, subDays, parseISO, differenceInDays } from 'date-fns';
+import { format, subDays, parseISO, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
 import {
