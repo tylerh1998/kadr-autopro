@@ -16,7 +16,10 @@ Deno.serve(async (req) => {
 
         const { to, subject, body, from_name, work_order_id, customer_id, portal_url } = await req.json();
 
-        if (!to || !subject || !body) {
+        // Support comma-separated recipients
+        const recipients = to ? to.split(',').map(email => email.trim()).filter(Boolean) : [];
+
+        if (!to || recipients.length === 0 || !subject || !body) {
             return Response.json({ error: 'Missing required fields: to, subject, body' }, { status: 400 });
         }
 
@@ -53,7 +56,7 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({
                 from: fromAddress,
-                to: [to],
+                to: recipients,
                 subject: subject,
                 html: htmlBody
             })
