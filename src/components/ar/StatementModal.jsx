@@ -90,7 +90,7 @@ export default function StatementModal({ open, onClose, customer }) {
           });
 
           // 5. Enrich transactions with cp_id for portal linking and filter out fully paid
-          const enrichedTransactions = transactions
+          const enrichedTransactions = allTransactions
             .map(transaction => {
               if (transaction.type === 'On Account Charge' && transaction.reference) {
                 const matchingCpId = workOrderMap[transaction.reference];
