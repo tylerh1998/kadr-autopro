@@ -90,7 +90,8 @@ export default function ReconcilePage() {
         const account = await BankAccount.get(bankAccountId);
         setBankAccount(account);
 
-        const allTransactions = await BankTransaction.list('transaction_date');
+        // Fetch up to 1000 transactions to ensure we get all of them (default is 100)
+        const allTransactions = await BankTransaction.list('transaction_date', 1000);
         
         const accountTransactions = allTransactions.filter(
           tx => tx.bank_account_id === bankAccountId && 
