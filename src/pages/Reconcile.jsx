@@ -245,14 +245,8 @@ export default function ReconcilePage() {
 
       await BankReconciliation.create(reconciliationRecord);
 
-      // Release lock before navigating away
-      if (bankAccountId && currentUser) {
-        await BankAccount.update(bankAccountId, {
-          locked_by_user: null,
-          locked_timestamp: null
-        });
-      }
-
+      // Note: Lock will be released automatically by the useEffect cleanup when we navigate away
+      
       alert('Reconciliation saved successfully!');
       navigate(`${createPageUrl('ReconcileReport')}?id=${reconciliationId}`);
       

@@ -23,13 +23,13 @@ Deno.serve(async (req) => {
         console.log(`Processing batch reconciliation for ${transactionIds.length} transactions. ID: ${reconciliationId}`);
 
         // Process in batches to respect backend rate limits
-        const batchSize = 20; 
+        // Reduced batch size to 5 to avoid 429s even with service role
+        const batchSize = 5; 
         let processedCount = 0;
         const errors = [];
 
         // We use service role to ensure we have permission and throughput, 
         // but we already verified the user is authenticated above.
-        // Assuming standard users can reconcile their own shop's data.
         
         for (let i = 0; i < transactionIds.length; i += batchSize) {
             const batch = transactionIds.slice(i, i + batchSize);
@@ -52,6 +52,11 @@ Deno.serve(async (req) => {
             });
 
             processedCount += batch.length;
+            
+            // Small delay between batches to be nice to the rate limiter
+            if (i + batchSize < transactionIds.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
         }
 
         if (errors.length > 0) {
