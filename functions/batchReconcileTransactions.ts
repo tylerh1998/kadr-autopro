@@ -23,8 +23,8 @@ Deno.serve(async (req) => {
 
         // Robust sequential processing with limited concurrency
         // This ensures reliability over speed, as requested by the user.
-        // 5 concurrent requests at a time, with a delay.
-        const concurrency = 5;
+        // 1 concurrent request at a time (strictly sequential), with a longer delay.
+        const concurrency = 1;
         let processedCount = 0;
         const errors = [];
         
@@ -59,10 +59,9 @@ Deno.serve(async (req) => {
                 }
             });
 
-            // Small delay to respect rate limits (200ms)
-            // 128 items / 5 = 26 batches * 200ms = ~5.2s total delay
+            // Delay to respect rate limits (500ms)
             if (i + concurrency < transactionIds.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
         }
 
