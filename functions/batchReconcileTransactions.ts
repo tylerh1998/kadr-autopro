@@ -34,8 +34,9 @@ Deno.serve(async (req) => {
         for (let i = 0; i < transactionIds.length; i += batchSize) {
             const batch = transactionIds.slice(i, i + batchSize);
             
+            // Use service role for updates to bypass user rate limits
             const results = await Promise.allSettled(batch.map(txId => 
-                base44.entities.BankTransaction.update(txId, {
+                base44.asServiceRole.entities.BankTransaction.update(txId, {
                     reconciled: true,
                     reconciliation_id: reconciliationId,
                     cleared: true
