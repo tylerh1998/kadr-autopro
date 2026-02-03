@@ -1,3 +1,4 @@
+// Force redeploy
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.11';
 
 Deno.serve(async (req) => {
