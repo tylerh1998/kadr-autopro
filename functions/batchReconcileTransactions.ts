@@ -22,33 +22,32 @@ Deno.serve(async (req) => {
 
         console.log(`Processing batch reconciliation for ${transactionIds.length} transactions. ID: ${reconciliationId}`);
 
-        // Use filtering to update all transactions in one go, similar to how bulkCreate works in processDataImport.
-        // This avoids making N individual requests and hitting rate limits.
-        
-        // We'll process in chunks of 100 just to be safe with payload sizes, 
-        // but using 'update' with a filter means 1 request per chunk instead of 100.
+        // Use bulkUpdate to update multiple records in a single request per batch.
+        // This avoids N requests and rate limits.
         const batchSize = 100;
         let processedCount = 0;
         const errors = [];
 
         for (let i = 0; i < transactionIds.length; i += batchSize) {
-            const batch = transactionIds.slice(i, i + batchSize);
+            const batchIds = transactionIds.slice(i, i + batchSize);
+            
+            // Prepare objects for bulkUpdate (id + fields to update)
+            const batchData = batchIds.map(id => ({
+                id: id,
+                reconciled: true,
+                reconciliation_id: reconciliationId,
+                cleared: true
+            }));
             
             try {
-                // Using the filter syntax to update multiple records at once
-                await base44.asServiceRole.entities.BankTransaction.update(
-                    { id: { $in: batch } },
-                    {
-                        reconciled: true,
-                        reconciliation_id: reconciliationId,
-                        cleared: true
-                    }
-                );
-                processedCount += batch.length;
+                // bulkUpdate sends a single request for the whole batch
+                await base44.asServiceRole.entities.BankTransaction.bulkUpdate(batchData);
+                processedCount += batchIds.length;
+                console.log(`Batch ${i / batchSize + 1} processed: ${batchIds.length} records`);
             } catch (error) {
-                console.error(`Failed to update batch ${i}:`, error);
+                console.error(`Failed to update batch starting at ${i}:`, error);
                 // If the bulk update fails, we add all IDs in this batch to errors
-                batch.forEach(id => errors.push({ id, error: error.message }));
+                batchIds.forEach(id => errors.push({ id, error: error.message }));
             }
         }
 
@@ -58,7 +57,7 @@ Deno.serve(async (req) => {
                 message: `Completed with ${errors.length} errors`,
                 errors: errors,
                 processed: processedCount
-            }, { status: 207 }); // 207 Multi-Status
+            }, { status: 207 });
         }
 
         return Response.json({ 
