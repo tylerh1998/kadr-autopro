@@ -39,25 +39,25 @@ Deno.serve(async (req) => {
 
         console.log(`Found ${toReset.length} transactions to reset.`);
 
-        // Use bulkUpdate for efficiency and to avoid rate limits
+        // Use update with filter for efficiency
         const batchSize = 100; 
         let processed = 0;
+        const idsToReset = toReset.map(tx => tx.id);
 
-        for (let i = 0; i < toReset.length; i += batchSize) {
-            const batch = toReset.slice(i, i + batchSize);
+        for (let i = 0; i < idsToReset.length; i += batchSize) {
+            const batchIds = idsToReset.slice(i, i + batchSize);
             
-            const batchData = batch.map(tx => ({
-                id: tx.id,
-                reconciled: false,
-                cleared: false,
-                reconciliation_id: null
-            }));
-
-            // Use service role bulkUpdate
-            await base44.asServiceRole.entities.BankTransaction.bulkUpdate(batchData);
+            await base44.asServiceRole.entities.BankTransaction.update(
+                { id: { $in: batchIds } },
+                {
+                    reconciled: false,
+                    cleared: false,
+                    reconciliation_id: null
+                }
+            );
             
-            processed += batch.length;
-            console.log(`Reset batch ${i / batchSize + 1}: ${processed} transactions.`);
+            processed += batchIds.length;
+            console.log(`Reset batch ${Math.floor(i / batchSize) + 1}: ${processed} transactions.`);
         }
 
         return Response.json({ 

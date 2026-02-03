@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
 
         console.log(`Processing batch reconciliation for ${transactionIds.length} transactions. ID: ${reconciliationId}`);
 
-        // Use bulkUpdate to update multiple records in a single request per batch.
-        // This avoids N requests and rate limits.
+        // Use update with a filter to update multiple records in a single request.
+        // This is much more efficient than looping or even bulkUpdate if bulkUpdate isn't supported.
         const batchSize = 100;
         let processedCount = 0;
         const errors = [];
@@ -31,22 +31,22 @@ Deno.serve(async (req) => {
         for (let i = 0; i < transactionIds.length; i += batchSize) {
             const batchIds = transactionIds.slice(i, i + batchSize);
             
-            // Prepare objects for bulkUpdate (id + fields to update)
-            const batchData = batchIds.map(id => ({
-                id: id,
-                reconciled: true,
-                reconciliation_id: reconciliationId,
-                cleared: true
-            }));
-            
             try {
-                // bulkUpdate sends a single request for the whole batch
-                await base44.asServiceRole.entities.BankTransaction.bulkUpdate(batchData);
+                // Update all transactions in this batch with a single query
+                // We use the $in operator to match all IDs in the batch
+                await base44.asServiceRole.entities.BankTransaction.update(
+                    { id: { $in: batchIds } },
+                    {
+                        reconciled: true,
+                        reconciliation_id: reconciliationId,
+                        cleared: true
+                    }
+                );
+                
                 processedCount += batchIds.length;
-                console.log(`Batch ${i / batchSize + 1} processed: ${batchIds.length} records`);
+                console.log(`Batch ${Math.floor(i / batchSize) + 1} processed: ${batchIds.length} records`);
             } catch (error) {
                 console.error(`Failed to update batch starting at ${i}:`, error);
-                // If the bulk update fails, we add all IDs in this batch to errors
                 batchIds.forEach(id => errors.push({ id, error: error.message }));
             }
         }
