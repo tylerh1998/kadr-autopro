@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
             return Response.json({ success: true, message: 'No transactions found to reset.' });
         }
 
-        // Process updates in smaller batches using individual update calls
+        // Force redeploy - Process updates in smaller batches using individual update calls
         // since bulkUpdate might not be available in this SDK version
         const batchSize = 10; 
         let processed = 0;
