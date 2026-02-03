@@ -17,21 +17,22 @@ Deno.serve(async (req) => {
             return Response.json({ success: true, message: 'No transactions found to reset.' });
         }
 
-        const updates = toReset.map(tx => ({
-            id: tx.id,
-            data: {
-                reconciled: false,
-                cleared: false,
-                reconciliation_id: null
-            }
-        }));
-
-        const batchSize = 100;
+        // Process updates in smaller batches using individual update calls
+        // since bulkUpdate might not be available in this SDK version
+        const batchSize = 10; 
         let processed = 0;
 
-        for (let i = 0; i < updates.length; i += batchSize) {
-            const batch = updates.slice(i, i + batchSize);
-            await base44.asServiceRole.entities.BankTransaction.bulkUpdate(batch);
+        for (let i = 0; i < toReset.length; i += batchSize) {
+            const batch = toReset.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(tx => 
+                base44.asServiceRole.entities.BankTransaction.update(tx.id, {
+                    reconciled: false,
+                    cleared: false,
+                    reconciliation_id: null
+                })
+            ));
+            
             processed += batch.length;
         }
 
