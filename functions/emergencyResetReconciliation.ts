@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
 
         console.log("Starting emergency reset...");
 
-        // Fetch all transactions with pagination to ensure we get everything
         let allTxs = [];
         let hasMore = true;
         let skip = 0;
@@ -30,7 +29,6 @@ Deno.serve(async (req) => {
         
         console.log(`Fetched ${allTxs.length} transactions total.`);
 
-        // Filter for transactions that need resetting
         const toReset = allTxs.filter(tx => tx.reconciled === true || tx.cleared === true || tx.reconciliation_id);
         
         if (toReset.length === 0) {
@@ -39,25 +37,40 @@ Deno.serve(async (req) => {
 
         console.log(`Found ${toReset.length} transactions to reset.`);
 
-        // Use update with filter for efficiency
-        const batchSize = 100; 
+        // Robust sequential processing with limited concurrency
+        const concurrency = 5;
         let processed = 0;
+        const errors = [];
+        
         const idsToReset = toReset.map(tx => tx.id);
 
-        for (let i = 0; i < idsToReset.length; i += batchSize) {
-            const batchIds = idsToReset.slice(i, i + batchSize);
-            
-            await base44.asServiceRole.entities.BankTransaction.update(
-                { id: { $in: batchIds } },
-                {
+        const processItem = async (id) => {
+            try {
+                await base44.asServiceRole.entities.BankTransaction.update(id, {
                     reconciled: false,
                     cleared: false,
                     reconciliation_id: null
-                }
-            );
+                });
+                return { success: true };
+            } catch (error) {
+                console.error(`Failed to reset tx ${id}:`, error);
+                return { success: false, error: error.message };
+            }
+        };
+
+        for (let i = 0; i < idsToReset.length; i += concurrency) {
+            const batchIds = idsToReset.slice(i, i + concurrency);
             
-            processed += batchIds.length;
-            console.log(`Reset batch ${Math.floor(i / batchSize) + 1}: ${processed} transactions.`);
+            const results = await Promise.all(batchIds.map(id => processItem(id)));
+            
+            const successCount = results.filter(r => r.success).length;
+            processed += successCount;
+            
+            if (i + concurrency < idsToReset.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            console.log(`Reset batch ${Math.floor(i / concurrency) + 1} processed.`);
         }
 
         return Response.json({ 

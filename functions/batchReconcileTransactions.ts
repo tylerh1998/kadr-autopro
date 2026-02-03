@@ -4,7 +4,6 @@ Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
-        // Verify authentication
         const user = await base44.auth.me();
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,32 +21,48 @@ Deno.serve(async (req) => {
 
         console.log(`Processing batch reconciliation for ${transactionIds.length} transactions. ID: ${reconciliationId}`);
 
-        // Use update with a filter to update multiple records in a single request.
-        // This is much more efficient than looping or even bulkUpdate if bulkUpdate isn't supported.
-        const batchSize = 100;
+        // Robust sequential processing with limited concurrency
+        // This ensures reliability over speed, as requested by the user.
+        // 5 concurrent requests at a time, with a delay.
+        const concurrency = 5;
         let processedCount = 0;
         const errors = [];
-
-        for (let i = 0; i < transactionIds.length; i += batchSize) {
-            const batchIds = transactionIds.slice(i, i + batchSize);
-            
+        
+        // Helper to process a single item
+        const processItem = async (id) => {
             try {
-                // Update all transactions in this batch with a single query
-                // We use the $in operator to match all IDs in the batch
-                await base44.asServiceRole.entities.BankTransaction.update(
-                    { id: { $in: batchIds } },
-                    {
-                        reconciled: true,
-                        reconciliation_id: reconciliationId,
-                        cleared: true
-                    }
-                );
-                
-                processedCount += batchIds.length;
-                console.log(`Batch ${Math.floor(i / batchSize) + 1} processed: ${batchIds.length} records`);
+                await base44.asServiceRole.entities.BankTransaction.update(id, {
+                    reconciled: true,
+                    reconciliation_id: reconciliationId,
+                    cleared: true
+                });
+                return { success: true, id };
             } catch (error) {
-                console.error(`Failed to update batch starting at ${i}:`, error);
-                batchIds.forEach(id => errors.push({ id, error: error.message }));
+                console.error(`Failed to update tx ${id}:`, error);
+                return { success: false, id, error: error.message };
+            }
+        };
+
+        // Process in chunks of 'concurrency' size
+        for (let i = 0; i < transactionIds.length; i += concurrency) {
+            const batch = transactionIds.slice(i, i + concurrency);
+            
+            // Execute batch in parallel
+            const results = await Promise.all(batch.map(id => processItem(id)));
+            
+            // Collect results
+            results.forEach(res => {
+                if (res.success) {
+                    processedCount++;
+                } else {
+                    errors.push({ id: res.id, error: res.error });
+                }
+            });
+
+            // Small delay to respect rate limits (200ms)
+            // 128 items / 5 = 26 batches * 200ms = ~5.2s total delay
+            if (i + concurrency < transactionIds.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
         }
 
