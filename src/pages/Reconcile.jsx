@@ -304,7 +304,10 @@ export default function ReconcilePage() {
 
     setLoading(true);
     try {
+      console.log('Attempting emergency reset...');
       const response = await base44.functions.invoke('emergencyResetReconciliation');
+      console.log('Reset response:', response);
+      
       if (response.data.success) {
         alert(response.data.message);
         window.location.reload();
