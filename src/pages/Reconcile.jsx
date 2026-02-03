@@ -216,16 +216,14 @@ export default function ReconcilePage() {
       const reconciliationId = `RECON-${Date.now()}`;
       const reconciliationDate = new Date().toISOString();
 
-      const updates = Array.from(selectedTransactions).map(txId => ({
-        id: txId,
-        data: {
+      // Use Promise.all for parallel updates since bulkUpdate is not available
+      await Promise.all(Array.from(selectedTransactions).map(txId => 
+        BankTransaction.update(txId, {
           reconciled: true,
           reconciliation_id: reconciliationId,
           cleared: true
-        }
-      }));
-
-      await BankTransaction.bulkUpdate(updates);
+        })
+      ));
 
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
