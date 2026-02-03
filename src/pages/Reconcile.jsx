@@ -216,14 +216,15 @@ export default function ReconcilePage() {
       const reconciliationId = `RECON-${Date.now()}`;
       const reconciliationDate = new Date().toISOString();
 
-      // Use Promise.all for parallel updates since bulkUpdate is not available
-      await Promise.all(Array.from(selectedTransactions).map(txId => 
-        BankTransaction.update(txId, {
-          reconciled: true,
-          reconciliation_id: reconciliationId,
-          cleared: true
-        })
-      ));
+      // Use backend function for bulk updates to prevent 429 errors
+      const updateResponse = await base44.functions.invoke('batchReconcileTransactions', {
+        transactionIds: Array.from(selectedTransactions),
+        reconciliationId: reconciliationId
+      });
+
+      if (!updateResponse.data.success) {
+        throw new Error(updateResponse.data.message || 'Failed to update some transactions');
+      }
 
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
