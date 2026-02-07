@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 
-export default function PaymentSelectionModal({ open, onClose, paymentMethod, payments, title, onMove }) {
+export default function PaymentSelectionModal({ open, onClose, paymentMethod, payments, title, onMove, onChangeMethod }) {
   const [selectedPayments, setSelectedPayments] = useState([]);
 
   const handleSelectAll = () => {
@@ -186,6 +186,21 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
             Selected: {selectedPayments.length} items (${selectedTotal.toFixed(2)})
           </div>
           <div className="flex gap-2">
+            {selectedPayments.length === 1 && onChangeMethod && (
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  const item = payments.find(p => p.id === selectedPayments[0]);
+                  if (item && item.source_type === 'payment') {
+                    onChangeMethod(item);
+                  } else {
+                    alert('Only Customer Payments can have their method changed.');
+                  }
+                }}
+              >
+                Change Method
+              </Button>
+            )}
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
