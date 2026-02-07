@@ -305,7 +305,7 @@ export default function GLJournalPage() {
           }
           
           /* Remove colored backgrounds on print */
-          .bg-green-50, .bg-red-50, .bg-purple-50, .bg-blue-50, .bg-slate-50 {
+          .bg-green-50, .bg-red-50, .bg-purple-50, .bg-blue-50, .bg-slate-50, .bg-slate-100, .bg-orange-50 {
              background-color: white !important;
           }
           
