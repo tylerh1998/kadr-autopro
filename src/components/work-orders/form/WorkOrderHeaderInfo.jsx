@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { base44 } from '@/api/base44Client';
 
 export default function WorkOrderHeaderInfo({
   workOrder,
@@ -23,7 +24,7 @@ export default function WorkOrderHeaderInfo({
   const [createdByName, setCreatedByName] = useState('');
 
   useEffect(() => {
-    const getCreatorName = () => {
+    const getCreatorName = async () => {
       if (!workOrder?.created_by) {
         setCreatedByName('');
         return;
@@ -34,7 +35,19 @@ export default function WorkOrderHeaderInfo({
         return;
       }
 
-      // Try to find in employees list first
+      try {
+        // Try to fetch user name from User entity
+        const users = await base44.entities.User.filter({ email: workOrder.created_by });
+        if (users && users.length > 0) {
+          const user = users[0];
+          setCreatedByName(user.User_name || user.full_name || workOrder.created_by);
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching creator user info:', error);
+      }
+
+      // Fallback to employees list if user lookup fails
       if (employees && employees.length > 0) {
         const employee = employees.find(e => e.email === workOrder.created_by);
         if (employee) {
@@ -43,7 +56,7 @@ export default function WorkOrderHeaderInfo({
         }
       }
 
-      // Fallback to email if not found in employees
+      // Final fallback to email
       setCreatedByName(workOrder.created_by);
     };
 
