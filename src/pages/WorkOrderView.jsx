@@ -266,7 +266,7 @@ export default function WorkOrderViewPage() {
               {/* Header with Stage Indicator and Actions */}
               <div className="flex items-center justify-between no-print">
                 {/* Stage/Number Box */}
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[300px]">
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[200px]">
                   <div className={`${stageConfig.headerColor} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
                     {stageConfig.text}
                   </div>

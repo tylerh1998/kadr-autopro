@@ -332,6 +332,16 @@ export default function WorkOrderViewHeaderInfo({
                 </div>
               )}
 
+              {/* Work Description */}
+              {workOrder?.description && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="font-medium text-slate-700 mb-1">Work Description:</p>
+                  <p className="text-slate-600 bg-slate-50 p-2 rounded whitespace-pre-wrap">
+                    {workOrder.description}
+                  </p>
+                </div>
+              )}
+
               {/* Audit Trail */}
               {(workOrder?.created_by || workOrder?.created_date) && (
                 <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
@@ -399,15 +409,6 @@ export default function WorkOrderViewHeaderInfo({
           </div>
         </div>
 
-        {/* Work Description */}
-        {workOrder?.description && (
-          <div className="mt-6 pt-6 border-t">
-            <h4 className="text-sm font-semibold text-slate-900 mb-2">Work Description</h4>
-            <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
-              {workOrder.description}
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
