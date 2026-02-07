@@ -165,8 +165,10 @@ export default function WorkOrderViewHeaderInfo({
     <Card>
       <CardContent className="p-6">
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Customer Info */}
-          <div className="space-y-4">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Customer Info */}
+              <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                 <User className="w-5 h-5" />
@@ -262,6 +264,18 @@ export default function WorkOrderViewHeaderInfo({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Work Description */}
+        {workOrder?.description && (
+          <div className="pt-4 border-t border-slate-100">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Work Description</h3>
+            <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">
+              {workOrder.description}
+            </p>
+          </div>
+        )}
+      </div>
 
           {/* Work Order Info */}
           <div className="space-y-4">
@@ -332,15 +346,7 @@ export default function WorkOrderViewHeaderInfo({
                 </div>
               )}
 
-              {/* Work Description */}
-              {workOrder?.description && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <p className="font-medium text-slate-700 mb-1">Work Description:</p>
-                  <p className="text-slate-600 bg-slate-50 p-2 rounded whitespace-pre-wrap">
-                    {workOrder.description}
-                  </p>
-                </div>
-              )}
+
 
               {/* Audit Trail */}
               {(workOrder?.created_by || workOrder?.created_date) && (
