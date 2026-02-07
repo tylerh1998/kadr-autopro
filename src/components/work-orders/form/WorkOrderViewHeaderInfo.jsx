@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Car, Calendar, Phone, Mail, MapPin, Copy } from 'lucide-react';
 import { format } from 'date-fns';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { base44 } from '@/api/base44Client';
 
 export default function WorkOrderViewHeaderInfo({
   workOrder,
@@ -16,6 +18,66 @@ export default function WorkOrderViewHeaderInfo({
   onEditWorkOrderDetails,
   onOpenWorkPRO,
 }) {
+  const [createdByName, setCreatedByName] = useState('');
+  const [lastUpdatedByName, setLastUpdatedByName] = useState('');
+  const [completedByName, setCompletedByName] = useState('');
+
+  const getUserDisplayName = async (email) => {
+    if (!email) return '';
+    
+    if (email.endsWith('@no-reply.base44.com')) {
+      return 'System';
+    }
+
+    try {
+      // Try to fetch user name from User entity
+      const users = await base44.entities.User.filter({ email });
+      if (users && users.length > 0) {
+        const user = users[0];
+        return user.User_name || user.full_name || email;
+      }
+    } catch (error) {
+      console.error('Error fetching user info for:', email, error);
+    }
+
+    // Fallback to employees list
+    if (employees && employees.length > 0) {
+      const employee = employees.find(e => e.email === email);
+      if (employee) {
+        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
+      }
+    }
+
+    return email;
+  };
+
+  useEffect(() => {
+    const fetchNames = async () => {
+      if (workOrder?.created_by) {
+        const name = await getUserDisplayName(workOrder.created_by);
+        setCreatedByName(name);
+      } else {
+        setCreatedByName('');
+      }
+
+      if (workOrder?.last_updated_by) {
+        const name = await getUserDisplayName(workOrder.last_updated_by);
+        setLastUpdatedByName(name);
+      } else {
+        setLastUpdatedByName('');
+      }
+
+      if (workOrder?.completed_by) {
+        const name = await getUserDisplayName(workOrder.completed_by);
+        setCompletedByName(name);
+      } else {
+        setCompletedByName('');
+      }
+    };
+
+    fetchNames();
+  }, [workOrder?.created_by, workOrder?.last_updated_by, workOrder?.completed_by, employees]);
+
   // Parse date string as local date (no timezone conversion)
   const parseLocalDate = (dateStr) => {
     if (!dateStr) return null;
@@ -272,6 +334,70 @@ export default function WorkOrderViewHeaderInfo({
                   <p className="text-slate-600 bg-slate-50 p-2 rounded">
                     {workOrder.customer_complaint}
                   </p>
+                </div>
+              )}
+
+              {/* Audit Trail */}
+              {(workOrder?.created_by || workOrder?.created_date) && (
+                <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
+                  {workOrder.created_by && (
+                    <div className="flex justify-between items-center">
+                      <span>Created By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={createdByName}>
+                        {createdByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.created_date && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Created:</span>
+                      <span className="font-medium text-slate-700">
+                        {(() => {
+                          const dateStr = workOrder.created_date;
+                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
+                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {workOrder.last_updated_by && (
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                      <span>Updated By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={lastUpdatedByName}>
+                        {lastUpdatedByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.last_updated && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Updated:</span>
+                      <span className="font-medium text-slate-700">
+                        {(() => {
+                          const dateStr = workOrder.last_updated;
+                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
+                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
+                        })()}
+                      </span>
+                    </div>
+                  )}
+
+                  {workOrder.completed_by && (
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                      <span>Completed By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={completedByName}>
+                        {completedByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.completed_date && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Completed:</span>
+                      <span className="font-medium text-slate-700">
+                        {formatDate(workOrder.completed_date)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
