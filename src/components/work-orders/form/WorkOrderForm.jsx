@@ -1038,6 +1038,7 @@ export default function WorkOrderForm({
         onAddCharge={handleAddOtherCharge}
         onEditCharge={currentLineItem?.is_other_charge ? handleEditOtherCharge : null}
         editingChargeLine={currentLineItem?.is_other_charge ? currentLineItem : null}
+        workOrderNumber={initialWorkOrder?.ro_number || initialWorkOrder?.wo_number}
       />
       <AddPartToWOModal 
         open={modals.addPart}
