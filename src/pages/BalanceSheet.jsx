@@ -133,128 +133,155 @@ export default function BalanceSheetPage() {
       {/* Print Styles */}
       <style>{`
         @media print {
-          .no-print {
+          @page {
+            size: letter portrait;
+            margin: 0.75in;
+          }
+
+          body {
+            background-color: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #111;
+          }
+
+          /* Hide UI elements */
+          .no-print, header, nav, button, .btn, .fixed, .sticky {
             display: none !important;
           }
           
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          /* Main Layout Resets */
+          .min-h-screen {
+            min-height: 0 !important;
+            height: auto !important;
+            background-color: white !important;
           }
           
-          body {
-            background: white !important;
+          div[class*="bg-slate-"] {
+             background-color: white !important;
+          }
+          
+          /* Container Overrides */
+          .print-container {
+            max-width: 100% !important;
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
           }
-          
-          body > div > div > header,
-          body > div > header,
-          body header,
-          header {
-            display: none !important;
-            visibility: hidden !important;
-          }
-          
-          .print-container {
-            max-width: 100% !important;
-            padding: 10mm 0 !important;
-            margin: 0 auto !important;
-          }
-          
+
+          /* Header */
           .print-header {
             display: block !important;
-            visibility: visible !important;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #000;
             text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
           }
-          
+
           .print-header .company-name {
-            font-size: 16pt;
+            font-size: 24px;
             font-weight: bold;
-            margin: 0 0 5px 0;
-            color: #000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            color: #1a1a1a;
           }
-          
+
           .print-header h1 {
-            font-size: 20pt;
-            font-weight: bold;
-            margin: 0 0 10px 0;
-            color: #000;
-          }
-          
-          .print-header .info-line {
-            font-size: 11pt;
-            margin: 5px 0;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
             color: #333;
           }
-          
+
+          .print-header .info-line {
+            font-size: 12px;
+            color: #555;
+            margin-top: 4px;
+          }
+
+          /* Cards */
           .print-card {
+            border: none !important;
             box-shadow: none !important;
-            border: 1px solid #ddd !important;
-            page-break-inside: avoid;
-            margin-bottom: 20px;
+            margin-bottom: 20px !important;
+            background: white !important;
+            break-inside: avoid;
           }
           
+          .card {
+            border: none !important;
+            box-shadow: none !important;
+          }
+
+          /* Section Titles */
           .print-section-title {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #000;
-            margin: 15px 0 10px 0;
-            padding: 5px 10px;
-            background-color: #f5f5f5;
-            border-left: 4px solid #333;
+            display: block !important;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 1px solid #000;
+            margin: 20px 0 10px 0;
+            padding-bottom: 4px;
+            color: #000 !important;
+            background: transparent !important;
+            border-left: none !important;
           }
-          
+
+          /* Rows */
           .print-line-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 10px;
-            border-bottom: 1px solid #ddd;
-            font-size: 10pt;
+            border-bottom: 1px dotted #e5e5e5 !important;
+            padding: 4px 0 !important;
+            font-size: 11px !important;
+            background-color: white !important;
           }
-          
+
           .print-line-item.total {
-            font-weight: bold;
-            background-color: #f9f9f9;
-            border-top: 2px solid #333;
-            font-size: 11pt;
+            background-color: white !important;
+            border-top: 1px solid #000 !important;
+            border-bottom: none !important;
+            font-weight: bold !important;
+            margin-top: 8px !important;
+            padding-top: 8px !important;
+            font-size: 12px !important;
           }
           
           .print-line-item.grand-total {
-            font-weight: bold;
-            background-color: #e3f2fd;
-            border-top: 3px double #333;
-            font-size: 12pt;
-            margin-top: 10px;
+            background-color: white !important;
+            border-top: 1px solid #000 !important;
+            border-bottom: 3px double #000 !important;
+            margin-top: 16px !important;
+            padding: 12px 0 !important;
+            font-size: 14px !important;
+            color: #000 !important;
           }
           
           .print-balance-check {
             display: block !important;
-            margin-top: 20px;
-            padding: 15px;
+            margin-top: 30px;
+            padding: 10px;
             text-align: center;
-            border: 2px solid #333;
-            font-size: 11pt;
-            font-weight: bold;
+            border: 1px solid #333;
+            font-size: 12px;
+            background: white !important;
           }
           
           .print-balance-check.balanced {
-            background-color: #e8f5e9 !important;
-            border-color: #4caf50 !important;
+            border-color: #333 !important;
           }
           
           .print-balance-check.unbalanced {
-            background-color: #ffebee !important;
-            border-color: #f44336 !important;
+            border-color: red !important;
+            color: red !important;
+          }
+          
+          /* Remove colored backgrounds on print */
+          .bg-green-50, .bg-red-50, .bg-purple-50, .bg-blue-50, .bg-slate-50 {
+             background-color: white !important;
           }
           
           @page {
-            margin: 15mm;
-            size: portrait;
-            
             @bottom-center {
               content: "Page " counter(page) " of " counter(pages);
               font-size: 9pt;
@@ -262,7 +289,7 @@ export default function BalanceSheetPage() {
             }
           }
         }
-        
+
         .print-header {
           display: none;
         }
