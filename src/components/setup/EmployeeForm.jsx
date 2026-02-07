@@ -12,7 +12,7 @@ export default function EmployeeForm({ employee, onSubmit, onCancel }) {
     employee_id: employee?.employee_id || "",
     first_name: employee?.first_name || "",
     last_name: employee?.last_name || "",
-    position: employee?.position || "technician",
+    position: employee?.position || "Technician",
     hourly_rate: employee?.hourly_rate || "",
     hire_date: employee?.hire_date || "",
     phone: employee?.phone || "",
@@ -102,11 +102,8 @@ export default function EmployeeForm({ employee, onSubmit, onCancel }) {
                   <SelectValue placeholder="Select position" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="technician">Technician</SelectItem>
-                  <SelectItem value="apprentice">Apprentice</SelectItem>
-                  <SelectItem value="service_advisor">Service Advisor</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="cashier">Cashier</SelectItem>
+                  <SelectItem value="Technician">Technician</SelectItem>
+                  <SelectItem value="Non-Technician">Non-Technician</SelectItem>
                 </SelectContent>
               </Select>
             </div>

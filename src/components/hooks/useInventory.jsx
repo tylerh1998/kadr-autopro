@@ -18,7 +18,7 @@ export function useShopData() {
       ]);
       setInventory(inventoryData);
       setAllEmployees(employeeData); // Store all employees
-      setEmployees(employeeData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
+      setEmployees(employeeData.filter(e => e.position === 'Technician'));
     } catch (e) {
       console.error('Error fetching shop data:', e);
       setError('Failed to load inventory or employee data.');

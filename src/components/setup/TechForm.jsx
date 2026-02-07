@@ -11,7 +11,7 @@ export default function TechForm({ tech, onSubmit, onCancel }) {
     first_name: "",
     last_name: "",
     hourly_rate: "",
-    position: "technician"
+    position: "Technician"
   });
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function TechForm({ tech, onSubmit, onCancel }) {
         first_name: tech.first_name || "",
         last_name: tech.last_name || "",
         hourly_rate: tech.hourly_rate?.toString() || "",
-        position: tech.position || "technician"
+        position: tech.position || "Technician"
       });
     }
   }, [tech]);
@@ -94,8 +94,8 @@ export default function TechForm({ tech, onSubmit, onCancel }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="technician">Technician</SelectItem>
-                  <SelectItem value="apprentice">Apprentice</SelectItem>
+                  <SelectItem value="Technician">Technician</SelectItem>
+                  <SelectItem value="Non-Technician">Non-Technician</SelectItem>
                 </SelectContent>
               </Select>
             </div>
