@@ -22,46 +22,56 @@ export default function WorkOrderHeaderInfo({
   onOpenApprovals,
 }) {
   const [createdByName, setCreatedByName] = useState('');
+  const [lastUpdatedByName, setLastUpdatedByName] = useState('');
+
+  const getUserDisplayName = async (email) => {
+    if (!email) return '';
+    
+    if (email.endsWith('@no-reply.base44.com')) {
+      return 'System';
+    }
+
+    try {
+      // Try to fetch user name from User entity
+      const users = await base44.entities.User.filter({ email });
+      if (users && users.length > 0) {
+        const user = users[0];
+        return user.User_name || user.full_name || email;
+      }
+    } catch (error) {
+      console.error('Error fetching user info for:', email, error);
+    }
+
+    // Fallback to employees list
+    if (employees && employees.length > 0) {
+      const employee = employees.find(e => e.email === email);
+      if (employee) {
+        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
+      }
+    }
+
+    return email;
+  };
 
   useEffect(() => {
-    const getCreatorName = async () => {
-      if (!workOrder?.created_by) {
+    const fetchNames = async () => {
+      if (workOrder?.created_by) {
+        const name = await getUserDisplayName(workOrder.created_by);
+        setCreatedByName(name);
+      } else {
         setCreatedByName('');
-        return;
-      }
-      
-      if (workOrder.created_by.endsWith('@no-reply.base44.com')) {
-        setCreatedByName('System');
-        return;
       }
 
-      try {
-        // Try to fetch user name from User entity
-        const users = await base44.entities.User.filter({ email: workOrder.created_by });
-        if (users && users.length > 0) {
-          const user = users[0];
-          setCreatedByName(user.User_name || user.full_name || workOrder.created_by);
-          return;
-        }
-      } catch (error) {
-        console.error('Error fetching creator user info:', error);
+      if (workOrder?.last_updated_by) {
+        const name = await getUserDisplayName(workOrder.last_updated_by);
+        setLastUpdatedByName(name);
+      } else {
+        setLastUpdatedByName('');
       }
-
-      // Fallback to employees list if user lookup fails
-      if (employees && employees.length > 0) {
-        const employee = employees.find(e => e.email === workOrder.created_by);
-        if (employee) {
-          setCreatedByName(employee.full_name || `${employee.first_name} ${employee.last_name}`);
-          return;
-        }
-      }
-
-      // Final fallback to email
-      setCreatedByName(workOrder.created_by);
     };
 
-    getCreatorName();
-  }, [workOrder?.created_by, employees]);
+    fetchNames();
+  }, [workOrder?.created_by, workOrder?.last_updated_by, employees]);
 
   // Helper function to get customer display name
   const getCustomerDisplayName = () => {
@@ -407,6 +417,26 @@ export default function WorkOrderHeaderInfo({
                         {(() => {
                           const dateStr = workOrder.created_date;
                           // Force UTC interpretation if 'Z' is missing to ensure correct conversion to Mountain Time
+                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
+                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.last_updated_by && (
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                      <span>Updated By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={lastUpdatedByName}>
+                        {lastUpdatedByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.last_updated && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Updated:</span>
+                      <span className="font-medium text-slate-700">
+                        {(() => {
+                          const dateStr = workOrder.last_updated;
                           const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
                           return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
                         })()}

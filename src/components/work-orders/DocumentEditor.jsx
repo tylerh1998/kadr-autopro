@@ -842,6 +842,62 @@ export default function DocumentEditor({ mode = 'work_order' }) {
           apiPayload.locked_timestamp = new Date().toISOString();
       }
 
+      // Check for real changes to update audit trail
+      try {
+        const originalWorkOrder = await WorkOrder.get(workOrder.id);
+        
+        if (originalWorkOrder) {
+          const ignoreFields = [
+            'updated_date', 
+            'created_date', 
+            'created_by', 
+            'LockedByUser', 
+            'locked_timestamp', 
+            'last_updated', 
+            'last_updated_by', 
+            'id',
+            'line_items' // We handle line_items separately due to JSON string nature
+          ];
+
+          let isRealChange = false;
+
+          // Check simple fields
+          for (const key in apiPayload) {
+            if (ignoreFields.includes(key)) continue;
+            
+            // Check if key exists in original (or if it's being added)
+            // Use loose equality for numbers/strings match (e.g. 5 vs "5") if needed, 
+            // but strict is better. JSON.stringify helps with objects/arrays.
+            const newVal = apiPayload[key];
+            const oldVal = originalWorkOrder[key];
+
+            // Normalize null/undefined/empty string differences if desirable, 
+            // but for strict audit, any change matters.
+            // Using JSON stringify to compare potentially complex objects or ensuring strict primitive check
+            if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+              isRealChange = true;
+              console.log(`Audit: Change detected in ${key}`);
+              break;
+            }
+          }
+
+          // Special check for line_items
+          if (!isRealChange && apiPayload.line_items && originalWorkOrder.line_items) {
+             if (apiPayload.line_items !== originalWorkOrder.line_items) {
+               isRealChange = true;
+               console.log('Audit: Change detected in line_items');
+             }
+          }
+
+          if (isRealChange && currentUser) {
+            apiPayload.last_updated = new Date().toISOString();
+            apiPayload.last_updated_by = currentUser.email;
+          }
+        }
+      } catch (auditError) {
+        console.error('Error during audit trail check:', auditError);
+      }
+
       await WorkOrder.update(workOrder.id, apiPayload);
 
       // Lock is ONLY cleared when handleHeaderSaveClick explicitly requests it (by calling update separately)
