@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { User, WorkOrder, SystemSettings } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText } from 'lucide-react';
+import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
 // Import hooks
@@ -20,6 +21,7 @@ import WarrantyReturnModal from '../components/work-orders/WarrantyReturnModal';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WONotesModal from '../components/work-orders/WONotesModal';
 import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
+import WorkOrderProfitability from '../components/work-orders/WorkOrderProfitability';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -53,6 +55,9 @@ export default function WorkOrderViewPage() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showProfitabilityModal, setShowProfitabilityModal] = useState(false);
+  const [workPROProject, setWorkPROProject] = useState(null);
+  const [workPROProjects, setWorkPROProjects] = useState([]);
   const [selectedLineForWarranty, setSelectedLineForWarranty] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false); // Kept for fallback or legacy logic if needed
@@ -91,6 +96,34 @@ export default function WorkOrderViewPage() {
     };
     loadSystemSettings();
   }, []);
+
+  // Fetch WorkPRO project data for Profitability
+  useEffect(() => {
+    const fetchWorkPROData = async () => {
+      if (!workOrder?.wo_number) return;
+
+      try {
+        const projectResponse = await base44.functions.invoke('workProProxy', {
+          entityName: 'Project',
+          method: 'filter',
+          params: {
+            work_order: workOrder.wo_number
+          }
+        });
+
+        if (projectResponse.data.success) {
+          const projects = projectResponse.data.data || [];
+          const foundProject = projects.length > 0 ? projects[0] : null;
+          setWorkPROProject(foundProject);
+          setWorkPROProjects(projects);
+        }
+      } catch (error) {
+        console.error('Error fetching WorkPRO data:', error);
+      }
+    };
+
+    fetchWorkPROData();
+  }, [workOrder?.wo_number]);
 
   const handlePrint = () => {
     setShowPdfModal(true);
@@ -282,6 +315,11 @@ export default function WorkOrderViewPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={() => setShowProfitabilityModal(true)}>
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    Profitability
+                  </Button>
+
                   <Button variant="outline" onClick={() => setShowNotesModal(true)}>
                     <FileText className="w-4 h-4 mr-2" />
                     WO Notes
@@ -396,6 +434,19 @@ export default function WorkOrderViewPage() {
         vehicle={vehicle}
         lineItems={lineItems}
       />
+
+      {/* Profitability Modal */}
+      {lineItems && (
+        <WorkOrderProfitability
+          open={showProfitabilityModal}
+          onClose={() => setShowProfitabilityModal(false)}
+          workOrder={workOrder}
+          lineItems={lineItems}
+          workPROProject={workPROProject}
+          workPROProjects={workPROProjects}
+          employees={employees}
+        />
+      )}
 
       {/* WO Notes Modal (View Only) */}
       <WONotesModal
