@@ -193,18 +193,20 @@ export default function WorkOrderViewPage() {
     refetch();
   };
 
-  const getStageDisplay = (stage) => {
+  const getStageConfig = (stage) => {
     switch (stage) {
       case 'estimate':
-        return { text: 'Estimate', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+        return { text: 'ESTIMATE', headerColor: 'bg-orange-500' };
       case 'work_order':
-        return { text: 'Work Order', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+        return { text: 'WORK ORDER', headerColor: 'bg-blue-600' };
       case 'invoice':
-        return { text: 'Invoice', color: 'bg-green-100 text-green-800 border-green-200' };
+        return { text: 'INVOICE', headerColor: 'bg-green-600' };
       case 'credit_invoice':
-        return { text: 'Credit Invoice', color: 'bg-red-100 text-red-800 border-red-200' };
+        return { text: 'CREDIT INVOICE', headerColor: 'bg-red-600' };
+      case 'void':
+        return { text: 'VOID', headerColor: 'bg-slate-500' };
       default:
-        return { text: stage || 'Unknown', color: 'bg-gray-100 text-gray-800 border-gray-200' };
+        return { text: (stage || 'UNKNOWN').toUpperCase(), headerColor: 'bg-slate-500' };
     }
   };
 
@@ -234,7 +236,7 @@ export default function WorkOrderViewPage() {
     );
   }
 
-  const stageDisplay = getStageDisplay(workOrder.stage);
+  const stageConfig = getStageConfig(workOrder.stage);
 
   return (
     <>
@@ -263,19 +265,20 @@ export default function WorkOrderViewPage() {
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Header with Stage Indicator and Actions */}
               <div className="flex items-center justify-between no-print">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-slate-900">
-                      {workOrder.stage === 'estimate' ? `Estimate ${workOrder.est_number}` :
-                        workOrder.stage === 'credit_invoice' ? `Credit Invoice ${workOrder.crinv_number}` :
-                        workOrder.stage === 'invoice' ? `Invoice ${workOrder.inv_number}` :
-                        `Work Order ${workOrder.wo_number || workOrder.ro_number}`}
-                    </h1>
-                    <p className="text-slate-600 mt-1">View Only Mode</p>
+                {/* Stage/Number Box */}
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[300px]">
+                  <div className={`${stageConfig.headerColor} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
+                    {stageConfig.text}
                   </div>
-                  <Badge variant="outline" className={`${stageDisplay.color} border text-sm px-3 py-1`}>
-                    {stageDisplay.text}
-                  </Badge>
+                  <div className="px-4 py-2">
+                    <h1 className="text-xl font-bold text-slate-900">
+                      {workOrder.stage === 'estimate' ? (workOrder.est_number || 'New Estimate') :
+                        workOrder.stage === 'credit_invoice' ? (workOrder.crinv_number || 'New Credit Invoice') :
+                        workOrder.stage === 'invoice' ? (workOrder.inv_number || 'New Invoice') :
+                        (workOrder.wo_number || workOrder.ro_number || 'New Work Order')}
+                    </h1>
+                    <p className="text-slate-500 text-xs">View Only Mode</p>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3">

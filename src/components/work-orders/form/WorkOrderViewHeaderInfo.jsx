@@ -296,12 +296,7 @@ export default function WorkOrderViewHeaderInfo({
                 </p>
               )}
               
-              {(workOrder?.stage === 'work_order' || workOrder?.stage === 'estimate') && workOrder?.status && (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-600">Status:</span>
-                  <StatusBadge status={workOrder.status} />
-                </div>
-              )}
+              {/* Status badge removed as per request */}
               
               {workOrder?.po_number && (
                 <p className="text-slate-600">
