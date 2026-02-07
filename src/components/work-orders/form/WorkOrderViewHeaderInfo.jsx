@@ -29,23 +29,24 @@ export default function WorkOrderViewHeaderInfo({
       return 'System';
     }
 
+    // Check employees list first (available to all users)
+    if (employees && employees.length > 0) {
+      const employee = employees.find(e => e.email === email);
+      if (employee) {
+        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
+      }
+    }
+
     try {
-      // Try to fetch user name from User entity
+      // Try to fetch user name from User entity (admin only or current user)
       const users = await base44.entities.User.filter({ email });
       if (users && users.length > 0) {
         const user = users[0];
         return user.User_name || user.full_name || email;
       }
     } catch (error) {
-      console.error('Error fetching user info for:', email, error);
-    }
-
-    // Fallback to employees list
-    if (employees && employees.length > 0) {
-      const employee = employees.find(e => e.email === email);
-      if (employee) {
-        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
-      }
+      // Ignore permission errors for non-admins
+      // console.error('Error fetching user info for:', email, error);
     }
 
     return email;

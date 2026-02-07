@@ -18,6 +18,7 @@ export default function WorkOrderViewForm({
   workOrder,
   customer,
   vehicle,
+  employees, // Pass employees list
   lineItems,
   onOpenWorkPRO,
   onPaymentsClick, // NEW: Add this prop
@@ -30,6 +31,7 @@ export default function WorkOrderViewForm({
         workOrder={workOrder}
         customer={customer}
         vehicle={vehicle}
+        employees={employees} // Pass employees list
         onOpenWorkPRO={onOpenWorkPRO}
       />
       
