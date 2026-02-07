@@ -831,11 +831,13 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       // Create a copy for the API update to avoid mutating workOrderData which is used for local state
       const apiPayload = { ...workOrderData };
 
-      if (invoiceConversionPhase > 0 && invoiceConversionPhase < 4) {
+      if (invoiceConversionPhase > 0 && invoiceConversionPhase < 4 && !updatedDetails.forceConversion) {
         delete apiPayload.stage;
         delete apiPayload.converted;
         delete apiPayload.inv_number;
       }
+      
+      delete apiPayload.forceConversion;
 
       // Update locked_timestamp to keep the lock fresh
       if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser')) {
@@ -1226,7 +1228,12 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         setInvoiceConversionPhase(3);
       } else if (invoiceConversionPhase === 3) {
         await handleSave({
-          invoice_date: data.invoice_date
+          invoice_date: data.invoice_date,
+          stage: 'invoice',
+          converted: true,
+          completed_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
+          completed_by: currentUser?.email,
+          forceConversion: true
         }, false);
         setInvoiceConversionPhase(0);
       }
