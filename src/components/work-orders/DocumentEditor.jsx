@@ -97,6 +97,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
   const {
     inventory,
     employees,
+    allEmployees,
     loading: shopDataLoading,
     error: shopDataError,
     refetchInventory
@@ -1906,7 +1907,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               workOrder={workOrder}
               customer={customer}
               vehicle={vehicle}
-              employees={employees}
+              employees={allEmployees || employees}
               inventory={inventory}
               lineItems={lineItems}
               tagAlongs={tagAlongs}

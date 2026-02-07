@@ -31,16 +31,17 @@ export default function WorkOrderHeaderInfo({
       return 'System';
     }
 
-    try {
-      // Try to fetch user name from User entity
-      const users = await base44.entities.User.filter({ email });
-      if (users && users.length > 0) {
-        const user = users[0];
-        return user.User_name || user.full_name || email;
-      }
-    } catch (error) {
-      console.error('Error fetching user info for:', email, error);
-    }
+    // User fetch removed to enforce Employee list lookup
+    // try {
+    //   // Try to fetch user name from User entity
+    //   const users = await base44.entities.User.filter({ email });
+    //   if (users && users.length > 0) {
+    //     const user = users[0];
+    //     return user.User_name || user.full_name || email;
+    //   }
+    // } catch (error) {
+    //   console.error('Error fetching user info for:', email, error);
+    // }
 
     // Fallback to employees list
     if (employees && employees.length > 0) {
