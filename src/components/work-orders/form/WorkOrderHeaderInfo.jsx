@@ -404,7 +404,12 @@ export default function WorkOrderHeaderInfo({
                     <div className="flex justify-between items-center mt-1">
                       <span>Created:</span>
                       <span className="font-medium text-slate-700">
-                        {format(toMountainTime(new Date(workOrder.created_date)), 'MMM d, yyyy h:mm a')}
+                        {(() => {
+                          const dateStr = workOrder.created_date;
+                          // Force UTC interpretation if 'Z' is missing to ensure correct conversion to Mountain Time
+                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
+                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
+                        })()}
                       </span>
                     </div>
                   )}
