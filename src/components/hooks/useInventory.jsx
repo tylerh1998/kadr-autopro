@@ -4,6 +4,7 @@ import { InventoryItem, Employee } from '@/entities/all';
 export function useShopData() {
   const [inventory, setInventory] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -16,6 +17,7 @@ export function useShopData() {
         Employee.list(),
       ]);
       setInventory(inventoryData);
+      setAllEmployees(employeeData); // Store all employees
       setEmployees(employeeData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
     } catch (e) {
       console.error('Error fetching shop data:', e);
@@ -29,5 +31,5 @@ export function useShopData() {
     fetchShopData();
   }, [fetchShopData]);
 
-  return { inventory, employees, loading, error, refetchInventory: fetchShopData };
+  return { inventory, employees, allEmployees, loading, error, refetchInventory: fetchShopData };
 }

@@ -46,7 +46,7 @@ export default function WorkOrderViewPage() {
     error: workOrderError,
     refetch
   } = useWorkOrder(roNumber);
-  const { inventory, employees, loading: invLoading } = useShopData();
+  const { inventory, employees, allEmployees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
@@ -372,7 +372,7 @@ export default function WorkOrderViewPage() {
                 workOrder={workOrder}
                 customer={customer}
                 vehicle={vehicle}
-                employees={employees}
+                employees={allEmployees || employees} // Use allEmployees for name lookup
                 inventory={inventory}
                 lineItems={lineItems}
                 tagAlongs={tagAlongs}
