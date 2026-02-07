@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 // Import all necessary modals
 import WorkOrderReport from './WorkOrderReport';
@@ -831,6 +832,8 @@ export default function DocumentEditor({ mode = 'work_order' }) {
       // Create a copy for the API update to avoid mutating workOrderData which is used for local state
       const apiPayload = { ...workOrderData };
 
+      console.log('DEBUG: Final API payload for WorkOrder update:', apiPayload);
+
       if (invoiceConversionPhase > 0 && invoiceConversionPhase < 4 && !updatedDetails.forceConversion) {
         delete apiPayload.stage;
         delete apiPayload.converted;
@@ -1227,6 +1230,9 @@ export default function DocumentEditor({ mode = 'work_order' }) {
         await handleSave({ description: data.description }, false);
         setInvoiceConversionPhase(3);
       } else if (invoiceConversionPhase === 3) {
+        console.log('DEBUG: currentUser email at Phase 3 save:', currentUser?.email);
+        console.log('DEBUG: Completed date being sent:', format(toMountainTime(new Date()), 'yyyy-MM-dd'));
+
         await handleSave({
           invoice_date: data.invoice_date,
           stage: 'invoice',
