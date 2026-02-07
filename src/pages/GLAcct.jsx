@@ -185,7 +185,7 @@ export default function GLAcctPage() {
           }
           
           body {
-            background: white !important;
+            background-color: white !important;
             margin: 0 !important;
             padding: 0 !important;
           }
@@ -197,6 +197,16 @@ export default function GLAcctPage() {
           header {
             display: none !important;
             visibility: hidden !important;
+          }
+          
+          .min-h-screen {
+            min-height: 0 !important;
+            height: auto !important;
+            background-color: white !important;
+          }
+          
+          div[class*="bg-slate-"] {
+             background-color: white !important;
           }
           
           /* Container adjustments */
@@ -341,6 +351,11 @@ export default function GLAcctPage() {
           
           .font-semibold {
             font-weight: 600 !important;
+          }
+          
+          /* Remove colored backgrounds on print */
+          .bg-green-50, .bg-red-50, .bg-purple-50, .bg-blue-50, .bg-slate-50 {
+             background-color: white !important;
           }
           
           /* Column widths for better fitting */
