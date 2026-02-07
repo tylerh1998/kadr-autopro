@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function WorkOrderHeaderInfo({
   workOrder,
@@ -19,6 +20,36 @@ export default function WorkOrderHeaderInfo({
   onOpenOdometerPrompt,
   onOpenApprovals,
 }) {
+  const [createdByName, setCreatedByName] = useState('');
+
+  useEffect(() => {
+    const getCreatorName = () => {
+      if (!workOrder?.created_by) {
+        setCreatedByName('');
+        return;
+      }
+      
+      if (workOrder.created_by.endsWith('@no-reply.base44.com')) {
+        setCreatedByName('System');
+        return;
+      }
+
+      // Try to find in employees list first
+      if (employees && employees.length > 0) {
+        const employee = employees.find(e => e.email === workOrder.created_by);
+        if (employee) {
+          setCreatedByName(employee.full_name || `${employee.first_name} ${employee.last_name}`);
+          return;
+        }
+      }
+
+      // Fallback to email if not found in employees
+      setCreatedByName(workOrder.created_by);
+    };
+
+    getCreatorName();
+  }, [workOrder?.created_by, employees]);
+
   // Helper function to get customer display name
   const getCustomerDisplayName = () => {
     if (!customer) return 'No Customer';
@@ -345,6 +376,27 @@ export default function WorkOrderHeaderInfo({
                 <UserCheck className="w-4 h-4 mr-2" />
                 Approvals
               </Button>
+              
+              {(workOrder?.created_by || workOrder?.created_date) && (
+                <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                  {workOrder.created_by && (
+                    <div className="flex justify-between items-center">
+                      <span>Created By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={createdByName}>
+                        {createdByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.created_date && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Created:</span>
+                      <span className="font-medium text-slate-700">
+                        {format(toMountainTime(new Date(workOrder.created_date)), 'MMM d, yyyy h:mm a')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
