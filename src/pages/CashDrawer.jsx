@@ -22,6 +22,7 @@ import DepositModal from '../components/cash-drawer/DepositModal';
 import CashDrawerAdjustmentModal from '../components/cash-drawer/CashDrawerAdjustmentModal';
 import DepositHistoryModal from '../components/cash-drawer/DepositHistoryModal';
 import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBreakdownModal';
+import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 
@@ -53,6 +54,8 @@ export default function CashDrawerPage() {
   const [currentDepositBatchId, setCurrentDepositBatchId] = useState(null);
   const [currentBankTransactionId, setCurrentBankTransactionId] = useState(null);
   const [existingBreakdown, setExistingBreakdown] = useState(null);
+  const [showChangeMethodModal, setShowChangeMethodModal] = useState(false);
+  const [paymentToChange, setPaymentToChange] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -683,6 +686,33 @@ export default function CashDrawerPage() {
     }
   };
 
+  const handleOpenChangeMethod = (item) => {
+    setPaymentToChange(item);
+    setShowChangeMethodModal(true);
+  };
+
+  const handleSavePaymentMethod = async (item, newMethod) => {
+    try {
+      setLoading(true);
+      await CustomerPayments.update(item.customerPaymentId, {
+        payment_method: newMethod
+      });
+      
+      setShowChangeMethodModal(false);
+      setPaymentToChange(null);
+      // Close the selection modal as the item might move to a different category
+      setShowPaymentModal(false); 
+      
+      await loadData();
+      alert('Payment method updated successfully.');
+    } catch (error) {
+      console.error('Error updating payment method:', error);
+      alert('Failed to update payment method.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerateDepositSlip = async (slipData) => {
     try {
       const response = await base44.functions.invoke('generateDepositSlipPDF', {
@@ -848,6 +878,7 @@ export default function CashDrawerPage() {
         }, [])}
         title={modalType === 'cash_drawer' ? 'Move to For Deposit' : 'Move to Cash Drawer'}
         onMove={handleMovePayments}
+        onChangeMethod={handleOpenChangeMethod}
       />
 
       <DepositModal
@@ -889,6 +920,16 @@ export default function CashDrawerPage() {
         bankTransactionId={currentBankTransactionId}
         existingBreakdown={existingBreakdown}
         onGenerateSlip={handleGenerateDepositSlip}
+      />
+
+      <ChangePaymentMethodModal
+        open={showChangeMethodModal}
+        onClose={() => {
+          setShowChangeMethodModal(false);
+          setPaymentToChange(null);
+        }}
+        payment={paymentToChange}
+        onSave={handleSavePaymentMethod}
       />
     </>
   );
