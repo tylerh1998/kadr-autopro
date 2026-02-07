@@ -865,7 +865,7 @@ export default function BankPage() {
             
             {/* Transactions Table */}
             <Card>
-              <CardHeader className="no-print">
+              <CardHeader className="no-print sticky top-16 z-30 bg-white border-b shadow-sm">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Landmark className="w-5 h-5" />
