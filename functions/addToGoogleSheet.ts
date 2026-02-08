@@ -34,21 +34,68 @@ Deno.serve(async (req) => {
         // Spreadsheet details
         const SPREADSHEET_ID = "16yiIXEpQg6r_RsLHg8q5hMOw9TLma6R4l163HVqd3qI";
         const SHEET_NAME = "SCU";
+        const encodedSheetName = encodeURIComponent(SHEET_NAME);
 
-        // Columns: B (Supplier), C (Amount), D (Due Date)
+        // 1. READ existing data in Column B (Supplier) for rows 2-38 to find first empty slot
+        // We read B2:B38.
+        const checkRange = `${encodedSheetName}!B2:B38`;
+        const getUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${checkRange}`;
+
+        console.log(`Checking for empty slot in ${SHEET_NAME} rows 2-38...`);
+
+        const getResponse = await fetch(getUrl, {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${accessToken}` }
+        });
+
+        if (!getResponse.ok) {
+            const errorText = await getResponse.text();
+            throw new Error(`Failed to read sheet: ${getResponse.statusText} - ${errorText}`);
+        }
+
+        const getData = await getResponse.json();
+        const existingRows = getData.values || [];
+
+        // Find the first empty row index
+        // Google Sheets API omits trailing empty rows. 
+        // If rows 2-5 have data, existingRows.length will be 4. Next empty is 2 + 4 = 6.
+        // If there are gaps (e.g. data in 2 and 4, but 3 is empty), existingRows will look like [["Data"], [], ["Data"]]
+        // So we scan for the first row that doesn't exist or has an empty string.
+
+        let targetRowNumber = -1;
+        const START_ROW = 2;
+        const MAX_ROW = 38;
+
+        // Check slots 0 to 36 (corresponding to rows 2 to 38)
+        for (let i = 0; i <= (MAX_ROW - START_ROW); i++) {
+            const rowData = existingRows[i];
+            // If rowData is undefined (beyond returned range) or empty array or first cell is empty string
+            if (!rowData || rowData.length === 0 || rowData[0] === "" || rowData[0] === undefined) {
+                targetRowNumber = START_ROW + i;
+                break;
+            }
+        }
+
+        if (targetRowNumber === -1 || targetRowNumber > MAX_ROW) {
+             return new Response(JSON.stringify({ success: false, error: 'Table is full (Rows 2-38)' }), {
+                status: 400, // Bad Request ideally, but communicating "Full"
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        console.log(`Found empty slot at row: ${targetRowNumber}`);
+
+        // 2. UPDATE the found row
+        // We update B{row}:D{row}
         const values = [
             [supplierName, amount, dueDate]
         ];
+        
+        const updateRange = `${encodedSheetName}!B${targetRowNumber}:D${targetRowNumber}`;
+        const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${updateRange}?valueInputOption=USER_ENTERED`;
 
-        // Ensure we encode the sheet name just in case
-        const encodedSheetName = encodeURIComponent(SHEET_NAME);
-        // Append to columns B:D
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedSheetName}!B:D:append?valueInputOption=USER_ENTERED`;
-
-        console.log(`Appending to sheet: ${SHEET_NAME} (${SPREADSHEET_ID})`);
-
-        const response = await fetch(url, {
-            method: "POST",
+        const updateResponse = await fetch(updateUrl, {
+            method: "PUT",
             headers: {
                 "Authorization": `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
@@ -58,16 +105,16 @@ Deno.serve(async (req) => {
             })
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Google Sheets API Error:", errorText);
-            throw new Error(`Google Sheets API error: ${response.statusText} - ${errorText}`);
+        if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            console.error("Google Sheets Update Error:", errorText);
+            throw new Error(`Google Sheets Update error: ${updateResponse.statusText} - ${errorText}`);
         }
 
-        const result = await response.json();
+        const result = await updateResponse.json();
         console.log("Success:", result);
 
-        return new Response(JSON.stringify({ success: true, data: result }), {
+        return new Response(JSON.stringify({ success: true, data: result, row: targetRowNumber }), {
             headers: { "Content-Type": "application/json" }
         });
 
