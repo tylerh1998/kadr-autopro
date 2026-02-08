@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
         
         // Spreadsheet details
         // CRITICAL: This ID needs to be set by the user if not already known
-        const SPREADSHEET_ID = "1X-X..."; // TODO: Replace with actual ID
+        const SPREADSHEET_ID = "16yiIXEpQg6r_RsLHg8q5hMOw9TLma6R4l163HVqd3qI";
         const SHEET_NAME = "SCU";
 
         // Columns: B (Supplier), C (Amount), D (Due Date)
