@@ -12,7 +12,7 @@ import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
-import AddToSheetModal from '../components/suppliers/AddToSheetModal';
+import AddToSheetModal from '@/components/suppliers/AddToSheetModal';
 
 export default function APSummaryPage() {
   const [suppliers, setSuppliers] = useState([]);
