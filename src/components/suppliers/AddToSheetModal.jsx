@@ -11,8 +11,6 @@ import { Loader2 } from "lucide-react";
 export default function AddToSheetModal({ open, onClose, initialValues }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [suppliers, setSuppliers] = useState([]);
-  
   const [formData, setFormData] = useState({
     supplierName: '',
     amount: '',
@@ -21,7 +19,6 @@ export default function AddToSheetModal({ open, onClose, initialValues }) {
 
   useEffect(() => {
     if (open) {
-      loadSuppliers();
       if (initialValues) {
         setFormData({
           supplierName: initialValues.supplierName || '',
@@ -33,22 +30,6 @@ export default function AddToSheetModal({ open, onClose, initialValues }) {
       }
     }
   }, [open, initialValues]);
-
-  const loadSuppliers = async () => {
-    setLoading(true);
-    try {
-      const result = await base44.entities.Supplier.list({
-          sort: { name: 1 },
-          limit: 1000
-      });
-      setSuppliers(result || []);
-    } catch (error) {
-      console.error("Failed to load suppliers", error);
-      toast.error("Failed to load suppliers");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -88,21 +69,12 @@ export default function AddToSheetModal({ open, onClose, initialValues }) {
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="supplier">Supplier</Label>
-            <Select 
+            <Input 
+              id="supplier"
               value={formData.supplierName} 
-              onValueChange={(val) => setFormData(prev => ({ ...prev, supplierName: val }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map(supplier => (
-                  <SelectItem key={supplier.id} value={supplier.name}>
-                    {supplier.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              disabled 
+              className="bg-slate-100 text-slate-500"
+            />
           </div>
           
           <div className="space-y-2">
