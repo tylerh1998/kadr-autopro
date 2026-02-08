@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, Loader2 } from 'lucide-react';
-import { format, parseISO, differenceInDays, parse } from 'date-fns';
+import { format, parseISO, differenceInDays, parse, endOfMonth } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
@@ -810,7 +810,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         initialValues={{
             supplierName: supplier?.name,
             amount: totalSelectedAmount,
-            dueDate: format(new Date(), 'yyyy-MM-dd')
+            dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
         }}
       />
     </>
