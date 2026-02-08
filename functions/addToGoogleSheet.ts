@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.11';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 Deno.serve(async (req) => {
     if (req.method !== 'POST') {
@@ -32,7 +32,6 @@ Deno.serve(async (req) => {
         const accessToken = await base44.asServiceRole.connectors.getAccessToken("googlesheets");
         
         // Spreadsheet details
-        // CRITICAL: This ID needs to be set by the user if not already known
         const SPREADSHEET_ID = "16yiIXEpQg6r_RsLHg8q5hMOw9TLma6R4l163HVqd3qI";
         const SHEET_NAME = "SCU";
 
@@ -42,7 +41,11 @@ Deno.serve(async (req) => {
             ["", supplierName, amount, dueDate]
         ];
 
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}!A:D:append?valueInputOption=USER_ENTERED`;
+        // Ensure we encode the sheet name just in case
+        const encodedSheetName = encodeURIComponent(SHEET_NAME);
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedSheetName}!A:D:append?valueInputOption=USER_ENTERED`;
+
+        console.log(`Appending to sheet: ${SHEET_NAME} (${SPREADSHEET_ID})`);
 
         const response = await fetch(url, {
             method: "POST",
@@ -62,6 +65,7 @@ Deno.serve(async (req) => {
         }
 
         const result = await response.json();
+        console.log("Success:", result);
 
         return new Response(JSON.stringify({ success: true, data: result }), {
             headers: { "Content-Type": "application/json" }
