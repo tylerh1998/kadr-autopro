@@ -15,7 +15,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, DollarSign, Loader2, Upload } from 'lucide-react';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, parse, isValid } from 'date-fns';
+
+const SERVUS_ID = '68cbcdf3f171308eee277c73';
+const ATB_ID = '695c358b0d127adfb929951e';
 
 export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, onPaymentMade, currentUser }) {
   const [paymentData, setPaymentData] = useState({
@@ -51,85 +54,110 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   };
 
   const processCSV = (text) => {
-    // Basic CSV parser that handles quotes
-    const parseCSVLine = (line) => {
-      const result = [];
-      let cell = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(cell); // Keep raw for now, clean later
-          cell = '';
-        } else {
-          cell += char;
+    const lines = text.split('\n');
+    const clean = (str) => str ? str.replace(/^"|"$/g, '').trim() : '';
+    const csvAmounts = [];
+
+    // Specific parsing for Servus and ATB
+    if (lineOfCredit?.id === SERVUS_ID || lineOfCredit?.id === ATB_ID) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // SERVUS Parsing
+        if (lineOfCredit?.id === SERVUS_ID) {
+            // Skip header if it exists
+            if (i === 0 && line.toLowerCase().includes('card number')) continue;
+
+            const parts = line.split(';');
+            if (parts.length >= 5) {
+                const amountStr = clean(parts[4]);
+                // Parse Amount: "$66.58"
+                const amountClean = amountStr.replace(/[$,]/g, '');
+                const amount = parseFloat(amountClean);
+
+                if (!isNaN(amount) && amount !== 0) {
+                    csvAmounts.push(Math.abs(amount));
+                }
+            }
+        }
+        // ATB Parsing
+        else if (lineOfCredit?.id === ATB_ID) {
+            // Skip header
+            if (i === 0) continue; 
+            const parts = line.split(','); 
+            
+            // Indices: 0=Date, 5=Debit, 6=Credit, 7=Extended Text
+            if (parts.length >= 8) {
+                const debitStr = clean(parts[5]);
+                const creditStr = clean(parts[6]);
+
+                let amount = 0;
+                if (debitStr && parseFloat(debitStr) !== 0) {
+                    amount = parseFloat(debitStr); 
+                } else if (creditStr && parseFloat(creditStr) !== 0) {
+                    amount = parseFloat(creditStr); 
+                }
+
+                if (!isNaN(amount) && amount !== 0) {
+                    csvAmounts.push(Math.abs(amount));
+                }
+            }
         }
       }
-      result.push(cell);
-      return result;
-    };
+    } else {
+      // Fallback Generic Parsing (similar to what we had, or simplified)
+      const parseCSVLine = (line) => {
+        const result = [];
+        let cell = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) { result.push(cell); cell = ''; }
+          else cell += char;
+        }
+        result.push(cell);
+        return result;
+      };
 
-    const rows = text.split(/\r?\n/);
-    if (rows.length < 2) {
-      alert("CSV file seems empty or invalid.");
-      return;
-    }
-
-    // Process headers
-    const headerRow = rows[0];
-    const headers = parseCSVLine(headerRow).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-    
-    // Look for columns similar to reconcile feature: DebitAmount, CreditAmount
-    const debitIdx = headers.indexOf('debitamount');
-    const creditIdx = headers.indexOf('creditamount');
-    
-    // Fallback to simple Amount or similar
-    let amountIdx = -1;
-    if (debitIdx === -1 && creditIdx === -1) {
-      amountIdx = headers.findIndex(h => h === 'amount' || h.includes('amount') || h === 'debit' || h === 'credit');
-    }
-
-    if (debitIdx === -1 && creditIdx === -1 && amountIdx === -1) {
-      alert("Could not find Amount columns. Please ensure CSV has 'DebitAmount' and 'CreditAmount' (like Reconcile feature) or a generic 'Amount' column.");
-      return;
-    }
-
-    const csvAmounts = [];
-    
-    // Helper to parse amount like backend: remove $, commas, spaces, double quotes
-    const parseAmount = (str) => {
-        if (!str) return 0;
-        // Clean outer quotes if parseCSVLine left them (it does logic inside but simple cell accumulation)
-        // Actually our parseCSVLine keeps text inside quotes including the quotes if we are not careful? 
-        // Let's just use the regex from backend: str.replace(/[$,\s"]/g, '')
-        const clean = str.replace(/[$,\s"]/g, '');
-        const float = parseFloat(clean);
-        return isNaN(float) ? 0 : float;
-    };
-
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i].trim()) continue;
-      const cols = parseCSVLine(rows[i]);
+      const rows = lines;
+      if (rows.length < 2) {
+        alert("CSV file seems empty or invalid.");
+        return;
+      }
       
-      let amount = 0;
-
-      if (debitIdx !== -1 || creditIdx !== -1) {
-        // Use Debit/Credit columns
-        const debit = debitIdx !== -1 && cols[debitIdx] ? parseAmount(cols[debitIdx]) : 0;
-        const credit = creditIdx !== -1 && cols[creditIdx] ? parseAmount(cols[creditIdx]) : 0;
-        // For LOC payment, we just care about the magnitude of the transaction to match against outstanding charges
-        // Usually charges are debits or credits depending on perspective, but we just need positive magnitude
-        amount = Math.max(Math.abs(debit), Math.abs(credit));
-      } else if (amountIdx !== -1 && cols[amountIdx]) {
-        // Use generic Amount column
-        amount = Math.abs(parseAmount(cols[amountIdx]));
+      const headerRow = rows[0];
+      const headers = parseCSVLine(headerRow).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      
+      // Try to find amount columns
+      const debitIdx = headers.indexOf('debitamount');
+      const creditIdx = headers.indexOf('creditamount');
+      let amountIdx = -1;
+      if (debitIdx === -1 && creditIdx === -1) {
+        amountIdx = headers.findIndex(h => h === 'amount' || h.includes('amount') || h === 'debit' || h === 'credit');
       }
 
-      if (amount > 0) {
-        csvAmounts.push(amount);
+      for (let i = 1; i < rows.length; i++) {
+        if (!rows[i].trim()) continue;
+        const cols = parseCSVLine(rows[i]);
+        const parseAmount = (str) => {
+          if (!str) return 0;
+          const clean = str.replace(/[$,\s"]/g, '');
+          const float = parseFloat(clean);
+          return isNaN(float) ? 0 : float;
+        };
+
+        let amount = 0;
+        if (debitIdx !== -1 || creditIdx !== -1) {
+          const debit = debitIdx !== -1 && cols[debitIdx] ? parseAmount(cols[debitIdx]) : 0;
+          const credit = creditIdx !== -1 && cols[creditIdx] ? parseAmount(cols[creditIdx]) : 0;
+          amount = Math.max(Math.abs(debit), Math.abs(credit));
+        } else if (amountIdx !== -1 && cols[amountIdx]) {
+          amount = Math.abs(parseAmount(cols[amountIdx]));
+        }
+
+        if (amount > 0) csvAmounts.push(amount);
       }
     }
 
@@ -142,17 +170,14 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     const matchedIndices = new Set();
     let matchCount = 0;
 
-    // Switch to pay_charges tab if not active
     if (activeTab !== 'pay_charges') {
       setActiveTab('pay_charges');
     }
 
     csvAmounts.forEach(amt => {
-      // Find a charge that matches this amount
       const idx = outstandingCharges.findIndex((charge, index) => {
         if (matchedIndices.has(index)) return false;
         
-        // Calculate remaining amount for this charge/credit
         let remaining = 0;
         if (charge.charge_amount > 0) {
            remaining = charge.charge_amount - (charge.payment_amount || 0);
@@ -160,7 +185,6 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
            remaining = charge.credit_amount + (charge.payment_amount || 0);
         }
         
-        // Match with small tolerance for float precision
         return Math.abs(remaining - amt) < 0.01;
       });
 
@@ -175,7 +199,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       setSelectedCharges(newSelected);
       alert(`Matched and selected ${matchCount} items based on the uploaded CSV.`);
     } else {
-      alert("No matching charges found for the amounts in the CSV. Checked " + csvAmounts.length + " rows.");
+      alert("No matching charges found for the amounts in the CSV. Checked " + csvAmounts.length + " transactions.");
     }
   };
 
