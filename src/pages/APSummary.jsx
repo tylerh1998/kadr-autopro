@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown } from 'lucide-react';
+import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
+import AddToSheetModal from '../components/suppliers/AddToSheetModal';
 
 export default function APSummaryPage() {
   const [suppliers, setSuppliers] = useState([]);
@@ -31,6 +32,8 @@ export default function APSummaryPage() {
   });
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
+  const [addToSheetData, setAddToSheetData] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
 
   const navigate = useNavigate();
@@ -225,6 +228,20 @@ export default function APSummaryPage() {
     }
   };
 
+  const handleAddToSheet = () => {
+    if (selectedSupplier) {
+      const amount = Math.max(0, selectedSupplier.total_balance - selectedSupplier.not_due).toFixed(2);
+      const dueDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      
+      setAddToSheetData({
+        supplierName: selectedSupplier.name,
+        amount: amount,
+        dueDate: dueDate
+      });
+      setShowAddToSheetModal(true);
+    }
+  };
+
   const handleSort = (key) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -380,6 +397,10 @@ export default function APSummaryPage() {
                                 <DollarSign className="w-4 h-4 mr-2" />
                                 Make Payment
                               </ContextMenuItem>
+                              <ContextMenuItem onClick={handleAddToSheet}>
+                                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                Add to Sheet
+                              </ContextMenuItem>
                             </ContextMenuContent>
                           </ContextMenu>
                         ))
@@ -412,6 +433,15 @@ export default function APSummaryPage() {
             supplier={selectedSupplier}
             invoiceLines={conceptualInvoicesForSupplier}
             onPaymentComplete={handlePaymentMade}
+          />
+
+          <AddToSheetModal
+            open={showAddToSheetModal}
+            onClose={() => {
+              setShowAddToSheetModal(false);
+              setAddToSheetData(null);
+            }}
+            initialValues={addToSheetData}
           />
         </div>
       </div>
