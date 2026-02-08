@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar as CalendarIcon, DollarSign, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, DollarSign, Loader2, Upload } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
 export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, onPaymentMade, currentUser }) {
@@ -34,6 +34,101 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      processCSV(text);
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be selected again if needed
+    event.target.value = '';
+  };
+
+  const processCSV = (text) => {
+    const rows = text.split(/\r?\n/);
+    if (rows.length < 2) {
+      alert("CSV file seems empty or invalid.");
+      return;
+    }
+
+    // Detect Amount column
+    const headers = rows[0].split(',').map(h => h.trim().toLowerCase().replace(/["']/g, ''));
+    let amountIdx = headers.findIndex(h => h === 'amount' || h.includes('amount') || h === 'debit' || h === 'credit');
+    
+    if (amountIdx === -1) {
+      alert("Could not find an 'Amount' column in the CSV. Please ensure the CSV has a header row with an 'Amount' column.");
+      return;
+    }
+
+    const csvAmounts = [];
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue;
+      // Regex to split by comma ignoring commas inside quotes
+      const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+      
+      if (cols[amountIdx]) {
+        // Clean amount string: remove quotes, currency symbols
+        let amtStr = cols[amountIdx].replace(/["'$]/g, '').trim();
+        // Remove commas if they are used as thousand separators
+        amtStr = amtStr.replace(/,/g, '');
+        
+        const val = parseFloat(amtStr);
+        if (!isNaN(val)) csvAmounts.push(Math.abs(val)); 
+      }
+    }
+
+    if (csvAmounts.length === 0) {
+      alert("No valid amounts found in the CSV.");
+      return;
+    }
+
+    const newSelected = {};
+    const matchedIndices = new Set();
+    let matchCount = 0;
+
+    // Switch to pay_charges tab if not active
+    if (activeTab !== 'pay_charges') {
+      setActiveTab('pay_charges');
+    }
+
+    csvAmounts.forEach(amt => {
+      // Find a charge that matches this amount
+      const idx = outstandingCharges.findIndex((charge, index) => {
+        if (matchedIndices.has(index)) return false;
+        
+        // Calculate remaining amount for this charge/credit
+        let remaining = 0;
+        if (charge.charge_amount > 0) {
+           remaining = charge.charge_amount - (charge.payment_amount || 0);
+        } else if (charge.credit_amount > 0) {
+           remaining = charge.credit_amount + (charge.payment_amount || 0);
+        }
+        
+        // Match with small tolerance for float precision
+        return Math.abs(remaining - amt) < 0.01;
+      });
+
+      if (idx !== -1) {
+        newSelected[outstandingCharges[idx].id] = true;
+        matchedIndices.add(idx);
+        matchCount++;
+      }
+    });
+
+    if (matchCount > 0) {
+      setSelectedCharges(newSelected);
+      alert(`Matched and selected ${matchCount} items based on the uploaded CSV.`);
+    } else {
+      alert("No matching charges found for the amounts in the CSV.");
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -344,14 +439,34 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
               </div>
             </TabsContent>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-              <Button 
-                onClick={handleProceedToPaymentDetails} 
-                disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
-              >
-                Next: Payment Details (${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)})
-              </Button>
+            <DialogFooter className="sm:justify-between flex-col sm:flex-row gap-2">
+              <div className="flex items-center">
+                <input
+                  type="file"
+                  accept=".csv"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileUpload}
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 w-full sm:w-auto"
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload CSV
+                </Button>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button 
+                  onClick={handleProceedToPaymentDetails} 
+                  disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
+                >
+                  Next: Payment Details (${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)})
+                </Button>
+              </div>
             </DialogFooter>
           </Tabs>
         )}
