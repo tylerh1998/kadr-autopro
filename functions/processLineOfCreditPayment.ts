@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
     // Update specific charges if provided
     if (applied_charges && Array.isArray(applied_charges) && applied_charges.length > 0) {
       for (const charge of applied_charges) {
-        if (charge.id && charge.amount > 0) {
+        if (charge.id && charge.amount !== 0) {
           try {
             // Add to tracking array
             paymentAppliedData.push({

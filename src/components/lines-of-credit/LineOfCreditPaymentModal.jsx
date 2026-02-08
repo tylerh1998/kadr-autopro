@@ -83,15 +83,23 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           // Filter out the current line of credit from other options
           setOtherLinesOfCredit(otherLOCData.filter(loc => loc.id !== lineOfCredit.id));
 
-          // Group transactions that represent "charges" (positive amounts that need payment)
-          // Filter out fully paid charges (where payment_amount >= charge_amount)
+          // Group transactions that represent "charges" and "credits"
+          // Filter out fully paid charges and fully applied credits
           // Also exclude payment_made records themselves
           const charges = transactionsData
-            .filter(tx => 
-              tx.charge_amount > 0 && 
-              tx.source_type !== 'payment_made' && 
-              (tx.payment_amount || 0) < tx.charge_amount
-            )
+            .filter(tx => {
+              if (tx.source_type === 'payment_made') return false;
+              
+              if (tx.charge_amount > 0) {
+                // Outstanding Charge: payment_amount (paid so far) < charge_amount
+                return (tx.payment_amount || 0) < tx.charge_amount;
+              } else if (tx.credit_amount > 0) {
+                // Outstanding Credit: payment_amount (applied so far, stored as negative) > -credit_amount
+                // Example: Credit 100. Applied -100. payment_amount = -100. -100 > -100 is False (fully applied).
+                return (tx.payment_amount || 0) > -tx.credit_amount;
+              }
+              return false;
+            })
             .sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
 
           setOutstandingCharges(charges);
@@ -137,7 +145,18 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const totalSelectedAmount = useMemo(() => {
     return outstandingCharges
       .filter(charge => selectedCharges[charge.id])
-      .reduce((total, charge) => total + charge.charge_amount, 0);
+      .reduce((total, charge) => {
+        if (charge.charge_amount > 0) {
+          // Add remaining charge amount
+          const remainingCharge = charge.charge_amount - (charge.payment_amount || 0);
+          return total + remainingCharge;
+        } else if (charge.credit_amount > 0) {
+          // Subtract remaining credit amount (stored as negative addition to payment)
+          const remainingCredit = charge.credit_amount + (charge.payment_amount || 0);
+          return total - remainingCredit;
+        }
+        return total;
+      }, 0);
   }, [selectedCharges, outstandingCharges]);
 
   const handleSelectCharge = (chargeId, checked) => {
@@ -179,10 +198,19 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       if (activeTab === 'pay_charges') {
         appliedCharges = outstandingCharges
           .filter(charge => selectedCharges[charge.id])
-          .map(charge => ({
-            id: charge.id,
-            amount: charge.charge_amount - (charge.payment_amount || 0) // Pay the remaining balance
-          }));
+          .map(charge => {
+            if (charge.charge_amount > 0) {
+              return {
+                id: charge.id,
+                amount: charge.charge_amount - (charge.payment_amount || 0) // Pay the remaining balance (Positive)
+              };
+            } else {
+              return {
+                id: charge.id,
+                amount: -(charge.credit_amount + (charge.payment_amount || 0)) // Apply remaining credit (Negative)
+              };
+            }
+          });
       }
 
       const response = await base44.functions.invoke('processLineOfCreditPayment', {
@@ -282,7 +310,9 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                           <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
                           <TableCell>{charge.description}</TableCell>
                           <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
-                          <TableCell className="text-right">${charge.charge_amount.toFixed(2)}</TableCell>
+                          <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600' : ''}`}>
+                            {charge.credit_amount > 0 ? '-' : ''}${((charge.charge_amount || charge.credit_amount) - Math.abs(charge.payment_amount || 0)).toFixed(2)}
+                          </TableCell>
                         </TableRow>
                       );
                     }) : (
