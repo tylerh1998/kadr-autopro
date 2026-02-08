@@ -8,7 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-export default function AddToSheetModal({ open, onClose, initialValues }) {
+export default function AddToSheetModal({ open, onClose, initialValues, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -49,6 +49,7 @@ export default function AddToSheetModal({ open, onClose, initialValues }) {
       if (response.data?.success) {
         toast.success("Successfully added to Google Sheet");
         onClose();
+        if (onSuccess) onSuccess();
       } else {
         throw new Error(response.data?.error || "Unknown error");
       }

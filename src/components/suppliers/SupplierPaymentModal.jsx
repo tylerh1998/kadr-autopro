@@ -812,6 +812,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             amount: totalSelectedAmount,
             dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
         }}
+        onSuccess={onClose}
       />
     </>
   );
