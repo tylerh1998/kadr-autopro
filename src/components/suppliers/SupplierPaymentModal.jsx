@@ -17,6 +17,7 @@ import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { BankAccount, LinesOfCredit } from '@/entities/all';
+import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
 const safeParseDateForCalendar = (dateString) => {
@@ -135,6 +136,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [nextChequeNumber, setNextChequeNumber] = useState(1);
   const [processingCheque, setProcessingCheque] = useState(false);
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
+  const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -219,6 +221,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setShowChequeNumberPrompt(false);
     setProcessingCheque(false);
     setShowPaymentDetailsDialog(false);
+    setShowAddToSheetModal(false);
   };
 
   const handleInvoiceSelection = (invoiceKey, checked) => {
@@ -577,6 +580,13 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               <Button variant="outline" onClick={onClose} disabled={loading}>
                 Cancel
               </Button>
+              <Button 
+                onClick={() => setShowAddToSheetModal(true)}
+                disabled={loading || totalSelectedAmount === 0}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                Next: Add to Sheet
+              </Button>
               <Button onClick={handleProceedToPaymentDetails} disabled={loading || totalSelectedAmount === 0}>
                 Next: Payment Details (${totalSelectedAmount.toFixed(2)})
               </Button>
@@ -793,6 +803,16 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           </DialogContent>
         </Dialog>
       )}
+
+      <AddToSheetModal
+        open={showAddToSheetModal}
+        onClose={() => setShowAddToSheetModal(false)}
+        initialValues={{
+            supplierName: supplier?.name,
+            amount: totalSelectedAmount,
+            dueDate: format(new Date(), 'yyyy-MM-dd')
+        }}
+      />
     </>
   );
 }
