@@ -51,36 +51,85 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   };
 
   const processCSV = (text) => {
+    // Basic CSV parser that handles quotes
+    const parseCSVLine = (line) => {
+      const result = [];
+      let cell = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(cell); // Keep raw for now, clean later
+          cell = '';
+        } else {
+          cell += char;
+        }
+      }
+      result.push(cell);
+      return result;
+    };
+
     const rows = text.split(/\r?\n/);
     if (rows.length < 2) {
       alert("CSV file seems empty or invalid.");
       return;
     }
 
-    // Detect Amount column
-    const headers = rows[0].split(',').map(h => h.trim().toLowerCase().replace(/["']/g, ''));
-    let amountIdx = headers.findIndex(h => h === 'amount' || h.includes('amount') || h === 'debit' || h === 'credit');
+    // Process headers
+    const headerRow = rows[0];
+    const headers = parseCSVLine(headerRow).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
     
-    if (amountIdx === -1) {
-      alert("Could not find an 'Amount' column in the CSV. Please ensure the CSV has a header row with an 'Amount' column.");
+    // Look for columns similar to reconcile feature: DebitAmount, CreditAmount
+    const debitIdx = headers.indexOf('debitamount');
+    const creditIdx = headers.indexOf('creditamount');
+    
+    // Fallback to simple Amount or similar
+    let amountIdx = -1;
+    if (debitIdx === -1 && creditIdx === -1) {
+      amountIdx = headers.findIndex(h => h === 'amount' || h.includes('amount') || h === 'debit' || h === 'credit');
+    }
+
+    if (debitIdx === -1 && creditIdx === -1 && amountIdx === -1) {
+      alert("Could not find Amount columns. Please ensure CSV has 'DebitAmount' and 'CreditAmount' (like Reconcile feature) or a generic 'Amount' column.");
       return;
     }
 
     const csvAmounts = [];
     
+    // Helper to parse amount like backend: remove $, commas, spaces, double quotes
+    const parseAmount = (str) => {
+        if (!str) return 0;
+        // Clean outer quotes if parseCSVLine left them (it does logic inside but simple cell accumulation)
+        // Actually our parseCSVLine keeps text inside quotes including the quotes if we are not careful? 
+        // Let's just use the regex from backend: str.replace(/[$,\s"]/g, '')
+        const clean = str.replace(/[$,\s"]/g, '');
+        const float = parseFloat(clean);
+        return isNaN(float) ? 0 : float;
+    };
+
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i].trim()) continue;
-      // Regex to split by comma ignoring commas inside quotes
-      const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+      const cols = parseCSVLine(rows[i]);
       
-      if (cols[amountIdx]) {
-        // Clean amount string: remove quotes, currency symbols
-        let amtStr = cols[amountIdx].replace(/["'$]/g, '').trim();
-        // Remove commas if they are used as thousand separators
-        amtStr = amtStr.replace(/,/g, '');
-        
-        const val = parseFloat(amtStr);
-        if (!isNaN(val)) csvAmounts.push(Math.abs(val)); 
+      let amount = 0;
+
+      if (debitIdx !== -1 || creditIdx !== -1) {
+        // Use Debit/Credit columns
+        const debit = debitIdx !== -1 && cols[debitIdx] ? parseAmount(cols[debitIdx]) : 0;
+        const credit = creditIdx !== -1 && cols[creditIdx] ? parseAmount(cols[creditIdx]) : 0;
+        // For LOC payment, we just care about the magnitude of the transaction to match against outstanding charges
+        // Usually charges are debits or credits depending on perspective, but we just need positive magnitude
+        amount = Math.max(Math.abs(debit), Math.abs(credit));
+      } else if (amountIdx !== -1 && cols[amountIdx]) {
+        // Use generic Amount column
+        amount = Math.abs(parseAmount(cols[amountIdx]));
+      }
+
+      if (amount > 0) {
+        csvAmounts.push(amount);
       }
     }
 
@@ -126,7 +175,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       setSelectedCharges(newSelected);
       alert(`Matched and selected ${matchCount} items based on the uploaded CSV.`);
     } else {
-      alert("No matching charges found for the amounts in the CSV.");
+      alert("No matching charges found for the amounts in the CSV. Checked " + csvAmounts.length + " rows.");
     }
   };
 
