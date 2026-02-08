@@ -751,8 +751,8 @@ export default function LinesOfCreditPage() {
                                 )}
                               </td>
                               <td className="p-3 text-right">
-                                {tx.payment_amount > 0 && (
-                                  <span className="font-medium text-green-600">${tx.payment_amount.toFixed(2)}</span>
+                                {(tx.payment_amount || 0) !== 0 && (
+                                  <span className="font-medium text-green-600">${(tx.payment_amount || 0).toFixed(2)}</span>
                                 )}
                               </td>
                             </tr>
