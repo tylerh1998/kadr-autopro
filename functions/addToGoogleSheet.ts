@@ -36,14 +36,14 @@ Deno.serve(async (req) => {
         const SHEET_NAME = "SCU";
 
         // Columns: B (Supplier), C (Amount), D (Due Date)
-        // We pad with an empty string for Column A
         const values = [
-            ["", supplierName, amount, dueDate]
+            [supplierName, amount, dueDate]
         ];
 
         // Ensure we encode the sheet name just in case
         const encodedSheetName = encodeURIComponent(SHEET_NAME);
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedSheetName}!A:D:append?valueInputOption=USER_ENTERED`;
+        // Append to columns B:D
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodedSheetName}!B:D:append?valueInputOption=USER_ENTERED`;
 
         console.log(`Appending to sheet: ${SHEET_NAME} (${SPREADSHEET_ID})`);
 
