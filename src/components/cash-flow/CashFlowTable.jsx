@@ -195,14 +195,26 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                 </td>
 
                 {/* Date Paid */}
-                <td className="p-1 border-r">
-                  <Input 
-                    type="text"
-                    value={row.datePaid || ''} 
-                    onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
-                    placeholder=""
-                  />
+                <td className="p-1 border-r relative group">
+                  <div className="flex items-center">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                        onClick={() => handleChange(index, 'datePaid', moment().format('MMM D'))}
+                        title="Set to Today"
+                        tabIndex={-1}
+                    >
+                        <Check className="h-3 w-3" />
+                    </Button>
+                    <Input 
+                        type="text"
+                        value={row.datePaid || ''} 
+                        onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center flex-1"
+                        placeholder=""
+                    />
+                  </div>
                 </td>
 
                 {/* Chq # */}

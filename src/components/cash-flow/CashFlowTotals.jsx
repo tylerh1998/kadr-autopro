@@ -31,15 +31,13 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
   };
 
   // 1. Outstanding Cheques Calculation
-  // "total amount of fields marked as cheque that have a date paid"
+  // "total of all amount paid with method cheque"
   const outstandingCheques = rows.reduce((sum, row) => {
     const method = (row.method || '').toLowerCase();
     const isCheque = method === 'cheque';
-    const hasDatePaid = row.datePaid && row.datePaid.trim().length > 0;
     
-    if (isCheque && hasDatePaid) {
-      // Use amountPaid if available, otherwise amount
-      const amount = val(row.amountPaid) || val(row.amount);
+    if (isCheque) {
+      const amount = val(row.amountPaid);
       return sum + amount;
     }
     return sum;
@@ -126,6 +124,51 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
         </div>
 
       </CardContent>
+
+      <RemainingPaymentsSection rows={rows} val={val} formatCurrency={formatCurrency} />
     </Card>
+  );
+}
+
+function RemainingPaymentsSection({ rows, val, formatCurrency }) {
+  // Calculate remaining amounts by method
+  // Remaining = Amount - AmountPaid
+  const breakdown = rows.reduce((acc, row) => {
+    const method = row.method || 'Unassigned';
+    const amount = val(row.amount);
+    const amountPaid = val(row.amountPaid);
+    const remaining = amount - amountPaid;
+
+    if (remaining > 0.01) { // Only count if there is a positive remaining amount
+        if (!acc[method]) acc[method] = 0;
+        acc[method] += remaining;
+    }
+    return acc;
+  }, {});
+
+  const totalRemaining = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
+
+  if (totalRemaining === 0) return null;
+
+  return (
+    <>
+        <Separator />
+        <CardContent className="pt-4 space-y-3 bg-slate-50/50">
+            <h3 className="font-semibold text-slate-700">Remaining Payments</h3>
+            <div className="space-y-2">
+                {Object.entries(breakdown).sort((a,b) => b[1] - a[1]).map(([method, amount]) => (
+                    <div key={method} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-500">{method === 'Unassigned' ? 'No Method' : method}</span>
+                        <span className="font-medium font-mono text-slate-700">{formatCurrency(amount)}</span>
+                    </div>
+                ))}
+                <Separator className="my-2" />
+                <div className="flex justify-between items-center font-bold">
+                    <span className="text-slate-700">Total Remaining</span>
+                    <span className="font-mono text-red-600">{formatCurrency(totalRemaining)}</span>
+                </div>
+            </div>
+        </CardContent>
+    </>
   );
 }
