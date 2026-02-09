@@ -5,18 +5,43 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import moment from "moment";
 
-import { ArrowUpDown } from 'lucide-react';
+import { ArrowUpDown, Check } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 
 export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort }) {
   const headers = [
     { id: 'dueDate', label: 'Due', width: 'w-24', sortable: true }, // Logic uses dueDate
     { id: 'supplier', label: 'Supplier', width: 'w-64', sortable: true },
     { id: 'amount', label: 'Amount', width: 'w-32', sortable: true },
-    { id: 'dueDate', label: 'Due Date', width: 'w-40', sortable: true },
-    { id: 'datePaid', label: 'Date Paid', width: 'w-40', sortable: true },
-    { id: 'chqNumber', label: 'Chq #', width: 'w-32', sortable: true },
+    { id: 'dueDate', label: 'Due Date', width: 'w-24', sortable: true },
+    { id: 'amountPaid', label: 'Amount Paid', width: 'w-32', sortable: true },
+    { id: 'datePaid', label: 'Date Paid', width: 'w-24', sortable: true },
+    { id: 'chqNumber', label: 'Chq #', width: 'w-20', sortable: true },
     { id: 'method', label: 'Method', width: 'w-40', sortable: true },
   ];
+
+  const formatCurrencyInput = (value) => {
+    if (!value) return '';
+    // Strip non-numeric chars except dot
+    const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+    if (isNaN(numericVal)) return value;
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(numericVal);
+  };
+
+  const handleBlur = (index, field, value) => {
+    const formatted = formatCurrencyInput(value);
+    if (formatted !== value) {
+        handleChange(index, field, formatted);
+    }
+  };
+
+  const handleAutoFillAmountPaid = (index) => {
+    const row = rows[index];
+    // Copy amount to amountPaid
+    if (row.amount) {
+        handleChange(index, 'amountPaid', row.amount);
+    }
+  };
 
   const methodColors = {
     "Cheque": "text-green-600",
@@ -125,11 +150,12 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                 {/* Amount */}
                 <td className="p-1 border-r">
                   <Input 
-                    type="number"
+                    type="text"
                     value={row.amount || ''} 
                     onChange={(e) => handleChange(index, 'amount', e.target.value)}
+                    onBlur={(e) => handleBlur(index, 'amount', e.target.value)}
                     className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono"
-                    placeholder="0.00"
+                    placeholder="$0.00"
                   />
                 </td>
 
@@ -139,9 +165,33 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                     type="text"
                     value={row.dueDate || ''} 
                     onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent"
+                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
                     placeholder=""
                   />
+                </td>
+
+                {/* Amount Paid */}
+                <td className="p-1 border-r relative group">
+                  <div className="flex items-center">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                        onClick={() => handleAutoFillAmountPaid(index)}
+                        title="Auto-fill Full Amount"
+                        tabIndex={-1}
+                    >
+                        <Check className="h-3 w-3" />
+                    </Button>
+                    <Input 
+                        type="text"
+                        value={row.amountPaid || ''} 
+                        onChange={(e) => handleChange(index, 'amountPaid', e.target.value)}
+                        onBlur={(e) => handleBlur(index, 'amountPaid', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono flex-1"
+                        placeholder="$0.00"
+                    />
+                  </div>
                 </td>
 
                 {/* Date Paid */}
@@ -150,7 +200,7 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                     type="text"
                     value={row.datePaid || ''} 
                     onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent"
+                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
                     placeholder=""
                   />
                 </td>
@@ -160,7 +210,7 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                   <Input 
                     value={row.chqNumber || ''} 
                     onChange={(e) => handleChange(index, 'chqNumber', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent"
+                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
                   />
                 </td>
 

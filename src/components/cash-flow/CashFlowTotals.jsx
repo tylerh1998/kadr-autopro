@@ -4,8 +4,30 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 
 export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
+  const formatCurrencyInput = (value) => {
+    if (!value) return '';
+    const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+    if (isNaN(numericVal)) return value;
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(numericVal);
+  };
+
   const handleChange = (field, value) => {
     onSummaryChange({ ...summaryData, [field]: value });
+  };
+
+  const handleBlur = (field, value) => {
+    const formatted = formatCurrencyInput(value);
+    if (formatted !== value) {
+        handleChange(field, formatted);
+    }
+  };
+
+  // Helper to parse float safe from potential currency string
+  const val = (v) => {
+    if (typeof v === 'string') {
+        return parseFloat(v.replace(/[^0-9.]/g, '')) || 0;
+    }
+    return parseFloat(v) || 0;
   };
 
   // 1. Outstanding Cheques Calculation
@@ -16,21 +38,14 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
     const hasDatePaid = row.datePaid && row.datePaid.trim().length > 0;
     
     if (isCheque && hasDatePaid) {
-      return sum + (parseFloat(row.amount) || 0);
+      // Use amountPaid if available, otherwise amount
+      const amount = val(row.amountPaid) || val(row.amount);
+      return sum + amount;
     }
     return sum;
   }, 0);
 
-  // Helper to parse float safe
-  const val = (v) => parseFloat(v) || 0;
-
   // 2. Current Cash Position Calculation
-  // Current Bank Balance - (Outstanding Cheques + PAD + Payroll + Payroll Remit + GST Remit + Fiscal Cushion) + Expected Deposits ??
-  // Prompt: "sum of Current bank balance minus everything else"
-  // Assuming "minus everything else" means minus all the liabilities listed below it (Cheques, PAD, Payroll, Remits, Cushion).
-  // Does "Expected Deposits" count as plus? Usually yes.
-  // "Position" = Balance + Deposits - Liabilities.
-  
   const currentBankBalance = val(summaryData.bankBalance);
   const padRegistries = val(summaryData.padRegistries);
   const upcomingPayroll = val(summaryData.upcomingPayroll);
@@ -46,16 +61,17 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
     return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val);
   };
 
-  const renderEditableRow = (label, field, isCurrency = true) => (
+  const renderEditableRow = (label, field) => (
     <div className="flex justify-between items-center gap-2">
       <span className="text-sm font-medium text-slate-500">{label}</span>
       <div className="w-32">
         <Input 
-          type="number" 
+          type="text" 
           value={summaryData[field]} 
           onChange={(e) => handleChange(field, e.target.value)}
+          onBlur={(e) => handleBlur(field, e.target.value)}
           className="h-8 text-right font-mono"
-          placeholder="0.00"
+          placeholder="$0.00"
         />
       </div>
     </div>

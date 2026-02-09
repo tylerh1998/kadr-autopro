@@ -8,6 +8,7 @@ export default function CashFlow() {
     due: false,
     supplier: '',
     amount: '',
+    amountPaid: '',
     dueDate: '',
     datePaid: '',
     chqNumber: '',
