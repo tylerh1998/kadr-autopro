@@ -70,6 +70,11 @@ export default function CashFlow() {
 
   // Load Data
   useEffect(() => {
+    const formatCurrency = (val) => {
+        if (val === null || val === undefined || val === '') return '';
+        return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val);
+    };
+
     const loadData = async () => {
       try {
         // Fetch Entries
@@ -79,8 +84,8 @@ export default function CashFlow() {
             id: entry.id,
             due: false, // Calculated on frontend usually, but keeping consistent structure
             supplier: entry.supplier || '',
-            amount: entry.amount || '',
-            amountPaid: entry.amount_paid || '',
+            amount: formatCurrency(entry.amount),
+            amountPaid: formatCurrency(entry.amount_paid),
             dueDate: entry.due_date ? moment(entry.due_date).format('MMM D') : '',
             datePaid: entry.date_paid ? moment(entry.date_paid).format('MMM D') : '',
             chqNumber: entry.chq_number || '',
@@ -121,6 +126,8 @@ export default function CashFlow() {
         let padDetails = [];
         try {
             padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
+            // Format amounts in padDetails
+            padDetails = padDetails.map(item => ({ ...item, amount: formatCurrency(item.amount) }));
         } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
         
         while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
@@ -128,26 +135,28 @@ export default function CashFlow() {
         let overheadItems = [];
         try {
             overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(20).fill({ description: '', amount: '', dateOption: '', method: '' });
+            // Format amounts in overheadItems
+            overheadItems = overheadItems.map(item => ({ ...item, amount: formatCurrency(item.amount) }));
         } catch (e) { overheadItems = Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }); }
 
         while (overheadItems.length < 20) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
 
         setSummaryData({
-            bankBalance: summary.current_bank_balance || '',
-            padRegistries: summary.pad_registries_total || '',
-            upcomingPayroll: summary.upcoming_payroll || '',
-            payrollRemit: summary.payroll_remit || '',
-            gstRemit: summary.gst_remit || '',
-            fiscalCushion: summary.fiscal_cushion !== undefined ? summary.fiscal_cushion : 1000,
-            expectedDeposits: summary.expected_deposits || '',
+            bankBalance: formatCurrency(summary.current_bank_balance),
+            padRegistries: formatCurrency(summary.pad_registries_total),
+            upcomingPayroll: formatCurrency(summary.upcoming_payroll),
+            payrollRemit: formatCurrency(summary.payroll_remit),
+            gstRemit: formatCurrency(summary.gst_remit),
+            fiscalCushion: formatCurrency(summary.fiscal_cushion !== undefined ? summary.fiscal_cushion : 1000),
+            expectedDeposits: formatCurrency(summary.expected_deposits),
             padRegistriesDetails: padDetails,
-            estFirstPayroll: summary.est_first_payroll || '',
-            estSecondPayroll: summary.est_second_payroll || '',
-            estPayrollRemit: summary.est_payroll_remit || '',
-            etransferPerTx: summary.etransfer_per_tx || '',
-            etransferDaily: summary.etransfer_daily || '',
-            etransferWeekly: summary.etransfer_weekly || '',
-            etransferMonthly: summary.etransfer_monthly || ''
+            estFirstPayroll: formatCurrency(summary.est_first_payroll),
+            estSecondPayroll: formatCurrency(summary.est_second_payroll),
+            estPayrollRemit: formatCurrency(summary.est_payroll_remit),
+            etransferPerTx: formatCurrency(summary.etransfer_per_tx),
+            etransferDaily: formatCurrency(summary.etransfer_daily),
+            etransferWeekly: formatCurrency(summary.etransfer_weekly),
+            etransferMonthly: formatCurrency(summary.etransfer_monthly)
         });
 
         setOverheadRows(overheadItems);
