@@ -30,6 +30,7 @@ import {
   BookCopy,
   CalendarClock,
   Calculator,
+  TrendingUp,
   Network,
   MailCheck,
   Send,
