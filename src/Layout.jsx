@@ -29,6 +29,7 @@ import {
   Percent,
   BookCopy,
   CalendarClock,
+  Calculator,
   Network,
   MailCheck,
   Send,
