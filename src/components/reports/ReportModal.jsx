@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import {
   BarChart3, ChevronRight, FileText, ArrowLeft,
   TrendingUp, Scale, Calculator, Package, AlertTriangle,
-  ShoppingCart, DollarSign, Users, Wrench, Clock, Receipt
+  ShoppingCart, DollarSign, Users, Wrench, Clock, Receipt,
+  Percent, BookCopy, CalendarClock
 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
@@ -29,6 +30,9 @@ const iconMap = {
   Wrench: Wrench,
   Clock: Clock,
   Receipt: Receipt,
+  Percent: Percent,
+  BookCopy: BookCopy,
+  CalendarClock: CalendarClock,
 };
 
 const renderIcon = (iconName) => {
@@ -47,6 +51,28 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
   const getReportOptions = () => {
     switch (reportType) {
+      case 'accounting':
+        return [
+          {
+            name: 'Taxes',
+            description: 'Manage tax rates and settings',
+            icon: 'Percent',
+            path: 'Taxes'
+          },
+          {
+            name: 'Journal Entries',
+            description: 'Create and view manual journal entries',
+            icon: 'BookCopy',
+            path: 'JournalEntries'
+          },
+          {
+            name: 'Fiscal Periods',
+            description: 'Manage fiscal years and periods',
+            icon: 'CalendarClock',
+            path: 'FiscalPeriods'
+          }
+        ];
+
       case 'financial':
         return [
           {
@@ -235,6 +261,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
     switch (type) {
       case 'inventory': return 'Inventory Reports';
       case 'financial': return 'Financial Reports';
+      case 'accounting': return 'Accounting';
       case 'management': return 'Management Reports';
       case 'payroll': return 'Payroll Reports';
       default: return 'Reports';

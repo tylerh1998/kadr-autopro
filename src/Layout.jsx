@@ -455,6 +455,11 @@ function LayoutContent({ children, currentPageName }) {
         setReportType('payroll');
         setShowReportModal(true);
         break;
+      case 'showAccountingReports':
+        console.log('✅ Opening Accounting Reports Modal');
+        setReportType('accounting');
+        setShowReportModal(true);
+        break;
       default:
         console.log('⚠️ Unknown action:', action);
     }
@@ -533,10 +538,8 @@ const navigationItems = [
       { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
       { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
       { title: "Cheque Register", url: createPageUrl("ChequeRegister"), icon: BookCheck },
-      { title: "Taxes", url: createPageUrl("Taxes"), icon: Percent },
-      { title: "Journal Entries", url: createPageUrl("JournalEntries"), icon: BookCopy },
-      { title: "Fiscal Periods", url: createPageUrl("FiscalPeriods"), icon: CalendarClock },
       { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
+      { title: "Accounting", action: "showAccountingReports", icon: Calculator },
     ]
   } : {
     title: "Accounting",
