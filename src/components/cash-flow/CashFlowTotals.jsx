@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
+export default function CashFlowTotals({ rows, overheadRows, summaryData, onSummaryChange }) {
   const [isPadDialogOpen, setIsPadDialogOpen] = useState(false);
   const formatCurrencyInput = (value) => {
     if (!value) return '';
@@ -160,6 +160,19 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
       </CardContent>
 
       <RemainingPaymentsSection rows={rows} val={val} formatCurrency={formatCurrency} />
+      <MonthlyEstimatesSection 
+        overheadRows={overheadRows || []} 
+        summaryData={summaryData} 
+        onSummaryChange={onSummaryChange}
+        val={val} 
+        formatCurrency={formatCurrency}
+        renderEditableRow={renderEditableRow}
+      />
+      <EtransferLimitsSection
+        summaryData={summaryData}
+        onSummaryChange={onSummaryChange}
+        renderEditableRow={renderEditableRow}
+      />
 
       <Dialog open={isPadDialogOpen} onOpenChange={setIsPadDialogOpen}>
         <DialogContent>
@@ -251,4 +264,113 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
         </CardContent>
     </>
   );
+}
+
+function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, val, formatCurrency, renderEditableRow }) {
+    // Group overhead rows by dateOption
+    const groupedOverhead = overheadRows.reduce((acc, row) => {
+        const date = row.dateOption || 'Unassigned';
+        const amount = val(row.amount);
+        if (amount > 0) {
+            if (!acc[date]) acc[date] = 0;
+            acc[date] += amount;
+        }
+        return acc;
+    }, {});
+
+    // Sort order for date options
+    const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End", "Unassigned"];
+    
+    return (
+        <>
+            <Separator />
+            <CardContent className="pt-4 space-y-3 bg-slate-50/50">
+                <h3 className="font-semibold text-slate-700">Monthly Estimates</h3>
+                
+                {/* Overhead Totals */}
+                <div className="space-y-2 mb-4">
+                    {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => (
+                        <div key={date} className="flex justify-between items-center text-sm">
+                            <span className="text-slate-500">{date}</span>
+                            <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                        </div>
+                    ))}
+                    {/* Handle any dates not in the order list */}
+                    {Object.keys(groupedOverhead)
+                        .filter(date => !dateOrder.includes(date) && groupedOverhead[date] > 0)
+                        .map(date => (
+                            <div key={date} className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">{date}</span>
+                                <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                            </div>
+                        ))
+                    }
+                </div>
+
+                {/* Editable Fields */}
+                <div className="space-y-2">
+                    {renderEditableRow("First Payroll", "estFirstPayroll")}
+                    {renderEditableRow("Second Payroll", "estSecondPayroll")}
+                    {renderEditableRow("Payroll Remit", "estPayrollRemit")}
+                </div>
+            </CardContent>
+        </>
+    );
+}
+
+function EtransferLimitsSection({ summaryData, onSummaryChange }) {
+    return (
+        <>
+            <Separator />
+            <CardContent className="pt-4 space-y-3">
+                <h3 className="font-semibold text-slate-700">Etransfer Limits</h3>
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">Per Tx</span>
+                        <div className="w-32">
+                             <Input 
+                                type="text" 
+                                value={summaryData.etransferPerTx || ''} 
+                                onChange={(e) => onSummaryChange({...summaryData, etransferPerTx: e.target.value})}
+                                className="h-8 text-right font-mono"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">Daily</span>
+                        <div className="w-32">
+                             <Input 
+                                type="text" 
+                                value={summaryData.etransferDaily || ''} 
+                                onChange={(e) => onSummaryChange({...summaryData, etransferDaily: e.target.value})}
+                                className="h-8 text-right font-mono"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">Weekly</span>
+                        <div className="w-32">
+                             <Input 
+                                type="text" 
+                                value={summaryData.etransferWeekly || ''} 
+                                onChange={(e) => onSummaryChange({...summaryData, etransferWeekly: e.target.value})}
+                                className="h-8 text-right font-mono"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">Monthly</span>
+                        <div className="w-32">
+                             <Input 
+                                type="text" 
+                                value={summaryData.etransferMonthly || ''} 
+                                onChange={(e) => onSummaryChange({...summaryData, etransferMonthly: e.target.value})}
+                                className="h-8 text-right font-mono"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </>
+    );
 }

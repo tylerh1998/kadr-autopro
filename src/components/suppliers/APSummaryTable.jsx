@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
+import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -268,7 +268,18 @@ export default function APSummaryTable() {
       `}</style>
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
-        <h2 className="text-xl font-semibold text-slate-800">Accounts Payable Summary</h2>
+        <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold text-slate-800">Accounts Payable Summary</h2>
+            <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
+                className="gap-2 text-slate-500 hover:text-blue-600 h-8"
+            >
+                <ExternalLink className="w-4 h-4" />
+                Open in new tab
+            </Button>
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Label className="whitespace-nowrap">As of Date:</Label>

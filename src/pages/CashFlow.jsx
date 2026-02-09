@@ -46,7 +46,16 @@ export default function CashFlow() {
     gstRemit: '',
     fiscalCushion: 1000,
     expectedDeposits: '',
-    padRegistriesDetails: Array(10).fill({ name: '', amount: '' })
+    padRegistriesDetails: Array(10).fill({ name: '', amount: '' }),
+    // Monthly Estimates
+    estFirstPayroll: '',
+    estSecondPayroll: '',
+    estPayrollRemit: '',
+    // Etransfer Limits
+    etransferPerTx: '',
+    etransferDaily: '',
+    etransferWeekly: '',
+    etransferMonthly: ''
   });
 
   const [headerData, setHeaderData] = useState({
@@ -228,17 +237,6 @@ export default function CashFlow() {
               </TabsContent>
               
               <TabsContent value="apsummary" className="mt-0">
-                <div className="flex justify-end mb-2">
-                    <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
-                        className="gap-2"
-                    >
-                        <ExternalLink className="w-4 h-4" />
-                        Open in new window
-                    </Button>
-                </div>
                 <APSummaryTable />
               </TabsContent>
 
@@ -257,6 +255,7 @@ export default function CashFlow() {
             <div className="sticky top-24">
               <CashFlowTotals 
                 rows={rows} 
+                overheadRows={overheadRows}
                 summaryData={summaryData}
                 onSummaryChange={setSummaryData}
               />
