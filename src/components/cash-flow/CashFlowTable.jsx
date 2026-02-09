@@ -5,16 +5,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import moment from "moment";
 
-export default function CashFlowTable({ rows, onRowChange }) {
+import { ArrowUpDown } from 'lucide-react';
+
+export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort }) {
   const headers = [
-    { id: 'due', label: 'Due', width: 'w-24' },
-    { id: 'supplier', label: 'Supplier', width: 'w-64' },
-    { id: 'amount', label: 'Amount', width: 'w-32' },
-    { id: 'dueDate', label: 'Due Date', width: 'w-40' },
-    { id: 'datePaid', label: 'Date Paid', width: 'w-40' },
-    { id: 'chqNumber', label: 'Chq #', width: 'w-32' },
-    { id: 'method', label: 'Method', width: 'w-40' },
+    { id: 'dueDate', label: 'Due', width: 'w-24', sortable: true }, // Logic uses dueDate
+    { id: 'supplier', label: 'Supplier', width: 'w-64', sortable: true },
+    { id: 'amount', label: 'Amount', width: 'w-32', sortable: true },
+    { id: 'dueDate', label: 'Due Date', width: 'w-40', sortable: true },
+    { id: 'datePaid', label: 'Date Paid', width: 'w-40', sortable: true },
+    { id: 'chqNumber', label: 'Chq #', width: 'w-32', sortable: true },
+    { id: 'method', label: 'Method', width: 'w-40', sortable: true },
   ];
+
+  const methodColors = {
+    "Cheque": "text-green-600",
+    "O/L Banking": "text-yellow-600",
+    "Credit Card": "text-slate-500",
+    "Etransfer": "text-red-600",
+    "Pre-auth": "text-blue-600"
+  };
 
   const handleChange = (index, field, value) => {
     const newRows = [...rows];
@@ -70,8 +80,19 @@ export default function CashFlowTable({ rows, onRowChange }) {
             <tr>
               <th className="p-2 w-10 text-center text-slate-500 font-medium">#</th>
               {headers.map(header => (
-                <th key={header.id} className={cn("p-2 text-left text-slate-700 font-semibold border-r last:border-r-0", header.width)}>
-                  {header.label}
+                <th 
+                  key={header.id} 
+                  className={cn(
+                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none", 
+                    header.width,
+                    header.sortable && "cursor-pointer hover:bg-slate-200 transition-colors"
+                  )}
+                  onClick={() => header.sortable && onSort && onSort(header.id)}
+                >
+                  <div className="flex items-center gap-1">
+                    {header.label}
+                    {header.sortable && <ArrowUpDown className="w-3 h-3 text-slate-400" />}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -149,16 +170,15 @@ export default function CashFlowTable({ rows, onRowChange }) {
                     value={row.method || ''} 
                     onValueChange={(value) => handleChange(index, 'method', value)}
                   >
-                    <SelectTrigger className="border-0 h-8 focus:ring-1 bg-transparent">
+                    <SelectTrigger className={cn("border-0 h-8 focus:ring-1 bg-transparent font-medium", methodColors[row.method])}>
                       <SelectValue placeholder="-" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cheque">Cheque</SelectItem>
-                      <SelectItem value="E-Transfer">E-Transfer</SelectItem>
-                      <SelectItem value="Credit Card">Credit Card</SelectItem>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="Pre-Authorized">Pre-Authorized</SelectItem>
-                      <SelectItem value="Online">Online</SelectItem>
+                      <SelectItem value="Cheque" className="text-green-600 font-medium">Cheque</SelectItem>
+                      <SelectItem value="O/L Banking" className="text-yellow-600 font-medium">O/L Banking</SelectItem>
+                      <SelectItem value="Credit Card" className="text-slate-500 font-medium">Credit Card</SelectItem>
+                      <SelectItem value="Etransfer" className="text-red-600 font-medium">Etransfer</SelectItem>
+                      <SelectItem value="Pre-auth" className="text-blue-600 font-medium">Pre-auth</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
