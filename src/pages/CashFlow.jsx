@@ -26,7 +26,8 @@ export default function CashFlow() {
     payrollRemit: '',
     gstRemit: '',
     fiscalCushion: 1000,
-    expectedDeposits: ''
+    expectedDeposits: '',
+    padRegistriesDetails: Array(10).fill({ name: '', amount: '' })
   });
 
   const handleSort = (key) => {

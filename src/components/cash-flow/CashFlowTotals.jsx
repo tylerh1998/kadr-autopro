@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
+  const [isPadDialogOpen, setIsPadDialogOpen] = useState(false);
   const formatCurrencyInput = (value) => {
     if (!value) return '';
     const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
@@ -20,6 +23,27 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
     if (formatted !== value) {
         handleChange(field, formatted);
     }
+  };
+
+  const handlePadDetailChange = (index, field, value) => {
+    const newDetails = [...(summaryData.padRegistriesDetails || Array(10).fill({ name: '', amount: '' }))];
+    newDetails[index] = { ...newDetails[index], [field]: value };
+    
+    // Calculate new total
+    const total = newDetails.reduce((sum, item) => sum + val(item.amount), 0);
+    
+    onSummaryChange({ 
+        ...summaryData, 
+        padRegistriesDetails: newDetails,
+        padRegistries: total // Update the total directly
+    });
+  };
+
+  const handlePadDetailBlur = (index, value) => {
+      const formatted = formatCurrencyInput(value);
+      if (formatted !== value) {
+          handlePadDetailChange(index, 'amount', formatted);
+      }
   };
 
   // Helper to parse float safe from potential currency string
@@ -75,6 +99,16 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
     </div>
   );
 
+  const renderClickableRow = (label, amount, onClick) => (
+    <div 
+        className="flex justify-between items-center cursor-pointer hover:bg-slate-50 p-1 -mx-1 rounded transition-colors"
+        onClick={onClick}
+    >
+      <span className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4">{label}</span>
+      <span className="font-bold font-mono text-slate-900">{formatCurrency(amount)}</span>
+    </div>
+  );
+
   const renderCalculatedRow = (label, amount, colorClass = "text-slate-900") => (
     <div className="flex justify-between items-center">
       <span className="text-sm font-medium text-slate-500">{label}</span>
@@ -95,8 +129,8 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
         {/* Outstanding Cheques (Calculated) */}
         {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
 
-        {/* PAD & Registries */}
-        {renderEditableRow("PAD & Registries", "padRegistries")}
+        {/* PAD & Registries (Clickable) */}
+        {renderClickableRow("PAD & Registries", padRegistries, () => setIsPadDialogOpen(true))}
 
         {/* Upcoming Payroll */}
         {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
@@ -126,6 +160,54 @@ export default function CashFlowTotals({ rows, summaryData, onSummaryChange }) {
       </CardContent>
 
       <RemainingPaymentsSection rows={rows} val={val} formatCurrency={formatCurrency} />
+
+      <Dialog open={isPadDialogOpen} onOpenChange={setIsPadDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>PAD & Registries Details</DialogTitle>
+            </DialogHeader>
+            <div className="py-2">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th className="text-left font-medium text-slate-500 pb-2">Name</th>
+                            <th className="text-right font-medium text-slate-500 pb-2">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(summaryData.padRegistriesDetails || Array(10).fill({ name: '', amount: '' })).map((item, index) => (
+                            <tr key={index}>
+                                <td className="py-1 pr-2">
+                                    <Input 
+                                        value={item.name} 
+                                        onChange={(e) => handlePadDetailChange(index, 'name', e.target.value)}
+                                        className="h-8"
+                                        placeholder={`Item ${index + 1}`}
+                                    />
+                                </td>
+                                <td className="py-1">
+                                    <Input 
+                                        value={item.amount} 
+                                        onChange={(e) => handlePadDetailChange(index, 'amount', e.target.value)}
+                                        onBlur={(e) => handlePadDetailBlur(index, e.target.value)}
+                                        className="h-8 text-right font-mono"
+                                        placeholder="$0.00"
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <DialogFooter className="sm:justify-between">
+                <div className="flex items-center gap-2 font-bold">
+                    <span>Total:</span>
+                    <span>{formatCurrency(padRegistries)}</span>
+                </div>
+                <Button onClick={() => setIsPadDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
