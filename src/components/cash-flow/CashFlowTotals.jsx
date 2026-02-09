@@ -10,7 +10,7 @@ export default function CashFlowTotals({ rows }) {
   }, 0);
 
   const totalPaid = rows.reduce((sum, row) => {
-    if (row.datePaid) { // Assuming if datePaid is set, it's paid
+    if (row.datePaid && row.datePaid.trim().length > 0) { // Check if datePaid has text
       const val = parseFloat(row.amount) || 0;
       return sum + val;
     }
