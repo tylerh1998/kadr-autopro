@@ -25,10 +25,23 @@ export default function CashFlowTable({ rows, onRowChange }) {
   const getDueInfo = (dateStr) => {
     if (!dateStr || !dateStr.trim()) return { text: "Empty", className: "bg-white text-slate-300" };
     
-    const date = moment(dateStr, ["YYYY-MM-DD", "MMM D", "MMM DD", "MM/DD/YYYY", "M/D/YYYY", "YYYY-M-D"], false);
-    // Fallback to loose parsing if specific formats fail, but usually explicit is safer. 
-    // Let's rely on moment's default hook which is decent for "Feb 8"
-    const mDate = moment(dateStr);
+    // Explicit formats including those without year (defaults to current year)
+    // Adding M/D and MM/DD specifically to catch simple inputs like "2/8"
+    const formats = [
+      "YYYY-MM-DD", 
+      "MMM D", "MMM DD", "MMM D, YYYY", "MMM DD, YYYY",
+      "M/D/YYYY", "MM/DD/YYYY", "M-D-YYYY", "MM-DD-YYYY",
+      "M/D", "MM/DD" 
+    ];
+    
+    // Use strict parsing with our expanded formats list, or fallback to non-strict if needed
+    // moment(..., false) enables non-strict parsing which is usually good for user input
+    let mDate = moment(dateStr, formats, true);
+    
+    if (!mDate.isValid()) {
+      // Fallback to loose parsing
+      mDate = moment(dateStr);
+    }
     
     if (!mDate.isValid()) return { text: "Empty", className: "bg-white text-slate-300" };
 
@@ -106,7 +119,7 @@ export default function CashFlowTable({ rows, onRowChange }) {
                     value={row.dueDate || ''} 
                     onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
                     className="border-0 h-8 focus-visible:ring-1 bg-transparent"
-                    placeholder="Feb 8"
+                    placeholder=""
                   />
                 </td>
 
@@ -117,7 +130,7 @@ export default function CashFlowTable({ rows, onRowChange }) {
                     value={row.datePaid || ''} 
                     onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
                     className="border-0 h-8 focus-visible:ring-1 bg-transparent"
-                    placeholder="Paid Date"
+                    placeholder=""
                   />
                 </td>
 
