@@ -4,9 +4,13 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import DepositHistoryModal from '@/components/cash-drawer/DepositHistoryModal';
 
 export default function CashFlowTotals({ rows, overheadRows, summaryData, onSummaryChange }) {
   const [isPadDialogOpen, setIsPadDialogOpen] = useState(false);
+  const [isDepositHistoryOpen, setIsDepositHistoryOpen] = useState(false);
   const formatCurrencyInput = (value) => {
     if (!value) return '';
     const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
@@ -145,7 +149,24 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
         {renderEditableRow("Fiscal Cushion", "fiscalCushion")}
 
         {/* Expected Deposits */}
-        {renderEditableRow("Expected Deposits", "expectedDeposits")}
+        <div className="flex justify-between items-center gap-2">
+            <span 
+                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                onClick={() => setIsDepositHistoryOpen(true)}
+            >
+                Expected Deposits
+            </span>
+            <div className="w-32">
+                <Input 
+                    type="text" 
+                    value={summaryData.expectedDeposits} 
+                    onChange={(e) => handleChange("expectedDeposits", e.target.value)}
+                    onBlur={(e) => handleBlur("expectedDeposits", e.target.value)}
+                    className="h-8 text-right font-mono"
+                    placeholder="$0.00"
+                />
+            </div>
+        </div>
 
         <Separator className="my-2" />
 
@@ -221,6 +242,13 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DepositHistoryModal
+        open={isDepositHistoryOpen}
+        onClose={() => setIsDepositHistoryOpen(false)}
+        onDepositReversed={() => {}} 
+        onReprintSlip={() => {}}
+      />
     </Card>
   );
 }
@@ -267,6 +295,8 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
 }
 
 function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, val, formatCurrency, renderEditableRow }) {
+    const [isOpen, setIsOpen] = useState(false);
+
     // Group overhead rows by dateOption
     const groupedOverhead = overheadRows.reduce((acc, row) => {
         const date = row.dateOption || 'Unassigned';
@@ -282,95 +312,112 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
     const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End", "Unassigned"];
     
     return (
-        <>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Separator />
-            <CardContent className="pt-4 space-y-3 bg-slate-50/50">
-                <h3 className="font-semibold text-slate-700">Monthly Estimates</h3>
+            <CardContent className="pt-4 pb-2 bg-slate-50/50">
+                <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between cursor-pointer group">
+                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Monthly Estimates</h3>
+                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                </CollapsibleTrigger>
                 
-                {/* Overhead Totals */}
-                <div className="space-y-2 mb-4">
-                    {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => (
-                        <div key={date} className="flex justify-between items-center text-sm">
-                            <span className="text-slate-500">{date}</span>
-                            <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
-                        </div>
-                    ))}
-                    {/* Handle any dates not in the order list */}
-                    {Object.keys(groupedOverhead)
-                        .filter(date => !dateOrder.includes(date) && groupedOverhead[date] > 0)
-                        .map(date => (
+                <CollapsibleContent className="space-y-3 pt-3">
+                    {/* Overhead Totals */}
+                    <div className="space-y-2 mb-4">
+                        {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => (
                             <div key={date} className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500">{date}</span>
                                 <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
                             </div>
-                        ))
-                    }
-                </div>
+                        ))}
+                        {/* Handle any dates not in the order list */}
+                        {Object.keys(groupedOverhead)
+                            .filter(date => !dateOrder.includes(date) && groupedOverhead[date] > 0)
+                            .map(date => (
+                                <div key={date} className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-500">{date}</span>
+                                    <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                                </div>
+                            ))
+                        }
+                    </div>
 
-                {/* Editable Fields */}
-                <div className="space-y-2">
-                    {renderEditableRow("First Payroll", "estFirstPayroll")}
-                    {renderEditableRow("Second Payroll", "estSecondPayroll")}
-                    {renderEditableRow("Payroll Remit", "estPayrollRemit")}
-                </div>
+                    {/* Editable Fields */}
+                    <div className="space-y-2">
+                        {renderEditableRow("First Payroll", "estFirstPayroll")}
+                        {renderEditableRow("Second Payroll", "estSecondPayroll")}
+                        {renderEditableRow("Payroll Remit", "estPayrollRemit")}
+                    </div>
+                </CollapsibleContent>
             </CardContent>
-        </>
+        </Collapsible>
     );
 }
 
 function EtransferLimitsSection({ summaryData, onSummaryChange }) {
+    const [isOpen, setIsOpen] = useState(false);
+
     return (
-        <>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Separator />
-            <CardContent className="pt-4 space-y-3">
-                <h3 className="font-semibold text-slate-700">Etransfer Limits</h3>
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center gap-2">
-                        <span className="text-sm font-medium text-slate-500">Per Tx</span>
-                        <div className="w-32">
-                             <Input 
-                                type="text" 
-                                value={summaryData.etransferPerTx || ''} 
-                                onChange={(e) => onSummaryChange({...summaryData, etransferPerTx: e.target.value})}
-                                className="h-8 text-right font-mono"
-                            />
+            <CardContent className="pt-4 pb-2">
+                <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between cursor-pointer group">
+                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Etransfer Limits</h3>
+                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                    </div>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="space-y-3 pt-3">
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-medium text-slate-500">Per Tx</span>
+                            <div className="w-32">
+                                 <Input 
+                                    type="text" 
+                                    value={summaryData.etransferPerTx || ''} 
+                                    onChange={(e) => onSummaryChange({...summaryData, etransferPerTx: e.target.value})}
+                                    className="h-8 text-right font-mono"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-medium text-slate-500">Daily</span>
+                            <div className="w-32">
+                                 <Input 
+                                    type="text" 
+                                    value={summaryData.etransferDaily || ''} 
+                                    onChange={(e) => onSummaryChange({...summaryData, etransferDaily: e.target.value})}
+                                    className="h-8 text-right font-mono"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-medium text-slate-500">Weekly</span>
+                            <div className="w-32">
+                                 <Input 
+                                    type="text" 
+                                    value={summaryData.etransferWeekly || ''} 
+                                    onChange={(e) => onSummaryChange({...summaryData, etransferWeekly: e.target.value})}
+                                    className="h-8 text-right font-mono"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                            <span className="text-sm font-medium text-slate-500">Monthly</span>
+                            <div className="w-32">
+                                 <Input 
+                                    type="text" 
+                                    value={summaryData.etransferMonthly || ''} 
+                                    onChange={(e) => onSummaryChange({...summaryData, etransferMonthly: e.target.value})}
+                                    className="h-8 text-right font-mono"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div className="flex justify-between items-center gap-2">
-                        <span className="text-sm font-medium text-slate-500">Daily</span>
-                        <div className="w-32">
-                             <Input 
-                                type="text" 
-                                value={summaryData.etransferDaily || ''} 
-                                onChange={(e) => onSummaryChange({...summaryData, etransferDaily: e.target.value})}
-                                className="h-8 text-right font-mono"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex justify-between items-center gap-2">
-                        <span className="text-sm font-medium text-slate-500">Weekly</span>
-                        <div className="w-32">
-                             <Input 
-                                type="text" 
-                                value={summaryData.etransferWeekly || ''} 
-                                onChange={(e) => onSummaryChange({...summaryData, etransferWeekly: e.target.value})}
-                                className="h-8 text-right font-mono"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex justify-between items-center gap-2">
-                        <span className="text-sm font-medium text-slate-500">Monthly</span>
-                        <div className="w-32">
-                             <Input 
-                                type="text" 
-                                value={summaryData.etransferMonthly || ''} 
-                                onChange={(e) => onSummaryChange({...summaryData, etransferMonthly: e.target.value})}
-                                className="h-8 text-right font-mono"
-                            />
-                        </div>
-                    </div>
-                </div>
+                </CollapsibleContent>
             </CardContent>
-        </>
+        </Collapsible>
     );
 }
