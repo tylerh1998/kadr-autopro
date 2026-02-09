@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import moment from 'moment';
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CashFlowTable from '@/components/cash-flow/CashFlowTable';
 import CashFlowTotals from '@/components/cash-flow/CashFlowTotals';
+import APSummaryTable from '@/components/suppliers/APSummaryTable';
 
 export default function CashFlow() {
+  const [activeTab, setActiveTab] = useState("cashflow");
   // Initialize 40 empty rows
   const [rows, setRows] = useState(Array(40).fill({
     due: false,
@@ -151,12 +154,35 @@ export default function CashFlow() {
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Main Content - Table (Left Side) */}
           <div className="flex-1 min-w-0">
-            <CashFlowTable 
-              rows={rows} 
-              onRowChange={setRows} 
-              sortConfig={sortConfig}
-              onSort={handleSort}
-            />
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-4 w-full justify-start border-b rounded-none px-0 bg-transparent h-auto p-0">
+                <TabsTrigger 
+                  value="cashflow" 
+                  className="rounded-t-lg rounded-b-none border-t border-x border-b-0 border-transparent data-[state=active]:border-slate-200 data-[state=active]:bg-white px-6 py-2.5 font-medium"
+                >
+                  Cash Flow Table
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="apsummary" 
+                  className="rounded-t-lg rounded-b-none border-t border-x border-b-0 border-transparent data-[state=active]:border-slate-200 data-[state=active]:bg-white px-6 py-2.5 font-medium"
+                >
+                  AP Summary Table
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="cashflow" className="mt-0">
+                <CashFlowTable 
+                  rows={rows} 
+                  onRowChange={setRows} 
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                />
+              </TabsContent>
+              
+              <TabsContent value="apsummary" className="mt-0">
+                <APSummaryTable />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Sidebar - Totals (Right Side) */}
