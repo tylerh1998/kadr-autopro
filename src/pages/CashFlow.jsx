@@ -5,10 +5,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CashFlowTable from '@/components/cash-flow/CashFlowTable';
 import CashFlowTotals from '@/components/cash-flow/CashFlowTotals';
 import APSummaryTable from '@/components/suppliers/APSummaryTable';
+import OverheadTable from '@/components/cash-flow/OverheadTable';
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { createPageUrl } from '@/utils';
 
 export default function CashFlow() {
   const [activeTab, setActiveTab] = useState("cashflow");
-  // Initialize 40 empty rows
+  
+  // Cash Flow Table State
   const [rows, setRows] = useState(Array(40).fill({
     due: false,
     supplier: '',
@@ -21,7 +26,16 @@ export default function CashFlow() {
     comment: ''
   }));
 
+  // Overhead Table State
+  const [overheadRows, setOverheadRows] = useState(Array(20).fill({
+    description: '',
+    amount: '',
+    dateOption: '',
+    method: ''
+  }));
+
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+  const [overheadSortConfig, setOverheadSortConfig] = useState({ key: null, direction: 'ascending' });
 
   // Summary State
   const [summaryData, setSummaryData] = useState({
@@ -114,6 +128,36 @@ export default function CashFlow() {
     setRows(sortedRows);
   };
 
+  const handleOverheadSort = (key) => {
+    let direction = 'ascending';
+    if (overheadSortConfig.key === key && overheadSortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setOverheadSortConfig({ key, direction });
+
+    const sortedRows = [...overheadRows].sort((a, b) => {
+      if (!a[key] && !b[key]) return 0;
+      if (!a[key]) return 1;
+      if (!b[key]) return -1;
+
+      let valA = a[key];
+      let valB = b[key];
+
+      if (key === 'amount') {
+         valA = parseFloat(valA) || 0;
+         valB = parseFloat(valB) || 0;
+      } else {
+          valA = valA.toString().toLowerCase();
+          valB = valB.toString().toLowerCase();
+      }
+
+      if (valA < valB) return direction === 'ascending' ? -1 : 1;
+      if (valA > valB) return direction === 'ascending' ? 1 : -1;
+      return 0;
+    });
+    setOverheadRows(sortedRows);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-[1800px] mx-auto">
@@ -133,6 +177,12 @@ export default function CashFlow() {
                   className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
                 >
                   AP Summary Table
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="overhead" 
+                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  Overhead
                 </TabsTrigger>
               </TabsList>
           </div>
@@ -178,7 +228,27 @@ export default function CashFlow() {
               </TabsContent>
               
               <TabsContent value="apsummary" className="mt-0">
+                <div className="flex justify-end mb-2">
+                    <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
+                        className="gap-2"
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                        Open in new window
+                    </Button>
+                </div>
                 <APSummaryTable />
+              </TabsContent>
+
+              <TabsContent value="overhead" className="mt-0">
+                <OverheadTable 
+                    rows={overheadRows} 
+                    onRowChange={setOverheadRows}
+                    sortConfig={overheadSortConfig}
+                    onSort={handleOverheadSort}
+                />
               </TabsContent>
           </div>
 
