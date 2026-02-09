@@ -73,9 +73,7 @@ export default function CashFlow() {
     const loadData = async () => {
       try {
         // Fetch Entries
-        const entries = await base44.entities.CashFlowEntry.list({
-            sort: { created_date: 1 }
-        });
+        const entries = await base44.entities.CashFlowEntry.list('created_date', 100);
         
         const loadedRows = entries.map(entry => ({
             id: entry.id,
@@ -83,7 +81,7 @@ export default function CashFlow() {
             supplier: entry.supplier || '',
             amount: entry.amount || '',
             amountPaid: entry.amount_paid || '',
-            dueDate: entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : '',
+            dueDate: entry.due_date ? moment(entry.due_date).format('MMM D') : '',
             datePaid: entry.date_paid ? moment(entry.date_paid).format('MMM D') : '',
             chqNumber: entry.chq_number || '',
             method: entry.method || '',
