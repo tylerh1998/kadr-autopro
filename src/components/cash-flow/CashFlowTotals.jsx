@@ -355,7 +355,7 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
     );
 }
 
-function EtransferLimitsSection({ summaryData, onSummaryChange }) {
+function EtransferLimitsSection({ summaryData, onSummaryChange, renderEditableRow }) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -371,50 +371,10 @@ function EtransferLimitsSection({ summaryData, onSummaryChange }) {
                 
                 <CollapsibleContent className="space-y-3 pt-3">
                     <div className="space-y-2">
-                        <div className="flex justify-between items-center gap-2">
-                            <span className="text-sm font-medium text-slate-500">Per Tx</span>
-                            <div className="w-32">
-                                 <Input 
-                                    type="text" 
-                                    value={summaryData.etransferPerTx || ''} 
-                                    onChange={(e) => onSummaryChange({...summaryData, etransferPerTx: e.target.value})}
-                                    className="h-8 text-right font-mono"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center gap-2">
-                            <span className="text-sm font-medium text-slate-500">Daily</span>
-                            <div className="w-32">
-                                 <Input 
-                                    type="text" 
-                                    value={summaryData.etransferDaily || ''} 
-                                    onChange={(e) => onSummaryChange({...summaryData, etransferDaily: e.target.value})}
-                                    className="h-8 text-right font-mono"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center gap-2">
-                            <span className="text-sm font-medium text-slate-500">Weekly</span>
-                            <div className="w-32">
-                                 <Input 
-                                    type="text" 
-                                    value={summaryData.etransferWeekly || ''} 
-                                    onChange={(e) => onSummaryChange({...summaryData, etransferWeekly: e.target.value})}
-                                    className="h-8 text-right font-mono"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center gap-2">
-                            <span className="text-sm font-medium text-slate-500">Monthly</span>
-                            <div className="w-32">
-                                 <Input 
-                                    type="text" 
-                                    value={summaryData.etransferMonthly || ''} 
-                                    onChange={(e) => onSummaryChange({...summaryData, etransferMonthly: e.target.value})}
-                                    className="h-8 text-right font-mono"
-                                />
-                            </div>
-                        </div>
+                        {renderEditableRow("Per Tx", "etransferPerTx")}
+                        {renderEditableRow("Daily", "etransferDaily")}
+                        {renderEditableRow("Weekly", "etransferWeekly")}
+                        {renderEditableRow("Monthly", "etransferMonthly")}
                     </div>
                 </CollapsibleContent>
             </CardContent>
