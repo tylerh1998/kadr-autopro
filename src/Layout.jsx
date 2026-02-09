@@ -534,13 +534,13 @@ const navigationItems = [
     title: "Accounting",
     icon: CreditCard,
     defaultUrl: createPageUrl("CashDrawer"),
-    activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct"],
+    activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
     dropdown: [
       { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
       { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
-      { title: "Cheque Register", url: createPageUrl("ChequeRegister"), icon: BookCheck },
-      { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
+      { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
       { title: "Accounting", action: "showAccountingReports", icon: Calculator },
+      { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
     ]
   } : {
     title: "Accounting",
