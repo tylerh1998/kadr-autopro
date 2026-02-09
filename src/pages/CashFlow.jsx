@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import moment from 'moment';
+import { debounce } from 'lodash';
+import { base44 } from '@/api/base44Client';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CashFlowTable from '@/components/cash-flow/CashFlowTable';
@@ -12,6 +14,7 @@ import { createPageUrl } from '@/utils';
 
 export default function CashFlow() {
   const [activeTab, setActiveTab] = useState("cashflow");
+  const [summaryId, setSummaryId] = useState(null);
   
   // Cash Flow Table State
   const [rows, setRows] = useState(Array(40).fill({
@@ -23,7 +26,9 @@ export default function CashFlow() {
     datePaid: '',
     chqNumber: '',
     method: '',
-    comment: ''
+    comment: '',
+    bg_colour: '',
+    rowStatus: ''
   }));
 
   // Overhead Table State
@@ -62,6 +67,220 @@ export default function CashFlow() {
     lastUpdated: moment().format('MMM D, YYYY'),
     monthEnd: moment().endOf('month').format('MMM D, YYYY')
   });
+
+  // Load Data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Fetch Entries
+        const entries = await base44.entities.CashFlowEntry.list({
+            sort: { created_date: 1 }
+        });
+        
+        const loadedRows = entries.map(entry => ({
+            id: entry.id,
+            due: false, // Calculated on frontend usually, but keeping consistent structure
+            supplier: entry.supplier || '',
+            amount: entry.amount || '',
+            amountPaid: entry.amount_paid || '',
+            dueDate: entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : '',
+            datePaid: entry.date_paid ? moment(entry.date_paid).format('MMM D') : '',
+            chqNumber: entry.chq_number || '',
+            method: entry.method || '',
+            comment: entry.comment || '',
+            bg_colour: entry.bg_colour || '',
+            rowStatus: entry.row_status || ''
+        }));
+
+        // Pad to 40
+        while (loadedRows.length < 40) {
+            loadedRows.push({
+                due: false, supplier: '', amount: '', amountPaid: '', 
+                dueDate: '', datePaid: '', chqNumber: '', method: '', comment: '',
+                bg_colour: '', rowStatus: ''
+            });
+        }
+        setRows(loadedRows);
+
+        // Fetch Summary
+        const summaries = await base44.entities.CashFlowSummary.list();
+        let summary;
+        if (summaries.length > 0) {
+            summary = summaries[0];
+        } else {
+            summary = await base44.entities.CashFlowSummary.create({
+                last_updated: new Date().toISOString(),
+                month_end: moment().endOf('month').toISOString(),
+                current_bank_balance: 0,
+                fiscal_cushion: 1000,
+                pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
+                overhead_items: JSON.stringify(Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }))
+            });
+        }
+        setSummaryId(summary.id);
+
+        // Parse Summary Data
+        let padDetails = [];
+        try {
+            padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
+        } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
+        
+        while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
+
+        let overheadItems = [];
+        try {
+            overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(20).fill({ description: '', amount: '', dateOption: '', method: '' });
+        } catch (e) { overheadItems = Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }); }
+
+        while (overheadItems.length < 20) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
+
+        setSummaryData({
+            bankBalance: summary.current_bank_balance || '',
+            padRegistries: summary.pad_registries_total || '',
+            upcomingPayroll: summary.upcoming_payroll || '',
+            payrollRemit: summary.payroll_remit || '',
+            gstRemit: summary.gst_remit || '',
+            fiscalCushion: summary.fiscal_cushion !== undefined ? summary.fiscal_cushion : 1000,
+            expectedDeposits: summary.expected_deposits || '',
+            padRegistriesDetails: padDetails,
+            estFirstPayroll: summary.est_first_payroll || '',
+            estSecondPayroll: summary.est_second_payroll || '',
+            estPayrollRemit: summary.est_payroll_remit || '',
+            etransferPerTx: summary.etransfer_per_tx || '',
+            etransferDaily: summary.etransfer_daily || '',
+            etransferWeekly: summary.etransfer_weekly || '',
+            etransferMonthly: summary.etransfer_monthly || ''
+        });
+
+        setOverheadRows(overheadItems);
+        
+        setHeaderData({
+            lastUpdated: summary.last_updated ? moment(summary.last_updated).format('MMM D, YYYY') : '',
+            monthEnd: summary.month_end ? moment(summary.month_end).format('MMM D, YYYY') : ''
+        });
+
+      } catch (error) {
+        console.error("Error loading cash flow data:", error);
+      }
+    };
+    loadData();
+  }, []);
+
+  // --- Persistence Logic ---
+
+  // Debounced save for individual rows
+  const saveRowToDb = useCallback(debounce(async (row) => {
+    if (!row.supplier && !row.amount) return; // Don't save empty rows
+
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        // Try strict formats first
+        const formats = [
+            "MMM D, YYYY", "MMM DD, YYYY", "YYYY-MM-DD",
+            "MMM D", "MMM DD", "M/D/YYYY", "MM/DD/YYYY"
+        ];
+        let m = moment(dateStr, formats, true);
+        if (!m.isValid()) m = moment(dateStr); // Fallback
+        return m.isValid() ? m.format('YYYY-MM-DD') : null;
+    };
+
+    const payload = {
+        supplier: row.supplier,
+        amount: parseFloat(row.amount.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        amount_paid: parseFloat(row.amountPaid.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        due_date: parseDate(row.dueDate),
+        date_paid: parseDate(row.datePaid),
+        chq_number: row.chqNumber,
+        method: row.method,
+        comment: row.comment,
+        bg_colour: row.bg_colour,
+        row_status: row.rowStatus
+    };
+
+    try {
+        if (row.id) {
+            await base44.entities.CashFlowEntry.update(row.id, payload);
+        } else {
+            const newRec = await base44.entities.CashFlowEntry.create(payload);
+            // We need to update the state with the new ID to prevent duplicate creates
+            // This is handled by a specialized update function calling this
+            return newRec.id;
+        }
+    } catch (e) {
+        console.error("Error saving row:", e);
+    }
+  }, 1000), []);
+
+  const handleRowChange = async (newRows) => {
+    // Identify changed row
+    const changedIndex = newRows.findIndex((row, i) => row !== rows[i]);
+    setRows(newRows); // Update UI immediately
+
+    if (changedIndex !== -1) {
+        const row = newRows[changedIndex];
+        const result = await saveRowToDb(row);
+        
+        // If we just created a new row and got an ID back, update state
+        if (result && !row.id) {
+             setRows(prev => {
+                 const updated = [...prev];
+                 updated[changedIndex] = { ...updated[changedIndex], id: result };
+                 return updated;
+             });
+        }
+    }
+  };
+
+  // Debounced save for Summary
+  const saveSummaryToDb = useCallback(debounce(async (id, data, overhead, header) => {
+    if (!id) return;
+    
+    const payload = {
+        current_bank_balance: parseFloat(data.bankBalance.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        pad_registries_total: parseFloat(data.padRegistries.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        upcoming_payroll: parseFloat(data.upcomingPayroll.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        payroll_remit: parseFloat(data.payrollRemit.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        gst_remit: parseFloat(data.gstRemit.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        fiscal_cushion: parseFloat(data.fiscalCushion.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        expected_deposits: parseFloat(data.expectedDeposits.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        
+        est_first_payroll: parseFloat(data.estFirstPayroll.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        est_second_payroll: parseFloat(data.estSecondPayroll.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        est_payroll_remit: parseFloat(data.estPayrollRemit.toString().replace(/[^0-9.-]+/g,"")) || 0,
+
+        etransfer_per_tx: parseFloat(data.etransferPerTx.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        etransfer_daily: parseFloat(data.etransferDaily.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        etransfer_weekly: parseFloat(data.etransferWeekly.toString().replace(/[^0-9.-]+/g,"")) || 0,
+        etransfer_monthly: parseFloat(data.etransferMonthly.toString().replace(/[^0-9.-]+/g,"")) || 0,
+
+        pad_registries_details: JSON.stringify(data.padRegistriesDetails),
+        overhead_items: JSON.stringify(overhead),
+        
+        last_updated: header.lastUpdated ? moment(header.lastUpdated, ["MMM D, YYYY", "MMM D"]).toISOString() : null,
+        month_end: header.monthEnd ? moment(header.monthEnd, ["MMM D, YYYY", "MMM D"]).toISOString() : null
+    };
+
+    try {
+        await base44.entities.CashFlowSummary.update(id, payload);
+    } catch (e) {
+        console.error("Error saving summary:", e);
+    }
+  }, 1000), []);
+
+  const handleSummaryChange = (newData) => {
+    setSummaryData(newData);
+    saveSummaryToDb(summaryId, newData, overheadRows, headerData);
+  };
+
+  const handleOverheadChange = (newRows) => {
+    setOverheadRows(newRows);
+    saveSummaryToDb(summaryId, summaryData, newRows, headerData);
+  };
+
+  const handleHeaderChange = (newHeader) => {
+      setHeaderData(newHeader);
+      saveSummaryToDb(summaryId, summaryData, overheadRows, newHeader);
+  };
 
   const calculateBusinessDays = (endDateStr) => {
     if (!endDateStr) return 0;
@@ -201,7 +420,7 @@ export default function CashFlow() {
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</span>
                 <Input 
                     value={headerData.lastUpdated}
-                    onChange={(e) => setHeaderData({...headerData, lastUpdated: e.target.value})}
+                    onChange={(e) => handleHeaderChange({...headerData, lastUpdated: e.target.value})}
                     className="w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
                     placeholder="MMM D"
                 />
@@ -210,7 +429,7 @@ export default function CashFlow() {
                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Month End</span>
                 <Input 
                     value={headerData.monthEnd}
-                    onChange={(e) => setHeaderData({...headerData, monthEnd: e.target.value})}
+                    onChange={(e) => handleHeaderChange({...headerData, monthEnd: e.target.value})}
                     className="w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
                     placeholder="MMM D"
                 />
@@ -230,7 +449,7 @@ export default function CashFlow() {
               <TabsContent value="cashflow" className="mt-0">
                 <CashFlowTable 
                   rows={rows} 
-                  onRowChange={setRows} 
+                  onRowChange={handleRowChange} 
                   sortConfig={sortConfig}
                   onSort={handleSort}
                 />
@@ -243,7 +462,7 @@ export default function CashFlow() {
               <TabsContent value="overhead" className="mt-0">
                 <OverheadTable 
                     rows={overheadRows} 
-                    onRowChange={setOverheadRows}
+                    onRowChange={handleOverheadChange}
                     sortConfig={overheadSortConfig}
                     onSort={handleOverheadSort}
                 />
@@ -257,7 +476,7 @@ export default function CashFlow() {
                 rows={rows} 
                 overheadRows={overheadRows}
                 summaryData={summaryData}
-                onSummaryChange={setSummaryData}
+                onSummaryChange={handleSummaryChange}
               />
             </div>
           </div>
