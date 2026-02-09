@@ -10,8 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Loader2 } from 'lucide-react';
-import { format, parseISO, differenceInDays, parse, endOfMonth } from 'date-fns';
+import { CalendarIcon, Loader2, X } from 'lucide-react';
+import { format, parseISO, differenceInDays, parse, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { cn } from "@/lib/utils";
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
@@ -138,6 +139,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -223,6 +225,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setProcessingCheque(false);
     setShowPaymentDetailsDialog(false);
     setShowAddToSheetModal(false);
+    setDateRange({ from: undefined, to: undefined });
   };
 
   const handleInvoiceSelection = (invoiceKey, checked) => {
@@ -231,6 +234,22 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       [invoiceKey]: checked
     }));
   };
+
+  const filteredInvoices = useMemo(() => {
+    if (!dateRange?.from) return outstandingInvoices;
+
+    return outstandingInvoices.filter(inv => {
+      const invDate = parseISO(inv.invoice_date);
+      const from = startOfDay(dateRange.from);
+      
+      if (dateRange.to) {
+        const to = endOfDay(dateRange.to);
+        return invDate >= from && invDate <= to;
+      }
+      
+      return invDate >= from;
+    });
+  }, [outstandingInvoices, dateRange]);
 
   const totalSelectedAmount = useMemo(() => {
     if (activeTab === 'pay_invoices') {
@@ -484,8 +503,56 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     <>
       <Dialog open={open && !showChequeNumberPrompt && !processingCheque} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <DialogTitle>Make Payment to {supplier?.name}</DialogTitle>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-[260px] justify-start text-left font-normal",
+                      !dateRange?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd, y")} -{" "}
+                          {format(dateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Filter by date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+              {dateRange?.from && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setDateRange({ from: undefined, to: undefined })}
+                  title="Clear date filter"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -508,14 +575,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {outstandingInvoices.length === 0 ? (
+                      {filteredInvoices.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center text-slate-500 py-8">
-                            No outstanding invoices
+                            {outstandingInvoices.length === 0 ? "No outstanding invoices" : "No invoices found for this date range"}
                           </TableCell>
                         </TableRow>
                       ) : (
-                        outstandingInvoices.map((invoice) => {
+                        filteredInvoices.map((invoice) => {
                           const age = differenceInDays(new Date(), parseISO(invoice.invoice_date));
                           const isSelected = selectedInvoices[invoice.uniqueKey];
                           const isCredit = invoice.balance_due < 0;
