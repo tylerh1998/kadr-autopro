@@ -245,7 +245,7 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
-                            onClick={() => handleChange(index, 'dueDate', moment().endOf('month').format('MMM D, YYYY'))}
+                            onClick={() => handleChange(index, 'dueDate', moment().endOf('month').format('MMM D'))}
                             title="Set to Month End"
                             tabIndex={-1}
                         >
