@@ -537,7 +537,6 @@ const navigationItems = [
       { title: "Journal Entries", url: createPageUrl("JournalEntries"), icon: BookCopy },
       { title: "Fiscal Periods", url: createPageUrl("FiscalPeriods"), icon: CalendarClock },
       { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
-      { title: "Chart of Accounts", url: createPageUrl("ChartOfAccounts"), icon: Network },
     ]
   } : {
     title: "Accounting",

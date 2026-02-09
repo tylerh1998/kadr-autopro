@@ -50,6 +50,12 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       case 'financial':
         return [
           {
+            name: 'Chart of Accounts',
+            description: 'List of all accounts and their settings',
+            icon: 'FileText',
+            path: 'ChartOfAccounts'
+          },
+          {
             name: 'Financial Dashboard',
             description: 'Comprehensive overview of key financial metrics, cash flow, and account balances',
             icon: 'BarChart3',
