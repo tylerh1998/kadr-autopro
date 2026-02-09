@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, DollarSign, Loader2, Upload } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse, isValid } from 'date-fns';
+import AddToSheetModal from '../suppliers/AddToSheetModal';
 
 const SERVUS_ID = '68cbcdf3f171308eee277c73';
 const ATB_ID = '695c358b0d127adfb929951e';
@@ -37,6 +38,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
+  const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const fileInputRef = React.useRef(null);
 
   const handleFileUpload = (event) => {
@@ -534,6 +536,14 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
               <div className="flex gap-2 w-full sm:w-auto justify-end">
                 <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
                 <Button 
+                  type="button" 
+                  onClick={() => setShowAddToSheetModal(true)}
+                  disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
+                  className="bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  Next: Add to Sheet
+                </Button>
+                <Button 
                   onClick={handleProceedToPaymentDetails} 
                   disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
                 >
@@ -637,6 +647,17 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           </div>
         </DialogContent>
       </Dialog>
+
+      <AddToSheetModal
+        open={showAddToSheetModal}
+        onClose={() => setShowAddToSheetModal(false)}
+        initialValues={{
+          supplierName: lineOfCredit?.name,
+          amount: activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0),
+          dueDate: ''
+        }}
+        onSuccess={handleClose}
+      />
     </Dialog>
   );
 }
