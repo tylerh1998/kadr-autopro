@@ -194,7 +194,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           .map((inv, index) => ({
             ...inv,
             uniqueKey: `${inv.supplier_id}_${inv.invoice_number}_${inv.invoice_date}_${index}`
-          }));
+          }))
+          .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
         setOutstandingInvoices(outstanding);
       }
     } catch (error) {
