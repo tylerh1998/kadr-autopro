@@ -148,8 +148,6 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
 
   const totalRemaining = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
 
-  if (totalRemaining === 0) return null;
-
   return (
     <>
         <Separator />
