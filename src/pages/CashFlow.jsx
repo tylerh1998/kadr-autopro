@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import moment from 'moment';
+import { Input } from "@/components/ui/input";
 import CashFlowTable from '@/components/cash-flow/CashFlowTable';
 import CashFlowTotals from '@/components/cash-flow/CashFlowTotals';
 
@@ -29,6 +31,52 @@ export default function CashFlow() {
     expectedDeposits: '',
     padRegistriesDetails: Array(10).fill({ name: '', amount: '' })
   });
+
+  const [headerData, setHeaderData] = useState({
+    lastUpdated: moment().format('MMM D, YYYY'),
+    monthEnd: moment().endOf('month').format('MMM D, YYYY')
+  });
+
+  const calculateBusinessDays = (endDateStr) => {
+    if (!endDateStr) return 0;
+    
+    const formats = [
+      "YYYY-MM-DD", 
+      "MMM D", "MMM DD", "MMM D, YYYY", "MMM DD, YYYY",
+      "M/D/YYYY", "MM/DD/YYYY", "M-D-YYYY", "MM-DD-YYYY",
+      "M/D", "MM/DD" 
+    ];
+    
+    let end = moment(endDateStr, formats, true);
+    if (!end.isValid()) end = moment(endDateStr);
+    if (!end.isValid()) return 0;
+
+    end = end.startOf('day');
+    const current = moment().startOf('day');
+    
+    if (end.isBefore(current)) return 0;
+
+    let businessDays = 0;
+    // Clone to avoid modifying current
+    const cursor = current.clone();
+    
+    while (cursor.isSameOrBefore(end)) {
+        if (cursor.day() !== 0 && cursor.day() !== 6) {
+            businessDays++;
+        }
+        cursor.add(1, 'days');
+    }
+    
+    return businessDays;
+  };
+
+  const workDaysLeft = calculateBusinessDays(headerData.monthEnd);
+
+  const getWorkDaysColor = (days) => {
+      if (days <= 5) return "bg-red-100 text-red-700 border-red-200";
+      if (days <= 10) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-blue-100 text-blue-700 border-blue-200";
+  };
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -66,9 +114,38 @@ export default function CashFlow() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-[1800px] mx-auto">
-        <div className="flex flex-col gap-2 mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Cash Flow Management</h1>
-          <p className="text-slate-500">Manage pending and upcoming payments.</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-bold text-slate-900">Cash Flow Management</h1>
+            <p className="text-slate-500">Manage pending and upcoming payments.</p>
+          </div>
+
+          <div className="flex gap-4 items-end bg-white p-3 rounded-lg border shadow-sm">
+            <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</span>
+                <Input 
+                    value={headerData.lastUpdated}
+                    onChange={(e) => setHeaderData({...headerData, lastUpdated: e.target.value})}
+                    className="w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
+                    placeholder="MMM D"
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Month End</span>
+                <Input 
+                    value={headerData.monthEnd}
+                    onChange={(e) => setHeaderData({...headerData, monthEnd: e.target.value})}
+                    className="w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
+                    placeholder="MMM D"
+                />
+            </div>
+            <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Work Days Left</span>
+                <div className={`flex justify-center items-center w-32 h-9 rounded-md border transition-colors ${getWorkDaysColor(workDaysLeft)}`}>
+                    <span className="text-sm font-bold">{workDaysLeft} Days</span>
+                </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col xl:flex-row gap-6">
