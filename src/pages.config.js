@@ -52,6 +52,7 @@ import Admin from './pages/Admin';
 import BalanceSheet from './pages/BalanceSheet';
 import Bank from './pages/Bank';
 import CashDrawer from './pages/CashDrawer';
+import CashFlow from './pages/CashFlow';
 import ChartOfAccounts from './pages/ChartOfAccounts';
 import ChequeRegister from './pages/ChequeRegister';
 import ChequeWriter from './pages/ChequeWriter';
@@ -92,7 +93,6 @@ import WorkOrderView from './pages/WorkOrderView';
 import WorkOrders from './pages/WorkOrders';
 import WorkPROView from './pages/WorkPROView';
 import WorkPro from './pages/WorkPro';
-import CashFlow from './pages/CashFlow';
 import __Layout from './Layout.jsx';
 
 
@@ -102,6 +102,7 @@ export const PAGES = {
     "BalanceSheet": BalanceSheet,
     "Bank": Bank,
     "CashDrawer": CashDrawer,
+    "CashFlow": CashFlow,
     "ChartOfAccounts": ChartOfAccounts,
     "ChequeRegister": ChequeRegister,
     "ChequeWriter": ChequeWriter,
@@ -142,7 +143,6 @@ export const PAGES = {
     "WorkOrders": WorkOrders,
     "WorkPROView": WorkPROView,
     "WorkPro": WorkPro,
-    "CashFlow": CashFlow,
 }
 
 export const pagesConfig = {

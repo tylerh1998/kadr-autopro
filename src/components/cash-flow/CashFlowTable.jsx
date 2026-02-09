@@ -5,8 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import moment from "moment";
 
+import { useState } from 'react';
 import { ArrowUpDown, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,8 +16,18 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort }) {
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [currentCommentRowIndex, setCurrentCommentRowIndex] = useState(null);
+  const [currentCommentText, setCurrentCommentText] = useState('');
   const headers = [
     { id: 'dueDate', label: 'Due', width: 'w-24', sortable: true }, // Logic uses dueDate
     { id: 'supplier', label: 'Supplier', width: 'w-64', sortable: true },
@@ -68,8 +80,10 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
     const newRows = [...rows];
     if (action === 'mark_paid') {
         newRows[index] = { ...newRows[index], rowStatus: 'paid' };
+        onRowChange(newRows);
     } else if (action === 'mark_follow_up') {
         newRows[index] = { ...newRows[index], rowStatus: 'follow_up' };
+        onRowChange(newRows);
     } else if (action === 'delete') {
         newRows[index] = {
             due: false,
@@ -80,18 +94,30 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
             datePaid: '',
             chqNumber: '',
             method: '',
-            rowStatus: ''
+            rowStatus: '',
+            comment: ''
         };
+        onRowChange(newRows);
     } else if (action === 'comment') {
-        console.log("Comment action triggered for row", index);
-        // Future implementation
+        setCurrentCommentRowIndex(index);
+        setCurrentCommentText(rows[index].comment || '');
+        setIsCommentModalOpen(true);
     }
-    onRowChange(newRows);
   };
 
-  const getRowBgColor = (status) => {
-    if (status === 'paid') return 'bg-purple-100';
-    if (status === 'follow_up') return 'bg-orange-100';
+  const handleSaveComment = () => {
+    if (currentCommentRowIndex !== null) {
+      const newRows = [...rows];
+      newRows[currentCommentRowIndex] = { ...newRows[currentCommentRowIndex], comment: currentCommentText };
+      onRowChange(newRows);
+    }
+    setIsCommentModalOpen(false);
+  };
+
+  const getRowBgColor = (row) => {
+    if (row.chqNumber) return 'bg-green-100';
+    if (row.rowStatus === 'paid') return 'bg-purple-100';
+    if (row.rowStatus === 'follow_up') return 'bg-orange-100';
     return ''; // Default transparent/white handled by input/td
   };
 
@@ -162,12 +188,23 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
           </thead>
           <tbody>
             {rows.map((row, index) => {
-              const bgClass = getRowBgColor(row.rowStatus);
+              const bgClass = getRowBgColor(row);
+              const hasComment = row.comment && row.comment.trim().length > 0;
+              
               return (
               <ContextMenu key={index}>
                 <ContextMenuTrigger asChild>
                   <tr className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
-                    <td className="p-2 text-center text-slate-400 text-xs">{index + 1}</td>
+                    <td 
+                      className={cn(
+                        "p-2 text-center text-xs cursor-pointer select-none transition-colors",
+                        hasComment ? "bg-slate-900 text-white font-bold" : "text-slate-400"
+                      )}
+                      onClick={() => handleRowAction(index, 'comment')}
+                      title={hasComment ? row.comment : undefined}
+                    >
+                      {index + 1}
+                    </td>
                     
                     {/* Due (Calculated) */}
                     {(() => {
@@ -312,6 +349,26 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
           </tbody>
         </table>
       </div>
+
+      <Dialog open={isCommentModalOpen} onOpenChange={setIsCommentModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Comment</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea 
+              value={currentCommentText} 
+              onChange={(e) => setCurrentCommentText(e.target.value)}
+              placeholder="Enter your comment here..."
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCommentModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveComment}>Save Comment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -12,7 +12,8 @@ export default function CashFlow() {
     dueDate: '',
     datePaid: '',
     chqNumber: '',
-    method: ''
+    method: '',
+    comment: ''
   }));
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
