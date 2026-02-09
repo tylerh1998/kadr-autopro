@@ -117,10 +117,24 @@ export default function CashFlow() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-[1800px] mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">Cash Flow Management</h1>
-            <p className="text-slate-500">Manage pending and upcoming payments.</p>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-bold text-slate-900">Cash Flow</h1>
+            <TabsList className="bg-slate-200/50 p-1 rounded-lg">
+                <TabsTrigger 
+                  value="cashflow" 
+                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  Cash Flow Table
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="apsummary" 
+                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  AP Summary Table
+                </TabsTrigger>
+              </TabsList>
           </div>
 
           <div className="flex gap-4 items-end bg-white p-3 rounded-lg border shadow-sm">
@@ -154,22 +168,6 @@ export default function CashFlow() {
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Main Content - Table (Left Side) */}
           <div className="flex-1 min-w-0">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="mb-4 w-full justify-start border-b rounded-none px-0 bg-transparent h-auto p-0">
-                <TabsTrigger 
-                  value="cashflow" 
-                  className="rounded-t-lg rounded-b-none border-t border-x border-b-0 border-transparent data-[state=active]:border-slate-200 data-[state=active]:bg-white px-6 py-2.5 font-medium"
-                >
-                  Cash Flow Table
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="apsummary" 
-                  className="rounded-t-lg rounded-b-none border-t border-x border-b-0 border-transparent data-[state=active]:border-slate-200 data-[state=active]:bg-white px-6 py-2.5 font-medium"
-                >
-                  AP Summary Table
-                </TabsTrigger>
-              </TabsList>
-              
               <TabsContent value="cashflow" className="mt-0">
                 <CashFlowTable 
                   rows={rows} 
@@ -182,7 +180,6 @@ export default function CashFlow() {
               <TabsContent value="apsummary" className="mt-0">
                 <APSummaryTable />
               </TabsContent>
-            </Tabs>
           </div>
 
           {/* Sidebar - Totals (Right Side) */}
@@ -196,6 +193,7 @@ export default function CashFlow() {
             </div>
           </div>
         </div>
+        </Tabs>
       </div>
     </div>
   );
