@@ -7,6 +7,13 @@ import moment from "moment";
 
 import { ArrowUpDown, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 
 export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort }) {
   const headers = [
@@ -55,6 +62,37 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
     const newRows = [...rows];
     newRows[index] = { ...newRows[index], [field]: value };
     onRowChange(newRows);
+  };
+
+  const handleRowAction = (index, action) => {
+    const newRows = [...rows];
+    if (action === 'mark_paid') {
+        newRows[index] = { ...newRows[index], rowStatus: 'paid' };
+    } else if (action === 'mark_follow_up') {
+        newRows[index] = { ...newRows[index], rowStatus: 'follow_up' };
+    } else if (action === 'delete') {
+        newRows[index] = {
+            due: false,
+            supplier: '',
+            amount: '',
+            amountPaid: '',
+            dueDate: '',
+            datePaid: '',
+            chqNumber: '',
+            method: '',
+            rowStatus: ''
+        };
+    } else if (action === 'comment') {
+        console.log("Comment action triggered for row", index);
+        // Future implementation
+    }
+    onRowChange(newRows);
+  };
+
+  const getRowBgColor = (status) => {
+    if (status === 'paid') return 'bg-purple-100';
+    if (status === 'follow_up') return 'bg-orange-100';
+    return ''; // Default transparent/white handled by input/td
   };
 
   const getDueInfo = (dateStr) => {
@@ -123,129 +161,154 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
-              <tr key={index} className="border-b last:border-b-0 hover:bg-slate-50">
-                <td className="p-2 text-center text-slate-400 text-xs">{index + 1}</td>
-                
-                {/* Due (Calculated) */}
-                {(() => {
-                    const { text, className } = getDueInfo(row.dueDate);
-                    return (
-                        <td className={cn("p-2 border-r text-center text-xs", className)}>
-                            {text}
-                        </td>
-                    );
-                })()}
+            {rows.map((row, index) => {
+              const bgClass = getRowBgColor(row.rowStatus);
+              return (
+              <ContextMenu key={index}>
+                <ContextMenuTrigger asChild>
+                  <tr className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
+                    <td className="p-2 text-center text-slate-400 text-xs">{index + 1}</td>
+                    
+                    {/* Due (Calculated) */}
+                    {(() => {
+                        const { text, className } = getDueInfo(row.dueDate);
+                        return (
+                            <td className={cn("p-2 border-r text-center text-xs", className)}>
+                                {text}
+                            </td>
+                        );
+                    })()}
 
-                {/* Supplier */}
-                <td className="p-1 border-r">
-                  <Input 
-                    value={row.supplier || ''} 
-                    onChange={(e) => handleChange(index, 'supplier', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent"
-                    placeholder="Supplier Name"
-                  />
-                </td>
+                    {/* Supplier */}
+                    <td className={cn("p-1 border-r", bgClass)}>
+                      <Input 
+                        value={row.supplier || ''} 
+                        onChange={(e) => handleChange(index, 'supplier', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent"
+                        placeholder="Supplier Name"
+                      />
+                    </td>
 
-                {/* Amount */}
-                <td className="p-1 border-r">
-                  <Input 
-                    type="text"
-                    value={row.amount || ''} 
-                    onChange={(e) => handleChange(index, 'amount', e.target.value)}
-                    onBlur={(e) => handleBlur(index, 'amount', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono"
-                    placeholder="$0.00"
-                  />
-                </td>
-
-                {/* Due Date */}
-                <td className="p-1 border-r">
-                  <Input 
-                    type="text"
-                    value={row.dueDate || ''} 
-                    onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
-                    placeholder=""
-                  />
-                </td>
-
-                {/* Amount Paid */}
-                <td className="p-1 border-r relative group">
-                  <div className="flex items-center">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
-                        onClick={() => handleAutoFillAmountPaid(index)}
-                        title="Auto-fill Full Amount"
-                        tabIndex={-1}
-                    >
-                        <Check className="h-3 w-3" />
-                    </Button>
-                    <Input 
+                    {/* Amount */}
+                    <td className={cn("p-1 border-r", bgClass)}>
+                      <Input 
                         type="text"
-                        value={row.amountPaid || ''} 
-                        onChange={(e) => handleChange(index, 'amountPaid', e.target.value)}
-                        onBlur={(e) => handleBlur(index, 'amountPaid', e.target.value)}
-                        className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono flex-1"
+                        value={row.amount || ''} 
+                        onChange={(e) => handleChange(index, 'amount', e.target.value)}
+                        onBlur={(e) => handleBlur(index, 'amount', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono"
                         placeholder="$0.00"
-                    />
-                  </div>
-                </td>
+                      />
+                    </td>
 
-                {/* Date Paid */}
-                <td className="p-1 border-r relative group">
-                  <div className="flex items-center">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
-                        onClick={() => handleChange(index, 'datePaid', moment().format('MMM D'))}
-                        title="Set to Today"
-                        tabIndex={-1}
-                    >
-                        <Check className="h-3 w-3" />
-                    </Button>
-                    <Input 
+                    {/* Due Date */}
+                    <td className={cn("p-1 border-r", bgClass)}>
+                      <Input 
                         type="text"
-                        value={row.datePaid || ''} 
-                        onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
-                        className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center flex-1"
+                        value={row.dueDate || ''} 
+                        onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
                         placeholder=""
-                    />
-                  </div>
-                </td>
+                      />
+                    </td>
 
-                {/* Chq # */}
-                <td className="p-1 border-r">
-                  <Input 
-                    value={row.chqNumber || ''} 
-                    onChange={(e) => handleChange(index, 'chqNumber', e.target.value)}
-                    className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
-                  />
-                </td>
+                    {/* Amount Paid */}
+                    <td className={cn("p-1 border-r relative group", bgClass)}>
+                      <div className="flex items-center">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            onClick={() => handleAutoFillAmountPaid(index)}
+                            title="Auto-fill Full Amount"
+                            tabIndex={-1}
+                        >
+                            <Check className="h-3 w-3" />
+                        </Button>
+                        <Input 
+                            type="text"
+                            value={row.amountPaid || ''} 
+                            onChange={(e) => handleChange(index, 'amountPaid', e.target.value)}
+                            onBlur={(e) => handleBlur(index, 'amountPaid', e.target.value)}
+                            className="border-0 h-8 focus-visible:ring-1 bg-transparent text-right font-mono flex-1"
+                            placeholder="$0.00"
+                        />
+                      </div>
+                    </td>
 
-                {/* Method */}
-                <td className="p-1">
-                  <Select 
-                    value={row.method || ''} 
-                    onValueChange={(value) => handleChange(index, 'method', value)}
-                  >
-                    <SelectTrigger className={cn("border-0 h-8 focus:ring-1 bg-transparent font-medium", methodColors[row.method])}>
-                      <SelectValue placeholder="-" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Cheque" className="text-green-600 font-medium">Cheque</SelectItem>
-                      <SelectItem value="O/L Banking" className="text-yellow-600 font-medium">O/L Banking</SelectItem>
-                      <SelectItem value="Credit Card" className="text-slate-500 font-medium">Credit Card</SelectItem>
-                      <SelectItem value="Etransfer" className="text-red-600 font-medium">Etransfer</SelectItem>
-                      <SelectItem value="Pre-auth" className="text-blue-600 font-medium">Pre-auth</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </td>
-              </tr>
-            ))}
+                    {/* Date Paid */}
+                    <td className={cn("p-1 border-r relative group", bgClass)}>
+                      <div className="flex items-center">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            onClick={() => handleChange(index, 'datePaid', moment().format('MMM D'))}
+                            title="Set to Today"
+                            tabIndex={-1}
+                        >
+                            <Check className="h-3 w-3" />
+                        </Button>
+                        <Input 
+                            type="text"
+                            value={row.datePaid || ''} 
+                            onChange={(e) => handleChange(index, 'datePaid', e.target.value)}
+                            className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center flex-1"
+                            placeholder=""
+                        />
+                      </div>
+                    </td>
+
+                    {/* Chq # */}
+                    <td className={cn("p-1 border-r", bgClass)}>
+                      <Input 
+                        value={row.chqNumber || ''} 
+                        onChange={(e) => handleChange(index, 'chqNumber', e.target.value)}
+                        className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
+                      />
+                    </td>
+
+                    {/* Method */}
+                    <td className="p-1">
+                      <Select 
+                        value={row.method || ''} 
+                        onValueChange={(value) => handleChange(index, 'method', value)}
+                      >
+                        <SelectTrigger className={cn("border-0 h-8 focus:ring-1 bg-transparent font-medium", methodColors[row.method])}>
+                          <SelectValue placeholder="-" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Cheque" className="text-green-600 font-medium">Cheque</SelectItem>
+                          <SelectItem value="O/L Banking" className="text-yellow-600 font-medium">O/L Banking</SelectItem>
+                          <SelectItem value="Credit Card" className="text-slate-500 font-medium">Credit Card</SelectItem>
+                          <SelectItem value="Etransfer" className="text-red-600 font-medium">Etransfer</SelectItem>
+                          <SelectItem value="Pre-auth" className="text-blue-600 font-medium">Pre-auth</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </td>
+                  </tr>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'mark_paid')}>
+                    <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
+                    Mark as Paid
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'mark_follow_up')}>
+                    <span className="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
+                    Mark for Follow Up
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'comment')}>
+                    Make Comment
+                  </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'delete')} className="text-red-600 focus:text-red-600">
+                    Delete Row
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            );
+            })}
           </tbody>
         </table>
       </div>
