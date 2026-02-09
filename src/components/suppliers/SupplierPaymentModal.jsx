@@ -251,6 +251,20 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     });
   }, [outstandingInvoices, dateRange]);
 
+  const handleSelectAll = (checked) => {
+    setSelectedInvoices(prev => {
+      const next = { ...prev };
+      filteredInvoices.forEach(inv => {
+        if (checked) {
+          next[inv.uniqueKey] = true;
+        } else {
+          delete next[inv.uniqueKey];
+        }
+      });
+      return next;
+    });
+  };
+
   const totalSelectedAmount = useMemo(() => {
     if (activeTab === 'pay_invoices') {
       return outstandingInvoices
@@ -567,7 +581,13 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                   <Table>
                     <TableHeader className="sticky top-0 bg-white z-10">
                       <TableRow>
-                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={filteredInvoices.length > 0 && filteredInvoices.every(inv => selectedInvoices[inv.uniqueKey])}
+                            onCheckedChange={handleSelectAll}
+                            aria-label="Select all"
+                          />
+                        </TableHead>
                         <TableHead>Invoice #</TableHead>
                         <TableHead className="text-right">Balance</TableHead>
                         <TableHead>Date</TableHead>
