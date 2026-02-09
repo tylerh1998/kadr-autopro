@@ -239,14 +239,26 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                     </td>
 
                     {/* Due Date */}
-                    <td className={cn("p-1 border-r", bgClass)}>
-                      <Input 
-                        type="text"
-                        value={row.dueDate || ''} 
-                        onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
-                        className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center"
-                        placeholder=""
-                      />
+                    <td className={cn("p-1 border-r relative group", bgClass)}>
+                      <div className="flex items-center">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            onClick={() => handleChange(index, 'dueDate', moment().endOf('month').format('MMM D, YYYY'))}
+                            title="Set to Month End"
+                            tabIndex={-1}
+                        >
+                            <Check className="h-3 w-3" />
+                        </Button>
+                        <Input 
+                            type="text"
+                            value={row.dueDate || ''} 
+                            onChange={(e) => handleChange(index, 'dueDate', e.target.value)}
+                            className="border-0 h-8 focus-visible:ring-1 bg-transparent px-1 text-center flex-1"
+                            placeholder=""
+                        />
+                      </div>
                     </td>
 
                     {/* Amount Paid */}
