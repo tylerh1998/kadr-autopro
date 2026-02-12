@@ -531,24 +531,42 @@ const navigationItems = [
       { title: "Lines of Credit", url: createPageUrl("LinesOfCredit"), icon: Landmark },
     ]
   },
-  user?.access_level === 'lvl3_user' ? {
-    title: "Accounting",
-    icon: CreditCard,
-    defaultUrl: createPageUrl("CashDrawer"),
-    activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
-    dropdown: [
-      { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
-      { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
-      { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
-      { title: "Accounting", action: "showAccountingReports", icon: Calculator },
-      { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
-    ]
-  } : {
-    title: "Accounting",
-    icon: CreditCard,
-    url: createPageUrl("CashDrawer"),
-    activePaths: ["/CashDrawer"],
-  },
+  (() => {
+    const accountingBase = {
+      title: "Accounting",
+      icon: CreditCard,
+      defaultUrl: createPageUrl("CashDrawer"),
+      activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
+    };
+
+    if (user?.access_level === 'lvl3_user') {
+      return {
+        ...accountingBase,
+        dropdown: [
+          { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
+          { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
+          { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
+          { title: "Accounting", action: "showAccountingReports", icon: Calculator },
+          { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
+        ]
+      };
+    } else if (user?.AcctsPayAccess === true) {
+      return {
+        ...accountingBase,
+        dropdown: [
+          { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
+          { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
+        ]
+      };
+    } else {
+      return {
+        title: "Accounting",
+        icon: CreditCard,
+        url: createPageUrl("CashDrawer"),
+        activePaths: ["/CashDrawer"],
+      };
+    }
+  })(),
   {
     title: "Payroll",
     icon: UserCheck,
