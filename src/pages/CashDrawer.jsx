@@ -774,10 +774,10 @@ export default function CashDrawerPage() {
               <div className="flex flex-col items-end gap-1">
                 <Button
                   onClick={() => setShowDepositModal(true)}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
                   disabled={!depositBatchStatus.valid}
                 >
-                  <Upload className="w-4 h-4 mr-2" />
+                  <Upload className="w-6 h-6 mr-2" />
                   Make Deposit (${getTotalForDeposit().toFixed(2)})
                 </Button>
                 {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
