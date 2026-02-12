@@ -797,11 +797,11 @@ export default function CashDrawerPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b">
+                  <thead className="border-b">
                     <tr>
-                      <th className="text-left p-4 font-semibold text-slate-700">Payment Method</th>
-                      <th className="text-center p-4 font-semibold text-slate-700">Cash Drawer</th>
-                      <th className="text-center p-4 font-semibold text-slate-700">For Deposit</th>
+                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50">Payment Method</th>
+                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100">Cash Drawer</th>
+                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100">For Deposit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -820,7 +820,7 @@ export default function CashDrawerPage() {
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer hover:bg-blue-50 transition-colors"
+                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors border-r border-blue-100"
                             onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
                           >
                             <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
@@ -831,7 +831,7 @@ export default function CashDrawerPage() {
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer hover:bg-green-50 transition-colors"
+                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 transition-colors"
                             onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
                           >
                             <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
@@ -844,12 +844,12 @@ export default function CashDrawerPage() {
                         </tr>
                       );
                     })}
-                    <tr className="border-t-2 bg-gray-50 font-semibold">
-                      <td className="p-4">Total</td>
-                      <td className="p-4 text-center text-lg">
+                    <tr className="border-t-2 font-semibold">
+                      <td className="p-4 bg-gray-50">Total</td>
+                      <td className="p-4 text-center text-lg bg-blue-100">
                         ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
                       </td>
-                      <td className="p-4 text-center text-lg text-green-600">
+                      <td className="p-4 text-center text-lg text-green-700 bg-green-100">
                         ${getTotalForDeposit().toFixed(2)}
                       </td>
                     </tr>
