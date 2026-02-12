@@ -20,7 +20,7 @@ import {
   RotateCcw,
   FileCheck
 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format, subDays, startOfMonth, subMonths } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -77,11 +77,12 @@ export default function LinesOfCreditPage() {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]); // Store all transactions for lookup
-  const [fromDate, setFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [fromDate, setFromDate] = useState(format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [appliedFromDate, setAppliedFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [appliedFromDate, setAppliedFromDate] = useState(format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'));
   const [appliedToDate, setAppliedToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [daysBack, setDaysBack] = useState(30);
+  const [daysBack, setDaysBack] = useState('');
+  const [filterMode, setFilterMode] = useState('all_unpaid'); // 'all_unpaid' or 'custom_date'
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
@@ -184,23 +185,50 @@ export default function LinesOfCreditPage() {
         return dateA - dateB;
       });
 
-      // Calculate starting balance from transactions before the date range
+      let filteredTransactions = [];
       let startingBalance = 0;
-      const transactionsBeforeRange = allTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
-      for (const tx of transactionsBeforeRange) {
-        startingBalance += (tx.charge_amount || 0);
-        startingBalance -= (tx.credit_amount || 0);
+
+      if (filterMode === 'all_unpaid') {
+        // In "All Unpaid" mode, we filter for transactions that are charges and not fully paid
+        // We ignore the date range for filtering, but we might want to include all "Unpaid" items
+        filteredTransactions = allTransactionsData.filter(tx => {
+            // Check if it's a charge (charge_amount > 0)
+            if ((tx.charge_amount || 0) > 0) {
+                // Check if unpaid: charge_amount > payment_amount
+                // We use a small epsilon for float comparison safety
+                return (tx.charge_amount || 0) - (tx.payment_amount || 0) > 0.005;
+            }
+            // For credits or payments, do we show them in "All Unpaid"? 
+            // Typically "Unpaid" implies outstanding charges.
+            // If the user wants to see "unapplied payments", that's different.
+            // Based on typical "Unpaid" invoice logic, we show only unpaid charges.
+            return false;
+        });
         
-        if (tx.source_type === 'payment_made') {
-          startingBalance -= (tx.payment_amount || 0);
+        // Starting balance is less relevant here, maybe just 0 or sum of displayed?
+        // Let's set it to 0 so the running balance just sums the displayed items
+        startingBalance = 0;
+
+      } else {
+        // Custom Date mode (Original Logic)
+        
+        // Calculate starting balance from transactions before the date range
+        const transactionsBeforeRange = allTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
+        for (const tx of transactionsBeforeRange) {
+            startingBalance += (tx.charge_amount || 0);
+            startingBalance -= (tx.credit_amount || 0);
+            
+            if (tx.source_type === 'payment_made') {
+            startingBalance -= (tx.payment_amount || 0);
+            }
         }
+        
+        // Filter transactions within the date range for display
+        filteredTransactions = allTransactionsData.filter(tx => {
+            const txDate = tx.transaction_date;
+            return txDate >= appliedFromDate && txDate <= appliedToDate;
+        });
       }
-      
-      // Filter transactions within the date range for display
-      const filteredTransactions = allTransactionsData.filter(tx => {
-        const txDate = tx.transaction_date;
-        return txDate >= appliedFromDate && txDate <= appliedToDate;
-      });
       
       // Attach starting balance to be used in the display calculation
       setTransactions({ data: filteredTransactions, startingBalance });
@@ -261,6 +289,13 @@ export default function LinesOfCreditPage() {
   const handleApply = () => {
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
+    // When applying a date range, force filter mode to custom_date if it isn't already, 
+    // BUT the dropdown controls it. If the user clicks Apply, they probably want to see the date range.
+    // However, the requirement says "Custom Date for any date filter applied."
+    // So if they change the date and click apply, we should switch to custom_date.
+    if (filterMode !== 'custom_date') {
+        setFilterMode('custom_date');
+    }
   };
 
   const handleDaysBackChange = (days) => {
@@ -271,6 +306,13 @@ export default function LinesOfCreditPage() {
     setFromDate(newFromDate);
     setToDate(newToDate);
   };
+
+  // Effect to reload when filterMode changes
+  useEffect(() => {
+    if (selectedAccountId) {
+        loadTransactions();
+    }
+  }, [filterMode, loadTransactions]);
 
   const handleEditAccount = (account = null) => {
     setEditingAccount(account || selectedAccount);
@@ -521,23 +563,26 @@ export default function LinesOfCreditPage() {
                       min="0"
                       placeholder="Days"
                       className="w-20"
+                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Input
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
                       className="flex-1"
+                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Input
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
                       className="flex-1"
+                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Button
                       onClick={handleApply}
                       size="sm"
-                      disabled={!selectedAccountId}
+                      disabled={!selectedAccountId || filterMode === 'all_unpaid'}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Apply
@@ -651,15 +696,28 @@ export default function LinesOfCreditPage() {
                       ({displayedTransactions.length} {viewMode === 'payments' ? 'payments' : 'transactions'})
                     </span>
                   </div>
-                  <Button 
-                    onClick={handleAddTransaction}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={!selectedAccount}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Manual Transaction
-                  </Button>
+                  
+                  <div className="flex items-center gap-2">
+                    <Select value={filterMode} onValueChange={setFilterMode} disabled={!selectedAccount}>
+                        <SelectTrigger className="w-[140px] h-9">
+                            <SelectValue placeholder="Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all_unpaid">All Unpaid</SelectItem>
+                            <SelectItem value="custom_date">Custom Date</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Button 
+                        onClick={handleAddTransaction}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                        disabled={!selectedAccount}
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Manual Transaction
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className={viewMode === 'payments' ? "p-4" : "p-0"}>
