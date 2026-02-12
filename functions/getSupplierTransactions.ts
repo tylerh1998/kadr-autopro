@@ -13,14 +13,13 @@ Deno.serve(async (req) => {
         }
 
         // Parse request body
-        const { supplierId, dateRange, viewMode } = await req.json();
+        const { supplierId, dateRange } = await req.json();
         
         if (!supplierId) {
             return Response.json({ error: 'supplierId is required' }, { status: 400 });
         }
 
         console.log(`Fetching data for supplier: ${supplierId}`);
-        console.log(`View Mode: ${viewMode}`);
         console.log(`Date range: ${dateRange?.from || 'N/A'} to ${dateRange?.to || 'N/A'}`);
 
         // Convert dateRange strings to Date objects if provided
@@ -114,14 +113,9 @@ Deno.serve(async (req) => {
         let currentBalance = conceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0);
         currentBalance = Math.round(currentBalance * 100) / 100;
 
-        // Filter conceptual invoices based on viewMode
+        // Filter conceptual invoices by date range if provided
         let invoicesInDateRange = conceptualInvoices;
-        
-        if (viewMode === 'all_unpaid') {
-            // Filter for fully unpaid (or partially unpaid) transactions - effectively anything with a balance due
-            invoicesInDateRange = conceptualInvoices.filter(invoice => Math.abs(invoice.balance_due) > 0.005);
-        } else if (fromDate && toDate) {
-            // Custom Date mode
+        if (fromDate && toDate) {
             invoicesInDateRange = conceptualInvoices.filter(invoice => {
                 const invoiceDate = new Date(invoice.invoice_date);
                 return invoiceDate >= fromDate && invoiceDate <= toDate;

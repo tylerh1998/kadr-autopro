@@ -179,9 +179,8 @@ export default function SupplierTxPage() {
     const [chartOfAccounts, setChartOfAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false); // New state for saving status
-    const [viewMode, setViewMode] = useState('all_unpaid');
-    const [daysBack, setDaysBack] = useState('');
-    const [dateRange, setDateRange] = useState({ from: startOfMonth(subMonths(new Date(), 2)), to: new Date() });
+    const [daysBack, setDaysBack] = useState(30);
+    const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [currentBalance, setCurrentBalance] = useState(0);
@@ -198,8 +197,8 @@ export default function SupplierTxPage() {
     const [editingLine, setEditingLine] = useState(null);
 
     // Pending date range selections (before Apply is clicked)
-    const [pendingDaysBack, setPendingDaysBack] = useState('');
-    const [pendingDateRange, setPendingDateRange] = useState({ from: startOfMonth(subMonths(new Date(), 2)), to: new Date() });
+    const [pendingDaysBack, setPendingDaysBack] = useState(30);
+    const [pendingDateRange, setPendingDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
 
     // Lock management state
     const [currentUser, setCurrentUser] = useState(null);
@@ -429,8 +428,7 @@ export default function SupplierTxPage() {
                 dateRange: {
                     from: dateRange.from.toISOString(),
                     to: dateRange.to.toISOString()
-                },
-                viewMode
+                }
             });
 
             if (!response.data.success) {
@@ -527,7 +525,7 @@ export default function SupplierTxPage() {
             setLoading(false);
             setHasUnsavedChanges(false);
         }
-    }, [supplierId, dateRange, viewMode, ensureEmptyLine, lockAcquired]);
+    }, [supplierId, dateRange, ensureEmptyLine, lockAcquired]);
 
     useEffect(() => {
         if (!lockAcquired || isLockedByOtherUser || !supplierId) {
@@ -535,7 +533,7 @@ export default function SupplierTxPage() {
         }
 
         loadData();
-    }, [lockAcquired, isLockedByOtherUser, supplierId, dateRange, viewMode, loadData]);
+    }, [lockAcquired, isLockedByOtherUser, supplierId, dateRange, loadData]);
 
     const handlePendingDaysBackChange = (days) => {
         const numDays = parseInt(days, 10);
@@ -1484,63 +1482,48 @@ export default function SupplierTxPage() {
                     <div className="mb-4 flex justify-between items-start">
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-4">
-                                <Select value={viewMode} onValueChange={setViewMode}>
-                                    <SelectTrigger className="w-[180px] bg-white">
-                                        <SelectValue placeholder="Select View" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all_unpaid">All Unpaid</SelectItem>
-                                        <SelectItem value="custom_date">Custom Date</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                {viewMode === 'custom_date' && (
-                                    <>
-                                        <div className="flex items-center gap-2">
-                                            <Label htmlFor="daysBackInput">Days Back:</Label>
-                                            <Input
-                                                id="daysBackInput"
-                                                type="number"
-                                                value={pendingDaysBack}
-                                                onChange={(e) => handlePendingDaysBackChange(e.target.value)}
-                                                className="w-20 bg-white"
-                                                disabled={isLockedByOtherUser || !lockAcquired}
-                                            />
-                                        </div>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-64 justify-start text-left font-normal"
-                                                    disabled={isLockedByOtherUser || !lockAcquired}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {pendingDateRange.from && pendingDateRange.to ?
-                                                        `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
-                                                        "Select a date range"
-                                                    }
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="end">
-                                                <Calendar
-                                                    mode="range"
-                                                    selected={pendingDateRange}
-                                                    onSelect={handlePendingDateRangeChange}
-                                                    numberOfMonths={2}
-                                                    disabled={isLockedByOtherUser || !lockAcquired}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="daysBackInput">Days Back:</Label>
+                                    <Input
+                                        id="daysBackInput"
+                                        type="number"
+                                        value={pendingDaysBack}
+                                        onChange={(e) => handlePendingDaysBackChange(e.target.value)}
+                                        className="w-20 bg-white"
+                                        disabled={isLockedByOtherUser || !lockAcquired}
+                                    />
+                                </div>
+                                <Popover>
+                                    <PopoverTrigger asChild>
                                         <Button
-                                            onClick={handleApplyDateRange}
-                                            disabled={isLockedByOtherUser || !lockAcquired || loading || isSaving}
-                                            className="bg-blue-600 hover:bg-blue-700"
+                                            variant="outline"
+                                            className="w-64 justify-start text-left font-normal"
+                                            disabled={isLockedByOtherUser || !lockAcquired}
                                         >
-                                            Apply
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {pendingDateRange.from && pendingDateRange.to ?
+                                                `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
+                                                "Select a date range"
+                                            }
                                         </Button>
-                                    </>
-                                )}
-                                
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <Calendar
+                                            mode="range"
+                                            selected={pendingDateRange}
+                                            onSelect={handlePendingDateRangeChange}
+                                            numberOfMonths={2}
+                                            disabled={isLockedByOtherUser || !lockAcquired}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <Button
+                                    onClick={handleApplyDateRange}
+                                    disabled={isLockedByOtherUser || !lockAcquired || loading || isSaving}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    Apply
+                                </Button>
                                 <div className="flex items-center gap-2">
                                     <Search className="w-4 h-4 text-slate-400" />
                                     <Input
@@ -1552,45 +1535,43 @@ export default function SupplierTxPage() {
                                     />
                                 </div>
                             </div>
-                            {viewMode === 'custom_date' && (
-                                <div className="flex gap-4 text-sm px-1">
-                                    <button 
-                                        onClick={() => handleQuickRange('thisMonth')} 
-                                        className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        This Month
-                                    </button>
-                                    <button 
-                                        onClick={() => handleQuickRange('lastMonth')} 
-                                        className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        Last Month
-                                    </button>
-                                    <button 
-                                        onClick={() => handleQuickRange('thisQuarter')} 
-                                        className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        This Quarter
-                                    </button>
-                                    <button 
-                                        onClick={() => handleQuickRange('thisYear')} 
-                                        className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        This Year
-                                    </button>
-                                    <button 
-                                        onClick={() => handleQuickRange('lastYear')} 
-                                        className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={isLockedByOtherUser || !lockAcquired}
-                                    >
-                                        Last Year
-                                    </button>
-                                </div>
-                            )}
+                            <div className="flex gap-4 text-sm px-1">
+                                <button 
+                                    onClick={() => handleQuickRange('thisMonth')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    This Month
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('lastMonth')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    Last Month
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('thisQuarter')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    This Quarter
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('thisYear')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    This Year
+                                </button>
+                                <button 
+                                    onClick={() => handleQuickRange('lastYear')} 
+                                    className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                >
+                                    Last Year
+                                </button>
+                            </div>
                         </div>
                         <Card className="bg-white shadow-sm">
                             <CardContent className="p-4">
