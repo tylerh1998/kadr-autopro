@@ -1525,6 +1525,8 @@ export default function SupplierTxPage() {
                     
                     /* Invoice Lines Print Styling */
                     table.lines-table { table-layout: fixed !important; width: 100% !important; }
+                    table.lines-table th, table.lines-table td { font-size: 12px !important; padding: 0 2px !important; } /* Increased from 9px to reduce whitespace */
+                    
                     /* Invoice # */
                     table.lines-table th:nth-child(1), table.lines-table td:nth-child(1) { width: 10% !important; }
                     /* Date */
@@ -1543,13 +1545,14 @@ export default function SupplierTxPage() {
                     table.lines-table th:nth-child(8), table.lines-table td:nth-child(8) { display: none !important; }
 
                     /* GL Text visibility */
-                    .gl-print-text { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .gl-print-text { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px !important; }
                     .gl-select-trigger { display: none !important; }
 
                     /* Invoice Summary Print Table */
                     .summary-print-table { display: table !important; width: 100% !important; border-collapse: collapse !important; margin-top: 10px; }
-                    .summary-print-table th, .summary-print-table td { border: 1px solid #000 !important; padding: 2px 4px !important; font-size: 9px !important; text-align: right; }
-                    .summary-print-table th { background: #eee !important; font-weight: bold; text-align: center; }
+                    /* Doubled size for Summary as requested */
+                    .summary-print-table th, .summary-print-table td { border: 1px solid #000 !important; padding: 6px 8px !important; font-size: 18px !important; text-align: right; }
+                    .summary-print-table th { background: #eee !important; font-weight: bold; text-align: center; font-size: 18px !important; }
                     .summary-print-table td:first-child { text-align: left; } /* Invoice # */
                     .summary-print-table td:nth-child(2) { text-align: center; } /* Date */
                     
