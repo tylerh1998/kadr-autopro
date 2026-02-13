@@ -1471,9 +1471,17 @@ export default function SupplierTxPage() {
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Back
                             </Button>
-                            <h1 className="text-2xl font-bold text-slate-900">{supplier?.name} - Transactions</h1>
+                            <h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
                         </div>
                         <div className="flex items-center gap-4">
+                            <Button
+                                onClick={() => window.print()}
+                                variant="outline"
+                                className="bg-white"
+                            >
+                                <Printer className="w-4 h-4 mr-2" />
+                                Print
+                            </Button>
                             <Button
                                 onClick={handleEditSupplier}
                                 disabled={isLockedByOtherUser || !lockAcquired}
@@ -1571,7 +1579,7 @@ export default function SupplierTxPage() {
                                         placeholder="Search invoice #, description, or amount..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-64 bg-white"
+                                        className="w-96 bg-white"
                                         disabled={isLockedByOtherUser || !lockAcquired}
                                     />
                                 </div>
