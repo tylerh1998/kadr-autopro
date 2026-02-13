@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Receipt, Printer, Loader2, FileText, Calculator, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Receipt, Printer, Loader2, FileText, Calculator, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import { format, subDays, parseISO, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
@@ -238,6 +238,7 @@ export default function SupplierTxPage() {
 
     // State to track currently focused/selected line for keyboard shortcuts
     const [selectedLineId, setSelectedLineId] = useState(null);
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [sourceMap, setSourceMap] = useState({});
 
     useEffect(() => {
@@ -262,19 +263,59 @@ export default function SupplierTxPage() {
     // paymentDetails useMemo removed as the new payment history tab iterates directly over the `payments` state
     // and parses the JSON invoice_number directly.
 
-    // Filtered invoice lines based on search term
+    // Filtered and sorted invoice lines
     const filteredInvoiceLines = useMemo(() => {
-        if (!searchTerm.trim()) return invoiceLines;
+        let lines = [...invoiceLines];
 
-        const search = searchTerm.toLowerCase();
-        return invoiceLines.filter(line =>
-            line.invoice_number?.toLowerCase().includes(search) ||
-            line.description?.toLowerCase().includes(search) ||
-            String(line.charge).toLowerCase().includes(search) ||
-            String(line.gst).toLowerCase().includes(search) ||
-            String(line.line_total).toLowerCase().includes(search)
-        );
-    }, [invoiceLines, searchTerm]);
+        if (searchTerm.trim()) {
+            const search = searchTerm.toLowerCase();
+            lines = lines.filter(line =>
+                line.invoice_number?.toLowerCase().includes(search) ||
+                line.description?.toLowerCase().includes(search) ||
+                String(line.charge).toLowerCase().includes(search) ||
+                String(line.gst).toLowerCase().includes(search) ||
+                String(line.line_total).toLowerCase().includes(search)
+            );
+        }
+
+        if (sortConfig.key) {
+            lines.sort((a, b) => {
+                // Keep the empty new line at the bottom
+                const isEmpty = (l) => !l.invoice_number && !l.description && (!l.charge || l.charge === 0) && (!l.gst || l.gst === 0) && (!l.line_total || l.line_total === 0);
+                if (isEmpty(a) && !isEmpty(b)) return 1;
+                if (!isEmpty(a) && isEmpty(b)) return -1;
+
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
+
+                // Numeric sorting
+                if (['charge', 'gst', 'line_total'].includes(sortConfig.key)) {
+                    valA = parseFloat(valA) || 0;
+                    valB = parseFloat(valB) || 0;
+                } else if (sortConfig.key === 'invoice_date') {
+                    valA = new Date(valA || '1970-01-01').getTime();
+                    valB = new Date(valB || '1970-01-01').getTime();
+                } else {
+                    valA = (valA || '').toString().toLowerCase();
+                    valB = (valB || '').toString().toLowerCase();
+                }
+
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        return lines;
+    }, [invoiceLines, searchTerm, sortConfig]);
+
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const ensureEmptyLine = useCallback((lines, defaultGlAccount, defaultTaxable) => {
         const lastLine = lines[lines.length - 1];
@@ -1603,13 +1644,83 @@ export default function SupplierTxPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead className="w-[120px]">Invoice #</TableHead>
-                                                <TableHead className="w-[180px]">Date</TableHead>
-                                                <TableHead>Description</TableHead>
-                                                <TableHead className="w-[120px] text-right">Charge</TableHead>
-                                                <TableHead className="w-[120px] text-right">GST</TableHead>
-                                                <TableHead className="w-[120px] text-right">Line Total</TableHead>
-                                                <TableHead className="w-[200px]">GL Account *</TableHead>
+                                                <TableHead 
+                                                    className="w-[120px] cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('invoice_number')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Invoice #
+                                                        {sortConfig.key === 'invoice_number' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="w-[180px] cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('invoice_date')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Date
+                                                        {sortConfig.key === 'invoice_date' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('description')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Description
+                                                        {sortConfig.key === 'description' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="w-[120px] text-right cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('charge')}
+                                                >
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        Charge
+                                                        {sortConfig.key === 'charge' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="w-[120px] text-right cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('gst')}
+                                                >
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        GST
+                                                        {sortConfig.key === 'gst' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="w-[120px] text-right cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('line_total')}
+                                                >
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        Line Total
+                                                        {sortConfig.key === 'line_total' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead 
+                                                    className="w-[200px] cursor-pointer hover:bg-slate-100"
+                                                    onClick={() => requestSort('gl_account')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        GL Account *
+                                                        {sortConfig.key === 'gl_account' && (
+                                                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                                        )}
+                                                    </div>
+                                                </TableHead>
                                                 <TableHead className="w-[80px] text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1808,6 +1919,15 @@ export default function SupplierTxPage() {
                                                         >
                                                             Edit Line
                                                         </ContextMenuItem>
+                                                        <ContextMenuItem
+                                                            onClick={() => handleToggleGstOverride(line.id)}
+                                                            disabled={isLockedByOtherUser || !lockAcquired || locked}
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span>Adjust GST</span>
+                                                                {line.gst_override && <Check className="w-4 h-4 ml-2" />}
+                                                            </div>
+                                                        </ContextMenuItem>
                                                         <ContextMenuItem onClick={() => handleAddLineAbove(line.id)} disabled={isLockedByOtherUser || !lockAcquired}>
                                                             Add Line Above
                                                         </ContextMenuItem>
@@ -1882,7 +2002,7 @@ export default function SupplierTxPage() {
                                                                    </div>
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Total Amount</p>
-                                                                       <p className="font-medium text-slate-900">${invoice.total_amount.toFixed(2)}</p>
+                                                                       <p className="font-bold text-lg text-slate-900">${invoice.total_amount.toFixed(2)}</p>
                                                                    </div>
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Payments</p>
