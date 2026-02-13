@@ -1522,6 +1522,20 @@ export default function SupplierTxPage() {
                     .print-total-item { text-align: right; }
                     .print-total-label { font-size: 8px; color: #666 !important; text-transform: uppercase; letter-spacing: 0.5px; }
                     .print-total-value { font-size: 10px; font-weight: bold; }
+                    
+                    /* Specific overrides for Invoice Summary Print */
+                    .invoice-summary-print-text { font-size: 10px !important; font-weight: bold !important; }
+                    .invoice-summary-total-row { 
+                        display: none; 
+                    }
+                    @media print {
+                         .invoice-summary-total-row { 
+                            display: block !important;
+                            border-top: 2px solid #000; 
+                            margin-top: 5px; 
+                            padding-top: 5px; 
+                        }
+                    }
                 }
                 .print-header { display: none; }
             `}</style>
