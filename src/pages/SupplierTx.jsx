@@ -1473,19 +1473,24 @@ export default function SupplierTxPage() {
                     body { 
                         -webkit-print-color-adjust: exact; 
                         print-color-adjust: exact; 
-                        font-size: 10px; 
+                        font-size: 9px; 
                         font-family: ui-sans-serif, system-ui, sans-serif;
-                        line-height: 1.2;
+                        line-height: 1.1;
                     }
+                    /* Hide Standard UI Elements */
                     nav, header, button, .no-print, [role="dialog"], .fixed, .lucide:not(.check-icon), input[type="search"] { display: none !important; }
                     [role="tablist"] { display: none !important; }
                     .p-6, .p-4 { padding: 0 !important; }
                     .min-h-screen { min-height: auto !important; }
+
+                    /* Hide specific sections */
+                    .flex.items-center.justify-between.mb-6 { display: none !important; } /* Main Page Header */
+                    .mb-4.flex.justify-between.items-start { display: none !important; } /* Filters & Totals Card */
                     
                     /* Compact Table */
                     table { font-size: 9px !important; width: 100% !important; border-collapse: collapse !important; margin-bottom: 0 !important; }
-                    th, td { border: 1px solid #ccc !important; padding: 2px 4px !important; page-break-inside: avoid; height: auto !important; }
-                    thead { display: table-header-group; background: #eee !important; font-weight: bold; }
+                    th, td { border: 1px solid #ccc !important; padding: 1px 2px !important; page-break-inside: avoid; height: auto !important; vertical-align: middle; }
+                    thead { display: table-header-group; background: #f0f0f0 !important; font-weight: bold; }
                     tr { page-break-inside: avoid; }
                     
                     /* Clean Inputs */
@@ -1499,26 +1504,24 @@ export default function SupplierTxPage() {
                         box-shadow: none !important; 
                         color: #000 !important; 
                         font-size: inherit !important; 
+                        line-height: inherit !important;
                         height: auto !important;
                         min-height: 0 !important;
                         margin: 0 !important;
+                        overflow: hidden;
                     }
                     
                     /* Layout Cleanups */
                     .border, .shadow-sm, .rounded-lg, .rounded-md { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
-                    h1 { font-size: 14pt !important; margin-bottom: 5px !important; }
-                    
-                    /* Hide unnecessary elements */
-                    .flex.items-center.gap-4 .flex.items-center.gap-2 { display: none !important; } /* Days back input */
-                    .gap-4.text-sm.px-1 { display: none !important; } /* Quick range buttons */
-                    
-                    /* Header & Layout */
-                    .print-header { display: block !important; margin-bottom: 10px; font-size: 10px; border-bottom: 1px solid #000; padding-bottom: 5px; }
                     .max-w-screen-xl { max-width: none !important; margin: 0 !important; }
-                    .flex.gap-6 { gap: 2rem !important; margin-top: 5px; }
                     
-                    /* Ensure totals are visible and compact */
-                    .text-lg, .text-xl, .text-2xl { font-size: 11px !important; font-weight: bold !important; }
+                    /* Print Header Layout */
+                    .print-header { display: block !important; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 5px; }
+                    .print-header-grid { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: end; }
+                    .print-totals { display: flex; gap: 20px; justify-content: flex-end; margin-top: 5px; }
+                    .print-total-item { text-align: right; }
+                    .print-total-label { font-size: 8px; color: #666 !important; text-transform: uppercase; letter-spacing: 0.5px; }
+                    .print-total-value { font-size: 10px; font-weight: bold; }
                 }
                 .print-header { display: none; }
             `}</style>
@@ -1526,14 +1529,23 @@ export default function SupplierTxPage() {
                 <div className="max-w-screen-xl mx-auto">
                     {/* Print Header */}
                     <div className="print-header">
-                        <div className="flex justify-between items-end">
+                        <div className="print-header-grid">
                             <div>
-                                <h2 className="text-xl font-bold">{supplier?.name}</h2>
-                                <p>Transaction Report</p>
-                                <p>Date Range: {dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}` : 'All Dates'}</p>
+                                <h2 style={{fontSize: '14pt', margin: 0, fontWeight: 'bold'}}>{supplier?.name}</h2>
+                                <div style={{fontSize: '9px'}}>Transaction Report • {dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}` : 'All Dates'}</div>
                             </div>
                             <div className="text-right">
-                                <p>Printed: {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                                <div style={{fontSize: '8px', color: '#666', marginBottom: '4px'}}>Printed: {format(new Date(), 'MMM dd, yyyy HH:mm')}</div>
+                                <div className="print-totals">
+                                    <div className="print-total-item">
+                                        <div className="print-total-label">Date Range Total</div>
+                                        <div className="print-total-value">${dateRangeTotal.toFixed(2)}</div>
+                                    </div>
+                                    <div className="print-total-item">
+                                        <div className="print-total-label">Balance Owing</div>
+                                        <div className="print-total-value">${currentBalance.toFixed(2)}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
