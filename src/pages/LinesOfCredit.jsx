@@ -563,26 +563,23 @@ export default function LinesOfCreditPage() {
                       min="0"
                       placeholder="Days"
                       className="w-20"
-                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Input
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
                       className="flex-1"
-                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Input
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
                       className="flex-1"
-                      disabled={filterMode === 'all_unpaid'}
                     />
                     <Button
                       onClick={handleApply}
                       size="sm"
-                      disabled={!selectedAccountId || filterMode === 'all_unpaid'}
+                      disabled={!selectedAccountId}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Apply
