@@ -2074,7 +2074,7 @@ export default function SupplierTxPage() {
                                                                <div className="flex-1 grid grid-cols-8 gap-4">
                                                                    <div>
                                                                        <p className="text-sm text-slate-500">Invoice #</p>
-                                                                       <p className="font-extrabold text-xl text-slate-900">{invoice.invoice_number}</p>
+                                                                       <p className="font-extrabold text-xl text-slate-900 invoice-summary-print-text">{invoice.invoice_number}</p>
                                                                    </div>
                                                                    <div>
                                                                        <p className="text-sm text-slate-500">Date</p>
@@ -2096,7 +2096,7 @@ export default function SupplierTxPage() {
                                                                    </div>
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Total Amount</p>
-                                                                       <p className="font-extrabold text-xl text-slate-900">${invoice.total_amount.toFixed(2)}</p>
+                                                                       <p className="font-extrabold text-xl text-slate-900 invoice-summary-print-text">${invoice.total_amount.toFixed(2)}</p>
                                                                    </div>
                                                                    <div className="text-right">
                                                                        <p className="text-sm text-slate-500">Payments</p>
@@ -2159,6 +2159,20 @@ export default function SupplierTxPage() {
                                            <div className="p-12 text-center">
                                                <p className="text-slate-500">No invoices found in the selected date range</p>
                                            </div>
+                                       )}
+                                       {conceptualInvoices.length > 0 && (
+                                            <div className="invoice-summary-total-row p-4 bg-slate-50">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1 grid grid-cols-8 gap-4">
+                                                        <div className="col-span-3 text-right font-bold">Totals:</div>
+                                                        <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0).toFixed(2)}</div>
+                                                        <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.tax_amount || 0), 0).toFixed(2)}</div>
+                                                        <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0).toFixed(2)}</div>
+                                                        <div className="text-right font-bold text-green-600 text-xs print:text-[10px] print:text-black">${conceptualInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0).toFixed(2)}</div>
+                                                        <div className="text-right font-bold text-red-600 text-xs print:text-[10px] print:text-black">${conceptualInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0).toFixed(2)}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                        )}
                                    </div>
                                </CardContent>
