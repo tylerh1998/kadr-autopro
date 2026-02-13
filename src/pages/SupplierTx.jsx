@@ -1462,8 +1462,56 @@ export default function SupplierTxPage() {
 
     return (
         <>
+            <style>{`
+                @media print {
+                    @page { size: landscape; margin: 10mm; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 12px; font-family: sans-serif; }
+                    nav, header, button, .no-print, [role="dialog"], .fixed, .lucide:not(.check-icon), input[type="search"] { display: none !important; }
+                    [role="tablist"] { display: none !important; }
+                    .p-6, .p-4 { padding: 0 !important; }
+                    .min-h-screen { min-height: auto !important; }
+                    table { font-size: 11px !important; width: 100% !important; border-collapse: collapse !important; }
+                    th, td { border: 1px solid #000 !important; padding: 4px !important; page-break-inside: avoid; }
+                    thead { display: table-header-group; }
+                    tr { page-break-inside: avoid; }
+                    input, textarea, select { border: none !important; background: none !important; padding: 0 !important; width: auto !important; resize: none !important; -webkit-appearance: none; box-shadow: none !important; color: #000 !important; font-size: inherit !important; }
+                    .border, .shadow-sm { border: none !important; box-shadow: none !important; }
+                    h1 { font-size: 16pt !important; margin-bottom: 10px !important; }
+                    .text-slate-500 { color: #666 !important; }
+                    .text-slate-900 { color: #000 !important; }
+                    .bg-slate-50, .bg-white, .bg-blue-50 { background-color: transparent !important; }
+                    
+                    /* Show date range in header */
+                    .print-header { display: block !important; margin-bottom: 20px; font-size: 12px; border-bottom: 1px solid #000; padding-bottom: 10px; }
+                    
+                    /* Hide specific UI controls in header */
+                    .flex.items-center.gap-4 .flex.items-center.gap-2 { display: none !important; } /* Days back input */
+                    .gap-4.text-sm.px-1 { display: none !important; } /* Quick range buttons */
+                    
+                    /* Expand containers */
+                    .max-w-screen-xl { max-width: none !important; margin: 0 !important; }
+                    
+                    /* Adjust cards for totals */
+                    .flex.gap-6 { gap: 2rem !important; margin-top: 10px; }
+                }
+                .print-header { display: none; }
+            `}</style>
             <div className="p-6 min-h-screen">
                 <div className="max-w-screen-xl mx-auto">
+                    {/* Print Header */}
+                    <div className="print-header">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <h2 className="text-xl font-bold">{supplier?.name}</h2>
+                                <p>Transaction Report</p>
+                                <p>Date Range: {dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}` : 'All Dates'}</p>
+                            </div>
+                            <div className="text-right">
+                                <p>Printed: {format(new Date(), 'MMM dd, yyyy HH:mm')}</p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-4">
