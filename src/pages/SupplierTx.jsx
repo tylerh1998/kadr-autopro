@@ -1331,14 +1331,14 @@ export default function SupplierTxPage() {
     }, [chartOfAccounts]);
 
     const dateRangeTotal = useMemo(() => {
-        const totalInvoiced = invoiceLines
-            .filter(l => l.invoice_number && typeof l.line_total === 'number')
-            .reduce((sum, line) => sum + (parseFloat(line.line_total) || 0), 0);
-            
-        const totalPaid = payments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
-        
-        return totalInvoiced - totalPaid;
-    }, [invoiceLines, payments]);
+        return invoiceLines
+            .filter(l => l.invoice_number && (typeof l.line_total === 'number' || !isNaN(parseFloat(l.line_total))))
+            .reduce((sum, line) => {
+                const total = parseFloat(line.line_total) || 0;
+                const paid = parseFloat(line.paid_amount) || 0;
+                return sum + (total - paid);
+            }, 0);
+    }, [invoiceLines]);
 
     const handleScrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
