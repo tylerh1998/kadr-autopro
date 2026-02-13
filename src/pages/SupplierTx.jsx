@@ -1980,12 +1980,12 @@ export default function SupplierTxPage() {
                                                                <div className="flex-1 grid grid-cols-8 gap-4">
                                                                    <div>
                                                                        <p className="text-sm text-slate-500">Invoice #</p>
-                                                                       <p className="font-medium text-slate-900">{invoice.invoice_number}</p>
+                                                                       <p className="font-extrabold text-xl text-slate-900">{invoice.invoice_number}</p>
                                                                    </div>
                                                                    <div>
                                                                        <p className="text-sm text-slate-500">Date</p>
                                                                        <p className="font-medium text-slate-900">
-                                                                           {safeFormatDate(invoice.invoice_date)}
+                                                                           {safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}
                                                                        </p>
                                                                    </div>
                                                                    <div>
