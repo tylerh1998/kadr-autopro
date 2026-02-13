@@ -326,7 +326,7 @@ export default function SupplierTxViewPage() {
                                                                </div>
                                                                <div className="text-right">
                                                                    <p className="text-sm text-slate-500">Total Amount</p>
-                                                                   <p className="font-medium text-slate-900">${invoice.total_amount.toFixed(2)}</p>
+                                                                   <p className="font-extrabold text-xl text-slate-900">${invoice.total_amount.toFixed(2)}</p>
                                                                </div>
                                                                <div className="text-right">
                                                                    <p className="text-sm text-slate-500">Balance</p>
