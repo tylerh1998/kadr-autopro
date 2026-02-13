@@ -1523,21 +1523,42 @@ export default function SupplierTxPage() {
                     .print-total-label { font-size: 8px; color: #666 !important; text-transform: uppercase; letter-spacing: 0.5px; }
                     .print-total-value { font-size: 10px; font-weight: bold; }
                     
-                    /* Specific overrides for Invoice Summary Print */
-                    .invoice-summary-print-text { font-size: 10px !important; font-weight: bold !important; }
-                    .invoice-summary-total-row { 
-                        display: none; 
-                    }
-                    @media print {
-                         .invoice-summary-total-row { 
-                            display: block !important;
-                            border-top: 2px solid #000; 
-                            margin-top: 5px; 
-                            padding-top: 5px; 
-                        }
-                    }
+                    /* Invoice Lines Print Styling */
+                    table.lines-table { table-layout: fixed !important; width: 100% !important; }
+                    /* Invoice # */
+                    table.lines-table th:nth-child(1), table.lines-table td:nth-child(1) { width: 10% !important; }
+                    /* Date */
+                    table.lines-table th:nth-child(2), table.lines-table td:nth-child(2) { width: 10% !important; }
+                    /* Description - Much wider */
+                    table.lines-table th:nth-child(3), table.lines-table td:nth-child(3) { width: 35% !important; }
+                    /* Charge */
+                    table.lines-table th:nth-child(4), table.lines-table td:nth-child(4) { width: 10% !important; text-align: right !important; }
+                    /* GST */
+                    table.lines-table th:nth-child(5), table.lines-table td:nth-child(5) { width: 8% !important; text-align: right !important; }
+                    /* Line Total */
+                    table.lines-table th:nth-child(6), table.lines-table td:nth-child(6) { width: 10% !important; text-align: right !important; }
+                    /* GL Account */
+                    table.lines-table th:nth-child(7), table.lines-table td:nth-child(7) { width: 17% !important; }
+                    /* Actions - Hidden */
+                    table.lines-table th:nth-child(8), table.lines-table td:nth-child(8) { display: none !important; }
+
+                    /* GL Text visibility */
+                    .gl-print-text { display: block !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .gl-select-trigger { display: none !important; }
+
+                    /* Invoice Summary Print Table */
+                    .summary-print-table { display: table !important; width: 100% !important; border-collapse: collapse !important; margin-top: 10px; }
+                    .summary-print-table th, .summary-print-table td { border: 1px solid #000 !important; padding: 2px 4px !important; font-size: 9px !important; text-align: right; }
+                    .summary-print-table th { background: #eee !important; font-weight: bold; text-align: center; }
+                    .summary-print-table td:first-child { text-align: left; } /* Invoice # */
+                    .summary-print-table td:nth-child(2) { text-align: center; } /* Date */
+                    
+                    .summary-screen-list { display: none !important; }
+                    .invoice-summary-total-row { display: none !important; } /* Hide the old total row we added */
                 }
                 .print-header { display: none; }
+                .gl-print-text { display: none; }
+                .summary-print-table { display: none; }
             `}</style>
             <div className="p-6 min-h-screen">
                 <div className="max-w-screen-xl mx-auto">
@@ -1749,7 +1770,7 @@ export default function SupplierTxPage() {
                             <Card>
                                 <CardContent className="p-0">
                                     <div className="overflow-x-auto">
-                                    <Table>
+                                    <Table className="lines-table">
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead 
@@ -1832,6 +1853,30 @@ export default function SupplierTxPage() {
                                                 <TableHead className="w-[80px] text-center">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
+                                        <tfoot className="print:table-footer-group hidden font-bold bg-gray-100">
+                                            <tr>
+                                                <td colSpan={3} className="text-right p-1 border border-gray-300">Totals:</td>
+                                                <td className="text-right p-1 border border-gray-300">
+                                                    ${filteredInvoiceLines.reduce((sum, line) => {
+                                                        const val = parseFloat(line.charge);
+                                                        return sum + (isNaN(val) ? 0 : val);
+                                                    }, 0).toFixed(2)}
+                                                </td>
+                                                <td className="text-right p-1 border border-gray-300">
+                                                    ${filteredInvoiceLines.reduce((sum, line) => {
+                                                        const val = parseFloat(line.gst);
+                                                        return sum + (isNaN(val) ? 0 : val);
+                                                    }, 0).toFixed(2)}
+                                                </td>
+                                                <td className="text-right p-1 border border-gray-300">
+                                                    ${filteredInvoiceLines.reduce((sum, line) => {
+                                                        const val = parseFloat(line.line_total);
+                                                        return sum + (isNaN(val) ? 0 : val);
+                                                    }, 0).toFixed(2)}
+                                                </td>
+                                                <td colSpan={2} className="border border-gray-300"></td>
+                                            </tr>
+                                        </tfoot>
                                         <TableBody>
                                             {filteredInvoiceLines.map((line, index) => {
                                                 const locked = isLineLocked(line);
@@ -1950,31 +1995,39 @@ export default function SupplierTxPage() {
                                                                 />
                                                             </TableCell>
                                                             <TableCell>
-                                                                <Select
-                                                                    value={line.gl_account || ''}
-                                                                    onValueChange={(value) => { 
-                                                                        if (isLockedByOtherUser || !lockAcquired) return;
-                                                                        handleGlAccountChange(line, value); 
-                                                                    }}
-                                                                    disabled={isLockedByOtherUser || !lockAcquired}
-                                                                >
-                                                                    <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
-                                                                        <SelectValue placeholder="Select GL Account *">
-                                                                            {line.gl_account ? (() => {
-                                                                                const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
-                                                                                const fullText = account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
-                                                                                return fullText.length > 25 ? fullText.substring(0, 25) + '...' : fullText;
-                                                                            })() : 'Select GL Account *'}
-                                                                        </SelectValue>
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {chartOfAccounts.filter(account => !account.controlled || account.account_number === line.gl_account).map(account => (
-                                                                            <SelectItem key={account.id} value={account.account_number}>
-                                                                                {account.account_number} - {account.account_name}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
+                                                                <div className="gl-print-text">
+                                                                    {line.gl_account ? (() => {
+                                                                        const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
+                                                                        return account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
+                                                                    })() : ''}
+                                                                </div>
+                                                                <div className="gl-select-trigger">
+                                                                    <Select
+                                                                        value={line.gl_account || ''}
+                                                                        onValueChange={(value) => { 
+                                                                            if (isLockedByOtherUser || !lockAcquired) return;
+                                                                            handleGlAccountChange(line, value); 
+                                                                        }}
+                                                                        disabled={isLockedByOtherUser || !lockAcquired}
+                                                                    >
+                                                                        <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
+                                                                            <SelectValue placeholder="Select GL Account *">
+                                                                                {line.gl_account ? (() => {
+                                                                                    const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
+                                                                                    const fullText = account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
+                                                                                    return fullText.length > 25 ? fullText.substring(0, 25) + '...' : fullText;
+                                                                                })() : 'Select GL Account *'}
+                                                                            </SelectValue>
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {chartOfAccounts.filter(account => !account.controlled || account.account_number === line.gl_account).map(account => (
+                                                                                <SelectItem key={account.id} value={account.account_number}>
+                                                                                    {account.account_number} - {account.account_name}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 <div className="flex items-center justify-center gap-2">
@@ -2064,7 +2117,48 @@ export default function SupplierTxPage() {
                         <TabsContent value="invoice-summary">
                            <Card>
                                <CardContent className="p-0">
-                                   <div className="divide-y divide-slate-200">
+                                   {/* Print Table View */}
+                                   <table className="summary-print-table">
+                                       <thead>
+                                           <tr>
+                                               <th>Invoice #</th>
+                                               <th>Date</th>
+                                               <th>Lines</th>
+                                               <th>Total Charge</th>
+                                               <th>Total GST</th>
+                                               <th>Total Amount</th>
+                                               <th>Payments</th>
+                                               <th>Balance</th>
+                                           </tr>
+                                       </thead>
+                                       <tbody>
+                                           {conceptualInvoices.map((invoice) => (
+                                               <tr key={`${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}_print`}>
+                                                   <td>{invoice.invoice_number}</td>
+                                                   <td>{safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}</td>
+                                                   <td>{invoice.line_count}</td>
+                                                   <td>${invoice.subtotal.toFixed(2)}</td>
+                                                   <td>${invoice.tax_amount.toFixed(2)}</td>
+                                                   <td>${invoice.total_amount.toFixed(2)}</td>
+                                                   <td>${invoice.amount_paid.toFixed(2)}</td>
+                                                   <td>${invoice.balance_due.toFixed(2)}</td>
+                                               </tr>
+                                           ))}
+                                       </tbody>
+                                       <tfoot>
+                                            <tr>
+                                                <th colSpan={3} className="text-right">Totals:</th>
+                                                <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0).toFixed(2)}</th>
+                                                <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.tax_amount || 0), 0).toFixed(2)}</th>
+                                                <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0).toFixed(2)}</th>
+                                                <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0).toFixed(2)}</th>
+                                                <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0).toFixed(2)}</th>
+                                            </tr>
+                                       </tfoot>
+                                   </table>
+
+                                   {/* Screen List View */}
+                                   <div className="divide-y divide-slate-200 summary-screen-list">
                                        {conceptualInvoices.length > 0 ? (
                                            conceptualInvoices.map((invoice, index) => {
                                                const invoiceKey = `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
