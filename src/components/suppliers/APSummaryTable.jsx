@@ -324,7 +324,7 @@ export default function APSummaryTable() {
                 <thead className="bg-slate-50 border-b">
                   <tr>
                     <th 
-                      className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center">
@@ -333,7 +333,7 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('not_due')}
                     >
                       <div className="flex items-center justify-end">
@@ -342,7 +342,7 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('balance_0_30')}
                     >
                       <div className="flex items-center justify-end">
@@ -351,7 +351,7 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('balance_31_60')}
                     >
                       <div className="flex items-center justify-end">
@@ -360,7 +360,7 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('balance_60_plus')}
                     >
                       <div className="flex items-center justify-end">
@@ -369,7 +369,7 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200"
+                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('total_balance')}
                     >
                       <div className="flex items-center justify-end">

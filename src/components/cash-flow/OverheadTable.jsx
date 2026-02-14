@@ -50,7 +50,7 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
                 <th 
                   key={header.id} 
                   className={cn(
-                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none", 
+                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none whitespace-nowrap", 
                     header.width,
                     header.sortable && "cursor-pointer hover:bg-slate-200 transition-colors"
                   )}

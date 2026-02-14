@@ -172,7 +172,7 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                 <th 
                   key={header.id} 
                   className={cn(
-                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none", 
+                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none whitespace-nowrap", 
                     header.width,
                     header.sortable && "cursor-pointer hover:bg-slate-200 transition-colors"
                   )}
@@ -197,7 +197,7 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
                   <tr className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
                     <td 
                       className={cn(
-                        "p-2 text-center text-xs cursor-pointer select-none transition-colors",
+                        "p-2 text-center text-xs cursor-pointer select-none transition-colors whitespace-nowrap",
                         hasComment ? "bg-slate-900 text-white font-bold" : "text-slate-400"
                       )}
                       onClick={() => handleRowAction(index, 'comment')}
