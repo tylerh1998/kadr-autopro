@@ -13,11 +13,10 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
   ];
 
   const methodColors = {
-    "Cheque": "text-green-600",
-    "O/L Banking": "text-yellow-600",
-    "Credit Card": "text-slate-500",
-    "Etransfer": "text-red-600",
-    "Pre-auth": "text-blue-600"
+    "SCU MC": "text-blue-600",
+    "ATB MC": "text-red-600",
+    "SCU Bank": "text-green-600",
+    "Payroll": "text-yellow-600"
   };
 
   const formatCurrencyInput = (value) => {
@@ -122,11 +121,10 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
                       <SelectValue placeholder="-" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cheque" className="text-green-600 font-medium">Cheque</SelectItem>
-                      <SelectItem value="O/L Banking" className="text-yellow-600 font-medium">O/L Banking</SelectItem>
-                      <SelectItem value="Credit Card" className="text-slate-500 font-medium">Credit Card</SelectItem>
-                      <SelectItem value="Etransfer" className="text-red-600 font-medium">Etransfer</SelectItem>
-                      <SelectItem value="Pre-auth" className="text-blue-600 font-medium">Pre-auth</SelectItem>
+                      <SelectItem value="SCU MC" className="text-blue-600 font-medium">SCU MC</SelectItem>
+                      <SelectItem value="ATB MC" className="text-red-600 font-medium">ATB MC</SelectItem>
+                      <SelectItem value="SCU Bank" className="text-green-600 font-medium">SCU Bank</SelectItem>
+                      <SelectItem value="Payroll" className="text-yellow-600 font-medium">Payroll</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
