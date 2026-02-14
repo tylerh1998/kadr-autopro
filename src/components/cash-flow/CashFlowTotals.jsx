@@ -121,7 +121,7 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
   );
 
   return (
-    <Card className="bg-white/80 backdrop-blur">
+    <Card className="bg-white shadow-sm border">
       <CardHeader className="pb-3 border-b">
         <CardTitle className="text-lg text-slate-800">Cash Flow Summary</CardTitle>
       </CardHeader>
@@ -274,7 +274,7 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
   return (
     <>
         <Separator />
-        <CardContent className="pt-4 space-y-3 bg-slate-50/50">
+        <CardContent className="pt-4 space-y-3 bg-white">
             <h3 className="font-semibold text-slate-700">Remaining Payments</h3>
             <div className="space-y-2">
                 {Object.entries(breakdown).sort((a,b) => b[1] - a[1]).map(([method, amount]) => (
@@ -314,7 +314,7 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Separator />
-            <CardContent className="pt-4 pb-2 bg-slate-50/50">
+            <CardContent className="pt-4 pb-2 bg-white">
                 <CollapsibleTrigger asChild>
                     <div className="flex items-center justify-between cursor-pointer group">
                         <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Monthly Estimates</h3>

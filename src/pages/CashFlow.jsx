@@ -404,25 +404,25 @@ export default function CashFlow() {
             <TabsList className="bg-slate-200/50 p-1 rounded-lg">
                 <TabsTrigger 
                   value="cashflow" 
-                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
                   Cash Flow Table
                 </TabsTrigger>
                 <TabsTrigger 
                   value="apsummary" 
-                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
                   AP Summary Table
                 </TabsTrigger>
                 <TabsTrigger 
                   value="trends" 
-                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
                   Trends
                 </TabsTrigger>
                 <TabsTrigger 
                   value="overhead" 
-                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
                 >
                   Overhead
                 </TabsTrigger>
