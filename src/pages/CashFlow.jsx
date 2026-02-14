@@ -33,7 +33,7 @@ export default function CashFlow() {
   }));
 
   // Overhead Table State
-  const [overheadRows, setOverheadRows] = useState(Array(20).fill({
+  const [overheadRows, setOverheadRows] = useState(Array(35).fill({
     description: '',
     amount: '',
     dateOption: '',
@@ -118,7 +118,7 @@ export default function CashFlow() {
                 current_bank_balance: 0,
                 fiscal_cushion: 1000,
                 pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
-                overhead_items: JSON.stringify(Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }))
+                overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }))
             });
         }
         setSummaryId(summary.id);
@@ -141,12 +141,12 @@ export default function CashFlow() {
 
         let overheadItems = [];
         try {
-            overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(20).fill({ description: '', amount: '', dateOption: '', method: '' });
+            overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '' });
             // Format amounts in overheadItems
             overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount) }));
-        } catch (e) { overheadItems = Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }); }
+        } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }); }
 
-        while (overheadItems.length < 20) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
+        while (overheadItems.length < 35) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
 
         setSummaryData({
             bankBalance: formatCurrency(summary.current_bank_balance),
