@@ -395,7 +395,7 @@ export default function CashFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="p-6">
       <div className="max-w-[1800px] mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
