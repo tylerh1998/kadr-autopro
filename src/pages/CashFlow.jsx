@@ -124,11 +124,17 @@ export default function CashFlow() {
         setSummaryId(summary.id);
 
         // Parse Summary Data
+        const safeFormat = (val) => {
+             if (!val) return '';
+             const num = parseFloat(val.toString().replace(/[^0-9.-]+/g,""));
+             return isNaN(num) ? '' : formatCurrency(num);
+        };
+
         let padDetails = [];
         try {
             padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
             // Format amounts in padDetails
-            padDetails = padDetails.map(item => ({ ...item, amount: formatCurrency(item.amount) }));
+            padDetails = padDetails.map(item => ({ ...item, amount: safeFormat(item.amount) }));
         } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
         
         while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
@@ -137,7 +143,7 @@ export default function CashFlow() {
         try {
             overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(20).fill({ description: '', amount: '', dateOption: '', method: '' });
             // Format amounts in overheadItems
-            overheadItems = overheadItems.map(item => ({ ...item, amount: formatCurrency(item.amount) }));
+            overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount) }));
         } catch (e) { overheadItems = Array(20).fill({ description: '', amount: '', dateOption: '', method: '' }); }
 
         while (overheadItems.length < 20) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
@@ -261,8 +267,14 @@ export default function CashFlow() {
         etransfer_weekly: parseFloat(data.etransferWeekly.toString().replace(/[^0-9.-]+/g,"")) || 0,
         etransfer_monthly: parseFloat(data.etransferMonthly.toString().replace(/[^0-9.-]+/g,"")) || 0,
 
-        pad_registries_details: JSON.stringify(data.padRegistriesDetails),
-        overhead_items: JSON.stringify(overhead),
+        pad_registries_details: JSON.stringify(data.padRegistriesDetails.map(item => ({
+            ...item,
+            amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : ''
+        }))),
+        overhead_items: JSON.stringify(overhead.map(item => ({
+            ...item,
+            amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : ''
+        }))),
         
         last_updated: header.lastUpdated ? moment(header.lastUpdated, ["MMM D, YYYY", "MMM D"]).toISOString() : null,
         month_end: header.monthEnd ? moment(header.monthEnd, ["MMM D, YYYY", "MMM D"]).toISOString() : null
