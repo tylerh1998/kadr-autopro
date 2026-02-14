@@ -309,10 +309,12 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
     }, {});
 
     // Sort order for date options
-    const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End", "Unassigned"];
+    const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End"];
 
-    // Calculate totals
-    const totalOverhead = Object.values(groupedOverhead).reduce((sum, val) => sum + val, 0);
+    // Calculate totals (excluding Unassigned)
+    const totalOverhead = Object.entries(groupedOverhead)
+        .filter(([date]) => date !== 'Unassigned')
+        .reduce((sum, [_, val]) => sum + val, 0);
     const totalPayroll = val(summaryData.estFirstPayroll) + val(summaryData.estSecondPayroll) + val(summaryData.estPayrollRemit);
     const grandTotal = totalOverhead + totalPayroll;
     
@@ -336,9 +338,9 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
                                 <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
                             </div>
                         ))}
-                        {/* Handle any dates not in the order list */}
+                        {/* Handle any dates not in the order list (excluding Unassigned) */}
                         {Object.keys(groupedOverhead)
-                            .filter(date => !dateOrder.includes(date) && groupedOverhead[date] > 0)
+                            .filter(date => !dateOrder.includes(date) && date !== 'Unassigned' && groupedOverhead[date] > 0)
                             .map(date => (
                                 <div key={date} className="flex justify-between items-center text-sm">
                                     <span className="text-slate-500">{date}</span>
