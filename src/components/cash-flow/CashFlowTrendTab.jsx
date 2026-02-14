@@ -16,7 +16,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-export default function CashFlowTrendTab({ overheadRows = [], workDaysLeft = 0, monthEnd }) {
+export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [], workDaysLeft = 0, monthEnd }) {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [fromDate, setFromDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
@@ -106,10 +106,17 @@ export default function CashFlowTrendTab({ overheadRows = [], workDaysLeft = 0, 
     // 2. Revenue (fetched)
     const totalRevenue = revenueData.total;
 
-    // 3. Difference
+    // 3. Total Payable (Cash Flow Table: Amount - Amount Paid)
+    const totalPayable = cashFlowRows.reduce((sum, row) => {
+        const amount = parseFloat(row.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+        const paid = parseFloat(row.amountPaid?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+        return sum + (amount - paid);
+    }, 0);
+
+    // 4. Difference
     const difference = totalRevenue - totalOverhead;
 
-    // 4. Daily Target
+    // 5. Daily Target
     // "divide the total difference by the work days left"
     // Interpretation: If Revenue < Overhead, we need to make up the difference.
     // Target = (Overhead - Revenue) / Days
@@ -118,7 +125,7 @@ export default function CashFlowTrendTab({ overheadRows = [], workDaysLeft = 0, 
         dailyTarget = Math.abs(difference) / workDaysLeft;
     }
 
-    return { totalOverhead, totalRevenue, difference, dailyTarget };
+    return { totalOverhead, totalRevenue, totalPayable, difference, dailyTarget };
   };
 
   const metrics = calculateMetrics();
@@ -266,7 +273,7 @@ export default function CashFlowTrendTab({ overheadRows = [], workDaysLeft = 0, 
             <CardTitle>Current Month Status (Revenue vs Overhead)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
                     <p className="text-sm font-medium text-green-800 mb-1">Total Revenue</p>
                     <p className="text-2xl font-bold text-green-600">
@@ -280,6 +287,13 @@ export default function CashFlowTrendTab({ overheadRows = [], workDaysLeft = 0, 
                         {formatCurrency(metrics.totalOverhead)}
                     </p>
                     <p className="text-xs text-red-600/70">From Overhead Table</p>
+                </div>
+                <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                    <p className="text-sm font-medium text-amber-800 mb-1">Total Payable</p>
+                    <p className="text-2xl font-bold text-amber-600">
+                        {formatCurrency(metrics.totalPayable)}
+                    </p>
+                    <p className="text-xs text-amber-600/70">From Cash Flow Table</p>
                 </div>
                 <div className={`p-4 rounded-lg border ${metrics.difference >= 0 ? 'bg-blue-50 border-blue-100' : 'bg-orange-50 border-orange-100'}`}>
                     <p className={`text-sm font-medium mb-1 ${metrics.difference >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
