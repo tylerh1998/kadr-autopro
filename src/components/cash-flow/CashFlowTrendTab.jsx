@@ -114,18 +114,18 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
     }, 0);
 
     // 4. Difference
-    const difference = totalRevenue - totalOverhead;
+    // New Formula: Difference = Revenue - (Overhead + Payable)
+    const totalObligations = totalOverhead + totalPayable;
+    const difference = totalRevenue - totalObligations;
 
     // 5. Daily Target
-    // "divide the total difference by the work days left"
-    // Interpretation: If Revenue < Overhead, we need to make up the difference.
-    // Target = (Overhead - Revenue) / Days
+    // If Revenue < Obligations, we need to make up the difference.
     let dailyTarget = 0;
     if (difference < 0 && workDaysLeft > 0) {
         dailyTarget = Math.abs(difference) / workDaysLeft;
     }
 
-    return { totalOverhead, totalRevenue, totalPayable, difference, dailyTarget };
+    return { totalOverhead, totalRevenue, totalPayable, totalObligations, difference, dailyTarget };
   };
 
   const metrics = calculateMetrics();
@@ -309,15 +309,15 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
             <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium text-slate-600">
                     <span>Progress</span>
-                    <span>{metrics.totalOverhead > 0 ? Math.round((metrics.totalRevenue / metrics.totalOverhead) * 100) : 0}% of Overhead Covered</span>
+                    <span>{metrics.totalObligations > 0 ? Math.round((metrics.totalRevenue / metrics.totalObligations) * 100) : 0}% of Obligations Covered</span>
                 </div>
                 <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
                     <div 
                         className="bg-green-500 h-full transition-all duration-500" 
-                        style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalOverhead) * 100)}%` }}
+                        style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalObligations) * 100)}%` }}
                     />
-                    {metrics.totalRevenue > metrics.totalOverhead && (
-                         <div className="bg-blue-500 h-full w-1" /> // Marker for overflow? Or just fill 100
+                    {metrics.totalRevenue > metrics.totalObligations && (
+                         <div className="bg-blue-500 h-full w-1" /> 
                     )}
                 </div>
             </div>
@@ -325,7 +325,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
             {/* Daily Target */}
             {metrics.dailyTarget > 0 ? (
                 <div className="p-6 bg-slate-900 rounded-xl text-center text-white">
-                    <p className="text-lg font-medium text-slate-300 mb-2">Daily Revenue Target to Match Overhead</p>
+                    <p className="text-lg font-medium text-slate-300 mb-2">Daily Revenue Target to Match Obligations</p>
                     <div className="flex items-end justify-center gap-2">
                         <span className="text-4xl font-bold tracking-tight">{formatCurrency(metrics.dailyTarget)}</span>
                         <span className="text-slate-400 mb-1">/ day</span>
@@ -337,9 +337,9 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
             ) : (
                 <div className="p-6 bg-green-600 rounded-xl text-center text-white">
                     <p className="text-lg font-medium text-green-100 mb-2">Target Achieved!</p>
-                    <p className="text-3xl font-bold">Overhead Covered</p>
+                    <p className="text-3xl font-bold">Obligations Covered</p>
                     <p className="text-sm text-green-200 mt-2">
-                        Revenue exceeds overhead by {formatCurrency(metrics.difference)}
+                        Revenue exceeds obligations by {formatCurrency(metrics.difference)}
                     </p>
                 </div>
             )}
