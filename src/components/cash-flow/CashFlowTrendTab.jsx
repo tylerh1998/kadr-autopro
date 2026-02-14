@@ -130,6 +130,28 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
 
   const metrics = calculateMetrics();
 
+  const calculateMonthProgress = () => {
+      if (!monthEnd) return 0;
+      const end = new Date(monthEnd);
+      // Ensure we are working with the correct year/month from monthEnd
+      const start = new Date(end.getFullYear(), end.getMonth(), 1);
+      const now = new Date();
+      
+      // If we are looking at a past month, progress is 100%
+      if (now > end) return 100;
+      // If we are looking at a future month, progress is 0%
+      if (now < start) return 0;
+      
+      const totalTime = end.getTime() - start.getTime();
+      const passedTime = now.getTime() - start.getTime();
+      
+      if (totalTime <= 0) return 100;
+      
+      return Math.min(100, Math.max(0, (passedTime / totalTime) * 100));
+  };
+
+  const monthProgress = calculateMonthProgress();
+
   const handleLegendClick = (dataKey) => {
     setVisibleLines(prev => ({
       ...prev,
@@ -306,19 +328,34 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
             </div>
 
             {/* Status Bar */}
-            <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium text-slate-600">
-                    <span>Progress</span>
-                    <span>{metrics.totalObligations > 0 ? Math.round((metrics.totalRevenue / metrics.totalObligations) * 100) : 0}% of Obligations Covered</span>
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium text-slate-600">
+                        <span>Revenue Progress</span>
+                        <span>{metrics.totalObligations > 0 ? Math.round((metrics.totalRevenue / metrics.totalObligations) * 100) : 0}% of Obligations Covered</span>
+                    </div>
+                    <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
+                        <div 
+                            className="bg-green-500 h-full transition-all duration-500" 
+                            style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalObligations) * 100)}%` }}
+                        />
+                        {metrics.totalRevenue > metrics.totalObligations && (
+                             <div className="bg-blue-500 h-full w-1" /> 
+                        )}
+                    </div>
                 </div>
-                <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
-                    <div 
-                        className="bg-green-500 h-full transition-all duration-500" 
-                        style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalObligations) * 100)}%` }}
-                    />
-                    {metrics.totalRevenue > metrics.totalObligations && (
-                         <div className="bg-blue-500 h-full w-1" /> 
-                    )}
+
+                <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-medium text-slate-600">
+                        <span>Month Progress</span>
+                        <span>{Math.round(monthProgress)}% of Month Elapsed</span>
+                    </div>
+                    <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
+                        <div 
+                            className="bg-blue-500 h-full transition-all duration-500" 
+                            style={{ width: `${monthProgress}%` }}
+                        />
+                    </div>
                 </div>
             </div>
 
