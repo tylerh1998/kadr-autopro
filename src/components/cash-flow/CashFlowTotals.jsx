@@ -310,6 +310,11 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
 
     // Sort order for date options
     const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End", "Unassigned"];
+
+    // Calculate totals
+    const totalOverhead = Object.values(groupedOverhead).reduce((sum, val) => sum + val, 0);
+    const totalPayroll = val(summaryData.estFirstPayroll) + val(summaryData.estSecondPayroll) + val(summaryData.estPayrollRemit);
+    const grandTotal = totalOverhead + totalPayroll;
     
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -348,6 +353,12 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
                         {renderEditableRow("First Payroll", "estFirstPayroll")}
                         {renderEditableRow("Second Payroll", "estSecondPayroll")}
                         {renderEditableRow("Payroll Remit", "estPayrollRemit")}
+                    </div>
+
+                    <Separator className="my-2" />
+                    <div className="flex justify-between items-center font-bold">
+                        <span className="text-slate-700">Total Monthly Estimate</span>
+                        <span className="font-mono text-red-600">{formatCurrency(grandTotal)}</span>
                     </div>
                 </CollapsibleContent>
             </CardContent>
