@@ -8,6 +8,7 @@ import CashFlowTable from '@/components/cash-flow/CashFlowTable';
 import CashFlowTotals from '@/components/cash-flow/CashFlowTotals';
 import APSummaryTable from '@/components/suppliers/APSummaryTable';
 import OverheadTable from '@/components/cash-flow/OverheadTable';
+import CashFlowTrendTab from '@/components/cash-flow/CashFlowTrendTab';
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { createPageUrl } from '@/utils';
@@ -414,6 +415,12 @@ export default function CashFlow() {
                   AP Summary Table
                 </TabsTrigger>
                 <TabsTrigger 
+                  value="trends" 
+                  className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  Trends
+                </TabsTrigger>
+                <TabsTrigger 
                   value="overhead" 
                   className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm"
                 >
@@ -464,6 +471,10 @@ export default function CashFlow() {
               
               <TabsContent value="apsummary" className="mt-0">
                 <APSummaryTable />
+              </TabsContent>
+
+              <TabsContent value="trends" className="mt-0">
+                <CashFlowTrendTab />
               </TabsContent>
 
               <TabsContent value="overhead" className="mt-0">
