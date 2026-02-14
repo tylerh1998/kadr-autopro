@@ -474,7 +474,11 @@ export default function CashFlow() {
               </TabsContent>
 
               <TabsContent value="trends" className="mt-0">
-                <CashFlowTrendTab />
+                <CashFlowTrendTab 
+                  overheadRows={overheadRows}
+                  workDaysLeft={workDaysLeft}
+                  monthEnd={headerData.monthEnd}
+                />
               </TabsContent>
 
               <TabsContent value="overhead" className="mt-0">
