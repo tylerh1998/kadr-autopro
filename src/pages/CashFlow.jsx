@@ -413,7 +413,7 @@ export default function CashFlow() {
         <div className="flex flex-col gap-4 mb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full">
             <h1 className="text-3xl font-bold text-slate-900">Cash Flow</h1>
-            <div className="overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+            <div className="overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <TabsList className="bg-slate-200/50 p-1.5 rounded-xl inline-flex w-max">
                     <TabsTrigger 
                     value="cashflow" 
