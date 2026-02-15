@@ -410,63 +410,36 @@ export default function CashFlow() {
     <div className="p-6">
       <div className="max-w-[1800px] mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-            <h1 className="text-2xl font-bold text-slate-900">Cash Flow</h1>
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full">
+            <h1 className="text-3xl font-bold text-slate-900">Cash Flow</h1>
             <div className="overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-                <TabsList className="bg-slate-200/50 p-1 rounded-lg inline-flex w-max">
+                <TabsList className="bg-slate-200/50 p-1.5 rounded-xl inline-flex w-max">
                     <TabsTrigger 
                     value="cashflow" 
-                    className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Cash Flow
                     </TabsTrigger>
                     <TabsTrigger 
                     value="apsummary" 
-                    className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     AP Summary
                     </TabsTrigger>
                     <TabsTrigger 
                     value="trends" 
-                    className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Trends
                     </TabsTrigger>
                     <TabsTrigger 
                     value="overhead" 
-                    className="rounded-md px-4 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-sm"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Overhead
                     </TabsTrigger>
                 </TabsList>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-4 items-end bg-white p-3 rounded-lg border shadow-sm w-full lg:w-auto">
-            <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Updated</span>
-                <Input 
-                    value={headerData.lastUpdated}
-                    onChange={(e) => handleHeaderChange({...headerData, lastUpdated: e.target.value})}
-                    className="w-full sm:w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
-                    placeholder="MMM D"
-                />
-            </div>
-            <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Month End</span>
-                <Input 
-                    value={headerData.monthEnd}
-                    onChange={(e) => handleHeaderChange({...headerData, monthEnd: e.target.value})}
-                    className="w-full sm:w-32 h-9 text-center bg-slate-50 border-slate-200 focus-visible:ring-1"
-                    placeholder="MMM D"
-                />
-            </div>
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Work Days Left</span>
-                <div className={`flex justify-center items-center w-full sm:w-32 h-9 rounded-md border transition-colors ${getWorkDaysColor(workDaysLeft)}`}>
-                    <span className="text-sm font-bold">{workDaysLeft} Days</span>
-                </div>
             </div>
           </div>
         </div>
@@ -508,7 +481,36 @@ export default function CashFlow() {
 
           {/* Sidebar - Totals (Right Side) */}
           <div className="w-full xl:w-96 flex-shrink-0 order-first xl:order-last">
-            <div className="xl:sticky xl:top-24">
+            <div className="xl:sticky xl:top-24 space-y-4">
+              
+              {/* Header Inputs */}
+              <div className="grid grid-cols-3 gap-3 bg-white p-4 rounded-xl border shadow-sm">
+                <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Last Updated</span>
+                    <Input 
+                        value={headerData.lastUpdated}
+                        onChange={(e) => handleHeaderChange({...headerData, lastUpdated: e.target.value})}
+                        className="h-9 text-center bg-slate-50 border-slate-200 text-sm font-medium px-1"
+                        placeholder="MMM D"
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Month End</span>
+                    <Input 
+                        value={headerData.monthEnd}
+                        onChange={(e) => handleHeaderChange({...headerData, monthEnd: e.target.value})}
+                        className="h-9 text-center bg-slate-50 border-slate-200 text-sm font-medium px-1"
+                        placeholder="MMM D"
+                    />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Days Left</span>
+                    <div className={`flex justify-center items-center h-9 rounded-md border transition-colors ${getWorkDaysColor(workDaysLeft)}`}>
+                        <span className="text-sm font-bold">{workDaysLeft} Days</span>
+                    </div>
+                </div>
+              </div>
+
               <CashFlowTotals 
                 rows={rows} 
                 overheadRows={overheadRows}
