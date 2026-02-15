@@ -55,12 +55,12 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
             }
           });
 
-        // Add positive adjustments (charges, excluding overpayment adjustments)
+        // Add adjustments (charges and credits)
         allAdjustments
-          .filter(adj => adj.amount > 0 && !adj.overpayment)
           .forEach(adj => {
             const balance = adj.amount - (adj.ar_paid || 0);
-            if (balance > 0.01) {
+            // Check if there is an outstanding balance (positive or negative)
+            if (Math.abs(balance) > 0.01) {
               charges.push({
                 id: adj.id,
                 type: 'adjustment',
