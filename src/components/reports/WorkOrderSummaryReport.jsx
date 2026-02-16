@@ -63,8 +63,22 @@ export default function WorkOrderSummaryReport() {
 
   const agingData = Object.entries(data.aging).map(([key, value]) => ({
     name: key,
-    count: value
+    count: value.count,
+    amount: value.amount
   }));
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border rounded shadow-lg text-sm">
+          <p className="font-bold">{label}</p>
+          <p className="text-blue-600">Count: {payload[0].value}</p>
+          <p className="text-green-600">Value: {formatCurrency(payload[0].payload.amount)}</p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   const comparisonData = [
     { name: 'Count', open: data.totalWorkOrders, closed: data.closedLast30Days },
@@ -157,15 +171,15 @@ export default function WorkOrderSummaryReport() {
           <CardContent className="h-80">
              <ResponsiveContainer width="100%" height="100%">
                <BarChart data={agingData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                 <XAxis type="number" allowDecimals={false} />
-                 <YAxis dataKey="name" type="category" width={80} />
-                 <Tooltip cursor={{fill: 'transparent'}} />
-                 <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Work Orders">
-                    {agingData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                 </Bar>
+               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+               <XAxis type="number" allowDecimals={false} />
+               <YAxis dataKey="name" type="category" width={80} />
+               <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
+               <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Work Orders">
+                  {agingData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+               </Bar>
                </BarChart>
              </ResponsiveContainer>
           </CardContent>

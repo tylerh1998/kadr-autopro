@@ -160,10 +160,12 @@ Deno.serve(async (req) => {
         },
         totalLaborHours: 0,
         aging: {
-            "0-7 Days": 0,
-            "8-14 Days": 0,
-            "15-30 Days": 0,
-            "30+ Days": 0
+            "0-7 Days": { count: 0, amount: 0 },
+            "8-14 Days": { count: 0, amount: 0 },
+            "15-30 Days": { count: 0, amount: 0 },
+            "31-45 Days": { count: 0, amount: 0 },
+            "46-60 Days": { count: 0, amount: 0 },
+            "60+ Days": { count: 0, amount: 0 }
         },
         closedLast30Days: recentInvoices.length,
         closedRevenueLast30Days: closedRevenue,
@@ -183,19 +185,6 @@ Deno.serve(async (req) => {
 
         summary.totalWorkOrders++;
 
-        // Aging
-        const dateStr = doc.wo_date || doc.created_date;
-        if (dateStr) {
-            const docDate = new Date(dateStr);
-            const diffTime = Math.abs(now - docDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            
-            if (diffDays <= 7) summary.aging["0-7 Days"]++;
-            else if (diffDays <= 14) summary.aging["8-14 Days"]++;
-            else if (diffDays <= 30) summary.aging["15-30 Days"]++;
-            else summary.aging["30+ Days"]++;
-        }
-
         // Revenue Breakdown
         // Using fields for consistency - Force number conversion
         const partsRev = parseFloat(doc.parts_total) || 0;
@@ -203,6 +192,27 @@ Deno.serve(async (req) => {
         const suppliesRev = parseFloat(doc.shop_supply_total) || 0;
         const totalAmount = parseFloat(doc.total_amount) || 0;
         const taxAmount = parseFloat(doc.tax_amount) || 0;
+        const preTaxAmount = totalAmount - taxAmount;
+
+        // Aging
+        const dateStr = doc.wo_date || doc.created_date;
+        if (dateStr) {
+            const docDate = new Date(dateStr);
+            const diffTime = Math.abs(now - docDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            
+            let bucket = "60+ Days";
+            if (diffDays <= 7) bucket = "0-7 Days";
+            else if (diffDays <= 14) bucket = "8-14 Days";
+            else if (diffDays <= 30) bucket = "15-30 Days";
+            else if (diffDays <= 45) bucket = "31-45 Days";
+            else if (diffDays <= 60) bucket = "46-60 Days";
+            
+            if (summary.aging[bucket]) {
+                summary.aging[bucket].count++;
+                summary.aging[bucket].amount += preTaxAmount;
+            }
+        }
         
         // Calculate Other Charges as residual: Total - Tax - (Parts + Labor + Supplies)
         // Note: total_amount includes tax.
