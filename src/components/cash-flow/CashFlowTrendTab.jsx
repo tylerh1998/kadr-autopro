@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RefreshCw, Calendar } from 'lucide-react';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subQuarters, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
   LineChart,
   Line,
@@ -182,6 +182,49 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
       return format(date, 'MMM yyyy');
   };
 
+  const applyQuickDate = (type) => {
+    const now = new Date();
+    let start, end;
+
+    switch(type) {
+        case 'last30':
+            start = subDays(now, 30);
+            end = now;
+            break;
+        case 'thisMonth':
+            start = startOfMonth(now);
+            end = endOfMonth(now);
+            break;
+        case 'lastMonth':
+            start = startOfMonth(subMonths(now, 1));
+            end = endOfMonth(subMonths(now, 1));
+            break;
+        case 'thisQuarter':
+            start = startOfQuarter(now);
+            end = endOfQuarter(now);
+            break;
+        case 'lastQuarter':
+            const lastQ = subQuarters(now, 1);
+            start = startOfQuarter(lastQ);
+            end = endOfQuarter(lastQ);
+            break;
+        case 'thisYear':
+            start = startOfYear(now);
+            end = endOfYear(now);
+            break;
+        case 'lastYear':
+            const lastY = subYears(now, 1);
+            start = startOfYear(lastY);
+            end = endOfYear(lastY);
+            break;
+        default:
+            return;
+    }
+    
+    setFromDate(format(start, 'yyyy-MM-dd'));
+    setToDate(format(end, 'yyyy-MM-dd'));
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -208,6 +251,16 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('last30')}>Last 30 Days</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('thisMonth')}>This Month</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('lastMonth')}>Last Month</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('thisQuarter')}>This Quarter</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('lastQuarter')}>Last Quarter</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('thisYear')}>This Year</Button>
+            <Button variant="outline" size="sm" onClick={() => applyQuickDate('lastYear')}>Last Year</Button>
           </div>
         </CardContent>
       </Card>
