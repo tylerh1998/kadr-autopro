@@ -19,6 +19,10 @@ import {
 export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [], workDaysLeft = 0, monthEnd }) {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
+  const [allChartData, setAllChartData] = useState([]); // Store all accounts data
+  const [selectedAccountId, setSelectedAccountId] = useState('all');
+  const [accounts, setAccounts] = useState([]);
+
   const [fromDate, setFromDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
@@ -27,7 +31,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
   const [visibleLines, setVisibleLines] = useState({
     inflow: true,
     outflow: true,
-    netCashFlow: true
+    netCashFlow: true,
+    balance: true
   });
 
   const loadData = useCallback(async () => {
@@ -41,7 +46,32 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
       });
 
       if (response.data.success) {
-        setChartData(response.data.data.charts.cashFlow || []);
+        const byAccount = response.data.data.charts.cashFlowByAccount || [];
+        setAllChartData(byAccount);
+        
+        // Extract accounts list
+        const accList = byAccount.map(a => ({ id: a.id, name: a.name }));
+        setAccounts(accList);
+
+        // Find default account (Primary-Servus) if not already set or 'all'
+        // Only set default if we are initializing (or currently 'all' but want to force default on load?)
+        // User wants Primary-Servus default.
+        if (selectedAccountId === 'all' || !byAccount.find(a => a.id === selectedAccountId)) {
+             const defaultAcc = byAccount.find(a => a.name.toLowerCase().includes('primary') && a.name.toLowerCase().includes('servus'));
+             if (defaultAcc) {
+                 setSelectedAccountId(defaultAcc.id);
+                 setChartData(defaultAcc.data);
+             } else {
+                 // Fallback to All if not found
+                 setChartData(byAccount.find(a => a.id === 'all')?.data || []);
+                 setSelectedAccountId('all');
+             }
+        } else {
+             // Keep current selection
+             const currentData = byAccount.find(a => a.id === selectedAccountId);
+             setChartData(currentData?.data || []);
+        }
+
       } else {
         console.error('Failed to load cash flow data:', response.data.error);
       }
@@ -252,6 +282,29 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
               Refresh
             </Button>
           </div>
+
+          {/* Account Tabs */}
+          <div className="mt-4 border-b border-slate-200">
+            <div className="flex overflow-x-auto gap-2 pb-1 no-scrollbar">
+                {accounts.map(acc => (
+                    <button
+                        key={acc.id}
+                        onClick={() => {
+                            setSelectedAccountId(acc.id);
+                            const accData = allChartData.find(a => a.id === acc.id);
+                            setChartData(accData?.data || []);
+                        }}
+                        className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg border-b-2 transition-colors ${
+                            selectedAccountId === acc.id
+                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                    >
+                        {acc.name}
+                    </button>
+                ))}
+            </div>
+          </div>
           
           <div className="flex flex-wrap gap-2 mt-4">
             <Button variant="outline" size="sm" onClick={() => applyQuickDate('last30')}>Last 30 Days</Button>
@@ -306,6 +359,15 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                   <div className="w-4 h-0.5 bg-[#3b82f6]" style={{ opacity: visibleLines.netCashFlow ? 1 : 0.4 }} />
                   <span className={visibleLines.netCashFlow ? '' : 'line-through'}>Net Cash Flow</span>
                 </button>
+                <button
+                  onClick={() => handleLegendClick('balance')}
+                  className={`flex items-center gap-2 px-3 py-1 rounded transition-opacity ${
+                    visibleLines.balance ? 'opacity-100' : 'opacity-40'
+                  }`}
+                >
+                  <div className="w-4 h-0.5 bg-purple-600" style={{ opacity: visibleLines.balance ? 1 : 0.4 }} />
+                  <span className={visibleLines.balance ? '' : 'line-through'}>Bank Balance</span>
+                </button>
               </div>
 
               <div className="h-[400px] w-full">
@@ -329,6 +391,9 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                     )}
                     {visibleLines.netCashFlow && (
                         <Line type="monotone" dataKey="netCashFlow" stroke="#3b82f6" strokeWidth={2} name="Net Cash Flow" dot={false} />
+                    )}
+                    {visibleLines.balance && (
+                        <Line type="monotone" dataKey="balance" stroke="#9333ea" strokeWidth={2} name="Bank Balance" dot={false} />
                     )}
                     </LineChart>
                 </ResponsiveContainer>
