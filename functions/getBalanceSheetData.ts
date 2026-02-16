@@ -168,16 +168,57 @@ Deno.serve(async (req) => {
     liabilityData.sort((a, b) => a.account_number.localeCompare(b.account_number));
     equityData.sort((a, b) => a.account_number.localeCompare(b.account_number));
 
+    // --- Calculate Net Income for the Current Year (up to asOfDate) ---
+    const asOfDateObj = new Date(asOfDate);
+    const currentYear = asOfDateObj.getUTCFullYear();
+    const startOfYear = new Date(Date.UTC(currentYear, 0, 1)); // Jan 1st of the as-of year
+    
+    // Find revenue and expense accounts
+    const revenueAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Revenue').map(a => a.account_number));
+    const expenseAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Expense').map(a => a.account_number));
+
+    let yearToDateRevenue = 0;
+    let yearToDateExpenses = 0;
+
+    // Iterate through filteredTransactions (which are already <= asOfDate)
+    // and sum up those that are >= startOfYear and are Rev/Exp.
+    filteredTransactions.forEach(tx => {
+        const txDate = new Date(tx.transaction_date);
+        if (txDate >= startOfYear) {
+            if (revenueAccountNums.has(tx.account_number)) {
+                yearToDateRevenue += (parseFloat(tx.credit_amount) || 0) - (parseFloat(tx.debit_amount) || 0);
+            } else if (expenseAccountNums.has(tx.account_number)) {
+                yearToDateExpenses += (parseFloat(tx.debit_amount) || 0) - (parseFloat(tx.credit_amount) || 0);
+            }
+        }
+    });
+
+    const netIncome = yearToDateRevenue - yearToDateExpenses;
+    
+    // Add Net Income to Equity section
+    if (Math.abs(netIncome) > 0.001) {
+        equityData.push({
+            account_number: "", // No number
+            account_name: "Net Income",
+            balance: netIncome,
+            children: [],
+            is_synthetic: true, // For styling if handled
+            transactionCount: 0, // Not really relevant as it's a calculated summary
+            account_type: 'Equity'
+        });
+    }
+
     // Calculate report totals (sum of roots)
     const totalAssets = assetData.reduce((sum, acc) => sum + acc.balance, 0);
     const totalLiabilities = liabilityData.reduce((sum, acc) => sum + acc.balance, 0);
+    // totalEquity now includes the Net Income row we just pushed
     const totalEquity = equityData.reduce((sum, acc) => sum + acc.balance, 0);
     const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
     
     // Check if balanced (Assets = Liabilities + Equity)
     const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.01; // Allow for small rounding differences
 
-    console.log('Balance Sheet Summary - Assets:', totalAssets, 'Liabilities:', totalLiabilities, 'Equity:', totalEquity, 'Balanced:', isBalanced);
+    console.log('Balance Sheet Summary - Assets:', totalAssets, 'Liabilities:', totalLiabilities, 'Equity:', totalEquity, 'Net Income:', netIncome, 'Balanced:', isBalanced);
 
     return Response.json({
       success: true,
