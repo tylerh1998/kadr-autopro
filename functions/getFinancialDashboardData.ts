@@ -27,12 +27,18 @@ Deno.serve(async (req) => {
       bankTransactions,
       chartOfAccounts
     ] = await Promise.all([
-      base44.asServiceRole.entities.GLTransaction.list({ limit: 5000 }),
+      // Fetch GL Transactions in range
+      base44.asServiceRole.entities.GLTransaction.filter({
+          transaction_date: { "$gte": fromDateStr, "$lte": toDateStr }
+      }, '-transaction_date', 5000),
+      
       base44.asServiceRole.entities.BankAccount.list(),
+      
       // Fetch all transactions from fromDate to Now to reconstruct balances accurately
       base44.asServiceRole.entities.BankTransaction.filter({
          transaction_date: { "$gte": fromDateStr }
-      }, { limit: 5000, sort: { transaction_date: -1 } }),
+      }, '-transaction_date', 5000),
+      
       base44.asServiceRole.entities.ChartOfAccount.list()
     ]);
 
