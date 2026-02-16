@@ -22,7 +22,7 @@ export default function WorkOrderSummaryReport() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   const fetchReport = async () => {
     setLoading(true);

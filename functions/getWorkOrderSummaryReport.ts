@@ -142,6 +142,7 @@ Deno.serve(async (req) => {
     }
     
     console.log(`Found ${recentInvoices.length} invoices in last 30 days. Total Closed Revenue: ${closedRevenue}`);
+    console.log('Generating WO Summary with updated aging buckets (v2)');
 
     let summary = {
         totalWorkOrders: 0,
