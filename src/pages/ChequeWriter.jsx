@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft, AlertCircle, BookCheck } from 'lucide-react';
+import { ArrowLeft, AlertCircle, BookCheck, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
@@ -124,6 +124,10 @@ export default function ChequeWriter() {
             <Button onClick={handleBack} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Supplier Transactions
+            </Button>
+            <Button onClick={() => window.location.href = createPageUrl('APSummary')} variant="outline">
+              <BookOpen className="w-4 h-4 mr-2" />
+              AP Summary
             </Button>
             <Button onClick={() => window.location.href = createPageUrl('ChequeRegister')} variant="outline">
               <BookCheck className="w-4 h-4 mr-2" />
