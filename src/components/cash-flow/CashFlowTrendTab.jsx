@@ -414,7 +414,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                     <p className="text-2xl font-bold text-purple-600">
                         {formatCurrency(metrics.totalPaid)}
                     </p>
-                    <p className="text-xs text-purple-600/70">Debits - Outstanding Chq</p>
+                    <p className="text-xs text-purple-600/70">Bank Debits</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
                     <p className="text-sm font-medium text-green-800 mb-1">Total Revenue</p>
