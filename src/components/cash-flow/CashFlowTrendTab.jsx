@@ -395,13 +395,6 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         </CardHeader>
         <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
-                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                    <p className="text-sm font-medium text-green-800 mb-1">Total Revenue</p>
-                    <p className="text-2xl font-bold text-green-600">
-                        {revenueData.loading ? '...' : formatCurrency(metrics.totalRevenue)}
-                    </p>
-                    <p className="text-xs text-green-600/70">Accts 4000-4999</p>
-                </div>
                 <div className="p-4 bg-red-50 rounded-lg border border-red-100">
                     <p className="text-sm font-medium text-red-800 mb-1">Total Overhead</p>
                     <p className="text-2xl font-bold text-red-600">
@@ -416,13 +409,19 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                     </p>
                     <p className="text-xs text-amber-600/70">From Cash Flow Table</p>
                 </div>
-                <div className={`p-4 rounded-lg border ${metrics.difference >= 0 ? 'bg-blue-50 border-blue-100' : 'bg-orange-50 border-orange-100'}`}>
-                    <p className={`text-sm font-medium mb-1 ${metrics.difference >= 0 ? 'text-blue-800' : 'text-orange-800'}`}>
-                        Difference
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <p className="text-sm font-medium text-purple-800 mb-1">Total Paid</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                        {formatCurrency(metrics.totalPaid)}
                     </p>
-                    <p className={`text-2xl font-bold ${metrics.difference >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                        {formatCurrency(metrics.difference)}
+                    <p className="text-xs text-purple-600/70">Debits - Outstanding Chq</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                    <p className="text-sm font-medium text-green-800 mb-1">Total Revenue</p>
+                    <p className="text-2xl font-bold text-green-600">
+                        {formatCurrency(metrics.totalRevenue)}
                     </p>
+                    <p className="text-xs text-green-600/70">Bank Credits</p>
                 </div>
             </div>
 
