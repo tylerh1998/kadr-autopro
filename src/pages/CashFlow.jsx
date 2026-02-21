@@ -410,6 +410,7 @@ export default function CashFlow() {
       return 0;
     });
     setRows(sortedRows);
+    persistRowOrder(sortedRows);
   };
 
   const handleOverheadSort = (key) => {
