@@ -261,7 +261,7 @@ export default function APSummaryTable({ isFullPage = false }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className={isFullPage ? "p-6 min-h-screen space-y-4" : "space-y-4"}>
        <style>{`
         @media print {
           body * { visibility: hidden; }
