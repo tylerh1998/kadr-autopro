@@ -101,8 +101,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         return sum + val;
     }, 0);
 
-    // 2. Revenue (fetched)
-    const totalRevenue = revenueData.total;
+    // 2. Revenue (Bank Credits) - from backend
+    const totalRevenue = bankStats.credits || 0;
 
     // 3. Total Payable (Cash Flow Table: Amount - Amount Paid)
     const totalPayable = cashFlowRows.reduce((sum, row) => {
@@ -111,19 +111,27 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         return sum + (amount - paid);
     }, 0);
 
-    // 4. Difference
-    // New Formula: Difference = Revenue - (Overhead + Payable)
-    const totalObligations = totalOverhead + totalPayable;
-    const difference = totalRevenue - totalObligations;
+    // 4. Calculate Outstanding Cheques from cashFlowRows (same logic as CashFlowTotals)
+    const outstandingCheques = cashFlowRows.reduce((sum, row) => {
+        const method = (row.method || '').toLowerCase();
+        const isCheque = method === 'cheque';
+        if (isCheque) {
+            const amount = parseFloat(row.amountPaid?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+            return sum + amount;
+        }
+        return sum;
+    }, 0);
 
-    // 5. Daily Target
-    // If Revenue < Obligations, we need to make up the difference.
+    // 5. Total Paid (Bank Debits - Outstanding Cheques)
+    const totalPaid = (bankStats.debits || 0) - outstandingCheques;
+
+    // 6. Daily Target (Based on Total Payable)
     let dailyTarget = 0;
-    if (difference < 0 && workDaysLeft > 0) {
-        dailyTarget = Math.abs(difference) / workDaysLeft;
+    if (totalPayable > 0 && workDaysLeft > 0) {
+        dailyTarget = totalPayable / workDaysLeft;
     }
 
-    return { totalOverhead, totalRevenue, totalPayable, totalObligations, difference, dailyTarget };
+    return { totalOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget };
   };
 
   const metrics = calculateMetrics();
