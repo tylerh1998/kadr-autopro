@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import moment from 'moment';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -308,59 +309,112 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
         return acc;
     }, {});
 
+    // Dynamic Calculation Logic
+    const today = moment();
+    const day = today.date();
+    
+    // Calculate First Business Day
+    const firstOfMonth = today.clone().startOf('month');
+    let firstBusinessDay = 1;
+    // 0 = Sun, 6 = Sat
+    while (firstOfMonth.day() === 0 || firstOfMonth.day() === 6) {
+        firstOfMonth.add(1, 'days');
+        firstBusinessDay = firstOfMonth.date();
+    }
+
+    // Bracket Definitions
+    // 25th through to first business day
+    const inBracketA = day >= 25 || day <= firstBusinessDay;
+    // 1st to the 8th
+    const inBracketB = day >= 1 && day <= 8;
+    // 8th to the 15th
+    const inBracketC = day >= 8 && day <= 15;
+
+    let dynamicTotal = 0;
+    const activeCategories = new Set();
+
+    if (inBracketA) {
+        dynamicTotal += (groupedOverhead["Month Start"] || 0);
+        dynamicTotal += (groupedOverhead["Month End"] || 0);
+        dynamicTotal += val(summaryData.estFirstPayroll);
+        activeCategories.add("Month Start");
+        activeCategories.add("Month End");
+        activeCategories.add("estFirstPayroll");
+    }
+    if (inBracketB) {
+        dynamicTotal += (groupedOverhead["8th"] || 0);
+        activeCategories.add("8th");
+    }
+    if (inBracketC) {
+        dynamicTotal += (groupedOverhead["12th to 15th"] || 0);
+        dynamicTotal += val(summaryData.estSecondPayroll);
+        dynamicTotal += val(summaryData.estPayrollRemit);
+        activeCategories.add("12th to 15th");
+        activeCategories.add("estSecondPayroll");
+        activeCategories.add("estPayrollRemit");
+    }
+
     // Sort order for date options
     const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End"];
 
-    // Calculate totals (excluding Unassigned)
-    const totalOverhead = Object.entries(groupedOverhead)
-        .filter(([date]) => date !== 'Unassigned')
-        .reduce((sum, [_, val]) => sum + val, 0);
-    const totalPayroll = val(summaryData.estFirstPayroll) + val(summaryData.estSecondPayroll) + val(summaryData.estPayrollRemit);
-    const grandTotal = totalOverhead + totalPayroll;
-    
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Separator />
             <CardContent className="pt-4 pb-2 bg-white">
                 <CollapsibleTrigger asChild>
                     <div className="flex items-center justify-between cursor-pointer group">
-                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Monthly Estimates</h3>
-                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Overhead</h3>
+                        <div className="flex items-center gap-2">
+                             {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(dynamicTotal)}</span>}
+                             <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                        </div>
                     </div>
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent className="space-y-3 pt-3">
                     {/* Overhead Totals */}
                     <div className="space-y-2 mb-4">
-                        {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => (
-                            <div key={date} className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">{date}</span>
-                                <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
-                            </div>
-                        ))}
+                        {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => {
+                            const isActive = activeCategories.has(date);
+                            return (
+                                <div key={date} className={`flex justify-between items-center text-sm ${isActive ? '' : 'opacity-40'}`}>
+                                    <span className="text-slate-500">{date} {isActive ? '' : '(Inactive)'}</span>
+                                    <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                                </div>
+                            );
+                        })}
                         {/* Handle any dates not in the order list (excluding Unassigned) */}
                         {Object.keys(groupedOverhead)
                             .filter(date => !dateOrder.includes(date) && date !== 'Unassigned' && groupedOverhead[date] > 0)
-                            .map(date => (
-                                <div key={date} className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-500">{date}</span>
-                                    <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
-                                </div>
-                            ))
+                            .map(date => {
+                                const isActive = activeCategories.has(date);
+                                return (
+                                    <div key={date} className={`flex justify-between items-center text-sm ${isActive ? '' : 'opacity-40'}`}>
+                                        <span className="text-slate-500">{date} {isActive ? '' : '(Inactive)'}</span>
+                                        <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                                    </div>
+                                )
+                            })
                         }
                     </div>
 
                     {/* Editable Fields */}
                     <div className="space-y-2">
-                        {renderEditableRow("First Payroll", "estFirstPayroll")}
-                        {renderEditableRow("Second Payroll", "estSecondPayroll")}
-                        {renderEditableRow("Payroll Remit", "estPayrollRemit")}
+                        <div className={activeCategories.has("estFirstPayroll") ? "" : "opacity-40"}>
+                            {renderEditableRow(activeCategories.has("estFirstPayroll") ? "First Payroll" : "First Payroll (Inactive)", "estFirstPayroll")}
+                        </div>
+                        <div className={activeCategories.has("estSecondPayroll") ? "" : "opacity-40"}>
+                            {renderEditableRow(activeCategories.has("estSecondPayroll") ? "Second Payroll" : "Second Payroll (Inactive)", "estSecondPayroll")}
+                        </div>
+                        <div className={activeCategories.has("estPayrollRemit") ? "" : "opacity-40"}>
+                            {renderEditableRow(activeCategories.has("estPayrollRemit") ? "Payroll Remit" : "Payroll Remit (Inactive)", "estPayrollRemit")}
+                        </div>
                     </div>
 
                     <Separator className="my-2" />
                     <div className="flex justify-between items-center font-bold">
-                        <span className="text-slate-700">Total Monthly Estimate</span>
-                        <span className="font-mono text-red-600">{formatCurrency(grandTotal)}</span>
+                        <span className="text-slate-700">Total Remaining Overhead</span>
+                        <span className="font-mono text-red-600">{formatCurrency(dynamicTotal)}</span>
                     </div>
                 </CollapsibleContent>
             </CardContent>
