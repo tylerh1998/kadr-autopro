@@ -36,6 +36,7 @@ export default function APSummaryTable() {
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const [addToSheetData, setAddToSheetData] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [cashFlowEntries, setCashFlowEntries] = useState([]);
 
   const navigate = useNavigate();
 
@@ -60,6 +61,10 @@ export default function APSummaryTable() {
           });
           setSupplierInvoicesMap(invoicesMap);
         }
+
+        // Fetch Cash Flow Entries
+        const cfEntries = await base44.entities.CashFlowEntry.list();
+        setCashFlowEntries(cfEntries || []);
 
       } catch (error) {
         console.error('Error loading AP data:', error);
