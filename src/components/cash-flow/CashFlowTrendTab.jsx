@@ -424,7 +424,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                     <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
                     <Tooltip 
                         formatter={(value) => formatCurrency(value)}
-                        labelFormatter={chartData[0]?.date ? formatDate : formatMonth}
+                        labelFormatter={chartData[0]?.date ? formatTooltipDate : formatMonth}
                     />
                     {visibleLines.inflow && (
                         <Line type="monotone" dataKey="inflow" stroke="#10b981" strokeWidth={2} name="Cash Inflow" dot={false} />
