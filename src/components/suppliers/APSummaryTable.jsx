@@ -129,11 +129,12 @@ export default function APSummaryTable() {
         balance_31_60,
         balance_60_plus,
         total_balance,
+        cashFlowEntries: supplierCashFlowEntries,
       };
     });
 
     // Filter out suppliers with no balance
-    const filtered = supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01);
+    const filtered = supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01 || s.cashFlowEntries.length > 0);
 
     // Sort
     if (sortConfig.key) {
