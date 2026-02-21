@@ -344,6 +344,11 @@ export default function APSummaryTable() {
                       </div>
                     </th>
                     <th 
+                      className="text-center p-3 font-semibold text-slate-700 whitespace-nowrap"
+                    >
+                      Cash Flow
+                    </th>
+                    <th 
                       className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
                       onClick={() => handleSort('not_due')}
                     >
