@@ -85,6 +85,7 @@ export default function CashFlow() {
             id: entry.id,
             due: false, // Calculated on frontend usually, but keeping consistent structure
             supplier: entry.supplier || '',
+            supplier_id: entry.supplier_id || '',
             amount: formatCurrency(entry.amount),
             amountPaid: formatCurrency(entry.amount_paid),
             dueDate: entry.due_date ? moment(entry.due_date).format('MMM D') : '',
