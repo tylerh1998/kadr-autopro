@@ -123,6 +123,24 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
     setIsCommentModalOpen(false);
   };
 
+  const handleLinkSupplierAction = (index) => {
+    setLinkSupplierRowIndex(index);
+    setIsLinkSupplierModalOpen(true);
+  };
+
+  const handleLinkSupplierSelect = (supplier) => {
+    if (linkSupplierRowIndex !== null) {
+        const newRows = [...rows];
+        newRows[linkSupplierRowIndex] = { 
+            ...newRows[linkSupplierRowIndex], 
+            supplier: supplier.name, 
+            supplier_id: supplier.id 
+        };
+        onRowChange(newRows);
+    }
+    setIsLinkSupplierModalOpen(false);
+  };
+
   const getRowBgColor = (row) => {
     if (row.chqNumber) return 'bg-green-100';
     if (row.rowStatus === 'paid') return 'bg-purple-100';
