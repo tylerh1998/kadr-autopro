@@ -21,6 +21,7 @@ export default function CashFlow() {
   const [rows, setRows] = useState(Array(40).fill({
     due: false,
     supplier: '',
+    supplier_id: '',
     amount: '',
     amountPaid: '',
     dueDate: '',
