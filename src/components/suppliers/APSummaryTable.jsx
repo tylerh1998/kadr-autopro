@@ -404,6 +404,37 @@ export default function APSummaryTable() {
                         <ContextMenuTrigger asChild>
                           <tr className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
                             <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
+                            <td className="p-3 text-center">
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                  {supplier.cashFlowEntries && supplier.cashFlowEntries.map((entry, idx) => {
+                                      let badgeColor = "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"; // Default
+                                      if (entry.row_status === 'paid' || (entry.amount_paid >= entry.amount && entry.amount > 0)) {
+                                          badgeColor = "bg-purple-100 text-purple-800 hover:bg-purple-200";
+                                      } else if (entry.method === 'Cheque') {
+                                          badgeColor = "bg-green-100 text-green-800 hover:bg-green-200";
+                                      } else if (entry.row_status === 'follow_up') {
+                                          badgeColor = "bg-red-100 text-red-800 hover:bg-red-200";
+                                      }
+
+                                      const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+
+                                      return (
+                                          <TooltipProvider key={idx}>
+                                              <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                      <Badge className={`cursor-help whitespace-nowrap ${badgeColor}`}>
+                                                          ${amount.toFixed(2)}
+                                                      </Badge>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                      <p>Due: {entry.due_date ? format(parseISO(entry.due_date), 'MMM d, yyyy') : 'No Date'}</p>
+                                                  </TooltipContent>
+                                              </Tooltip>
+                                          </TooltipProvider>
+                                      );
+                                  })}
+                              </div>
+                            </td>
                             <td className="p-3 text-right">${supplier.not_due.toFixed(2)}</td>
                             <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
                             <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
