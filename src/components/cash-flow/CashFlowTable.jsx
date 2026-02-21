@@ -24,7 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort }) {
+export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConfig, onSort }) {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [currentCommentRowIndex, setCurrentCommentRowIndex] = useState(null);
   const [currentCommentText, setCurrentCommentText] = useState('');
@@ -85,19 +85,24 @@ export default function CashFlowTable({ rows, onRowChange, sortConfig, onSort })
         newRows[index] = { ...newRows[index], rowStatus: 'follow_up' };
         onRowChange(newRows);
     } else if (action === 'delete') {
-        newRows[index] = {
-            due: false,
-            supplier: '',
-            amount: '',
-            amountPaid: '',
-            dueDate: '',
-            datePaid: '',
-            chqNumber: '',
-            method: '',
-            rowStatus: '',
-            comment: ''
-        };
-        onRowChange(newRows);
+        if (onDeleteRow) {
+            onDeleteRow(index);
+        } else {
+            // Fallback if no specific handler provided
+            newRows[index] = {
+                due: false,
+                supplier: '',
+                amount: '',
+                amountPaid: '',
+                dueDate: '',
+                datePaid: '',
+                chqNumber: '',
+                method: '',
+                rowStatus: '',
+                comment: ''
+            };
+            onRowChange(newRows);
+        }
     } else if (action === 'comment') {
         setCurrentCommentRowIndex(index);
         setCurrentCommentText(rows[index].comment || '');
