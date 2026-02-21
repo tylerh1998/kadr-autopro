@@ -234,7 +234,7 @@ export default function CashFlow() {
 
     if (changedIndex !== -1) {
         const row = newRows[changedIndex];
-        const result = await saveRowToDb(row);
+        const result = await saveRowToDb(row, changedIndex);
         
         // If we just created a new row and got an ID back, update state
         if (result && !row.id) {
