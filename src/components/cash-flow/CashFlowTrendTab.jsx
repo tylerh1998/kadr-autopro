@@ -122,8 +122,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         return sum;
     }, 0);
 
-    // 5. Total Paid (Bank Debits - Outstanding Cheques)
-    const totalPaid = (bankStats.debits || 0) - outstandingCheques;
+    // 5. Total Paid (Bank Debits)
+    const totalPaid = (bankStats.debits || 0);
 
     // 6. Daily Target (Based on Total Payable)
     let dailyTarget = 0;
