@@ -209,7 +209,8 @@ export default function CashFlow() {
         method: row.method,
         comment: row.comment,
         bg_colour: row.bg_colour,
-        row_status: row.rowStatus
+        row_status: row.rowStatus,
+        sort_order: sortOrder
     };
 
     try {
