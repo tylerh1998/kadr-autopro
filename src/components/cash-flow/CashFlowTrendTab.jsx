@@ -182,7 +182,10 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         dailyTarget = targetAmount / workDaysLeft;
     }
 
-    return { remainingOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget };
+    // New: Total Monthly Expenses Target = Total Paid (Bank Debits) + Remaining Overhead + Remaining Payables
+    const totalMonthlyExpensesTarget = totalPaid + remainingOverhead + totalPayable;
+
+    return { remainingOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget, totalMonthlyExpensesTarget };
   };
 
   const metrics = calculateMetrics();
@@ -492,24 +495,22 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
 
             {/* Status Bar */}
             <div className="space-y-4">
-                {/* Revenue Progress Bar - Disabled per user request but code kept */}
-                {/* 
+                {/* Revenue Progress Bar */}
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium text-slate-600">
                         <span>Revenue Progress</span>
-                        <span>{metrics.totalObligations > 0 ? Math.round((metrics.totalRevenue / metrics.totalObligations) * 100) : 0}% of Obligations Covered</span>
+                        <span>{metrics.totalMonthlyExpensesTarget > 0 ? Math.round((metrics.totalRevenue / metrics.totalMonthlyExpensesTarget) * 100) : 0}% of Monthly Expenses Covered</span>
                     </div>
                     <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
                         <div 
                             className="bg-green-500 h-full transition-all duration-500" 
-                            style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalObligations) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalMonthlyExpensesTarget) * 100)}%` }}
                         />
-                        {metrics.totalRevenue > metrics.totalObligations && (
+                        {metrics.totalRevenue > metrics.totalMonthlyExpensesTarget && (
                              <div className="bg-blue-500 h-full w-1" /> 
                         )}
                     </div>
                 </div>
-                */}
 
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium text-slate-600">
