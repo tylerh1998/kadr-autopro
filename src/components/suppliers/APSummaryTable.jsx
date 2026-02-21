@@ -279,18 +279,25 @@ export default function APSummaryTable({ isFullPage = false }) {
       `}</style>
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
-        <div className="flex items-center gap-4">
-            <h2 className="text-xl font-semibold text-slate-800">Accounts Payable Summary</h2>
-            <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
-                className="gap-2 text-slate-500 hover:text-blue-600 h-8"
-            >
-                <ExternalLink className="w-4 h-4" />
-                Open in new tab
-            </Button>
-        </div>
+        {isFullPage ? (
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">AP Summary</h1>
+              <p className="text-slate-600 mt-1">Aged accounts payable for all suppliers.</p>
+            </div>
+        ) : (
+            <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold text-slate-800">Accounts Payable Summary</h2>
+                <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
+                    className="gap-2 text-slate-500 hover:text-blue-600 h-8"
+                >
+                    <ExternalLink className="w-4 h-4" />
+                    Open in new tab
+                </Button>
+            </div>
+        )}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Label className="whitespace-nowrap">As of Date:</Label>
