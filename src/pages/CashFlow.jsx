@@ -507,6 +507,7 @@ export default function CashFlow() {
                   cashFlowRows={rows}
                   workDaysLeft={workDaysLeft}
                   monthEnd={headerData.monthEnd}
+                  summaryData={summaryData}
                 />
               </TabsContent>
 
