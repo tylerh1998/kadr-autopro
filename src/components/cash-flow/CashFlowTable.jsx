@@ -420,6 +420,13 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Link Supplier Modal */}
+      <LinkSupplierModal 
+        open={isLinkSupplierModalOpen} 
+        onClose={() => setIsLinkSupplierModalOpen(false)}
+        onSelect={(supplier) => handleLinkSupplierSelect(supplier)}
+      />
     </div>
   );
 }
