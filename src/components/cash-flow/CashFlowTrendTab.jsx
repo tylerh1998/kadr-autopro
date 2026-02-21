@@ -91,44 +91,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
     loadData();
   }, [loadData]);
 
-  // Load Current Month Revenue for Status Bar
-  useEffect(() => {
-    const fetchRevenue = async () => {
-      if (!monthEnd) return;
-      
-      setRevenueData(prev => ({ ...prev, loading: true }));
-      try {
-        // Parse monthEnd to get range
-        // monthEnd format from parent is 'MMM D, YYYY'
-        const end = new Date(monthEnd);
-        const start = new Date(end.getFullYear(), end.getMonth(), 1);
-        
-        const response = await base44.functions.invoke('getPLReportData', {
-            startDate: format(start, 'yyyy-MM-dd'),
-            endDate: format(end, 'yyyy-MM-dd')
-        });
-
-        if (response.data.success) {
-            // Filter for 4000-4999
-            const revAccounts = response.data.data.revenue || [];
-            const specificRevenue = revAccounts.reduce((sum, acc) => {
-                const accNum = parseInt(acc.account_number);
-                if (accNum >= 4000 && accNum <= 4999) {
-                    return sum + acc.amount;
-                }
-                return sum;
-            }, 0);
-            
-            setRevenueData({ total: specificRevenue, loading: false });
-        }
-      } catch (error) {
-        console.error("Error fetching revenue status:", error);
-        setRevenueData(prev => ({ ...prev, loading: false }));
-      }
-    };
-
-    fetchRevenue();
-  }, [monthEnd]);
+  // Removed fetchRevenue useEffect as we now use bankStats from getFinancialDashboardData
 
   // Calculate Status Bar Metrics
   const calculateMetrics = () => {
