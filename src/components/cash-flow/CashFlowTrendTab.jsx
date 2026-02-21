@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import moment from 'moment';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [], workDaysLeft = 0, monthEnd }) {
+export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [], workDaysLeft = 0, monthEnd, summaryData = {} }) {
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [allChartData, setAllChartData] = useState([]); // Store all accounts data
@@ -95,11 +96,58 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
 
   // Calculate Status Bar Metrics
   const calculateMetrics = () => {
-    // 1. Total Overhead
-    const totalOverhead = overheadRows.reduce((sum, row) => {
-        const val = parseFloat(row.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
-        return sum + val;
-    }, 0);
+    // 1. Remaining Overhead (Dynamic Calculation)
+    let remainingOverhead = 0;
+    
+    // Helper to parse values
+    const val = (v) => {
+        if (!v) return 0;
+        return parseFloat(v.toString().replace(/[^0-9.-]+/g,"")) || 0;
+    };
+
+    if (summaryData) {
+        // Group overhead rows by dateOption
+        const groupedOverhead = overheadRows.reduce((acc, row) => {
+            const date = row.dateOption || 'Unassigned';
+            const amount = val(row.amount);
+            if (amount > 0) {
+                if (!acc[date]) acc[date] = 0;
+                acc[date] += amount;
+            }
+            return acc;
+        }, {});
+
+        const today = moment();
+        const day = today.date();
+        
+        // Calculate First Business Day
+        const firstOfMonth = today.clone().startOf('month');
+        let firstBusinessDay = 1;
+        // 0 = Sun, 6 = Sat
+        while (firstOfMonth.day() === 0 || firstOfMonth.day() === 6) {
+            firstOfMonth.add(1, 'days');
+            firstBusinessDay = firstOfMonth.date();
+        }
+
+        // Bracket Definitions
+        const inBracketA = day >= 25 || day <= firstBusinessDay;
+        const inBracketB = day >= 1 && day <= 8;
+        const inBracketC = day >= 8 && day <= 15;
+
+        if (inBracketA) {
+            remainingOverhead += (groupedOverhead["Month Start"] || 0);
+            remainingOverhead += (groupedOverhead["Month End"] || 0);
+            remainingOverhead += val(summaryData.estFirstPayroll);
+        }
+        if (inBracketB) {
+            remainingOverhead += (groupedOverhead["8th"] || 0);
+        }
+        if (inBracketC) {
+            remainingOverhead += (groupedOverhead["12th to 15th"] || 0);
+            remainingOverhead += val(summaryData.estSecondPayroll);
+            remainingOverhead += val(summaryData.estPayrollRemit);
+        }
+    }
 
     // 2. Revenue (Bank Credits) - from backend
     const totalRevenue = bankStats.credits || 0;
@@ -131,7 +179,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         dailyTarget = totalPayable / workDaysLeft;
     }
 
-    return { totalOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget };
+    return { remainingOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget };
   };
 
   const metrics = calculateMetrics();
@@ -396,11 +444,11 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
                 <div className="p-4 bg-red-50 rounded-lg border border-red-100">
-                    <p className="text-sm font-medium text-red-800 mb-1">Total Overhead</p>
+                    <p className="text-sm font-medium text-red-800 mb-1">Remaining Overhead</p>
                     <p className="text-2xl font-bold text-red-600">
-                        {formatCurrency(metrics.totalOverhead)}
+                        {formatCurrency(metrics.remainingOverhead)}
                     </p>
-                    <p className="text-xs text-red-600/70">From Overhead Table</p>
+                    <p className="text-xs text-red-600/70">Dynamic Calculation</p>
                 </div>
                 <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
                     <p className="text-sm font-medium text-amber-800 mb-1">Remaining Accts Payable</p>
