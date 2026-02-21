@@ -245,6 +245,28 @@ export default function CashFlow() {
     }
   };
 
+  const handleDeleteRow = async (index) => {
+    const row = rows[index];
+    
+    // Update UI immediately (clear the row)
+    const newRows = [...rows];
+    newRows[index] = {
+        due: false, supplier: '', amount: '', amountPaid: '', 
+        dueDate: '', datePaid: '', chqNumber: '', method: '', comment: '',
+        bg_colour: '', rowStatus: ''
+    };
+    setRows(newRows);
+
+    // Delete from DB if it exists
+    if (row.id) {
+        try {
+            await base44.entities.CashFlowEntry.delete(row.id);
+        } catch (e) {
+            console.error("Failed to delete row:", e);
+        }
+    }
+  };
+
   // Debounced save for Summary
   const saveSummaryToDb = useCallback(debounce(async (id, data, overhead, header) => {
     if (!id) return;
@@ -451,6 +473,7 @@ export default function CashFlow() {
                 <CashFlowTable 
                   rows={rows} 
                   onRowChange={handleRowChange} 
+                  onDeleteRow={handleDeleteRow}
                   sortConfig={sortConfig}
                   onSort={handleSort}
                 />
