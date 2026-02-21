@@ -245,12 +245,24 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
 
                     {/* Supplier */}
                     <td className={cn("p-1 border-r", bgClass)}>
-                      <Input 
-                        value={row.supplier || ''} 
-                        onChange={(e) => handleChange(index, 'supplier', e.target.value)}
-                        className="border-0 h-8 focus-visible:ring-1 bg-transparent"
-                        placeholder="Supplier Name"
-                      />
+                      <div className="flex items-center">
+                        <Input 
+                          value={row.supplier || ''} 
+                          onChange={(e) => handleChange(index, 'supplier', e.target.value)}
+                          className="border-0 h-8 focus-visible:ring-1 bg-transparent flex-1"
+                          placeholder="Supplier Name"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 ml-1 text-slate-300 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleLinkSupplierAction(index)}
+                          title="Link to Supplier"
+                          tabIndex={-1}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </td>
 
                     {/* Amount */}
