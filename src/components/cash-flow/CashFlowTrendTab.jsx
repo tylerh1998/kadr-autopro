@@ -27,7 +27,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
   // Status Bar State
-  const [revenueData, setRevenueData] = useState({ total: 0, loading: false });
+  const [bankStats, setBankStats] = useState({ credits: 0, debits: 0 }); // New state for backend data
   const [visibleLines, setVisibleLines] = useState({
     inflow: true,
     outflow: true,
