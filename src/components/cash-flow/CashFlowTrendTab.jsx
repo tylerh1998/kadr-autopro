@@ -72,6 +72,11 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
              setChartData(currentData?.data || []);
         }
 
+        // Set Bank Stats
+        if (response.data.data.targetBankStats) {
+            setBankStats(response.data.data.targetBankStats);
+        }
+
       } else {
         console.error('Failed to load cash flow data:', response.data.error);
       }
