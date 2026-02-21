@@ -15,7 +15,7 @@ import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from './SupplierPaymentModal';
 import AddToSheetModal from '@/components/suppliers/AddToSheetModal';
 
-export default function APSummaryTable() {
+export default function APSummaryTable({ isFullPage = false }) {
   const [suppliers, setSuppliers] = useState([]);
   const [supplierInvoicesMap, setSupplierInvoicesMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
