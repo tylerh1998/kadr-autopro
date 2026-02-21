@@ -184,7 +184,7 @@ export default function CashFlow() {
   // --- Persistence Logic ---
 
   // Debounced save for individual rows
-  const saveRowToDb = useCallback(debounce(async (row) => {
+  const saveRowToDb = useCallback(debounce(async (row, sortOrder) => {
     if (!row.supplier && !row.amount) return; // Don't save empty rows
 
     const parseDate = (dateStr) => {
