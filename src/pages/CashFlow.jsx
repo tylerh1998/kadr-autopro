@@ -528,7 +528,13 @@ export default function CashFlow() {
               {/* Header Inputs */}
               <div className="grid grid-cols-3 gap-3 bg-white p-4 rounded-xl border shadow-sm">
                 <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Last Updated</span>
+                    <span 
+                        className="text-[10px] font-bold text-blue-600 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800"
+                        onClick={() => handleHeaderChange({...headerData, lastUpdated: moment().format('MMM D')})}
+                        title="Click to set to today"
+                    >
+                        Last Updated
+                    </span>
                     <Input 
                         value={headerData.lastUpdated}
                         onChange={(e) => handleHeaderChange({...headerData, lastUpdated: e.target.value})}
@@ -537,7 +543,13 @@ export default function CashFlow() {
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Month End</span>
+                    <span 
+                        className="text-[10px] font-bold text-blue-600 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800"
+                        onClick={() => handleHeaderChange({...headerData, monthEnd: moment().endOf('month').format('MMM D')})}
+                        title="Click to set to month end"
+                    >
+                        Month End
+                    </span>
                     <Input 
                         value={headerData.monthEnd}
                         onChange={(e) => handleHeaderChange({...headerData, monthEnd: e.target.value})}
