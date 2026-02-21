@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import moment from "moment";
 
 import { useState } from 'react';
-import { ArrowUpDown, Check } from 'lucide-react';
+import { ArrowUpDown, Check, Plus } from 'lucide-react';
+import LinkSupplierModal from '@/components/cash-flow/LinkSupplierModal';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
