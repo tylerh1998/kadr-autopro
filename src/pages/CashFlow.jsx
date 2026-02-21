@@ -101,7 +101,7 @@ export default function CashFlow() {
         // Pad to 40
         while (loadedRows.length < 40) {
             loadedRows.push({
-                due: false, supplier: '', amount: '', amountPaid: '', 
+                due: false, supplier: '', supplier_id: '', amount: '', amountPaid: '', 
                 dueDate: '', datePaid: '', chqNumber: '', method: '', comment: '',
                 bg_colour: '', rowStatus: ''
             });
