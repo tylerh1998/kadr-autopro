@@ -78,8 +78,8 @@ export default function CashFlow() {
 
     const loadData = async () => {
       try {
-        // Fetch Entries
-        const entries = await base44.entities.CashFlowEntry.list('created_date', 100);
+        // Fetch Entries - sorted by sort_order
+        const entries = await base44.entities.CashFlowEntry.list('sort_order', 100);
         
         const loadedRows = entries.map(entry => ({
             id: entry.id,
@@ -93,7 +93,8 @@ export default function CashFlow() {
             method: entry.method || '',
             comment: entry.comment || '',
             bg_colour: entry.bg_colour || '',
-            rowStatus: entry.row_status || ''
+            rowStatus: entry.row_status || '',
+            sortOrder: entry.sort_order || 0
         }));
 
         // Pad to 40
