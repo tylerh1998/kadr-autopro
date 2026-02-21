@@ -427,6 +427,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
 
             {/* Status Bar */}
             <div className="space-y-4">
+                {/* Revenue Progress Bar - Disabled per user request but code kept */}
+                {/* 
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium text-slate-600">
                         <span>Revenue Progress</span>
@@ -442,6 +444,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                         )}
                     </div>
                 </div>
+                */}
 
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm font-medium text-slate-600">
