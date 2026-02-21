@@ -214,6 +214,7 @@ export default function CashFlow() {
 
     const payload = {
         supplier: row.supplier,
+        supplier_id: row.supplier_id,
         amount: parseFloat(row.amount.toString().replace(/[^0-9.-]+/g,"")) || 0,
         amount_paid: parseFloat(row.amountPaid.toString().replace(/[^0-9.-]+/g,"")) || 0,
         due_date: parseDate(row.dueDate),
