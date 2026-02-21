@@ -429,7 +429,7 @@ export default function APSummaryTable({ isFullPage = false }) {
                                       const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
 
                                       return (
-                                          <TooltipProvider key={idx}>
+                                          <TooltipProvider key={idx} delayDuration={0}>
                                               <Tooltip>
                                                   <TooltipTrigger asChild>
                                                       <Badge className={`cursor-help whitespace-nowrap ${badgeColor}`}>
@@ -437,7 +437,7 @@ export default function APSummaryTable({ isFullPage = false }) {
                                                       </Badge>
                                                   </TooltipTrigger>
                                                   <TooltipContent>
-                                                      <p>Due: {entry.due_date ? format(parseISO(entry.due_date), 'MMM d, yyyy') : 'No Date'}</p>
+                                                      <p>Due: {entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}</p>
                                                   </TooltipContent>
                                               </Tooltip>
                                           </TooltipProvider>
