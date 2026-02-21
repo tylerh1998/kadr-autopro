@@ -10,7 +10,7 @@ import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, F
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import moment from 'moment';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+// Tooltip imports removed as we are switching to native title attribute
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from './SupplierPaymentModal';
@@ -429,18 +429,13 @@ export default function APSummaryTable({ isFullPage = false }) {
                                       const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
 
                                       return (
-                                          <TooltipProvider key={idx} delayDuration={0}>
-                                              <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                      <Badge className={`cursor-help whitespace-nowrap ${badgeColor}`}>
-                                                          ${amount.toFixed(2)}
-                                                      </Badge>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent>
-                                                      <p>Due: {entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}</p>
-                                                  </TooltipContent>
-                                              </Tooltip>
-                                          </TooltipProvider>
+                                          <Badge 
+                                              key={idx}
+                                              className={`cursor-help whitespace-nowrap ${badgeColor}`}
+                                              title={`Due: ${entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}`}
+                                          >
+                                              ${amount.toFixed(2)}
+                                          </Badge>
                                       );
                                   })}
                               </div>
