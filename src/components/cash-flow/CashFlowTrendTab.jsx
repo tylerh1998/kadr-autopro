@@ -24,8 +24,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
   const [selectedAccountId, setSelectedAccountId] = useState('all');
   const [accounts, setAccounts] = useState([]);
 
-  const [fromDate, setFromDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
-  const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [fromDate, setFromDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [toDate, setToDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   
   // Status Bar State
   const [bankStats, setBankStats] = useState({ credits: 0, debits: 0 }); // New state for backend data
