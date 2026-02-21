@@ -460,10 +460,10 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                 </div>
             </div>
 
-            {/* Daily Target */}
+            {/* Daily Target - Based on Total Payable */}
             {metrics.dailyTarget > 0 ? (
                 <div className="p-6 bg-slate-900 rounded-xl text-center text-white">
-                    <p className="text-lg font-medium text-slate-300 mb-2">Daily Revenue Target to Match Obligations</p>
+                    <p className="text-lg font-medium text-slate-300 mb-2">Daily Cash Outflow Target (Payable)</p>
                     <div className="flex items-end justify-center gap-2">
                         <span className="text-4xl font-bold tracking-tight">{formatCurrency(metrics.dailyTarget)}</span>
                         <span className="text-slate-400 mb-1">/ day</span>
@@ -474,10 +474,9 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                 </div>
             ) : (
                 <div className="p-6 bg-green-600 rounded-xl text-center text-white">
-                    <p className="text-lg font-medium text-green-100 mb-2">Target Achieved!</p>
-                    <p className="text-3xl font-bold">Obligations Covered</p>
+                    <p className="text-lg font-medium text-green-100 mb-2">No Payables Remaining</p>
                     <p className="text-sm text-green-200 mt-2">
-                        Revenue exceeds obligations by {formatCurrency(metrics.difference)}
+                        All cash flow table items are paid or zero.
                     </p>
                 </div>
             )}
