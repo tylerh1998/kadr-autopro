@@ -174,12 +174,17 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
   };
 
   const formatDate = (dateStr) => {
-    try {
-      const date = new Date(dateStr);
-      return format(date, 'MMM d');
-    } catch {
-      return dateStr;
+    if (!dateStr) return '';
+    // Manually parse YYYY-MM-DD to ensure local date without timezone shift
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const date = new Date(year, month, day);
+        return format(date, 'MMM d');
     }
+    return dateStr;
   };
 
   const formatMonth = (monthStr) => {
