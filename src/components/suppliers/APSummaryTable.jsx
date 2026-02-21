@@ -465,6 +465,7 @@ export default function APSummaryTable() {
                 <tfoot className="bg-slate-100 font-bold border-t">
                    <tr>
                      <td className="p-3 text-right">Total</td>
+                     <td className="p-3"></td>
                      <td className="p-3 text-right">${totals.not_due.toFixed(2)}</td>
                      <td className="p-3 text-right">${totals.balance_0_30.toFixed(2)}</td>
                      <td className="p-3 text-right">${totals.balance_31_60.toFixed(2)}</td>
