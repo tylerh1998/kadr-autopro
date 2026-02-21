@@ -183,6 +183,18 @@ export default function CashFlow() {
 
   // --- Persistence Logic ---
 
+  // Debounced persist for row order
+  const persistRowOrder = useCallback(debounce(async (sortedRows) => {
+    try {
+        await Promise.all(sortedRows.map((row, index) => {
+            if (!row.id) return Promise.resolve();
+            return base44.entities.CashFlowEntry.update(row.id, { sort_order: index });
+        }));
+    } catch (e) {
+        console.error("Error persisting row order:", e);
+    }
+  }, 1000), []);
+
   // Debounced save for individual rows
   const saveRowToDb = useCallback(debounce(async (row, sortOrder) => {
     if (!row.supplier && !row.amount) return; // Don't save empty rows
