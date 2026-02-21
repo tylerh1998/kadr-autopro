@@ -82,6 +82,9 @@ export default function APSummaryTable() {
     const supplierSummary = suppliers.map(supplier => {
       const conceptualInvoices = supplierInvoicesMap.get(supplier.id) || [];
       
+      // Calculate Cash Flow Entries for this Supplier
+      const supplierCashFlowEntries = cashFlowEntries.filter(entry => entry.supplier_id === supplier.id);
+
       // FIRST: Calculate total balance from ALL invoices (ignoring dates)
       let total_balance = 0;
       conceptualInvoices.forEach(invoice => {
