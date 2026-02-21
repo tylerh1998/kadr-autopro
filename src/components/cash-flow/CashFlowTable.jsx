@@ -29,6 +29,9 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [currentCommentRowIndex, setCurrentCommentRowIndex] = useState(null);
   const [currentCommentText, setCurrentCommentText] = useState('');
+
+  const [isLinkSupplierModalOpen, setIsLinkSupplierModalOpen] = useState(false);
+  const [linkSupplierRowIndex, setLinkSupplierRowIndex] = useState(null);
   const headers = [
     { id: 'dueDate', label: 'Due', width: 'w-24', sortable: true }, // Logic uses dueDate
     { id: 'supplier', label: 'Supplier', width: 'w-64', sortable: true },
