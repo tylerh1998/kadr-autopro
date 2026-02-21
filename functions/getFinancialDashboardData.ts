@@ -309,6 +309,42 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 10);
 
+    // --- Special Bank Stats for Cash Flow Trend Tab (Current Month) ---
+    // Target Bank: 68b95ed97223c7b3d2882f5d
+    // Period: Current Month (based on toDate)
+    const currentMonthStart = new Date(toDate);
+    currentMonthStart.setDate(1); // 1st of the month
+    const currentMonthStartStr = formatDate(currentMonthStart);
+    
+    const targetBankId = '68b95ed97223c7b3d2882f5d';
+    const targetBankStats = {
+        credits: 0,
+        debits: 0
+    };
+
+    // Filter transactions for target bank and current month
+    // Note: sortedBankTransactions contains all txs >= fromDate (which usually covers current month if fromDate is 12 months ago)
+    // We should double check we have the txs. If fromDate is in the future relative to current month (unlikely), we might miss.
+    // Assuming standard usage where range includes current month.
+    
+    sortedBankTransactions.forEach(tx => {
+        if (tx.bank_account_id === targetBankId && tx.transaction_date >= currentMonthStartStr && tx.transaction_date <= toDateStr) {
+            // Revenue (Credits): source_type in deposit, manual, registries
+            const validCreditSources = ['deposit', 'manual', 'registries'];
+            if (validCreditSources.includes(tx.source_type) && tx.credit_amount) {
+                targetBankStats.credits += tx.credit_amount;
+            }
+
+            // Paid (Debits): source_type != transfer
+            if (tx.source_type !== 'transfer' && tx.debit_amount) {
+                targetBankStats.debits += tx.debit_amount;
+            }
+        }
+    });
+
+    targetBankStats.credits = Math.round(targetBankStats.credits * 100) / 100;
+    targetBankStats.debits = Math.round(targetBankStats.debits * 100) / 100;
+
     // Bank Accounts Summary
     const bankAccountsSummary = bankAccounts
       .filter(acc => acc.is_active !== false)
