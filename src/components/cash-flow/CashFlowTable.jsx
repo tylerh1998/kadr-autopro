@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import moment from "moment";
 
 import { useState } from 'react';
-import { ArrowUpDown, Check, Plus } from 'lucide-react';
+import { ArrowUpDown, Check, Plus, X } from 'lucide-react';
 import LinkSupplierModal from '@/components/cash-flow/LinkSupplierModal';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -255,12 +255,15 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 ml-1 text-slate-300 hover:text-blue-600 hover:bg-blue-50"
+                          className={cn(
+                            "h-6 w-6 ml-1 text-slate-300",
+                            row.supplier_id ? "hover:text-red-600 hover:bg-red-50" : "hover:text-blue-600 hover:bg-blue-50"
+                          )}
                           onClick={() => handleLinkSupplierAction(index)}
-                          title="Link to Supplier"
+                          title={row.supplier_id ? "Unlink/Change Supplier" : "Link to Supplier"}
                           tabIndex={-1}
                         >
-                          <Plus className="h-3 w-3" />
+                          {row.supplier_id ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                         </Button>
                       </div>
                     </td>
