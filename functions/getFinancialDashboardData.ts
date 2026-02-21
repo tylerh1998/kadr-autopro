@@ -380,7 +380,8 @@ Deno.serve(async (req) => {
             .map(([type, amount]) => ({ type, amount })),
           topExpenseCategories
         },
-        bankAccountsSummary
+        bankAccountsSummary,
+        targetBankStats
       }
     });
 
