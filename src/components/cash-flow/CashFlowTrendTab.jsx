@@ -173,10 +173,13 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
     // 5. Total Paid (Bank Debits)
     const totalPaid = (bankStats.debits || 0);
 
-    // 6. Daily Target (Based on Total Payable)
+    // 6. Daily Target (Remaining Overhead + Total Payable - Current Cash Position) / Remaining Work Days
     let dailyTarget = 0;
-    if (totalPayable > 0 && workDaysLeft > 0) {
-        dailyTarget = totalPayable / workDaysLeft;
+    const currentCashPosition = val(summaryData?.bankBalance);
+    const targetAmount = (remainingOverhead + totalPayable) - currentCashPosition;
+    
+    if (workDaysLeft > 0) {
+        dailyTarget = targetAmount / workDaysLeft;
     }
 
     return { remainingOverhead, totalRevenue, totalPayable, totalPaid, dailyTarget };
