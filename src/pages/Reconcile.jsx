@@ -28,7 +28,9 @@ import AutoReconcileModal from '../components/bank/AutoReconcileModal';
 // Helper function to parse YYYY-MM-DD date strings as local date
 const parseLocalDate = (dateString) => {
   if (!dateString) return new Date();
-  const [year, month, day] = dateString.split('-').map(Number);
+  // Ensure we only look at the YYYY-MM-DD part if it's an ISO string
+  const datePart = dateString.substring(0, 10);
+  const [year, month, day] = datePart.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
 
