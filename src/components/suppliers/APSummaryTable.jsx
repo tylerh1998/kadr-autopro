@@ -448,17 +448,26 @@ export default function APSummaryTable({ isFullPage = false }) {
                           </tr>
                         </ContextMenuTrigger>
                         <ContextMenuContent>
-                          <ContextMenuItem onClick={handleViewTransactions}>
+                          <ContextMenuItem 
+                            onClick={handleViewTransactions}
+                            className="bg-white text-black focus:bg-slate-100 focus:text-black cursor-pointer"
+                          >
                             <FileText className="w-4 h-4 mr-2" />
                             View Transactions
                           </ContextMenuItem>
-                          <ContextMenuItem onClick={handleMakePayment}>
+                          <ContextMenuItem 
+                            onClick={handleMakePayment}
+                            className="bg-green-600 text-white focus:bg-green-700 focus:text-white cursor-pointer"
+                          >
                             <DollarSign className="w-4 h-4 mr-2" />
                             Make Payment
                           </ContextMenuItem>
-                          <ContextMenuItem onClick={handleAddToSheet}>
+                          <ContextMenuItem 
+                            onClick={handleAddToSheet}
+                            className="bg-amber-400 text-black focus:bg-amber-500 focus:text-black cursor-pointer"
+                          >
                             <FileSpreadsheet className="w-4 h-4 mr-2" />
-                            Add to Sheet
+                            Add to Cash Flow
                           </ContextMenuItem>
                         </ContextMenuContent>
                       </ContextMenu>
