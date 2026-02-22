@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BankAccount, BankTransaction } from '@/entities/all';
+import { BankAccount, BankTransaction, BankReconciliation } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -24,6 +24,15 @@ export default function ReconcileReportPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [startingBalance, setStartingBalance] = useState(0);
+  const [reconciliationRecord, setReconciliationRecord] = useState(null);
+
+  // Helper to parse local date (YYYY-MM-DD) without timezone shift
+  const parseLocalDate = (dateString) => {
+    if (!dateString) return null;
+    const datePart = dateString.substring(0, 10);
+    const [year, month, day] = datePart.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
 
   useEffect(() => {
     if (!reconciliationId) {
@@ -47,6 +56,11 @@ export default function ReconcileReportPage() {
       }
 
       setTransactions(reconTransactions);
+
+      // Fetch Reconciliation Record
+      const reconRecords = await BankReconciliation.list();
+      const reconRecord = reconRecords.find(r => r.reconciliation_id === reconciliationId);
+      setReconciliationRecord(reconRecord);
 
       const firstTx = reconTransactions[0];
       const account = await BankAccount.get(firstTx.bank_account_id);
@@ -143,9 +157,9 @@ export default function ReconcileReportPage() {
             visibility: visible !important;
             display: block !important;
             width: 100%;
-            max-width: 600px;
+            max-width: 250px; /* Reduced size */
             height: auto;
-            margin: 0 auto 30px;
+            margin: 0 auto 15px;
           }
           .print-title { 
             visibility: visible !important;
@@ -170,16 +184,16 @@ export default function ReconcileReportPage() {
             margin-bottom: 25px !important;
           }
           .totals-card {
-            border: 2px solid #000;
-            padding: 15px;
+            border: 1px solid #000;
+            padding: 10px;
             break-inside: avoid;
           }
           .totals-card-title {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #000;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #000;
           }
           .transactions-section {
             page-break-before: always !important;
@@ -256,7 +270,25 @@ export default function ReconcileReportPage() {
               Bank Reconciliation Report
             </div>
             <div className="print-subtitle" style={{ display: 'none' }}>
-              {bankAccount?.name} - Reconciliation ID: {reconciliationId}
+              <div className="text-lg font-bold mb-2">{bankAccount?.name}</div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm max-w-md mx-auto text-left">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Reconciliation Date:</span>
+                  <span className="font-semibold">{reconciliationRecord?.reconciliation_date ? format(new Date(reconciliationRecord.reconciliation_date), 'MMM d, yyyy') : '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Reconciliation ID:</span>
+                  <span className="font-semibold">{reconciliationId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Period Start:</span>
+                  <span className="font-semibold">{reconciliationRecord?.period_start_date ? format(parseLocalDate(reconciliationRecord.period_start_date), 'MMM d, yyyy') : '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Period End:</span>
+                  <span className="font-semibold">{reconciliationRecord?.period_end_date ? format(parseLocalDate(reconciliationRecord.period_end_date), 'MMM d, yyyy') : '-'}</span>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 totals-grid">
@@ -383,7 +415,7 @@ export default function ReconcileReportPage() {
                       <tbody>
                         {transactionsWithBalance.map((tx) => (
                           <tr key={tx.id} className="border-b hover:bg-slate-50">
-                            <td className="p-2 whitespace-nowrap">{format(new Date(tx.transaction_date), 'MMM d, yyyy')}</td>
+                            <td className="p-2 whitespace-nowrap">{tx.transaction_date ? format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy') : '-'}</td>
                             <td className="p-2">{tx.description}</td>
                             <td className="p-2 text-slate-600">{tx.reference || '-'}</td>
                             <td className="p-2 capitalize whitespace-nowrap">
