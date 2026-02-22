@@ -609,7 +609,25 @@ const navigationItems = [
     setMobileDropdownOpen(null);
   };
   
-  if (currentPageName === 'WorkOrderEdit' || currentPageName === 'EstimateEdit' || currentPageName === 'WorkOrderView' || currentPageName === 'CreditInvoice' || currentPageName === 'InvoiceConversion' || currentPageName === 'GLAcct' || currentPageName === 'WorkPROView' || currentPageName === 'StockReorderReport' || currentPageName === 'GeneralLedger' || currentPageName === 'GLJournal' || currentPageName === 'FinancialDashboard' || currentPageName === 'InventoryValuation') {
+  const pagesWithoutNavbar = [
+    'WorkOrderEdit', 
+    'EstimateEdit', 
+    'WorkOrderView', 
+    'CreditInvoice', 
+    'InvoiceConversion', 
+    'GLAcct', 
+    'WorkPROView', 
+    'StockReorderReport', 
+    'GeneralLedger', 
+    'GLJournal', 
+    'FinancialDashboard', 
+    'InventoryValuation',
+    'PLReport',
+    'ChartOfAccounts',
+    'BalanceSheet'
+  ];
+
+  if (pagesWithoutNavbar.includes(currentPageName)) {
     return (
       <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
         <main>{children}</main>
