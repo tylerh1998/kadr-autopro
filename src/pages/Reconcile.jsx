@@ -341,12 +341,12 @@ export default function ReconcilePage() {
             <h1 className="text-3xl font-bold text-slate-900">Reconcile Bank Account</h1>
           </div>
           <div className="flex gap-2">
-            {currentUser?.role === 'admin' && (
+            {/* {currentUser?.role === 'admin' && (
               <Button onClick={handleEmergencyReset} variant="destructive" className="gap-2">
                 <RotateCcw className="w-4 h-4" />
                 Emergency Reset
               </Button>
-            )}
+            )} */}
             <Button onClick={() => setShowAutoReconcileModal(true)} variant="outline" className="gap-2">
               <Upload className="w-4 h-4" />
               Upload CSV
