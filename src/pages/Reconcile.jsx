@@ -291,30 +291,30 @@ export default function ReconcilePage() {
     alert(`Successfully checked off ${matchedIds.length} matched transactions.`);
   };
 
-  const handleEmergencyReset = async () => {
-    if (!window.confirm("WARNING: This will reset ALL transactions that are marked as reconciled or cleared (across ALL bank accounts). This is a destructive operation to fix stuck transactions. Are you sure?")) {
-      return;
-    }
+  // const handleEmergencyReset = async () => {
+  //   if (!window.confirm("WARNING: This will reset ALL transactions that are marked as reconciled or cleared (across ALL bank accounts). This is a destructive operation to fix stuck transactions. Are you sure?")) {
+  //     return;
+  //   }
 
-    setLoading(true);
-    try {
-      console.log('Attempting emergency reset...');
-      const response = await base44.functions.invoke('emergencyResetReconciliation');
-      console.log('Reset response:', response);
+  //   setLoading(true);
+  //   try {
+  //     console.log('Attempting emergency reset...');
+  //     const response = await base44.functions.invoke('emergencyResetReconciliation');
+  //     console.log('Reset response:', response);
       
-      if (response.data.success) {
-        alert(response.data.message);
-        window.location.reload();
-      } else {
-        alert('Error: ' + (response.data.error || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Reset failed:', error);
-      alert('Failed to reset transactions: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (response.data.success) {
+  //       alert(response.data.message);
+  //       window.location.reload();
+  //     } else {
+  //       alert('Error: ' + (response.data.error || 'Unknown error'));
+  //     }
+  //   } catch (error) {
+  //     console.error('Reset failed:', error);
+  //     alert('Failed to reset transactions: ' + error.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
     <div className="p-6 min-h-screen">
