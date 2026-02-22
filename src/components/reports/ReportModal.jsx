@@ -54,6 +54,18 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       case 'accounting':
         return [
           {
+            name: 'Chart of Accounts',
+            description: 'List of all accounts and their settings',
+            icon: 'FileText',
+            path: 'ChartOfAccounts'
+          },
+          {
+            name: 'Cheque Register',
+            description: 'View and manage cheque history',
+            icon: 'BookCopy',
+            path: 'ChequeRegister'
+          },
+          {
             name: 'Taxes',
             description: 'Manage tax rates and settings',
             icon: 'Percent',
@@ -75,12 +87,6 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
       case 'financial':
         return [
-          {
-            name: 'Chart of Accounts',
-            description: 'List of all accounts and their settings',
-            icon: 'FileText',
-            path: 'ChartOfAccounts'
-          },
           {
             name: 'Financial Dashboard',
             description: 'Comprehensive overview of key financial metrics, cash flow, and account balances',
