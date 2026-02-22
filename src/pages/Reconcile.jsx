@@ -21,7 +21,7 @@ import {
   Upload,
   RotateCcw
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addDays, endOfMonth, parseISO } from 'date-fns';
 import { createPageUrl } from '../utils';
 import AutoReconcileModal from '../components/bank/AutoReconcileModal';
 
@@ -52,6 +52,9 @@ export default function ReconcilePage() {
   const [saving, setSaving] = useState(false);
   const [showScrollButtons, setShowScrollButtons] = useState(false);
   const [showAutoReconcileModal, setShowAutoReconcileModal] = useState(false);
+  
+  const [periodStart, setPeriodStart] = useState('');
+  const [periodEnd, setPeriodEnd] = useState('');
 
   const applyDateFilter = useCallback((allTxs) => {
     const oneYearAgo = new Date();
@@ -77,6 +80,40 @@ export default function ReconcilePage() {
     };
     fetchUser();
   }, []);
+
+  // Fetch last reconciliation to auto-populate dates
+  useEffect(() => {
+    const fetchLastRecon = async () => {
+      if (!bankAccountId) return;
+      try {
+        // Use base44 SDK to filter, sort by period_end_date desc, limit 1
+        const lastRecons = await base44.entities.BankReconciliation.filter(
+          { bank_account_id: bankAccountId }, 
+          '-period_end_date', 
+          1
+        );
+        
+        if (lastRecons && lastRecons.length > 0) {
+          // Found a previous reconciliation
+          const lastEndDateStr = lastRecons[0].period_end_date;
+          if (lastEndDateStr) {
+            // Parse as local date to avoid timezone shifts
+            const lastEnd = parseLocalDate(lastEndDateStr);
+            const nextStart = addDays(lastEnd, 1);
+            setPeriodStart(format(nextStart, 'yyyy-MM-dd'));
+            setPeriodEnd(format(endOfMonth(nextStart), 'yyyy-MM-dd'));
+          }
+        } else {
+          // No previous reconciliation - leave blank
+          setPeriodStart('');
+          setPeriodEnd('');
+        }
+      } catch (err) {
+        console.error("Error fetching last reconciliation", err);
+      }
+    };
+    fetchLastRecon();
+  }, [bankAccountId]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -188,6 +225,11 @@ export default function ReconcilePage() {
   const handleSaveReconciliation = async () => {
     if (!statementBalance || statementBalance === '') {
       alert('Please enter the statement ending balance');
+      return;
+    }
+
+    if (!periodStart || !periodEnd) {
+      alert('Please enter both the Period Start and Period End dates.');
       return;
     }
 
@@ -389,6 +431,32 @@ export default function ReconcilePage() {
                     </div>
                     <div className="pt-2 border-t">
                       <p className="text-sm text-slate-600">Showing unreconciled transactions from last 365 days</p>
+                    </div>
+                    
+                    <div className="pt-4 border-t space-y-3">
+                      <h4 className="font-semibold text-sm text-slate-900">Reconciliation Period</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="period-start" className="text-xs">Period Start</Label>
+                          <Input
+                            id="period-start"
+                            type="date"
+                            value={periodStart}
+                            onChange={(e) => setPeriodStart(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="period-end" className="text-xs">Period End</Label>
+                          <Input
+                            id="period-end"
+                            type="date"
+                            value={periodEnd}
+                            onChange={(e) => setPeriodEnd(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
