@@ -90,21 +90,26 @@ Deno.serve(async (req) => {
         const filteredUnassigned = unassignedSessions.filter(s => isInRange(s.start_time));
 
         // 5. Identify Relevant Work Orders
-        const roSet = new Set();
-        filteredSessions.forEach(s => {
-            if (s.project_name) {
-                const match = s.project_name.match(/^(RO\d+)/i);
-                if (match) roSet.add(match[1].toUpperCase());
-                else roSet.add(s.project_name);
-            }
-        });
-        
-        const roList = Array.from(roSet);
         let workOrders = [];
         
         console.log("Fetching WorkOrders...");
         // Fetch recent WOs to cover active ones
         workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
+
+        // Index WorkOrders for matching
+        const woMap = {}; // Maps ID and RO Number to WO
+        workOrders.forEach(wo => {
+            if (wo.id) woMap[wo.id] = wo;
+            if (wo.ro_number) {
+                woMap[wo.ro_number] = wo;
+                // Also map "RO123" if ro_number is "123"
+                woMap[`RO${wo.ro_number}`] = wo;
+                 // Also map "123" if ro_number is "RO123"
+                if (wo.ro_number.toUpperCase().startsWith("RO")) {
+                    woMap[wo.ro_number.substring(2)] = wo;
+                }
+            }
+        });
 
         // 6. Calculate Utilization
         const techUtilizationMap = {};
