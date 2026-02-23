@@ -185,7 +185,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
 
   const loadEmployees = async () => {
     try {
-      const allEmployees = await Employee.list();
+      const allEmployees = await base44.entities.Employee.list();
       // Filter for techs as requested
       const techs = allEmployees.filter(e => e.employee_type === 'tech' && e.is_active !== false);
       setEmployees(techs);
