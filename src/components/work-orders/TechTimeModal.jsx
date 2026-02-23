@@ -348,9 +348,15 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // Re-fetch right before delete
       let currentLogs = manualLogs;
       try {
-          const freshWO = await base44.entities.WorkOrder.get(currentWorkOrder.id);
-          if (freshWO?.tech_time) {
-              currentLogs = JSON.parse(freshWO.tech_time);
+          // Use filter instead of get to ensure compatibility
+          const wos = await base44.entities.WorkOrder.filter({ id: currentWorkOrder.id });
+          if (wos && wos.length > 0) {
+              const freshWO = wos[0];
+              if (freshWO.tech_time) {
+                  currentLogs = JSON.parse(freshWO.tech_time);
+              } else {
+                  currentLogs = [];
+              }
           }
       } catch (e) {
           console.warn("Could not fetch fresh WO before delete", e);
