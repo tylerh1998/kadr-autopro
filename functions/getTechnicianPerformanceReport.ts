@@ -58,7 +58,6 @@ Deno.serve(async (req) => {
         const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
         
         console.log("Fetching UnassignedTime...");
-        // UnassignedTime might fail if entity doesn't exist or permissions issue
         let unassignedSessions = [];
         try {
             unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
@@ -88,6 +87,9 @@ Deno.serve(async (req) => {
         const filteredTimeRecords = timeRecords.filter(r => isInRange(r.clock_in_time));
         const filteredSessions = projectSessions.filter(s => isInRange(s.start_time));
         const filteredUnassigned = unassignedSessions.filter(s => isInRange(s.start_time));
+
+        console.log(`TimeRecords: fetched ${timeRecords.length}, filtered ${filteredTimeRecords.length}`);
+        console.log(`Sessions: fetched ${projectSessions.length}, filtered ${filteredSessions.length}`);
 
         // 5. Index WorkOrders for matching
         let workOrders = [];
@@ -189,8 +191,8 @@ Deno.serve(async (req) => {
             if (woMap[name]) return woMap[name];
 
             // 3. Try by RO Number extracted from name
-            // Matches: "RO 123...", "RO#123...", "Work Order 123..."
-            const roMatch = name.match(/(?:RO|Work\s*Order)\s*#?\s*(\d+)/i);
+            // Matches: "RO 123...", "RO#123...", "Work Order 123...", "RO-123"
+            const roMatch = name.match(/(?:RO|Work\s*Order|WO)[\s#.:-]*(\d+)/i);
             if (roMatch) {
                 const extracted = roMatch[1];
                 if (woMap[extracted]) return woMap[extracted];
@@ -206,9 +208,14 @@ Deno.serve(async (req) => {
             return null;
         };
 
+        let matchedSessionsCount = 0;
         filteredSessions.forEach(s => {
             const wo = findWorkOrder(s);
-            if (!wo) return; // Skip if no linked WO found
+            if (!wo) {
+                // console.log(`No WO found for session: ${s.project_name}`); // Uncomment to debug
+                return; 
+            }
+            matchedSessionsCount++;
             
             if (!woAggregats[wo.id]) {
                 woAggregats[wo.id] = { totalHours: 0, techHours: {}, wo: wo };
@@ -222,6 +229,8 @@ Deno.serve(async (req) => {
             }
             stats.techHours[s.user_name] += (s.total_hours || 0);
         });
+        
+        console.log(`Matched ${matchedSessionsCount} out of ${filteredSessions.length} sessions to Work Orders.`);
 
         // Distribute Revenue
         Object.values(woAggregats).forEach(stats => {
