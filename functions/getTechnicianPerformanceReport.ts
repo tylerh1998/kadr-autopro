@@ -12,37 +12,49 @@ Deno.serve(async (req) => {
 
         const { dateFrom, dateTo } = await req.json();
         
-        // 2. WorkPro Fetch Helper
+        // 2. WorkPro Fetch Helper with Retry
         const workProApiKey = Deno.env.get("WORKPRO_API_KEY");
         const workProAppId = Deno.env.get("WORKPRO_APP_ID");
 
-        const fetchWorkPro = async (entity, params = {}) => {
+        const fetchWorkPro = async (entity, params = {}, retries = 3) => {
             const url = new URL(`https://api.workpro.io/v1/${entity}`);
             Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
             
-            const res = await fetch(url.toString(), {
-                headers: {
-                    'Authorization': `Bearer ${workProApiKey}`,
-                    'X-App-Id': workProAppId,
-                    'Content-Type': 'application/json'
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url.toString(), {
+                        headers: {
+                            'Authorization': `Bearer ${workProApiKey}`,
+                            'X-App-Id': workProAppId,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    if (!res.ok) {
+                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${res.statusText}`);
+                        return []; 
+                    }
+                    const json = await res.json();
+                    return Array.isArray(json) ? json : (json.data || json.records || []);
+                } catch (err) {
+                    console.error(`WorkPro ${entity} fetch attempt ${i+1} failed: ${err.message}`);
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
                 }
-            });
-            if (!res.ok) return [];
-            const json = await res.json();
-            return Array.isArray(json) ? json : (json.data || json.records || []);
+            }
         };
 
-        // 3. Fetch Data in Parallel
-        const [
-            timeRecords,
-            projectSessions,
-            unassignedSessions,
-            employees,
-            cashFlowSummary
-        ] = await Promise.all([
-            fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' }),
-            fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' }),
-            fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' }),
+        // 3. Fetch Data (Sequential groupings to avoid DNS/Concurrency issues)
+        console.log("Fetching TimeRecords...");
+        const timeRecords = await fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
+        
+        console.log("Fetching ProjectTimeSessions...");
+        const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
+        
+        console.log("Fetching UnassignedTime...");
+        const unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
+
+        console.log("Fetching Base44 Entities...");
+        const [employees, cashFlowSummary] = await Promise.all([
             base44.entities.Employee.list(),
             base44.entities.CashFlowSummary.list()
         ]);
@@ -77,14 +89,9 @@ Deno.serve(async (req) => {
         const roList = Array.from(roSet);
         let workOrders = [];
         
-        if (roList.length > 0) {
-             const recentWOs = await base44.entities.WorkOrder.list('-last_updated', 3000);
-             // Keep all recent WOs for progress bar, but we can also use them for efficiency matching
-             workOrders = recentWOs; 
-        } else {
-             // Still fetch recent WOs for progress bar even if no sessions found
-             workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
-        }
+        console.log("Fetching WorkOrders...");
+        // Fetch recent WOs to cover active ones
+        workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
 
         // 6. Calculate Utilization
         const techUtilizationMap = {};
@@ -195,14 +202,11 @@ Deno.serve(async (req) => {
         const cf = cashFlowSummary[0] || {};
         const payrollTarget = (cf.est_first_payroll || 0) + (cf.est_second_payroll || 0) + (cf.est_payroll_remit || 0);
         
-        const now = new Date();
         const currentMonthStart = new Intl.DateTimeFormat('en-CA', { 
             timeZone: 'America/Edmonton', year: 'numeric', month: '2-digit' 
         }).format(now); 
-        // Note: format returns YYYY-MM
         
         const currentMonthLabourSales = workOrders.reduce((sum, wo) => {
-            // Using invoice_date for sales attribution
             if (wo.invoice_date && wo.invoice_date.startsWith(currentMonthStart)) {
                 return sum + (wo.labor_total || 0);
             }
@@ -219,6 +223,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error) {
+        console.error("Function Error:", error);
         return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
     }
 });
