@@ -56,6 +56,9 @@ Deno.serve(async (req) => {
         
         console.log("Fetching ProjectTimeSessions...");
         const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
+
+        console.log("Fetching Projects...");
+        const projects = await fetchWorkPro('Project', { _limit: 5000, _sort: '-date' });
         
         console.log("Fetching UnassignedTime...");
         let unassignedSessions = [];
@@ -234,9 +237,30 @@ Deno.serve(async (req) => {
         // Structure: { [wo_id]: { totalHours: 0, techHours: {}, wo: WorkOrder } }
         const woAggregats = {}; 
         
+        // Map WorkPro Projects to WO Numbers
+        const projectMap = {};
+        projects.forEach(p => {
+            if (p.id && p.work_order) {
+                projectMap[p.id] = p.work_order.toString();
+            }
+        });
+
         // Helper to find WO from session
         const findWorkOrder = (session) => {
-            // 1. Try by Project ID (Exact Match to WO ID)
+            // 1. Try linking via WorkPro Project entity (Most reliable)
+            if (session.project_id && projectMap[session.project_id]) {
+                const woNum = projectMap[session.project_id];
+                // Try direct match
+                if (woMap[woNum]) return woMap[woNum];
+                // Try RO prefix
+                if (woMap[`RO${woNum}`]) return woMap[`RO${woNum}`];
+                // Try removing RO prefix if present in the mapped value
+                if (woNum.toUpperCase().startsWith("RO") && woMap[woNum.substring(2)]) {
+                    return woMap[woNum.substring(2)];
+                }
+            }
+
+            // 2. Try by Project ID (Exact Match to WO ID - unlikely but possible)
             if (session.project_id && woMap[session.project_id]) {
                 return woMap[session.project_id];
             }
@@ -244,11 +268,10 @@ Deno.serve(async (req) => {
             if (!session.project_name) return null;
             const name = session.project_name.trim();
 
-            // 2. Exact match in map (for "12345", "RO12345")
+            // 3. Exact match in map (for "12345", "RO12345")
             if (woMap[name]) return woMap[name];
 
-            // 3. Try by RO Number extracted from name
-            // Matches: "RO 123...", "RO#123...", "Work Order 123...", "RO-123", or just "123..."
+            // 4. Try by RO Number extracted from name (Fallback)
             // Aggressive extraction: capture first sequence of digits
             const roMatch = name.match(/(\d+)/); 
             if (roMatch) {
@@ -258,7 +281,7 @@ Deno.serve(async (req) => {
                 if (woMap[`RO${extracted}`]) return woMap[`RO${extracted}`];
             }
             
-            // 4. Tokenize scan
+            // 5. Tokenize scan
             const tokens = name.split(/[^a-zA-Z0-9]/);
             for (const token of tokens) {
                 if (token && woMap[token]) return woMap[token];
