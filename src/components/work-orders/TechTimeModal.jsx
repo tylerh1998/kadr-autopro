@@ -145,7 +145,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
   );
 }
 
-export default function TechTimeModal({ open, onClose, project, projects = [], workOrder }) {
+export default function TechTimeModal({ open, onClose, project, projects = [], workOrder, onTimeChange }) {
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
