@@ -16,6 +16,24 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
   const [techTimeLogs, setTechTimeLogs] = useState([]);
   const [loadingLaborCost, setLoadingLaborCost] = useState(false);
   const [showTechTimeModal, setShowTechTimeModal] = useState(false);
+  const [localWorkOrder, setLocalWorkOrder] = useState(workOrder);
+
+  useEffect(() => {
+    setLocalWorkOrder(workOrder);
+  }, [workOrder]);
+
+  const refreshWorkOrder = async () => {
+    if (workOrder?.id) {
+       try {
+           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
+           if (wos && wos.length > 0) {
+               setLocalWorkOrder(wos[0]);
+           }
+       } catch (e) {
+           console.error("Error refreshing WO", e);
+       }
+    }
+  };
 
   useEffect(() => {
     const fetchTechTimeLogs = async () => {
