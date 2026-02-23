@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import { WorkOrder } from '@/entities/WorkOrder';
-import { Employee } from '@/entities/Employee';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
