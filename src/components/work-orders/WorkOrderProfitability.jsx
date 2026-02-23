@@ -22,6 +22,12 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
     setLocalWorkOrder(workOrder);
   }, [workOrder]);
 
+  useEffect(() => {
+    if (open && workOrder?.id) {
+      refreshWorkOrder();
+    }
+  }, [open]);
+
   const refreshWorkOrder = async () => {
     if (workOrder?.id) {
        try {

@@ -181,7 +181,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       }, 300);
     }
     return () => clearTimeout(timeoutId);
-  }, [open, projects.length, project?.id, workOrder?.id]);
+  }, [open, projects.length, project?.id, workOrder?.id, workOrder?.tech_time]);
 
   const loadEmployees = async () => {
     try {
@@ -239,7 +239,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       if (workOrder?.id) {
         // Fetch latest WO to ensure we have latest tech_time (prop might be stale)
         try {
-           const wos = await WorkOrder.filter({ id: workOrder.id });
+           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
            targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
         } catch (e) {
            console.error("Error fetching latest WO:", e);
@@ -249,10 +249,10 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         // Try to find WO from project(s)
         const proj = projects.length > 0 ? projects[0] : project;
         if (proj?.work_order) {
-          let wos = await WorkOrder.filter({ wo_number: proj.work_order });
+          let wos = await base44.entities.WorkOrder.filter({ wo_number: proj.work_order });
           
           if (!wos || wos.length === 0) {
-             wos = await WorkOrder.filter({ ro_number: proj.work_order });
+             wos = await base44.entities.WorkOrder.filter({ ro_number: proj.work_order });
           }
 
           if (wos && wos.length > 0) {
