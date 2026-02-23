@@ -338,12 +338,23 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
     if (!confirm('Are you sure you want to delete this manual time entry?')) return;
     
     try {
-      // Filter out the log to delete
-      const updatedLogs = manualLogs.filter(l => l.id !== logToDelete.id);
-      
+      // Re-fetch right before delete
+      let currentLogs = manualLogs;
+      try {
+          const freshWO = await base44.entities.WorkOrder.get(currentWorkOrder.id);
+          if (freshWO?.tech_time) {
+              currentLogs = JSON.parse(freshWO.tech_time);
+          }
+      } catch (e) {
+          console.warn("Could not fetch fresh WO before delete", e);
+      }
+
+      const updatedLogs = currentLogs.filter(l => l.id !== logToDelete.id);
+      const jsonString = JSON.stringify(updatedLogs);
+
       // Update WorkOrder
       await base44.entities.WorkOrder.update(currentWorkOrder.id, {
-        tech_time: JSON.stringify(updatedLogs)
+        tech_time: jsonString
       });
 
       // Update state
