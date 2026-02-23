@@ -145,7 +145,7 @@ export default function PartsMovementReportModal() {
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 h-full flex flex-col min-h-0">
           {/* Controls */}
           <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end shrink-0">
             <div className="space-y-2 min-w-[150px]">
@@ -193,7 +193,7 @@ export default function PartsMovementReportModal() {
           </div>
 
           {/* Report Table */}
-          <Card className="flex-1 flex flex-col overflow-hidden">
+          <Card className="flex-1 flex flex-col overflow-hidden min-h-0 shadow-sm border-slate-200">
             <CardHeader className="shrink-0">
               <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-blue-600" />
