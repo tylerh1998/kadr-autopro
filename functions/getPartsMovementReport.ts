@@ -47,17 +47,20 @@ export const getPartsMovementReport = async (req) => {
 
                     const id = line.inventory_item_id;
                     const qty = parseFloat(line.qty) || 0;
+                    const totParts = parseFloat(line.tot_parts) || 0;
 
                     if (!partStats[id]) {
                         partStats[id] = {
                             qty: 0,
-                            transactions: 0
+                            transactions: 0,
+                            totalAmount: 0
                         };
                         inventoryIds.add(id);
                     }
 
                     partStats[id].qty += qty;
                     partStats[id].transactions += 1;
+                    partStats[id].totalAmount += totParts;
                 });
             } catch (e) {
                 // ignore parse error
@@ -116,7 +119,8 @@ export const getPartsMovementReport = async (req) => {
                 description: item.description,
                 category: item.category,
                 listPrice: item.selling_price,
-                salesCount: stats.qty // "# of Sales" -> Quantity
+                salesCount: stats.qty, // "# of Sales" -> Quantity
+                totalSalesAmount: stats.totalAmount
             });
         });
 

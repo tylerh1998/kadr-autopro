@@ -156,6 +156,7 @@ export default function PartsMovementReportModal() {
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">List Price</TableHead>
                     <TableHead className="text-right"># of Sales</TableHead>
+                    <TableHead className="text-right">Amt of Sales</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -169,6 +170,9 @@ export default function PartsMovementReportModal() {
                       </TableCell>
                       <TableCell className="text-right font-bold text-blue-600">
                         {item.salesCount.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        ${(item.totalSalesAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   ))}
