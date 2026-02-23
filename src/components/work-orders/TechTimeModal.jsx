@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Clock, User, AlertCircle } from 'lucide-react';
+import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { WorkOrder } from '@/entities/WorkOrder';
 import { Employee } from '@/entities/Employee';
@@ -319,6 +319,27 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
     }
   };
 
+  const handleDeleteManualTime = async (logToDelete) => {
+    if (!confirm('Are you sure you want to delete this manual time entry?')) return;
+    
+    try {
+      // Filter out the log to delete
+      const updatedLogs = manualLogs.filter(l => l.id !== logToDelete.id);
+      
+      // Update WorkOrder
+      await WorkOrder.update(currentWorkOrder.id, {
+        tech_time: JSON.stringify(updatedLogs)
+      });
+
+      // Update state
+      setManualLogs(updatedLogs);
+      
+    } catch (error) {
+      console.error('Error deleting manual time:', error);
+      alert('Failed to delete manual time.');
+    }
+  };
+
   // Merge and sort all logs for display
   const allLogs = [
     ...timeLogs.map(l => ({ ...l, source: 'workpro' })),
@@ -596,6 +617,17 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {log.source === 'manual' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteManualTime(log)}
+                          title="Delete manual entry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       {!log.isRunning && (
                         <Select 
                           value={log.source === 'manual' ? 'manual' : getCategory(log)} 
