@@ -47,7 +47,19 @@ export const getPartsMovementReport = async (req) => {
 
                     const id = line.inventory_item_id;
                     const qty = parseFloat(line.qty) || 0;
-                    const totParts = parseFloat(line.tot_parts) || 0;
+                    
+                    let lineTotal = 0;
+                    if (line.tot_parts !== undefined && line.tot_parts !== null) {
+                         lineTotal = parseFloat(line.tot_parts);
+                    } else {
+                        // Fallback calculation if tot_parts is missing
+                        const partsEa = typeof line.parts_ea === 'string' 
+                            ? parseFloat(line.parts_ea.replace(/[$,]/g, '')) 
+                            : parseFloat(line.parts_ea) || 0;
+                        lineTotal = qty * partsEa;
+                    }
+                    // Ensure it's a number
+                    if (isNaN(lineTotal)) lineTotal = 0;
 
                     if (!partStats[id]) {
                         partStats[id] = {
@@ -60,7 +72,7 @@ export const getPartsMovementReport = async (req) => {
 
                     partStats[id].qty += qty;
                     partStats[id].transactions += 1;
-                    partStats[id].totalAmount += totParts;
+                    partStats[id].totalAmount += lineTotal;
                 });
             } catch (e) {
                 // ignore parse error
