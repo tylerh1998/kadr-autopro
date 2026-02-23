@@ -282,10 +282,10 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); setSelectedReportId(null); setShowPartsOnOrder(false); setShowOtherChargesBreakdown(false); } }}>
-      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary || showTechPerformance ? 'max-w-7xl' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || selectedReportId) && (
+            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || showTechPerformance || selectedReportId) && (
               <Button variant="ghost" size="icon" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
@@ -297,7 +297,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
         <div className="py-4 overflow-y-auto flex-1">
           {showTechPerformance ? (
-          <TechnicianPerformanceReportModal open={showTechPerformance} onClose={() => setShowTechPerformance(false)} />
+          <TechnicianPerformanceReportModal />
           ) : showPartsOnOrder ? (
           <InventoryOnOrder />
           ) : showOtherChargesBreakdown ? (
