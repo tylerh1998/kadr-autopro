@@ -165,39 +165,9 @@ Deno.serve(async (req) => {
             }
         });
         
-        // Also add manual logs to project hours for utilization? 
-        // Utilization usually is (Billed or Worked Hours) / Clocked Hours.
-        // If "projectHours" comes from WorkPro sessions, it's "Worked Hours".
-        // Manual logs are usually also "Worked Hours" (or Billed).
-        // Let's add manual logs from WOs to the tech utilization map if they fall in date range
-        // BUT: Manual logs in WO don't always have a date. They are attached to the WO.
-        // Since we filtered WOs by date range, we can assume the manual logs on these WOs apply to this period.
-        
-        workOrders.forEach(wo => {
-            if (wo.tech_time) {
-                try {
-                    const manualLogs = JSON.parse(wo.tech_time);
-                    if (Array.isArray(manualLogs)) {
-                        manualLogs.forEach(log => {
-                            // Manual log structure: { tech_name, hours, ... }
-                            // Try to match tech name
-                            let targetTech = techUtilizationMap[log.tech_name];
-                            if (!targetTech) {
-                                // Try case insensitive
-                                const match = Object.values(techUtilizationMap).find(t => t.name.toLowerCase() === (log.tech_name || '').toLowerCase());
-                                if (match) targetTech = match;
-                            }
-                            
-                            if (targetTech) {
-                                targetTech.projectHours += (parseFloat(log.hours) || 0);
-                            }
-                        });
-                    }
-                } catch (e) {
-                    // ignore parse error
-                }
-            }
-        });
+        // User requested strict formula: (ProjectTimeSession / TimeRecord) * 100
+        // Manual logs from WorkOrders are EXCLUDED from "Project Hours" for utilization/efficiency denominators.
+        // They are still used for revenue distribution weights (in woAggregats below) but not for the "Total Project Hours" metric.
 
 
         filteredUnassigned.forEach(s => {
