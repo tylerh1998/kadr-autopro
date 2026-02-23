@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Package, Search } from "lucide-react";
+import { Loader2, Package, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
 import { base44 } from "@/api/base44Client";
 
@@ -15,6 +15,7 @@ export default function PartsMovementReportModal() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [reportData, setReportData] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: 'salesCount', direction: 'desc' });
 
   // Debounce search
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -91,6 +92,58 @@ export default function PartsMovementReportModal() {
     }
   };
 
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedData = React.useMemo(() => {
+    let sortableItems = [...reportData];
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+        
+        // Handle null/undefined
+        if (aValue === null || aValue === undefined) aValue = '';
+        if (bValue === null || bValue === undefined) bValue = '';
+
+        // String comparison
+        if (typeof aValue === 'string') {
+            aValue = aValue.toLowerCase();
+            bValue = bValue.toString().toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [reportData, sortConfig]);
+
+  const totals = React.useMemo(() => {
+    return reportData.reduce((acc, item) => {
+      acc.salesCount += (item.salesCount || 0);
+      acc.totalSalesAmount += (item.totalSalesAmount || 0);
+      return acc;
+    }, { salesCount: 0, totalSalesAmount: 0 });
+  }, [reportData]);
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-slate-400" />;
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600" /> 
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />;
+  };
+
   return (
     <div className="space-y-6 h-full flex flex-col">
           {/* Controls */}
@@ -151,16 +204,28 @@ export default function PartsMovementReportModal() {
               <Table>
                 <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
                   <TableRow className="bg-slate-50">
-                    <TableHead>Part #</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">List Price</TableHead>
-                    <TableHead className="text-right"># of Sales</TableHead>
-                    <TableHead className="text-right">Amt of Sales</TableHead>
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('partNumber')}>
+                      <div className="flex items-center">Part # <SortIcon columnKey="partNumber" /></div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('description')}>
+                      <div className="flex items-center">Description <SortIcon columnKey="description" /></div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('category')}>
+                      <div className="flex items-center">Category <SortIcon columnKey="category" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('listPrice')}>
+                      <div className="flex items-center justify-end">List Price <SortIcon columnKey="listPrice" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('salesCount')}>
+                      <div className="flex items-center justify-end"># of Sales <SortIcon columnKey="salesCount" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('totalSalesAmount')}>
+                      <div className="flex items-center justify-end">Amt of Sales <SortIcon columnKey="totalSalesAmount" /></div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reportData.map((item, idx) => (
+                  {sortedData.map((item, idx) => (
                     <TableRow key={idx} className="hover:bg-slate-50/50">
                       <TableCell className="font-medium">{item.partNumber}</TableCell>
                       <TableCell>{item.description}</TableCell>
@@ -178,14 +243,14 @@ export default function PartsMovementReportModal() {
                   ))}
                   {reportData.length === 0 && !isLoading && (
                       <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={6} className="text-center text-slate-500 py-8">
                             No parts found matching criteria
                           </TableCell>
                       </TableRow>
                   )}
                   {isLoading && (
                       <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8">
+                          <TableCell colSpan={6} className="text-center py-8">
                             <div className="flex justify-center items-center gap-2 text-slate-500">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                                 Loading report data...
@@ -196,6 +261,18 @@ export default function PartsMovementReportModal() {
                 </TableBody>
               </Table>
             </CardContent>
+            <CardFooter className="bg-slate-100 border-t p-4 shrink-0">
+                <div className="w-full flex justify-end gap-8 text-sm font-bold">
+                    <div>
+                        <span className="text-slate-500 mr-2">Total Quantity:</span>
+                        <span className="text-blue-700">{totals.salesCount.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 mr-2">Total Sales Amount:</span>
+                        <span className="text-green-700">${totals.totalSalesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                </div>
+            </CardFooter>
           </Card>
     </div>
   );
