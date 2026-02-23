@@ -312,6 +312,10 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       setShowManualAdd(false);
       setManualTech('');
       setManualHours('');
+
+      if (onTimeChange) {
+        onTimeChange();
+      }
       
     } catch (error) {
       console.error('Error saving manual time:', error);
