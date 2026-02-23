@@ -394,7 +394,15 @@ Deno.serve(async (req) => {
             });
         });
 
-        const efficiencyList = Object.values(efficiencyMap).sort((a, b) => b.laborRevenue - a.laborRevenue);
+        const efficiencyList = Object.values(efficiencyMap).map(tech => {
+            const revPerHour = tech.projectHours > 0 ? tech.laborRevenue / tech.projectHours : 0;
+            const billingEfficiency = tech.projectHours > 0 ? (tech.billedHours / tech.projectHours) * 100 : 0;
+            return {
+                ...tech,
+                revPerHour,
+                billingEfficiency
+            };
+        }).sort((a, b) => b.revPerHour - a.revPerHour);
 
         // 8. Progress Bar Logic
         const cf = cashFlowSummary[0] || {};

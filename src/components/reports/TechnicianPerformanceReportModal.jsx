@@ -212,24 +212,25 @@ export default function TechnicianPerformanceReportModal() {
                     <TableHead className="text-right">Project Hours</TableHead>
                     <TableHead className="text-right">Hours Billed</TableHead>
                     <TableHead className="text-right">Labour Revenue</TableHead>
-                    <TableHead className="text-right">Cost (Est.)</TableHead>
-                    <TableHead className="text-right">Efficiency (Rev/Cost)</TableHead>
+                    <TableHead className="text-right">Rev / Proj. Hr</TableHead>
+                    <TableHead className="text-right">Billing Efficiency</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reportData.efficiency.map((tech, idx) => {
-                      const efficiencyRatio = tech.cost > 0 ? (tech.laborRevenue / tech.cost) : 0;
                       return (
                         <TableRow key={idx}>
                           <TableCell className="font-medium">{tech.name}</TableCell>
                           <TableCell className="text-right">{tech.projectHours.toFixed(2)}</TableCell>
                           <TableCell className="text-right">{tech.billedHours.toFixed(2)}</TableCell>
                           <TableCell className="text-right text-green-600">${tech.laborRevenue.toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-red-600">${tech.cost.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-bold">
+                            ${(tech.revPerHour || 0).toFixed(2)}
+                          </TableCell>
                           <TableCell className={`text-right font-bold ${
-                            efficiencyRatio >= 3 ? 'text-green-600' : efficiencyRatio >= 2 ? 'text-yellow-600' : 'text-red-600'
+                            (tech.billingEfficiency || 0) >= 100 ? 'text-green-600' : (tech.billingEfficiency || 0) >= 80 ? 'text-yellow-600' : 'text-red-600'
                           }`}>
-                            {efficiencyRatio.toFixed(2)}x
+                            {(tech.billingEfficiency || 0).toFixed(1)}%
                           </TableCell>
                         </TableRow>
                       );
