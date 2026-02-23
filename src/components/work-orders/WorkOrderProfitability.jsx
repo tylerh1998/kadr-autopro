@@ -197,7 +197,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         billedHours: billedHours
       }
     };
-  }, [safeLineItems, techTimeLogs, employees]);
+  }, [safeLineItems, techTimeLogs, employees, localWorkOrder?.tech_time]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
