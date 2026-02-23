@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
 
 Deno.serve(async (req) => {
     // 1. Setup & Auth
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
                     
                     if (!res.ok) {
                         const txt = await res.text();
-                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${txt}`);
+                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${txt} for URL: ${url.toString()}`);
                         if (res.status >= 400 && res.status < 500 && res.status !== 429) return [];
                         throw new Error(`Status ${res.status}`);
                     }
@@ -95,29 +95,44 @@ Deno.serve(async (req) => {
         let workOrders = [];
         
         console.log("Fetching WorkOrders...");
-        // Fetch recent WOs to cover active ones - Increased limit for safety
-        workOrders = await base44.entities.WorkOrder.list('-last_updated', 5000);
+        // Fetch WOs within the date range, using wo_date
+        workOrders = await base44.entities.WorkOrder.filter(
+            {
+                wo_date: {
+                    $gte: dateFrom,
+                    $lte: dateTo
+                }
+            },
+            '-wo_date', // Sort by wo_date descending
+            3000 // Keep a reasonable limit for performance
+        );
+
+        console.log(`Fetched ${workOrders.length} Work Orders for report period.`);
 
         // Map WorkOrders by various keys for robust matching
         const woMap = {}; 
         workOrders.forEach(wo => {
-            if (wo.id) woMap[wo.id] = wo; // Exact ID match
-            if (wo.ro_number) {
-                const ro = wo.ro_number.toString();
-                woMap[ro] = wo; // "12345"
-                woMap[`RO${ro}`] = wo; // "RO12345"
-                
-                // Int mapping for safer comparison
-                const roInt = parseInt(ro, 10);
-                if (!isNaN(roInt)) woMap[roInt] = wo;
+            if (wo.id) woMap[wo.id] = wo; // Exact ID match with Base44 ID
 
-                // If RO is stored as "RO12345", map "12345" too
-                if (ro.toUpperCase().startsWith("RO")) {
-                    const sub = ro.substring(2);
-                    woMap[sub] = wo;
-                    if (!isNaN(parseInt(sub, 10))) woMap[parseInt(sub, 10)] = wo;
+            // Map all possible Work Order numbers to the WO
+            const addWoToMap = (num) => {
+                if (num) {
+                    const cleanedNum = num.toString().trim();
+                    if (cleanedNum) {
+                        woMap[cleanedNum] = wo; // "12345"
+                        // Add variations with "RO" prefix if not already present
+                        if (!cleanedNum.toUpperCase().startsWith("RO")) {
+                            woMap[`RO${cleanedNum}`] = wo; // "RO12345"
+                        }
+                    }
                 }
-            }
+            };
+
+            addWoToMap(wo.ro_number);
+            addWoToMap(wo.wo_number);
+            addWoToMap(wo.est_number);
+            addWoToMap(wo.inv_number);
+            addWoToMap(wo.crinv_number);
         });
 
         // 6. Calculate Utilization
@@ -146,6 +161,41 @@ Deno.serve(async (req) => {
                 techUtilizationMap[s.user_name].projectHours += (s.total_hours || 0);
             }
         });
+        
+        // Also add manual logs to project hours for utilization? 
+        // Utilization usually is (Billed or Worked Hours) / Clocked Hours.
+        // If "projectHours" comes from WorkPro sessions, it's "Worked Hours".
+        // Manual logs are usually also "Worked Hours" (or Billed).
+        // Let's add manual logs from WOs to the tech utilization map if they fall in date range
+        // BUT: Manual logs in WO don't always have a date. They are attached to the WO.
+        // Since we filtered WOs by date range, we can assume the manual logs on these WOs apply to this period.
+        
+        workOrders.forEach(wo => {
+            if (wo.tech_time) {
+                try {
+                    const manualLogs = JSON.parse(wo.tech_time);
+                    if (Array.isArray(manualLogs)) {
+                        manualLogs.forEach(log => {
+                            // Manual log structure: { tech_name, hours, ... }
+                            // Try to match tech name
+                            let targetTech = techUtilizationMap[log.tech_name];
+                            if (!targetTech) {
+                                // Try case insensitive
+                                const match = Object.values(techUtilizationMap).find(t => t.name.toLowerCase() === (log.tech_name || '').toLowerCase());
+                                if (match) targetTech = match;
+                            }
+                            
+                            if (targetTech) {
+                                targetTech.projectHours += (parseFloat(log.hours) || 0);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // ignore parse error
+                }
+            }
+        });
+
 
         filteredUnassigned.forEach(s => {
             if (techUtilizationMap[s.user_name]) {
@@ -181,7 +231,7 @@ Deno.serve(async (req) => {
             };
         });
 
-        // Structure: { [wo_id]: { totalHours: 0, techHours: { [techName]: hours }, wo: WorkOrder } }
+        // Structure: { [wo_id]: { totalHours: 0, techHours: {}, wo: WorkOrder } }
         const woAggregats = {}; 
         
         // Helper to find WO from session
@@ -198,28 +248,19 @@ Deno.serve(async (req) => {
             if (woMap[name]) return woMap[name];
 
             // 3. Try by RO Number extracted from name
-            // Matches: "RO 123...", "RO#123...", "Work Order 123...", "RO-123"
-            const roMatch = name.match(/(?:RO|Work\s*Order|WO)[\s#.:-]*(\d+)/i);
+            // Matches: "RO 123...", "RO#123...", "Work Order 123...", "RO-123", or just "123..."
+            // Aggressive extraction: capture first sequence of digits
+            const roMatch = name.match(/(\d+)/); 
             if (roMatch) {
                 const extracted = roMatch[1];
                 if (woMap[extracted]) return woMap[extracted];
+                // Try RO prefix
+                if (woMap[`RO${extracted}`]) return woMap[`RO${extracted}`];
             }
             
-            // 4. Starts with digits (e.g. "12345 - Brake Job")
-            const startMatch = name.match(/^(\d+)\b/);
-            if (startMatch) {
-                 const extracted = startMatch[1];
-                 if (woMap[extracted]) return woMap[extracted];
-            }
-
-            // 5. Scan for any token that matches a known RO Number (Last Resort)
-            // e.g. "Oil Change 12345"
-            // We tokenize by non-alphanumeric chars
+            // 4. Tokenize scan
             const tokens = name.split(/[^a-zA-Z0-9]/);
             for (const token of tokens) {
-                // Only try if token is numeric and reasonably length (to avoid matching "1" or "2" too aggressively if not intended)
-                // Actually, if we have RO #1, we want to match it.
-                // But checking woMap matches is safe-ish because we only have WOs that exist.
                 if (token && woMap[token]) return woMap[token];
             }
 
@@ -229,10 +270,11 @@ Deno.serve(async (req) => {
         let matchedSessionsCount = 0;
         const unmatchedExamples = [];
         
+        // Process WorkPro Sessions
         filteredSessions.forEach(s => {
             const wo = findWorkOrder(s);
             if (!wo) {
-                if (unmatchedExamples.length < 5 && s.project_name) unmatchedExamples.push(s.project_name);
+                if (unmatchedExamples.length < 5 && s.project_name) unmatchedExamples.push(`${s.project_name} (ID: ${s.project_id})`);
                 return; 
             }
             matchedSessionsCount++;
@@ -250,6 +292,36 @@ Deno.serve(async (req) => {
             stats.techHours[s.user_name] += (s.total_hours || 0);
         });
         
+        // Process Manual Logs (from WorkOrders)
+        workOrders.forEach(wo => {
+             if (wo.tech_time) {
+                try {
+                    const manualLogs = JSON.parse(wo.tech_time);
+                    if (Array.isArray(manualLogs)) {
+                        if (!woAggregats[wo.id]) {
+                            woAggregats[wo.id] = { totalHours: 0, techHours: {}, wo: wo };
+                        }
+                        const stats = woAggregats[wo.id];
+                        
+                        manualLogs.forEach(log => {
+                            const hours = parseFloat(log.hours) || 0;
+                            const techName = log.tech_name || 'Unknown';
+                            
+                            stats.totalHours += hours;
+                            
+                            if (!stats.techHours[techName]) {
+                                stats.techHours[techName] = 0;
+                            }
+                            stats.techHours[techName] += hours;
+                        });
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+        });
+
+
         console.log(`Matched ${matchedSessionsCount} out of ${filteredSessions.length} sessions to Work Orders.`);
         if (unmatchedExamples.length > 0) console.log("Unmatched Examples:", unmatchedExamples);
 
@@ -263,21 +335,23 @@ Deno.serve(async (req) => {
                 const lines = JSON.parse(wo.line_items || '[]');
                 lines.forEach(line => {
                     // Sum up billed hours (hrs field)
-                    if (line.hrs > 0) woTotalBilledHours += parseFloat(line.hrs);
+                    if (line.hrs > 0) {
+                        woTotalBilledHours += parseFloat(line.hrs);
+                    }
                 });
             } catch (e) {}
 
             // Ensure labor_total is a number
             let woLaborRevenue = 0;
             if (wo.labor_total) {
-                if (typeof wo.labor_total === 'number') woLaborRevenue = wo.labor_total;
-                else if (typeof wo.labor_total === 'string') woLaborRevenue = parseFloat(wo.labor_total.replace(/[$,]/g, '')) || 0;
+                if (typeof wo.labor_total === 'number') {
+                    woLaborRevenue = wo.labor_total;
+                } else if (typeof wo.labor_total === 'string') {
+                    woLaborRevenue = parseFloat(wo.labor_total.replace(/[$,]/g, '')) || 0;
+                }
             }
 
             // Tech Name Normalization Helper
-            // WorkPro might say "John Doe" while Employee entity says "John Doe " or "John"
-            // For now, we rely on exact match or try case-insensitive
-            
             Object.keys(stats.techHours).forEach(techName => {
                 let targetTech = efficiencyMap[techName];
                 
@@ -310,9 +384,17 @@ Deno.serve(async (req) => {
         // Note: format returns YYYY-MM
         
         const currentMonthLabourSales = workOrders.reduce((sum, wo) => {
-            // Using invoice_date for sales attribution
-            if (wo.invoice_date && wo.invoice_date.startsWith(currentMonthStart)) {
-                return sum + (wo.labor_total || 0);
+            // Calculate sales for current month based on wo_date (as requested "date should be based on wo_date")
+            // Or should it be invoice_date? Usually sales = invoice date. 
+            // But if the user said "date should be based on wo_date", let's use wo_date for consistency in this view.
+            if (wo.wo_date && wo.wo_date.startsWith(currentMonthStart)) {
+                let val = 0;
+                 if (typeof wo.labor_total === 'number') {
+                    val = wo.labor_total;
+                } else if (typeof wo.labor_total === 'string') {
+                    val = parseFloat(wo.labor_total.replace(/[$,]/g, '')) || 0;
+                }
+                return sum + val;
             }
             return sum;
         }, 0);
