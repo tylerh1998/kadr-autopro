@@ -1,14 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
 
-export default async function(req) {
+Deno.serve(async (req) => {
     // 1. Setup & Auth
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    
     try {
+        const user = await base44.auth.me();
+        if (!user) {
+            return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const { dateFrom, dateTo } = await req.json();
         
         // 2. WorkPro Fetch Helper
@@ -32,8 +33,6 @@ export default async function(req) {
         };
 
         // 3. Fetch Data in Parallel
-        // We fetch a generous limit of recent records and filter in memory since we can't easily rely on deep filtering via API 
-        // without exact field knowledge, matching the frontend's previous strategy.
         const [
             timeRecords,
             projectSessions,
@@ -49,12 +48,9 @@ export default async function(req) {
         ]);
 
         // 4. Filter WorkPro Data by Date (Mountain Time aware)
-        // Helper to check if a UTC iso string falls within the YYYY-MM-DD range (Mountain Time)
         const isInRange = (isoString) => {
             if (!isoString) return false;
-            // Create date object from UTC string
             const date = new Date(isoString);
-            // Format to Mountain Time YYYY-MM-DD
             const mtDate = new Intl.DateTimeFormat('en-CA', { 
                 timeZone: 'America/Edmonton',
                 year: 'numeric',
@@ -69,34 +65,25 @@ export default async function(req) {
         const filteredUnassigned = unassignedSessions.filter(s => isInRange(s.start_time));
 
         // 5. Identify Relevant Work Orders
-        // Extract RO numbers from sessions to fetch only relevant WOs
         const roSet = new Set();
         filteredSessions.forEach(s => {
             if (s.project_name) {
                 const match = s.project_name.match(/^(RO\d+)/i);
                 if (match) roSet.add(match[1].toUpperCase());
-                else roSet.add(s.project_name); // Fallback
+                else roSet.add(s.project_name);
             }
         });
         
         const roList = Array.from(roSet);
         let workOrders = [];
         
-        // Fetch WOs from Base44
         if (roList.length > 0) {
-             // Fetch in chunks if too many, or just fetch all recent if list is huge
-             // For now, assuming < 2000 active WOs in a period
-             // Using simple filter if possible, otherwise list recent
-             // Since $in might be limited, let's fetch recent 2000 WOs sorted by updated date and filter in memory
-             // This covers active WOs.
              const recentWOs = await base44.entities.WorkOrder.list('-last_updated', 3000);
-             workOrders = recentWOs.filter(wo => roSet.has(wo.ro_number));
-             
-             // Also need WOs for the "Progress" bar (Current Month Labour Sales)
-             // These might not have sessions, so we keep the full recent list or fetch separately?
-             // We'll filter `recentWOs` for the progress bar calculation too.
-             // Let's just use `recentWOs` as our source of truth.
+             // Keep all recent WOs for progress bar, but we can also use them for efficiency matching
              workOrders = recentWOs; 
+        } else {
+             // Still fetch recent WOs for progress bar even if no sessions found
+             workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
         }
 
         // 6. Calculate Utilization
@@ -121,7 +108,6 @@ export default async function(req) {
         });
 
         filteredSessions.forEach(s => {
-            // Fuzzy match tech name if needed, assuming direct match for now
             if (techUtilizationMap[s.user_name]) {
                 techUtilizationMap[s.user_name].projectHours += (s.total_hours || 0);
             }
@@ -133,10 +119,8 @@ export default async function(req) {
             }
         });
 
-        // Finalize Utilization Stats
         Object.values(techUtilizationMap).forEach(tech => {
             if (filteredUnassigned.length === 0) {
-                // Fallback if Unassigned entity empty
                 tech.unassignedHours = Math.max(0, tech.clockedHours - tech.projectHours);
             }
             tech.utilizationRate = tech.clockedHours > 0 
@@ -147,7 +131,7 @@ export default async function(req) {
         const utilizationList = Object.values(techUtilizationMap).sort((a, b) => b.utilizationRate - a.utilizationRate);
 
         // 7. Calculate Efficiency (Revenue Attribution)
-        const efficiencyMap = {}; // techName -> { billedHours, laborRevenue, cost }
+        const efficiencyMap = {}; 
         techs.forEach(tech => {
             efficiencyMap[tech.full_name] = {
                 name: tech.full_name,
@@ -158,8 +142,7 @@ export default async function(req) {
             };
         });
 
-        // Group sessions by RO to find Total Project Hours per Work Order IN THIS PERIOD
-        const woPeriodStats = {}; // roNumber -> { totalHours, techHours: { name: hours } }
+        const woPeriodStats = {}; 
         
         filteredSessions.forEach(s => {
             if (!s.project_name) return;
@@ -178,7 +161,6 @@ export default async function(req) {
             woPeriodStats[roNumber].techHours[s.user_name] += (s.total_hours || 0);
         });
 
-        // Match with Base44 Work Orders and Attribute
         Object.keys(woPeriodStats).forEach(roNumber => {
             const wo = workOrders.find(w => w.ro_number === roNumber);
             if (!wo) return;
@@ -186,7 +168,6 @@ export default async function(req) {
             const stats = woPeriodStats[roNumber];
             if (stats.totalHours === 0) return;
 
-            // Calculate WO Total Billed Hours (from line items)
             let woTotalBilledHours = 0;
             try {
                 const lines = JSON.parse(wo.line_items || '[]');
@@ -197,16 +178,12 @@ export default async function(req) {
 
             const woLaborRevenue = wo.labor_total || 0;
 
-            // Attribute to each tech
             Object.keys(stats.techHours).forEach(techName => {
                 if (efficiencyMap[techName]) {
                     const techHoursOnWo = stats.techHours[techName];
-                    const proportionalShare = techHoursOnWo / stats.totalHours; // Share of effort IN THIS PERIOD
+                    const proportionalShare = techHoursOnWo / stats.totalHours; 
 
-                    // Revenue Attribution
                     efficiencyMap[techName].laborRevenue += (woLaborRevenue * proportionalShare);
-                    
-                    // Billed Hours Attribution
                     efficiencyMap[techName].billedHours += (woTotalBilledHours * proportionalShare);
                 }
             });
@@ -215,22 +192,18 @@ export default async function(req) {
         const efficiencyList = Object.values(efficiencyMap).sort((a, b) => b.laborRevenue - a.laborRevenue);
 
         // 8. Progress Bar Logic
-        // Target = Payroll Est
         const cf = cashFlowSummary[0] || {};
         const payrollTarget = (cf.est_first_payroll || 0) + (cf.est_second_payroll || 0) + (cf.est_payroll_remit || 0);
         
-        // Current Month Labour Sales (Invoiced in current calendar month)
         const now = new Date();
         const currentMonthStart = new Intl.DateTimeFormat('en-CA', { 
             timeZone: 'America/Edmonton', year: 'numeric', month: '2-digit' 
-        }).format(now) + '-01';
+        }).format(now); 
+        // Note: format returns YYYY-MM
         
-        // Find end of month roughly or just check >= start
-        // Actually simplest is just substring match YYYY-MM
-        const currentYYYYMM = currentMonthStart.substring(0, 7);
-
         const currentMonthLabourSales = workOrders.reduce((sum, wo) => {
-            if (wo.invoice_date && wo.invoice_date.startsWith(currentYYYYMM)) {
+            // Using invoice_date for sales attribution
+            if (wo.invoice_date && wo.invoice_date.startsWith(currentMonthStart)) {
                 return sum + (wo.labor_total || 0);
             }
             return sum;
@@ -248,4 +221,4 @@ export default async function(req) {
     } catch (error) {
         return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
     }
-}
+});
