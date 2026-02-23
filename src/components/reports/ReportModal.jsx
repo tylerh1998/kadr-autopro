@@ -16,6 +16,7 @@ import SalesAnalysisReport from './SalesAnalysisReport';
 import WorkOrderSummaryReport from './WorkOrderSummaryReport';
 import TechnicianPerformanceReportModal from './TechnicianPerformanceReportModal';
 import CustomerReportModal from './CustomerReportModal';
+import PartsMovementReportModal from './PartsMovementReportModal';
 
 // Map icon names to Lucide React components
 const iconMap = {
@@ -52,6 +53,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
   const [showWorkOrderSummary, setShowWorkOrderSummary] = useState(false);
   const [showTechPerformance, setShowTechPerformance] = useState(false);
   const [showCustomerReport, setShowCustomerReport] = useState(false);
+  const [showPartsMovement, setShowPartsMovement] = useState(false);
 
   const getReportOptions = () => {
     switch (reportType) {
@@ -141,7 +143,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
             name: 'Parts Movement',
             description: 'Detailed history of inventory transactions',
             icon: 'TrendingUp',
-            reportKey: 'parts_movement'
+            reportKey: 'parts_movement_report'
           },
           {
             name: 'Inventory On Order',
@@ -230,6 +232,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       setShowWorkOrderSummary(false);
       setShowTechPerformance(false);
       setShowCustomerReport(false);
+      setShowPartsMovement(false);
     }
   }, [open, reportType]);
 
@@ -242,6 +245,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
     setShowWorkOrderSummary(false);
     setShowTechPerformance(false);
     setShowCustomerReport(false);
+    setShowPartsMovement(false);
   };
 
   const handleReportClick = (report) => {
@@ -251,6 +255,8 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       onClose();
     } else if (report.reportKey === 'inventory_on_order') {
       setShowPartsOnOrder(true);
+    } else if (report.reportKey === 'parts_movement_report') {
+      setShowPartsMovement(true);
     } else if (report.reportKey === 'other_charges_breakdown') {
       setShowOtherChargesBreakdown(true);
     } else if (report.reportKey === 'reportable_levies') {
@@ -288,21 +294,23 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); setSelectedReportId(null); setShowPartsOnOrder(false); setShowOtherChargesBreakdown(false); } }}>
-      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary || showTechPerformance || showCustomerReport ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary || showTechPerformance || showCustomerReport || showPartsMovement ? 'max-w-7xl' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || showTechPerformance || showCustomerReport || selectedReportId) && (
+            {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || showTechPerformance || showCustomerReport || showPartsMovement || selectedReportId) && (
               <Button variant="ghost" size="icon" onClick={handleBack}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
             <FileText className="w-5 h-5" />
-            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : showWorkOrderSummary ? 'Work Order Summary' : showTechPerformance ? 'Technician Performance Report' : showCustomerReport ? 'Customer Report' : getCategoryTitle(reportType)}
+            {showPartsOnOrder ? 'Inventory On Order' : showPartsMovement ? 'Parts Movement Report' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : showWorkOrderSummary ? 'Work Order Summary' : showTechPerformance ? 'Technician Performance Report' : showCustomerReport ? 'Customer Report' : getCategoryTitle(reportType)}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-4 overflow-y-auto flex-1">
-          {showCustomerReport ? (
+          {showPartsMovement ? (
+            <PartsMovementReportModal />
+          ) : showCustomerReport ? (
             <CustomerReportModal />
           ) : showTechPerformance ? (
           <TechnicianPerformanceReportModal />
@@ -323,7 +331,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                   key={report.reportKey || report.name}
                   onClick={() => handleReportClick(report)}
                   className={`flex justify-between items-center p-4 border rounded-lg transition-colors ${
-                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report'
+                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report' || report.reportKey === 'parts_movement_report'
                       ? 'cursor-pointer hover:bg-slate-50'
                       : 'cursor-not-allowed bg-slate-50 text-slate-400'
                   }`}
@@ -335,7 +343,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                       {report.description && <p className="text-sm text-slate-500">{report.description}</p>}
                     </div>
                   </div>
-                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report') && <ChevronRight className="w-5 h-5" />}
+                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report' || report.reportKey === 'parts_movement_report') && <ChevronRight className="w-5 h-5" />}
                 </div>
               ))}
             </div>
