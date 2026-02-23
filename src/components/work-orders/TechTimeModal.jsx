@@ -302,9 +302,16 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // Re-fetch right before saving to be safe
       let latestLogs = manualLogs;
       try {
-          const freshWO = await base44.entities.WorkOrder.get(currentWorkOrder.id);
-          if (freshWO?.tech_time) {
-              latestLogs = JSON.parse(freshWO.tech_time);
+          // Use filter instead of get to ensure compatibility
+          const wos = await base44.entities.WorkOrder.filter({ id: currentWorkOrder.id });
+          if (wos && wos.length > 0) {
+             const freshWO = wos[0];
+             if (freshWO.tech_time) {
+                 latestLogs = JSON.parse(freshWO.tech_time);
+             } else {
+                 // If tech_time is empty/null, start fresh
+                 latestLogs = [];
+             }
           }
       } catch (e) {
           console.warn("Could not fetch fresh WO before save", e);
