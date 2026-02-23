@@ -473,7 +473,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
           open={showTechTimeModal} 
           onClose={() => setShowTechTimeModal(false)} 
           projects={workPROProjects && workPROProjects.length > 0 ? workPROProjects : (workPROProject ? [workPROProject] : [])}
-          workOrder={workOrder}
+          workOrder={localWorkOrder}
+          onTimeChange={refreshWorkOrder}
         />
       </DialogContent>
     </Dialog>
