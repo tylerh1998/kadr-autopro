@@ -12,60 +12,47 @@ Deno.serve(async (req) => {
 
         const { dateFrom, dateTo } = await req.json();
         
-        // 2. WorkPro Fetch Helper with Retry and Delay
-        const workProApiKey = Deno.env.get("WORKPRO_API_KEY");
-        const workProAppId = Deno.env.get("WORKPRO_APP_ID");
-
-        const fetchWorkPro = async (entity, params = {}, retries = 3) => {
-            const url = new URL(`https://api.workpro.io/v1/${entity}`);
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        // Helper to invoke workProProxy
+        const invokeWorkPro = async (entity, params = {}) => {
+            const { data, error } = await base44.functions.invoke('workProProxy', {
+                entityName: entity,
+                method: 'filter',
+                params: params
+            });
             
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(url.toString(), {
-                        headers: {
-                            'Authorization': `Bearer ${workProApiKey}`,
-                            'X-App-Id': workProAppId,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (!res.ok) {
-                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${res.statusText}`);
-                        // If 4xx, don't retry unless 429
-                        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-                            return [];
-                        }
-                        throw new Error(`Status ${res.status}`);
-                    }
-                    const json = await res.json();
-                    return Array.isArray(json) ? json : (json.data || json.records || []);
-                } catch (err) {
-                    console.error(`WorkPro ${entity} fetch attempt ${i+1} failed: ${err.message}`);
-                    if (i === retries - 1) throw err;
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1))); // Exponential backoff
-                }
+            if (error) {
+                console.error(`WorkPro invoke error for ${entity}:`, error);
+                return [];
             }
+            
+            // workProProxy returns { success: true, data: [...] }
+            if (data && data.success) {
+                 const records = data.data;
+                 return Array.isArray(records) ? records : (records?.records || []);
+            }
+            
+            // Fallback if structure is different
+            if (Array.isArray(data)) return data;
+            
+            console.warn(`WorkPro invoke returned unexpected format for ${entity}`, data);
+            return [];
         };
 
-        // 3. Fetch Data (Strictly Sequential)
+        // 3. Fetch Data (Sequential groupings)
         console.log("Fetching TimeRecords...");
-        const timeRecords = await fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
+        const timeRecords = await invokeWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
         
         console.log("Fetching ProjectTimeSessions...");
-        const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
+        const projectSessions = await invokeWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
         
         console.log("Fetching UnassignedTime...");
-        // UnassignedTime might fail if entity doesn't exist, so we wrap it to be safe
-        let unassignedSessions = [];
-        try {
-            unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
-        } catch (e) {
-            console.warn("UnassignedTime fetch failed, ignoring:", e.message);
-        }
+        const unassignedSessions = await invokeWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
 
         console.log("Fetching Base44 Entities...");
-        const employees = await base44.entities.Employee.list();
-        const cashFlowSummary = await base44.entities.CashFlowSummary.list();
+        const [employees, cashFlowSummary] = await Promise.all([
+            base44.entities.Employee.list(),
+            base44.entities.CashFlowSummary.list()
+        ]);
 
         // 4. Filter WorkPro Data by Date (Mountain Time aware)
         const isInRange = (isoString) => {
