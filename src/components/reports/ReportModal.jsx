@@ -14,6 +14,7 @@ import OtherChargesBreakdownReport from './OtherChargesBreakdownReport';
 import ReportableLeviesReport from './ReportableLeviesReport';
 import SalesAnalysisReport from './SalesAnalysisReport';
 import WorkOrderSummaryReport from './WorkOrderSummaryReport';
+import TechnicianPerformanceReportModal from './TechnicianPerformanceReportModal';
 
 // Map icon names to Lucide React components
 const iconMap = {
@@ -48,6 +49,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
   const [showReportableLevies, setShowReportableLevies] = useState(false);
   const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
   const [showWorkOrderSummary, setShowWorkOrderSummary] = useState(false);
+  const [showTechPerformance, setShowTechPerformance] = useState(false);
 
   const getReportOptions = () => {
     switch (reportType) {
@@ -224,6 +226,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       setShowReportableLevies(false);
       setShowSalesAnalysis(false);
       setShowWorkOrderSummary(false);
+      setShowTechPerformance(false);
     }
   }, [open, reportType]);
 
@@ -234,6 +237,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
     setShowReportableLevies(false);
     setShowSalesAnalysis(false);
     setShowWorkOrderSummary(false);
+    setShowTechPerformance(false);
   };
 
   const handleReportClick = (report) => {
@@ -255,6 +259,8 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
       }
     } else if (report.reportKey === 'wo_summary') {
       setShowWorkOrderSummary(true);
+    } else if (report.reportKey === 'tech_performance') {
+      setShowTechPerformance(true);
     } else if (report.reportKey === 'inventory_valuation') {
       window.open(createPageUrl('InventoryValuation'), '_blank', 'width=1400,height=900');
       onClose();
@@ -290,8 +296,10 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
         </DialogHeader>
 
         <div className="py-4 overflow-y-auto flex-1">
-          {showPartsOnOrder ? (
-            <InventoryOnOrder />
+          {showTechPerformance ? (
+          <TechnicianPerformanceReportModal open={showTechPerformance} onClose={() => setShowTechPerformance(false)} />
+          ) : showPartsOnOrder ? (
+          <InventoryOnOrder />
           ) : showOtherChargesBreakdown ? (
             <OtherChargesBreakdownReport />
           ) : showReportableLevies ? (
@@ -307,7 +315,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                   key={report.reportKey || report.name}
                   onClick={() => handleReportClick(report)}
                   className={`flex justify-between items-center p-4 border rounded-lg transition-colors ${
-                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary'
+                    report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance'
                       ? 'cursor-pointer hover:bg-slate-50'
                       : 'cursor-not-allowed bg-slate-50 text-slate-400'
                   }`}
@@ -319,7 +327,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                       {report.description && <p className="text-sm text-slate-500">{report.description}</p>}
                     </div>
                   </div>
-                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary') && <ChevronRight className="w-5 h-5" />}
+                  {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance') && <ChevronRight className="w-5 h-5" />}
                 </div>
               ))}
             </div>
