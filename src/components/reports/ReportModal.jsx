@@ -291,7 +291,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
               </Button>
             )}
             <FileText className="w-5 h-5" />
-            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : showWorkOrderSummary ? 'Work Order Summary' : getCategoryTitle(reportType)}
+            {showPartsOnOrder ? 'Inventory On Order' : showOtherChargesBreakdown ? 'Other Charges Breakdown' : showReportableLevies ? 'Reportable Levies Report' : showSalesAnalysis ? 'Sales Analysis' : showWorkOrderSummary ? 'Work Order Summary' : showTechPerformance ? 'Technician Performance Report' : getCategoryTitle(reportType)}
           </DialogTitle>
         </DialogHeader>
 
