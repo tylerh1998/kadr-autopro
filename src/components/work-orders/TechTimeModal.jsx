@@ -167,7 +167,10 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
   }, []);
 
   // Manual Add Form State
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(() => {
+    // Default to current date in Mountain Time
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+  });
   const [manualTech, setManualTech] = useState('');
   const [manualHours, setManualHours] = useState('');
 
@@ -286,7 +289,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
   };
 
   const handleSaveManualTime = async () => {
-    if (!currentWorkOrder || !manualTech || !manualHours) return;
+    const targetId = currentWorkOrder?.id || workOrder?.id;
+    if (!targetId || !manualTech || !manualHours) {
+        console.error("Cannot save manual time: missing WO ID or input fields", { targetId, manualTech, manualHours });
+        return;
+    }
 
     try {
       const newLog = {
@@ -298,88 +305,102 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         created_at: new Date().toISOString()
       };
 
-      // Ensure we are working with the absolute latest logs from the currentWorkOrder
-      // Re-fetch right before saving to be safe
-      let latestLogs = manualLogs;
+      // 1. Fetch fresh data
+      let currentLogs = [];
       try {
-          // Use filter instead of get to ensure compatibility
-          const wos = await base44.entities.WorkOrder.filter({ id: currentWorkOrder.id });
+          const wos = await base44.entities.WorkOrder.filter({ id: targetId });
           if (wos && wos.length > 0) {
              const freshWO = wos[0];
              if (freshWO.tech_time) {
-                 latestLogs = JSON.parse(freshWO.tech_time);
-             } else {
-                 // If tech_time is empty/null, start fresh
-                 latestLogs = [];
+                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
              }
+          } else {
+             throw new Error(`WorkOrder ${targetId} not found`);
           }
       } catch (e) {
-          console.warn("Could not fetch fresh WO before save", e);
+          console.error("Error fetching fresh WO for save:", e);
+          // Only fallback to local state if fetch failed (e.g. network)
+          // But safer to fail if we can't confirm state? 
+          // Let's assume empty if we can't fetch, or use existing manualLogs if array
+          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
 
-      const updatedLogs = [...latestLogs, newLog];
+      // Ensure array
+      if (!Array.isArray(currentLogs)) currentLogs = [];
+
+      const updatedLogs = [...currentLogs, newLog];
       const jsonString = JSON.stringify(updatedLogs);
       
-      // Update WorkOrder
-      await base44.entities.WorkOrder.update(currentWorkOrder.id, {
+      // 2. Update DB
+      await base44.entities.WorkOrder.update(targetId, {
         tech_time: jsonString
       });
 
-      // Update state
+      // 3. Update local state
       setManualLogs(updatedLogs);
       setShowManualAdd(false);
       setManualTech('');
       setManualHours('');
 
+      // 4. Notify parent
       if (onTimeChange) {
-        onTimeChange();
+        await onTimeChange();
       }
       
     } catch (error) {
       console.error('Error saving manual time:', error);
-      alert('Failed to save manual time.');
+      alert(`Failed to save manual time: ${error.message}`);
     }
   };
 
   const handleDeleteManualTime = async (logToDelete) => {
     if (!confirm('Are you sure you want to delete this manual time entry?')) return;
     
+    const targetId = currentWorkOrder?.id || workOrder?.id;
+    if (!targetId) {
+        console.error("Cannot delete: missing WO ID");
+        return;
+    }
+
     try {
-      // Re-fetch right before delete
-      let currentLogs = manualLogs;
+      // 1. Fetch fresh data
+      let currentLogs = [];
       try {
-          // Use filter instead of get to ensure compatibility
-          const wos = await base44.entities.WorkOrder.filter({ id: currentWorkOrder.id });
+          const wos = await base44.entities.WorkOrder.filter({ id: targetId });
           if (wos && wos.length > 0) {
-              const freshWO = wos[0];
-              if (freshWO.tech_time) {
-                  currentLogs = JSON.parse(freshWO.tech_time);
-              } else {
-                  currentLogs = [];
-              }
+             const freshWO = wos[0];
+             if (freshWO.tech_time) {
+                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
+             }
+          } else {
+             throw new Error("WorkOrder not found");
           }
       } catch (e) {
-          console.warn("Could not fetch fresh WO before delete", e);
+          console.error("Error fetching fresh WO for delete:", e);
+          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
+
+      if (!Array.isArray(currentLogs)) currentLogs = [];
 
       const updatedLogs = currentLogs.filter(l => l.id !== logToDelete.id);
       const jsonString = JSON.stringify(updatedLogs);
 
-      // Update WorkOrder
-      await base44.entities.WorkOrder.update(currentWorkOrder.id, {
+      // 2. Update DB
+      await base44.entities.WorkOrder.update(targetId, {
         tech_time: jsonString
       });
 
-      // Update state
+      // 3. Update local state
       setManualLogs(updatedLogs);
 
+      // 4. Notify parent
       if (onTimeChange) {
-        onTimeChange();
+        await onTimeChange();
       }
       
     } catch (error) {
       console.error('Error deleting manual time:', error);
-      alert('Failed to delete manual time.');
+      alert(`Failed to delete manual time: ${error.message}`);
     }
   };
 
