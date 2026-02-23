@@ -127,7 +127,10 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         );
         
         if (employee && employee.pay_rate) {
-          return sum + (Number(log.hours) || 0) * (Number(employee.pay_rate) || 0);
+          const rawRate = employee.pay_rate;
+          const cleanRate = typeof rawRate === 'string' ? rawRate.replace(/[$,]/g, '') : rawRate;
+          const payRate = parseFloat(cleanRate) || 0;
+          return sum + (Number(log.hours) || 0) * payRate;
         }
         return sum;
       }, 0);

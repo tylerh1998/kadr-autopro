@@ -2036,7 +2036,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
               lineItems={lineItems}
               workPROProject={workPROProject}
               workPROProjects={workPROProjects}
-              employees={employees}
+              employees={allEmployees || employees}
             />
           )}
 
