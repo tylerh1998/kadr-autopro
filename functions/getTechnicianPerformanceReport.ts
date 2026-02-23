@@ -89,24 +89,24 @@ Deno.serve(async (req) => {
         const filteredSessions = projectSessions.filter(s => isInRange(s.start_time));
         const filteredUnassigned = unassignedSessions.filter(s => isInRange(s.start_time));
 
-        // 5. Identify Relevant Work Orders
+        // 5. Index WorkOrders for matching
         let workOrders = [];
         
         console.log("Fetching WorkOrders...");
         // Fetch recent WOs to cover active ones
         workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
 
-        // Index WorkOrders for matching
-        const woMap = {}; // Maps ID and RO Number to WO
+        // Map WorkOrders by various keys for robust matching
+        const woMap = {}; 
         workOrders.forEach(wo => {
-            if (wo.id) woMap[wo.id] = wo;
+            if (wo.id) woMap[wo.id] = wo; // Exact ID match
             if (wo.ro_number) {
-                woMap[wo.ro_number] = wo;
-                // Also map "RO123" if ro_number is "123"
-                woMap[`RO${wo.ro_number}`] = wo;
-                 // Also map "123" if ro_number is "RO123"
-                if (wo.ro_number.toUpperCase().startsWith("RO")) {
-                    woMap[wo.ro_number.substring(2)] = wo;
+                const ro = wo.ro_number.toString();
+                woMap[ro] = wo; // "12345"
+                woMap[`RO${ro}`] = wo; // "RO12345"
+                // If RO is stored as "RO12345", map "12345" too
+                if (ro.toUpperCase().startsWith("RO")) {
+                    woMap[ro.substring(2)] = wo;
                 }
             }
         });
@@ -159,12 +159,12 @@ Deno.serve(async (req) => {
         const efficiencyMap = {}; 
         techs.forEach(tech => {
             const rawRate = tech.pay_rate;
-            // Clean string if needed (remove $ etc)
             const cleanRate = typeof rawRate === 'string' ? rawRate.replace(/[$,]/g, '') : rawRate;
             const payRate = parseFloat(cleanRate) || 0;
             
             efficiencyMap[tech.full_name] = {
                 name: tech.full_name,
+                payRate: payRate,
                 billedHours: 0,
                 laborRevenue: 0,
                 cost: techUtilizationMap[tech.full_name].projectHours * payRate,
@@ -172,58 +172,58 @@ Deno.serve(async (req) => {
             };
         });
 
-        const woPeriodStats = {}; 
+        // Structure: { [wo_id]: { totalHours: 0, techHours: { [techName]: hours }, wo: WorkOrder } }
+        const woAggregats = {}; 
         
-        // Helper to normalize RO number from project name
-        // "RO 10543 - Brake Job" -> "10543"
-        // "RO10543" -> "10543"
-        const extractRoId = (name) => {
-             if (!name) return null;
-             // Match RO followed by optional space/hash and then digits
-             const match = name.match(/RO\s*#?\s*(\d+)/i);
-             if (match) return match[1];
-             return name; // Fallback to full name if no RO pattern
+        // Helper to find WO from session
+        const findWorkOrder = (session) => {
+            // 1. Try by Project ID (Exact Match to WO ID)
+            if (session.project_id && woMap[session.project_id]) {
+                return woMap[session.project_id];
+            }
+            
+            // 2. Try by RO Number extracted from name
+            if (session.project_name) {
+                // Try exact match first (e.g. if name IS the RO number)
+                if (woMap[session.project_name]) return woMap[session.project_name];
+
+                // Regex extraction: "RO 1234..." -> "1234"
+                const match = session.project_name.match(/RO\s*#?\s*(\d+)/i);
+                if (match) {
+                    const extracted = match[1];
+                    if (woMap[extracted]) return woMap[extracted];
+                }
+            }
+            return null;
         };
 
         filteredSessions.forEach(s => {
-            const roId = extractRoId(s.project_name);
-            if (!roId) return;
+            const wo = findWorkOrder(s);
+            if (!wo) return; // Skip if no linked WO found
             
-            if (!woPeriodStats[roId]) {
-                woPeriodStats[roId] = { totalHours: 0, techHours: {} };
+            if (!woAggregats[wo.id]) {
+                woAggregats[wo.id] = { totalHours: 0, techHours: {}, wo: wo };
             }
             
-            woPeriodStats[roId].totalHours += (s.total_hours || 0);
+            const stats = woAggregats[wo.id];
+            stats.totalHours += (s.total_hours || 0);
             
-            if (!woPeriodStats[roId].techHours[s.user_name]) {
-                woPeriodStats[roId].techHours[s.user_name] = 0;
+            if (!stats.techHours[s.user_name]) {
+                stats.techHours[s.user_name] = 0;
             }
-            woPeriodStats[roId].techHours[s.user_name] += (s.total_hours || 0);
+            stats.techHours[s.user_name] += (s.total_hours || 0);
         });
 
-        Object.keys(woPeriodStats).forEach(roId => {
-            // Find WO where ro_number matches the extracted ID (loose match)
-            // Checks if wo.ro_number is "10543" or "RO10543" when roId is "10543"
-            const wo = workOrders.find(w => {
-                if (!w.ro_number) return false;
-                if (w.ro_number == roId) return true;
-                if (w.ro_number.toLowerCase() === `ro${roId}`.toLowerCase()) return true;
-                // Also handle case where DB has "10543" and we have "10543"
-                return false;
-            });
-
-            if (!wo) {
-                 // console.log(`No WO found for RO ID: ${roId}`);
-                 return;
-            }
-
-            const stats = woPeriodStats[roId];
+        // Distribute Revenue
+        Object.values(woAggregats).forEach(stats => {
             if (stats.totalHours === 0) return;
-
+            
+            const wo = stats.wo;
             let woTotalBilledHours = 0;
             try {
                 const lines = JSON.parse(wo.line_items || '[]');
                 lines.forEach(line => {
+                    // Sum up billed hours (hrs field)
                     if (line.hrs > 0) woTotalBilledHours += parseFloat(line.hrs);
                 });
             } catch (e) {}
