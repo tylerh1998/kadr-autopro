@@ -158,11 +158,8 @@ Deno.serve(async (req) => {
             const cleanRate = typeof rawRate === 'string' ? rawRate.replace(/[$,]/g, '') : rawRate;
             const payRate = parseFloat(cleanRate) || 0;
             
-            console.log(`Tech: ${tech.full_name}, RawRate: ${rawRate}, ParsedRate: ${payRate}`);
-
             efficiencyMap[tech.full_name] = {
                 name: tech.full_name,
-                payRate: payRate, // Include in response for debugging/display
                 billedHours: 0,
                 laborRevenue: 0,
                 cost: techUtilizationMap[tech.full_name].projectHours * payRate,
