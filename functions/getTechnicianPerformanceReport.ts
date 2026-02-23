@@ -153,11 +153,19 @@ Deno.serve(async (req) => {
         // 7. Calculate Efficiency (Revenue Attribution)
         const efficiencyMap = {}; 
         techs.forEach(tech => {
+            const rawRate = tech.pay_rate;
+            // Clean string if needed (remove $ etc)
+            const cleanRate = typeof rawRate === 'string' ? rawRate.replace(/[$,]/g, '') : rawRate;
+            const payRate = parseFloat(cleanRate) || 0;
+            
+            console.log(`Tech: ${tech.full_name}, RawRate: ${rawRate}, ParsedRate: ${payRate}`);
+
             efficiencyMap[tech.full_name] = {
                 name: tech.full_name,
+                payRate: payRate, // Include in response for debugging/display
                 billedHours: 0,
                 laborRevenue: 0,
-                cost: techUtilizationMap[tech.full_name].projectHours * (tech.pay_rate || 0),
+                cost: techUtilizationMap[tech.full_name].projectHours * payRate,
                 projectHours: techUtilizationMap[tech.full_name].projectHours
             };
         });
