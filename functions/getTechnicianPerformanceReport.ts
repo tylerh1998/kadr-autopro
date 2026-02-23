@@ -12,41 +12,59 @@ Deno.serve(async (req) => {
 
         const { dateFrom, dateTo } = await req.json();
         
-        // Helper to invoke workProProxy
-        const invokeWorkPro = async (entity, params = {}) => {
-            const { data, error } = await base44.functions.invoke('workProProxy', {
-                entityName: entity,
-                method: 'filter',
-                params: params
-            });
+        // Helper to fetch directly from WorkPro (Base44 App) to avoid invoke/DNS issues
+        const workProApiKey = Deno.env.get("WORKPRO_API_KEY");
+        const workProAppId = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
+
+        const fetchWorkPro = async (entity, params = {}, retries = 3) => {
+            const baseUrl = `https://app.base44.com/api/apps/${workProAppId}/entities/${entity}`;
+            const url = new URL(baseUrl);
             
-            if (error) {
-                console.error(`WorkPro invoke error for ${entity}:`, error);
-                return [];
+            if (params._limit) url.searchParams.append('limit', params._limit);
+            if (params._sort) url.searchParams.append('sort', params._sort);
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url.toString(), {
+                        headers: {
+                            'api_key': workProApiKey,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!res.ok) {
+                        const txt = await res.text();
+                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${txt}`);
+                        if (res.status >= 400 && res.status < 500 && res.status !== 429) return [];
+                        throw new Error(`Status ${res.status}`);
+                    }
+                    
+                    const json = await res.json();
+                    return Array.isArray(json) ? json : (json.records || []);
+                } catch (err) {
+                    console.error(`WorkPro ${entity} fetch attempt ${i+1} failed: ${err.message}`);
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+                }
             }
-            
-            // workProProxy returns { success: true, data: [...] }
-            if (data && data.success) {
-                 const records = data.data;
-                 return Array.isArray(records) ? records : (records?.records || []);
-            }
-            
-            // Fallback if structure is different
-            if (Array.isArray(data)) return data;
-            
-            console.warn(`WorkPro invoke returned unexpected format for ${entity}`, data);
             return [];
         };
 
-        // 3. Fetch Data (Sequential groupings)
+        // 3. Fetch Data (Sequential)
         console.log("Fetching TimeRecords...");
-        const timeRecords = await invokeWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
+        const timeRecords = await fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
         
         console.log("Fetching ProjectTimeSessions...");
-        const projectSessions = await invokeWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
+        const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
         
         console.log("Fetching UnassignedTime...");
-        const unassignedSessions = await invokeWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
+        // UnassignedTime might fail if entity doesn't exist or permissions issue
+        let unassignedSessions = [];
+        try {
+            unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
+        } catch (e) {
+            console.warn("UnassignedTime fetch failed, ignoring:", e.message);
+        }
 
         console.log("Fetching Base44 Entities...");
         const [employees, cashFlowSummary] = await Promise.all([
