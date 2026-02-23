@@ -329,12 +329,16 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const updatedLogs = manualLogs.filter(l => l.id !== logToDelete.id);
       
       // Update WorkOrder
-      await WorkOrder.update(currentWorkOrder.id, {
+      await base44.entities.WorkOrder.update(currentWorkOrder.id, {
         tech_time: JSON.stringify(updatedLogs)
       });
 
       // Update state
       setManualLogs(updatedLogs);
+
+      if (onTimeChange) {
+        onTimeChange();
+      }
       
     } catch (error) {
       console.error('Error deleting manual time:', error);
