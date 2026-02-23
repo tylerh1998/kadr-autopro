@@ -177,11 +177,10 @@ Deno.serve(async (req) => {
         });
 
         Object.values(techUtilizationMap).forEach(tech => {
-            if (filteredUnassigned.length === 0) {
-                tech.unassignedHours = Math.max(0, tech.clockedHours - tech.projectHours);
-            }
+            // Formula: (Total Project Hours + Total Unassigned Hours) / Total Clocked-In Hours * 100
+            const totalAccountedHours = tech.projectHours + tech.unassignedHours;
             tech.utilizationRate = tech.clockedHours > 0 
-                ? (tech.projectHours / tech.clockedHours) * 100 
+                ? (totalAccountedHours / tech.clockedHours) * 100 
                 : 0;
         });
 
