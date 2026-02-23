@@ -122,8 +122,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         // For WorkPRO logs: workpro_user_name is set by backend function
         // For Manual logs: we mapped tech_name to workpro_user_name above
         const employee = employees.find(emp => 
-          (emp.full_name && log.workpro_user_name && emp.full_name.toLowerCase() === log.workpro_user_name.toLowerCase()) ||
-          (emp.email && log.email && emp.email.toLowerCase() === log.email.toLowerCase())
+          (emp.full_name && log.workpro_user_name && emp.full_name.trim().toLowerCase() === log.workpro_user_name.trim().toLowerCase()) ||
+          (emp.email && log.email && emp.email.trim().toLowerCase() === log.email.trim().toLowerCase())
         );
         
         if (employee && employee.pay_rate) {
