@@ -182,18 +182,27 @@ Deno.serve(async (req) => {
                 return woMap[session.project_id];
             }
             
-            // 2. Try by RO Number extracted from name
-            if (session.project_name) {
-                // Try exact match first (e.g. if name IS the RO number)
-                if (woMap[session.project_name]) return woMap[session.project_name];
+            if (!session.project_name) return null;
+            const name = session.project_name.trim();
 
-                // Regex extraction: "RO 1234..." -> "1234"
-                const match = session.project_name.match(/RO\s*#?\s*(\d+)/i);
-                if (match) {
-                    const extracted = match[1];
-                    if (woMap[extracted]) return woMap[extracted];
-                }
+            // 2. Exact match in map (for "12345", "RO12345")
+            if (woMap[name]) return woMap[name];
+
+            // 3. Try by RO Number extracted from name
+            // Matches: "RO 123...", "RO#123...", "Work Order 123..."
+            const roMatch = name.match(/(?:RO|Work\s*Order)\s*#?\s*(\d+)/i);
+            if (roMatch) {
+                const extracted = roMatch[1];
+                if (woMap[extracted]) return woMap[extracted];
             }
+            
+            // 4. Starts with digits (e.g. "12345 - Brake Job")
+            const startMatch = name.match(/^(\d+)\b/);
+            if (startMatch) {
+                 const extracted = startMatch[1];
+                 if (woMap[extracted]) return woMap[extracted];
+            }
+
             return null;
         };
 
@@ -228,15 +237,32 @@ Deno.serve(async (req) => {
                 });
             } catch (e) {}
 
-            const woLaborRevenue = wo.labor_total || 0;
+            // Ensure labor_total is a number
+            let woLaborRevenue = 0;
+            if (wo.labor_total) {
+                if (typeof wo.labor_total === 'number') woLaborRevenue = wo.labor_total;
+                else if (typeof wo.labor_total === 'string') woLaborRevenue = parseFloat(wo.labor_total.replace(/[$,]/g, '')) || 0;
+            }
 
+            // Tech Name Normalization Helper
+            // WorkPro might say "John Doe" while Employee entity says "John Doe " or "John"
+            // For now, we rely on exact match or try case-insensitive
+            
             Object.keys(stats.techHours).forEach(techName => {
-                if (efficiencyMap[techName]) {
+                let targetTech = efficiencyMap[techName];
+                
+                // If not found, try case insensitive match
+                if (!targetTech) {
+                     const match = Object.values(efficiencyMap).find(t => t.name.toLowerCase() === techName.toLowerCase());
+                     if (match) targetTech = match;
+                }
+
+                if (targetTech) {
                     const techHoursOnWo = stats.techHours[techName];
                     const proportionalShare = techHoursOnWo / stats.totalHours; 
 
-                    efficiencyMap[techName].laborRevenue += (woLaborRevenue * proportionalShare);
-                    efficiencyMap[techName].billedHours += (woTotalBilledHours * proportionalShare);
+                    targetTech.laborRevenue += (woLaborRevenue * proportionalShare);
+                    targetTech.billedHours += (woTotalBilledHours * proportionalShare);
                 }
             });
         });
