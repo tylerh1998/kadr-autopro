@@ -476,7 +476,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
           <DialogTitle className="flex items-center justify-between">
             <span>Tech Time Sessions</span>
             <div className="flex items-center gap-3">
-              {currentWorkOrder && !showManualAdd && currentUser?.role === 'admin' && (
+              {currentWorkOrder && !showManualAdd && (
                  <Button size="sm" variant="outline" onClick={() => setShowManualAdd(true)}>
                    <Plus className="w-4 h-4 mr-2" /> Manual Add
                  </Button>
