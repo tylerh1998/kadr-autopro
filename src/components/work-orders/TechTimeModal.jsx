@@ -237,14 +237,8 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       let targetWO = null;
 
       if (workOrder?.id) {
-        // Fetch latest WO to ensure we have latest tech_time (prop might be stale)
-        try {
-           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
-           targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
-        } catch (e) {
-           console.error("Error fetching latest WO:", e);
-           targetWO = workOrder;
-        }
+        // Use prop directly to rely on parent's refresh logic and avoid race conditions
+        targetWO = workOrder;
       } else {
         // Try to find WO from project(s)
         const proj = projects.length > 0 ? projects[0] : project;

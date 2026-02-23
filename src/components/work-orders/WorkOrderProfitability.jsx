@@ -118,6 +118,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
 
     // 1. Parse manual logs from WorkOrder
     let manualLogs = [];
+    // Ensure we use the most recent localWorkOrder data
     if (localWorkOrder?.tech_time) {
       try {
         manualLogs = JSON.parse(localWorkOrder.tech_time);
