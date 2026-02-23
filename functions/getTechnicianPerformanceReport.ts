@@ -172,28 +172,50 @@ Deno.serve(async (req) => {
 
         const woPeriodStats = {}; 
         
+        // Helper to normalize RO number from project name
+        // "RO 10543 - Brake Job" -> "10543"
+        // "RO10543" -> "10543"
+        const extractRoId = (name) => {
+             if (!name) return null;
+             // Match RO followed by optional space/hash and then digits
+             const match = name.match(/RO\s*#?\s*(\d+)/i);
+             if (match) return match[1];
+             return name; // Fallback to full name if no RO pattern
+        };
+
         filteredSessions.forEach(s => {
-            if (!s.project_name) return;
-            const match = s.project_name.match(/^(RO\d+)/i);
-            const roNumber = match ? match[1].toUpperCase() : s.project_name;
+            const roId = extractRoId(s.project_name);
+            if (!roId) return;
             
-            if (!woPeriodStats[roNumber]) {
-                woPeriodStats[roNumber] = { totalHours: 0, techHours: {} };
+            if (!woPeriodStats[roId]) {
+                woPeriodStats[roId] = { totalHours: 0, techHours: {} };
             }
             
-            woPeriodStats[roNumber].totalHours += (s.total_hours || 0);
+            woPeriodStats[roId].totalHours += (s.total_hours || 0);
             
-            if (!woPeriodStats[roNumber].techHours[s.user_name]) {
-                woPeriodStats[roNumber].techHours[s.user_name] = 0;
+            if (!woPeriodStats[roId].techHours[s.user_name]) {
+                woPeriodStats[roId].techHours[s.user_name] = 0;
             }
-            woPeriodStats[roNumber].techHours[s.user_name] += (s.total_hours || 0);
+            woPeriodStats[roId].techHours[s.user_name] += (s.total_hours || 0);
         });
 
-        Object.keys(woPeriodStats).forEach(roNumber => {
-            const wo = workOrders.find(w => w.ro_number === roNumber);
-            if (!wo) return;
+        Object.keys(woPeriodStats).forEach(roId => {
+            // Find WO where ro_number matches the extracted ID (loose match)
+            // Checks if wo.ro_number is "10543" or "RO10543" when roId is "10543"
+            const wo = workOrders.find(w => {
+                if (!w.ro_number) return false;
+                if (w.ro_number == roId) return true;
+                if (w.ro_number.toLowerCase() === `ro${roId}`.toLowerCase()) return true;
+                // Also handle case where DB has "10543" and we have "10543"
+                return false;
+            });
 
-            const stats = woPeriodStats[roNumber];
+            if (!wo) {
+                 // console.log(`No WO found for RO ID: ${roId}`);
+                 return;
+            }
+
+            const stats = woPeriodStats[roId];
             if (stats.totalHours === 0) return;
 
             let woTotalBilledHours = 0;
