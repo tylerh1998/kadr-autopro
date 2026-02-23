@@ -154,6 +154,7 @@ export default function TechnicianPerformanceReportModal() {
           </Card>
 
           {/* Utilization Report */}
+          {/*
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -195,6 +196,7 @@ export default function TechnicianPerformanceReportModal() {
               </Table>
             </CardContent>
           </Card>
+          */}
 
           {/* Efficiency Report */}
           <Card>
