@@ -307,7 +307,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-4 overflow-y-auto flex-1">
+        <div className={`py-4 flex-1 ${showPartsMovement || showCustomerReport ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
           {showPartsMovement ? (
             <PartsMovementReportModal />
           ) : showCustomerReport ? (
