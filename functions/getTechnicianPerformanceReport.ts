@@ -12,46 +12,40 @@ Deno.serve(async (req) => {
 
         const { dateFrom, dateTo } = await req.json();
         
-        // 2. WorkPro Fetch Helper with Retry
-        const workProApiKey = Deno.env.get("WORKPRO_API_KEY");
-        const workProAppId = Deno.env.get("WORKPRO_APP_ID");
-
-        const fetchWorkPro = async (entity, params = {}, retries = 3) => {
-            const url = new URL(`https://api.workpro.io/v1/${entity}`);
-            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        // Helper to invoke workProProxy
+        const invokeWorkPro = async (entity, params = {}) => {
+            const { data, error } = await base44.functions.invoke('workProProxy', {
+                entityName: entity,
+                method: 'filter',
+                params: params
+            });
             
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(url.toString(), {
-                        headers: {
-                            'Authorization': `Bearer ${workProApiKey}`,
-                            'X-App-Id': workProAppId,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (!res.ok) {
-                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${res.statusText}`);
-                        return []; 
-                    }
-                    const json = await res.json();
-                    return Array.isArray(json) ? json : (json.data || json.records || []);
-                } catch (err) {
-                    console.error(`WorkPro ${entity} fetch attempt ${i+1} failed: ${err.message}`);
-                    if (i === retries - 1) throw err;
-                    await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
-                }
+            if (error) {
+                console.error(`WorkPro invoke error for ${entity}:`, error);
+                return [];
             }
+            
+            // workProProxy returns { success: true, data: [...] } or { data: { records: [] } }
+            // invoke returns the body in `data`.
+            const responseBody = data; 
+            if (!responseBody || !responseBody.success) {
+                console.warn(`WorkPro invoke failed for ${entity}`, responseBody);
+                return [];
+            }
+            
+            const records = responseBody.data;
+            return Array.isArray(records) ? records : (records?.records || []);
         };
 
-        // 3. Fetch Data (Sequential groupings to avoid DNS/Concurrency issues)
+        // 3. Fetch Data (Sequential groupings)
         console.log("Fetching TimeRecords...");
-        const timeRecords = await fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
+        const timeRecords = await invokeWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
         
         console.log("Fetching ProjectTimeSessions...");
-        const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
+        const projectSessions = await invokeWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
         
         console.log("Fetching UnassignedTime...");
-        const unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
+        const unassignedSessions = await invokeWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
 
         console.log("Fetching Base44 Entities...");
         const [employees, cashFlowSummary] = await Promise.all([
@@ -202,11 +196,14 @@ Deno.serve(async (req) => {
         const cf = cashFlowSummary[0] || {};
         const payrollTarget = (cf.est_first_payroll || 0) + (cf.est_second_payroll || 0) + (cf.est_payroll_remit || 0);
         
+        const now = new Date();
         const currentMonthStart = new Intl.DateTimeFormat('en-CA', { 
             timeZone: 'America/Edmonton', year: 'numeric', month: '2-digit' 
         }).format(now); 
+        // Note: format returns YYYY-MM
         
         const currentMonthLabourSales = workOrders.reduce((sum, wo) => {
+            // Using invoice_date for sales attribution
             if (wo.invoice_date && wo.invoice_date.startsWith(currentMonthStart)) {
                 return sum + (wo.labor_total || 0);
             }
