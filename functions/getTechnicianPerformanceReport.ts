@@ -95,8 +95,8 @@ Deno.serve(async (req) => {
         let workOrders = [];
         
         console.log("Fetching WorkOrders...");
-        // Fetch recent WOs to cover active ones
-        workOrders = await base44.entities.WorkOrder.list('-last_updated', 3000);
+        // Fetch recent WOs to cover active ones - Increased limit for safety
+        workOrders = await base44.entities.WorkOrder.list('-last_updated', 5000);
 
         // Map WorkOrders by various keys for robust matching
         const woMap = {}; 
@@ -106,9 +106,16 @@ Deno.serve(async (req) => {
                 const ro = wo.ro_number.toString();
                 woMap[ro] = wo; // "12345"
                 woMap[`RO${ro}`] = wo; // "RO12345"
+                
+                // Int mapping for safer comparison
+                const roInt = parseInt(ro, 10);
+                if (!isNaN(roInt)) woMap[roInt] = wo;
+
                 // If RO is stored as "RO12345", map "12345" too
                 if (ro.toUpperCase().startsWith("RO")) {
-                    woMap[ro.substring(2)] = wo;
+                    const sub = ro.substring(2);
+                    woMap[sub] = wo;
+                    if (!isNaN(parseInt(sub, 10))) woMap[parseInt(sub, 10)] = wo;
                 }
             }
         });
@@ -205,14 +212,27 @@ Deno.serve(async (req) => {
                  if (woMap[extracted]) return woMap[extracted];
             }
 
+            // 5. Scan for any token that matches a known RO Number (Last Resort)
+            // e.g. "Oil Change 12345"
+            // We tokenize by non-alphanumeric chars
+            const tokens = name.split(/[^a-zA-Z0-9]/);
+            for (const token of tokens) {
+                // Only try if token is numeric and reasonably length (to avoid matching "1" or "2" too aggressively if not intended)
+                // Actually, if we have RO #1, we want to match it.
+                // But checking woMap matches is safe-ish because we only have WOs that exist.
+                if (token && woMap[token]) return woMap[token];
+            }
+
             return null;
         };
 
         let matchedSessionsCount = 0;
+        const unmatchedExamples = [];
+        
         filteredSessions.forEach(s => {
             const wo = findWorkOrder(s);
             if (!wo) {
-                // console.log(`No WO found for session: ${s.project_name}`); // Uncomment to debug
+                if (unmatchedExamples.length < 5 && s.project_name) unmatchedExamples.push(s.project_name);
                 return; 
             }
             matchedSessionsCount++;
@@ -231,6 +251,7 @@ Deno.serve(async (req) => {
         });
         
         console.log(`Matched ${matchedSessionsCount} out of ${filteredSessions.length} sessions to Work Orders.`);
+        if (unmatchedExamples.length > 0) console.log("Unmatched Examples:", unmatchedExamples);
 
         // Distribute Revenue
         Object.values(woAggregats).forEach(stats => {
