@@ -11,7 +11,7 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuart
 import { base44 } from "@/api/base44Client";
 import { Progress } from "@/components/ui/progress";
 
-export default function TechnicianPerformanceReportModal({ open, onClose }) {
+export default function TechnicianPerformanceReportModal() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -72,16 +72,14 @@ export default function TechnicianPerformanceReportModal({ open, onClose }) {
   };
 
   useEffect(() => {
-    if (open) {
-        setDateRange('thisMonth');
-    }
-  }, [open]);
+    setDateRange('thisMonth');
+  }, []);
 
   useEffect(() => {
-    if (open && dateFrom && dateTo) {
+    if (dateFrom && dateTo) {
       loadReportData();
     }
-  }, [open, dateFrom, dateTo]);
+  }, [dateFrom, dateTo]);
 
   const loadReportData = async () => {
     setIsLoading(true);
@@ -314,16 +312,7 @@ export default function TechnicianPerformanceReportModal({ open, onClose }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
-            Technician Performance Report
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
+    <div className="space-y-6">
           {/* Controls */}
           <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end">
             <div className="space-y-2 min-w-[150px]">
@@ -465,8 +454,6 @@ export default function TechnicianPerformanceReportModal({ open, onClose }) {
             </CardContent>
           </Card>
 
-        </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
