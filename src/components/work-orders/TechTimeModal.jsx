@@ -301,7 +301,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const updatedLogs = [...manualLogs, newLog];
       
       // Update WorkOrder
-      await WorkOrder.update(currentWorkOrder.id, {
+      await base44.entities.WorkOrder.update(currentWorkOrder.id, {
         tech_time: JSON.stringify(updatedLogs)
       });
 
