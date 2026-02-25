@@ -70,10 +70,11 @@ Deno.serve(async (req) => {
         // Ensure invoice_number is string
         const targetInvoiceNumber = String(appliedDetail.invoice_number);
 
+        // Increase limit to 1000 to ensure all lines are fetched for large invoices
         const invoiceLinesForThisInvoice = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
           supplier_id: supplierId,
           invoice_number: targetInvoiceNumber
-        });
+        }, undefined, 1000);
 
         if (invoiceLinesForThisInvoice && invoiceLinesForThisInvoice.length > 0) {
           const invoiceTotal = invoiceLinesForThisInvoice.reduce((sum, line) => {
