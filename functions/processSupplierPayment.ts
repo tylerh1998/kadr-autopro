@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
       // Process invoices sequentially to prevent database connection exhaustion
       for (const appliedDetail of appliedInvoices) {
-        const updatePromises = [];
+        // Sequential execution for maximum stability
         
         if (appliedDetail.invoice_number === 'On Account') {
            let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
@@ -96,11 +96,10 @@ Deno.serve(async (req) => {
               const payAmount = Math.min(remainingPayment, due);
               const newPaid = currentPaid + payAmount;
               
-              updatePromises.push(
-                base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
+              // Await immediately to prevent concurrency issues
+              await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
                   paid_amount: Math.round(newPaid * 100) / 100
-                })
-              );
+              });
               
               remainingPayment -= payAmount;
            }
@@ -130,19 +129,13 @@ Deno.serve(async (req) => {
                 const payAmount = Math.min(remainingForInvoice, due);
                 const newPaid = currentPaid + payAmount;
 
-                updatePromises.push(
-                    base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-                        paid_amount: Math.round(newPaid * 100) / 100
-                    })
-                );
+                // Await immediately to prevent concurrency issues
+                await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
+                    paid_amount: Math.round(newPaid * 100) / 100
+                });
                 remainingForInvoice -= payAmount;
              }
           }
-        }
-        
-        // Execute updates for this invoice (or On Account batch) concurrently
-        if (updatePromises.length > 0) {
-            await Promise.all(updatePromises);
         }
       }
     }
