@@ -201,6 +201,10 @@ Deno.serve(async (req) => {
              
              // Reverse amount from lines
              // We un-pay lines until amountToReverse is exhausted
+             
+             // Sort by paid amount ascending (negatives/credits first) to ensure clean reversal
+             invoiceLines.sort((a, b) => a._paid - b._paid);
+
              for (const line of invoiceLines) {
                  if (Math.abs(amountToReverse) <= 0.005) break;
                  

@@ -165,11 +165,23 @@ Deno.serve(async (req) => {
           }
 
           if (invoiceLines.length > 0) {
+             // Sort by due amount ascending (negatives/credits first) to ensure clean application
+             invoiceLines.sort((a, b) => (a._total - a._paid) - (b._total - b._paid));
+
              for (const line of invoiceLines) {
                 if (remainingForInvoice <= 0.005) break;
 
                 const due = line._total - line._paid;
-                if (due <= 0.005) continue; // Already paid
+                // Note: We process negatives even if due <= 0, because due can be negative for credits
+                // But the check "due <= 0.005" excludes them? 
+                // Wait, if due is -20, it is <= 0.005. It would continue.
+                // We MUST process negative dues if we want to apply credits!
+                // BUT, if we are paying a positive amount...
+                // If due is -20. min(80, -20) = -20.
+                // We want to apply -20.
+                // So we should NOT skip negative dues.
+                // We should only skip if due is 0 (fully paid).
+                if (Math.abs(due) <= 0.005) continue; 
 
                 const payAmount = Math.min(remainingForInvoice, due);
                 
