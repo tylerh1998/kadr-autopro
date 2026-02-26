@@ -292,19 +292,40 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     }));
   };
 
+  const parseAmount = (value) => {
+    if (!value) return 0;
+    if (typeof value === 'number') return value;
+    const clean = value.toString().replace(/[^0-9.-]+/g, "");
+    return parseFloat(clean) || 0;
+  };
+
   const handleAmountChange = (value) => {
-    const numValue = parseFloat(value);
+    // Remove currency formatting for validation logic, but allow typing
+    const cleanValue = value.replace(/[^0-9.-]+/g, "");
+    const numValue = parseFloat(cleanValue);
     
     const totalPositiveOwing = outstandingInvoices.filter(inv => inv.balance_due > 0).reduce((sum, inv) => sum + inv.balance_due, 0);
     const totalCreditAvailable = outstandingInvoices.filter(inv => inv.balance_due < 0).reduce((sum, inv) => sum + inv.balance_due, 0);
 
-    if (!isNaN(numValue)) {
+    // Only validate if we have a complete number and it's not being typed (simplified validation)
+    // Actually, validating while typing with formatting characters is tricky. 
+    // Let's relax the strict validation while typing or use the cleaned value.
+    
+    if (!isNaN(numValue) && cleanValue !== '') {
+       if (numValue > 0 && numValue > totalPositiveOwing + 0.01) {
+        // alert(`Payment amount ($${numValue.toFixed(2)}) cannot exceed the total outstanding invoices ($${totalPositiveOwing.toFixed(2)})`);
+        // return;
+        // Don't alert while typing, maybe just when blurring or proceeding?
+        // The original code returned early, preventing the state update.
+        // Let's keep preventing the update if it exceeds, but use cleaned value.
+      }
+      // Re-implementing the block with cleaned value
       if (numValue > 0 && numValue > totalPositiveOwing + 0.01) {
-        alert(`Payment amount ($${numValue.toFixed(2)}) cannot exceed the total outstanding invoices ($${totalPositiveOwing.toFixed(2)})`);
-        return;
+         alert(`Payment amount (${numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}) cannot exceed the total outstanding invoices (${totalPositiveOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})`);
+         return;
       } else if (numValue < 0 && numValue < totalCreditAvailable - 0.01) {
-        alert(`Refund amount ($${numValue.toFixed(2)}) cannot exceed the total credit available ($${Math.abs(totalCreditAvailable).toFixed(2)})`);
-        return;
+         alert(`Refund amount (${numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}) cannot exceed the total credit available (${Math.abs(totalCreditAvailable).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})`);
+         return;
       }
     }
     
@@ -312,6 +333,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       ...prev,
       amount: value
     }));
+  };
+
+  const handleAmountBlur = () => {
+    if (!paymentData.amount || paymentData.amount.trim() === '') return;
+    const val = parseAmount(paymentData.amount);
+    if (!isNaN(val)) {
+        setPaymentData(prev => ({
+            ...prev,
+            amount: val.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        }));
+    }
   };
 
   const handleProceedToPaymentDetails = () => {
