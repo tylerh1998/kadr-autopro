@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     // Fetch ALL supplier lines efficiently
     const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
         supplier_id: payment.supplier_id
-    }, 'invoice_date', 3000);
+    }, 'invoice_date', 10000);
 
     // Build map for fast lookup and state tracking
     const lineMap = new Map();
