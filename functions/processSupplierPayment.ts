@@ -62,18 +62,25 @@ Deno.serve(async (req) => {
 
     const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create(paymentRecord);
 
+    // Helper for batched updates
+    const processUpdatesInBatches = async (items, updateFn, batchSize = 25) => {
+      for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        await Promise.all(batch.map(updateFn));
+      }
+    };
+
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
       // Process invoices sequentially to prevent database connection exhaustion
       for (const appliedDetail of appliedInvoices) {
-        // Sequential execution for maximum stability
         
         if (appliedDetail.invoice_number === 'On Account') {
            let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
            if (remainingPayment <= 0.005) continue;
 
            // Fetch lines for supplier, sorted by oldest first
-           // Limit to 2000 to handle large batches like the user's 466 lines + history
+           // Limit to 2000 to handle large batches
            const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
               supplier_id: supplierId
            }, 'invoice_date', 2000);
@@ -85,7 +92,8 @@ Deno.serve(async (req) => {
               return (total - paid) > 0.005; // Check if outstanding amount > ~0
            });
 
-           // Distribute payment sequentially to oldest unpaid lines
+           // Prepare updates first
+           const updatesToProcess = [];
            for (const line of unpaidLines) {
               if (remainingPayment <= 0.005) break;
 
@@ -96,12 +104,21 @@ Deno.serve(async (req) => {
               const payAmount = Math.min(remainingPayment, due);
               const newPaid = currentPaid + payAmount;
               
-              // Await immediately to prevent concurrency issues
-              await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-                  paid_amount: Math.round(newPaid * 100) / 100
+              updatesToProcess.push({
+                id: line.id,
+                paid_amount: Math.round(newPaid * 100) / 100
               });
               
               remainingPayment -= payAmount;
+           }
+
+           // Execute in batches
+           if (updatesToProcess.length > 0) {
+             await processUpdatesInBatches(updatesToProcess, (update) => 
+               base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
+                 paid_amount: update.paid_amount
+               })
+             );
            }
 
         } else {
@@ -115,6 +132,8 @@ Deno.serve(async (req) => {
           }, undefined, 1000);
 
           if (invoiceLines && invoiceLines.length > 0) {
+             const updatesToProcess = [];
+             
              for (const line of invoiceLines) {
                 if (remainingForInvoice <= 0.005) break;
 
@@ -129,11 +148,21 @@ Deno.serve(async (req) => {
                 const payAmount = Math.min(remainingForInvoice, due);
                 const newPaid = currentPaid + payAmount;
 
-                // Await immediately to prevent concurrency issues
-                await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-                    paid_amount: Math.round(newPaid * 100) / 100
+                updatesToProcess.push({
+                  id: line.id,
+                  paid_amount: Math.round(newPaid * 100) / 100
                 });
+                
                 remainingForInvoice -= payAmount;
+             }
+
+             // Execute in batches
+             if (updatesToProcess.length > 0) {
+               await processUpdatesInBatches(updatesToProcess, (update) => 
+                 base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
+                   paid_amount: update.paid_amount
+                 })
+               );
              }
           }
         }
