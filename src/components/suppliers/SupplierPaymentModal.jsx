@@ -461,7 +461,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         }));
         paymentAmount = selectedInvoicesList.reduce((sum, inv) => sum + inv.balance_due, 0);
       } else {
-        paymentAmount = parseFloat(paymentData.amount);
+        paymentAmount = parseAmount(paymentData.amount);
         
         let remainingAmount = paymentAmount;
 
@@ -654,7 +654,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                               </TableCell>
                               <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                               <TableCell className="text-right font-semibold">
-                                ${invoice.balance_due.toFixed(2)}
+                                {invoice.balance_due.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                               </TableCell>
                               <TableCell>{format(parseISO(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
                               <TableCell>{age} days</TableCell>
@@ -667,7 +667,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                 </div>
                 <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
                   <span className="font-semibold">Selected Amount:</span>
-                  <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
+                  <span className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                 </div>
               </TabsContent>
 
@@ -683,14 +683,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     <Label htmlFor="payment-amount">Payment Amount</Label>
                     <Input
                       id="payment-amount"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00 (enter negative for a refund)"
+                      type="text"
+                      placeholder="$0.00 (enter negative for a refund)"
                       value={paymentData.amount}
                       onChange={(e) => handleAmountChange(e.target.value)}
+                      onBlur={handleAmountBlur}
                     />
                     <p className="text-sm text-slate-500">
-                      Total Balance Owing: ${totalBalanceOwing.toFixed(2)}
+                      Total Balance Owing: {totalBalanceOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     </p>
                   </div>
                 </div>
@@ -706,10 +706,10 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                 disabled={loading || totalSelectedAmount === 0}
                 className="bg-amber-500 hover:bg-amber-600 text-white"
               >
-                Next: Add to Sheet
+                Next: Add to Cash Flow
               </Button>
               <Button onClick={handleProceedToPaymentDetails} disabled={loading || totalSelectedAmount === 0}>
-                Next: Payment Details (${totalSelectedAmount.toFixed(2)})
+                Next: Payment Details ({totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})
               </Button>
             </div>
           </div>
