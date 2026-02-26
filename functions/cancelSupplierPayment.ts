@@ -25,11 +25,9 @@ Deno.serve(async (req) => {
     const supplier = await base44.asServiceRole.entities.Supplier.get(payment.supplier_id);
 
     // 2. Check Fiscal Period
-    // FiscalPeriod entity usually has start_date, end_date, is_closed
     const fiscalPeriods = await base44.asServiceRole.entities.FiscalPeriod.filter({});
     const paymentDate = new Date(payment.payment_date);
     
-    // Find matching period
     const matchingPeriod = fiscalPeriods.find(p => {
         const start = new Date(p.start_date);
         const end = new Date(p.end_date);
@@ -45,7 +43,6 @@ Deno.serve(async (req) => {
     let linkedAccountType = null;
 
     if (payment.payment_method === 'Bank Account' || payment.payment_method === 'Cheque') {
-        // Find Bank Transaction
         const bankTx = await base44.asServiceRole.entities.BankTransaction.filter({
             source_id: payment.id,
             source_type: 'payment'
@@ -60,14 +57,12 @@ Deno.serve(async (req) => {
                 }, { status: 400 });
             }
             
-            // Delete Bank Transaction
             await base44.asServiceRole.entities.BankTransaction.delete(tx.id);
             linkedAccountId = tx.bank_account_id;
             linkedAccountType = 'bank';
         }
 
     } else if (payment.payment_method === 'Line of Credit') {
-        // Find LOC Transaction
         const locTx = await base44.asServiceRole.entities.LinesOfCreditTransaction.filter({
             source_id: payment.id,
             source_type: 'supplier_payment'
@@ -75,6 +70,7 @@ Deno.serve(async (req) => {
 
         if (locTx && locTx.length > 0) {
             const tx = locTx[0];
+            // If it was a charge (payment), payment_amount is 0.
             if (tx.payment_amount > 0) {
                 return Response.json({ 
                     success: false, 
@@ -82,14 +78,31 @@ Deno.serve(async (req) => {
                 }, { status: 400 });
             }
 
-            // Delete LOC Transaction
             await base44.asServiceRole.entities.LinesOfCreditTransaction.delete(tx.id);
             linkedAccountId = tx.line_of_credit_id;
             linkedAccountType = 'loc';
         }
     }
 
-    // 4. Un-apply Invoices
+    // 4. Un-apply Invoices (Optimized Batch Process)
+    
+    // Fetch ALL supplier lines efficiently
+    const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+        supplier_id: payment.supplier_id
+    }, 'invoice_date', 3000);
+
+    // Build map for fast lookup and state tracking
+    const lineMap = new Map();
+    allSupplierLines.forEach(line => {
+        lineMap.set(line.id, { 
+            ...line, 
+            _purchase: parseFloat(line.purchase_amount) || 0,
+            _gst: parseFloat(line.gst_amount) || 0,
+            _paid: parseFloat(line.paid_amount) || 0,
+            _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
+        });
+    });
+
     let appliedInvoices = [];
     try {
         const parsed = JSON.parse(payment.invoice_number);
@@ -101,58 +114,131 @@ Deno.serve(async (req) => {
     } catch (e) {
         if (payment.invoice_number && payment.invoice_number !== 'On Account') {
             appliedInvoices = [{ invoice_number: payment.invoice_number, amount_applied: payment.amount }];
+        } else if (payment.invoice_number === 'On Account') {
+             appliedInvoices = [{ invoice_number: 'On Account', amount_applied: payment.amount }];
         }
     }
 
-    for (const appliedDetail of appliedInvoices) {
-        if (appliedDetail.invoice_number === 'On Account') continue;
-
-        // Ensure invoice_number is treated as string for query consistency
-        const targetInvoiceNumber = String(appliedDetail.invoice_number);
-
-        const lines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-            supplier_id: payment.supplier_id,
-            invoice_number: targetInvoiceNumber
-        });
-
-        console.log(`Cancel Payment: Found ${lines ? lines.length : 0} lines for invoice ${targetInvoiceNumber}`);
-
-        if (lines && lines.length > 0) {
-             const invoiceTotal = lines.reduce((sum, line) => {
-                // Ensure numeric addition
-                const p = parseFloat(line.purchase_amount) || 0;
-                const g = parseFloat(line.gst_amount) || 0;
-                return sum + p + g;
-            }, 0);
-
-            for (const line of lines) {
-                const p = parseFloat(line.purchase_amount) || 0;
-                const g = parseFloat(line.gst_amount) || 0;
-                const lineTotal = p + g;
-                
-                const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
-                // Subtract the applied amount
-                const reduceBy = appliedDetail.amount_applied * proportion;
-                const currentPaid = parseFloat(line.paid_amount) || 0;
-                const newPaidAmount = Math.max(0, currentPaid - reduceBy);
-
-                console.log(`Cancel Payment: Updating line ${line.id}. Old Paid: ${currentPaid}, Reduce By: ${reduceBy}, New Paid: ${newPaidAmount}`);
-
-                await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-                    paid_amount: Math.round(newPaidAmount * 100) / 100
-                });
-            }
+    const updatesToProcess = [];
+    const addUpdate = (line) => {
+        const existingIndex = updatesToProcess.findIndex(u => u.id === line.id);
+        const newPaid = Math.round(line._paid * 100) / 100;
+        if (existingIndex >= 0) {
+            updatesToProcess[existingIndex].paid_amount = newPaid;
         } else {
-            console.warn(`Cancel Payment: No lines found for invoice ${targetInvoiceNumber} (Supplier: ${payment.supplier_id})`);
+            updatesToProcess.push({ id: line.id, paid_amount: newPaid });
+        }
+    };
+
+    for (const appliedDetail of appliedInvoices) {
+        if (appliedDetail.invoice_number === 'On Account') {
+             // Handle On Account Reversal
+             // LIFO logic: Unpay the newest invoices first to maintain "Oldest Paid" state
+             let amountToReverse = parseFloat(appliedDetail.amount_applied) || 0;
+             if (Math.abs(amountToReverse) <= 0.005) continue;
+
+             const isPayment = amountToReverse > 0;
+             
+             // Sort Newest First (Descending Date)
+             const candidateLines = Array.from(lineMap.values())
+                .filter(line => isPayment ? line._paid > 0.005 : line._paid < -0.005)
+                .sort((a, b) => new Date(b.invoice_date) - new Date(a.invoice_date));
+            
+             for (const line of candidateLines) {
+                 if (isPayment) {
+                     if (amountToReverse <= 0.005) break;
+                     // Reduce paid amount by up to the current paid amount (or remaining reversal)
+                     const canReverse = Math.min(amountToReverse, line._paid);
+                     
+                     line._paid -= canReverse;
+                     amountToReverse -= canReverse;
+                     
+                     addUpdate(line);
+                 } else {
+                     // Refund reversal (amountToReverse is negative)
+                     // line._paid is negative
+                     // We want to increase line._paid (reduce magnitude)
+                     if (amountToReverse >= -0.005) break;
+                     
+                     const canReverse = Math.max(amountToReverse, line._paid); // e.g. max(-50, -100) = -50
+                     
+                     line._paid -= canReverse; // -100 - (-50) = -50
+                     amountToReverse -= canReverse; // 0
+                     
+                     addUpdate(line);
+                 }
+             }
+
+        } else {
+             // Handle Specific Invoice Reversal
+             const targetInvoiceNumber = String(appliedDetail.invoice_number);
+             let amountToReverse = parseFloat(appliedDetail.amount_applied) || 0;
+
+             // Find lines for this invoice
+             let invoiceLines = Array.from(lineMap.values())
+                 .filter(line => String(line.invoice_number) === targetInvoiceNumber);
+
+             // Fallback fetch if not in map
+             if (invoiceLines.length === 0) {
+                 const fetched = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+                     supplier_id: payment.supplier_id,
+                     invoice_number: targetInvoiceNumber
+                 });
+                 if (fetched && fetched.length > 0) {
+                     fetched.forEach(l => {
+                         const p = { 
+                            ...l, 
+                            _purchase: parseFloat(l.purchase_amount) || 0,
+                            _gst: parseFloat(l.gst_amount) || 0,
+                            _paid: parseFloat(l.paid_amount) || 0,
+                            _total: (parseFloat(l.purchase_amount) || 0) + (parseFloat(l.gst_amount) || 0)
+                         };
+                         lineMap.set(l.id, p);
+                         invoiceLines.push(p);
+                     });
+                 }
+             }
+             
+             // Reverse amount from lines
+             // We un-pay lines until amountToReverse is exhausted
+             for (const line of invoiceLines) {
+                 if (Math.abs(amountToReverse) <= 0.005) break;
+                 
+                 const currentPaid = line._paid;
+                 let canReverse = 0;
+                 
+                 if (amountToReverse > 0) { // Reversing payment
+                     canReverse = Math.min(amountToReverse, currentPaid);
+                 } else { // Reversing refund (negative)
+                     canReverse = Math.max(amountToReverse, currentPaid);
+                 }
+                 
+                 if (Math.abs(canReverse) > 0.005) {
+                     line._paid -= canReverse;
+                     amountToReverse -= canReverse;
+                     addUpdate(line);
+                 }
+             }
+        }
+    }
+
+    // Execute updates in batches
+    if (updatesToProcess.length > 0) {
+        const batchSize = 100;
+        for (let i = 0; i < updatesToProcess.length; i += batchSize) {
+            const batch = updatesToProcess.slice(i, i + batchSize);
+            await Promise.all(batch.map(u => 
+                base44.asServiceRole.entities.SupplierInvoiceLine.update(u.id, {
+                    paid_amount: u.paid_amount
+                })
+            ));
         }
     }
 
     // 5. Create Reversal GL Entries
-    // Original: Dr AP (2000), Cr Bank/LOC
-    // Reversal: Dr Bank/LOC, Cr AP (2000)
+    // We create reversals if we can identify the credit account
     
-    // We need to know which account was credited originally
-    let creditAccountId = null; // The Bank/LOC GL Account
+    let creditAccountId = null;
     
     if (linkedAccountType === 'bank' && linkedAccountId) {
         const bank = await base44.asServiceRole.entities.BankAccount.get(linkedAccountId);
@@ -160,41 +246,23 @@ Deno.serve(async (req) => {
     } else if (linkedAccountType === 'loc' && linkedAccountId) {
         const loc = await base44.asServiceRole.entities.LinesOfCredit.get(linkedAccountId);
         creditAccountId = loc.gl_account;
-    } else if (payment.payment_method === 'Cash') {
-         // Assuming Cash account, usually 1010 or similar, but need to find default cash account
-         // If no account found, maybe skip specific GL or use a placeholder?
-         // processSupplierPayment uses `fromAccountId` for non-cash, but for cash it sets source='cash'.
-         // It doesn't seem to create a specific Cash GL entry in processSupplierPayment?
-         // Wait, looking at processSupplierPayment lines 97-196...
-         // It ONLY handles Bank, Cheque, LOC. It does NOT seem to create GL entries for Cash payments in the original function?
-         // Let's re-read processSupplierPayment lines 96-97.
-         // Yes, lines 97 check for Bank/Cheque, line 149 checks for LOC.
-         // If paymentMethod is 'Cash', it falls through and does NOT create GL entries or BankTx/LOCTx.
-         // So for Cash, we just need to un-apply invoices and delete payment. No GL reversal needed if none was created.
-         // However, standard accounting requires GL. If the original didn't create it, we shouldn't create a reversal.
-         // So we only create reversal if we found a linked account.
     }
 
     if (creditAccountId) {
         // Reversal GL 1: Debit the Bank/LOC (Asset/Liability)
-        // (If original was Cr Bank (Asset decrease), reversal is Dr Bank (Asset increase))
-        // (If original was Cr LOC (Liability increase), reversal is Dr LOC (Liability decrease))
-        // Wait. 
-        // Bank Payment: Dr AP, Cr Bank (Asset goes down).
-        // Reversal: Dr Bank (Asset goes up), Cr AP.
-        
+        // This reverses the original credit to Bank/LOC
         await base44.asServiceRole.entities.GLTransaction.create({
             account_number: creditAccountId,
             transaction_date: payment.payment_date,
             description: `REVERSAL: Payment to ${supplier ? supplier.name : 'Supplier'}`,
             debit_amount: payment.amount > 0 ? payment.amount : 0,
             credit_amount: payment.amount < 0 ? Math.abs(payment.amount) : 0,
-            source_type: 'manual', // or 'supplier_payment_reversal'
-            source_id: payment.id // Keeping link to deleted payment might be tricky if we delete it. 
-            // Maybe we shouldn't delete the payment until after.
+            source_type: 'manual', 
+            source_id: payment.id 
         });
 
         // Reversal GL 2: Credit AP (2000)
+        // This reverses the original debit to AP
         await base44.asServiceRole.entities.GLTransaction.create({
             account_number: '2000',
             transaction_date: payment.payment_date,
