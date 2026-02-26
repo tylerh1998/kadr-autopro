@@ -271,7 +271,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         .filter(inv => selectedInvoices[inv.uniqueKey])
         .reduce((sum, inv) => sum + inv.balance_due, 0);
     } else {
-      return parseFloat(paymentData.amount) || 0;
+      const clean = paymentData.amount.toString().replace(/[^0-9.-]+/g, "");
+      return parseFloat(clean) || 0;
     }
   }, [activeTab, selectedInvoices, outstandingInvoices, paymentData.amount]);
 
