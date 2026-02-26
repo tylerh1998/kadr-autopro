@@ -64,9 +64,10 @@ Deno.serve(async (req) => {
 
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
-      // Process invoices in parallel to prevent timeouts
-      await Promise.all(appliedInvoices.map(async (appliedDetail) => {
-        if (appliedDetail.invoice_number === 'On Account') return;
+      // Process invoices sequentially to prevent database connection exhaustion,
+      // but process lines within each invoice in parallel for speed.
+      for (const appliedDetail of appliedInvoices) {
+        if (appliedDetail.invoice_number === 'On Account') continue;
 
         // Ensure invoice_number is string
         const targetInvoiceNumber = String(appliedDetail.invoice_number);
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
             });
           }));
         }
-      }));
+      }
     }
 
     const glTransactionIds = [];
