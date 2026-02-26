@@ -75,10 +75,10 @@ Deno.serve(async (req) => {
       
       // Fetch ALL potentially relevant lines in one go to minimize round trips
       // Sort by invoice_date ascending (oldest first) to handle "On Account" correctly
-      // Limit to 3000 to cover large history
+      // Limit to 10000 to cover large history
       const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
          supplier_id: supplierId
-      }, 'invoice_date', 3000);
+      }, 'invoice_date', 10000);
 
       const updatesToProcess = [];
       
