@@ -63,10 +63,10 @@ Deno.serve(async (req) => {
     const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create(paymentRecord);
 
     // Update SupplierInvoiceLine paid amounts
-    const updatePromises = [];
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
-      for (const appliedDetail of appliedInvoices) {
-        if (appliedDetail.invoice_number === 'On Account') continue;
+      // Process invoices in parallel to prevent timeouts
+      await Promise.all(appliedInvoices.map(async (appliedDetail) => {
+        if (appliedDetail.invoice_number === 'On Account') return;
 
         // Ensure invoice_number is string
         const targetInvoiceNumber = String(appliedDetail.invoice_number);
@@ -85,7 +85,8 @@ Deno.serve(async (req) => {
             return sum + p + g;
           }, 0);
 
-          for (const line of invoiceLinesForThisInvoice) {
+          // Update all lines for this invoice concurrently
+          await Promise.all(invoiceLinesForThisInvoice.map(line => {
             const p = parseFloat(line.purchase_amount) || 0;
             const g = parseFloat(line.gst_amount) || 0;
             const lineTotal = p + g;
@@ -94,18 +95,12 @@ Deno.serve(async (req) => {
             const currentPaid = parseFloat(line.paid_amount) || 0;
             const newPaidAmount = currentPaid + (appliedDetail.amount_applied * proportion);
 
-            updatePromises.push(
-              base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-                paid_amount: Math.round(newPaidAmount * 100) / 100
-              })
-            );
-          }
+            return base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
+              paid_amount: Math.round(newPaidAmount * 100) / 100
+            });
+          }));
         }
-      }
-    }
-
-    if (updatePromises.length > 0) {
-      await Promise.all(updatePromises);
+      }));
     }
 
     const glTransactionIds = [];
