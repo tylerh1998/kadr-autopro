@@ -724,7 +724,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           <div className="space-y-4">
             <div className="p-3 bg-slate-50 rounded-lg">
               <p className="text-sm text-slate-600">Payment Amount:</p>
-              <p className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</p>
+              <p className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
             </div>
 
             <div className="space-y-4">
