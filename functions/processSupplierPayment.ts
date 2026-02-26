@@ -64,42 +64,85 @@ Deno.serve(async (req) => {
 
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
-      // Process invoices sequentially to prevent database connection exhaustion,
-      // but process lines within each invoice in parallel for speed.
+      // Process invoices sequentially to prevent database connection exhaustion
       for (const appliedDetail of appliedInvoices) {
-        if (appliedDetail.invoice_number === 'On Account') continue;
+        const updatePromises = [];
+        
+        if (appliedDetail.invoice_number === 'On Account') {
+           let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
+           if (remainingPayment <= 0.005) continue;
 
-        // Ensure invoice_number is string
-        const targetInvoiceNumber = String(appliedDetail.invoice_number);
+           // Fetch lines for supplier, sorted by oldest first
+           // Limit to 2000 to handle large batches like the user's 466 lines + history
+           const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+              supplier_id: supplierId
+           }, 'invoice_date', 2000);
 
-        // Increase limit to 1000 to ensure all lines are fetched for large invoices
-        const invoiceLinesForThisInvoice = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-          supplier_id: supplierId,
-          invoice_number: targetInvoiceNumber
-        }, undefined, 1000);
+           // Filter for unpaid/partially paid lines
+           const unpaidLines = allSupplierLines.filter(line => {
+              const total = (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
+              const paid = parseFloat(line.paid_amount) || 0;
+              return (total - paid) > 0.005; // Check if outstanding amount > ~0
+           });
 
-        if (invoiceLinesForThisInvoice && invoiceLinesForThisInvoice.length > 0) {
-          const invoiceTotal = invoiceLinesForThisInvoice.reduce((sum, line) => {
-            // Ensure numeric addition
-            const p = parseFloat(line.purchase_amount) || 0;
-            const g = parseFloat(line.gst_amount) || 0;
-            return sum + p + g;
-          }, 0);
+           // Distribute payment sequentially to oldest unpaid lines
+           for (const line of unpaidLines) {
+              if (remainingPayment <= 0.005) break;
 
-          // Update all lines for this invoice concurrently
-          await Promise.all(invoiceLinesForThisInvoice.map(line => {
-            const p = parseFloat(line.purchase_amount) || 0;
-            const g = parseFloat(line.gst_amount) || 0;
-            const lineTotal = p + g;
-            
-            const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
-            const currentPaid = parseFloat(line.paid_amount) || 0;
-            const newPaidAmount = currentPaid + (appliedDetail.amount_applied * proportion);
+              const total = (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
+              const currentPaid = parseFloat(line.paid_amount) || 0;
+              const due = total - currentPaid;
+              
+              const payAmount = Math.min(remainingPayment, due);
+              const newPaid = currentPaid + payAmount;
+              
+              updatePromises.push(
+                base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
+                  paid_amount: Math.round(newPaid * 100) / 100
+                })
+              );
+              
+              remainingPayment -= payAmount;
+           }
 
-            return base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
-              paid_amount: Math.round(newPaidAmount * 100) / 100
-            });
-          }));
+        } else {
+          // Specific Invoice: Sequential Fill Logic
+          const targetInvoiceNumber = String(appliedDetail.invoice_number);
+          let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
+
+          const invoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+            supplier_id: supplierId,
+            invoice_number: targetInvoiceNumber
+          }, undefined, 1000);
+
+          if (invoiceLines && invoiceLines.length > 0) {
+             for (const line of invoiceLines) {
+                if (remainingForInvoice <= 0.005) break;
+
+                const p = parseFloat(line.purchase_amount) || 0;
+                const g = parseFloat(line.gst_amount) || 0;
+                const lineTotal = p + g;
+                const currentPaid = parseFloat(line.paid_amount) || 0;
+                const due = lineTotal - currentPaid;
+
+                if (due <= 0.005) continue; // Already paid
+
+                const payAmount = Math.min(remainingForInvoice, due);
+                const newPaid = currentPaid + payAmount;
+
+                updatePromises.push(
+                    base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, {
+                        paid_amount: Math.round(newPaid * 100) / 100
+                    })
+                );
+                remainingForInvoice -= payAmount;
+             }
+          }
+        }
+        
+        // Execute updates for this invoice (or On Account batch) concurrently
+        if (updatePromises.length > 0) {
+            await Promise.all(updatePromises);
         }
       }
     }
