@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create(paymentRecord);
 
     // Helper for batched updates
-    const processUpdatesInBatches = async (items, updateFn, batchSize = 25) => {
+    const processUpdatesInBatches = async (items, updateFn, batchSize = 100) => {
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
         await Promise.all(batch.map(updateFn));
@@ -72,100 +72,135 @@ Deno.serve(async (req) => {
 
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
-      // Process invoices sequentially to prevent database connection exhaustion
+      
+      // Fetch ALL potentially relevant lines in one go to minimize round trips
+      // Sort by invoice_date ascending (oldest first) to handle "On Account" correctly
+      // Limit to 3000 to cover large history
+      const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+         supplier_id: supplierId
+      }, 'invoice_date', 3000);
+
+      const updatesToProcess = [];
+      
+      // Create a map for fast lookup by ID to track in-memory updates
+      const lineMap = new Map();
+      allSupplierLines.forEach(line => {
+        lineMap.set(line.id, { 
+            ...line, 
+            _purchase: parseFloat(line.purchase_amount) || 0,
+            _gst: parseFloat(line.gst_amount) || 0,
+            _paid: parseFloat(line.paid_amount) || 0,
+            _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
+        });
+      });
+
+      // Process invoices sequentially using in-memory data
       for (const appliedDetail of appliedInvoices) {
         
         if (appliedDetail.invoice_number === 'On Account') {
            let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
            if (remainingPayment <= 0.005) continue;
 
-           // Fetch lines for supplier, sorted by oldest first
-           // Limit to 2000 to handle large batches
-           const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-              supplier_id: supplierId
-           }, 'invoice_date', 2000);
+           // Filter for unpaid/partially paid lines from our in-memory set
+           // We re-filter here because previous iterations might have updated _paid
+           const unpaidLines = Array.from(lineMap.values())
+             .filter(line => (line._total - line._paid) > 0.005)
+             // Ensure sorted by date (should be already, but map iteration order matches insertion if not messed with)
+             .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
 
-           // Filter for unpaid/partially paid lines
-           const unpaidLines = allSupplierLines.filter(line => {
-              const total = (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
-              const paid = parseFloat(line.paid_amount) || 0;
-              return (total - paid) > 0.005; // Check if outstanding amount > ~0
-           });
-
-           // Prepare updates first
-           const updatesToProcess = [];
            for (const line of unpaidLines) {
               if (remainingPayment <= 0.005) break;
 
-              const total = (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0);
-              const currentPaid = parseFloat(line.paid_amount) || 0;
-              const due = total - currentPaid;
-              
+              const due = line._total - line._paid;
               const payAmount = Math.min(remainingPayment, due);
-              const newPaid = currentPaid + payAmount;
               
-              updatesToProcess.push({
-                id: line.id,
-                paid_amount: Math.round(newPaid * 100) / 100
-              });
+              // Update in-memory
+              line._paid += payAmount;
+              
+              // Add to updates list
+              // Check if we already have an update pending for this line
+              const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+              if (existingUpdateIndex >= 0) {
+                 updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+              } else {
+                 updatesToProcess.push({
+                   id: line.id,
+                   paid_amount: Math.round(line._paid * 100) / 100
+                 });
+              }
               
               remainingPayment -= payAmount;
            }
 
-           // Execute in batches
-           if (updatesToProcess.length > 0) {
-             await processUpdatesInBatches(updatesToProcess, (update) => 
-               base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
-                 paid_amount: update.paid_amount
-               })
-             );
-           }
-
         } else {
-          // Specific Invoice: Sequential Fill Logic
+          // Specific Invoice
           const targetInvoiceNumber = String(appliedDetail.invoice_number);
           let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
 
-          const invoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-            supplier_id: supplierId,
-            invoice_number: targetInvoiceNumber
-          }, undefined, 1000);
+          // Find lines for this invoice in our memory cache
+          let invoiceLines = Array.from(lineMap.values())
+             .filter(line => String(line.invoice_number) === targetInvoiceNumber);
 
-          if (invoiceLines && invoiceLines.length > 0) {
-             const updatesToProcess = [];
+          // Fallback: If not found in the 3000 loaded lines, we must fetch them specifically
+          if (invoiceLines.length === 0) {
+             const fetchedLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+               supplier_id: supplierId,
+               invoice_number: targetInvoiceNumber
+             }, undefined, 100);
              
+             if (fetchedLines && fetchedLines.length > 0) {
+               // Add to map
+               fetchedLines.forEach(line => {
+                  const processed = { 
+                    ...line, 
+                    _purchase: parseFloat(line.purchase_amount) || 0,
+                    _gst: parseFloat(line.gst_amount) || 0,
+                    _paid: parseFloat(line.paid_amount) || 0,
+                    _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
+                  };
+                  lineMap.set(line.id, processed);
+                  invoiceLines.push(processed);
+               });
+             }
+          }
+
+          if (invoiceLines.length > 0) {
              for (const line of invoiceLines) {
                 if (remainingForInvoice <= 0.005) break;
 
-                const p = parseFloat(line.purchase_amount) || 0;
-                const g = parseFloat(line.gst_amount) || 0;
-                const lineTotal = p + g;
-                const currentPaid = parseFloat(line.paid_amount) || 0;
-                const due = lineTotal - currentPaid;
-
+                const due = line._total - line._paid;
                 if (due <= 0.005) continue; // Already paid
 
                 const payAmount = Math.min(remainingForInvoice, due);
-                const newPaid = currentPaid + payAmount;
+                
+                // Update in-memory
+                line._paid += payAmount;
 
-                updatesToProcess.push({
-                  id: line.id,
-                  paid_amount: Math.round(newPaid * 100) / 100
-                });
+                // Add to updates list
+                const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+                if (existingUpdateIndex >= 0) {
+                   updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+                } else {
+                   updatesToProcess.push({
+                     id: line.id,
+                     paid_amount: Math.round(line._paid * 100) / 100
+                   });
+                }
                 
                 remainingForInvoice -= payAmount;
              }
-
-             // Execute in batches
-             if (updatesToProcess.length > 0) {
-               await processUpdatesInBatches(updatesToProcess, (update) => 
-                 base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
-                   paid_amount: update.paid_amount
-                 })
-               );
-             }
           }
         }
+      }
+
+      // Execute all updates in batches
+      // Batch size 100 for efficiency
+      if (updatesToProcess.length > 0) {
+        await processUpdatesInBatches(updatesToProcess, (update) => 
+          base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
+            paid_amount: update.paid_amount
+          })
+        , 100);
       }
     }
 
@@ -231,8 +266,6 @@ Deno.serve(async (req) => {
       }
 
       // Create LinesOfCreditTransaction
-      // Positive payment = charge (draw from LOC to pay supplier)
-      // Negative payment = credit (refund from supplier to LOC)
       await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
         line_of_credit_id: selectedLOC.id,
         transaction_date: paymentDate,
