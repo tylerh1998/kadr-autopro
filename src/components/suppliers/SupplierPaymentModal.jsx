@@ -446,7 +446,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         const selectedInvoicesList = outstandingInvoices.filter(inv => selectedInvoices[inv.uniqueKey]);
         appliedInvoicesDetails = selectedInvoicesList.map(inv => ({
           invoice_number: inv.invoice_number,
-          amount_applied: inv.balance_due
+          amount_applied: inv.balance_due,
+          id: inv.id // Include ID for optimization
         }));
         paymentAmount = selectedInvoicesList.reduce((sum, inv) => sum + inv.balance_due, 0);
       } else {
