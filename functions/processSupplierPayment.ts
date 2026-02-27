@@ -66,14 +66,18 @@ Deno.serve(async (req) => {
     const processUpdatesInBatches = async (items, updateFn, batchSize = 100) => {
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
+        // Add small delay between batches to reduce load
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 100));
         await Promise.all(batch.map(updateFn));
       }
     };
 
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
-      
       const updatesToProcess = [];
+
+      // STRATEGY: Fetch all supplier lines (limit 5000) for efficiency.
+      // This avoids individual fetches for each invoice, which causes timeouts.
       const lineMap = new Map();
 
       // Helper to process raw line into map format
@@ -87,136 +91,127 @@ Deno.serve(async (req) => {
         };
       };
 
-      // Identify specific invoices to fetch
-      // Note: If "On Account" was used, the frontend/pre-calculation step should have resolved it to specific invoices.
-      // We expect appliedInvoices to contain specific invoice references now, or "On Account" ONLY if it's purely unapplied/credit.
-      // If "On Account" logic is present with specific invoice lines in the payload, we treat "On Account" as "Unapplied".
-      
-      const specificInvoices = appliedInvoices
-        .filter(ai => ai.invoice_number !== 'On Account')
-        .map(ai => String(ai.invoice_number));
-      
-      const uniqueSpecificInvoices = [...new Set(specificInvoices)];
-      
-      // Fetch specific invoices in parallel batches
-      if (uniqueSpecificInvoices.length > 0) {
-        const BATCH_SIZE = 20;
-        for (let i = 0; i < uniqueSpecificInvoices.length; i += BATCH_SIZE) {
-            const batch = uniqueSpecificInvoices.slice(i, i + BATCH_SIZE);
-            await Promise.all(batch.map(async (invNum) => {
-                try {
-                    const lines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-                        supplier_id: supplierId,
-                        invoice_number: invNum
-                    });
-                    if (lines) {
-                        lines.forEach(line => {
-                             if (!lineMap.has(line.id)) {
-                                 lineMap.set(line.id, processLineIntoMap(line));
-                             }
-                        });
-                    }
-                } catch (e) {
-                    console.error(`Error fetching invoice ${invNum}:`, e);
-                }
-            }));
-        }
+      // Fetch all recent lines for this supplier
+      const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
+         { supplier_id: supplierId }, 
+         'invoice_date', 
+         5000 
+      );
+
+      if (allLines) {
+         allLines.forEach(line => {
+             lineMap.set(line.id, processLineIntoMap(line));
+         });
       }
 
-      // Process invoices sequentially using in-memory data
+      // Process invoices
       for (const appliedDetail of appliedInvoices) {
-        
-        if (appliedDetail.invoice_number === 'On Account') {
-           // Skip "On Account" for line item updates as it implies unapplied amount
-           continue;
-        } else {
-          // Specific Invoice
-          const targetInvoiceNumber = String(appliedDetail.invoice_number);
-          
-          // amount_applied can be positive (paying an invoice) or negative (using a credit)
-          let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
-          
-          if (Math.abs(remainingForInvoice) <= 0.005) continue;
+        if (appliedDetail.invoice_number === 'On Account') continue;
 
-          // Find lines for this invoice in our memory cache
-          let invoiceLines = Array.from(lineMap.values())
-             .filter(line => String(line.invoice_number) === targetInvoiceNumber);
+        let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
+        if (Math.abs(remainingForInvoice) <= 0.005) continue;
 
-          // If no lines found, fallback fetch (safety net)
-          if (invoiceLines.length === 0) {
-             const fetchedLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-               supplier_id: supplierId,
-               invoice_number: targetInvoiceNumber
-             });
+        // Find the line to update
+        let targetLine = null;
+
+        // 1. Try by ID first (fastest and most reliable)
+        if (appliedDetail.id && lineMap.has(appliedDetail.id)) {
+            targetLine = lineMap.get(appliedDetail.id);
+        }
+
+        // 2. If no ID or not found by ID, try searching by invoice number in map
+        if (!targetLine) {
+            // This is a fallback and slower search, but still in-memory
+            const candidates = Array.from(lineMap.values()).filter(l => 
+                String(l.invoice_number) === String(appliedDetail.invoice_number)
+            );
+            
+            // If multiple lines exist for same invoice number (rare but possible), pick the best candidate
+            // For now, let's take the first open one or just the first one
+            // Ideally we should process ALL lines for that invoice number if ID wasn't specific
+            
+            if (candidates.length > 0) {
+                 // Sort candidates by due amount to be consistent
+                 candidates.sort((a, b) => (a._total - a._paid) - (b._total - b._paid));
+                 
+                 // Apply to candidates logic
+                 for (const line of candidates) {
+                    if (Math.abs(remainingForInvoice) <= 0.005) break;
+                    
+                    const due = line._total - line._paid;
+                    
+                    // Application logic
+                    if (remainingForInvoice > 0) {
+                        if (due <= 0.005) continue;
+                        const payAmount = Math.min(remainingForInvoice, due);
+                        
+                        line._paid += payAmount;
+                        remainingForInvoice -= payAmount;
+                        
+                        // Queue update
+                        const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+                        if (existingUpdateIndex >= 0) {
+                           updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+                        } else {
+                           updatesToProcess.push({
+                             id: line.id,
+                             paid_amount: Math.round(line._paid * 100) / 100
+                           });
+                        }
+                    } else {
+                        if (due >= -0.005) continue;
+                        const payAmount = Math.max(remainingForInvoice, due);
+                        
+                        line._paid += payAmount;
+                        remainingForInvoice -= payAmount;
+                        
+                        // Queue update
+                        const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+                        if (existingUpdateIndex >= 0) {
+                           updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+                        } else {
+                           updatesToProcess.push({
+                             id: line.id,
+                             paid_amount: Math.round(line._paid * 100) / 100
+                           });
+                        }
+                    }
+                 }
+                 continue; // Done with this appliedDetail
+            }
+        }
+
+        // 3. If we found a specific target line by ID, apply to it
+        if (targetLine) {
+             const line = targetLine;
+             const due = line._total - line._paid;
              
-             if (fetchedLines && fetchedLines.length > 0) {
-               fetchedLines.forEach(line => {
-                  const processed = processLineIntoMap(line);
-                  lineMap.set(line.id, processed);
-                  invoiceLines.push(processed);
-               });
-             }
-          }
-
-          if (invoiceLines.length > 0) {
-             // Sort by due amount ascending to handle multiple lines per invoice
-             // But usually we just want to apply to the lines.
-             // If we are applying positive amount, target lines with positive due.
-             // If we are applying negative amount, target lines with negative due (credits).
+             // Simple application to this specific line
+             // We assume the amount_applied is correct for this line from calculation
+             // But we add it to current _paid
              
-             invoiceLines.sort((a, b) => (a._total - a._paid) - (b._total - b._paid));
-
-             for (const line of invoiceLines) {
-                if (Math.abs(remainingForInvoice) <= 0.005) break;
-
-                const due = line._total - line._paid;
-                
-                // If applying positive payment
-                if (remainingForInvoice > 0) {
-                    // Only apply to positive due (unless we want to overpay a negative line? No.)
-                    if (due <= 0.005) continue;
-                    
-                    const payAmount = Math.min(remainingForInvoice, due);
-                    
-                    line._paid += payAmount;
-                    remainingForInvoice -= payAmount;
-                } 
-                // If applying negative payment (credit usage)
-                else {
-                    // Only apply to negative due (credits)
-                    if (due >= -0.005) continue;
-                    
-                    // e.g. remaining: -50. due: -100. max(-50, -100) = -50.
-                    // e.g. remaining: -200. due: -100. max(-200, -100) = -100.
-                    const payAmount = Math.max(remainingForInvoice, due);
-                    
-                    line._paid += payAmount;
-                    remainingForInvoice -= payAmount;
-                }
-
-                // Add to updates list
-                const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
-                if (existingUpdateIndex >= 0) {
-                   updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
-                } else {
-                   updatesToProcess.push({
-                     id: line.id,
-                     paid_amount: Math.round(line._paid * 100) / 100
-                   });
-                }
+             line._paid += remainingForInvoice;
+             
+             const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+             if (existingUpdateIndex >= 0) {
+                updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+             } else {
+                updatesToProcess.push({
+                  id: line.id,
+                  paid_amount: Math.round(line._paid * 100) / 100
+                });
              }
-          }
         }
       }
 
-      // Execute all updates in batches
-      // Batch size reduced to 5 to prevent timeouts/database locks on large operations
+      // Execute updates
+      // Increased batch size to 20 for better throughput
       if (updatesToProcess.length > 0) {
         await processUpdatesInBatches(updatesToProcess, (update) => 
           base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
             paid_amount: update.paid_amount
           })
-        , 5);
+        , 20);
       }
     }
 
