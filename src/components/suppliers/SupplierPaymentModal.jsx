@@ -132,6 +132,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [linesOfCredit, setLinesOfCredit] = useState([]);
   const [outstandingInvoices, setOutstandingInvoices] = useState([]);
   const [selectedInvoices, setSelectedInvoices] = useState({});
+  const [calculating, setCalculating] = useState(false);
+  const [calculationResult, setCalculationResult] = useState(null);
   const [showChequeNumberPrompt, setShowChequeNumberPrompt] = useState(false);
   const [chequeNumberInput, setChequeNumberInput] = useState('');
   const [nextChequeNumber, setNextChequeNumber] = useState(1);
@@ -226,6 +228,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setShowPaymentDetailsDialog(false);
     setShowAddToSheetModal(false);
     setDateRange({ from: undefined, to: undefined });
+    setCalculationResult(null);
+    setCalculating(false);
   };
 
   const handleInvoiceSelection = (invoiceKey, checked) => {
@@ -301,35 +305,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   };
 
   const handleAmountChange = (value) => {
-    // Remove currency formatting for validation logic, but allow typing
     const cleanValue = value.replace(/[^0-9.-]+/g, "");
     const numValue = parseFloat(cleanValue);
-    
-    const totalPositiveOwing = outstandingInvoices.filter(inv => inv.balance_due > 0).reduce((sum, inv) => sum + inv.balance_due, 0);
-    const totalCreditAvailable = outstandingInvoices.filter(inv => inv.balance_due < 0).reduce((sum, inv) => sum + inv.balance_due, 0);
 
-    // Only validate if we have a complete number and it's not being typed (simplified validation)
-    // Actually, validating while typing with formatting characters is tricky. 
-    // Let's relax the strict validation while typing or use the cleaned value.
-    
-    if (!isNaN(numValue) && cleanValue !== '') {
-       if (numValue > 0 && numValue > totalPositiveOwing + 0.01) {
-        // alert(`Payment amount ($${numValue.toFixed(2)}) cannot exceed the total outstanding invoices ($${totalPositiveOwing.toFixed(2)})`);
-        // return;
-        // Don't alert while typing, maybe just when blurring or proceeding?
-        // The original code returned early, preventing the state update.
-        // Let's keep preventing the update if it exceeds, but use cleaned value.
-      }
-      // Re-implementing the block with cleaned value
-      if (numValue > 0 && numValue > totalPositiveOwing + 0.01) {
-         alert(`Payment amount (${numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}) cannot exceed the total outstanding invoices (${totalPositiveOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})`);
-         return;
-      } else if (numValue < 0 && numValue < totalCreditAvailable - 0.01) {
-         alert(`Refund amount (${numValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}) cannot exceed the total credit available (${Math.abs(totalCreditAvailable).toLocaleString('en-US', { style: 'currency', currency: 'USD' })})`);
-         return;
-      }
+    // Clear previous calculation when amount changes
+    if (calculationResult) {
+        setCalculationResult(null);
     }
-    
+
     setPaymentData(prev => ({
       ...prev,
       amount: value
@@ -353,9 +336,15 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       return;
     }
 
-    if (activeTab === 'pay_on_account' && (!paymentData.amount || parseFloat(paymentData.amount) === 0)) {
-      alert('Please enter a payment amount');
-      return;
+    if (activeTab === 'pay_on_account') {
+      if (!paymentData.amount || parseFloat(paymentData.amount) === 0) {
+        alert('Please enter a payment amount');
+        return;
+      }
+      if (!calculationResult) {
+        alert('Please calculate the payment breakdown before proceeding.');
+        return;
+      }
     }
 
     setShowPaymentDetailsDialog(true);
@@ -461,54 +450,21 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         }));
         paymentAmount = selectedInvoicesList.reduce((sum, inv) => sum + inv.balance_due, 0);
       } else {
+        // Pay On Account - Use calculated results
         paymentAmount = parseAmount(paymentData.amount);
         
-        let remainingAmount = paymentAmount;
+        if (!calculationResult) {
+            throw new Error("Please calculate payment breakdown first.");
+        }
 
-        if (paymentAmount > 0) {
-          // Payment - apply to positive balances (invoices) oldest first
-          const sortedInvoices = [...outstandingInvoices]
-            .filter(inv => inv.balance_due > 0)
-            .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
-
-          for (const invoice of sortedInvoices) {
-            if (remainingAmount <= 0) break;
-            const amountToApply = Math.min(remainingAmount, invoice.balance_due);
+        appliedInvoicesDetails = calculationResult.appliedInvoices;
+        
+        // Add unapplied amount if any
+        if (Math.abs(calculationResult.unappliedAmount) > 0.005) {
             appliedInvoicesDetails.push({
-              invoice_number: invoice.invoice_number,
-              amount_applied: amountToApply
+                invoice_number: 'On Account',
+                amount_applied: calculationResult.unappliedAmount
             });
-            remainingAmount -= amountToApply;
-          }
-          
-          if (remainingAmount > 0.01) {
-            appliedInvoicesDetails.push({
-              invoice_number: 'On Account',
-              amount_applied: remainingAmount
-            });
-          }
-        } else if (paymentAmount < 0) {
-          // Refund - apply to negative balances (credits) oldest first
-          const sortedCreditNotes = [...outstandingInvoices]
-            .filter(inv => inv.balance_due < 0)
-            .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
-
-          for (const creditNote of sortedCreditNotes) {
-            if (remainingAmount >= 0) break;
-            const amountToApply = Math.max(remainingAmount, creditNote.balance_due);
-            appliedInvoicesDetails.push({
-              invoice_number: creditNote.invoice_number,
-              amount_applied: amountToApply
-            });
-            remainingAmount -= amountToApply;
-          }
-          
-          if (remainingAmount < -0.01) {
-            appliedInvoicesDetails.push({
-              invoice_number: 'On Account',
-              amount_applied: remainingAmount
-            });
-          }
         }
       }
 
@@ -681,18 +637,93 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="payment-amount">Payment Amount</Label>
-                    <Input
-                      id="payment-amount"
-                      type="text"
-                      placeholder="$0.00 (enter negative for a refund)"
-                      value={paymentData.amount}
-                      onChange={(e) => handleAmountChange(e.target.value)}
-                      onBlur={handleAmountBlur}
-                    />
+                    <div className="flex gap-2">
+                        <Input
+                          id="payment-amount"
+                          type="text"
+                          placeholder="$0.00 (enter negative for a refund)"
+                          value={paymentData.amount}
+                          onChange={(e) => handleAmountChange(e.target.value)}
+                          onBlur={handleAmountBlur}
+                        />
+                        <Button 
+                            onClick={async () => {
+                                const amount = parseAmount(paymentData.amount);
+                                if (!amount) {
+                                    alert("Please enter a valid amount");
+                                    return;
+                                }
+                                setCalculating(true);
+                                setCalculationResult(null);
+                                try {
+                                    const res = await base44.functions.invoke('calculateSupplierPaymentBreakdown', {
+                                        supplierId: supplier.id,
+                                        paymentAmount: amount
+                                    });
+                                    if (res.data.success) {
+                                        setCalculationResult(res.data.breakdown);
+                                    } else {
+                                        alert(res.data.error || "Calculation failed");
+                                    }
+                                } catch (e) {
+                                    console.error(e);
+                                    alert("Calculation failed: " + e.message);
+                                } finally {
+                                    setCalculating(false);
+                                }
+                            }}
+                            disabled={calculating || !paymentData.amount}
+                        >
+                            {calculating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Calculate"}
+                        </Button>
+                    </div>
                     <p className="text-sm text-slate-500">
                       Total Balance Owing: {totalBalanceOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     </p>
                   </div>
+
+                  {calculationResult && (
+                    <div className="border rounded-lg overflow-hidden">
+                        <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                            <span>Proposed Application</span>
+                            <span>{calculationResult.totalApplied.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Invoice #</TableHead>
+                                        <TableHead className="text-right">Applied</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {calculationResult.appliedInvoices.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="text-center text-muted-foreground">No invoices applied</TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        calculationResult.appliedInvoices.map((item, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell>{item.invoice_number}</TableCell>
+                                                <TableCell className={`text-right ${item.amount_applied < 0 ? 'text-green-600' : ''}`}>
+                                                    {item.amount_applied.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                    {Math.abs(calculationResult.unappliedAmount) > 0.005 && (
+                                        <TableRow className="bg-amber-50">
+                                            <TableCell className="font-medium text-amber-800">Unapplied (On Account)</TableCell>
+                                            <TableCell className="text-right font-medium text-amber-800">
+                                                {calculationResult.unappliedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

@@ -87,23 +87,11 @@ Deno.serve(async (req) => {
         };
       };
 
-      // Helper to add update
-      const addUpdate = (line) => {
-          const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
-          const newPaid = Math.round(line._paid * 100) / 100;
-          if (existingUpdateIndex >= 0) {
-             updatesToProcess[existingUpdateIndex].paid_amount = newPaid;
-          } else {
-             updatesToProcess.push({
-               id: line.id,
-               paid_amount: newPaid
-             });
-          }
-      };
-
-      // STRATEGY: Fetch only what we need to avoid 500 errors on large datasets
+      // Identify specific invoices to fetch
+      // Note: If "On Account" was used, the frontend/pre-calculation step should have resolved it to specific invoices.
+      // We expect appliedInvoices to contain specific invoice references now, or "On Account" ONLY if it's purely unapplied/credit.
+      // If "On Account" logic is present with specific invoice lines in the payload, we treat "On Account" as "Unapplied".
       
-      // 1. Identify specific invoices to fetch
       const specificInvoices = appliedInvoices
         .filter(ai => ai.invoice_number !== 'On Account')
         .map(ai => String(ai.invoice_number));
@@ -135,96 +123,26 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 2. If "On Account" is used, we need to fetch a pool of potential candidates
-      // We fetch oldest first to satisfy "pay oldest debt" logic
-      const hasOnAccount = appliedInvoices.some(ai => ai.invoice_number === 'On Account');
-      
-      if (hasOnAccount) {
-         // Fetch a reasonable batch of oldest lines
-         // If the user has massive history, this 2000 limit might miss very recent debts if everything old is paid,
-         // but scanning everything causes 500 errors. 2000 is a safe tradeoff.
-         const globalLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
-             { supplier_id: supplierId }, 
-             'invoice_date', 
-             2000 
-         );
-         if (globalLines) {
-             globalLines.forEach(line => {
-                 if (!lineMap.has(line.id)) {
-                     lineMap.set(line.id, processLineIntoMap(line));
-                 }
-             });
-         }
-      }
-
       // Process invoices sequentially using in-memory data
       for (const appliedDetail of appliedInvoices) {
         
         if (appliedDetail.invoice_number === 'On Account') {
-           let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
-           
-           if (Math.abs(remainingPayment) <= 0.005) continue;
-
-           // Handling Payment (Positive)
-           if (remainingPayment > 0) {
-               // 1. CREDIT NETTING: Identify and use available credits
-               const allLines = Array.from(lineMap.values()).sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
-               const openCredits = allLines.filter(line => (line._total - line._paid) < -0.005);
-               
-               for (const credit of openCredits) {
-                   const creditBalance = credit._total - credit._paid; 
-                   
-                   credit._paid += creditBalance; 
-                   addUpdate(credit);
-                   
-                   remainingPayment += Math.abs(creditBalance);
-               }
-
-               // 2. PAY INVOICES: Apply remaining payment
-               const openInvoices = allLines.filter(line => (line._total - line._paid) > 0.005);
-               
-               for (const line of openInvoices) {
-                  if (remainingPayment <= 0.005) break;
-
-                  const due = line._total - line._paid;
-                  const payAmount = Math.min(remainingPayment, due);
-                  
-                  line._paid += payAmount;
-                  addUpdate(line);
-                  
-                  remainingPayment -= payAmount;
-               }
-
-           } else {
-               // Handling Refund (Negative Payment)
-               const openCredits = Array.from(lineMap.values())
-                 .filter(line => (line._total - line._paid) < -0.005)
-                 .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
-
-               for (const line of openCredits) {
-                   if (remainingPayment >= -0.005) break; 
-                   
-                   const balance = line._total - line._paid;
-                   const amountToApply = Math.max(remainingPayment, balance);
-                   
-                   line._paid += amountToApply;
-                   addUpdate(line);
-                   
-                   remainingPayment -= amountToApply;
-               }
-           }
-
+           // Skip "On Account" for line item updates as it implies unapplied amount
+           continue;
         } else {
           // Specific Invoice
           const targetInvoiceNumber = String(appliedDetail.invoice_number);
+          
+          // amount_applied can be positive (paying an invoice) or negative (using a credit)
           let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
+          
+          if (Math.abs(remainingForInvoice) <= 0.005) continue;
 
           // Find lines for this invoice in our memory cache
           let invoiceLines = Array.from(lineMap.values())
              .filter(line => String(line.invoice_number) === targetInvoiceNumber);
 
-          // Fallback fetch is no longer needed here as we pre-fetched specific invoices above
-          // But kept for safety in case of race conditions or missing data
+          // If no lines found, fallback fetch (safety net)
           if (invoiceLines.length === 0) {
              const fetchedLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
                supplier_id: supplierId,
@@ -241,28 +159,40 @@ Deno.serve(async (req) => {
           }
 
           if (invoiceLines.length > 0) {
-             // Sort by due amount ascending (negatives/credits first) to ensure clean application
+             // Sort by due amount ascending to handle multiple lines per invoice
+             // But usually we just want to apply to the lines.
+             // If we are applying positive amount, target lines with positive due.
+             // If we are applying negative amount, target lines with negative due (credits).
+             
              invoiceLines.sort((a, b) => (a._total - a._paid) - (b._total - b._paid));
 
              for (const line of invoiceLines) {
-                if (remainingForInvoice <= 0.005) break;
+                if (Math.abs(remainingForInvoice) <= 0.005) break;
 
                 const due = line._total - line._paid;
-                // Note: We process negatives even if due <= 0, because due can be negative for credits
-                // But the check "due <= 0.005" excludes them? 
-                // Wait, if due is -20, it is <= 0.005. It would continue.
-                // We MUST process negative dues if we want to apply credits!
-                // BUT, if we are paying a positive amount...
-                // If due is -20. min(80, -20) = -20.
-                // We want to apply -20.
-                // So we should NOT skip negative dues.
-                // We should only skip if due is 0 (fully paid).
-                if (Math.abs(due) <= 0.005) continue; 
-
-                const payAmount = Math.min(remainingForInvoice, due);
                 
-                // Update in-memory
-                line._paid += payAmount;
+                // If applying positive payment
+                if (remainingForInvoice > 0) {
+                    // Only apply to positive due (unless we want to overpay a negative line? No.)
+                    if (due <= 0.005) continue;
+                    
+                    const payAmount = Math.min(remainingForInvoice, due);
+                    
+                    line._paid += payAmount;
+                    remainingForInvoice -= payAmount;
+                } 
+                // If applying negative payment (credit usage)
+                else {
+                    // Only apply to negative due (credits)
+                    if (due >= -0.005) continue;
+                    
+                    // e.g. remaining: -50. due: -100. max(-50, -100) = -50.
+                    // e.g. remaining: -200. due: -100. max(-200, -100) = -100.
+                    const payAmount = Math.max(remainingForInvoice, due);
+                    
+                    line._paid += payAmount;
+                    remainingForInvoice -= payAmount;
+                }
 
                 // Add to updates list
                 const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
@@ -274,8 +204,6 @@ Deno.serve(async (req) => {
                      paid_amount: Math.round(line._paid * 100) / 100
                    });
                 }
-                
-                remainingForInvoice -= payAmount;
              }
           }
         }
