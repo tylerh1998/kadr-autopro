@@ -73,12 +73,24 @@ Deno.serve(async (req) => {
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
       
-      // Fetch ALL potentially relevant lines in one go to minimize round trips
-      // Sort by invoice_date ascending (oldest first) to handle "On Account" correctly
-      // Limit to 10000 to cover large history
-      const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-         supplier_id: supplierId
-      }, 'invoice_date', 10000);
+      // Fetch ALL potentially relevant lines using pagination to avoid 500 errors
+      // Sort by invoice_date ascending (oldest first)
+      let allSupplierLines = [];
+      let skip = 0;
+      const BATCH_SIZE = 1000;
+      
+      while (true) {
+          const batch = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
+              { supplier_id: supplierId }, 
+              'invoice_date', 
+              BATCH_SIZE, 
+              skip
+          );
+          if (!batch || batch.length === 0) break;
+          allSupplierLines = allSupplierLines.concat(batch);
+          if (batch.length < BATCH_SIZE) break;
+          skip += BATCH_SIZE;
+      }
 
       const updatesToProcess = [];
       
@@ -94,42 +106,96 @@ Deno.serve(async (req) => {
         });
       });
 
+      // Helper to add update
+      const addUpdate = (line) => {
+          const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
+          const newPaid = Math.round(line._paid * 100) / 100;
+          if (existingUpdateIndex >= 0) {
+             updatesToProcess[existingUpdateIndex].paid_amount = newPaid;
+          } else {
+             updatesToProcess.push({
+               id: line.id,
+               paid_amount: newPaid
+             });
+          }
+      };
+
       // Process invoices sequentially using in-memory data
       for (const appliedDetail of appliedInvoices) {
         
         if (appliedDetail.invoice_number === 'On Account') {
            let remainingPayment = parseFloat(appliedDetail.amount_applied) || 0;
-           if (remainingPayment <= 0.005) continue;
+           
+           if (Math.abs(remainingPayment) <= 0.005) continue;
 
-           // Filter for unpaid/partially paid lines from our in-memory set
-           // We re-filter here because previous iterations might have updated _paid
-           const unpaidLines = Array.from(lineMap.values())
-             .filter(line => (line._total - line._paid) > 0.005)
-             // Ensure sorted by date (should be already, but map iteration order matches insertion if not messed with)
-             .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+           // Handling Payment (Positive)
+           if (remainingPayment > 0) {
+               // 1. CREDIT NETTING: Identify and use available credits
+               // Sort by date to use oldest credits first? Or just any? Standard is usually oldest.
+               const allLines = Array.from(lineMap.values()).sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+               const openCredits = allLines.filter(line => (line._total - line._paid) < -0.005);
+               
+               for (const credit of openCredits) {
+                   const creditBalance = credit._total - credit._paid; // Negative value (e.g. -100)
+                   // "Use" the credit: Make it fully paid (bring balance to 0)
+                   // New Paid = Old Paid + Credit Balance.
+                   // Example: Total -100. Paid 0. Balance -100. New Paid -100. Balance 0.
+                   // Change in Paid: -100.
+                   
+                   credit._paid += creditBalance; 
+                   addUpdate(credit);
+                   
+                   // Increase our buying power by the magnitude of the credit
+                   remainingPayment += Math.abs(creditBalance);
+               }
 
-           for (const line of unpaidLines) {
-              if (remainingPayment <= 0.005) break;
+               // 2. PAY INVOICES: Apply the (boosted) remaining payment to positive invoices
+               const openInvoices = allLines.filter(line => (line._total - line._paid) > 0.005);
+               
+               for (const line of openInvoices) {
+                  if (remainingPayment <= 0.005) break;
 
-              const due = line._total - line._paid;
-              const payAmount = Math.min(remainingPayment, due);
-              
-              // Update in-memory
-              line._paid += payAmount;
-              
-              // Add to updates list
-              // Check if we already have an update pending for this line
-              const existingUpdateIndex = updatesToProcess.findIndex(u => u.id === line.id);
-              if (existingUpdateIndex >= 0) {
-                 updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
-              } else {
-                 updatesToProcess.push({
-                   id: line.id,
-                   paid_amount: Math.round(line._paid * 100) / 100
-                 });
-              }
-              
-              remainingPayment -= payAmount;
+                  const due = line._total - line._paid;
+                  const payAmount = Math.min(remainingPayment, due);
+                  
+                  line._paid += payAmount;
+                  addUpdate(line);
+                  
+                  remainingPayment -= payAmount;
+               }
+
+           } else {
+               // Handling Refund (Negative Payment)
+               // Apply negative amount to credits (making them more unpaid? No, making them PAID, i.e. 0 balance)
+               // If I receive a refund of -$100.
+               // It should clear a Credit Note of -$100.
+               // Credit: Total -100. Paid 0. Bal -100.
+               // Apply -100.
+               // Max(-100, -100) = -100.
+               // Paid += -100. New Paid -100. Bal 0.
+               // Correct.
+               
+               const openCredits = Array.from(lineMap.values())
+                 .filter(line => (line._total - line._paid) < -0.005)
+                 .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+
+               for (const line of openCredits) {
+                   if (remainingPayment >= -0.005) break; // remainingPayment is negative
+                   
+                   const balance = line._total - line._paid; // e.g. -100
+                   // We want to apply 'remainingPayment' (e.g. -500).
+                   // We can apply at most 'balance' (magnitude).
+                   // Actually we want to Match.
+                   // Apply max(remainingPayment, balance) ?
+                   // max(-500, -100) = -100. Correct.
+                   
+                   const amountToApply = Math.max(remainingPayment, balance);
+                   
+                   line._paid += amountToApply;
+                   addUpdate(line);
+                   
+                   remainingPayment -= amountToApply;
+               }
            }
 
         } else {

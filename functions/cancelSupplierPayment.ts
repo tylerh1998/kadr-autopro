@@ -86,10 +86,23 @@ Deno.serve(async (req) => {
 
     // 4. Un-apply Invoices (Optimized Batch Process)
     
-    // Fetch ALL supplier lines efficiently
-    const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-        supplier_id: payment.supplier_id
-    }, 'invoice_date', 10000);
+    // Fetch ALL supplier lines efficiently using pagination
+    let allSupplierLines = [];
+    let skip = 0;
+    const BATCH_SIZE = 1000;
+    
+    while (true) {
+        const batch = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
+            { supplier_id: payment.supplier_id }, 
+            'invoice_date', 
+            BATCH_SIZE, 
+            skip
+        );
+        if (!batch || batch.length === 0) break;
+        allSupplierLines = allSupplierLines.concat(batch);
+        if (batch.length < BATCH_SIZE) break;
+        skip += BATCH_SIZE;
+    }
 
     // Build map for fast lookup and state tracking
     const lineMap = new Map();
