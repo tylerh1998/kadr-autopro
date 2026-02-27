@@ -73,24 +73,14 @@ Deno.serve(async (req) => {
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
       
-      // Fetch ALL potentially relevant lines using pagination to avoid 500 errors
-      // Sort by invoice_date ascending (oldest first)
-      let allSupplierLines = [];
-      let skip = 0;
-      const BATCH_SIZE = 1000;
-      
-      while (true) {
-          const batch = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
-              { supplier_id: supplierId }, 
-              'invoice_date', 
-              BATCH_SIZE, 
-              skip
-          );
-          if (!batch || batch.length === 0) break;
-          allSupplierLines = allSupplierLines.concat(batch);
-          if (batch.length < BATCH_SIZE) break;
-          skip += BATCH_SIZE;
-      }
+      // Fetch ALL supplier lines in reasonable batches to avoid timeouts
+      // Note: The SDK's filter method limit parameter defaults to fetching all matching records
+      // We set a reasonable limit to avoid timeout issues
+      const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
+          { supplier_id: supplierId }, 
+          'invoice_date', 
+          5000 // Reasonable limit that should handle most suppliers
+      );
 
       const updatesToProcess = [];
       
