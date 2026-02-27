@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       
       // Fetch specific invoices in parallel batches
       if (uniqueSpecificInvoices.length > 0) {
-        const BATCH_SIZE = 10;
+        const BATCH_SIZE = 20;
         for (let i = 0; i < uniqueSpecificInvoices.length; i += BATCH_SIZE) {
             const batch = uniqueSpecificInvoices.slice(i, i + BATCH_SIZE);
             await Promise.all(batch.map(async (invNum) => {
@@ -210,13 +210,13 @@ Deno.serve(async (req) => {
       }
 
       // Execute all updates in batches
-      // Batch size 100 for efficiency
+      // Batch size reduced to 5 to prevent timeouts/database locks on large operations
       if (updatesToProcess.length > 0) {
         await processUpdatesInBatches(updatesToProcess, (update) => 
           base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
             paid_amount: update.paid_amount
           })
-        , 100);
+        , 5);
       }
     }
 

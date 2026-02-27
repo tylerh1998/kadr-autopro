@@ -23,12 +23,11 @@ Deno.serve(async (req) => {
 
     // Fetch open invoices/credits
     // We fetch a large batch of recent invoices. 
-    // If the user has extremely old unpaid invoices beyond this limit, they might not be picked up automatically.
-    // 5000 is a generous limit.
+    // Reduced limit to 2500 to prevent memory/timeout issues.
     const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
       { supplier_id: supplierId },
       'invoice_date',
-      5000
+      2500
     );
 
     // Filter for open items and calculate balances
