@@ -73,28 +73,19 @@ Deno.serve(async (req) => {
     // Update SupplierInvoiceLine paid amounts
     if (appliedInvoices && Array.isArray(appliedInvoices)) {
       
-      // Fetch ALL supplier lines in reasonable batches to avoid timeouts
-      // Note: The SDK's filter method limit parameter defaults to fetching all matching records
-      // We set a reasonable limit to avoid timeout issues
-      const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
-          { supplier_id: supplierId }, 
-          'invoice_date', 
-          5000 // Reasonable limit that should handle most suppliers
-      );
-
       const updatesToProcess = [];
-      
-      // Create a map for fast lookup by ID to track in-memory updates
       const lineMap = new Map();
-      allSupplierLines.forEach(line => {
-        lineMap.set(line.id, { 
+
+      // Helper to process raw line into map format
+      const processLineIntoMap = (line) => {
+        return { 
             ...line, 
             _purchase: parseFloat(line.purchase_amount) || 0,
             _gst: parseFloat(line.gst_amount) || 0,
             _paid: parseFloat(line.paid_amount) || 0,
             _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
-        });
-      });
+        };
+      };
 
       // Helper to add update
       const addUpdate = (line) => {
@@ -110,6 +101,62 @@ Deno.serve(async (req) => {
           }
       };
 
+      // STRATEGY: Fetch only what we need to avoid 500 errors on large datasets
+      
+      // 1. Identify specific invoices to fetch
+      const specificInvoices = appliedInvoices
+        .filter(ai => ai.invoice_number !== 'On Account')
+        .map(ai => String(ai.invoice_number));
+      
+      const uniqueSpecificInvoices = [...new Set(specificInvoices)];
+      
+      // Fetch specific invoices in parallel batches
+      if (uniqueSpecificInvoices.length > 0) {
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < uniqueSpecificInvoices.length; i += BATCH_SIZE) {
+            const batch = uniqueSpecificInvoices.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(async (invNum) => {
+                try {
+                    const lines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+                        supplier_id: supplierId,
+                        invoice_number: invNum
+                    });
+                    if (lines) {
+                        lines.forEach(line => {
+                             if (!lineMap.has(line.id)) {
+                                 lineMap.set(line.id, processLineIntoMap(line));
+                             }
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Error fetching invoice ${invNum}:`, e);
+                }
+            }));
+        }
+      }
+
+      // 2. If "On Account" is used, we need to fetch a pool of potential candidates
+      // We fetch oldest first to satisfy "pay oldest debt" logic
+      const hasOnAccount = appliedInvoices.some(ai => ai.invoice_number === 'On Account');
+      
+      if (hasOnAccount) {
+         // Fetch a reasonable batch of oldest lines
+         // If the user has massive history, this 2000 limit might miss very recent debts if everything old is paid,
+         // but scanning everything causes 500 errors. 2000 is a safe tradeoff.
+         const globalLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
+             { supplier_id: supplierId }, 
+             'invoice_date', 
+             2000 
+         );
+         if (globalLines) {
+             globalLines.forEach(line => {
+                 if (!lineMap.has(line.id)) {
+                     lineMap.set(line.id, processLineIntoMap(line));
+                 }
+             });
+         }
+      }
+
       // Process invoices sequentially using in-memory data
       for (const appliedDetail of appliedInvoices) {
         
@@ -121,25 +168,19 @@ Deno.serve(async (req) => {
            // Handling Payment (Positive)
            if (remainingPayment > 0) {
                // 1. CREDIT NETTING: Identify and use available credits
-               // Sort by date to use oldest credits first? Or just any? Standard is usually oldest.
                const allLines = Array.from(lineMap.values()).sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
                const openCredits = allLines.filter(line => (line._total - line._paid) < -0.005);
                
                for (const credit of openCredits) {
-                   const creditBalance = credit._total - credit._paid; // Negative value (e.g. -100)
-                   // "Use" the credit: Make it fully paid (bring balance to 0)
-                   // New Paid = Old Paid + Credit Balance.
-                   // Example: Total -100. Paid 0. Balance -100. New Paid -100. Balance 0.
-                   // Change in Paid: -100.
+                   const creditBalance = credit._total - credit._paid; 
                    
                    credit._paid += creditBalance; 
                    addUpdate(credit);
                    
-                   // Increase our buying power by the magnitude of the credit
                    remainingPayment += Math.abs(creditBalance);
                }
 
-               // 2. PAY INVOICES: Apply the (boosted) remaining payment to positive invoices
+               // 2. PAY INVOICES: Apply remaining payment
                const openInvoices = allLines.filter(line => (line._total - line._paid) > 0.005);
                
                for (const line of openInvoices) {
@@ -156,29 +197,14 @@ Deno.serve(async (req) => {
 
            } else {
                // Handling Refund (Negative Payment)
-               // Apply negative amount to credits (making them more unpaid? No, making them PAID, i.e. 0 balance)
-               // If I receive a refund of -$100.
-               // It should clear a Credit Note of -$100.
-               // Credit: Total -100. Paid 0. Bal -100.
-               // Apply -100.
-               // Max(-100, -100) = -100.
-               // Paid += -100. New Paid -100. Bal 0.
-               // Correct.
-               
                const openCredits = Array.from(lineMap.values())
                  .filter(line => (line._total - line._paid) < -0.005)
                  .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
 
                for (const line of openCredits) {
-                   if (remainingPayment >= -0.005) break; // remainingPayment is negative
+                   if (remainingPayment >= -0.005) break; 
                    
-                   const balance = line._total - line._paid; // e.g. -100
-                   // We want to apply 'remainingPayment' (e.g. -500).
-                   // We can apply at most 'balance' (magnitude).
-                   // Actually we want to Match.
-                   // Apply max(remainingPayment, balance) ?
-                   // max(-500, -100) = -100. Correct.
-                   
+                   const balance = line._total - line._paid;
                    const amountToApply = Math.max(remainingPayment, balance);
                    
                    line._paid += amountToApply;
@@ -197,23 +223,17 @@ Deno.serve(async (req) => {
           let invoiceLines = Array.from(lineMap.values())
              .filter(line => String(line.invoice_number) === targetInvoiceNumber);
 
-          // Fallback: If not found in the 3000 loaded lines, we must fetch them specifically
+          // Fallback fetch is no longer needed here as we pre-fetched specific invoices above
+          // But kept for safety in case of race conditions or missing data
           if (invoiceLines.length === 0) {
              const fetchedLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
                supplier_id: supplierId,
                invoice_number: targetInvoiceNumber
-             }, undefined, 100);
+             });
              
              if (fetchedLines && fetchedLines.length > 0) {
-               // Add to map
                fetchedLines.forEach(line => {
-                  const processed = { 
-                    ...line, 
-                    _purchase: parseFloat(line.purchase_amount) || 0,
-                    _gst: parseFloat(line.gst_amount) || 0,
-                    _paid: parseFloat(line.paid_amount) || 0,
-                    _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
-                  };
+                  const processed = processLineIntoMap(line);
                   lineMap.set(line.id, processed);
                   invoiceLines.push(processed);
                });
