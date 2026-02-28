@@ -485,22 +485,47 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       const result = response.data || response;
       
       if (result.success) {
-        if (!chequeNumber) {
-          if (onPaymentComplete) {
-            onPaymentComplete();
-          }
-          onClose();
-        }
+        const paymentId = result.payment_id;
+        
+        // Start polling for status
+        const pollInterval = setInterval(async () => {
+            try {
+                const payment = await base44.entities.SupplierPayment.get(paymentId);
+                
+                if (payment.status === 'completed') {
+                    clearInterval(pollInterval);
+                    if (chequeNumber) {
+                         // Navigate to cheque writer
+                         const chequeUrl = \`\${createPageUrl('ChequeWriter')}?chequeReference=\${encodeURIComponent(chequeNumber)}\`;
+                         window.location.href = chequeUrl;
+                    } else {
+                         if (onPaymentComplete) onPaymentComplete();
+                         onClose();
+                    }
+                } else if (payment.status === 'failed') {
+                    clearInterval(pollInterval);
+                    setLoading(false);
+                    setProcessingCheque(false);
+                    alert(\`Payment processing failed: \${payment.error_message || 'Unknown error'}\`);
+                }
+                // If pending or processing, continue polling
+            } catch (e) {
+                console.error("Polling error:", e);
+            }
+        }, 2000); // Check every 2 seconds
+
       } else {
+        setLoading(false);
+        setProcessingCheque(false);
         throw new Error(result.error || 'Payment processing failed');
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      alert(error.message || 'Failed to process payment. Please try again.');
-      throw error;
-    } finally {
       setLoading(false);
-    }
+      setProcessingCheque(false);
+      alert(error.message || 'Failed to process payment. Please try again.');
+    } 
+    // Do NOT set loading false in finally block if success, because we are polling
   };
 
   return (
