@@ -30,11 +30,25 @@ Deno.serve(async (req) => {
     const supplier = await base44.asServiceRole.entities.Supplier.get(supplierId);
     
     // Helper for batched updates
-    const processUpdatesInBatches = async (items, updateFn, batchSize = 20) => {
+    // Helper for batched updates with rate limiting and retry
+    const processUpdatesInBatches = async (items, updateFn, batchSize = 5) => {
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, 100));
-        await Promise.all(batch.map(updateFn));
+        // 1 second delay between batches
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        try {
+            await Promise.all(batch.map(updateFn));
+        } catch (err) {
+            // Simple retry for rate limits
+            if (err?.status === 429 || err?.message?.includes('Rate limit')) {
+                 console.warn(`Rate limit hit at batch ${i}. Waiting 5 seconds and retrying...`);
+                 await new Promise(resolve => setTimeout(resolve, 5000));
+                 await Promise.all(batch.map(updateFn));
+            } else {
+                throw err;
+            }
+        }
       }
     };
 
@@ -149,7 +163,7 @@ Deno.serve(async (req) => {
           base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
             paid_amount: update.paid_amount
           })
-        , 20);
+        , 5);
       }
     }
 
