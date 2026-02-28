@@ -496,7 +496,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     clearInterval(pollInterval);
                     if (chequeNumber) {
                          // Navigate to cheque writer
-                         const chequeUrl = \`\${createPageUrl('ChequeWriter')}?chequeReference=\${encodeURIComponent(chequeNumber)}\`;
+                         const chequeUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumber)}`;
                          window.location.href = chequeUrl;
                     } else {
                          if (onPaymentComplete) onPaymentComplete();
