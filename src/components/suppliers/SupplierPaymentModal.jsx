@@ -506,7 +506,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     clearInterval(pollInterval);
                     setLoading(false);
                     setProcessingCheque(false);
-                    alert(\`Payment processing failed: \${payment.error_message || 'Unknown error'}\`);
+                    alert(`Payment processing failed: ${payment.error_message || 'Unknown error'}`);
                 }
                 // If pending or processing, continue polling
             } catch (e) {
