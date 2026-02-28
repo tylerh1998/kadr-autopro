@@ -30,23 +30,28 @@ Deno.serve(async (req) => {
     const supplier = await base44.asServiceRole.entities.Supplier.get(supplierId);
     
     // Helper for batched updates
-    // Helper for batched updates with rate limiting and retry
-    const processUpdatesInBatches = async (items, updateFn, batchSize = 5) => {
+    // Helper for batched updates with robust rate limiting and exponential backoff
+    const processUpdatesInBatches = async (items, updateFn, batchSize = 1) => {
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
-        // 1 second delay between batches
-        if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+        // Delay to ensure we stay under ~100 ops/minute (approx 600ms per op)
+        if (i > 0) await new Promise(resolve => setTimeout(resolve, 600));
         
-        try {
-            await Promise.all(batch.map(updateFn));
-        } catch (err) {
-            // Simple retry for rate limits
-            if (err?.status === 429 || err?.message?.includes('Rate limit')) {
-                 console.warn(`Rate limit hit at batch ${i}. Waiting 5 seconds and retrying...`);
-                 await new Promise(resolve => setTimeout(resolve, 5000));
-                 await Promise.all(batch.map(updateFn));
-            } else {
-                throw err;
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                await Promise.all(batch.map(updateFn));
+                break; // Success
+            } catch (err) {
+                if (err?.status === 429 || err?.message?.includes('Rate limit')) {
+                     retries--;
+                     const waitTime = (4 - retries) * 3000; // 3s, 6s, 9s
+                     console.warn(`Rate limit hit at index ${i}. Retries left: ${retries}. Waiting ${waitTime}ms...`);
+                     await new Promise(resolve => setTimeout(resolve, waitTime));
+                     if (retries === 0) throw err;
+                } else {
+                    throw err;
+                }
             }
         }
       }
