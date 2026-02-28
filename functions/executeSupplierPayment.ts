@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
           base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
             paid_amount: update.paid_amount
           })
-        , 5);
+        , 1);
       }
     }
 
