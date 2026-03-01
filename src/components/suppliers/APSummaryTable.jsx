@@ -246,6 +246,7 @@ export default function APSummaryTable({ isFullPage = false }) {
       
       setAddToSheetData({
         supplierName: selectedSupplier.name,
+        supplierId: selectedSupplier.id,
         amount: amount,
         dueDate: dueDate
       });
