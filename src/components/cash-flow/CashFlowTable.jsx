@@ -82,7 +82,15 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
 
   const handleRowAction = (index, action) => {
     const newRows = [...rows];
-    if (action === 'mark_paid') {
+    if (action === 'toggle_paid') {
+        const currentStatus = newRows[index].rowStatus;
+        newRows[index] = { ...newRows[index], rowStatus: currentStatus === 'paid' ? '' : 'paid' };
+        onRowChange(newRows);
+    } else if (action === 'toggle_follow_up') {
+        const currentStatus = newRows[index].rowStatus;
+        newRows[index] = { ...newRows[index], rowStatus: currentStatus === 'follow_up' ? '' : 'follow_up' };
+        onRowChange(newRows);
+    } else if (action === 'mark_paid') {
         newRows[index] = { ...newRows[index], rowStatus: 'paid' };
         onRowChange(newRows);
     } else if (action === 'mark_follow_up') {
@@ -380,13 +388,13 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                   </tr>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem onClick={() => handleRowAction(index, 'mark_paid')}>
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'toggle_paid')}>
                     <span className="w-2 h-2 rounded-full bg-purple-500 mr-2"></span>
-                    Mark as Paid
+                    {row.rowStatus === 'paid' ? 'Unmark as Paid' : 'Mark as Paid'}
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleRowAction(index, 'mark_follow_up')}>
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'toggle_follow_up')}>
                     <span className="w-2 h-2 rounded-full bg-orange-500 mr-2"></span>
-                    Mark for Follow Up
+                    {row.rowStatus === 'follow_up' ? 'Remove Follow Up' : 'Mark for Follow Up'}
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem onClick={() => handleRowAction(index, 'comment')}>
