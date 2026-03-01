@@ -160,7 +160,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
     }
 
     return filtered;
-  }, [suppliers, supplierInvoicesMap, loading, asOfDate, sortConfig]);
+  }, [suppliers, supplierInvoicesMap, loading, asOfDate, sortConfig, cashFlowEntries]);
 
   const totals = useMemo(() => {
     const result = summaryData.reduce((acc, curr) => {
