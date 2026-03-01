@@ -40,21 +40,19 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
 
     setSubmitting(true);
     try {
-      const response = await base44.functions.invoke('addToGoogleSheet', {
-        supplierName: formData.supplierName,
+      await base44.entities.CashFlowEntry.create({
+        supplier: formData.supplierName,
+        supplier_id: initialValues?.supplierId,
         amount: parseFloat(formData.amount),
-        dueDate: formData.dueDate
+        due_date: formData.dueDate,
+        amount_paid: 0
       });
 
-      if (response.data?.success) {
-        toast.success("Successfully added to Google Sheet");
-        onClose();
-        if (onSuccess) onSuccess();
-      } else {
-        throw new Error(response.data?.error || "Unknown error");
-      }
+      toast.success("Successfully added to Cash Flow");
+      onClose();
+      if (onSuccess) onSuccess();
     } catch (error) {
-      console.error("Failed to add to sheet", error);
+      console.error("Failed to add to cash flow", error);
       toast.error(`Failed to add: ${error.message}`);
     } finally {
       setSubmitting(false);
@@ -65,7 +63,7 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add to SCU Payment Sheet</DialogTitle>
+          <DialogTitle>Add to Cash Flow</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
@@ -108,7 +106,7 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add to Sheet
+              Add to Cash Flow
             </Button>
           </DialogFooter>
         </form>
