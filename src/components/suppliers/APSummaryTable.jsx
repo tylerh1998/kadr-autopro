@@ -412,30 +412,31 @@ export default function APSummaryTable({ isFullPage = false }) {
                         <ContextMenuTrigger asChild>
                           <tr className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
                             <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
-                            <td className="p-3 text-center">
-                              <div className="flex flex-wrap gap-1 justify-center">
+                            <td className="p-0 text-center align-top">
+                              <div className="flex flex-col w-full h-full">
                                   {supplier.cashFlowEntries && supplier.cashFlowEntries.map((entry, idx) => {
-                                      let badgeColor = "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"; // Default
-
-                                      // Logic matches CashFlowTable precedence: Cheque > Paid > Follow Up
-                                      if (entry.chq_number || entry.method === 'Cheque') {
-                                          badgeColor = "bg-green-100 text-green-800 hover:bg-green-200";
-                                      } else if (entry.row_status === 'paid' || (entry.amount_paid >= entry.amount && entry.amount > 0)) {
-                                          badgeColor = "bg-purple-100 text-purple-800 hover:bg-purple-200";
-                                      } else if (entry.row_status === 'follow_up') {
-                                          badgeColor = "bg-red-100 text-red-800 hover:bg-red-200";
+                                      const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+                                      
+                                      let bgColor = '#ffffff';
+                                      
+                                      if (entry.bg_colour) {
+                                        bgColor = entry.bg_colour;
+                                      } else if (entry.due_date) {
+                                        const days = differenceInDays(parseISO(entry.due_date), new Date());
+                                        if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
+                                        else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
+                                        else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (10-30 days)
                                       }
 
-                                      const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
-
                                       return (
-                                          <Badge 
+                                          <div 
                                               key={idx}
-                                              className={`cursor-help whitespace-nowrap ${badgeColor}`}
+                                              className="py-2 px-3 w-full border-b last:border-b-0 flex items-center justify-center text-sm font-medium"
+                                              style={{ backgroundColor: bgColor }}
                                               title={`Due: ${entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}`}
                                           >
                                               ${amount.toFixed(2)}
-                                          </Badge>
+                                          </div>
                                       );
                                   })}
                               </div>
