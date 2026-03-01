@@ -419,13 +419,20 @@ export default function APSummaryTable({ isFullPage = false }) {
                                       
                                       let bgColor = '#ffffff';
                                       
-                                      if (entry.bg_colour) {
+                                      const days = entry.due_date ? differenceInDays(parseISO(entry.due_date), new Date()) : null;
+
+                                      if (entry.row_status === 'follow_up') {
+                                        bgColor = '#fdba74'; // Orange-300
+                                      } else if (entry.chq_number) {
+                                        bgColor = '#86efac'; // Green-300
+                                      } else if (entry.row_status === 'paid') {
+                                        bgColor = '#d8b4fe'; // Purple-300
+                                      } else if (entry.bg_colour) {
                                         bgColor = entry.bg_colour;
-                                      } else if (entry.due_date) {
-                                        const days = differenceInDays(parseISO(entry.due_date), new Date());
+                                      } else if (days !== null) {
                                         if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
                                         else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
-                                        else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (10-30 days)
+                                        else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (11-30 days)
                                       }
 
                                       return (
