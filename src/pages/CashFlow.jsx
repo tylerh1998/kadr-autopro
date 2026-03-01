@@ -71,117 +71,118 @@ export default function CashFlow() {
   });
 
   // Load Data
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     const formatCurrency = (val) => {
         if (val === null || val === undefined || val === '') return '';
         return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val);
     };
 
-    const loadData = async () => {
-      try {
-        // Fetch Entries - sorted by sort_order
-        const entries = await base44.entities.CashFlowEntry.list('sort_order', 100);
-        
-        const loadedRows = entries.map(entry => ({
-            id: entry.id,
-            due: false, // Calculated on frontend usually, but keeping consistent structure
-            supplier: entry.supplier || '',
-            supplier_id: entry.supplier_id || '',
-            amount: formatCurrency(entry.amount),
-            amountPaid: formatCurrency(entry.amount_paid),
-            dueDate: entry.due_date ? moment(entry.due_date).format('MMM D') : '',
-            datePaid: entry.date_paid ? moment(entry.date_paid).format('MMM D') : '',
-            chqNumber: entry.chq_number || '',
-            method: entry.method || '',
-            comment: entry.comment || '',
-            bg_colour: entry.bg_colour || '',
-            rowStatus: entry.row_status || '',
-            sortOrder: entry.sort_order || 0
-        }));
+    try {
+      // Fetch Entries - sorted by sort_order
+      const entries = await base44.entities.CashFlowEntry.list('sort_order', 100);
+      
+      const loadedRows = entries.map(entry => ({
+          id: entry.id,
+          due: false, // Calculated on frontend usually, but keeping consistent structure
+          supplier: entry.supplier || '',
+          supplier_id: entry.supplier_id || '',
+          amount: formatCurrency(entry.amount),
+          amountPaid: formatCurrency(entry.amount_paid),
+          dueDate: entry.due_date ? moment(entry.due_date).format('MMM D') : '',
+          datePaid: entry.date_paid ? moment(entry.date_paid).format('MMM D') : '',
+          chqNumber: entry.chq_number || '',
+          method: entry.method || '',
+          comment: entry.comment || '',
+          bg_colour: entry.bg_colour || '',
+          rowStatus: entry.row_status || '',
+          sortOrder: entry.sort_order || 0
+      }));
 
-        // Pad to 40
-        while (loadedRows.length < 40) {
-            loadedRows.push({
-                due: false, supplier: '', supplier_id: '', amount: '', amountPaid: '', 
-                dueDate: '', datePaid: '', chqNumber: '', method: '', comment: '',
-                bg_colour: '', rowStatus: ''
-            });
-        }
-        setRows(loadedRows);
-
-        // Fetch Summary
-        const summaries = await base44.entities.CashFlowSummary.list();
-        let summary;
-        if (summaries.length > 0) {
-            summary = summaries[0];
-        } else {
-            summary = await base44.entities.CashFlowSummary.create({
-                last_updated: new Date().toISOString(),
-                month_end: moment().endOf('month').toISOString(),
-                current_bank_balance: 0,
-                fiscal_cushion: 1000,
-                pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
-                overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }))
-            });
-        }
-        setSummaryId(summary.id);
-
-        // Parse Summary Data
-        const safeFormat = (val) => {
-             if (!val) return '';
-             const num = parseFloat(val.toString().replace(/[^0-9.-]+/g,""));
-             return isNaN(num) ? '' : formatCurrency(num);
-        };
-
-        let padDetails = [];
-        try {
-            padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
-            // Format amounts in padDetails
-            padDetails = padDetails.map(item => ({ ...item, amount: safeFormat(item.amount) }));
-        } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
-        
-        while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
-
-        let overheadItems = [];
-        try {
-            overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '' });
-            // Format amounts in overheadItems
-            overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount) }));
-        } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }); }
-
-        while (overheadItems.length < 35) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
-
-        setSummaryData({
-            bankBalance: formatCurrency(summary.current_bank_balance),
-            padRegistries: formatCurrency(summary.pad_registries_total),
-            upcomingPayroll: formatCurrency(summary.upcoming_payroll),
-            payrollRemit: formatCurrency(summary.payroll_remit),
-            gstRemit: formatCurrency(summary.gst_remit),
-            fiscalCushion: formatCurrency(summary.fiscal_cushion !== undefined ? summary.fiscal_cushion : 1000),
-            expectedDeposits: formatCurrency(summary.expected_deposits),
-            padRegistriesDetails: padDetails,
-            estFirstPayroll: formatCurrency(summary.est_first_payroll),
-            estSecondPayroll: formatCurrency(summary.est_second_payroll),
-            estPayrollRemit: formatCurrency(summary.est_payroll_remit),
-            etransferPerTx: formatCurrency(summary.etransfer_per_tx),
-            etransferDaily: formatCurrency(summary.etransfer_daily),
-            etransferWeekly: formatCurrency(summary.etransfer_weekly),
-            etransferMonthly: formatCurrency(summary.etransfer_monthly)
-        });
-
-        setOverheadRows(overheadItems);
-        
-        setHeaderData({
-            lastUpdated: summary.last_updated ? moment(summary.last_updated).format('MMM D, YYYY') : '',
-            monthEnd: summary.month_end ? moment(summary.month_end).format('MMM D, YYYY') : ''
-        });
-
-      } catch (error) {
-        console.error("Error loading cash flow data:", error);
+      // Pad to 40
+      while (loadedRows.length < 40) {
+          loadedRows.push({
+              due: false, supplier: '', supplier_id: '', amount: '', amountPaid: '', 
+              dueDate: '', datePaid: '', chqNumber: '', method: '', comment: '',
+              bg_colour: '', rowStatus: ''
+          });
       }
-    };
-    loadData();
+      setRows(loadedRows);
+
+      // Fetch Summary
+      const summaries = await base44.entities.CashFlowSummary.list();
+      let summary;
+      if (summaries.length > 0) {
+          summary = summaries[0];
+      } else {
+          summary = await base44.entities.CashFlowSummary.create({
+              last_updated: new Date().toISOString(),
+              month_end: moment().endOf('month').toISOString(),
+              current_bank_balance: 0,
+              fiscal_cushion: 1000,
+              pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
+              overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }))
+          });
+      }
+      setSummaryId(summary.id);
+
+      // Parse Summary Data
+      const safeFormat = (val) => {
+           if (!val) return '';
+           const num = parseFloat(val.toString().replace(/[^0-9.-]+/g,""));
+           return isNaN(num) ? '' : formatCurrency(num);
+      };
+
+      let padDetails = [];
+      try {
+          padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
+          // Format amounts in padDetails
+          padDetails = padDetails.map(item => ({ ...item, amount: safeFormat(item.amount) }));
+      } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
+      
+      while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
+
+      let overheadItems = [];
+      try {
+          overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '' });
+          // Format amounts in overheadItems
+          overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount) }));
+      } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }); }
+
+      while (overheadItems.length < 35) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
+
+      setSummaryData({
+          bankBalance: formatCurrency(summary.current_bank_balance),
+          padRegistries: formatCurrency(summary.pad_registries_total),
+          upcomingPayroll: formatCurrency(summary.upcoming_payroll),
+          payrollRemit: formatCurrency(summary.payroll_remit),
+          gstRemit: formatCurrency(summary.gst_remit),
+          fiscalCushion: formatCurrency(summary.fiscal_cushion !== undefined ? summary.fiscal_cushion : 1000),
+          expectedDeposits: formatCurrency(summary.expected_deposits),
+          padRegistriesDetails: padDetails,
+          estFirstPayroll: formatCurrency(summary.est_first_payroll),
+          estSecondPayroll: formatCurrency(summary.est_second_payroll),
+          estPayrollRemit: formatCurrency(summary.est_payroll_remit),
+          etransferPerTx: formatCurrency(summary.etransfer_per_tx),
+          etransferDaily: formatCurrency(summary.etransfer_daily),
+          etransferWeekly: formatCurrency(summary.etransfer_weekly),
+          etransferMonthly: formatCurrency(summary.etransfer_monthly)
+      });
+
+      setOverheadRows(overheadItems);
+      
+      setHeaderData({
+          lastUpdated: summary.last_updated ? moment(summary.last_updated).format('MMM D, YYYY') : '',
+          monthEnd: summary.month_end ? moment(summary.month_end).format('MMM D, YYYY') : ''
+      });
+
+    } catch (error) {
+      console.error("Error loading cash flow data:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // --- Persistence Logic ---
 
@@ -498,7 +499,7 @@ export default function CashFlow() {
               </TabsContent>
               
               <TabsContent value="apsummary" className="mt-0">
-                <APSummaryTable />
+                <APSummaryTable onCashFlowUpdate={loadData} />
               </TabsContent>
 
               <TabsContent value="trends" className="mt-0">
