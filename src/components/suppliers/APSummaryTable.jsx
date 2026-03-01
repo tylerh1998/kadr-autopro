@@ -16,7 +16,7 @@ import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from './SupplierPaymentModal';
 import AddToSheetModal from '@/components/suppliers/AddToSheetModal';
 
-export default function APSummaryTable({ isFullPage = false }) {
+export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate }) {
   const [suppliers, setSuppliers] = useState([]);
   const [supplierInvoicesMap, setSupplierInvoicesMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
@@ -251,6 +251,21 @@ export default function APSummaryTable({ isFullPage = false }) {
         dueDate: dueDate
       });
       setShowAddToSheetModal(true);
+    }
+  };
+
+  const handleCashFlowAdded = async () => {
+    // Refresh local cash flow entries
+    try {
+      const cfEntries = await base44.entities.CashFlowEntry.list();
+      setCashFlowEntries(cfEntries || []);
+    } catch (error) {
+      console.error("Failed to refresh cash flow entries:", error);
+    }
+
+    // Notify parent if provided (e.g. CashFlow page)
+    if (onCashFlowUpdate) {
+      onCashFlowUpdate();
     }
   };
 
@@ -520,6 +535,7 @@ export default function APSummaryTable({ isFullPage = false }) {
           setAddToSheetData(null);
         }}
         initialValues={addToSheetData}
+        onSuccess={handleCashFlowAdded}
       />
     </div>
   );
