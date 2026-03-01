@@ -46,94 +46,59 @@ Deno.serve(async (req) => {
       };
     }).filter(item => Math.abs(item._balance) > 0.005);
 
-    // Separate credits and debits
-    // Sort oldest first
+    // Sort oldest first (both credits and debits mixed)
     openItems.sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
 
     const appliedInvoices = [];
     let remainingAmount = amount;
 
-    if (amount > 0) {
-      // PAYMENT Logic
-      
-      // 1. Credit Netting: Apply available credits (negative balance)
-      const openCredits = openItems.filter(item => item._balance < -0.005);
-      
-      for (const credit of openCredits) {
-        // A credit has a negative balance (e.g. -100).
-        // To "use" it, we apply a negative amount to it (e.g. -100), effectively "paying" it?
-        // Wait, if I have a Credit of -100. It means I am OWED 100.
-        // If I apply it to a debt of 100.
-        // The debt gets +100 applied.
-        // The credit gets +100 applied? Or -100?
-        // Logic from previous implementation:
-        // const creditBalance = credit._total - credit._paid; (e.g. -100)
-        // credit._paid += creditBalance; (-100 += -100 => -200? NO)
-        // If purchase is -100, paid is 0. Balance is -100.
-        // If I "pay" it (clear it), paid should become -100?
-        // If paid is -100, Balance = -100 - (-100) = 0. YES.
-        // So we apply the negative balance to the credit line.
-        
-        const creditBalance = credit._balance; // negative amount
-        
-        // We apply this amount to the credit line itself
-        appliedInvoices.push({
-          invoice_number: credit.invoice_number,
-          amount_applied: creditBalance,
-          id: credit.id,
-          original_balance: credit._balance,
-          invoice_date: credit.invoice_date
-        });
-        
-        // And we add the absolute value to our "funds available to pay debits"
-        // e.g. Payment $1000 + Credit $100 = $1100 available to pay invoices
-        remainingAmount += Math.abs(creditBalance);
+    // Iterate sequentially through sorted items
+    for (const item of openItems) {
+      if (Math.abs(remainingAmount) <= 0.005) break;
+
+      let amountToApply = 0;
+
+      if (amount > 0) {
+        // Positive Payment Mode (We are paying supplier)
+        if (item._balance > 0.005) {
+          // Invoice (Positive Balance): Pay it down
+          amountToApply = Math.min(remainingAmount, item._balance);
+        } else if (item._balance < -0.005) {
+          // Credit (Negative Balance): Settle it
+          // Applying a negative amount (the balance) "pays off" the credit.
+          // This effectively increases our remaining amount available for other invoices.
+          // e.g. Rem: 100. Credit: -50. Apply: -50. Rem: 100 - (-50) = 150.
+          amountToApply = item._balance;
+        }
+      } else {
+        // Negative Payment Mode (Refund / Reversal)
+        if (item._balance < -0.005) {
+          // Credit (Negative Balance): Reduce credit (move closer to 0)
+          // e.g. Rem: -50. Credit: -100. Apply: -50. Rem: 0.
+          amountToApply = Math.max(remainingAmount, item._balance);
+        } else if (item._balance > 0.005) {
+          // Invoice (Positive Balance): Reverse payment / Increase debt
+          // We can only reverse up to what was paid? Or just apply negative?
+          // Applying negative to positive balance increases the balance.
+          // We limit reversal to the 'paid' amount to avoid creating arbitrary debt beyond original value?
+          // But user said "reduce what you owe", which we interpreted as "reduce what you paid".
+          // Let's assume we can unpay up to the amount paid.
+          const paid = item._paid || 0;
+          if (paid > 0.005) {
+             amountToApply = Math.max(remainingAmount, -paid);
+          }
+        }
       }
 
-      // 2. Pay Invoices: Apply remaining funds to debits (positive balance)
-      const openInvoices = openItems.filter(item => item._balance > 0.005);
-      
-      for (const invoice of openInvoices) {
-        if (remainingAmount <= 0.005) break;
-        
-        const amountToPay = Math.min(remainingAmount, invoice._balance);
-        
+      if (Math.abs(amountToApply) > 0.005) {
         appliedInvoices.push({
-          invoice_number: invoice.invoice_number,
-          amount_applied: amountToPay,
-          id: invoice.id,
-          original_balance: invoice._balance,
-          invoice_date: invoice.invoice_date
-        });
-        
-        remainingAmount -= amountToPay;
-      }
-
-    } else {
-      // REFUND Logic (Negative Payment)
-      // We are receiving money back (or reducing what we owe?)
-      // Usually "Refund" means the supplier pays us back for a credit.
-      // So we apply the negative payment to the credits.
-      
-      const openCredits = openItems.filter(item => item._balance < -0.005);
-      
-      for (const credit of openCredits) {
-        if (remainingAmount >= -0.005) break;
-        
-        // credit._balance is e.g. -100. remainingAmount is e.g. -50.
-        // We want to apply max(-50, -100) = -50.
-        // If remaining is -200. max(-200, -100) = -100.
-        
-        const amountToApply = Math.max(remainingAmount, credit._balance);
-        
-        appliedInvoices.push({
-          invoice_number: credit.invoice_number,
+          invoice_number: item.invoice_number,
           amount_applied: amountToApply,
-          id: credit.id,
-          original_balance: credit._balance,
-          invoice_date: credit.invoice_date
+          id: item.id,
+          original_balance: item._balance,
+          invoice_date: item.invoice_date
         });
-        
+
         remainingAmount -= amountToApply;
       }
     }
