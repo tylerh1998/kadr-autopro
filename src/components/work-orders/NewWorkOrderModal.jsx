@@ -221,6 +221,7 @@ export default function NewWorkOrderModal({
     setActiveSearchTerm("");
     setSelectedCustomer(null);
     setSelectedVehicle(null);
+    setHasOpenWO(false);
     setStep(1);
     onClose();
   };
