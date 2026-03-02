@@ -541,7 +541,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                   disabled={(activeTab === 'pay_charges' && totalSelectedAmount === 0) || (activeTab === 'pay_balance' && (!amount || parseFloat(amount) <= 0))}
                   className="bg-amber-500 hover:bg-amber-600 text-white"
                 >
-                  Next: Add to Sheet
+                  Next: Add to Cash Flow
                 </Button>
                 <Button 
                   onClick={handleProceedToPaymentDetails} 
