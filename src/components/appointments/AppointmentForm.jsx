@@ -844,6 +844,12 @@ export default function AppointmentForm({
                       </>
                     )}
                   </div>
+                  {!formData.work_order_id && hasOpenWO && (
+                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-md text-sm flex items-center gap-2 mt-2">
+                      <span className="font-semibold">⚠</span>
+                      A work order or estimate is already open for this vehicle.
+                    </div>
+                  )}
                   </div>
 
                 {/* Bay Selection - Modern Toggle */}
