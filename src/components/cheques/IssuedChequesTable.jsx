@@ -114,6 +114,18 @@ export default function IssuedChequesTable() {
     return bankAccount ? bankAccount.name : source;
   };
 
+  const handleUpdateNote = async (id, newNote) => {
+    // Optimistic UI update
+    setCheques(prev => prev.map(c => c.id === id ? { ...c, notes: newNote } : c));
+    try {
+        await SupplierPayment.update(id, { notes: newNote });
+    } catch (error) {
+        console.error("Failed to update note:", error);
+        // Could reload data or revert optimistic update here if needed
+        loadData();
+    }
+  };
+
   const handleViewCheque = (cheque) => {
     const url = createPageUrl('ChequeWriter') + `?chequeReference=${encodeURIComponent(cheque.cheque_number)}`;
     navigate(url);
