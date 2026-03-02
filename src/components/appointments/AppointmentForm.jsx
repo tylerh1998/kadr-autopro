@@ -181,6 +181,7 @@ export default function AppointmentForm({
       }));
       setAvailableVehicles([]);
     }
+    setHasOpenWO(false);
   }, [customers]); // Depend on customers to ensure latest customer data is used
 
   // Memoize handleWorkOrderSelect for consistency, though it's not a direct useEffect dependency
