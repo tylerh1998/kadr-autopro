@@ -470,6 +470,12 @@ export default function CashFlow() {
                     AP Summary
                     </TabsTrigger>
                     <TabsTrigger 
+                    value="cheques" 
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    >
+                    Cheque Register
+                    </TabsTrigger>
+                    <TabsTrigger 
                     value="trends" 
                     className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
