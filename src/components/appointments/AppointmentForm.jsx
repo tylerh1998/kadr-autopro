@@ -741,7 +741,25 @@ export default function AppointmentForm({
                     <Select
                       key={availableVehicles.length} // Force re-render when vehicles load to ensure selected value displays correctly
                       value={formData.vehicle_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
+                      onValueChange={async (value) => {
+                        setFormData(prev => ({ ...prev, vehicle_id: value }));
+                        setHasOpenWO(false);
+                        
+                        // Check for open work orders or estimates for this vehicle (if no WO already linked)
+                        if (!formData.work_order_id && value) {
+                          try {
+                            const openWOs = await WorkOrder.filter({
+                              vehicle_id: value,
+                              stage: { $in: ['estimate', 'work_order'] }
+                            });
+                            if (openWOs && openWOs.length > 0) {
+                              setHasOpenWO(true);
+                            }
+                          } catch (error) {
+                            console.error("Failed to check for open work orders:", error);
+                          }
+                        }
+                      }}
                       disabled={!formData.customer_id}
                     >
                       <SelectTrigger className="flex-1">
