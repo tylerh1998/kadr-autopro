@@ -43,6 +43,7 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
       await base44.entities.CashFlowEntry.create({
         supplier: formData.supplierName,
         supplier_id: initialValues?.supplierId,
+        loc_id: initialValues?.locId,
         amount: parseFloat(formData.amount),
         due_date: formData.dueDate,
         amount_paid: 0
