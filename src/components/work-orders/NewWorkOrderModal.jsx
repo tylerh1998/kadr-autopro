@@ -289,9 +289,17 @@ export default function NewWorkOrderModal({
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Create New Work Order
+            <DialogTitle className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Create New Work Order
+              </div>
+              {hasOpenWO && (
+                <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-md text-sm font-normal flex items-center gap-2">
+                  <span className="font-semibold">⚠</span>
+                  A work order or estimate is already open for this vehicle.
+                </div>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="flex items-center gap-4 my-6 flex-shrink-0">
