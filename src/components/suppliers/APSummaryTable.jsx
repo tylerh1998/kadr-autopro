@@ -46,14 +46,29 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
       setLoading(true);
       try {
         // Call new optimized backend function
-        const response = await base44.functions.invoke('getAPSummary', {});
+        const [response, cfEntries, locs] = await Promise.all([
+          base44.functions.invoke('getAPSummary', {}),
+          base44.entities.CashFlowEntry.list(),
+          base44.entities.LinesOfCredit.filter({ is_active: true })
+        ]);
 
         if (response.data.success) {
           const suppliersWithInvoices = response.data.data;
           
           // Extract suppliers list
-          const suppliersData = suppliersWithInvoices.map(item => item.supplier);
-          setSuppliers(suppliersData);
+          let suppliersData = suppliersWithInvoices.map(item => item.supplier);
+          
+          // Add LOCs that have cash flow entries
+          const locIdsInEntries = new Set((cfEntries || []).map(e => e.loc_id).filter(Boolean));
+          const locsToAdd = (locs || []).filter(loc => locIdsInEntries.has(loc.id));
+          
+          const locSuppliers = locsToAdd.map(loc => ({
+            id: loc.id,
+            name: loc.name,
+            is_loc: true
+          }));
+
+          setSuppliers([...suppliersData, ...locSuppliers]);
 
           // Build map of supplier ID to their conceptual invoices
           const invoicesMap = new Map();
@@ -63,8 +78,6 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
           setSupplierInvoicesMap(invoicesMap);
         }
 
-        // Fetch Cash Flow Entries
-        const cfEntries = await base44.entities.CashFlowEntry.list();
         setCashFlowEntries(cfEntries || []);
 
       } catch (error) {
