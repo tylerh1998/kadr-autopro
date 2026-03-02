@@ -305,7 +305,10 @@ export default function IssuedChequesTable() {
                           </Badge>
                         </td>
                         <td className="p-3 text-slate-600 text-xs">
-                          {cheque.notes || '-'}
+                          <NoteCell 
+                            cheque={cheque}
+                            onUpdate={handleUpdateNote}
+                          />
                         </td>
                         <td className="p-3 text-center no-print">
                           <div className="flex items-center justify-center gap-2">
