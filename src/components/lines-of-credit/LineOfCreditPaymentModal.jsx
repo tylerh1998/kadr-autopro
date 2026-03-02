@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar as CalendarIcon, DollarSign, Loader2, Upload } from 'lucide-react';
-import { format, parseISO, differenceInDays, parse, isValid } from 'date-fns';
+import { format, parseISO, differenceInDays, parse, isValid, endOfMonth } from 'date-fns';
 import AddToSheetModal from '../suppliers/AddToSheetModal';
 
 const SERVUS_ID = '68cbcdf3f171308eee277c73';
