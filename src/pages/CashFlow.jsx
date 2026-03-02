@@ -9,6 +9,7 @@ import CashFlowTotals from '@/components/cash-flow/CashFlowTotals';
 import APSummaryTable from '@/components/suppliers/APSummaryTable';
 import OverheadTable from '@/components/cash-flow/OverheadTable';
 import CashFlowTrendTab from '@/components/cash-flow/CashFlowTrendTab';
+import IssuedChequesTable from '@/components/cheques/IssuedChequesTable';
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { createPageUrl } from '@/utils';
