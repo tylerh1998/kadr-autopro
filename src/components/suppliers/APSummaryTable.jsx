@@ -438,79 +438,89 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                   {loading ? (
                     <tr><td colSpan="6" className="p-6 text-center">Loading...</td></tr>
                   ) : summaryData.length > 0 ? (
-                    summaryData.map(supplier => (
-                      <ContextMenu key={supplier.id} onOpenChange={() => handleContextMenu(supplier)}>
-                        <ContextMenuTrigger asChild>
-                          <tr className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
-                            <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
-                            <td className="p-0 text-center align-top">
-                              <div className="flex flex-col w-full h-full">
-                                  {supplier.cashFlowEntries && supplier.cashFlowEntries.map((entry, idx) => {
-                                      const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
-                                      
-                                      let bgColor = '#ffffff';
-                                      
-                                      const days = entry.due_date ? differenceInDays(parseISO(entry.due_date), new Date()) : null;
+                    summaryData.map(supplier => {
+                      const RowContent = (
+                        <tr className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
+                          <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
+                          <td className="p-0 text-center align-top">
+                            <div className="flex flex-col w-full h-full">
+                                {supplier.cashFlowEntries && supplier.cashFlowEntries.map((entry, idx) => {
+                                    const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
+                                    
+                                    let bgColor = '#ffffff';
+                                    
+                                    const days = entry.due_date ? differenceInDays(parseISO(entry.due_date), new Date()) : null;
 
-                                      if (entry.row_status === 'follow_up') {
-                                        bgColor = '#fdba74'; // Orange-300
-                                      } else if (entry.chq_number) {
-                                        bgColor = '#86efac'; // Green-300
-                                      } else if (entry.row_status === 'paid') {
-                                        bgColor = '#d8b4fe'; // Purple-300
-                                      } else if (entry.bg_colour) {
-                                        bgColor = entry.bg_colour;
-                                      } else if (days !== null) {
-                                        if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
-                                        else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
-                                        else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (11-30 days)
-                                      }
+                                    if (entry.row_status === 'follow_up') {
+                                      bgColor = '#fdba74'; // Orange-300
+                                    } else if (entry.chq_number) {
+                                      bgColor = '#86efac'; // Green-300
+                                    } else if (entry.row_status === 'paid') {
+                                      bgColor = '#d8b4fe'; // Purple-300
+                                    } else if (entry.bg_colour) {
+                                      bgColor = entry.bg_colour;
+                                    } else if (days !== null) {
+                                      if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
+                                      else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
+                                      else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (11-30 days)
+                                    }
 
-                                      return (
-                                          <div 
-                                              key={idx}
-                                              className="py-2 px-3 w-full border-b last:border-b-0 flex items-center justify-center text-sm font-medium"
-                                              style={{ backgroundColor: bgColor }}
-                                              title={`Due: ${entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}`}
-                                          >
-                                              ${amount.toFixed(2)}
-                                          </div>
-                                      );
-                                  })}
-                              </div>
-                            </td>
-                            <td className="p-3 text-right">${supplier.not_due.toFixed(2)}</td>
-                            <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
-                            <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
-                            <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
-                            <td className="p-3 text-right font-semibold text-blue-700">${supplier.total_balance}</td>
-                          </tr>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem 
-                            onClick={handleViewTransactions}
-                            className="bg-white text-black focus:bg-slate-100 focus:text-black cursor-pointer"
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            View Transactions
-                          </ContextMenuItem>
-                          <ContextMenuItem 
-                            onClick={handleMakePayment}
-                            className="bg-green-600 text-white focus:bg-green-700 focus:text-white cursor-pointer"
-                          >
-                            <DollarSign className="w-4 h-4 mr-2" />
-                            Make Payment
-                          </ContextMenuItem>
-                          <ContextMenuItem 
-                            onClick={handleAddToSheet}
-                            className="bg-amber-400 text-black focus:bg-amber-500 focus:text-black cursor-pointer"
-                          >
-                            <FileSpreadsheet className="w-4 h-4 mr-2" />
-                            Add to Cash Flow
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ))
+                                    return (
+                                        <div 
+                                            key={idx}
+                                            className="py-2 px-3 w-full border-b last:border-b-0 flex items-center justify-center text-sm font-medium"
+                                            style={{ backgroundColor: bgColor }}
+                                            title={`Due: ${entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}`}
+                                        >
+                                            ${amount.toFixed(2)}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right">${supplier.not_due.toFixed(2)}</td>
+                          <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
+                          <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
+                          <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
+                          <td className="p-3 text-right font-semibold text-blue-700">${supplier.total_balance}</td>
+                        </tr>
+                      );
+
+                      if (supplier.is_loc) {
+                        return <React.Fragment key={supplier.id}>{RowContent}</React.Fragment>;
+                      }
+
+                      return (
+                        <ContextMenu key={supplier.id} onOpenChange={() => handleContextMenu(supplier)}>
+                          <ContextMenuTrigger asChild>
+                            {RowContent}
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem 
+                              onClick={handleViewTransactions}
+                              className="bg-white text-black focus:bg-slate-100 focus:text-black cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              View Transactions
+                            </ContextMenuItem>
+                            <ContextMenuItem 
+                              onClick={handleMakePayment}
+                              className="bg-green-600 text-white focus:bg-green-700 focus:text-white cursor-pointer"
+                            >
+                              <DollarSign className="w-4 h-4 mr-2" />
+                              Make Payment
+                            </ContextMenuItem>
+                            <ContextMenuItem 
+                              onClick={handleAddToSheet}
+                              className="bg-amber-400 text-black focus:bg-amber-500 focus:text-black cursor-pointer"
+                            >
+                              <FileSpreadsheet className="w-4 h-4 mr-2" />
+                              Add to Cash Flow
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      );
+                    })
                   ) : (
                     <tr><td colSpan="6" className="p-12 text-center text-slate-500">No outstanding payables found.</td></tr>
                   )}
