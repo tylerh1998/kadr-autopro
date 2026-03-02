@@ -653,8 +653,9 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
         onClose={() => setShowAddToSheetModal(false)}
         initialValues={{
           supplierName: lineOfCredit?.name,
+          locId: lineOfCredit?.id,
           amount: activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0),
-          dueDate: ''
+          dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
         }}
         onSuccess={handleClose}
       />
