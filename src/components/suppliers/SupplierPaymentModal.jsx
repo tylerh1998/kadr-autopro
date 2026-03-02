@@ -988,7 +988,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         initialValues={{
             supplierName: supplier?.name,
             supplierId: supplier?.id,
-            amount: totalSelectedAmount,
+            amount: (Math.round(totalSelectedAmount * 100) / 100).toFixed(2),
             dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
         }}
         onSuccess={onClose}
