@@ -107,8 +107,22 @@ export default function NewWorkOrderModal({
     setStep(2);
   };
 
-  const handleVehicleSelect = (vehicle) => {
+  const handleVehicleSelect = async (vehicle) => {
     setSelectedVehicle(vehicle);
+    setHasOpenWO(false);
+    
+    // Check for open work orders or estimates for this vehicle
+    try {
+      const openWOs = await base44.entities.WorkOrder.filter({
+        vehicle_id: vehicle.id,
+        stage: { $in: ['estimate', 'work_order'] }
+      });
+      if (openWOs && openWOs.length > 0) {
+        setHasOpenWO(true);
+      }
+    } catch (error) {
+      console.error("Failed to check for open work orders:", error);
+    }
   };
 
   const generateRandomString = (length) => {
