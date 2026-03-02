@@ -28,6 +28,7 @@ export default function NewWorkOrderModal({
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasOpenWO, setHasOpenWO] = useState(false);
   const searchInputRef = React.useRef(null);
 
   useEffect(() => {
