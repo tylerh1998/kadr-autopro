@@ -509,6 +509,10 @@ export default function CashFlow() {
                 <APSummaryTable onCashFlowUpdate={loadData} />
               </TabsContent>
 
+              <TabsContent value="cheques" className="mt-0">
+                <IssuedChequesTable />
+              </TabsContent>
+
               <TabsContent value="trends" className="mt-0">
                 <CashFlowTrendTab 
                   overheadRows={overheadRows}
