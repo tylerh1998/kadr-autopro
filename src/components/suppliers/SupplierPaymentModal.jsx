@@ -987,6 +987,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         onClose={() => setShowAddToSheetModal(false)}
         initialValues={{
             supplierName: supplier?.name,
+            supplierId: supplier?.id,
             amount: totalSelectedAmount,
             dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
         }}
