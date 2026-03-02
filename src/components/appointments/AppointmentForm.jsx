@@ -66,6 +66,7 @@ export default function AppointmentForm({
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
   const [reminderInfo, setReminderInfo] = useState(null);
+  const [hasOpenWO, setHasOpenWO] = useState(false);
 
   // Calculate reminder date and status
   useEffect(() => {
