@@ -601,7 +601,7 @@ export default function AppointmentForm({
         status: 'Open',
         priority: 'medium',
         stage: stage,
-        description: 'New Work Order',
+        description: '',
         customer_complaint: '',
         internal_notes: '',
         estimated_hours: null,
