@@ -9,6 +9,55 @@ import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
+function NoteCell({ cheque, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(cheque.notes || "");
+
+  useEffect(() => {
+      setValue(cheque.notes || "");
+  }, [cheque.notes]);
+
+  const handleSave = () => {
+    setIsEditing(false);
+    if (value !== (cheque.notes || "")) {
+        onUpdate(cheque.id, value);
+    }
+  };
+
+  if (isEditing) {
+    return (
+        <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave();
+                if (e.key === 'Escape') {
+                    setIsEditing(false);
+                    setValue(cheque.notes || "");
+                }
+            }}
+            autoFocus
+            className="h-7 text-xs bg-white"
+            onClick={(e) => e.stopPropagation()}
+        />
+    );
+  }
+
+  return (
+    <div 
+        className="cursor-pointer hover:bg-slate-200 p-1 rounded min-h-[20px] transition-colors border border-transparent hover:border-slate-300"
+        onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(true);
+        }}
+        title="Click to edit note"
+    >
+        {cheque.notes || <span className="text-slate-400 italic text-[10px]">Add note...</span>}
+    </div>
+  );
+}
+
 export default function IssuedChequesTable() {
   const [cheques, setCheques] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
