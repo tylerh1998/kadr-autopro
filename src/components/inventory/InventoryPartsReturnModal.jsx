@@ -100,6 +100,25 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       };
       const createdReturn = await InventoryReturn.create(returnData);
 
+      // Handle Core Return if applicable
+      if (item.core) {
+        const coreReturnData = {
+          inventory_item_id: item.id,
+          part_number: item.part_number,
+          description: `${item.description} (Core Return)`,
+          supplier: item.supplier_id,
+          quantity_returned: qtyReturned,
+          return_type: 'core',
+          return_reason: returnReason,
+          cost_per_unit: item.core_cost || 0,
+          total_cost: (item.core_cost || 0) * qtyReturned,
+          return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
+          status: 'On-site',
+          notes: returnNotes || ''
+        };
+        await InventoryReturn.create(coreReturnData);
+      }
+
       // Decrement QOH from inventory
       const updatedQOH = (item.quantity_on_hand || 0) - qtyReturned;
       await InventoryItem.update(item.id, { quantity_on_hand: updatedQOH });
@@ -143,6 +162,12 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
               <p className="text-sm text-slate-500">{item?.description}</p>
             </div>
           </div>
+
+          {item?.core && (
+            <div className="bg-blue-50 text-blue-700 p-3 rounded-md text-sm">
+              This part has a core. A core return will also be processed automatically.
+            </div>
+          )}
 
           <div>
             <Label htmlFor="returnQuantity">Quantity to Return</Label>
