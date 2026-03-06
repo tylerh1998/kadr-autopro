@@ -32,10 +32,14 @@ Deno.serve(async (req) => {
                 anyAmountChanged = true; // Deleting a line changes the balance
 
                 // Invoke GL Handler
-                await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+                const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                     supplierInvoiceLine: lineToDelete,
                     action: 'delete'
                 });
+                
+                if (glDeleteResponse.data && !glDeleteResponse.data.success) {
+                     throw new Error(`GL Transaction creation failed for deleted line: ${glDeleteResponse.data.error || 'Unknown error'}`);
+                }
             }
         }
 
@@ -57,11 +61,15 @@ Deno.serve(async (req) => {
             anyAmountChanged = true; // Adding a line changes balance
 
             // Invoke GL Handler
-            await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: createdLine,
                 action: 'create',
                 oldValues: null
             });
+
+            if (glCreateResponse.data && !glCreateResponse.data.success) {
+                throw new Error(`GL Transaction creation failed for new line: ${glCreateResponse.data.error || 'Unknown error'}`);
+            }
         }
 
         // 3. Process Modifications
@@ -99,11 +107,15 @@ Deno.serve(async (req) => {
             const updatedLine = await base44.entities.SupplierInvoiceLine.update(line.id, updateData);
 
             // Invoke GL Handler
-            await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: updatedLine,
                 action: 'update',
                 oldValues: existingLine
             });
+
+            if (glUpdateResponse.data && !glUpdateResponse.data.success) {
+                throw new Error(`GL Transaction update failed for modified line: ${glUpdateResponse.data.error || 'Unknown error'}`);
+            }
         }
 
         // 4. Payment Reallocation (if needed)
