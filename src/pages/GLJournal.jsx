@@ -415,7 +415,9 @@ export default function GLJournalPage() {
                   return (
                     tx.account_number?.toLowerCase().includes(search) ||
                     tx.description?.toLowerCase().includes(search) ||
-                    tx.reference?.toLowerCase().includes(search)
+                    tx.reference?.toLowerCase().includes(search) ||
+                    String(tx.debit_amount || '').includes(search) ||
+                    String(tx.credit_amount || '').includes(search)
                   );
                 }).length})
               </CardTitle>
