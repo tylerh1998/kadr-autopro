@@ -244,6 +244,24 @@ export default function LankarImport() {
                   </div>
                 </Label>
               </div>
+
+              {/* Balance Sheet */}
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                <RadioGroupItem value="balance_sheet" id="balance_sheet" />
+                <Label htmlFor="balance_sheet" className="flex items-center gap-3 cursor-pointer flex-1">
+                  <FileText className="w-5 h-5 text-teal-600" />
+                  <div>
+                    <p className="font-medium">Balance Sheet</p>
+                    <p className="text-sm text-slate-500">Import closing balances as GL Transactions</p>
+                    {selectedType === 'balance_sheet' && (
+                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                            <p className="font-semibold mb-1">Required Columns:</p>
+                            <code className="text-teal-700">Acct #, DR, CR</code>
+                        </div>
+                    )}
+                  </div>
+                </Label>
+              </div>
             </RadioGroup>
           </CardContent>
         </Card>
