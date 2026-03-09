@@ -207,7 +207,6 @@ export default function BalanceSheetPage() {
             box-shadow: none !important;
             margin-bottom: 20px !important;
             background: white !important;
-            break-inside: avoid;
           }
           
           .card {
@@ -235,6 +234,7 @@ export default function BalanceSheetPage() {
             padding: 4px 0 !important;
             font-size: 11px !important;
             background-color: white !important;
+            break-inside: avoid;
           }
 
           .print-line-item.total {
