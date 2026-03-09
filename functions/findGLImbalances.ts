@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         dailyBlocks[day] = { 
           assetDebits: 0, assetCredits: 0, 
           otherDebits: 0, otherCredits: 0, 
-          count: 0, transactions: [] 
+          count: 0 
         };
       }
       
@@ -55,17 +55,6 @@ Deno.serve(async (req) => {
       }
       
       dailyBlocks[day].count += 1;
-      
-      // Keep track of the actual rows so we can see what caused the imbalance
-      dailyBlocks[day].transactions.push({
-        id: tx.id,
-        date: tx.transaction_date,
-        account: tx.account_number,
-        accountType: accountType,
-        debit: debit,
-        credit: credit,
-        desc: tx.description
-      });
     });
 
     // 3. Find any day where Assets != Liabilities + Equity
@@ -89,8 +78,7 @@ Deno.serve(async (req) => {
         liabilitiesAndEquityChange,
         difference: diff,
         isBalanced,
-        count: data.count,
-        transactions: data.transactions
+        count: data.count
       });
       
       if (!isBalanced) {
