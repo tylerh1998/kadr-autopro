@@ -14,6 +14,12 @@ Deno.serve(async (req) => {
     const { year, month } = body; 
 
     const allTransactions = await base44.entities.GLTransaction.list();
+    const allAccounts = await base44.entities.ChartOfAccount.list();
+    
+    const accountTypeMap = {};
+    allAccounts.forEach(acc => {
+      accountTypeMap[acc.account_number] = acc.account_type;
+    });
     
     // 1. Filter transactions
     const filteredTransactions = allTransactions.filter(tx => {
@@ -29,11 +35,25 @@ Deno.serve(async (req) => {
       const day = tx.transaction_date ? tx.transaction_date.split('T')[0] : 'Unknown'; 
       
       if (!dailyBlocks[day]) {
-        dailyBlocks[day] = { debits: 0, credits: 0, count: 0, transactions: [] };
+        dailyBlocks[day] = { 
+          assetDebits: 0, assetCredits: 0, 
+          otherDebits: 0, otherCredits: 0, 
+          count: 0, transactions: [] 
+        };
       }
       
-      dailyBlocks[day].debits += parseFloat(tx.debit_amount) || 0;
-      dailyBlocks[day].credits += parseFloat(tx.credit_amount) || 0;
+      const debit = parseFloat(tx.debit_amount) || 0;
+      const credit = parseFloat(tx.credit_amount) || 0;
+      const accountType = accountTypeMap[tx.account_number] || 'Unknown';
+      
+      if (accountType === 'Asset') {
+        dailyBlocks[day].assetDebits += debit;
+        dailyBlocks[day].assetCredits += credit;
+      } else {
+        dailyBlocks[day].otherDebits += debit;
+        dailyBlocks[day].otherCredits += credit;
+      }
+      
       dailyBlocks[day].count += 1;
       
       // Keep track of the actual rows so we can see what caused the imbalance
@@ -41,40 +61,55 @@ Deno.serve(async (req) => {
         id: tx.id,
         date: tx.transaction_date,
         account: tx.account_number,
-        debit: parseFloat(tx.debit_amount) || 0,
-        credit: parseFloat(tx.credit_amount) || 0,
+        accountType: accountType,
+        debit: debit,
+        credit: credit,
         desc: tx.description
       });
     });
 
-    // 3. Find any day where Debits minus Credits is not 0
-    const imbalances = [];
+    // 3. Find any day where Assets != Liabilities + Equity
+    const dailyResults = [];
     let totalImbalance = 0;
+    let imbalancesCount = 0;
 
     for (const [day, data] of Object.entries(dailyBlocks)) {
-      const diff = data.debits - data.credits;
+      // Balance Sheet Logic: 
+      // Assets Change = Debits - Credits
+      // Liabilities + Equity Change (including Rev/Exp) = Credits - Debits
+      const assetsChange = data.assetDebits - data.assetCredits;
+      const liabilitiesAndEquityChange = data.otherCredits - data.otherDebits;
       
-      // Use 0.001 to avoid Javascript floating point math errors
-      if (Math.abs(diff) > 0.001) { 
-        imbalances.push({
-          day,
-          debits: data.debits,
-          credits: data.credits,
-          difference: diff,
-          count: data.count,
-          transactions: data.transactions
-        });
+      const diff = assetsChange - liabilitiesAndEquityChange;
+      const isBalanced = Math.abs(diff) < 0.01;
+      
+      dailyResults.push({
+        day,
+        assetsChange,
+        liabilitiesAndEquityChange,
+        difference: diff,
+        isBalanced,
+        count: data.count,
+        transactions: data.transactions
+      });
+      
+      if (!isBalanced) {
+        imbalancesCount++;
         totalImbalance += diff;
       }
     }
+    
+    // Sort by day
+    dailyResults.sort((a, b) => a.day.localeCompare(b.day));
 
     return Response.json({
       success: true,
       data: {
         scannedCount: filteredTransactions.length,
-        imbalancesFound: imbalances.length,
+        daysScanned: dailyResults.length,
+        imbalancedDaysCount: imbalancesCount,
         totalImbalance,
-        imbalances
+        dailyResults
       }
     });
 
