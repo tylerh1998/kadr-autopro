@@ -379,8 +379,11 @@ Deno.serve(async (req) => {
                 };
 
                 const accountNumber = String(getVal(['Acct #', 'acct #', 'Account #', 'account #', 'account_number']) || '').trim();
-                const debit = parseFloat(getVal(['DR', 'dr', 'Debit', 'debit']) || 0) || 0;
-                const credit = parseFloat(getVal(['CR', 'cr', 'Credit', 'credit']) || 0) || 0;
+                const debitRaw = String(getVal(['DR', 'dr', 'Debit', 'debit']) || '0').replace(/,/g, '');
+                const creditRaw = String(getVal(['CR', 'cr', 'Credit', 'credit']) || '0').replace(/,/g, '');
+                
+                const debit = parseFloat(debitRaw) || 0;
+                const credit = parseFloat(creditRaw) || 0;
 
                 if (!accountNumber || (debit === 0 && credit === 0)) {
                     return null;
