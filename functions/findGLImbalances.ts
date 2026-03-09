@@ -62,13 +62,20 @@ Deno.serve(async (req) => {
 
     for (const [day, data] of Object.entries(dailyBlocks)) {
       // Balance Sheet Logic: 
-      // Assets Change = Debits - Credits
-      // Liabilities + Equity Change (including Rev/Exp) = Credits - Debits
       const assetsChange = data.assetDebits - data.assetCredits;
       const liabilitiesAndEquityChange = data.otherCredits - data.otherDebits;
+      const bsDiff = assetsChange - liabilitiesAndEquityChange;
+      const isBsBalanced = Math.abs(bsDiff) < 0.01;
+
+      // Trial Balance Logic (Debits = Credits):
+      const totalDebits = data.assetDebits + data.otherDebits;
+      const totalCredits = data.assetCredits + data.otherCredits;
+      const tbDiff = totalDebits - totalCredits;
+      const isTbBalanced = Math.abs(tbDiff) < 0.01;
       
-      const diff = assetsChange - liabilitiesAndEquityChange;
-      const isBalanced = Math.abs(diff) < 0.01;
+      // Use the Trial Balance difference for reporting, and require both to be balanced
+      const diff = tbDiff;
+      const isBalanced = isBsBalanced && isTbBalanced;
       
       dailyResults.push({
         day,
