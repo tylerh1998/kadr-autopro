@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   InventoryItem,
@@ -134,13 +133,14 @@ export default function InventoryListPage() {
     setLoading(true);
     try {
       const isInventoryCount = filter === 'inventory-count';
+      const isUnlimitedView = filter === 'inventory-count' || filter === 'non-zero';
       const response = await base44.functions.invoke('searchInventory', {
         searchTerm: activeSearchTerm,
         filter: filter,
         sortBy: isInventoryCount ? 'location' : sortConfig.key,
         sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
-        limit: isInventoryCount ? 999999 : itemsPerPage,
-        offset: isInventoryCount ? 0 : (currentPage - 1) * itemsPerPage
+        limit: isUnlimitedView ? 999999 : itemsPerPage,
+        offset: isUnlimitedView ? 0 : (currentPage - 1) * itemsPerPage
       });
       
       if (response?.data?.records) {
@@ -770,7 +770,7 @@ export default function InventoryListPage() {
                 </Table>
 
                 {/* Pagination Controls */}
-                {!loading && totalCount > itemsPerPage && filter !== 'inventory-count' && (
+                {!loading && totalCount > itemsPerPage && filter !== 'inventory-count' && filter !== 'non-zero' && (
                   <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 no-print">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-700">
