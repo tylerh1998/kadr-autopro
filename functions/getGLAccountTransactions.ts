@@ -48,10 +48,12 @@ Deno.serve(async (req) => {
     for (const tx of allTransactions) {
       if (!tx.transaction_date) continue; // Skip transactions without dates
 
-      if (tx.transaction_date < appliedStartDate) {
+      const txDateStr = tx.transaction_date.split('T')[0];
+
+      if (txDateStr < appliedStartDate) {
         // Transaction is before our filter range - add to opening balance
         openingBalance += (tx.debit_amount || 0) - (tx.credit_amount || 0);
-      } else if (tx.transaction_date >= appliedStartDate && tx.transaction_date <= appliedEndDate) {
+      } else if (txDateStr >= appliedStartDate && txDateStr <= appliedEndDate) {
         // Transaction is in our filter range - collect for processing
         transactionsInRange.push(tx);
       }
