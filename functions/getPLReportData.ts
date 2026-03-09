@@ -32,10 +32,9 @@ Deno.serve(async (req) => {
     // Fetch all GL transactions in date range
     const allTransactions = await base44.entities.GLTransaction.list();
     const filteredTransactions = allTransactions.filter(tx => {
-      const txDate = new Date(tx.transaction_date);
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      return txDate >= start && txDate <= end;
+      if (!tx.transaction_date) return false;
+      const txDateStr = tx.transaction_date.split('T')[0];
+      return txDateStr >= startDate && txDateStr <= endDate;
     });
 
     console.log('Found', filteredTransactions.length, 'transactions in date range');
