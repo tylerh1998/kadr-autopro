@@ -424,17 +424,7 @@ export default function GLJournalPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                Transactions ({transactions.filter(tx => {
-                  if (!searchTerm) return true;
-                  const search = searchTerm.toLowerCase();
-                  return (
-                    tx.account_number?.toLowerCase().includes(search) ||
-                    tx.description?.toLowerCase().includes(search) ||
-                    tx.reference?.toLowerCase().includes(search) ||
-                    String(tx.debit_amount || '').includes(search) ||
-                    String(tx.credit_amount || '').includes(search)
-                  );
-                }).length})
+                Transactions ({filteredDisplayTransactions.length})
               </CardTitle>
               <Button 
                 onClick={handlePrint} 
@@ -470,21 +460,10 @@ export default function GLJournalPage() {
                         <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                       </tr>
                     ))
-                  ) : transactions.length > 0 ? (
-                    transactions
-                      .filter(tx => {
-                        if (!searchTerm) return true;
-                        const search = searchTerm.toLowerCase();
-                        return (
-                          tx.account_number?.toLowerCase().includes(search) ||
-                          tx.description?.toLowerCase().includes(search) ||
-                          tx.reference?.toLowerCase().includes(search) ||
-                          String(tx.debit_amount || '').includes(search) ||
-                          String(tx.credit_amount || '').includes(search)
-                        );
-                      })
-                      .map((tx) => (
-                      <tr key={tx.id} className="border-b hover:bg-slate-50">
+                  ) : filteredDisplayTransactions.length > 0 ? (
+                    <>
+                      {filteredDisplayTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-b hover:bg-slate-50">
                         <td className="p-3">{formatTransactionDate(tx.transaction_date)}</td>
                         <td className="p-3 font-medium text-slate-900">
                           <TooltipProvider>
@@ -517,7 +496,13 @@ export default function GLJournalPage() {
                           )}
                         </td>
                       </tr>
-                    ))
+                      ))}
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                        <td colSpan="3" className="p-3 text-right text-slate-700">Totals:</td>
+                        <td className="p-3 text-right text-red-600">${totalDebit.toFixed(2)}</td>
+                        <td className="p-3 text-right text-green-600">${totalCredit.toFixed(2)}</td>
+                      </tr>
+                    </>
                   ) : (
                     <tr>
                       <td colSpan="5" className="p-12 text-center">
