@@ -128,6 +128,21 @@ export default function GLJournalPage() {
     }
   };
 
+  const filteredDisplayTransactions = transactions.filter(tx => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      tx.account_number?.toLowerCase().includes(search) ||
+      tx.description?.toLowerCase().includes(search) ||
+      tx.reference?.toLowerCase().includes(search) ||
+      String(tx.debit_amount || '').includes(search) ||
+      String(tx.credit_amount || '').includes(search)
+    );
+  });
+
+  const totalDebit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.debit_amount || 0), 0);
+  const totalCredit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.credit_amount || 0), 0);
+
   return (
     <div className="p-6 min-h-screen">
       {/* Print Styles */}
