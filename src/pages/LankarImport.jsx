@@ -69,6 +69,25 @@ export default function LankarImport() {
     setImportResult(null);
 
     try {
+      if (selectedType === 'balance_sheet') {
+        const dryRunResponse = await base44.functions.invoke('processDataImport', {
+          file_url: uploadedFileUrl,
+          type: selectedType,
+          dry_run: true
+        });
+
+        if (dryRunResponse.data.success) {
+          const { total_debits, total_credits } = dryRunResponse.data;
+          const confirmed = window.confirm(`Please review the totals before importing:\n\nTotal Debits: $${total_debits.toFixed(2)}\nTotal Credits: $${total_credits.toFixed(2)}\n\nProceed with import?`);
+          if (!confirmed) {
+            setImporting(false);
+            return;
+          }
+        } else {
+          throw new Error(dryRunResponse.data.error || 'Failed to calculate totals');
+        }
+      }
+
       // Call the backend function
       const response = await base44.functions.invoke('processDataImport', {
         file_url: uploadedFileUrl,
