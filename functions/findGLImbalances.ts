@@ -104,10 +104,10 @@ Deno.serve(async (req) => {
     }
 
     // Send email
-    await base44.asServiceRole.integrations.Core.SendEmail({
+    await base44.functions.invoke('sendEmailViaSMTP', {
       to: "tyler@kensauto.ca",
       subject: `Daily GL Imbalance Report - ${imbalancesCount > 0 ? 'ACTION REQUIRED' : 'All Good'}`,
-      body: emailBody
+      body: emailBody.replace(/\n/g, '<br/>') // convert newlines to HTML breaks for the email
     });
 
     return Response.json({
