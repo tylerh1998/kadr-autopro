@@ -51,10 +51,9 @@ export default function GLJournalPage() {
       
       // Filter by date range
       const filteredTransactions = allTransactions.filter(tx => {
-        const txDate = new Date(tx.transaction_date);
-        const start = new Date(appliedStartDate);
-        const end = new Date(appliedEndDate);
-        return txDate >= start && txDate <= end;
+        if (!tx.transaction_date) return false;
+        const txDate = tx.transaction_date.split('T')[0];
+        return txDate >= appliedStartDate && txDate <= appliedEndDate;
       });
 
       // Sort by date (newest first)
