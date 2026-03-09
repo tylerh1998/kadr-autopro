@@ -182,9 +182,11 @@ Deno.serve(async (req) => {
 
     // Iterate through filteredTransactions (which are already <= asOfDate)
     // and sum up those that are >= startOfYear and are Rev/Exp.
+    const startOfYearStr = `${currentYear}-01-01`;
     filteredTransactions.forEach(tx => {
-        const txDate = new Date(tx.transaction_date);
-        if (txDate >= startOfYear) {
+        if (!tx.transaction_date) return;
+        const txDateStr = tx.transaction_date.split('T')[0];
+        if (txDateStr >= startOfYearStr) {
             if (revenueAccountNums.has(tx.account_number)) {
                 yearToDateRevenue += (parseFloat(tx.credit_amount) || 0) - (parseFloat(tx.debit_amount) || 0);
             } else if (expenseAccountNums.has(tx.account_number)) {
