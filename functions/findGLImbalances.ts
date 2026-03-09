@@ -80,6 +80,8 @@ Deno.serve(async (req) => {
       dailyResults.push({
         day,
         difference: diff,
+        bsDiff: bsDiff,
+        tbDiff: tbDiff,
         isBalanced
       });
       
@@ -93,28 +95,51 @@ Deno.serve(async (req) => {
     dailyResults.sort((a, b) => a.day.localeCompare(b.day));
 
     // Format email body
-    let emailBody = `GL Imbalance Report for Open Fiscal Periods\n\n`;
-    emailBody += `Total Imbalanced Days: ${imbalancesCount}\n`;
-    emailBody += `Total Imbalance Amount: $${totalImbalance.toFixed(2)}\n\n`;
+    let emailBody = `<h2>GL Imbalance Report for Open Fiscal Periods</h2>`;
+    emailBody += `<p>Total Imbalanced Days: <strong>${imbalancesCount}</strong></p>`;
+    emailBody += `<p>Total Imbalance Amount: <strong>$${totalImbalance.toFixed(2)}</strong></p>`;
     
     if (dailyResults.length === 0) {
-      emailBody += `No transactions found in open fiscal periods.\n`;
+      emailBody += `<p>No transactions found in open fiscal periods.</p>`;
     } else {
-      emailBody += `Daily Breakdown:\n`;
+      emailBody += `
+      <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: left;">
+        <thead>
+          <tr style="background-color: #f2f2f2;">
+            <th>Date</th>
+            <th>Balance Sheet Diff</th>
+            <th>Trial Balance Diff</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+      `;
+      
       dailyResults.forEach(res => {
-        if (res.isBalanced) {
-          emailBody += `${res.day}: Balanced\n`;
-        } else {
-          emailBody += `${res.day}: Imbalanced by $${res.difference.toFixed(2)}\n`;
-        }
+        const rowStyle = res.isBalanced ? "" : "background-color: #ffe6e6; color: #cc0000;";
+        const statusText = res.isBalanced ? "Balanced" : "Imbalanced";
+        
+        emailBody += `
+          <tr style="${rowStyle}">
+            <td>${res.day}</td>
+            <td>$${res.bsDiff.toFixed(2)}</td>
+            <td>$${res.tbDiff.toFixed(2)}</td>
+            <td><strong>${statusText}</strong></td>
+          </tr>
+        `;
       });
+      
+      emailBody += `
+        </tbody>
+      </table>
+      `;
     }
 
     // Send email
     await base44.functions.invoke('sendEmailViaSMTP', {
       to: "tyler@kensauto.ca",
       subject: `Daily GL Imbalance Report - ${imbalancesCount > 0 ? 'ACTION REQUIRED' : 'All Good'}`,
-      body: emailBody.replace(/\n/g, '<br/>') // convert newlines to HTML breaks for the email
+      body: emailBody
     });
 
     return Response.json({
