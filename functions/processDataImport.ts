@@ -365,6 +365,34 @@ Deno.serve(async (req) => {
                     is_active: true
                 };
             }).filter(r => r !== null);
+        } else if (type === 'balance_sheet') {
+            entityName = "GLTransaction";
+            recordsToCreate = rows.map(row => {
+                const getVal = (keys) => {
+                    for (const key of keys) {
+                        if (row[key] !== undefined) return row[key];
+                    }
+                    return undefined;
+                };
+
+                const accountNumber = String(getVal(['Acct #', 'acct #', 'Account #', 'account #', 'account_number']) || '').trim();
+                const debit = parseFloat(getVal(['DR', 'dr', 'Debit', 'debit']) || 0) || 0;
+                const credit = parseFloat(getVal(['CR', 'cr', 'Credit', 'credit']) || 0) || 0;
+
+                if (!accountNumber || (debit === 0 && credit === 0)) {
+                    return null;
+                }
+
+                return {
+                    account_number: accountNumber,
+                    transaction_date: '2025-12-31',
+                    description: 'Closing balance 2025',
+                    reference: 'Balance-Sheet-Import',
+                    debit_amount: debit,
+                    credit_amount: credit,
+                    source_type: 'manual'
+                };
+            }).filter(r => r !== null);
         }
 
         if (recordsToCreate.length === 0) {
