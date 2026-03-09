@@ -23,21 +23,21 @@ Deno.serve(async (req) => {
       return date.getUTCMonth() === (month - 1) && date.getUTCFullYear() === year;
     });
 
-    // 2. Group them by source_id, reference, or description
-    const transactionBlocks = {};
+    // 2. Group them by Date
+    const dailyBlocks = {};
     filteredTransactions.forEach(tx => {
-      const key = tx.source_id || tx.reference || tx.description || 'Unknown'; 
+      const day = tx.transaction_date ? tx.transaction_date.split('T')[0] : 'Unknown'; 
       
-      if (!transactionBlocks[key]) {
-        transactionBlocks[key] = { debits: 0, credits: 0, count: 0, transactions: [] };
+      if (!dailyBlocks[day]) {
+        dailyBlocks[day] = { debits: 0, credits: 0, count: 0, transactions: [] };
       }
       
-      transactionBlocks[key].debits += parseFloat(tx.debit_amount) || 0;
-      transactionBlocks[key].credits += parseFloat(tx.credit_amount) || 0;
-      transactionBlocks[key].count += 1;
+      dailyBlocks[day].debits += parseFloat(tx.debit_amount) || 0;
+      dailyBlocks[day].credits += parseFloat(tx.credit_amount) || 0;
+      dailyBlocks[day].count += 1;
       
       // Keep track of the actual rows so we can see what caused the imbalance
-      transactionBlocks[key].transactions.push({
+      dailyBlocks[day].transactions.push({
         id: tx.id,
         date: tx.transaction_date,
         account: tx.account_number,
@@ -47,17 +47,17 @@ Deno.serve(async (req) => {
       });
     });
 
-    // 3. Find any block where Debits minus Credits is not 0
+    // 3. Find any day where Debits minus Credits is not 0
     const imbalances = [];
     let totalImbalance = 0;
 
-    for (const [key, data] of Object.entries(transactionBlocks)) {
+    for (const [day, data] of Object.entries(dailyBlocks)) {
       const diff = data.debits - data.credits;
       
       // Use 0.001 to avoid Javascript floating point math errors
       if (Math.abs(diff) > 0.001) { 
         imbalances.push({
-          key,
+          day,
           debits: data.debits,
           credits: data.credits,
           difference: diff,
