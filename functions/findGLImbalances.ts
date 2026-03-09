@@ -3,30 +3,28 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+    const openPeriods = await base44.asServiceRole.entities.FiscalPeriod.filter({ is_closed: false });
     
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!openPeriods || openPeriods.length === 0) {
+      return Response.json({ success: true, message: "No open fiscal periods found." });
     }
 
-    const body = await req.json();
-    // Optional: pass year and month (1-12) to filter, or leave blank for all time
-    const { year, month } = body; 
-
-    const allTransactions = await base44.entities.GLTransaction.list();
-    const allAccounts = await base44.entities.ChartOfAccount.list();
+    const allTransactions = await base44.asServiceRole.entities.GLTransaction.list();
+    const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list();
     
     const accountTypeMap = {};
     allAccounts.forEach(acc => {
       accountTypeMap[acc.account_number] = acc.account_type;
     });
     
-    // 1. Filter transactions
+    // 1. Filter transactions to only those in open fiscal periods
     const filteredTransactions = allTransactions.filter(tx => {
-      if (!year || !month) return true; 
-      const date = new Date(tx.transaction_date);
-      // JS getUTCMonth is 0-indexed (0 = Jan, 1 = Feb)
-      return date.getUTCMonth() === (month - 1) && date.getUTCFullYear() === year;
+      const txDate = tx.transaction_date ? tx.transaction_date.split('T')[0] : null;
+      if (!txDate) return false;
+      
+      return openPeriods.some(period => {
+        return txDate >= period.start_date && txDate <= period.end_date;
+      });
     });
 
     // 2. Group them by Date
@@ -74,11 +72,8 @@ Deno.serve(async (req) => {
       
       dailyResults.push({
         day,
-        assetsChange,
-        liabilitiesAndEquityChange,
         difference: diff,
-        isBalanced,
-        count: data.count
+        isBalanced
       });
       
       if (!isBalanced) {
@@ -90,14 +85,38 @@ Deno.serve(async (req) => {
     // Sort by day
     dailyResults.sort((a, b) => a.day.localeCompare(b.day));
 
+    // Format email body
+    let emailBody = `GL Imbalance Report for Open Fiscal Periods\n\n`;
+    emailBody += `Total Imbalanced Days: ${imbalancesCount}\n`;
+    emailBody += `Total Imbalance Amount: $${totalImbalance.toFixed(2)}\n\n`;
+    
+    if (dailyResults.length === 0) {
+      emailBody += `No transactions found in open fiscal periods.\n`;
+    } else {
+      emailBody += `Daily Breakdown:\n`;
+      dailyResults.forEach(res => {
+        if (res.isBalanced) {
+          emailBody += `${res.day}: Balanced\n`;
+        } else {
+          emailBody += `${res.day}: Imbalanced by $${res.difference.toFixed(2)}\n`;
+        }
+      });
+    }
+
+    // Send email
+    await base44.asServiceRole.integrations.Core.SendEmail({
+      to: "tyler@kensauto.ca",
+      subject: `Daily GL Imbalance Report - ${imbalancesCount > 0 ? 'ACTION REQUIRED' : 'All Good'}`,
+      body: emailBody
+    });
+
     return Response.json({
       success: true,
       data: {
         scannedCount: filteredTransactions.length,
         daysScanned: dailyResults.length,
         imbalancedDaysCount: imbalancesCount,
-        totalImbalance,
-        dailyResults
+        totalImbalance
       }
     });
 
