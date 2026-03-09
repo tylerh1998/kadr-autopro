@@ -367,6 +367,9 @@ Deno.serve(async (req) => {
             }).filter(r => r !== null);
         } else if (type === 'balance_sheet') {
             entityName = "GLTransaction";
+            let totalDebits = 0;
+            let totalCredits = 0;
+
             recordsToCreate = rows.map(row => {
                 const getVal = (keys) => {
                     for (const key of keys) {
@@ -383,6 +386,9 @@ Deno.serve(async (req) => {
                     return null;
                 }
 
+                totalDebits += debit;
+                totalCredits += credit;
+
                 return {
                     account_number: accountNumber,
                     transaction_date: '2025-12-31',
@@ -393,6 +399,15 @@ Deno.serve(async (req) => {
                     source_type: 'manual'
                 };
             }).filter(r => r !== null);
+
+            if (dry_run) {
+                return Response.json({
+                    success: true,
+                    total_debits: totalDebits,
+                    total_credits: totalCredits,
+                    record_count: recordsToCreate.length
+                });
+            }
         }
 
         if (recordsToCreate.length === 0) {
