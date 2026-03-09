@@ -95,19 +95,19 @@ export default function JournalEntriesPage() {
 
     setSaving(true);
     try {
-      // Create GL transactions for each line
-      for (const line of journalLines) {
-        await GLTransaction.create({
-          account_number: line.account,
-          transaction_date: transactionDate,
-          description: line.memo || 'Manual Journal Entry',
-          reference: `JE-${Date.now()}`,
-          debit_amount: parseFloat(line.debit) || 0,
-          credit_amount: parseFloat(line.credit) || 0,
-          source_type: 'manual',
-          source_id: null
-        });
-      }
+      const reference = `JE-${Date.now()}`;
+      const transactionsToCreate = journalLines.map(line => ({
+        account_number: line.account,
+        transaction_date: transactionDate,
+        description: line.memo || 'Manual Journal Entry',
+        reference: reference,
+        debit_amount: parseFloat(line.debit) || 0,
+        credit_amount: parseFloat(line.credit) || 0,
+        source_type: 'manual',
+        source_id: null
+      }));
+
+      await base44.entities.GLTransaction.bulkCreate(transactionsToCreate);
 
       alert('Journal entry posted successfully!');
       handleClear();
