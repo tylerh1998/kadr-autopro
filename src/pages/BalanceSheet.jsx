@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, DollarSign, Building2, CreditCard, PiggyBank, Calendar, Printer, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, DollarSign, Building2, CreditCard, PiggyBank, Calendar, Printer, AlertTriangle, CheckCircle, Mail } from 'lucide-react';
 import { format, endOfMonth, endOfYear, subMonths, subYears } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -12,9 +12,27 @@ import { createPageUrl } from '@/utils';
 export default function BalanceSheetPage() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   
   // As-of date state (default to end of current month)
   const [asOfDate, setAsOfDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+  const handleEmailReport = async () => {
+    setSendingEmail(true);
+    try {
+      const response = await base44.functions.invoke('findGLImbalances', {});
+      if (response.data?.success) {
+        alert('Imbalance report emailed successfully!');
+      } else {
+        alert('Failed to send report: ' + (response.data?.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error sending report:', error);
+      alert('Failed to send report: ' + error.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -324,10 +342,20 @@ export default function BalanceSheetPage() {
                 <p className="text-slate-600 mt-1">Assets, liabilities, and equity snapshot</p>
               </div>
             </div>
-            <Button onClick={handlePrint} variant="outline">
-              <Printer className="w-4 h-4 mr-2" />
-              Print Report
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleEmailReport} 
+                variant="outline"
+                disabled={sendingEmail}
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {sendingEmail ? 'Sending...' : 'Email Daily Imbalance Report'}
+              </Button>
+              <Button onClick={handlePrint} variant="outline">
+                <Printer className="w-4 h-4 mr-2" />
+                Print Report
+              </Button>
+            </div>
           </div>
 
           {/* Date Selector - Hidden when printing */}
