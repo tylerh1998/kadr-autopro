@@ -19,24 +19,18 @@ Deno.serve(async (req) => {
         }
     }
     
-    let totalDebits = 0;
-    let totalCredits = 0;
-    
-    // Group by source_id to find unbalanced entries
+    // Group by Date + Reference to find the exact unbalanced entry
     const groupedTxs = {};
     
     allTransactions.forEach(tx => {
       const debit = parseFloat(tx.debit_amount) || 0;
       const credit = parseFloat(tx.credit_amount) || 0;
       
-      totalDebits += debit;
-      totalCredits += credit;
-      
-      // Use source_id, or if null, use reference, or if null, use date+description
-      const key = tx.source_id || tx.reference || `${tx.transaction_date}-${tx.description}`;
+      // Group strictly by Date and Reference (or description if no reference)
+      const key = `${tx.transaction_date}_${tx.reference || tx.description}`;
       
       if (!groupedTxs[key]) {
-        groupedTxs[key] = { debits: 0, credits: 0, txs: [], source_type: tx.source_type, date: tx.transaction_date };
+        groupedTxs[key] = { debits: 0, credits: 0, txs: [], date: tx.transaction_date, ref: tx.reference || tx.description };
       }
       groupedTxs[key].debits += debit;
       groupedTxs[key].credits += credit;
@@ -47,16 +41,15 @@ Deno.serve(async (req) => {
     
     for (const [key, group] of Object.entries(groupedTxs)) {
       const diff = Math.abs(group.debits - group.credits);
-      // Ignore tiny floating point differences
       if (diff > 0.01) {
         unbalancedGroups.push({
           key,
-          source_type: group.source_type,
           date: group.date,
+          ref: group.ref,
           debits: group.debits,
           credits: group.credits,
           diff: diff,
-          txs: group.txs
+          txs: group.txs.map(t => ({ id: t.id, acc: t.account_number, dr: t.debit_amount, cr: t.credit_amount }))
         });
       }
     }
@@ -64,20 +57,13 @@ Deno.serve(async (req) => {
     // Sort by difference
     unbalancedGroups.sort((a, b) => b.diff - a.diff);
     
+    // Find exact match for 115.51
+    const exactMatch = unbalancedGroups.find(g => Math.abs(g.diff - 115.51) < 0.01);
+    
     return Response.json({
-      total_transactions: allTransactions.length,
-      total_debits: totalDebits,
-      total_credits: totalCredits,
-      database_difference: Math.abs(totalDebits - totalCredits),
+      exactMatch: exactMatch || null,
       unbalancedGroupsCount: unbalancedGroups.length,
-      topUnbalancedGroups: unbalancedGroups.slice(0, 5).map(g => ({
-        key: g.key,
-        type: g.source_type,
-        date: g.date,
-        debits: g.debits,
-        credits: g.credits,
-        diff: g.diff
-      }))
+      topUnbalancedGroups: unbalancedGroups.slice(0, 10)
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
