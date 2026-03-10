@@ -8,6 +8,7 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
     const [blobUrl, setBlobUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [pdfFilename, setPdfFilename] = useState('document.pdf');
 
     useEffect(() => {
         if (blobUrl && !loading && !error) {
