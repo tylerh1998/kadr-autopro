@@ -104,7 +104,7 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
         if (blobUrl) {
             const a = document.createElement('a');
             a.href = blobUrl;
-            a.download = `WorkOrder_${workOrder?.wo_number || 'report'}.pdf`;
+            a.download = pdfFilename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -117,6 +117,14 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                 <DialogHeader className="p-4 border-b flex flex-row items-center justify-between">
                     <DialogTitle>Work Order Report</DialogTitle>
                     <div className="flex gap-2 mr-8">
+                        <Button variant="outline" size="sm" onClick={handleDownload} disabled={!blobUrl || loading}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handlePrint} disabled={!blobUrl || loading}>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Print
+                        </Button>
                         <Button variant="outline" size="sm" onClick={onClose}>
                             Close
                         </Button>
