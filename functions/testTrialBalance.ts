@@ -4,31 +4,80 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     
-    const txs = await base44.entities.GLTransaction.filter({
-      source_id: "695c2a9ac74b535d3c22e3df"
+    let allTransactions = [];
+    let skip = 0;
+    const limit = 5000;
+    let hasMore = true;
+    
+    while (hasMore) {
+        const batch = await base44.entities.GLTransaction.list(null, limit, skip);
+        allTransactions = allTransactions.concat(batch);
+        if (batch.length < limit) {
+            hasMore = false;
+        } else {
+            skip += limit;
+        }
+    }
+    
+    let totalDebits = 0;
+    let totalCredits = 0;
+    
+    // Group by source_id to find unbalanced entries
+    const groupedTxs = {};
+    
+    allTransactions.forEach(tx => {
+      const debit = parseFloat(tx.debit_amount) || 0;
+      const credit = parseFloat(tx.credit_amount) || 0;
+      
+      totalDebits += debit;
+      totalCredits += credit;
+      
+      // Use source_id, or if null, use reference, or if null, use date+description
+      const key = tx.source_id || tx.reference || `${tx.transaction_date}-${tx.description}`;
+      
+      if (!groupedTxs[key]) {
+        groupedTxs[key] = { debits: 0, credits: 0, txs: [], source_type: tx.source_type, date: tx.transaction_date };
+      }
+      groupedTxs[key].debits += debit;
+      groupedTxs[key].credits += credit;
+      groupedTxs[key].txs.push(tx);
     });
     
-    let debits = 0;
-    let credits = 0;
+    let unbalancedGroups = [];
     
-    const formattedTxs = txs.map(tx => {
-      debits += parseFloat(tx.debit_amount) || 0;
-      credits += parseFloat(tx.credit_amount) || 0;
-      return {
-        id: tx.id,
-        account: tx.account_number,
-        description: tx.description,
-        debit: tx.debit_amount,
-        credit: tx.credit_amount
-      };
-    });
+    for (const [key, group] of Object.entries(groupedTxs)) {
+      const diff = Math.abs(group.debits - group.credits);
+      // Ignore tiny floating point differences
+      if (diff > 0.01) {
+        unbalancedGroups.push({
+          key,
+          source_type: group.source_type,
+          date: group.date,
+          debits: group.debits,
+          credits: group.credits,
+          diff: diff,
+          txs: group.txs
+        });
+      }
+    }
+    
+    // Sort by difference
+    unbalancedGroups.sort((a, b) => b.diff - a.diff);
     
     return Response.json({
-      invoice: "INV40121",
-      total_debits: debits,
-      total_credits: credits,
-      difference: Math.abs(debits - credits),
-      transactions: formattedTxs
+      total_transactions: allTransactions.length,
+      total_debits: totalDebits,
+      total_credits: totalCredits,
+      database_difference: Math.abs(totalDebits - totalCredits),
+      unbalancedGroupsCount: unbalancedGroups.length,
+      topUnbalancedGroups: unbalancedGroups.slice(0, 5).map(g => ({
+        key: g.key,
+        type: g.source_type,
+        date: g.date,
+        debits: g.debits,
+        credits: g.credits,
+        diff: g.diff
+      }))
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
