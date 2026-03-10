@@ -553,10 +553,10 @@ export default function BalanceSheetPage() {
                         <div>
                           <h3 className="text-lg font-bold text-red-900">Balance Sheet is Unbalanced</h3>
                           <p className="text-sm text-red-700">
-                            Assets (${reportData.summary.totalAssets.toFixed(2)}) ≠ Liabilities + Equity (${reportData.summary.totalLiabilitiesAndEquity.toFixed(2)})
+                            Assets ({formatMoney(reportData.summary.totalAssets)}) ≠ Liabilities + Equity ({formatMoney(reportData.summary.totalLiabilitiesAndEquity)})
                           </p>
                           <p className="text-xs text-red-600 mt-1">
-                            Difference: ${Math.abs(reportData.summary.totalAssets - reportData.summary.totalLiabilitiesAndEquity).toFixed(2)}
+                            Difference: {formatMoney(Math.abs(reportData.summary.totalAssets - reportData.summary.totalLiabilitiesAndEquity))}
                           </p>
                         </div>
                       </>
