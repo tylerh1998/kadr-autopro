@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, BookOpen, Loader2, FileText } from 'lucide-react';
+import { Search, BookOpen, Loader2, FileText, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format, subDays } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 export default function GeneralLedgerPage() {
   const [accounts, setAccounts] = useState([]);
