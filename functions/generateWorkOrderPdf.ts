@@ -45,19 +45,21 @@ Deno.serve(async (req) => {
         const logoImg = await loadImageAsBase64(LOGO_URL);
 
         // Pre-calculate Financials
-        const partsTotal = Number(workOrder?.parts_total || 0);
-        const laborTotal = Number(workOrder?.labor_total || 0);
-        const shopSupplyTotal = Number(workOrder?.shop_supply_total || 0);
+        const roundToTwo = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+
+        const partsTotal = roundToTwo(workOrder?.parts_total || 0);
+        const laborTotal = roundToTwo(workOrder?.labor_total || 0);
+        const shopSupplyTotal = roundToTwo(workOrder?.shop_supply_total || 0);
         
-        const otherChargesTotal = Array.isArray(lineItems) ? lineItems.reduce((sum, item) => {
+        const otherChargesTotal = roundToTwo(Array.isArray(lineItems) ? lineItems.reduce((sum, item) => {
            const isOther = item.isothercharge === true || item.isothercharge === 'true' || item.isothercharge === 1 ||
                            item.is_other_charge === true || item.is_other_charge === 'true' || item.is_other_charge === 1;
            return isOther ? sum + (Number(item.total || item.line_total || 0)) : sum;
-        }, 0) : 0;
+        }, 0) : 0);
 
-        const subTotal = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal;
-        const taxAmount = Number(workOrder?.tax_amount || 0);
-        const totalAmount = Number(workOrder?.total_amount || 0);
+        const subTotal = roundToTwo(partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal);
+        const taxAmount = roundToTwo(workOrder?.tax_amount || 0);
+        const totalAmount = roundToTwo(workOrder?.total_amount || 0);
         
         // Calculate payments sum from payments array to be sure
         let paymentsList = [];
@@ -68,8 +70,8 @@ Deno.serve(async (req) => {
           paymentsList = paymentsList.filter(p => p.payment_method !== 'on_account');
         } catch(e) { console.warn("Error parsing payments", e); }
         
-        const finalPaid = paymentsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-        const balanceDue = totalAmount - finalPaid;
+        const finalPaid = roundToTwo(paymentsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0));
+        const balanceDue = roundToTwo(totalAmount - finalPaid);
 
         // Constants for Layout
         const headerHeight = 90;
@@ -79,6 +81,24 @@ Deno.serve(async (req) => {
         const bottomReserved = finBarHeight + footerHeight + 40; // Increased buffer to prevent bleeding
 
         let currentY = margin;
+
+        let docTitle = 'WORK ORDER';
+        let globalRefNumber = workOrder.wo_number || workOrder.ro_number || 'N/A';
+        let docRefDate = workOrder.wo_date;
+
+        if (workOrder.stage === 'estimate') {
+            docTitle = 'ESTIMATE';
+            globalRefNumber = workOrder.est_number || globalRefNumber;
+            docRefDate = workOrder.est_date || docRefDate;
+        } else if (workOrder.stage === 'invoice') {
+            docTitle = 'INVOICE';
+            globalRefNumber = workOrder.inv_number || globalRefNumber;
+            docRefDate = workOrder.invoice_date || docRefDate;
+        } else if (workOrder.stage === 'credit_invoice') {
+            docTitle = 'CREDIT INVOICE';
+            globalRefNumber = workOrder.crinv_number || globalRefNumber;
+            docRefDate = workOrder.invoice_date || docRefDate;
+        }
 
         // Helper: Add Header
         function addHeader(isFirst = false) {
@@ -108,33 +128,15 @@ Deno.serve(async (req) => {
             doc.setFontSize(20);
             doc.setFont('helvetica', 'bold');
             
-            let title = 'WORK ORDER';
-            let refNumber = workOrder.wo_number || workOrder.ro_number || 'N/A';
-            let refDate = workOrder.wo_date;
-
-            if (workOrder.stage === 'estimate') {
-                title = 'ESTIMATE';
-                refNumber = workOrder.est_number || refNumber;
-                refDate = workOrder.est_date || refDate;
-            } else if (workOrder.stage === 'invoice') {
-                title = 'INVOICE';
-                refNumber = workOrder.inv_number || refNumber;
-                refDate = workOrder.invoice_date || refDate;
-            } else if (workOrder.stage === 'credit_invoice') {
-                title = 'CREDIT INVOICE';
-                refNumber = workOrder.crinv_number || refNumber;
-                refDate = workOrder.invoice_date || refDate;
-            }
-
-            const titleWidth = doc.getTextWidth(title);
-            doc.text(title, pageWidth - margin - titleWidth, currentY + 15);
+            const titleWidth = doc.getTextWidth(docTitle);
+            doc.text(docTitle, pageWidth - margin - titleWidth, currentY + 15);
 
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
-            const refWidth = doc.getTextWidth(refNumber);
-            doc.text(refNumber, pageWidth - margin - refWidth, currentY + 35);
+            const refWidth = doc.getTextWidth(globalRefNumber);
+            doc.text(globalRefNumber, pageWidth - margin - refWidth, currentY + 35);
 
-            if (refDate) {
+            if (docRefDate) {
                 // Parse date string carefully to avoid timezone issues
                 let dateStr = 'N/A';
                 try {
@@ -550,16 +552,16 @@ Deno.serve(async (req) => {
             x += colWidths.description;
 
             // Parts
-            doc.text(item.tot_parts ? `$${Number(item.tot_parts).toFixed(2)}` : '', x + colWidths.parts - 5, textY, { align: 'right' });
+            doc.text(item.tot_parts ? `$${roundToTwo(item.tot_parts).toFixed(2)}` : '', x + colWidths.parts - 5, textY, { align: 'right' });
             x += colWidths.parts;
             // Labour
-            doc.text(item.labour ? `$${Number(item.labour).toFixed(2)}` : '', x + colWidths.labour - 5, textY, { align: 'right' });
+            doc.text(item.labour ? `$${roundToTwo(item.labour).toFixed(2)}` : '', x + colWidths.labour - 5, textY, { align: 'right' });
             x += colWidths.labour;
             // Tax
             doc.text(item.taxable ? 'Y' : '', x + 15, textY, { align: 'center' });
             x += colWidths.tax;
             // Total
-            doc.text(`$${Number(item.total || 0).toFixed(2)}`, x + colWidths.total - 5, textY, { align: 'right' });
+            doc.text(`$${roundToTwo(item.total || 0).toFixed(2)}`, x + colWidths.total - 5, textY, { align: 'right' });
 
             currentY += finalRowHeight;
         });
@@ -618,7 +620,7 @@ Deno.serve(async (req) => {
 
         return Response.json({ 
             pdfDataUri,
-            filename: `${refNumber}.pdf`
+            filename: `${globalRefNumber}.pdf`
         });
 
     } catch (error) {
