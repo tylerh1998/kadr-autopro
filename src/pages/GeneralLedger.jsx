@@ -272,13 +272,14 @@ export default function GeneralLedgerPage() {
               </div>
             </div>
 
-            {/* Quick Date Filters */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const now = new Date();
+            {/* Quick Date Filters & Account Type Filters */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const now = new Date();
                   setStartDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
                   setEndDate(format(now, 'yyyy-MM-dd'));
                 }}
