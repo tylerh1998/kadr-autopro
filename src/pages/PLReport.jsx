@@ -459,7 +459,7 @@ export default function PLReportPage() {
                       </span>
                     </div>
                     <span className={`text-3xl font-bold ${reportData.summary.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                      ${Math.abs(reportData.summary.netIncome).toFixed(2)}
+                      {formatMoney(reportData.summary.netIncome)}
                     </span>
                   </div>
                 </CardContent>
