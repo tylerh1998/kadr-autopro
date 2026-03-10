@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     // Fetch ALL transactions for this account
     const allTransactions = await base44.asServiceRole.entities.GLTransaction.filter(
       { account_number: accountNumber },
-      'transaction_date' // Primary sort by date
+      'transaction_date', // Primary sort by date
+      10000
     );
 
     // Secondary sort by created_date for same-date transactions

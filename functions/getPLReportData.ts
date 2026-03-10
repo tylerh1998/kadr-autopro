@@ -23,14 +23,14 @@ Deno.serve(async (req) => {
     console.log('Fetching P&L data for date range:', startDate, 'to', endDate);
 
     // Fetch all Revenue and Expense accounts
-    const allAccounts = await base44.entities.ChartOfAccount.list();
+    const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
     const revenueAccounts = allAccounts.filter(acc => acc.account_type === 'Revenue' && acc.is_active);
     const expenseAccounts = allAccounts.filter(acc => acc.account_type === 'Expense' && acc.is_active);
 
     console.log('Found accounts - Revenue:', revenueAccounts.length, 'Expense:', expenseAccounts.length);
 
     // Fetch all GL transactions in date range
-    const allTransactions = await base44.entities.GLTransaction.list();
+    const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
     const filteredTransactions = allTransactions.filter(tx => {
       if (!tx.transaction_date) return false;
       const txDateStr = tx.transaction_date.split('T')[0];

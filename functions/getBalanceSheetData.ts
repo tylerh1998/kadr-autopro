@@ -23,13 +23,13 @@ Deno.serve(async (req) => {
     console.log('Fetching Balance Sheet data as of:', asOfDate);
 
     // Fetch all accounts
-    const allAccounts = await base44.entities.ChartOfAccount.list();
+    const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
     const activeAccounts = allAccounts.filter(acc => acc.is_active);
 
     console.log('Found accounts:', activeAccounts.length);
 
     // Fetch all GL transactions up to the as-of date
-    const allTransactions = await base44.entities.GLTransaction.list();
+    const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
     const filteredTransactions = allTransactions.filter(tx => {
       if (!tx.transaction_date) return false;
       const txDateStr = tx.transaction_date.split('T')[0];
