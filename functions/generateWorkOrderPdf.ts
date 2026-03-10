@@ -140,20 +140,20 @@ Deno.serve(async (req) => {
                 // Parse date string carefully to avoid timezone issues
                 let dateStr = 'N/A';
                 try {
-                    const parts = refDate.split('-').map(Number);
+                    const parts = docRefDate.split('-').map(Number);
                     if (parts.length === 3 && !parts.some(isNaN)) {
                         const [y, m, d] = parts;
                         const localDate = new Date(y, m - 1, d);
                         if (!isNaN(localDate.getTime())) {
                             dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                         } else {
-                            dateStr = refDate;
+                            dateStr = docRefDate;
                         }
                     } else {
-                        dateStr = refDate;
+                        dateStr = docRefDate;
                     }
                 } catch (e) {
-                    dateStr = refDate;
+                    dateStr = docRefDate;
                 }
                 const dateWidth = doc.getTextWidth(`Date: ${dateStr}`);
                 doc.text(`Date: ${dateStr}`, pageWidth - margin - dateWidth, currentY + 50);
