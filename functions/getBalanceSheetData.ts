@@ -94,9 +94,9 @@ Deno.serve(async (req) => {
       accNode.transactionCount = transactionCount;
 
       // Determine balance based on type
-      if (accNode.account_type === 'Asset') {
+      if (accNode.account_type === 'Asset' || accNode.account_type === 'Expense') {
         accNode.own_balance = debits - credits;
-      } else if (['Liability', 'Equity', 'Revenue', 'Expense'].includes(accNode.account_type)) {
+      } else if (['Liability', 'Equity', 'Revenue'].includes(accNode.account_type)) {
         accNode.own_balance = credits - debits;
       } else {
         // Fallback for unknown types (treat as Credit balance for safety in BS, but usually Assets are Debit)
@@ -238,7 +238,12 @@ Deno.serve(async (req) => {
     }
     
     // Add Retained Earnings to Equity section
-    if (Math.abs(retainedEarnings) > 0.001) {
+    const existingRetainedEarningsAccount = allAccounts.find(
+        acc => acc.account_type === 'Equity' && acc.account_name.toLowerCase().includes('retained earnings')
+    );
+    
+    // Only add synthetic Retained Earnings if no actual GL account exists for it
+    if (!existingRetainedEarningsAccount && Math.abs(retainedEarnings) > 0.001) {
         equityData.push({
             account_number: "", // No number
             account_name: "Retained Earnings (Calculated)",
