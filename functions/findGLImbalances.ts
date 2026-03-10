@@ -175,12 +175,14 @@ Deno.serve(async (req) => {
       `;
     }
 
-    // Send email
-    await base44.functions.invoke('sendEmailViaSMTP', {
-      to: "tyler@kensauto.ca",
-      subject: `Daily GL Imbalance Report - ${imbalancesCount > 0 ? 'ACTION REQUIRED' : 'All Good'}`,
-      body: emailBody
-    });
+    // Send email only if there are imbalances or invalid transactions
+    if (imbalancesCount > 0 || invalidTransactions.length > 0) {
+      await base44.functions.invoke('sendEmailViaSMTP', {
+        to: "tyler@kensauto.ca",
+        subject: `Daily GL Imbalance Report - ACTION REQUIRED`,
+        body: emailBody
+      });
+    }
 
     return Response.json({
       success: true,
