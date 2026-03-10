@@ -205,6 +205,24 @@ Deno.serve(async (req) => {
     });
 
     const netIncome = yearToDateRevenue - yearToDateExpenses;
+
+    // Calculate Retained Earnings (previous years' net income)
+    let retainedEarningsRevenue = 0;
+    let retainedEarningsExpenses = 0;
+    
+    validTransactions.forEach(tx => {
+        if (!tx.transaction_date) return;
+        const txDateStr = tx.transaction_date.split('T')[0];
+        if (txDateStr < startOfYearStr) {
+            if (revenueAccountNums.has(tx.account_number)) {
+                retainedEarningsRevenue += (parseFloat(tx.credit_amount) || 0) - (parseFloat(tx.debit_amount) || 0);
+            } else if (expenseAccountNums.has(tx.account_number)) {
+                retainedEarningsExpenses += (parseFloat(tx.debit_amount) || 0) - (parseFloat(tx.credit_amount) || 0);
+            }
+        }
+    });
+    
+    const retainedEarnings = retainedEarningsRevenue - retainedEarningsExpenses;
     
     // Add Net Income to Equity section
     if (Math.abs(netIncome) > 0.001) {
@@ -218,17 +236,30 @@ Deno.serve(async (req) => {
             account_type: 'Equity'
         });
     }
+    
+    // Add Retained Earnings to Equity section
+    if (Math.abs(retainedEarnings) > 0.001) {
+        equityData.push({
+            account_number: "", // No number
+            account_name: "Retained Earnings (Calculated)",
+            balance: retainedEarnings,
+            children: [],
+            is_synthetic: true,
+            transactionCount: 0,
+            account_type: 'Equity'
+        });
+    }
 
     // Calculate report totals (sum of roots)
     const totalAssets = assetData.reduce((sum, acc) => sum + acc.balance, 0);
     const totalLiabilities = liabilityData.reduce((sum, acc) => sum + acc.balance, 0);
-    // totalEquity now includes the Net Income row we just pushed
+    // totalEquity now includes the Net Income and Retained Earnings rows we just pushed
     const totalEquity = equityData.reduce((sum, acc) => sum + acc.balance, 0);
 
     // NEW LOGIC: Calculate the other side by summing EVERYTHING ELSE
     // This ensures that even if a transaction is "split" between a liability 
     // and a revenue account, it is captured in this single total.
-    const totalLiabilitiesAndEquity = activeAccounts
+    const totalLiabilitiesAndEquity = allAccounts
       .filter(acc => acc.account_type !== 'Asset')
       .reduce((sum, acc) => {
         const { credits, debits } = calculateAccountBalance(acc.account_number, validTransactions);
