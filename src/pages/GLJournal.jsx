@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { BookOpen, Calendar, Printer, Search } from 'lucide-react';
+import { BookOpen, Calendar, Printer, Search, ArrowLeft } from 'lucide-react';
 import { format, subDays } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 
 export default function GLJournalPage() {
   const [transactions, setTransactions] = useState([]);
