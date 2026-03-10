@@ -17,19 +17,31 @@ Deno.serve(async (req) => {
       accountTypeMap[acc.account_number] = acc.account_type;
     });
     
+    const knownAccountNumbers = new Set(allAccounts.map(acc => acc.account_number));
+    const invalidTransactions = [];
+
     // 1. Filter transactions to only those in open fiscal periods
-    const filteredTransactions = allTransactions.filter(tx => {
+    const validTransactions = allTransactions.filter(tx => {
       const txDate = tx.transaction_date ? tx.transaction_date.split('T')[0] : null;
       if (!txDate) return false;
       
-      return openPeriods.some(period => {
+      const inOpenPeriod = openPeriods.some(period => {
         return txDate >= period.start_date && txDate <= period.end_date;
       });
+
+      if (!inOpenPeriod) return false;
+
+      if (!knownAccountNumbers.has(tx.account_number)) {
+        console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
+        invalidTransactions.push(tx);
+        return false;
+      }
+      return true;
     });
 
     // 2. Group them by Date
     const dailyBlocks = {};
-    filteredTransactions.forEach(tx => {
+    validTransactions.forEach(tx => {
       const day = tx.transaction_date ? tx.transaction_date.split('T')[0] : 'Unknown'; 
       
       if (!dailyBlocks[day]) {
@@ -96,6 +108,20 @@ Deno.serve(async (req) => {
 
     // Format email body
     let emailBody = `<h2>GL Imbalance Report for Open Fiscal Periods</h2>`;
+    if (invalidTransactions.length > 0) {
+      emailBody += `<div style="background-color: #ffcccc; padding: 10px; border: 1px solid #cc0000; margin-bottom: 20px;">`;
+      emailBody += `<h3 style="color: #cc0000; margin-top: 0;">CRITICAL WARNING: Unknown Accounts Detected</h3>`;
+      emailBody += `<p>Found <strong>${invalidTransactions.length}</strong> transactions referencing accounts that do not exist in the Chart of Accounts. These transactions have been excluded from the balance calculations.</p>`;
+      emailBody += `<ul>`;
+      invalidTransactions.slice(0, 10).forEach(tx => {
+        emailBody += `<li>Tx ID: ${tx.id} | Date: ${tx.transaction_date.split('T')[0]} | Account: <strong>${tx.account_number}</strong> | Amount: $${tx.debit_amount || tx.credit_amount}</li>`;
+      });
+      if (invalidTransactions.length > 10) {
+        emailBody += `<li>...and ${invalidTransactions.length - 10} more. Check server logs for full details.</li>`;
+      }
+      emailBody += `</ul></div>`;
+    }
+
     emailBody += `<p>Total Imbalanced Days: <strong>${imbalancesCount}</strong></p>`;
     emailBody += `<p>Total Imbalance Amount: <strong>$${totalImbalance.toFixed(2)}</strong></p>`;
     
@@ -144,8 +170,10 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
+      warnings: invalidTransactions.length > 0 ? `Found ${invalidTransactions.length} transactions with unknown accounts.` : null,
+      invalidTransactions: invalidTransactions,
       data: {
-        scannedCount: filteredTransactions.length,
+        scannedCount: validTransactions.length,
         daysScanned: dailyResults.length,
         imbalancedDaysCount: imbalancesCount,
         totalImbalance

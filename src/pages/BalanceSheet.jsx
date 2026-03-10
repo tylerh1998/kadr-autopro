@@ -11,6 +11,7 @@ import { createPageUrl } from '@/utils';
 
 export default function BalanceSheetPage() {
   const [reportData, setReportData] = useState(null);
+  const [warnings, setWarnings] = useState(null);
   const [loading, setLoading] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   
@@ -47,16 +48,22 @@ export default function BalanceSheetPage() {
 
       if (response.data?.success) {
         setReportData(response.data.data);
+        setWarnings(response.data.warnings || null);
+        if (response.data.warnings) {
+          alert("CRITICAL WARNING: " + response.data.warnings);
+        }
         console.log('Balance Sheet loaded successfully');
       } else {
         console.error('Backend error:', response.data?.error);
         alert('Failed to load Balance Sheet: ' + (response.data?.error || 'Unknown error'));
         setReportData(null);
+        setWarnings(null);
       }
     } catch (error) {
       console.error('Error loading Balance Sheet:', error);
       alert('Failed to load Balance Sheet: ' + error.message);
       setReportData(null);
+      setWarnings(null);
     } finally {
       setLoading(false);
     }
@@ -392,6 +399,16 @@ export default function BalanceSheetPage() {
               </div>
             </CardContent>
           </Card>
+
+          {warnings && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 no-print">
+              <div className="flex items-center">
+                <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                <p className="text-red-700 font-bold">Data Integrity Warning</p>
+              </div>
+              <p className="text-red-600 mt-1 ml-7">{warnings}</p>
+            </div>
+          )}
 
           {loading ? (
             <Card>

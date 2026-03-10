@@ -30,13 +30,23 @@ Deno.serve(async (req) => {
 
     // Fetch all GL transactions up to the as-of date
     const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
-    const filteredTransactions = allTransactions.filter(tx => {
+    const knownAccountNumbers = new Set(allAccounts.map(acc => acc.account_number));
+    const invalidTransactions = [];
+
+    const validTransactions = allTransactions.filter(tx => {
       if (!tx.transaction_date) return false;
       const txDateStr = tx.transaction_date.split('T')[0];
-      return txDateStr <= asOfDate;
+      if (txDateStr > asOfDate) return false;
+
+      if (!knownAccountNumbers.has(tx.account_number)) {
+        console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
+        invalidTransactions.push(tx);
+        return false;
+      }
+      return true;
     });
 
-    console.log('Found', filteredTransactions.length, 'transactions up to', asOfDate);
+    console.log('Found', validTransactions.length, 'valid transactions up to', asOfDate);
 
     // Helper function to calculate account balance
     const calculateAccountBalance = (accountNumber, transactions) => {
@@ -77,7 +87,7 @@ Deno.serve(async (req) => {
     Object.values(accountMap).forEach(accNode => {
       const { credits, debits, transactionCount } = calculateAccountBalance(
         accNode.account_number, 
-        filteredTransactions
+        validTransactions
       );
       
       accNode.credits = credits;
@@ -180,10 +190,10 @@ Deno.serve(async (req) => {
     let yearToDateRevenue = 0;
     let yearToDateExpenses = 0;
 
-    // Iterate through filteredTransactions (which are already <= asOfDate)
+    // Iterate through validTransactions (which are already <= asOfDate)
     // and sum up those that are >= startOfYear and are Rev/Exp.
     const startOfYearStr = `${currentYear}-01-01`;
-    filteredTransactions.forEach(tx => {
+    validTransactions.forEach(tx => {
         if (!tx.transaction_date) return;
         const txDateStr = tx.transaction_date.split('T')[0];
         if (txDateStr >= startOfYearStr) {
@@ -222,7 +232,7 @@ Deno.serve(async (req) => {
     const totalLiabilitiesAndEquity = activeAccounts
       .filter(acc => acc.account_type !== 'Asset')
       .reduce((sum, acc) => {
-        const { credits, debits } = calculateAccountBalance(acc.account_number, filteredTransactions);
+        const { credits, debits } = calculateAccountBalance(acc.account_number, validTransactions);
         // Since these are Credit-normal accounts, we use credits - debits
         return sum + (credits - debits);
       }, 0);
@@ -234,6 +244,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
+      warnings: invalidTransactions.length > 0 ? `Found ${invalidTransactions.length} transactions with unknown accounts. Check server logs.` : null,
+      invalidTransactions: invalidTransactions,
       data: {
         assets: assetData,
         liabilities: liabilityData,

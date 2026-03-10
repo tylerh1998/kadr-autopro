@@ -31,13 +31,23 @@ Deno.serve(async (req) => {
 
     // Fetch all GL transactions in date range
     const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
-    const filteredTransactions = allTransactions.filter(tx => {
+    const knownAccountNumbers = new Set(allAccounts.map(acc => acc.account_number));
+    const invalidTransactions = [];
+
+    const validTransactions = allTransactions.filter(tx => {
       if (!tx.transaction_date) return false;
       const txDateStr = tx.transaction_date.split('T')[0];
-      return txDateStr >= startDate && txDateStr <= endDate;
+      if (txDateStr < startDate || txDateStr > endDate) return false;
+
+      if (!knownAccountNumbers.has(tx.account_number)) {
+        console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
+        invalidTransactions.push(tx);
+        return false;
+      }
+      return true;
     });
 
-    console.log('Found', filteredTransactions.length, 'transactions in date range');
+    console.log('Found', validTransactions.length, 'valid transactions in date range');
 
     // Helper function to calculate account balance
     const calculateAccountBalance = (accountNumber, transactions) => {
@@ -78,7 +88,7 @@ Deno.serve(async (req) => {
     Object.values(accountMap).forEach(accNode => {
       const { credits, debits, transactionCount } = calculateAccountBalance(
         accNode.account_number, 
-        filteredTransactions
+        validTransactions
       );
       
       accNode.credits = credits;
@@ -194,6 +204,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
+      warnings: invalidTransactions.length > 0 ? `Found ${invalidTransactions.length} transactions with unknown accounts. Check server logs.` : null,
+      invalidTransactions: invalidTransactions,
       data: {
         revenue: revenueData,
         expenses: expenseData,
