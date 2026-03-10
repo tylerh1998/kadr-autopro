@@ -44,6 +44,40 @@ Deno.serve(async (req) => {
         // Load logo
         const logoImg = await loadImageAsBase64(LOGO_URL);
 
+        // Pre-calculate Financials
+        const partsTotal = Number(workOrder?.parts_total || 0);
+        const laborTotal = Number(workOrder?.labor_total || 0);
+        const shopSupplyTotal = Number(workOrder?.shop_supply_total || 0);
+        
+        const otherChargesTotal = Array.isArray(lineItems) ? lineItems.reduce((sum, item) => {
+           const isOther = item.isothercharge === true || item.isothercharge === 'true' || item.isothercharge === 1 ||
+                           item.is_other_charge === true || item.is_other_charge === 'true' || item.is_other_charge === 1;
+           return isOther ? sum + (Number(item.total || item.line_total || 0)) : sum;
+        }, 0) : 0;
+
+        const subTotal = partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal;
+        const taxAmount = Number(workOrder?.tax_amount || 0);
+        const totalAmount = Number(workOrder?.total_amount || 0);
+        
+        // Calculate payments sum from payments array to be sure
+        let paymentsList = [];
+        try {
+          const rawPayments = workOrder?.payments;
+          paymentsList = rawPayments ? (typeof rawPayments === 'string' ? JSON.parse(rawPayments) : rawPayments) : [];
+          // Filter out on_account payments
+          paymentsList = paymentsList.filter(p => p.payment_method !== 'on_account');
+        } catch(e) { console.warn("Error parsing payments", e); }
+        
+        const finalPaid = paymentsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+        const balanceDue = totalAmount - finalPaid;
+
+        // Constants for Layout
+        const headerHeight = 90;
+        const custVehHeight = 85; 
+        const finBarHeight = 55;
+        const footerHeight = 25; // Page numbers
+        const bottomReserved = finBarHeight + footerHeight + 40; // Increased buffer to prevent bleeding
+
         let currentY = margin;
 
         // Helper: Add Header
