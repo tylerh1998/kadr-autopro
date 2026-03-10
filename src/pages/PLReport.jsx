@@ -406,7 +406,7 @@ export default function PLReportPage() {
                       <div className="flex justify-between items-center p-4 bg-green-50 border-t-2 border-green-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Revenue</span>
                         <span className="font-bold text-green-700 text-lg">
-                          ${reportData.summary.totalRevenue.toFixed(2)}
+                          {formatMoney(reportData.summary.totalRevenue)}
                         </span>
                       </div>
                     </div>
