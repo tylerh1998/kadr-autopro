@@ -618,7 +618,7 @@ Deno.serve(async (req) => {
 
         return Response.json({ 
             pdfDataUri,
-            filename: `WorkOrder_${workOrder.wo_number || 'document'}.pdf`
+            filename: `${refNumber}.pdf`
         });
 
     } catch (error) {
