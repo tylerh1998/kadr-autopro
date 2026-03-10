@@ -245,6 +245,7 @@ export default function PLReportPage() {
             padding: 4px 0 !important;
             font-size: 11px !important;
             background-color: white !important;
+            break-inside: avoid;
           }
 
           .print-line-item.total {
