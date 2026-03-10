@@ -46,14 +46,34 @@ export default function GLJournalPage() {
       });
       setAccountsMap(accountMap);
       
-      // Fetch all transactions within date range
-      const allTransactions = await base44.entities.GLTransaction.list();
+      // Fetch transactions (increased limit to ensure we get older ones)
+      const allTransactions = await base44.entities.GLTransaction.list('-transaction_date', 5000);
       
       // Filter by date range
       const filteredTransactions = allTransactions.filter(tx => {
-        if (!tx.transaction_date) return false;
-        const txDate = tx.transaction_date.split('T')[0];
-        return txDate >= appliedStartDate && txDate <= appliedEndDate;
+        const transactionId = tx.id;
+        const transactionDateRaw = tx.transaction_date;
+        let txDate = null;
+        let meetsDateCriteria = false;
+
+        if (!transactionDateRaw) {
+          return false;
+        }
+
+        try {
+          txDate = transactionDateRaw.split('T')[0];
+          meetsDateCriteria = txDate >= appliedStartDate && txDate <= appliedEndDate;
+          
+          // Log specifically for the missing transaction or date
+          if (txDate === '2026-01-29' || tx.description?.includes('Registries')) {
+             console.log(`DEBUG GLJournal: Tx ${transactionId} | Desc: ${tx.description} | Date: ${txDate} | In Range: ${meetsDateCriteria}`);
+          }
+        } catch (e) {
+          console.error(`DEBUG GLJournal: Error parsing date for tx ${transactionId}`, e);
+          return false;
+        }
+
+        return meetsDateCriteria;
       });
 
       // Sort by date (newest first)
