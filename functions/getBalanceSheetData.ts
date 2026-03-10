@@ -24,10 +24,9 @@ Deno.serve(async (req) => {
 
     // Fetch all accounts
     const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
-    // We must use all accounts (including inactive) to ensure historical balances tie out
-    const accountsToUse = allAccounts;
+    const activeAccounts = allAccounts.filter(acc => acc.is_active);
 
-    console.log('Found accounts:', accountsToUse.length);
+    console.log('Found accounts:', activeAccounts.length);
 
     // Fetch all GL transactions up to the as-of date
     const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
@@ -72,7 +71,7 @@ Deno.serve(async (req) => {
 
     // 1. Initialize map
     const accountMap = {};
-    accountsToUse.forEach(account => {
+    activeAccounts.forEach(account => {
       accountMap[account.account_number] = {
         ...account,
         children: [],
@@ -185,8 +184,8 @@ Deno.serve(async (req) => {
     const startOfYear = new Date(Date.UTC(currentYear, 0, 1)); // Jan 1st of the as-of year
     
     // Find revenue and expense accounts
-    const revenueAccountNums = new Set(accountsToUse.filter(acc => acc.account_type === 'Revenue').map(a => a.account_number));
-    const expenseAccountNums = new Set(accountsToUse.filter(acc => acc.account_type === 'Expense').map(a => a.account_number));
+    const revenueAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Revenue').map(a => a.account_number));
+    const expenseAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Expense').map(a => a.account_number));
 
     let yearToDateRevenue = 0;
     let yearToDateExpenses = 0;
@@ -230,7 +229,7 @@ Deno.serve(async (req) => {
     // NEW LOGIC: Calculate the other side by summing EVERYTHING ELSE
     // This ensures that even if a transaction is "split" between a liability 
     // and a revenue account, it is captured in this single total.
-    const totalLiabilitiesAndEquity = accountsToUse
+    const totalLiabilitiesAndEquity = activeAccounts
       .filter(acc => acc.account_type !== 'Asset')
       .reduce((sum, acc) => {
         const { credits, debits } = calculateAccountBalance(acc.account_number, validTransactions);
