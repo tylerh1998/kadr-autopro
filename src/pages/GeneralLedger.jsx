@@ -253,6 +253,13 @@ export default function GeneralLedgerPage() {
                     className="pl-10"
                   />
                 </div>
+                <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200" onClick={() => setSearchTerm('Asset')}>Assets</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-red-100 text-red-800 hover:bg-red-200 border-red-200" onClick={() => setSearchTerm('Liability')}>Liabilities</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200" onClick={() => setSearchTerm('Equity')}>Equity</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-green-100 text-green-800 hover:bg-green-200 border-green-200" onClick={() => setSearchTerm('Revenue')}>Revenue</Button>
+                  <Button variant="outline" size="sm" className="h-6 text-xs bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200" onClick={() => setSearchTerm('Expense')}>Expense</Button>
+                </div>
               </div>
               <div>
                 <Label>Start Date</Label>
