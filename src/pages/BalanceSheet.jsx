@@ -146,7 +146,7 @@ export default function BalanceSheetPage() {
           )}
         </div>
         <div className={`text-right ${level === 0 ? 'font-bold' : 'font-semibold'} ${colorClass}`}>
-          ${account.balance.toFixed(2)}
+          {formatMoney(account.balance)}
         </div>
       </div>
       {account.children && account.children.map((child) => (
