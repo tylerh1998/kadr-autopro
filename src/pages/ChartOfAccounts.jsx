@@ -119,6 +119,33 @@ export default function ChartOfAccountsPage() {
 
   return (
     <div className="p-6 min-h-screen">
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          body > div > div > header,
+          body > div > header,
+          body header,
+          header {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          .min-h-screen {
+            min-height: 0 !important;
+            height: auto !important;
+            background-color: white !important;
+          }
+          div[class*="bg-slate-"] {
+             background-color: white !important;
+          }
+          @page {
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
       {/* Floating Scroll Buttons */}
       {showScrollButtons && (
         <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50">
