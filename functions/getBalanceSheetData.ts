@@ -27,8 +27,22 @@ Deno.serve(async (req) => {
 
     console.log('Found accounts:', allAccounts.length);
 
-    // Fetch all GL transactions up to the as-of date
-    const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
+    // Fetch all GL transactions up to the as-of date (with pagination to handle >10k records)
+    let allTransactions = [];
+    let skip = 0;
+    const limit = 5000;
+    let hasMore = true;
+    
+    while (hasMore) {
+        const batch = await base44.entities.GLTransaction.list(null, limit, skip);
+        allTransactions = allTransactions.concat(batch);
+        if (batch.length < limit) {
+            hasMore = false;
+        } else {
+            skip += limit;
+        }
+    }
+    
     const knownAccountNumbers = new Set(allAccounts.map(acc => acc.account_number));
     const invalidTransactions = [];
 
