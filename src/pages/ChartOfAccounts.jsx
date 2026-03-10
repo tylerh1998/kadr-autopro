@@ -212,7 +212,7 @@ export default function ChartOfAccountsPage() {
         </div>
 
         {/* Search */}
-        <Card>
+        <Card className="no-print">
           <CardContent className="p-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
