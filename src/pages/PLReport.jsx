@@ -218,7 +218,6 @@ export default function PLReportPage() {
             box-shadow: none !important;
             margin-bottom: 20px !important;
             background: white !important;
-            break-inside: avoid;
           }
           
           .card {
