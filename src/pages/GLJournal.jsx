@@ -370,9 +370,14 @@ export default function GLJournalPage() {
 
         {/* Header with Date Filters - Hidden when printing */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6 no-print">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-slate-900">GL Journal</h1>
-            <p className="text-slate-600 mt-1">All general ledger transactions</p>
+          <div className="flex-1 flex items-center gap-4">
+            <Link to={createPageUrl('ChartOfAccounts')}>
+              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">GL Journal</h1>
+              <p className="text-slate-600 mt-1">All general ledger transactions</p>
+            </div>
           </div>
           
           {/* Search and Date Range Filters */}
