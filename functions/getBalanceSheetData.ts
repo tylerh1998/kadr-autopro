@@ -259,13 +259,7 @@ Deno.serve(async (req) => {
     // NEW LOGIC: Calculate the other side by summing EVERYTHING ELSE
     // This ensures that even if a transaction is "split" between a liability 
     // and a revenue account, it is captured in this single total.
-    const totalLiabilitiesAndEquity = allAccounts
-      .filter(acc => acc.account_type !== 'Asset')
-      .reduce((sum, acc) => {
-        const { credits, debits } = calculateAccountBalance(acc.account_number, validTransactions);
-        // Since these are Credit-normal accounts, we use credits - debits
-        return sum + (credits - debits);
-      }, 0);
+    const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
     
     // Check if balanced (Assets = Liabilities + Equity)
     const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndEquity) < 0.01; // Allow for small rounding differences
