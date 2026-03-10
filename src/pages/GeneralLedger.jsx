@@ -280,10 +280,10 @@ export default function GeneralLedgerPage() {
                   size="sm"
                   onClick={() => {
                     const now = new Date();
-                  setStartDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
-                  setEndDate(format(now, 'yyyy-MM-dd'));
-                }}
-              >
+                    setStartDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
+                    setEndDate(format(now, 'yyyy-MM-dd'));
+                  }}
+                >
                 This Month
               </Button>
               <Button
