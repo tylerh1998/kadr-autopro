@@ -228,9 +228,14 @@ export default function GeneralLedgerPage() {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">General Ledger</h1>
-          <p className="text-slate-600 mt-1">View all account balances and transactions</p>
+        <div className="flex items-center gap-4">
+          <Link to={createPageUrl('ChartOfAccounts')}>
+            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">General Ledger</h1>
+            <p className="text-slate-600 mt-1">View all account balances and transactions</p>
+          </div>
         </div>
 
         {/* Filters */}
