@@ -568,9 +568,9 @@ export default function BalanceSheetPage() {
               {/* Print-only Balance Check */}
               <div className={`print-balance-check ${reportData.summary.isBalanced ? 'balanced' : 'unbalanced'}`}>
                 {reportData.summary.isBalanced ? (
-                  <div>✓ Balance Sheet is Balanced - Assets: ${reportData.summary.totalAssets.toFixed(2)} = Liabilities + Equity: ${reportData.summary.totalLiabilitiesAndEquity.toFixed(2)}</div>
+                  <div>✓ Balance Sheet is Balanced - Assets: {formatMoney(reportData.summary.totalAssets)} = Liabilities + Equity: {formatMoney(reportData.summary.totalLiabilitiesAndEquity)}</div>
                 ) : (
-                  <div>⚠ Balance Sheet is Unbalanced - Assets: ${reportData.summary.totalAssets.toFixed(2)} ≠ Liabilities + Equity: ${reportData.summary.totalLiabilitiesAndEquity.toFixed(2)}</div>
+                  <div>⚠ Balance Sheet is Unbalanced - Assets: {formatMoney(reportData.summary.totalAssets)} ≠ Liabilities + Equity: {formatMoney(reportData.summary.totalLiabilitiesAndEquity)}</div>
                 )}
               </div>
             </>
