@@ -173,7 +173,7 @@ export default function ChartOfAccountsPage() {
             <h1 className="text-3xl font-bold text-slate-900">Chart of Accounts</h1>
             <p className="text-slate-600 mt-1">Manage your accounting structure</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 no-print">
             <Link to={createPageUrl('PLReport')}>
               <Button variant="outline" className="bg-white">
                 <BookOpen className="w-4 h-4 mr-2" />
@@ -184,6 +184,18 @@ export default function ChartOfAccountsPage() {
               <Button variant="outline" className="bg-white">
                 <BookOpen className="w-4 h-4 mr-2" />
                 Balance Sheet
+              </Button>
+            </Link>
+            <Link to={createPageUrl('GeneralLedger')}>
+              <Button variant="outline" className="bg-white">
+                <BookOpen className="w-4 h-4 mr-2" />
+                GL Ledger
+              </Button>
+            </Link>
+            <Link to={createPageUrl('GLJournal')}>
+              <Button variant="outline" className="bg-white">
+                <BookOpen className="w-4 h-4 mr-2" />
+                GL Journal
               </Button>
             </Link>
             <Button 
