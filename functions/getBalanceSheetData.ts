@@ -183,8 +183,8 @@ Deno.serve(async (req) => {
     const startOfYear = new Date(Date.UTC(currentYear, 0, 1)); // Jan 1st of the as-of year
     
     // Find revenue and expense accounts
-    const revenueAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Revenue').map(a => a.account_number));
-    const expenseAccountNums = new Set(activeAccounts.filter(acc => acc.account_type === 'Expense').map(a => a.account_number));
+    const revenueAccountNums = new Set(allAccounts.filter(acc => acc.account_type === 'Revenue').map(a => a.account_number));
+    const expenseAccountNums = new Set(allAccounts.filter(acc => acc.account_type === 'Expense').map(a => a.account_number));
 
     let yearToDateRevenue = 0;
     let yearToDateExpenses = 0;
