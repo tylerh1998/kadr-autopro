@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     // 1. Initialize map
     const accountMap = {};
-    activeAccounts.forEach(account => {
+    allAccounts.forEach(account => {
       accountMap[account.account_number] = {
         ...account,
         children: [],
