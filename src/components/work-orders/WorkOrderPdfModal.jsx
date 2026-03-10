@@ -41,8 +41,10 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                     lineItems
                 });
 
-                const { pdfDataUri } = response.data;
+                const { pdfDataUri, filename } = response.data;
                 
+                if (filename) setPdfFilename(filename);
+
                 if (!pdfDataUri) {
                     throw new Error("No PDF data received from server");
                 }
