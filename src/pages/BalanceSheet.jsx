@@ -527,7 +527,7 @@ export default function BalanceSheetPage() {
                       </span>
                     </div>
                     <span className="text-3xl font-bold text-slate-900">
-                      ${reportData.summary.totalLiabilitiesAndEquity.toFixed(2)}
+                      {formatMoney(reportData.summary.totalLiabilitiesAndEquity)}
                     </span>
                   </div>
                 </CardContent>
