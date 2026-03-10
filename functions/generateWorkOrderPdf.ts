@@ -260,254 +260,151 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Helper: Add Footer
-        function addFooter() {
-            const pageNumberSpace = 40;
-            const footerHeight = 250; 
-            const footerStartY = pageHeight - pageNumberSpace - footerHeight;
-
-            // Warranty Box
-            doc.setFillColor(255, 255, 255);
-            doc.rect(margin, footerStartY, contentWidth, 70, 'S');
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'normal');
-
-            const warrantyTextLines = [
-                'IF YOUR WHEELS HAVE BEEN REMOVED for any service performed, your wheels have been torqued to manufacturer\'s specifications. Ken\'s Auto reminds you that wheel nut tightness should be re-checked in the next 100 KM for vehicle safety.',
-                '',
-                'Ken\'s Auto will accept Debit, Mastercard, Visa, Cash, Cheque, or E-transfer to settle the balance owing. E-transfers can be sent to: Shop@kensauto.ca. Ken\'s Auto reserves the right to refuse cheques at their discretion. We assess a $30 fee on all returned cheques.',
-                '',
-                '10,000 KM OR 3 MONTH PARTS & LABOUR WARRANTY - whichever occurs first. Installed parts & work performed not warrantied beyond warranties given by respective manufacturers.'
-            ];
-
-            let textY = footerStartY + 10;
-            warrantyTextLines.forEach(paragraph => {
-                if (paragraph === '') {
-                    textY += 6;
-                } else {
-                    const lines = doc.splitTextToSize(paragraph, contentWidth - 10);
-                    lines.forEach(line => {
-                        doc.text(line, margin + 5, textY);
-                        textY += 7;
-                    });
-                }
-            });
-
-            // Terms & Financials
-            const boxY = footerStartY + 80;
-            const termsWidth = contentWidth * 0.55;
-            const financialWidth = contentWidth * 0.43;
-
-            // Terms
-            doc.rect(margin, boxY, termsWidth, 150, 'S');
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Terms of Service', margin + 5, boxY + 15);
-
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'normal');
-            const termsLines = doc.splitTextToSize(
-                'I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken\'s Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken\'s Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.',
-                termsWidth - 10
-            );
-
-            let termsY = boxY + 28;
-            termsLines.forEach(line => {
-                doc.text(line, margin + 5, termsY);
-                termsY += 9;
-            });
-
-            // Signatures
-            doc.text('X', margin + 5, boxY + 130);
-            doc.line(margin + 15, boxY + 130, margin + termsWidth - 5, boxY + 130);
-            doc.text('Name:', margin + 5, boxY + 145);
-            doc.line(margin + 35, boxY + 145, margin + termsWidth - 5, boxY + 145);
-
-            // Financials
-            const finX = margin + termsWidth + 10;
-            doc.rect(finX, boxY, financialWidth, 150, 'S');
-
+        const drawFinancialBar = (doc) => {
+          const barY = pageHeight - margin - footerHeight - finBarHeight; 
+          
+          doc.setDrawColor(200);
+          doc.setLineWidth(1);
+          doc.rect(margin, barY, contentWidth, finBarHeight, 'S');
+          
+          const cols = [
+            { label: "PARTS TOTAL", val: partsTotal },
+            { label: "LABOUR TOTAL", val: laborTotal },
+            { label: "OTHER CHARGES", val: otherChargesTotal },
+            { label: "SHOP SUPPLIES", val: shopSupplyTotal },
+            { label: "GST (5%)", val: taxAmount },
+            { label: "TOTAL", val: totalAmount, isTotal: true },
+            { label: "PAYMENTS", val: finalPaid },
+            { label: "AMOUNT OWING", val: balanceDue, isTotal: true }
+          ];
+          
+          const colWidth = contentWidth / cols.length;
+          
+          cols.forEach((col, i) => {
+             const cx = margin + (i * colWidth);
+             const center = cx + (colWidth / 2);
+             
+             if (col.isTotal) {
+                 doc.setFillColor(230, 230, 230);
+                 doc.rect(cx, barY, colWidth, finBarHeight, 'F');
+                 doc.setDrawColor(200);
+                 doc.rect(cx, barY, colWidth, finBarHeight, 'S');
+             }
+             
+             doc.setFontSize(7);
+             doc.setFont('helvetica', 'bold');
+             doc.setTextColor(col.isTotal ? 0 : 100); 
+             doc.text(col.label, center, barY + 15, { align: 'center' });
+             
+             doc.setFontSize(col.isTotal ? 12 : 9);
+             doc.setFont('helvetica', col.isTotal ? 'bold' : 'normal');
+             doc.setTextColor(0);
+             doc.text(`$${col.val.toFixed(2)}`, center, barY + 35, { align: 'center' });
+          });
+        };
+        
+        const drawPageFooter = (doc, pageNum, totalPages) => {
             doc.setFontSize(9);
-            // Calculate totals manually from line items to ensure accuracy if workOrder totals are stale/missing
-            // (Assuming workOrder object passed has correct totals, otherwise we could recalc here)
-            const partsTotal = Number(workOrder.parts_total || 0);
-            const laborTotal = Number(workOrder.labor_total || 0);
-            const shopSupplies = Number(workOrder.shop_supply_total || 0);
-            const taxAmount = Number(workOrder.tax_amount || 0);
-            const totalAmount = Number(workOrder.total_amount || 0);
-            const amountPaid = Number(workOrder.amount_paid || 0);
-            
-            // Calculate other charges total (usually included in total amount but we might want to separate)
-            // For now rely on workOrder properties passed
-            // Note: If 'shop_supply_total' in input is actually 'other charges + shop supplies', we might need to adjust.
-            // Based on report logic: other charges is separate from shop supplies.
-            // But workOrder entity usually has shop_supply_total distinct.
-            // We'll calculate 'Other Charges' as Total - (Parts + Labor + ShopSupplies + Tax) to be safe, or just use what we have.
-            // Actually, let's use the recalculation logic from the report if possible, but for simplicity let's stick to what's passed if avail.
-            // If workOrder doesn't have explicit other_charges_total, we might miss it.
-            // Let's recalc 'Other Charges' from line items just to be safe.
-            const otherChargesTotal = Array.isArray(lineItems) 
-                ? lineItems.reduce((sum, item) => sum + (parseFloat(item.oc_total) || 0) + (item.is_other_charge ? (parseFloat(item.total)||0) : 0), 0)
-                : 0;
-            
-            // Adjust shop supplies if needed. The input `shop_supply_total` from entity usually works.
-
-            let finY = boxY + 15;
-            const labelX = finX + 5;
-            const valueX = finX + financialWidth - 5;
-
-            doc.setFont('helvetica', 'normal');
-            doc.text('Parts Subtotal:', labelX, finY);
-            doc.text(`$${partsTotal.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.text('Labour Subtotal:', labelX, finY);
-            doc.text(`$${laborTotal.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.text('Other Charges:', labelX, finY);
-            doc.text(`$${otherChargesTotal.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.setLineWidth(0.5);
-            doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
-            finY += 10;
-            
-            // Subtotal before tax/supplies (Parts + Labor + Other)
-            const subtotal = partsTotal + laborTotal + otherChargesTotal;
-            doc.text('Subtotal:', labelX, finY);
-            doc.text(`$${subtotal.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.text('Shop Supplies:', labelX, finY);
-            doc.text(`$${shopSupplies.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.text('GST (5%):', labelX, finY);
-            doc.text(`$${taxAmount.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            finY += 12;
-            doc.setLineWidth(1);
-            doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
-            finY += 10;
             doc.setFont('helvetica', 'bold');
-            doc.text('Grand Total:', labelX, finY);
-            doc.text(`$${totalAmount.toFixed(2)}`, valueX, finY, { align: 'right' });
-
-            // Payments
-            let payments = [];
-            try {
-                payments = typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments;
-            } catch (e) { console.error(e); }
-
-            if (Array.isArray(payments) && payments.length > 0) {
-                const actualPayments = payments.filter(p => p.payment_method !== 'on_account');
-                const onAccountPayments = payments.filter(p => p.payment_method === 'on_account');
-                
-                // Actual Payments
-                if (actualPayments.length > 0) {
-                    finY += 15;
-                    doc.setLineWidth(0.5);
-                    doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
-                    finY += 10;
-                    doc.setFontSize(9);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Payments Received:', labelX, finY);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(8);
-
-                    actualPayments.forEach(payment => {
-                        finY += 10;
-                        let dateStr = 'N/A';
-                        try {
-                           if (payment.payment_date) {
-                               const parts = payment.payment_date.split('-').map(Number);
-                               if (parts.length === 3 && !parts.some(isNaN)) {
-                                   const [y, m, d] = parts;
-                                   const localDate = new Date(y, m - 1, d);
-                                   if (!isNaN(localDate.getTime())) {
-                                       dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                                   } else {
-                                       dateStr = payment.payment_date;
-                                   }
+            doc.setTextColor(0);
+            const text = `Page ${pageNum} of ${totalPages}`;
+            doc.text(text, pageWidth / 2, pageHeight - margin, { align: 'center' });
+        };
+        
+        const drawPaymentDetails = (doc, y) => {
+           doc.setFontSize(9);
+           doc.setFont('helvetica', 'bold');
+           doc.setFillColor(240, 240, 240);
+           doc.rect(margin, y, contentWidth, 15, 'F');
+           doc.text("Payment Details", margin + 5, y + 11);
+           
+           doc.rect(margin, y, contentWidth, 15, 'S'); 
+           
+           let py = y + 15;
+           const paymentsHeight = Math.max(25, (paymentsList.length * 12) + 10);
+           doc.rect(margin, py, contentWidth, paymentsHeight, 'S');
+           
+           py += 10;
+           doc.setFont('helvetica', 'normal');
+           doc.setFontSize(9);
+           
+           if (paymentsList.length === 0) {
+               doc.text("No payments recorded.", margin + 5, py);
+           } else {
+               paymentsList.forEach(p => {
+                   let dateStr = 'N/A';
+                   try {
+                       if (p.payment_date) {
+                           const parts = p.payment_date.split('-').map(Number);
+                           if (parts.length === 3 && !parts.some(isNaN)) {
+                               const [y, m, d] = parts;
+                               const localDate = new Date(y, m - 1, d);
+                               if (!isNaN(localDate.getTime())) {
+                                   dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                                } else {
-                                   dateStr = payment.payment_date;
+                                   dateStr = p.payment_date;
                                }
+                           } else {
+                               dateStr = p.payment_date;
                            }
-                        } catch (e) { dateStr = payment.payment_date || 'N/A'; }
-                        
-                        const method = payment.payment_method?.replace(/_/g, ' ') || 'N/A';
-                        doc.text(`${dateStr} - ${method}`, labelX, finY);
-                        doc.text(`-$${(Number(payment.amount) || 0).toFixed(2)}`, valueX, finY, { align: 'right' });
-                    });
-                }
-
-                // On Account Payments
-                if (onAccountPayments.length > 0) {
-                    finY += 15;
-                    if (actualPayments.length === 0) {
-                        doc.setLineWidth(0.5);
-                        doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
-                        finY += 10;
-                    }
-                    doc.setFontSize(9);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Charged to Account:', labelX, finY);
-                    doc.setFont('helvetica', 'italic');
-                    doc.setFontSize(8);
-                    doc.setTextColor(100, 100, 100); // Gray text for on account
-
-                    onAccountPayments.forEach(payment => {
-                        finY += 10;
-                        let dateStr = 'N/A';
-                        try {
-                           if (payment.payment_date) {
-                               const parts = payment.payment_date.split('-').map(Number);
-                               if (parts.length === 3 && !parts.some(isNaN)) {
-                                   const [y, m, d] = parts;
-                                   const localDate = new Date(y, m - 1, d);
-                                   if (!isNaN(localDate.getTime())) {
-                                       dateStr = localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                                   } else {
-                                       dateStr = payment.payment_date;
-                                   }
-                               } else {
-                                   dateStr = payment.payment_date;
-                               }
-                           }
-                        } catch (e) { dateStr = payment.payment_date || 'N/A'; }
-                        
-                        doc.text(`${dateStr} (On Account)`, labelX, finY);
-                        doc.text(`-$${(Number(payment.amount) || 0).toFixed(2)}`, valueX, finY, { align: 'right' });
-                    });
-                    doc.setTextColor(0, 0, 0); // Reset color
-                    doc.setFont('helvetica', 'normal');
-                }
-
-                // Balance Due (if any payments made)
-                if (actualPayments.length > 0 || onAccountPayments.length > 0) {
-                    finY += 12;
-                    doc.setFontSize(9);
-                    doc.setLineWidth(1);
-                    doc.line(finX + 5, finY, finX + financialWidth - 5, finY);
-                    finY += 10;
-                    doc.setFont('helvetica', 'bold');
-                    doc.text('Balance Due:', labelX, finY);
-                    // For balance due, we usually subtract only actual payments (money received).
-                    // On account means they still owe it (but it's moved to AR).
-                    // In WorkOrderReport.js logic: "const amountPaid = actualPayments.reduce(...)".
-                    // So Balance Due = GrandTotal - AmountPaid.
-                    // The "Charged to Account" is informational.
-                    // The "amountPaid" passed in workOrder.amount_paid might include everything or just actual.
-                    // Let's recalculate based on actualPayments to be consistent with WorkOrderReport.js logic.
-                    
-                    const actualPaid = actualPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                    const balanceDue = totalAmount - actualPaid;
-
-                    doc.text(`$${balanceDue.toFixed(2)}`, valueX, finY, { align: 'right' });
-                }
-            }
-        }
+                       }
+                   } catch (e) { dateStr = p.payment_date || 'N/A'; }
+                   const m = p.payment_method ? p.payment_method.replace(/_/g, ' ') : 'N/A';
+                   const a = p.amount ? Number(p.amount).toFixed(2) : '0.00';
+                   doc.text(`${dateStr} - ${m} - $${a}`, margin + 5, py);
+                   py += 12;
+               });
+           }
+           
+           return 15 + paymentsHeight;
+        };
+        
+        const drawTermsWarranty = (doc, y) => {
+           const height = 140;
+           const gap = 10;
+           const boxWidth = (contentWidth - gap) / 2;
+           
+           doc.setFontSize(9);
+           doc.setFont('helvetica', 'bold');
+           doc.text("Terms of Service", margin + 5, y + 12);
+           
+           doc.setFontSize(7);
+           doc.setFont('helvetica', 'normal');
+           const termsText = "I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken's Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken's Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.";
+           const termsLines = doc.splitTextToSize(termsText, boxWidth - 10);
+           let ty = y + 22;
+           termsLines.forEach(l => {
+               doc.text(l, margin + 5, ty);
+               ty += 8;
+           });
+           
+           ty = y + 110;
+           doc.text("X __________________________________________", margin + 5, ty);
+           ty += 15;
+           doc.text("Name: ______________________________________", margin + 5, ty);
+           
+           const rightX = margin + boxWidth + gap;
+           
+           let wy = y + 10;
+           const wLines = [
+              'IF YOUR WHEELS HAVE BEEN REMOVED for any service performed, your wheels have been torqued to manufacturer\'s specifications. Ken\'s Auto reminds you that wheel nut tightness should be re-checked in the next 100 KM for vehicle safety.',
+              '',
+              'Ken\'s Auto will accept Debit, Mastercard, Visa, Cash, Cheque, or E-transfer to settle the balance owing. E-transfers can be sent to: Shop@kensauto.ca. Ken\'s Auto reserves the right to refuse cheques at their discretion. We assess a $30 fee on all returned cheques.',
+              '',
+              '10,000 KM OR 3 MONTH PARTS & LABOUR WARRANTY - whichever occurs first. Installed parts & work performed not warrantied beyond warranties given by respective manufacturers.'
+           ];
+           
+           wLines.forEach(para => {
+              if (!para) { wy += 5; return; }
+              const lines = doc.splitTextToSize(para, boxWidth - 10);
+              lines.forEach(l => {
+                  doc.text(l, rightX + 5, wy);
+                  wy += 8;
+              });
+           });
+           
+           return height;
+        };
 
         // Start Document
         addHeader(true);
@@ -586,7 +483,6 @@ Deno.serve(async (req) => {
             });
         }
 
-        const footerHeight = 300; 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
 
@@ -603,8 +499,7 @@ Deno.serve(async (req) => {
             const hasPartNumber = item.part_number && item.part_number.trim() !== '';
             const finalRowHeight = hasPartNumber ? rowHeight + 8 : rowHeight;
 
-            if (currentY + finalRowHeight + footerHeight > pageHeight) {
-                addFooter();
+            if (currentY + finalRowHeight > pageHeight - bottomReserved) {
                 doc.addPage();
                 addHeader(false);
                 drawTableHeader();
@@ -672,8 +567,7 @@ Deno.serve(async (req) => {
         // Notes to Customer
         if (workOrder.notes_to_customer) {
             currentY += 10;
-            if (currentY + 80 + footerHeight > pageHeight) {
-                addFooter();
+            if (currentY + 80 > pageHeight - bottomReserved) {
                 doc.addPage();
                 addHeader(false);
             }
@@ -693,33 +587,30 @@ Deno.serve(async (req) => {
             currentY += 15;
         }
 
-        // Add footer to last page
-        addFooter();
+        // --- LAST PAGE BLOCKS ---
+        const paymentH = Math.max(40, (paymentsList.length * 12) + 30);
+        const termsH = 140;
+        const blocksTotalH = paymentH + termsH + 20;
+        
+        if (currentY + blocksTotalH > pageHeight - bottomReserved) {
+            doc.addPage();
+            addHeader(false);
+            currentY = margin + headerHeight + 10;
+        } else {
+            currentY += 20;
+        }
+        
+        const hUsed = drawPaymentDetails(doc, currentY);
+        currentY += hUsed + 10;
+        
+        drawTermsWarranty(doc, currentY);
 
-        // Thank you & Page Numbers
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 102, 204);
-        const thankYou = 'Thank you for your business!';
-        const thankYouWidth = doc.getTextWidth(thankYou);
+        // --- FINALIZE PAGES ---
         const totalPages = doc.getNumberOfPages();
-
         for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
-            
-            // Thank you on all pages or just last? User code said "Thank you footer" then "Add page numbers".
-            // Typically thank you is at bottom of last page content, but user code put it at specific coordinates on every page?
-            // "doc.text(thankYou...)" was outside the loop in user code, meaning it only printed on the last active page.
-            if (i === totalPages) {
-                doc.text(thankYou, (pageWidth - thankYouWidth) / 2, pageHeight - 20);
-            }
-
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'bold');
-            const pageText = `Page ${i} of ${totalPages}`;
-            const pageTextWidth = doc.getTextWidth(pageText);
-            doc.text(pageText, (pageWidth - pageTextWidth) / 2, pageHeight - 10);
+            drawFinancialBar(doc);
+            drawPageFooter(doc, i, totalPages);
         }
 
         // Return as base64 JSON to avoid binary handling issues with SDK
