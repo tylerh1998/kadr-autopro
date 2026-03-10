@@ -133,7 +133,7 @@ export default function PLReportPage() {
           )}
         </div>
         <div className={`text-right ${level === 0 ? 'font-bold' : 'font-semibold'} ${account.amount >= 0 ? (account.account_type === 'Revenue' ? 'text-green-700' : 'text-red-700') : 'text-slate-600'}`}>
-          ${Math.abs(account.amount).toFixed(2)}
+          {formatMoney(account.amount)}
         </div>
       </div>
       {account.children && account.children.map((child) => (
