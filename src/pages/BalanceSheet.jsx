@@ -504,7 +504,7 @@ export default function BalanceSheetPage() {
                       <div className="flex justify-between items-center p-4 bg-purple-50 border-t-2 border-purple-600 print-line-item total">
                         <span className="font-bold text-slate-900">Total Equity</span>
                         <span className="font-bold text-purple-700 text-lg">
-                          ${reportData.summary.totalEquity.toFixed(2)}
+                          {formatMoney(reportData.summary.totalEquity)}
                         </span>
                       </div>
                     </div>
