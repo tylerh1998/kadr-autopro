@@ -24,9 +24,8 @@ Deno.serve(async (req) => {
 
     // Fetch all accounts
     const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
-    const activeAccounts = allAccounts.filter(acc => acc.is_active);
 
-    console.log('Found accounts:', activeAccounts.length);
+    console.log('Found accounts:', allAccounts.length);
 
     // Fetch all GL transactions up to the as-of date
     const allTransactions = await base44.entities.GLTransaction.list(null, 10000);
