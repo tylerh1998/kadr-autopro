@@ -162,6 +162,15 @@ export default function GLJournalPage() {
   const totalDebit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.debit_amount || 0), 0);
   const totalCredit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.credit_amount || 0), 0);
 
+  console.log('DEBUG GLJournal: Final filteredDisplayTransactions count:', filteredDisplayTransactions.length);
+  const missingTxId = '697c35a6a1e978baa77c2cd3';
+  const foundMissingTx = filteredDisplayTransactions.find(tx => tx.id === missingTxId);
+  if (foundMissingTx) {
+    console.log('DEBUG GLJournal: Missing transaction IS present in final display list!', foundMissingTx);
+  } else {
+    console.log('DEBUG GLJournal: Missing transaction IS NOT present in final display list.', {missingTxId: missingTxId, appliedStartDate: appliedStartDate, appliedEndDate: appliedEndDate, searchTerm: searchTerm});
+  }
+
   return (
     <div className="p-6 min-h-screen">
       {/* Print Styles */}
