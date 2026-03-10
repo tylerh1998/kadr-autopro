@@ -122,6 +122,13 @@ export default function BalanceSheetPage() {
     }
   };
 
+  const formatMoney = (amount) => {
+    if (amount < 0) {
+      return `($${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    }
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const AccountRow = ({ account, level = 0, colorClass = 'text-slate-900' }) => (
     <>
       <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
