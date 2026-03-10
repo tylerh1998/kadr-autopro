@@ -9,7 +9,21 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, message: "No open fiscal periods found." });
     }
 
-    const allTransactions = await base44.asServiceRole.entities.GLTransaction.list(null, 10000);
+    let allTransactions = [];
+    let skip = 0;
+    const limit = 5000;
+    let hasMore = true;
+    
+    while (hasMore) {
+        const batch = await base44.asServiceRole.entities.GLTransaction.list(null, limit, skip);
+        allTransactions = allTransactions.concat(batch);
+        if (batch.length < limit) {
+            hasMore = false;
+        } else {
+            skip += limit;
+        }
+    }
+    
     const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list(null, 10000);
     
     const accountTypeMap = {};
