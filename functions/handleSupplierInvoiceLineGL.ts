@@ -23,10 +23,48 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        // Determine lines to process
+        let linesToProcess = [];
+        if (supplierInvoiceLines && Array.isArray(supplierInvoiceLines)) {
+            linesToProcess = supplierInvoiceLines;
+        } else if (supplierInvoiceLine) {
+            linesToProcess = [supplierInvoiceLine];
+        }
+
+        console.time('Total GL Processing Time');
+        console.time('Fetch Bulk Data');
+        
+        let allLinesForData = [...linesToProcess];
+        if (action === 'update' && oldValues) {
+            allLinesForData.push(oldValues);
+        }
+
+        const uniqueSupplierIds = [...new Set(allLinesForData.map(l => l.supplier_id).filter(Boolean))];
+        const uniqueGLAccounts = [...new Set(allLinesForData.map(l => l.gl_account).filter(Boolean))];
+
+        const supplierMap = {};
+        const glAccountMap = {};
+
+        if (uniqueSupplierIds.length > 0) {
+            const supplierPromises = uniqueSupplierIds.map(id => base44.asServiceRole.entities.Supplier.get(id).catch(() => null));
+            const suppliers = await Promise.all(supplierPromises);
+            suppliers.forEach(s => {
+                if (s && s.id) supplierMap[s.id] = s.name;
+            });
+        }
+
+        if (uniqueGLAccounts.length > 0) {
+            const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000).catch(() => []);
+            allAccounts.forEach(acc => {
+                glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
+            });
+        }
+        console.timeEnd('Fetch Bulk Data');
+
         const glTransactions = [];
 
         // Helper function to create GL transaction entries
-        const createGLEntries = async (line, isReversal = false) => {
+        const createGLEntries = (line, isReversal = false) => {
             const multiplier = isReversal ? -1 : 1;
             const reversalPrefix = isReversal ? 'REVERSAL - ' : '';
             
@@ -34,31 +72,8 @@ Deno.serve(async (req) => {
             const gstAmount = parseFloat(line.gst_amount || 0);
             const lineTotal = purchaseAmount + gstAmount;
 
-            // Get supplier name for better description
-            let supplierName = 'Unknown Supplier';
-            try {
-                // Optimization: If we process many lines from same supplier, we could cache this.
-                // For now, fetching is safe.
-                const supplier = await base44.asServiceRole.entities.Supplier.get(line.supplier_id);
-                if (supplier) {
-                    supplierName = supplier.name;
-                }
-            } catch (error) {
-                console.error('Error fetching supplier for GL transaction:', error);
-            }
-
-            // Get GL account name for better description
-            let glAccountName = line.gl_account || 'Unknown';
-            try {
-                const chartOfAccount = await base44.asServiceRole.entities.ChartOfAccount.filter({ 
-                    account_number: line.gl_account 
-                });
-                if (chartOfAccount && chartOfAccount.length > 0) {
-                    glAccountName = `${chartOfAccount[0].account_number} - ${chartOfAccount[0].account_name}`;
-                }
-            } catch (error) {
-                console.error('Error fetching chart of account:', error);
-            }
+            const supplierName = supplierMap[line.supplier_id] || 'Unknown Supplier';
+            const glAccountName = glAccountMap[line.gl_account] || line.gl_account || 'Unknown';
 
             const baseDescription = `Supplier Inv Line: ${line.description || 'No description'} - ${supplierName}`;
 
@@ -108,29 +123,23 @@ Deno.serve(async (req) => {
             }
         };
 
-        // Determine lines to process
-        let linesToProcess = [];
-        if (supplierInvoiceLines && Array.isArray(supplierInvoiceLines)) {
-            linesToProcess = supplierInvoiceLines;
-        } else if (supplierInvoiceLine) {
-            linesToProcess = [supplierInvoiceLine];
-        }
-
+        console.time('Process Lines');
         // Process all lines
         for (const line of linesToProcess) {
             if (action === 'create') {
-                await createGLEntries(line, false);
+                createGLEntries(line, false);
             } else if (action === 'update') {
                 // Update logic assumes singular line for now (as oldValues is singular)
                 if (!oldValues) {
                     return Response.json({ error: 'Old values required for update action' }, { status: 400 });
                 }
-                await createGLEntries(oldValues, true);
-                await createGLEntries(line, false);
+                createGLEntries(oldValues, true);
+                createGLEntries(line, false);
             } else if (action === 'delete') {
-                await createGLEntries(line, true);
+                createGLEntries(line, true);
             }
         }
+        console.timeEnd('Process Lines');
 
         // Create all GL transactions using service role
         console.log(`Creating ${glTransactions.length} GL Transactions in bulk`);
@@ -139,6 +148,7 @@ Deno.serve(async (req) => {
         let createdCount = 0;
 
         if (glTransactions.length > 0) {
+            console.time('Bulk Create GL Transactions');
             try {
                 // Sanitize transactions
                 const sanitizedTxs = glTransactions.map(glTx => ({
@@ -169,7 +179,10 @@ Deno.serve(async (req) => {
                     }
                 }
             }
+            console.timeEnd('Bulk Create GL Transactions');
         }
+        
+        console.timeEnd('Total GL Processing Time');
 
         if (errors.length > 0) {
             return Response.json({
