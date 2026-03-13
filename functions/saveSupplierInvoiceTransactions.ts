@@ -154,32 +154,20 @@ Deno.serve(async (req) => {
         // 1. Process Deletions
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
-            console.log(`Processing deletion for lineId: ${lineId}`);
-            // Get original line for GL reversal context
-            const { data: lineData, error: fetchError } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', lineId).single();
-            
-            if (fetchError) {
-                console.error(`Error fetching line ${lineId} for deletion:`, fetchError);
-            }
-            
-            const lineToDelete = lineData;
-            
-            if (lineToDelete) {
-                if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
-                     console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
-                     continue; 
-                }
+            try {
+                const lineToDelete = await base44.asServiceRole.entities.SupplierInvoiceLine.get(lineId);
+                if (lineToDelete) {
+                    if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
+                         console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
+                         continue; 
+                    }
 
-                const { error: deleteError } = await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
-                if (deleteError) {
-                    console.error(`Error deleting line ${lineId}:`, deleteError);
-                    throw new Error(`Failed to delete line: ${deleteError.message}`);
+                    await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lineId);
+                    anyAmountChanged = true;
+                    deletedLinesForGL.push(lineToDelete);
                 }
-                console.log(`Successfully deleted line ${lineId}`);
-                anyAmountChanged = true;
-                deletedLinesForGL.push(lineToDelete);
-            } else {
-                console.warn(`Line ${lineId} not found for deletion`);
+            } catch (error) {
+                console.error(`Error processing deletion for line ${lineId}:`, error);
             }
         }
 
