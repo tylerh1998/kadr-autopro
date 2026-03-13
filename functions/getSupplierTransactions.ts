@@ -31,9 +31,14 @@ Deno.serve(async (req) => {
             toDate.setHours(23, 59, 59, 999); // End of day
         }
 
-        // Fetch supplier data using service role
+        // Fetch supplier data using SupabaseProxy
         console.log('Fetching supplier...');
-        const supplierData = await base44.asServiceRole.entities.Supplier.get(supplierId);
+        const supplierRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } });
+        const supplierData = supplierRes.data?.data?.[0];
+
+        if (!supplierData) {
+            return Response.json({ error: 'Supplier not found' }, { status: 404 });
+        }
 
         // Fetch chart of accounts
         console.log('Fetching chart of accounts...');
@@ -41,15 +46,13 @@ Deno.serve(async (req) => {
 
         // Fetch all supplier invoice lines for this supplier
         console.log('Fetching supplier invoice lines...');
-        const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({ 
-            supplier_id: supplierId 
-        });
+        const linesRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { supplier_id: supplierId } });
+        const allLines = linesRes.data?.data || [];
 
         // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
-        const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ 
-            supplier_id: supplierId 
-        });
+        const paymentsRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierPayment', match: { supplier_id: supplierId } });
+        const paymentsData = paymentsRes.data?.data || [];
 
         console.log(`Total lines fetched: ${allLines.length}`);
         console.log(`Total payments fetched: ${paymentsData.length}`);
