@@ -1001,7 +1001,7 @@ export default function SupplierTxPage() {
             // Validate GL accounts
             const invalidGLLines = linesToSave.filter(line =>
                 (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0) || line.charge !== 0 || line.gst !== 0) &&
-                !line.gl_account?.trim() && !line.inventory
+                (!line.gl_account || String(line.gl_account).trim() === '') && !line.inventory
             );
 
             if (invalidGLLines.length > 0) {
