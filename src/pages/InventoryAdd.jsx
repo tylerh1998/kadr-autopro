@@ -207,7 +207,7 @@ export default function InventoryAddPage() {
             try {
                 const [suppliersData, salesClassesData, inventoryData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
                     Supplier.filter({ inventory_supplier: true }, 'name'),
-                    SalesClass.list(),
+                    base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
                     InventoryItem.list(),
                     TagAlong.list(),
                     InventoryLocation.list(),
