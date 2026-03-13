@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
         const oldValuesForGL = [];
         for (const line of modifiedLines) {
             try {
-                const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
+                const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
                 if (!existingLine) continue;
 
                 // Check if amounts changed
@@ -244,7 +244,8 @@ Deno.serve(async (req) => {
                     gst_override: line.gst_override
                 };
 
-                const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
+                const { data: updatedLine, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select().single();
+                if (updateError) throw updateError;
                 
                 if (updatedLine) {
                     updatedLinesForGL.push(updatedLine);
