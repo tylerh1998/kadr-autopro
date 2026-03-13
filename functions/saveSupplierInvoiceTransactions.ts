@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
             }
 
             if (uniqueGLAccounts.length > 0) {
-                const { data: allAccounts } = await supabase.from('ChartOfAccount').select('account_number, account_name').limit(1000);
+                const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
                 (allAccounts || []).forEach(acc => {
                     glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
                 });
