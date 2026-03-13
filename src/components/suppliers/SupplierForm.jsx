@@ -30,7 +30,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
   useEffect(() => {
     const loadGLAccounts = async () => {
       try {
-        const accounts = await base44.entities.ChartOfAccount.list('', 1000);
+        const accounts = await base44.entities.ChartOfAccount.list('account_number', 1000);
         // Sort accounts by account_number (smallest to largest)
         const sortedAccounts = (accounts || []).sort((a, b) => {
           const numA = parseInt(a.account_number);
