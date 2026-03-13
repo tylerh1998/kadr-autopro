@@ -105,9 +105,9 @@ export default function SuppliersPage() {
   const handleSubmit = async (formData) => {
     try {
       if (editingSupplier) {
-        await Supplier.update(editingSupplier.id, formData);
+        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: editingSupplier.id, data: formData });
       } else {
-        await Supplier.create(formData);
+        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'Supplier', data: formData });
       }
       setShowForm(false);
       setEditingSupplier(null);
@@ -121,7 +121,8 @@ export default function SuppliersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const allSuppliers = await Supplier.list();
+      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
+      const allSuppliers = response.data?.data || [];
       const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
       
       if (lockedSuppliers.length === 0) {
@@ -132,7 +133,7 @@ export default function SuppliersPage() {
       }
 
       const updatePromises = lockedSuppliers.map(supplier => 
-        Supplier.update(supplier.id, { LockedByUser: null })
+        base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: { LockedByUser: null } })
       );
 
       await Promise.all(updatePromises);
