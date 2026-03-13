@@ -163,14 +163,22 @@ Deno.serve(async (req) => {
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
             try {
-                const { data: lineToDelete } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', lineId).single();
+                const { data: lineToDelete, error: selectError } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', lineId).maybeSingle();
+                
+                if (selectError) {
+                    console.error(`Error fetching line ${lineId} for deletion:`, selectError);
+                    continue;
+                }
+
                 if (lineToDelete) {
                     if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
                          console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
                          continue; 
                     }
 
-                    await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
+                    const { error: deleteError } = await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
+                    if (deleteError) throw deleteError;
+                    
                     anyAmountChanged = true;
                     deletedLinesForGL.push(lineToDelete);
                 }
