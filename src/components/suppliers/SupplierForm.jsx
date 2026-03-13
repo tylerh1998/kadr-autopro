@@ -58,7 +58,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
         province: supplier.province || '',
         postal_code: supplier.postal_code || '',
         account_number: supplier.account_number || '',
-        default_gl_account: supplier.default_gl_account || '',
+        default_gl_account: supplier.default_gl_account ? String(supplier.default_gl_account) : '',
         inventory_supplier: supplier.inventory_supplier !== undefined ? supplier.inventory_supplier : true,
         pin_to_top: supplier.pin_to_top || false,
         default_taxable: supplier.default_taxable || false,
