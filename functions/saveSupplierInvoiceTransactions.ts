@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
         });
 
         let anyAmountChanged = false;
+        const skippedDeletions = [];
 
         // Helper to create GL transactions
         const createGLTransactions = async (linesToProcess, action, oldValues) => {
@@ -171,8 +172,11 @@ Deno.serve(async (req) => {
                 }
 
                 if (lineToDelete) {
-                    if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
-                         console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
+                    const paidAmount = parseFloat(lineToDelete.paid_amount || 0);
+                    if (paidAmount !== 0) {
+                         const skipMessage = `Skipping deletion of line ${lineId} because it has paid amount ${paidAmount}`;
+                         console.warn(skipMessage);
+                         skippedDeletions.push({ lineId, paid_amount: paidAmount, message: skipMessage });
                          continue; 
                     }
 
@@ -326,7 +330,13 @@ Deno.serve(async (req) => {
             }
         }
 
-        return Response.json({ success: true });
+        return Response.json({
+            success: true,
+            skippedDeletions,
+            message: skippedDeletions.length > 0
+                ? `${skippedDeletions.length} line deletion(s) were skipped because they have payments applied.`
+                : undefined
+        });
 
     } catch (error) {
         console.error('Error in saveSupplierInvoiceTransactions:', error);
