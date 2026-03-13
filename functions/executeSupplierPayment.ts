@@ -168,11 +168,13 @@ Deno.serve(async (req) => {
       }
 
       if (updatesToProcess.length > 0) {
-        await processUpdatesInBatches(updatesToProcess, (update) => 
-          base44.asServiceRole.entities.SupplierInvoiceLine.update(update.id, {
+        await processUpdatesInBatches(updatesToProcess, async (update) => {
+          const { error } = await supabase.from('SupplierInvoiceLine').update({
+            updated_date: new Date().toISOString(),
             paid_amount: update.paid_amount
-          })
-        , 1);
+          }).eq('id', update.id);
+          if (error) throw error;
+        }, 10); // increased batch size since supabase is faster
       }
     }
 
