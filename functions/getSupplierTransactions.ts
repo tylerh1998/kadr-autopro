@@ -31,25 +31,24 @@ Deno.serve(async (req) => {
             toDate.setHours(23, 59, 59, 999); // End of day
         }
 
-        // Fetch supplier data
-        console.log('Fetching supplier...');
-        let supplierData = null;
-        try {
-            supplierData = await base44.asServiceRole.entities.Supplier.get(supplierId);
-        } catch (e) {
-            console.error('Error fetching supplier:', e);
-            // Fallback to filter if get fails due to ID format issues
-            try {
-                const suppliers = await base44.asServiceRole.entities.Supplier.filter({ id: supplierId });
-                if (suppliers && suppliers.length > 0) {
-                    supplierData = suppliers[0];
-                }
-            } catch (fallbackError) {
-                console.error('Fallback error fetching supplier:', fallbackError);
-            }
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
         }
 
-        if (!supplierData) {
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
+        // Fetch supplier data using Supabase directly
+        console.log('Fetching supplier...');
+        const { data: supplierDataArr, error: supplierErr } = await supabase.from('Supplier').select('*').eq('id', supplierId);
+        const supplierData = supplierDataArr?.[0];
+
+        if (supplierErr || !supplierData) {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
@@ -59,11 +58,13 @@ Deno.serve(async (req) => {
 
         // Fetch all supplier invoice lines for this supplier
         console.log('Fetching supplier invoice lines...');
-        const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({ supplier_id: supplierId });
+        const { data: allLinesArr, error: linesErr } = await supabase.from('SupplierInvoiceLine').select('*').eq('supplier_id', supplierId);
+        const allLines = allLinesArr || [];
 
         // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
-        const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
+        const { data: paymentsArr, error: paymentsErr } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
+        const paymentsData = paymentsArr || [];
 
         console.log(`Total lines fetched: ${allLines.length}`);
         console.log(`Total payments fetched: ${paymentsData.length}`);
