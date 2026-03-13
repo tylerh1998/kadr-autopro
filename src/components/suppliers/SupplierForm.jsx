@@ -164,7 +164,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
             </SelectTrigger>
             <SelectContent>
               {glAccounts.map(account => (
-                <SelectItem key={account.id} value={account.account_number}>
+                <SelectItem key={account.id} value={String(account.account_number)}>
                   {account.account_number} - {account.account_name}
                 </SelectItem>
               ))}
