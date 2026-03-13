@@ -99,7 +99,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.default_gl_account.trim()) {
+    if (!String(formData.default_gl_account || '').trim()) {
       alert('Default GL Account is required.');
       return;
     }
