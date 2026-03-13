@@ -97,7 +97,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         // First try by explicit ID if available
         const matchingChargeType = chargeTypes.find(ct => ct.id === editingChargeLine.other_charge_id);
         if (matchingChargeType) {
-          setSelectedChargeTypeId(matchingChargeType.id);
+          setSelectedChargeTypeId(String(matchingChargeType.id));
           setSelectedChargeType(matchingChargeType);
         }
       } else if (editingChargeLine.gl_account) {
@@ -107,7 +107,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
           ct.description === editingChargeLine.description
         );
         if (matchingChargeType) {
-          setSelectedChargeTypeId(matchingChargeType.id);
+          setSelectedChargeTypeId(String(matchingChargeType.id));
           setSelectedChargeType(matchingChargeType);
         }
       }
@@ -126,7 +126,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
             const sil = (response.data?.data || [])[0];
             if (!sil) throw new Error('Supplier invoice line not found');
             console.log('=== DEBUG: Fetched SupplierInvoiceLine for editing:', sil);
-            setLinkedSupplierId(sil.supplier_id || '');
+            setLinkedSupplierId(sil.supplier_id ? String(sil.supplier_id) : '');
             setSupplierInvoiceNumber(sil.invoice_number || '');
             setSupplierInvoiceDate(sil.invoice_date || '');
             if (sil.invoice_date) {
@@ -140,7 +140,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
             }
             setSupplierPurchaseAmount(sil.purchase_amount?.toString() || '');
             setSupplierGstAmount(sil.gst_amount?.toString() || '');
-            setSupplierGlAccount(sil.gl_account || '');
+            setSupplierGlAccount(sil.gl_account ? String(sil.gl_account) : '');
           })
           .catch(error => {
             console.error('Error fetching SupplierInvoiceLine:', error);
@@ -174,9 +174,10 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
   }, [open, editingChargeLine, chargeTypes.length]);
 
   const handleChargeTypeSelect = (chargeTypeId) => {
-    const chargeType = chargeTypes.find(ct => ct.id === chargeTypeId);
+    const normalizedChargeTypeId = String(chargeTypeId);
+    const chargeType = chargeTypes.find(ct => String(ct.id) === normalizedChargeTypeId);
     if (chargeType) {
-      setSelectedChargeTypeId(chargeTypeId);
+      setSelectedChargeTypeId(normalizedChargeTypeId);
       setSelectedChargeType(chargeType);
       setDescription(chargeType.description || '');
       setPriceEach(chargeType.base_amount?.toString() || '');
@@ -184,7 +185,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       
       // Set cost application defaults from charge type
       setApplyCost(chargeType.apply_cost || false);
-      setLinkedSupplierId(chargeType.linked_supplier_id || '');
+      setLinkedSupplierId(chargeType.linked_supplier_id ? String(chargeType.linked_supplier_id) : '');
       
       // If apply_cost is true and we have a linked supplier, pre-fill the GL account
       if (chargeType.apply_cost && chargeType.linked_supplier_id) {
@@ -341,7 +342,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Description *</Label>
-                <Select value={selectedChargeTypeId} onValueChange={handleChargeTypeSelect}>
+                <Select value={selectedChargeTypeId || ''} onValueChange={handleChargeTypeSelect}>
                   <SelectTrigger ref={selectTriggerRef}>
                     <SelectValue placeholder="Select an other charge..." />
                   </SelectTrigger>
@@ -350,7 +351,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                       .filter(ct => !ct.levy || ct.id === editingChargeLine?.chargeTypeId || ct.id === selectedChargeTypeId)
                       .sort((a, b) => (a.description || '').localeCompare(b.description || ''))
                       .map(ct => (
-                      <SelectItem key={ct.id} value={ct.id}>
+                      <SelectItem key={ct.id} value={String(ct.id)}>
                         {ct.description}
                       </SelectItem>
                     ))}
@@ -440,7 +441,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                     <div className="space-y-2">
                       <Label htmlFor="supplier">Supplier *</Label>
                       <Select 
-                        value={linkedSupplierId} 
+                        value={linkedSupplierId || ''} 
                         onValueChange={(value) => {
                           setLinkedSupplierId(value);
                           const supplier = suppliers.find(s => s.id === value);
@@ -455,7 +456,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                         </SelectTrigger>
                         <SelectContent>
                           {suppliers.map(s => (
-                            <SelectItem key={s.id} value={s.id}>
+                            <SelectItem key={s.id} value={String(s.id)}>
                               {s.name}
                             </SelectItem>
                           ))}
@@ -599,7 +600,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                     <div className="space-y-2">
                     <Label htmlFor="glAccount">GL Account *</Label>
                     <Select 
-                      value={supplierGlAccount} 
+                      value={supplierGlAccount || ''} 
                       onValueChange={setSupplierGlAccount}
                       disabled={!!editingChargeLine?.supplier_invoice_line_id}
                     >
@@ -608,7 +609,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                       </SelectTrigger>
                       <SelectContent>
                         {glAccounts.filter(acc => !acc.controlled).map(acc => (
-                          <SelectItem key={acc.id} value={acc.account_number}>
+                          <SelectItem key={acc.id} value={String(acc.account_number)}>
                             {acc.account_number} - {acc.account_name}
                           </SelectItem>
                         ))}
