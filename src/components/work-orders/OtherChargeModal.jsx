@@ -14,6 +14,11 @@ import { format, parseISO } from 'date-fns';
 
 export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCharge, editingChargeLine, workOrderNumber }) {
   const [chargeTypes, setChargeTypes] = useState([]);
+
+  const unwrapEntityData = (record) => {
+    if (!record) return record;
+    return record.data ? { ...record.data, id: record.id } : record;
+  };
   const [suppliers, setSuppliers] = useState([]);
   const [glAccounts, setGlAccounts] = useState([]);
   const [selectedChargeType, setSelectedChargeType] = useState(null);
@@ -50,9 +55,9 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
           }),
           ChartOfAccount.list('account_number')
         ]);
-        setChargeTypes(typesData || []);
-        setSuppliers(((suppliersResponse.data?.data) || []).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-        setGlAccounts(accountsData || []);
+        setChargeTypes((typesData || []).map(unwrapEntityData));
+        setSuppliers(((suppliersResponse.data?.data) || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        setGlAccounts((accountsData || []).map(unwrapEntityData));
       } catch (error) {
         console.error('Failed to fetch data:', error);
         setChargeTypes([]);
