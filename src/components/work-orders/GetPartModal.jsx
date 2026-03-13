@@ -35,7 +35,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         setSearchError('');
         
         const [salesClassesResponse, tagAlongsData, otherChargesData, defaultInventory] = await Promise.all([
-          base44.functions.invoke('SupabaseProxy', {}),
+          base44.functions.invoke('SupabaseProxy', { action: 'read' }),
           TagAlong.list(null, 1000),
           OtherChargeList.list(null, 1000),
           base44.functions.invoke('searchInventory', { limit: 50 })
