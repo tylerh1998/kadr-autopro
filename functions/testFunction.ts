@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
     
     try {
         const user = await base44.auth.me();
-        const accounts = await base44.asServiceRole.entities.ChartOfAccount.list('account_number', 1000);
+        const accounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
         return Response.json({ 
             success: true, 
             message: 'Test function works!',
