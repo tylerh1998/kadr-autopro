@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function SupplierForm({ supplier, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
