@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 Deno.serve(async (req) => {
   try {
@@ -9,7 +9,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchTerm, page = 1, limit = 50, includeInactive = false } = await req.json();
+    let searchTerm, page = 1, limit = 50, includeInactive = false;
+    try {
+      const body = await req.json();
+      searchTerm = body.searchTerm;
+      if (body.page !== undefined) page = body.page;
+      if (body.limit !== undefined) limit = body.limit;
+      if (body.includeInactive !== undefined) includeInactive = body.includeInactive;
+    } catch (jsonError) {
+      console.error('Error parsing request JSON:', jsonError);
+      return Response.json({ error: 'Invalid JSON payload', details: jsonError.message }, { status: 400 });
+    }
     const skip = (page - 1) * limit;
 
     // Optimization: If no search term, use efficient DB pagination
