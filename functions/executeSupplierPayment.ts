@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
 
     // Update status to processing
-    await supabase.from('SupplierPayment').update({ status: 'processing' }).eq('id', paymentId);
+    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, { status: 'processing' });
 
     // Get supplier for name
     const { data: supplier } = await supabase.from('Supplier').select('*').eq('id', supplierId).single();
@@ -182,14 +182,14 @@ Deno.serve(async (req) => {
 
     // Process transactions
     if (paymentMethod === 'Bank Account' || paymentMethod === 'Cheque') {
-      const { data: selectedBank } = await supabase.from('BankAccount').select('*').eq('id', fromAccountId).single();
+      const selectedBank = await base44.asServiceRole.entities.BankAccount.get(fromAccountId);
       if (selectedBank) {
-        await supabase.from('BankTransaction').insert({
+        await base44.asServiceRole.entities.BankTransaction.create({
           bank_account_id: selectedBank.id,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
-          debit_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
-          credit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
+          debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+          credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
           source_type: 'payment',
           source_id: paymentId
         });
@@ -199,9 +199,9 @@ Deno.serve(async (req) => {
         });
 
         if (chequeNumber) {
-          await supabase.from('BankAccount').update({
+          await base44.asServiceRole.entities.BankAccount.update(selectedBank.id, {
             next_cheque_number: parseInt(chequeNumber) + 1
-          }).eq('id', selectedBank.id);
+          });
         }
 
         await supabase.from('GLTransaction').insert({
@@ -214,25 +214,25 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await supabase.from('GLTransaction').insert({
+        await base44.asServiceRole.entities.GLTransaction.create({
           account_number: selectedBank.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
-          debit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
-          credit_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
+          debit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+          credit_amount: paymentAmount > 0 ? paymentAmount : 0,
           source_type: 'supplier_payment',
           source_id: paymentId
         });
       }
     } else if (paymentMethod === 'Line of Credit') {
-      const { data: selectedLOC } = await supabase.from('LinesOfCredit').select('*').eq('id', fromAccountId).single();
+      const selectedLOC = await base44.asServiceRole.entities.LinesOfCredit.get(fromAccountId);
       if (selectedLOC) {
-        await supabase.from('LinesOfCreditTransaction').insert({
+        await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
           line_of_credit_id: selectedLOC.id,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
-          charge_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
-          credit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
+          charge_amount: paymentAmount > 0 ? paymentAmount : 0,
+          credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
           payment_amount: 0,
           source_type: 'supplier_payment',
           source_id: paymentId
@@ -252,12 +252,12 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await supabase.from('GLTransaction').insert({
+        await base44.asServiceRole.entities.GLTransaction.create({
           account_number: selectedLOC.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
-          debit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
-          credit_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
+          debit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+          credit_amount: paymentAmount > 0 ? paymentAmount : 0,
           source_type: 'supplier_payment',
           source_id: paymentId
         });
@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
     }
 
     // Update status to completed
-    await supabase.from('SupplierPayment').update({ status: 'completed' }).eq('id', paymentId);
+    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, { status: 'completed' });
 
     return Response.json({ success: true });
 
@@ -273,15 +273,10 @@ Deno.serve(async (req) => {
     console.error('Error in executeSupplierPayment:', error);
     if (paymentId) {
         try {
-            const supabaseUrl = Deno.env.get("Supabase_project_url");
-            const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
-            const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
-            const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
-            
-            await supabase.from('SupplierPayment').update({ 
+            await base44.asServiceRole.entities.SupplierPayment.update(paymentId, {
                 status: 'failed',
                 error_message: error.message || 'Unknown error during background processing'
-            }).eq('id', paymentId);
+            });
         } catch (e) {
             console.error('Failed to update payment status to failed:', e);
         }
