@@ -486,8 +486,21 @@ export default function SupplierTxPage() {
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date))); // Sort payments by date descending
             setCurrentBalance(totalBalance);
 
-            // The conceptualInvoices from backend functions already contains the grouped lines
-            // Ensure they are correctly formatted and rounded
+            const mapLine = (line) => {
+                const pAmt = parseFloat(line.purchase_amount) || 0;
+                const gAmt = parseFloat(line.gst_amount) || 0;
+                return {
+                    ...line,
+                    charge: Math.round(pAmt * 100) / 100,
+                    gst: Math.round(gAmt * 100) / 100,
+                    line_total: Math.round((pAmt + gAmt) * 100) / 100,
+                    gl_account: line.gl_account ? String(line.gl_account) : '',
+                    gst_override: line.gst_override || false,
+                    paid_amount: Math.round((parseFloat(line.paid_amount) || 0) * 100) / 100,
+                    dateError: null
+                };
+            };
+
             const formattedConceptualInvoices = invoicesInRange
                 .sort((a, b) => {
                     const dateA = new Date(a.invoice_date);
@@ -498,25 +511,17 @@ export default function SupplierTxPage() {
                 .map(invoice => ({
                     ...invoice,
                     subtotal: Math.round(invoice.subtotal * 100) / 100,
-                tax_amount: Math.round(invoice.tax_amount * 100) / 100,
-                total_amount: Math.round(invoice.total_amount * 100) / 100,
-                amount_paid: Math.round(invoice.amount_paid * 100) / 100,
-                balance_due: Math.round(invoice.balance_due * 100) / 100,
-                lines: invoice.lines.map(line => ({ // Also format nested lines
-                    ...line,
-                    charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
-                    gst: typeof line.gst_amount === 'number' ? Math.round(line.gst_amount * 100) / 100 : line.gst_amount,
-                    line_total: typeof line.purchase_amount === 'number' && typeof line.gst_amount === 'number' ? Math.round((line.purchase_amount + line.gst_amount) * 100) / 100 : line.line_total,
-                    gst_override: line.gst_override || false
-                }))
-            }));
+                    tax_amount: Math.round(invoice.tax_amount * 100) / 100,
+                    total_amount: Math.round(invoice.total_amount * 100) / 100,
+                    amount_paid: Math.round(invoice.amount_paid * 100) / 100,
+                    balance_due: Math.round(invoice.balance_due * 100) / 100,
+                    lines: invoice.lines.map(mapLine)
+                }));
             setConceptualInvoices(formattedConceptualInvoices);
 
-            // Use backend's allConceptualInvoices and currentBalance directly
             setAllConceptualInvoices(allInvoicesData || []);
             setCurrentBalance(totalBalance);
 
-            // Apply rounding to all loaded lines to ensure proper GST display
             const roundedLines = enrichedLines
                 .sort((a, b) => {
                     const dateA = new Date(a.invoice_date);
@@ -524,25 +529,9 @@ export default function SupplierTxPage() {
                     if (dateA - dateB !== 0) return dateA - dateB;
                     return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
                 })
-                .map(line => ({
-                    ...line,
-                    charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
-                gst: typeof line.gst_amount === 'number' ? Math.round(line.gst_amount * 100) / 100 : line.gst_amount,
-                line_total: typeof line.purchase_amount === 'number' && typeof line.gst_amount === 'number' ? Math.round((line.purchase_amount + line.gst_amount) * 100) / 100 : line.line_total,
-                gst_override: line.gst_override || false, // Ensure gst_override is set
-                paid_amount: typeof line.paid_amount === 'number' ? Math.round(line.paid_amount * 100) / 100 : 0, // Ensure paid_amount is numeric
-                dateError: null // Initialize dateError for loaded lines
-            }));
+                .map(mapLine);
 
-            const roundedAllLines = allEnrichedLines.map(line => ({
-                ...line,
-                charge: typeof line.purchase_amount === 'number' ? Math.round(line.purchase_amount * 100) / 100 : line.purchase_amount,
-                gst: typeof line.gst_amount === 'number' ? Math.round(line.gst_amount * 100) / 100 : line.gst_amount,
-                line_total: typeof line.purchase_amount === 'number' && typeof line.gst_amount === 'number' ? Math.round((line.purchase_amount + line.gst_amount) * 100) / 100 : line.line_total,
-                gst_override: line.gst_override || false, // Ensure gst_override is set
-                paid_amount: typeof line.paid_amount === 'number' ? Math.round(line.paid_amount * 100) / 100 : 0, // Ensure paid_amount is numeric
-                dateError: null // Initialize dateError for loaded lines
-            }));
+            const roundedAllLines = allEnrichedLines.map(mapLine);
 
             setInvoiceLines(ensureEmptyLine(roundedLines, supplierData?.default_gl_account, supplierData?.default_taxable));
             setAllInvoiceLines(roundedAllLines);
@@ -1989,13 +1978,13 @@ export default function SupplierTxPage() {
                                                             <TableCell>
                                                                 <div className="gl-print-text">
                                                                     {line.gl_account ? (() => {
-                                                                        const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
+                                                                        const account = chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account));
                                                                         return account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
                                                                     })() : ''}
                                                                 </div>
                                                                 <div className="gl-select-trigger">
                                                                     <Select
-                                                                        value={line.gl_account || ''}
+                                                                        value={line.gl_account ? String(line.gl_account) : ''}
                                                                         onValueChange={(value) => { 
                                                                             if (isLockedByOtherUser || !lockAcquired) return;
                                                                             handleGlAccountChange(line, value); 
@@ -2005,15 +1994,15 @@ export default function SupplierTxPage() {
                                                                         <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
                                                                             <SelectValue placeholder="Select GL Account *">
                                                                                 {line.gl_account ? (() => {
-                                                                                    const account = chartOfAccounts.find(acc => acc.account_number === line.gl_account);
+                                                                                    const account = chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account));
                                                                                     const fullText = account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
                                                                                     return fullText.length > 25 ? fullText.substring(0, 25) + '...' : fullText;
                                                                                 })() : 'Select GL Account *'}
                                                                             </SelectValue>
                                                                         </SelectTrigger>
                                                                         <SelectContent>
-                                                                            {chartOfAccounts.filter(account => !account.controlled || account.account_number === line.gl_account).map(account => (
-                                                                                <SelectItem key={account.id} value={account.account_number}>
+                                                                            {chartOfAccounts.filter(account => !account.controlled || String(account.account_number) === String(line.gl_account)).map(account => (
+                                                                                <SelectItem key={account.id} value={String(account.account_number)}>
                                                                                     {account.account_number} - {account.account_name}
                                                                                 </SelectItem>
                                                                             ))}
