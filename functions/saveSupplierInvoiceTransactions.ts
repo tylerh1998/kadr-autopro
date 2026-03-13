@@ -45,9 +45,9 @@ Deno.serve(async (req) => {
         }
 
         // 2. Process Additions
-        const createdLinesForGL = [];
-        for (const line of addedLines) {
-            const lineData = {
+        let createdLinesForGL = [];
+        if (addedLines.length > 0) {
+            const linesData = addedLines.map(line => ({
                 supplier_id: supplierId,
                 invoice_number: line.invoice_number,
                 invoice_date: line.invoice_date,
@@ -57,11 +57,10 @@ Deno.serve(async (req) => {
                 gl_account: line.gl_account,
                 gst_override: line.gst_override,
                 paid_amount: 0
-            };
-
-            const createdLine = await base44.asServiceRole.entities.SupplierInvoiceLine.create(lineData);
+            }));
+            
+            createdLinesForGL = await base44.asServiceRole.entities.SupplierInvoiceLine.bulkCreate(linesData);
             anyAmountChanged = true;
-            createdLinesForGL.push(createdLine);
         }
 
         if (createdLinesForGL.length > 0) {
