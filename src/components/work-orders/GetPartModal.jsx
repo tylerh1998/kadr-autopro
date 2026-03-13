@@ -34,14 +34,14 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         setSearching(true);
         setSearchError('');
         
-        const [salesClassesData, tagAlongsData, otherChargesData, defaultInventory] = await Promise.all([
-          SalesClass.list(),
+        const [salesClassesResponse, tagAlongsData, otherChargesData, defaultInventory] = await Promise.all([
+          base44.functions.invoke('SupabaseProxy', {}),
           TagAlong.list(null, 1000),
           OtherChargeList.list(null, 1000),
           base44.functions.invoke('searchInventory', { limit: 50 })
         ]);
         
-        setSalesClasses(salesClassesData || []);
+        setSalesClasses(salesClassesResponse.data?.data || []);
         setTagAlongs(tagAlongsData || []);
         setOtherCharges(otherChargesData || []);
         

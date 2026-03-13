@@ -170,14 +170,14 @@ export default function InventoryListPage() {
   // Function to load data shared by modals
   const loadSharedData = async () => {
     try {
-      const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
+      const [suppliersData, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
         Supplier.list(),
-        SalesClass.list(),
+        base44.functions.invoke('SupabaseProxy', {}),
         InventoryLocation.list(),
         InventoryCategory.list(),
       ]);
       setSuppliers(suppliersData);
-      setSalesClasses(salesClassesData);
+      setSalesClasses(salesClassesResponse.data?.data || []);
       setInventoryLocations(locationsData);
       setInventoryCategories(categoriesData);
     } catch (error) {

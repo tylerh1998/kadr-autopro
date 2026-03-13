@@ -120,16 +120,16 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   const loadDropdownData = async () => {
     try {
-      const [suppliersData, salesClassesData, tagAlongsData, otherChargesData, categoriesData, inventoryData] = await Promise.all([
+      const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData, inventoryData] = await Promise.all([
         Supplier.filter({ inventory_supplier: true }, 'name'),
-        SalesClass.list(),
+        base44.functions.invoke('SupabaseProxy', {}),
         TagAlong.list(),
         OtherChargeList.list(),
         InventoryCategory.list(),
         InventoryItem.list()
       ]);
       setSuppliers(suppliersData);
-      setSalesClasses(salesClassesData);
+      setSalesClasses(salesClassesResponse.data?.data || []);
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
       setInventoryCategories(categoriesData);

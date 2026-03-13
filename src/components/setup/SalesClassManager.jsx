@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2, DollarSign } from "lucide-react";
 import { SalesClass } from "@/entities/SalesClass";
+import { base44 } from "@/api/base44Client";
 import PricingMatrixModal from "./PricingMatrixModal";
 
 export default function SalesClassManager() {
@@ -21,7 +22,8 @@ export default function SalesClassManager() {
   const loadSalesClasses = async () => {
     setLoading(true);
     try {
-      const data = await SalesClass.list('-created_date');
+      const response = await base44.functions.invoke('SupabaseProxy', {});
+      const data = response.data?.data || [];
       setSalesClasses(data);
     } catch (error) {
       console.error('Error loading sales classes:', error);
