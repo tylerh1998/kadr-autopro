@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
             const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
 
             // Invoke GL Handler
-            const glUpdateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: updatedLine,
                 action: 'update',
                 oldValues: existingLine
