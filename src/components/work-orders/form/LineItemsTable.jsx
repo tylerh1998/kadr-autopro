@@ -289,7 +289,7 @@ export default function LineItemsTable({
         if (suppliers.length === 0 || inventoryCategories.length === 0) {
             const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
                 Supplier.list(),
-                SalesClass.list(),
+                base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
                 InventoryLocation.list(),
                 InventoryCategory.list()
             ]);
