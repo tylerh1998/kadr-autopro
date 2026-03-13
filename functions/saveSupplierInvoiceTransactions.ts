@@ -201,7 +201,8 @@ Deno.serve(async (req) => {
             });
             
             try {
-                const insertedData = await base44.asServiceRole.entities.SupplierInvoiceLine.bulkCreate(linesToInsert);
+                const { data: insertedData, error: insertError } = await supabase.from('SupplierInvoiceLine').insert(linesToInsert).select();
+                if (insertError) throw insertError;
                 if (insertedData && insertedData.length > 0) {
                     createdLinesForGL = insertedData;
                     anyAmountChanged = true;
