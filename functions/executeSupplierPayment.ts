@@ -204,12 +204,12 @@ Deno.serve(async (req) => {
           });
         }
 
-        await supabase.from('GLTransaction').insert({
+        await base44.asServiceRole.entities.GLTransaction.create({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
-          debit_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
-          credit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
+          debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+          credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
           source_type: 'supplier_payment',
           source_id: paymentId
         });
@@ -242,12 +242,12 @@ Deno.serve(async (req) => {
           lineOfCreditId: selectedLOC.id
         });
 
-        await supabase.from('GLTransaction').insert({
+        await base44.asServiceRole.entities.GLTransaction.create({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
-          debit_amount: totalPaymentAmount > 0 ? totalPaymentAmount : 0,
-          credit_amount: totalPaymentAmount < 0 ? Math.abs(totalPaymentAmount) : 0,
+          debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+          credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
           source_type: 'supplier_payment',
           source_id: paymentId
         });
