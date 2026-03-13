@@ -163,14 +163,14 @@ Deno.serve(async (req) => {
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
             try {
-                const lineToDelete = await base44.asServiceRole.entities.SupplierInvoiceLine.get(lineId);
+                const { data: lineToDelete } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', lineId).single();
                 if (lineToDelete) {
                     if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
                          console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
                          continue; 
                     }
 
-                    await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lineId);
+                    await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
                     anyAmountChanged = true;
                     deletedLinesForGL.push(lineToDelete);
                 }
