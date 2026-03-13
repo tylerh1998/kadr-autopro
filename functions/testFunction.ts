@@ -6,12 +6,26 @@ Deno.serve(async (req) => {
     try {
         const user = await base44.auth.me();
         const lines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({ supplier_id: '3d980a03d4104824aaf8c27c' });
+        
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+        
+        let deleteResult = null;
+        if (lines.length > 0) {
+            deleteResult = await supabase.from('SupplierInvoiceLine').delete().eq('id', lines[0].id).select();
+        }
+
         return Response.json({ 
             success: true, 
             message: 'Test function works!',
             user: user?.email || 'No user',
             linesCount: lines.length,
-            lines: lines.map(l => l.id)
+            lines: lines.map(l => l.id),
+            deleteResult
         });
     } catch (error) {
         return Response.json({ 
