@@ -58,15 +58,13 @@ Deno.serve(async (req) => {
 
         // Fetch all supplier invoice lines for this supplier
         console.log('Fetching supplier invoice lines...');
-        const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({ 
-            supplier_id: supplierId 
-        });
+        const { data: allLinesArr, error: linesErr } = await supabase.from('SupplierInvoiceLine').select('*').eq('supplier_id', supplierId);
+        const allLines = allLinesArr || [];
 
         // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
-        const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ 
-            supplier_id: supplierId 
-        });
+        const { data: paymentsArr, error: paymentsErr } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
+        const paymentsData = paymentsArr || [];
 
         console.log(`Total lines fetched: ${allLines.length}`);
         console.log(`Total payments fetched: ${paymentsData.length}`);
