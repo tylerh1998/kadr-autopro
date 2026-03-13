@@ -10,8 +10,13 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch all active suppliers
-        const suppliers = await base44.asServiceRole.entities.Supplier.filter({});
+        // Fetch all active suppliers from Supabase
+        const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: {}
+        });
+        const suppliers = suppliersResponse.data?.data || [];
 
         if (!suppliers || suppliers.length === 0) {
             return Response.json({
@@ -20,8 +25,13 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Fetch ALL invoice lines for all suppliers in one query
-        const allInvoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({});
+        // Fetch ALL invoice lines for all suppliers in one query from Supabase
+        const invoiceLinesResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'SupplierInvoiceLine',
+            match: {}
+        });
+        const allInvoiceLines = invoiceLinesResponse.data?.data || [];
 
         // Group invoice lines by supplier
         const supplierLinesMap = new Map();
