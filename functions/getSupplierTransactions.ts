@@ -31,12 +31,24 @@ Deno.serve(async (req) => {
             toDate.setHours(23, 59, 59, 999); // End of day
         }
 
-        // Fetch supplier data using SupabaseProxy
-        console.log('Fetching supplier...');
-        const supplierRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } });
-        const supplierData = supplierRes.data?.data?.[0];
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
 
-        if (!supplierData) {
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
+        // Fetch supplier data using Supabase directly
+        console.log('Fetching supplier...');
+        const { data: supplierDataArr, error: supplierErr } = await supabase.from('Supplier').select('*').eq('id', supplierId);
+        const supplierData = supplierDataArr?.[0];
+
+        if (supplierErr || !supplierData) {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
@@ -46,13 +58,13 @@ Deno.serve(async (req) => {
 
         // Fetch all supplier invoice lines for this supplier
         console.log('Fetching supplier invoice lines...');
-        const linesRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { supplier_id: supplierId } });
-        const allLines = linesRes.data?.data || [];
+        const { data: allLines, error: linesErr } = await supabase.from('SupplierInvoiceLine').select('*').eq('supplier_id', supplierId);
+        if (linesErr) throw new Error(linesErr.message);
 
         // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
-        const paymentsRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierPayment', match: { supplier_id: supplierId } });
-        const paymentsData = paymentsRes.data?.data || [];
+        const { data: paymentsData, error: paymentsErr } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
+        if (paymentsErr) throw new Error(paymentsErr.message);
 
         console.log(`Total lines fetched: ${allLines.length}`);
         console.log(`Total payments fetched: ${paymentsData.length}`);
