@@ -10,13 +10,24 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch all active suppliers from Supabase
-        const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: {}
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
         });
-        const suppliers = suppliersResponse.data?.data || [];
+
+        // Fetch all active suppliers from Supabase
+        const { data: suppliers, error: suppliersError } = await supabase.from('Supplier').select('*');
+        
+        if (suppliersError) {
+            throw new Error(`Failed to fetch suppliers: ${suppliersError.message}`);
+        }
 
         if (!suppliers || suppliers.length === 0) {
             return Response.json({
@@ -26,12 +37,11 @@ Deno.serve(async (req) => {
         }
 
         // Fetch ALL invoice lines for all suppliers in one query from Supabase
-        const invoiceLinesResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'SupplierInvoiceLine',
-            match: {}
-        });
-        const allInvoiceLines = invoiceLinesResponse.data?.data || [];
+        const { data: allInvoiceLines, error: linesError } = await supabase.from('SupplierInvoiceLine').select('*');
+
+        if (linesError) {
+            throw new Error(`Failed to fetch invoice lines: ${linesError.message}`);
+        }
 
         // Group invoice lines by supplier
         const supplierLinesMap = new Map();
