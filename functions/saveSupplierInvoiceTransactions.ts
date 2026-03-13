@@ -29,6 +29,133 @@ Deno.serve(async (req) => {
 
         let anyAmountChanged = false;
 
+        // Helper to create GL transactions
+        const createGLTransactions = async (linesToProcess, action, oldValues) => {
+            if (!linesToProcess || linesToProcess.length === 0) return;
+
+            let allLinesForData = [...linesToProcess];
+            if (action === 'update') {
+                if (Array.isArray(oldValues)) {
+                    allLinesForData.push(...oldValues);
+                } else if (oldValues) {
+                    allLinesForData.push(oldValues);
+                }
+            }
+
+            const uniqueSupplierIds = [...new Set(allLinesForData.map(l => l.supplier_id).filter(Boolean))];
+            const uniqueGLAccounts = [...new Set(allLinesForData.map(l => l.gl_account).filter(Boolean))];
+
+            const supplierMap = {};
+            const glAccountMap = {};
+
+            if (uniqueSupplierIds.length > 0) {
+                const { data: suppliers } = await supabase.from('Supplier').select('id, name').in('id', uniqueSupplierIds);
+                (suppliers || []).forEach(s => {
+                    supplierMap[s.id] = s.name;
+                });
+            }
+
+            if (uniqueGLAccounts.length > 0) {
+                const { data: accounts } = await supabase.from('ChartOfAccount').select('account_number, account_name').in('account_number', uniqueGLAccounts);
+                (accounts || []).forEach(acc => {
+                    glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
+                });
+            }
+
+            const glTransactions = [];
+
+            const createGLEntries = (line, isReversal = false) => {
+                const multiplier = isReversal ? -1 : 1;
+                const reversalPrefix = isReversal ? 'REVERSAL - ' : '';
+                
+                const purchaseAmount = parseFloat(line.purchase_amount || 0);
+                const gstAmount = parseFloat(line.gst_amount || 0);
+                const lineTotal = purchaseAmount + gstAmount;
+
+                const supplierName = supplierMap[line.supplier_id] || 'Unknown Supplier';
+                const glAccountName = glAccountMap[line.gl_account] || line.gl_account || 'Unknown';
+
+                const baseDescription = `Supplier Inv Line: ${line.description || 'No description'} - ${supplierName}`;
+
+                if (purchaseAmount !== 0) {
+                    glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                        created_date: new Date().toISOString(),
+                        updated_date: new Date().toISOString(),
+                        created_by: user.email,
+                        created_by_id: user.id,
+                        account_number: String(line.gl_account),
+                        transaction_date: line.invoice_date,
+                        description: `${reversalPrefix}${baseDescription} - ${glAccountName}`,
+                        reference: `${supplierName} - ${line.invoice_number || 'N/A'}`,
+                        debit_amount: multiplier * purchaseAmount > 0 ? multiplier * purchaseAmount : 0,
+                        credit_amount: multiplier * purchaseAmount < 0 ? Math.abs(multiplier * purchaseAmount) : 0,
+                        source_type: 'supplier_invoice',
+                        source_id: line.id || ''
+                    });
+                }
+
+                if (gstAmount !== 0) {
+                    glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                        created_date: new Date().toISOString(),
+                        updated_date: new Date().toISOString(),
+                        created_by: user.email,
+                        created_by_id: user.id,
+                        account_number: '2003',
+                        transaction_date: line.invoice_date,
+                        description: `${reversalPrefix}${baseDescription} - GST Paid`,
+                        reference: `${supplierName} - ${line.invoice_number || 'N/A'}`,
+                        debit_amount: multiplier * gstAmount > 0 ? multiplier * gstAmount : 0,
+                        credit_amount: multiplier * gstAmount < 0 ? Math.abs(multiplier * gstAmount) : 0,
+                        source_type: 'supplier_invoice',
+                        source_id: line.id || ''
+                    });
+                }
+
+                if (lineTotal !== 0) {
+                    glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                        created_date: new Date().toISOString(),
+                        updated_date: new Date().toISOString(),
+                        created_by: user.email,
+                        created_by_id: user.id,
+                        account_number: '2000',
+                        transaction_date: line.invoice_date,
+                        description: `${reversalPrefix}${baseDescription} - Accounts Payable`,
+                        reference: `${supplierName} - ${line.invoice_number || 'N/A'}`,
+                        debit_amount: multiplier * lineTotal < 0 ? Math.abs(multiplier * lineTotal) : 0,
+                        credit_amount: multiplier * lineTotal > 0 ? multiplier * lineTotal : 0,
+                        source_type: 'supplier_invoice',
+                        source_id: line.id || ''
+                    });
+                }
+            };
+
+            for (let i = 0; i < linesToProcess.length; i++) {
+                const line = linesToProcess[i];
+                if (action === 'create') {
+                    createGLEntries(line, false);
+                } else if (action === 'update') {
+                    const oldVal = Array.isArray(oldValues) ? oldValues[i] : oldValues;
+                    if (oldVal) createGLEntries(oldVal, true);
+                    createGLEntries(line, false);
+                } else if (action === 'delete') {
+                    createGLEntries(line, true);
+                }
+            }
+
+            if (glTransactions.length > 0) {
+                const sanitizedTxs = glTransactions.map(glTx => ({
+                    ...glTx,
+                    debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
+                    credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
+                }));
+                const { error } = await supabase.from('GLTransaction').insert(sanitizedTxs);
+                if (error) throw new Error(`Failed to insert GL transactions: ${error.message}`);
+            }
+        };
+
         // 1. Process Deletions
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
@@ -49,13 +176,7 @@ Deno.serve(async (req) => {
         }
 
         if (deletedLinesForGL.length > 0) {
-            const glDeleteResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
-                supplierInvoiceLines: deletedLinesForGL,
-                action: 'delete'
-            });
-            if (glDeleteResponse.data && !glDeleteResponse.data.success) {
-                throw new Error(`GL Transaction creation failed for deleted lines: ${glDeleteResponse.data.error || 'Unknown error'}`);
-            }
+            await createGLTransactions(deletedLinesForGL, 'delete');
         }
 
         // 2. Process Additions
@@ -95,19 +216,7 @@ Deno.serve(async (req) => {
         }
 
         if (createdLinesForGL.length > 0) {
-            try {
-                const glCreateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
-                    supplierInvoiceLines: createdLinesForGL,
-                    action: 'create',
-                    oldValues: null
-                });
-                if (glCreateResponse.data && !glCreateResponse.data.success) {
-                    throw new Error(`GL Transaction creation failed for new lines: ${glCreateResponse.data.error || 'Unknown error'}`);
-                }
-            } catch (err) {
-                console.error("Error invoking handleSupplierInvoiceLineGL:", err);
-                throw new Error(`Failed to invoke handleSupplierInvoiceLineGL: ${err.message}`);
-            }
+            await createGLTransactions(createdLinesForGL, 'create');
         }
 
         // 3. Process Modifications
@@ -153,15 +262,7 @@ Deno.serve(async (req) => {
         }
 
         if (updatedLinesForGL.length > 0) {
-            const glUpdateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
-                supplierInvoiceLines: updatedLinesForGL,
-                action: 'update',
-                oldValues: oldValuesForGL
-            });
-
-            if (glUpdateResponse.data && !glUpdateResponse.data.success) {
-                throw new Error(`GL Transaction update failed for modified lines: ${glUpdateResponse.data.error || 'Unknown error'}`);
-            }
+            await createGLTransactions(updatedLinesForGL, 'update', oldValuesForGL);
         }
 
         // 4. Payment Reallocation (if needed)
