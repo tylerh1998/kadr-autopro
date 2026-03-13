@@ -95,13 +95,18 @@ Deno.serve(async (req) => {
         }
 
         if (createdLinesForGL.length > 0) {
-            const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                supplierInvoiceLines: createdLinesForGL,
-                action: 'create',
-                oldValues: null
-            });
-            if (glCreateResponse.data && !glCreateResponse.data.success) {
-                throw new Error(`GL Transaction creation failed for new lines: ${glCreateResponse.data.error || 'Unknown error'}`);
+            try {
+                const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+                    supplierInvoiceLines: createdLinesForGL,
+                    action: 'create',
+                    oldValues: null
+                });
+                if (glCreateResponse.data && !glCreateResponse.data.success) {
+                    throw new Error(`GL Transaction creation failed for new lines: ${glCreateResponse.data.error || 'Unknown error'}`);
+                }
+            } catch (err) {
+                console.error("Error invoking handleSupplierInvoiceLineGL:", err);
+                throw new Error(`Failed to invoke handleSupplierInvoiceLineGL: ${err.message}`);
             }
         }
 
