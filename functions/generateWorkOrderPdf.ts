@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { jsPDF } from "npm:jspdf@2.5.2";
 
 const LOGO_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68c2336578e56a2a43619143/c30ea97f0_image.png';
@@ -28,7 +28,13 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { workOrder, customer, vehicle, lineItems } = await req.json();
+        let workOrder, customer, vehicle, lineItems;
+        try {
+            ({ workOrder, customer, vehicle, lineItems } = await req.json());
+        } catch (jsonError) {
+            console.error('Error parsing request JSON:', jsonError);
+            return Response.json({ error: 'Invalid JSON payload', details: jsonError.message }, { status: 400 });
+        }
 
         if (!workOrder) {
             return Response.json({ error: 'Work Order data missing' }, { status: 400 });
