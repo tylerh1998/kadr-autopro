@@ -75,6 +75,8 @@ Deno.serve(async (req) => {
         }
 
         // 3. Process Modifications
+        const updatedLinesForGL = [];
+        const oldValuesForGL = [];
         for (const line of modifiedLines) {
             // Fetch current DB state for oldValues
             const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
@@ -101,16 +103,19 @@ Deno.serve(async (req) => {
             };
 
             const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
+            updatedLinesForGL.push(updatedLine);
+            oldValuesForGL.push(existingLine);
+        }
 
-            // Invoke GL Handler individually for updates since oldValues is needed per line
+        if (updatedLinesForGL.length > 0) {
             const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                supplierInvoiceLine: updatedLine,
+                supplierInvoiceLines: updatedLinesForGL,
                 action: 'update',
-                oldValues: existingLine
+                oldValues: oldValuesForGL
             });
 
             if (glUpdateResponse.data && !glUpdateResponse.data.success) {
-                throw new Error(`GL Transaction update failed for modified line: ${glUpdateResponse.data.error || 'Unknown error'}`);
+                throw new Error(`GL Transaction update failed for modified lines: ${glUpdateResponse.data.error || 'Unknown error'}`);
             }
         }
 
