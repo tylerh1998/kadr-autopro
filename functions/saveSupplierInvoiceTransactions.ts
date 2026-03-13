@@ -15,14 +15,26 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Missing supplierId' }, { status: 400 });
         }
 
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
         let anyAmountChanged = false;
 
         // 1. Process Deletions
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
             // Get original line for GL reversal context
-            const lineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: lineId } });
-            const lineToDelete = lineRes.data?.data?.[0];
+            const { data: lineData } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', lineId).single();
+            const lineToDelete = lineData;
             
             if (lineToDelete) {
                 if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
@@ -30,7 +42,7 @@ Deno.serve(async (req) => {
                      continue; 
                 }
 
-                await base44.functions.invoke('SupabaseProxy', { action: 'delete', table: 'SupplierInvoiceLine', id: lineId });
+                await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
                 anyAmountChanged = true;
                 deletedLinesForGL.push(lineToDelete);
             }
@@ -49,8 +61,15 @@ Deno.serve(async (req) => {
         // 2. Process Additions
         let createdLinesForGL = [];
         if (addedLines.length > 0) {
-            for (const line of addedLines) {
-                const lineData = {
+            const linesToInsert = addedLines.map(line => {
+                const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+                const now = new Date().toISOString();
+                return {
+                    id: newId,
+                    created_date: now,
+                    updated_date: now,
+                    created_by: user.email,
+                    created_by_id: user.id,
                     supplier_id: supplierId,
                     invoice_number: line.invoice_number,
                     invoice_date: line.invoice_date,
@@ -61,13 +80,18 @@ Deno.serve(async (req) => {
                     gst_override: line.gst_override,
                     paid_amount: 0
                 };
-                
-                const createRes = await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'SupplierInvoiceLine', data: lineData });
-                if (createRes.data?.data?.[0]) {
-                    createdLinesForGL.push(createRes.data.data[0]);
-                }
+            });
+            
+            const { data: insertedData, error: insertError } = await supabase.from('SupplierInvoiceLine').insert(linesToInsert).select();
+            
+            if (insertError) {
+                throw new Error(`Failed to insert lines: ${insertError.message}`);
             }
-            anyAmountChanged = true;
+            
+            if (insertedData && insertedData.length > 0) {
+                createdLinesForGL = insertedData;
+                anyAmountChanged = true;
+            }
         }
 
         if (createdLinesForGL.length > 0) {
@@ -86,8 +110,7 @@ Deno.serve(async (req) => {
         const oldValuesForGL = [];
         for (const line of modifiedLines) {
             // Fetch current DB state for oldValues
-            const lineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: line.id } });
-            const existingLine = lineRes.data?.data?.[0];
+            const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
             if (!existingLine) continue;
 
             // Check if amounts changed
@@ -101,6 +124,7 @@ Deno.serve(async (req) => {
             }
 
             const updateData = {
+                updated_date: new Date().toISOString(),
                 invoice_number: line.invoice_number,
                 invoice_date: line.invoice_date,
                 description: line.description,
@@ -110,8 +134,13 @@ Deno.serve(async (req) => {
                 gst_override: line.gst_override
             };
 
-            const updateRes = await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'SupplierInvoiceLine', id: line.id, data: updateData });
-            const updatedLine = updateRes.data?.data?.[0];
+            const { data: updatedData, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select();
+            
+            if (updateError) {
+                throw new Error(`Failed to update line ${line.id}: ${updateError.message}`);
+            }
+            
+            const updatedLine = updatedData?.[0];
             if (updatedLine) {
                 updatedLinesForGL.push(updatedLine);
                 oldValuesForGL.push(existingLine);
@@ -133,10 +162,9 @@ Deno.serve(async (req) => {
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
             console.log("Invoice line amounts changed. Reallocating payments.");
-            const paymentsRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierPayment', match: { supplier_id: supplierId } });
-            const payments = paymentsRes.data?.data || [];
+            const { data: payments } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
 
-            for (const payment of payments) {
+            for (const payment of (payments || [])) {
                 let appliedInvoices = [];
                 try {
                     const parsed = JSON.parse(payment.invoice_number || '[]');
@@ -161,11 +189,10 @@ Deno.serve(async (req) => {
                     if (appliedDetail.invoice_number === "On Account") continue;
 
                     // Fetch latest lines for this invoice
-                    const invoiceLinesRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: {
-                        supplier_id: supplierId,
-                        invoice_number: appliedDetail.invoice_number
-                    } });
-                    const invoiceLines = invoiceLinesRes.data?.data || [];
+                    const { data: invoiceLines } = await supabase.from('SupplierInvoiceLine')
+                        .select('*')
+                        .eq('supplier_id', supplierId)
+                        .eq('invoice_number', appliedDetail.invoice_number);
 
                     if (invoiceLines && invoiceLines.length > 0) {
                         const invoiceTotal = invoiceLines.reduce((sum, l) => {
@@ -178,9 +205,12 @@ Deno.serve(async (req) => {
                             const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
                             const newPaidAmount = appliedDetail.amount_applied * proportion;
 
-                            await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'SupplierInvoiceLine', id: l.id, data: {
-                                paid_amount: Math.round(newPaidAmount * 100) / 100
-                            } });
+                            await supabase.from('SupplierInvoiceLine')
+                                .update({
+                                    updated_date: new Date().toISOString(),
+                                    paid_amount: Math.round(newPaidAmount * 100) / 100
+                                })
+                                .eq('id', l.id);
                         }
                     }
                 }
