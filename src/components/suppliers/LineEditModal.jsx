@@ -128,7 +128,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
 
   const handleSave = () => {
     // Validate GL Account
-    if (!formData.gl_account?.trim()) {
+    if (!formData.gl_account || String(formData.gl_account).trim() === '') {
       alert('Please select a GL Account before saving.');
       return;
     }
