@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, SupplierInvoiceLine, InventoryReturn, GLTransaction, BankAccount, Supplier } from '@/entities/all';
+import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn, GLTransaction, BankAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 
@@ -66,7 +66,12 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         setLinesOfCredit(linesOfCreditData);
 
         // Load inventory suppliers
-        const suppliersData = await Supplier.filter({ inventory_supplier: true });
+        const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier',
+          match: { inventory_supplier: true }
+        });
+        const suppliersData = suppliersResponse.data?.data || [];
         console.log('Inventory suppliers loaded:', suppliersData);
         setSuppliers(suppliersData);
 
@@ -187,17 +192,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       const creditLineDescription = `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`;
       const supplierIdForInvoice = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
       
-      await SupplierInvoiceLine.create({
-        supplier_id: supplierIdForInvoice,
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        description: creditLineDescription,
-        purchase_amount: Math.round(-subtotal * 100) / 100,
-        gst_amount: Math.round(-gst * 100) / 100,
-        gl_account: '1200',
-        inventory: true,
-        inventory_credit: true,
-        inventory_item_id: returnItem.inventory_item_id || ''
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'SupplierInvoiceLine',
+        data: {
+          supplier_id: supplierIdForInvoice,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          description: creditLineDescription,
+          purchase_amount: Math.round(-subtotal * 100) / 100,
+          gst_amount: Math.round(-gst * 100) / 100,
+          gl_account: '1200',
+          inventory: true,
+          inventory_credit: true,
+          inventory_item_id: returnItem.inventory_item_id || ''
+        }
       });
 
       // 2. Create SupplierInvoiceLine for adjustment (if any)
@@ -206,15 +215,19 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         // Invert adj and adjGst because a negative adjustment in UI means we want to REDUCE the credit invoice total (absolute value).
         // Since credit invoice lines are negative, adding a POSITIVE amount reduces the magnitude of the credit.
         // e.g. -100 (part) + 10 (adjustment) = -90 (total credit).
-        await SupplierInvoiceLine.create({
-          supplier_id: supplierIdForInvoice,
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          description: adjustmentDescription,
-          purchase_amount: Math.round(-adj * 100) / 100,
-          gst_amount: Math.round(-adjGst * 100) / 100,
-          gl_account: glAccount,
-          inventory: false
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'SupplierInvoiceLine',
+          data: {
+            supplier_id: supplierIdForInvoice,
+            invoice_number: invoiceNumber,
+            invoice_date: invoiceDate,
+            description: adjustmentDescription,
+            purchase_amount: Math.round(-adj * 100) / 100,
+            gst_amount: Math.round(-adjGst * 100) / 100,
+            gl_account: glAccount,
+            inventory: false
+          }
         });
       }
 
