@@ -369,7 +369,6 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="e.g., Shop Supplies, Environmental Fee"
                   required
-                  disabled={!selectedChargeTypeId}
                 />
               </div>
               
@@ -383,7 +382,6 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
                     required
-                    disabled={!selectedChargeTypeId}
                   />
                 </div>
                 <div className="space-y-2">
@@ -395,7 +393,6 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                     value={priceEach}
                     onChange={(e) => setPriceEach(e.target.value)}
                     required
-                    disabled={!selectedChargeTypeId}
                   />
                 </div>
               </div>
@@ -405,7 +402,6 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                   id="taxable"
                   checked={isTaxable}
                   onCheckedChange={setIsTaxable}
-                  disabled={!selectedChargeTypeId}
                 />
                 <Label htmlFor="taxable" className="cursor-pointer">
                   This charge is taxable
@@ -437,7 +433,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                   id="applyCost"
                   checked={applyCost}
                   onCheckedChange={setApplyCost}
-                  disabled={!!editingChargeLine?.supplier_invoice_line_id || !selectedChargeTypeId}
+                  disabled={!!editingChargeLine?.supplier_invoice_line_id}
                 />
                 <Label htmlFor="applyCost" className="cursor-pointer">
                   Apply Cost (track this charge as an expense)
@@ -641,7 +637,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
               <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!selectedChargeTypeId || submitting}>
+              <Button type="submit" disabled={submitting}>
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
