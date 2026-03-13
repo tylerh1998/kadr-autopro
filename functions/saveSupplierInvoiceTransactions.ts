@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
                 anyAmountChanged = true; // Deleting a line changes the balance
 
                 // Invoke GL Handler
-                const glDeleteResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+                const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                     supplierInvoiceLine: lineToDelete,
                     action: 'delete'
                 });
