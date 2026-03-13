@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 export default Deno.serve(async (req) => {
     try {
@@ -9,7 +9,13 @@ export default Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { workOrder, lineItems, payments, systemSettings, action } = await req.json();
+        let workOrder, lineItems, payments, systemSettings, action;
+        try {
+            ({ workOrder, lineItems, payments, systemSettings, action } = await req.json());
+        } catch (jsonError) {
+            console.error('Error parsing request JSON:', jsonError);
+            return Response.json({ error: 'Invalid JSON payload', details: jsonError.message }, { status: 400 });
+        }
 
         console.log('--- handleInvoiceConversionGL Invoked ---');
         console.log('Action:', action);
