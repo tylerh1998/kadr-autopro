@@ -223,11 +223,11 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       return;
     }
     
-    if (!description.trim()) {
-      alert('Please enter a description');
+    if (!selectedChargeTypeId || !description.trim()) {
+      alert('Please select a valid other charge');
       return;
     }
-    
+
     if (qty <= 0) {
       alert('Quantity must be greater than 0');
       return;
@@ -337,13 +337,13 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Charge Type Selector - Now Required */}
-            {chargeTypes.length > 0 && (
+            {/* Basic Charge Details */}
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Select Predefined Charge *</Label>
+                <Label>Description *</Label>
                 <Select value={selectedChargeTypeId} onValueChange={handleChargeTypeSelect}>
                   <SelectTrigger ref={selectTriggerRef}>
-                    <SelectValue placeholder="Select a charge type..." />
+                    <SelectValue placeholder="Select an other charge..." />
                   </SelectTrigger>
                   <SelectContent>
                     {chargeTypes
@@ -351,25 +351,11 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                       .sort((a, b) => (a.description || '').localeCompare(b.description || ''))
                       .map(ct => (
                       <SelectItem key={ct.id} value={ct.id}>
-                        <span className="font-bold">{ct.description}</span> - ${ct.base_amount?.toFixed(2) || '0.00'}
+                        {ct.description}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
-            
-            {/* Basic Charge Details */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Input
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g., Shop Supplies, Environmental Fee"
-                  required
-                />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
