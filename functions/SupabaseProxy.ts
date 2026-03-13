@@ -28,16 +28,27 @@ Deno.serve(async (req) => {
             }
         });
 
-        const { data, error } = await supabase
-            .from('SalesClass')
-            .select('*');
+        const reqBody = await req.json().catch(() => ({}));
+        const { action = 'read', id, data: payloadData } = reqBody;
 
-        if (error) {
-            console.error("Supabase error:", error);
-            return Response.json({ error: 'Failed to fetch from Supabase', details: error }, { status: 500 });
+        let result;
+        
+        if (action === 'read') {
+            result = await supabase.from('SalesClass').select('*');
+        } else if (action === 'create') {
+            result = await supabase.from('SalesClass').insert([payloadData]).select();
+        } else if (action === 'update') {
+            result = await supabase.from('SalesClass').update(payloadData).eq('id', id).select();
+        } else if (action === 'delete') {
+            result = await supabase.from('SalesClass').delete().eq('id', id);
+        }
+
+        if (result.error) {
+            console.error("Supabase error:", result.error);
+            return Response.json({ error: 'Failed to perform Supabase operation', details: result.error }, { status: 500 });
         }
         
-        return Response.json({ data });
+        return Response.json({ data: result.data });
     } catch (error) {
         console.error("SupabaseProxy error:", error);
         return Response.json({ error: error.message }, { status: 500 });

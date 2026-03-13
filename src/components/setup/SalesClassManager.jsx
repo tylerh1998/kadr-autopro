@@ -40,9 +40,9 @@ export default function SalesClassManager() {
   const handleSubmit = async (salesClassData) => {
     try {
       if (editingSalesClass) {
-        await SalesClass.update(editingSalesClass.id, salesClassData);
+        await base44.functions.invoke('SupabaseProxy', { action: 'update', id: editingSalesClass.id, data: salesClassData });
       } else {
-        await SalesClass.create(salesClassData);
+        await base44.functions.invoke('SupabaseProxy', { action: 'create', data: salesClassData });
       }
       
       setShowModal(false);
@@ -57,7 +57,7 @@ export default function SalesClassManager() {
   const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this sales class?')) {
       try {
-        await SalesClass.delete(id);
+        await base44.functions.invoke('SupabaseProxy', { action: 'delete', id });
         loadSalesClasses();
       } catch (error) {
         console.error('Error deleting sales class:', error);
