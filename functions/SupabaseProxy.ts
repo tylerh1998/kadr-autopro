@@ -17,26 +17,25 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
         }
 
-        // Remove trailing slash if present
-        const baseUrl = supabaseUrl.replace(/\/$/, '');
-        const url = `${baseUrl}/rest/v1/SalesClass?select=*`;
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseSecret}`,
-                'Content-Type': 'application/json'
+        // Use the official Supabase client
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        
+        // We use the secret key to bypass RLS if needed, or publishable key
+        // The user mentioned they are using publishable and secret API keys.
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: {
+                persistSession: false
             }
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Supabase error:", errorText);
-            return Response.json({ error: 'Failed to fetch from Supabase', details: errorText }, { status: response.status });
-        }
+        const { data, error } = await supabase
+            .from('SalesClass')
+            .select('*');
 
-        const data = await response.json();
+        if (error) {
+            console.error("Supabase error:", error);
+            return Response.json({ error: 'Failed to fetch from Supabase', details: error }, { status: 500 });
+        }
         
         return Response.json({ data });
     } catch (error) {
