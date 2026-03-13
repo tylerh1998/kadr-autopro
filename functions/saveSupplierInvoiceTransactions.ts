@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
             anyAmountChanged = true; // Adding a line changes balance
 
             // Invoke GL Handler
-            const glCreateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: createdLine,
                 action: 'create',
                 oldValues: null
