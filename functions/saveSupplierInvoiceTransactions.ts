@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
         }
 
         if (deletedLinesForGL.length > 0) {
-            const glDeleteResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLines: deletedLinesForGL,
                 action: 'delete'
             });
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
         if (createdLinesForGL.length > 0) {
             try {
-                const glCreateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+                const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                     supplierInvoiceLines: createdLinesForGL,
                     action: 'create',
                     oldValues: null
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         }
 
         if (updatedLinesForGL.length > 0) {
-            const glUpdateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLines: updatedLinesForGL,
                 action: 'update',
                 oldValues: oldValuesForGL
