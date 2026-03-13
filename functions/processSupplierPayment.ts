@@ -69,7 +69,8 @@ Deno.serve(async (req) => {
 
     const { data: createdPayment, error: paymentError } = await supabase.from('SupplierPayment').insert(paymentRecord).select().single();
     if (paymentError || !createdPayment) {
-        throw new Error('Failed to create payment record');
+        console.error('Supabase insert error:', paymentError);
+        throw new Error('Failed to create payment record: ' + (paymentError?.message || 'Unknown error'));
     }
 
     // Trigger background execution WITHOUT awaiting
