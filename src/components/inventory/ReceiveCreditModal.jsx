@@ -161,7 +161,12 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     // Check if the selected supplier is locked (live check on submit)
     try {
       const supplierIdToCheck = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
-      const supplierEntity = await Supplier.get(supplierIdToCheck);
+      const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'Supplier',
+        match: { id: supplierIdToCheck }
+      });
+      const supplierEntity = (supplierResponse.data?.data || [])[0];
       
       const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
       if (lockStatus.isLocked) {
