@@ -5,10 +5,13 @@ Deno.serve(async (req) => {
     
     try {
         const user = await base44.auth.me();
+        const accounts = await base44.asServiceRole.entities.ChartOfAccount.list('account_number', 1000);
         return Response.json({ 
             success: true, 
             message: 'Test function works!',
-            user: user?.email || 'No user'
+            user: user?.email || 'No user',
+            accountsCount: accounts.length,
+            accounts: accounts.map(a => a.account_number)
         });
     } catch (error) {
         return Response.json({ 
