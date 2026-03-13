@@ -353,7 +353,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                   </SelectTrigger>
                   <SelectContent>
                     {chargeTypes
-                      .filter(ct => !ct.levy || ct.id === editingChargeLine?.chargeTypeId || ct.id === selectedChargeTypeId)
+                      .filter(ct => !ct.levy || String(ct.id) === String(editingChargeLine?.chargeTypeId) || String(ct.id) === String(selectedChargeTypeId))
                       .sort((a, b) => (a.description || '').localeCompare(b.description || ''))
                       .map(ct => (
                       <SelectItem key={ct.id} value={String(ct.id)}>
@@ -448,10 +448,10 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                       <Select 
                         value={linkedSupplierId || ''} 
                         onValueChange={(value) => {
-                          setLinkedSupplierId(value);
-                          const supplier = suppliers.find(s => s.id === value);
+                          setLinkedSupplierId(String(value));
+                          const supplier = suppliers.find(s => String(s.id) === String(value));
                           if (supplier && supplier.default_gl_account) {
-                            setSupplierGlAccount(supplier.default_gl_account);
+                            setSupplierGlAccount(String(supplier.default_gl_account));
                           }
                         }}
                         disabled={!!editingChargeLine?.supplier_invoice_line_id}
