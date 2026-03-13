@@ -29,12 +29,16 @@ Deno.serve(async (req) => {
         });
 
         const reqBody = await req.json().catch(() => ({}));
-        const { action = 'read', id, data: payloadData, table = 'SalesClass' } = reqBody;
+        const { action = 'read', id, data: payloadData, table = 'SalesClass', match } = reqBody;
 
         let result;
         
         if (action === 'read') {
-            result = await supabase.from(table).select('*');
+            let query = supabase.from(table).select('*');
+            if (match) {
+                query = query.match(match);
+            }
+            result = await query;
         } else if (action === 'create') {
             const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
             const now = new Date().toISOString();
