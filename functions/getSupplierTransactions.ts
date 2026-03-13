@@ -63,8 +63,7 @@ Deno.serve(async (req) => {
 
         // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
-        const { data: paymentsArr, error: paymentsErr } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
-        const paymentsData = paymentsArr || [];
+        const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
 
         console.log(`Total lines fetched: ${allLines.length}`);
         console.log(`Total payments fetched: ${paymentsData.length}`);

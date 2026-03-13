@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
                     credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
                 }));
                 try {
-                    await supabase.from('GLTransaction').insert(sanitizedTxs);
+                    await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
                 } catch (error) {
                     console.error('Error creating GL transactions:', error);
                 }
@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
             console.log("Invoice line amounts changed. Reallocating payments.");
-            const { data: payments } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
+            const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
 
             for (const payment of (payments || [])) {
                 let appliedInvoices = [];
