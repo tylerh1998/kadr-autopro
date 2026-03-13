@@ -77,11 +77,6 @@ Deno.serve(async (req) => {
         };
       };
 
-      const supabaseUrl = Deno.env.get("Supabase_project_url");
-      const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
-      const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
-      const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
-
       const { data: allLinesArr } = await supabase.from('SupplierInvoiceLine')
          .select('*')
          .eq('supplier_id', supplierId)
