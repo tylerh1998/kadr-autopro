@@ -43,8 +43,13 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Invalid payment amount' }, { status: 400 });
     }
 
+    const supabaseUrl = Deno.env.get("Supabase_project_url");
+    const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
+
     // Get supplier to confirm existence
-    const supplier = await base44.asServiceRole.entities.Supplier.get(supplierId);
+    const { data: supplier } = await supabase.from('Supplier').select('*').eq('id', supplierId).single();
     if (!supplier) {
       return Response.json({ success: false, error: 'Supplier not found' }, { status: 404 });
     }
@@ -62,7 +67,10 @@ Deno.serve(async (req) => {
       status: 'pending'
     };
 
-    const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create(paymentRecord);
+    const { data: createdPayment, error: paymentError } = await supabase.from('SupplierPayment').insert(paymentRecord).select().single();
+    if (paymentError || !createdPayment) {
+        throw new Error('Failed to create payment record');
+    }
 
     // Trigger background execution WITHOUT awaiting
     // We intentionally do not await this to allow immediate response
