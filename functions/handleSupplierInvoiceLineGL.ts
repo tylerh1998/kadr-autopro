@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
             // 1. Debit to the GL account specified on the line (purchase_amount)
             if (purchaseAmount !== 0) {
                 const tx1 = {
-                    account_number: line.gl_account,
+                    account_number: String(line.gl_account),
                     transaction_date: line.invoice_date,
                     description: `${reversalPrefix}${baseDescription} - ${glAccountName}`,
                     reference: `${supplierName} - ${line.invoice_number || 'N/A'}`,
