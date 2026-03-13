@@ -18,32 +18,34 @@ Deno.serve(async (req) => {
         let anyAmountChanged = false;
 
         // 1. Process Deletions
+        const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
             // Get original line for GL reversal context
             const lineToDelete = await base44.asServiceRole.entities.SupplierInvoiceLine.get(lineId);
             if (lineToDelete) {
                 if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
-                     // Skip deletion of paid lines to enforce consistency (backend check)
                      console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
                      continue; 
                 }
 
                 await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lineId);
-                anyAmountChanged = true; // Deleting a line changes the balance
+                anyAmountChanged = true;
+                deletedLinesForGL.push(lineToDelete);
+            }
+        }
 
-                // Invoke GL Handler
-                const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                    supplierInvoiceLine: lineToDelete,
-                    action: 'delete'
-                });
-                
-                if (glDeleteResponse.data && !glDeleteResponse.data.success) {
-                     throw new Error(`GL Transaction creation failed for deleted line: ${glDeleteResponse.data.error || 'Unknown error'}`);
-                }
+        if (deletedLinesForGL.length > 0) {
+            const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+                supplierInvoiceLines: deletedLinesForGL,
+                action: 'delete'
+            });
+            if (glDeleteResponse.data && !glDeleteResponse.data.success) {
+                throw new Error(`GL Transaction creation failed for deleted lines: ${glDeleteResponse.data.error || 'Unknown error'}`);
             }
         }
 
         // 2. Process Additions
+        const createdLinesForGL = [];
         for (const line of addedLines) {
             const lineData = {
                 supplier_id: supplierId,
@@ -58,17 +60,18 @@ Deno.serve(async (req) => {
             };
 
             const createdLine = await base44.asServiceRole.entities.SupplierInvoiceLine.create(lineData);
-            anyAmountChanged = true; // Adding a line changes balance
+            anyAmountChanged = true;
+            createdLinesForGL.push(createdLine);
+        }
 
-            // Invoke GL Handler
+        if (createdLinesForGL.length > 0) {
             const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-                supplierInvoiceLine: createdLine,
+                supplierInvoiceLines: createdLinesForGL,
                 action: 'create',
                 oldValues: null
             });
-
             if (glCreateResponse.data && !glCreateResponse.data.success) {
-                throw new Error(`GL Transaction creation failed for new line: ${glCreateResponse.data.error || 'Unknown error'}`);
+                throw new Error(`GL Transaction creation failed for new lines: ${glCreateResponse.data.error || 'Unknown error'}`);
             }
         }
 
@@ -77,12 +80,6 @@ Deno.serve(async (req) => {
             // Fetch current DB state for oldValues
             const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
             if (!existingLine) continue;
-
-            if (existingLine.paid_amount && existingLine.paid_amount !== 0) {
-                // If line is locked (paid), ensure amounts haven't changed if frontend didn't catch it
-                // We trust the inputs but double check logic can be here. 
-                // For now, proceed as we assume frontend validation or intentional updates.
-            }
 
             // Check if amounts changed
             const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
@@ -106,7 +103,7 @@ Deno.serve(async (req) => {
 
             const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
 
-            // Invoke GL Handler
+            // Invoke GL Handler individually for updates since oldValues is needed per line
             const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: updatedLine,
                 action: 'update',
