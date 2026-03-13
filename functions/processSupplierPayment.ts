@@ -67,10 +67,12 @@ Deno.serve(async (req) => {
       status: 'pending'
     };
 
-    const { data: createdPayment, error: paymentError } = await supabase.from('SupplierPayment').insert(paymentRecord).select().single();
-    if (paymentError || !createdPayment) {
-        console.error('Supabase insert error:', paymentError);
-        throw new Error('Failed to create payment record: ' + (paymentError?.message || 'Unknown error'));
+    let createdPayment;
+    try {
+      createdPayment = await base44.entities.SupplierPayment.create(paymentRecord);
+    } catch (paymentError) {
+      console.error('Base44 SupplierPayment create error:', paymentError);
+      throw new Error('Failed to create payment record: ' + (paymentError?.message || 'Unknown error'));
     }
 
     // Trigger background execution WITHOUT awaiting

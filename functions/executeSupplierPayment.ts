@@ -19,6 +19,8 @@ Deno.serve(async (req) => {
       appliedInvoices
     } = payload;
 
+    const paymentAmount = parseFloat(totalPaymentAmount) || 0;
+
     if (!paymentId) {
        return Response.json({ success: false, error: 'No paymentId provided' }, { status: 400 });
     }

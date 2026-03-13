@@ -22,7 +22,19 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Payment not found' }, { status: 404 });
     }
 
-    const supplier = await base44.asServiceRole.entities.Supplier.get(payment.supplier_id);
+    const supabaseUrl = Deno.env.get("Supabase_project_url");
+    const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+    if (!supabaseUrl || !supabaseSecret) {
+        return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+
+    const { data: supplier } = await supabase.from('Supplier').select('*').eq('id', payment.supplier_id).single();
 
     // 2. Check Fiscal Period
     const fiscalPeriods = await base44.asServiceRole.entities.FiscalPeriod.filter({});
