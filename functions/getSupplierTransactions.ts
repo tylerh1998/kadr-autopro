@@ -141,23 +141,31 @@ Deno.serve(async (req) => {
 
         // Extract all lines from invoices in date range for the invoice lines tab
         const linesInDateRange = invoicesInDateRange.flatMap(inv => 
-            inv.lines.map(line => ({
-                ...line,
-                invoice_number: inv.invoice_number,
-                invoice_date: inv.invoice_date,
-                charge: line.purchase_amount || 0,
-                gst: line.gst_amount || 0,
-                line_total: (line.purchase_amount || 0) + (line.gst_amount || 0)
-            }))
+            inv.lines.map(line => {
+                const pAmt = parseFloat(line.purchase_amount) || 0;
+                const gAmt = parseFloat(line.gst_amount) || 0;
+                return {
+                    ...line,
+                    invoice_number: inv.invoice_number,
+                    invoice_date: inv.invoice_date,
+                    charge: pAmt,
+                    gst: gAmt,
+                    line_total: pAmt + gAmt
+                };
+            })
         );
 
         // For payment history, we need ALL lines (enriched with charge, gst, line_total)
-        const allLinesEnriched = allLines.map(line => ({
-            ...line,
-            charge: line.purchase_amount || 0,
-            gst: line.gst_amount || 0,
-            line_total: (line.purchase_amount || 0) + (line.gst_amount || 0)
-        }));
+        const allLinesEnriched = allLines.map(line => {
+            const pAmt = parseFloat(line.purchase_amount) || 0;
+            const gAmt = parseFloat(line.gst_amount) || 0;
+            return {
+                ...line,
+                charge: pAmt,
+                gst: gAmt,
+                line_total: pAmt + gAmt
+            };
+        });
 
         // Calculate date range total
         const dateRangeTotal = linesInDateRange.reduce((sum, line) => 
