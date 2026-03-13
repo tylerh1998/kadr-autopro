@@ -366,37 +366,31 @@ export default function SupplierTxPage() {
 
     const acquireLock = useCallback(async (userToLock) => {
         if (!supplierId || !userToLock) return false;
-
         try {
-            const supplierData = await retryWithBackoff(() => Supplier.get(supplierId));
-
-            if (supplierData.LockedByUser && supplierData.LockedByUser !== userToLock.email) {
+            const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
+            const s = res.data?.data?.[0];
+            if (!s) return false;
+            if (s.LockedByUser && s.LockedByUser !== userToLock.email) {
                 setIsLockedByOtherUser(true);
-                setLockedByUserName(supplierData.LockedByUser);
+                setLockedByUserName(s.LockedByUser);
                 return false;
             }
-
-            await retryWithBackoff(() => Supplier.update(supplierId, { LockedByUser: userToLock.email }));
-
+            await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: userToLock.email } }));
             setLockAcquired(true);
             return true;
-        } catch (error) {
-            console.error('Error acquiring lock:', error);
+        } catch (e) {
             return false;
         }
     }, [supplierId, retryWithBackoff]);
 
     const releaseLock = useCallback(async (userToUnlock) => {
         if (!supplierId || !userToUnlock) return;
-
         try {
-            const currentSupplierData = await retryWithBackoff(() => Supplier.get(supplierId));
-            if (currentSupplierData.LockedByUser === userToUnlock.email) {
-                await retryWithBackoff(() => Supplier.update(supplierId, { LockedByUser: '' }));
+            const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
+            if (res.data?.data?.[0]?.LockedByUser === userToUnlock.email) {
+                await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: '' } }));
             }
-        } catch (error) {
-            console.error('Error releasing lock:', error);
-        }
+        } catch (e) {}
     }, [supplierId, retryWithBackoff]);
 
     // Initialize lock check
