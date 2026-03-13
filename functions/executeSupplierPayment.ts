@@ -180,9 +180,9 @@ Deno.serve(async (req) => {
 
     // Process transactions
     if (paymentMethod === 'Bank Account' || paymentMethod === 'Cheque') {
-      const selectedBank = await base44.asServiceRole.entities.BankAccount.get(fromAccountId);
+      const { data: selectedBank } = await supabase.from('BankAccount').select('*').eq('id', fromAccountId).single();
       if (selectedBank) {
-        await base44.asServiceRole.entities.BankTransaction.create({
+        await supabase.from('BankTransaction').insert({
           bank_account_id: selectedBank.id,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
@@ -197,12 +197,12 @@ Deno.serve(async (req) => {
         });
 
         if (chequeNumber) {
-          await base44.asServiceRole.entities.BankAccount.update(selectedBank.id, {
+          await supabase.from('BankAccount').update({
             next_cheque_number: parseInt(chequeNumber) + 1
-          });
+          }).eq('id', selectedBank.id);
         }
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await supabase.from('GLTransaction').insert({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await supabase.from('GLTransaction').insert({
           account_number: selectedBank.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -223,9 +223,9 @@ Deno.serve(async (req) => {
         });
       }
     } else if (paymentMethod === 'Line of Credit') {
-      const selectedLOC = await base44.asServiceRole.entities.LinesOfCredit.get(fromAccountId);
+      const { data: selectedLOC } = await supabase.from('LinesOfCredit').select('*').eq('id', fromAccountId).single();
       if (selectedLOC) {
-        await base44.asServiceRole.entities.LinesOfCreditTransaction.create({
+        await supabase.from('LinesOfCreditTransaction').insert({
           line_of_credit_id: selectedLOC.id,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
           lineOfCreditId: selectedLOC.id
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await supabase.from('GLTransaction').insert({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await supabase.from('GLTransaction').insert({
           account_number: selectedLOC.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
     }
 
     // Update status to completed
-    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, { status: 'completed' });
+    await supabase.from('SupplierPayment').update({ status: 'completed' }).eq('id', paymentId);
 
     return Response.json({ success: true });
 
@@ -271,10 +271,15 @@ Deno.serve(async (req) => {
     console.error('Error in executeSupplierPayment:', error);
     if (paymentId) {
         try {
-            await base44.asServiceRole.entities.SupplierPayment.update(paymentId, { 
+            const supabaseUrl = Deno.env.get("Supabase_project_url");
+            const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+            const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+            const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
+            
+            await supabase.from('SupplierPayment').update({ 
                 status: 'failed',
                 error_message: error.message || 'Unknown error during background processing'
-            });
+            }).eq('id', paymentId);
         } catch (e) {
             console.error('Failed to update payment status to failed:', e);
         }
