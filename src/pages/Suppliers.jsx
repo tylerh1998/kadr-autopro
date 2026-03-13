@@ -61,11 +61,39 @@ export default function SuppliersPage() {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('searchSuppliers', { searchTerm: activeSearchTerm });
-      if (response.data.success) {
-        setSuppliers(response.data.suppliers);
+      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
+      if (response.data && response.data.data) {
+        let allSuppliers = response.data.data;
+        
+        if (!activeSearchTerm || activeSearchTerm.trim() === '') {
+          const sorted = allSuppliers.sort((a, b) => {
+            if (a.pin_to_top && !b.pin_to_top) return -1;
+            if (!a.pin_to_top && b.pin_to_top) return 1;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          setSuppliers(sorted);
+        } else {
+          const searchLower = activeSearchTerm.toLowerCase().trim();
+          const scoredSuppliers = allSuppliers
+            .map(supplier => {
+              const name = (supplier.name || '').toLowerCase();
+              let hitValue = 0;
+              if (name === searchLower) hitValue = 100;
+              else if (name.startsWith(searchLower)) hitValue = 80;
+              else if (name.includes(searchLower)) hitValue = 50;
+              return { ...supplier, hitValue };
+            })
+            .filter(supplier => supplier.hitValue > 0)
+            .sort((a, b) => {
+              if (b.hitValue !== a.hitValue) return b.hitValue - a.hitValue;
+              if (a.pin_to_top && !b.pin_to_top) return -1;
+              if (!a.pin_to_top && b.pin_to_top) return 1;
+              return (a.name || '').localeCompare(b.name || '');
+            });
+          setSuppliers(scoredSuppliers);
+        }
       } else {
-        console.error('Search failed:', response.data.error);
+        console.error('Search failed:', response.data?.error);
       }
     } catch (error) {
       console.error('Error loading suppliers:', error);
