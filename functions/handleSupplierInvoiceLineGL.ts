@@ -129,15 +129,16 @@ Deno.serve(async (req) => {
 
         console.time('Process Lines');
         // Process all lines
-        for (const line of linesToProcess) {
+        for (let i = 0; i < linesToProcess.length; i++) {
+            const line = linesToProcess[i];
             if (action === 'create') {
                 createGLEntries(line, false);
             } else if (action === 'update') {
-                // Update logic assumes singular line for now (as oldValues is singular)
-                if (!oldValues) {
+                const oldVal = Array.isArray(oldValues) ? oldValues[i] : oldValues;
+                if (!oldVal) {
                     return Response.json({ error: 'Old values required for update action' }, { status: 400 });
                 }
-                createGLEntries(oldValues, true);
+                createGLEntries(oldVal, true);
                 createGLEntries(line, false);
             } else if (action === 'delete') {
                 createGLEntries(line, true);
