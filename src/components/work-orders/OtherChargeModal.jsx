@@ -189,9 +189,9 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       
       // If apply_cost is true and we have a linked supplier, pre-fill the GL account
       if (chargeType.apply_cost && chargeType.linked_supplier_id) {
-        const supplier = suppliers.find(s => s.id === chargeType.linked_supplier_id);
+        const supplier = suppliers.find(s => String(s.id) === String(chargeType.linked_supplier_id));
         if (supplier && supplier.default_gl_account) {
-          setSupplierGlAccount(supplier.default_gl_account);
+          setSupplierGlAccount(String(supplier.default_gl_account));
         }
       }
     }
