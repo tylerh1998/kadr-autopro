@@ -122,7 +122,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     try {
       const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData, inventoryData] = await Promise.all([
         Supplier.filter({ inventory_supplier: true }, 'name'),
-        base44.functions.invoke('SupabaseProxy', {}),
+        base44.functions.invoke('SupabaseProxy', { action: 'read' }),
         TagAlong.list(),
         OtherChargeList.list(),
         InventoryCategory.list(),
