@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
             console.log("Invoice line amounts changed. Reallocating payments.");
-            const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
+            const { data: payments } = await supabase.from('SupplierPayment').select('*').eq('supplier_id', supplierId);
 
             for (const payment of (payments || [])) {
                 let appliedInvoices = [];
@@ -290,10 +290,10 @@ Deno.serve(async (req) => {
                     if (appliedDetail.invoice_number === "On Account") continue;
 
                     // Fetch latest lines for this invoice
-                    const invoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-                        supplier_id: supplierId,
-                        invoice_number: appliedDetail.invoice_number
-                    });
+                    const { data: invoiceLines } = await supabase.from('SupplierInvoiceLine')
+                        .select('*')
+                        .eq('supplier_id', supplierId)
+                        .eq('invoice_number', appliedDetail.invoice_number);
 
                     if (invoiceLines && invoiceLines.length > 0) {
                         const invoiceTotal = invoiceLines.reduce((sum, l) => {
@@ -306,9 +306,12 @@ Deno.serve(async (req) => {
                             const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
                             const newPaidAmount = appliedDetail.amount_applied * proportion;
 
-                            await base44.asServiceRole.entities.SupplierInvoiceLine.update(l.id, {
-                                paid_amount: Math.round(newPaidAmount * 100) / 100
-                            });
+                            await supabase.from('SupplierInvoiceLine')
+                                .update({
+                                    updated_date: new Date().toISOString(),
+                                    paid_amount: Math.round(newPaidAmount * 100) / 100
+                                })
+                                .eq('id', l.id);
                         }
                     }
                 }
