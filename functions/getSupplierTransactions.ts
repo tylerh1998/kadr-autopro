@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
         // Fetch chart of accounts
         console.log('Fetching chart of accounts...');
-        const chartOfAccountsData = await base44.asServiceRole.entities.ChartOfAccount.list('account_number', 1000);
+        const chartOfAccountsData = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
 
         // Fetch all supplier invoice lines for this supplier
         console.log('Fetching supplier invoice lines...');
