@@ -86,10 +86,25 @@ Deno.serve(async (req) => {
 
     // 4. Un-apply Invoices (Optimized Batch Process)
     
+    const supabaseUrl = Deno.env.get("Supabase_project_url");
+    const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+    if (!supabaseUrl || !supabaseSecret) {
+        return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+
     // Fetch ALL supplier lines efficiently
-    const allSupplierLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-        supplier_id: payment.supplier_id
-    }, 'invoice_date', 5000);
+    const { data: allSupplierLinesArr } = await supabase.from('SupplierInvoiceLine')
+        .select('*')
+        .eq('supplier_id', payment.supplier_id)
+        .order('invoice_date', { ascending: false });
+        
+    const allSupplierLines = allSupplierLinesArr || [];
 
     // Build map for fast lookup and state tracking
     const lineMap = new Map();
@@ -180,10 +195,11 @@ Deno.serve(async (req) => {
 
              // Fallback fetch if not in map
              if (invoiceLines.length === 0) {
-                 const fetched = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
-                     supplier_id: payment.supplier_id,
-                     invoice_number: targetInvoiceNumber
-                 });
+                 const { data: fetched } = await supabase.from('SupplierInvoiceLine')
+                     .select('*')
+                     .eq('supplier_id', payment.supplier_id)
+                     .eq('invoice_number', targetInvoiceNumber);
+                     
                  if (fetched && fetched.length > 0) {
                      fetched.forEach(l => {
                          const p = { 
@@ -232,9 +248,10 @@ Deno.serve(async (req) => {
         for (let i = 0; i < updatesToProcess.length; i += batchSize) {
             const batch = updatesToProcess.slice(i, i + batchSize);
             await Promise.all(batch.map(u => 
-                base44.asServiceRole.entities.SupplierInvoiceLine.update(u.id, {
+                supabase.from('SupplierInvoiceLine').update({
+                    updated_date: new Date().toISOString(),
                     paid_amount: u.paid_amount
-                })
+                }).eq('id', u.id)
             ));
         }
     }
