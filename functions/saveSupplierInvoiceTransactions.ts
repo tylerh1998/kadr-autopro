@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
         // 1. Process Deletions
         for (const lineId of deletedLineIds) {
             // Get original line for GL reversal context
-            const lineToDelete = await base44.entities.SupplierInvoiceLine.get(lineId);
+            const lineToDelete = await base44.asServiceRole.entities.SupplierInvoiceLine.get(lineId);
             if (lineToDelete) {
                 if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
                      // Skip deletion of paid lines to enforce consistency (backend check)
@@ -28,11 +28,11 @@ Deno.serve(async (req) => {
                      continue; 
                 }
 
-                await base44.entities.SupplierInvoiceLine.delete(lineId);
+                await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lineId);
                 anyAmountChanged = true; // Deleting a line changes the balance
 
                 // Invoke GL Handler
-                const glDeleteResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+                const glDeleteResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
                     supplierInvoiceLine: lineToDelete,
                     action: 'delete'
                 });
@@ -57,11 +57,11 @@ Deno.serve(async (req) => {
                 paid_amount: 0
             };
 
-            const createdLine = await base44.entities.SupplierInvoiceLine.create(lineData);
+            const createdLine = await base44.asServiceRole.entities.SupplierInvoiceLine.create(lineData);
             anyAmountChanged = true; // Adding a line changes balance
 
             // Invoke GL Handler
-            const glCreateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glCreateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: createdLine,
                 action: 'create',
                 oldValues: null
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
         // 3. Process Modifications
         for (const line of modifiedLines) {
             // Fetch current DB state for oldValues
-            const existingLine = await base44.entities.SupplierInvoiceLine.get(line.id);
+            const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
             if (!existingLine) continue;
 
             if (existingLine.paid_amount && existingLine.paid_amount !== 0) {
@@ -104,10 +104,10 @@ Deno.serve(async (req) => {
                 gst_override: line.gst_override
             };
 
-            const updatedLine = await base44.entities.SupplierInvoiceLine.update(line.id, updateData);
+            const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
 
             // Invoke GL Handler
-            const glUpdateResponse = await base44.functions.invoke('handleSupplierInvoiceLineGL', {
+            const glUpdateResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
                 supplierInvoiceLine: updatedLine,
                 action: 'update',
                 oldValues: existingLine
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
             console.log("Invoice line amounts changed. Reallocating payments.");
-            const payments = await base44.entities.SupplierPayment.filter({ supplier_id: supplierId });
+            const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
 
             for (const payment of payments) {
                 let appliedInvoices = [];
@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
                     if (appliedDetail.invoice_number === "On Account") continue;
 
                     // Fetch latest lines for this invoice
-                    const invoiceLines = await base44.entities.SupplierInvoiceLine.filter({
+                    const invoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
                         supplier_id: supplierId,
                         invoice_number: appliedDetail.invoice_number
                     });
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
                             const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
                             const newPaidAmount = appliedDetail.amount_applied * proportion;
 
-                            await base44.entities.SupplierInvoiceLine.update(l.id, {
+                            await base44.asServiceRole.entities.SupplierInvoiceLine.update(l.id, {
                                 paid_amount: Math.round(newPaidAmount * 100) / 100
                             });
                         }
