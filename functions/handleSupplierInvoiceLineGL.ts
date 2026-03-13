@@ -35,8 +35,12 @@ Deno.serve(async (req) => {
         console.time('Fetch Bulk Data');
         
         let allLinesForData = [...linesToProcess];
-        if (action === 'update' && oldValues) {
-            allLinesForData.push(oldValues);
+        if (action === 'update') {
+            if (Array.isArray(oldValues)) {
+                allLinesForData.push(...oldValues);
+            } else if (oldValues) {
+                allLinesForData.push(oldValues);
+            }
         }
 
         const uniqueSupplierIds = [...new Set(allLinesForData.map(l => l.supplier_id).filter(Boolean))];
