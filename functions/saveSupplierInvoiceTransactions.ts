@@ -21,14 +21,16 @@ Deno.serve(async (req) => {
         const deletedLinesForGL = [];
         for (const lineId of deletedLineIds) {
             // Get original line for GL reversal context
-            const lineToDelete = await base44.asServiceRole.entities.SupplierInvoiceLine.get(lineId);
+            const lineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: lineId } });
+            const lineToDelete = lineRes.data?.data?.[0];
+            
             if (lineToDelete) {
                 if (lineToDelete.paid_amount && lineToDelete.paid_amount !== 0) {
                      console.warn(`Skipping deletion of line ${lineId} because it has paid amount`);
                      continue; 
                 }
 
-                await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lineId);
+                await base44.functions.invoke('SupabaseProxy', { action: 'delete', table: 'SupplierInvoiceLine', id: lineId });
                 anyAmountChanged = true;
                 deletedLinesForGL.push(lineToDelete);
             }
@@ -47,19 +49,24 @@ Deno.serve(async (req) => {
         // 2. Process Additions
         let createdLinesForGL = [];
         if (addedLines.length > 0) {
-            const linesData = addedLines.map(line => ({
-                supplier_id: supplierId,
-                invoice_number: line.invoice_number,
-                invoice_date: line.invoice_date,
-                description: line.description,
-                purchase_amount: line.purchase_amount,
-                gst_amount: line.gst_amount,
-                gl_account: line.gl_account,
-                gst_override: line.gst_override,
-                paid_amount: 0
-            }));
-            
-            createdLinesForGL = await base44.asServiceRole.entities.SupplierInvoiceLine.bulkCreate(linesData);
+            for (const line of addedLines) {
+                const lineData = {
+                    supplier_id: supplierId,
+                    invoice_number: line.invoice_number,
+                    invoice_date: line.invoice_date,
+                    description: line.description,
+                    purchase_amount: line.purchase_amount,
+                    gst_amount: line.gst_amount,
+                    gl_account: line.gl_account,
+                    gst_override: line.gst_override,
+                    paid_amount: 0
+                };
+                
+                const createRes = await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'SupplierInvoiceLine', data: lineData });
+                if (createRes.data?.data?.[0]) {
+                    createdLinesForGL.push(createRes.data.data[0]);
+                }
+            }
             anyAmountChanged = true;
         }
 
@@ -79,7 +86,8 @@ Deno.serve(async (req) => {
         const oldValuesForGL = [];
         for (const line of modifiedLines) {
             // Fetch current DB state for oldValues
-            const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
+            const lineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: line.id } });
+            const existingLine = lineRes.data?.data?.[0];
             if (!existingLine) continue;
 
             // Check if amounts changed
@@ -102,9 +110,12 @@ Deno.serve(async (req) => {
                 gst_override: line.gst_override
             };
 
-            const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
-            updatedLinesForGL.push(updatedLine);
-            oldValuesForGL.push(existingLine);
+            const updateRes = await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'SupplierInvoiceLine', id: line.id, data: updateData });
+            const updatedLine = updateRes.data?.data?.[0];
+            if (updatedLine) {
+                updatedLinesForGL.push(updatedLine);
+                oldValuesForGL.push(existingLine);
+            }
         }
 
         if (updatedLinesForGL.length > 0) {
@@ -122,7 +133,8 @@ Deno.serve(async (req) => {
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
             console.log("Invoice line amounts changed. Reallocating payments.");
-            const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
+            const paymentsRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierPayment', match: { supplier_id: supplierId } });
+            const payments = paymentsRes.data?.data || [];
 
             for (const payment of payments) {
                 let appliedInvoices = [];
@@ -149,10 +161,11 @@ Deno.serve(async (req) => {
                     if (appliedDetail.invoice_number === "On Account") continue;
 
                     // Fetch latest lines for this invoice
-                    const invoiceLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter({
+                    const invoiceLinesRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: {
                         supplier_id: supplierId,
                         invoice_number: appliedDetail.invoice_number
-                    });
+                    } });
+                    const invoiceLines = invoiceLinesRes.data?.data || [];
 
                     if (invoiceLines && invoiceLines.length > 0) {
                         const invoiceTotal = invoiceLines.reduce((sum, l) => {
@@ -165,9 +178,9 @@ Deno.serve(async (req) => {
                             const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
                             const newPaidAmount = appliedDetail.amount_applied * proportion;
 
-                            await base44.asServiceRole.entities.SupplierInvoiceLine.update(l.id, {
+                            await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'SupplierInvoiceLine', id: l.id, data: {
                                 paid_amount: Math.round(newPaidAmount * 100) / 100
-                            });
+                            } });
                         }
                     }
                 }
