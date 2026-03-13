@@ -22,13 +22,25 @@ Deno.serve(async (req) => {
     }
 
     // Fetch open invoices/credits
-    // We fetch a large batch of recent invoices. 
-    // Reduced limit to 2500 to prevent memory/timeout issues.
-    const allLines = await base44.asServiceRole.entities.SupplierInvoiceLine.filter(
-      { supplier_id: supplierId },
-      'invoice_date',
-      2500
-    );
+    const supabaseUrl = Deno.env.get("Supabase_project_url");
+    const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+    if (!supabaseUrl || !supabaseSecret) {
+        return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+
+    const { data: allLinesArr } = await supabase.from('SupplierInvoiceLine')
+        .select('*')
+        .eq('supplier_id', supplierId)
+        .order('invoice_date', { ascending: false })
+        .limit(2500);
+        
+    const allLines = allLinesArr || [];
 
     // Filter for open items and calculate balances
     const openItems = allLines.map(line => {
