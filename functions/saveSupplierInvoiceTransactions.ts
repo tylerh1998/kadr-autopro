@@ -152,12 +152,9 @@ Deno.serve(async (req) => {
                     credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
                 }));
                 try {
-                    await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
+                    await supabase.from('GLTransaction').insert(sanitizedTxs);
                 } catch (error) {
-                    // Fallback to individual creation if bulk fails
-                    for (const tx of sanitizedTxs) {
-                        await base44.asServiceRole.entities.GLTransaction.create(tx);
-                    }
+                    console.error('Error creating GL transactions:', error);
                 }
             }
         };
