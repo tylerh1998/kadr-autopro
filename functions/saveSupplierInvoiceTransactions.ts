@@ -211,41 +211,38 @@ Deno.serve(async (req) => {
         const updatedLinesForGL = [];
         const oldValuesForGL = [];
         for (const line of modifiedLines) {
-            // Fetch current DB state for oldValues
-            const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
-            if (!existingLine) continue;
+            try {
+                const existingLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(line.id);
+                if (!existingLine) continue;
 
-            // Check if amounts changed
-            const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
-            const currentGstAmount = parseFloat(line.gst_amount) || 0;
-            const oldPurchaseAmount = existingLine.purchase_amount || 0;
-            const oldGstAmount = existingLine.gst_amount || 0;
+                // Check if amounts changed
+                const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
+                const currentGstAmount = parseFloat(line.gst_amount) || 0;
+                const oldPurchaseAmount = existingLine.purchase_amount || 0;
+                const oldGstAmount = existingLine.gst_amount || 0;
 
-            if (currentPurchaseAmount !== oldPurchaseAmount || currentGstAmount !== oldGstAmount) {
-                anyAmountChanged = true;
-            }
+                if (currentPurchaseAmount !== oldPurchaseAmount || currentGstAmount !== oldGstAmount) {
+                    anyAmountChanged = true;
+                }
 
-            const updateData = {
-                updated_date: new Date().toISOString(),
-                invoice_number: line.invoice_number,
-                invoice_date: line.invoice_date,
-                description: line.description,
-                purchase_amount: line.purchase_amount,
-                gst_amount: line.gst_amount,
-                gl_account: line.gl_account,
-                gst_override: line.gst_override
-            };
+                const updateData = {
+                    invoice_number: line.invoice_number,
+                    invoice_date: line.invoice_date,
+                    description: line.description,
+                    purchase_amount: line.purchase_amount,
+                    gst_amount: line.gst_amount,
+                    gl_account: line.gl_account,
+                    gst_override: line.gst_override
+                };
 
-            const { data: updatedData, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select();
-            
-            if (updateError) {
+                const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(line.id, updateData);
+                
+                if (updatedLine) {
+                    updatedLinesForGL.push(updatedLine);
+                    oldValuesForGL.push(existingLine);
+                }
+            } catch (updateError) {
                 throw new Error(`Failed to update line ${line.id}: ${updateError.message}`);
-            }
-            
-            const updatedLine = updatedData?.[0];
-            if (updatedLine) {
-                updatedLinesForGL.push(updatedLine);
-                oldValuesForGL.push(existingLine);
             }
         }
 
