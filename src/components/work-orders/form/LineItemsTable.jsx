@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { InventoryItem, InventoryTxs, SupplierInvoiceLine, Supplier, SalesClass, InventoryLocation, InventoryCategory } from '@/entities/all';
+import { InventoryItem, InventoryTxs, SupplierInvoiceLine, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
   Table,
@@ -287,13 +287,16 @@ export default function LineItemsTable({
     try {
         // Fetch necessary data if not already loaded
         if (suppliers.length === 0 || inventoryCategories.length === 0) {
-            const [suppliersData, salesClassesData, locationsData, categoriesData] = await Promise.all([
-                Supplier.list(),
-                base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
+            const [suppliersResponse, salesClassesData, locationsData, categoriesData] = await Promise.all([
+                base44.functions.invoke('SupabaseProxy', {
+                    action: 'read',
+                    table: 'Supplier'
+                }),
+                base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data?.data || []),
                 InventoryLocation.list(),
                 InventoryCategory.list()
             ]);
-            setSuppliers(suppliersData);
+            setSuppliers(suppliersResponse.data?.data || []);
             setSalesClasses(salesClassesData);
             setInventoryLocations(locationsData);
             setInventoryCategories(categoriesData);

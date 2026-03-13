@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
-import { InventoryItem, Supplier, SalesClass, InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
+import { InventoryItem, InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -121,7 +121,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const loadDropdownData = async () => {
     try {
       const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData, inventoryData] = await Promise.all([
-        Supplier.filter({ inventory_supplier: true }, 'name'),
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier',
+          match: { inventory_supplier: true }
+        }).then(res => res.data?.data || []),
         base44.functions.invoke('SupabaseProxy', { action: 'read' }),
         TagAlong.list(),
         OtherChargeList.list(),

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { OtherChargeList, Supplier, ChartOfAccount, SupplierInvoiceLine } from '@/entities/all';
+import { OtherChargeList, ChartOfAccount } from '@/entities/all';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,13 +42,16 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [typesData, suppliersData, accountsData] = await Promise.all([
+        const [typesData, suppliersResponse, accountsData] = await Promise.all([
           OtherChargeList.filter({ is_active: true }),
-          Supplier.list('name'),
+          base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier'
+          }),
           ChartOfAccount.list('account_number')
         ]);
         setChargeTypes(typesData || []);
-        setSuppliers(suppliersData || []);
+        setSuppliers(((suppliersResponse.data?.data) || []).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         setGlAccounts(accountsData || []);
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -114,8 +117,14 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         setApplyCost(true);
         setLoadingSupplierInvoiceLine(true);
         
-        SupplierInvoiceLine.get(editingChargeLine.supplier_invoice_line_id)
-          .then(sil => {
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'SupplierInvoiceLine',
+          match: { id: editingChargeLine.supplier_invoice_line_id }
+        })
+          .then(response => {
+            const sil = (response.data?.data || [])[0];
+            if (!sil) throw new Error('Supplier invoice line not found');
             console.log('=== DEBUG: Fetched SupplierInvoiceLine for editing:', sil);
             setLinkedSupplierId(sil.supplier_id || '');
             setSupplierInvoiceNumber(sil.invoice_number || '');

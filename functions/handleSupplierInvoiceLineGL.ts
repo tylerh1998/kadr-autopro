@@ -10,6 +10,18 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const supabaseUrl = Deno.env.get("Supabase_project_url");
+        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
         const payload = await req.json();
         const { supplierInvoiceLine, supplierInvoiceLines, action, oldValues } = payload;
 
@@ -50,9 +62,8 @@ Deno.serve(async (req) => {
         const glAccountMap = {};
 
         if (uniqueSupplierIds.length > 0) {
-            const supplierPromises = uniqueSupplierIds.map(id => base44.asServiceRole.entities.Supplier.get(id).catch(() => null));
-            const suppliers = await Promise.all(supplierPromises);
-            suppliers.forEach(s => {
+            const { data: suppliers } = await supabase.from('Supplier').select('id, name').in('id', uniqueSupplierIds);
+            (suppliers || []).forEach(s => {
                 if (s && s.id) supplierMap[s.id] = s.name;
             });
         }

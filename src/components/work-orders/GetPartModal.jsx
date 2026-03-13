@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Search, Plus, Minus, Package, DollarSign, ShoppingCart, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SalesClass, TagAlong, OtherChargeList } from '@/entities/all';
+import { TagAlong, OtherChargeList } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 
 
