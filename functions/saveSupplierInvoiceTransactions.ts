@@ -49,16 +49,15 @@ Deno.serve(async (req) => {
             const glAccountMap = {};
 
             if (uniqueSupplierIds.length > 0) {
-                const supplierPromises = uniqueSupplierIds.map(id => base44.asServiceRole.entities.Supplier.get(id).catch(() => null));
-                const suppliers = await Promise.all(supplierPromises);
-                suppliers.forEach(s => {
+                const { data: suppliers } = await supabase.from('Supplier').select('id, name').in('id', uniqueSupplierIds);
+                (suppliers || []).forEach(s => {
                     if (s && s.id) supplierMap[s.id] = s.name;
                 });
             }
 
             if (uniqueGLAccounts.length > 0) {
-                const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000).catch(() => []);
-                allAccounts.forEach(acc => {
+                const { data: allAccounts } = await supabase.from('ChartOfAccount').select('account_number, account_name').limit(1000);
+                (allAccounts || []).forEach(acc => {
                     glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
                 });
             }
