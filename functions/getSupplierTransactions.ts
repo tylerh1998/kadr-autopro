@@ -38,6 +38,15 @@ Deno.serve(async (req) => {
             supplierData = await base44.asServiceRole.entities.Supplier.get(supplierId);
         } catch (e) {
             console.error('Error fetching supplier:', e);
+            // Fallback to filter if get fails due to ID format issues
+            try {
+                const suppliers = await base44.asServiceRole.entities.Supplier.filter({ id: supplierId });
+                if (suppliers && suppliers.length > 0) {
+                    supplierData = suppliers[0];
+                }
+            } catch (fallbackError) {
+                console.error('Fallback error fetching supplier:', fallbackError);
+            }
         }
 
         if (!supplierData) {
