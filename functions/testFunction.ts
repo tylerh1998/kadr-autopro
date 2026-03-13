@@ -16,7 +16,12 @@ Deno.serve(async (req) => {
         
         let deleteResult = null;
         if (lines.length > 0) {
-            deleteResult = await supabase.from('SupplierInvoiceLine').delete().eq('id', lines[0].id).select();
+            try {
+                await base44.asServiceRole.entities.SupplierInvoiceLine.delete(lines[0].id);
+                deleteResult = "Success";
+            } catch (e) {
+                deleteResult = e.message;
+            }
         }
 
         return Response.json({ 
