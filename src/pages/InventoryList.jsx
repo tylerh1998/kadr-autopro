@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   InventoryItem,
-  Supplier,
   SalesClass,
   InventoryLocation,
   InventoryCategory,
@@ -170,13 +169,16 @@ export default function InventoryListPage() {
   // Function to load data shared by modals
   const loadSharedData = async () => {
     try {
-      const [suppliersData, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
-        Supplier.list(),
+      const [suppliersResponse, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier'
+        }),
         base44.functions.invoke('SupabaseProxy', {}),
         InventoryLocation.list(),
         InventoryCategory.list(),
       ]);
-      setSuppliers(suppliersData);
+      setSuppliers(suppliersResponse.data?.data || []);
       setSalesClasses(salesClassesResponse.data?.data || []);
       setInventoryLocations(locationsData);
       setInventoryCategories(categoriesData);

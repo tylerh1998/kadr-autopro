@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn, InventoryItem, Supplier } from '@/entities/all';
+import { InventoryReturn, InventoryItem } from '@/entities/all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import ChangeSupplierModal from '../components/inventory/ChangeSupplierModal';
 import ReceiveCreditModal from '../components/inventory/ReceiveCreditModal';
 import EditReturnInfoModal from '../components/inventory/EditReturnInfoModal';
 import LegacyWarrantyReturnModal from '../components/inventory/LegacyWarrantyReturnModal';
+import { base44 } from '@/api/base44Client';
 
 export default function InventoryReturnsPage() {
   const [returns, setReturns] = useState([]);
@@ -71,8 +72,11 @@ export default function InventoryReturnsPage() {
 
   const loadSuppliers = async () => {
     try {
-      const suppliersData = await Supplier.list();
-      setSuppliers(suppliersData);
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'Supplier'
+      });
+      setSuppliers(response.data.data || []);
     } catch (error) {
       console.error('Error loading suppliers:', error);
     }

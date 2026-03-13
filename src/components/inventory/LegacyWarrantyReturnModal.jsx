@@ -9,7 +9,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format } from 'date-fns';
-import { InventoryItem, InventoryReturn, Supplier, GLTransaction } from '@/entities/all';
+import { InventoryItem, InventoryReturn, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -79,12 +80,16 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
 
   const loadData = async () => {
     try {
-      const [itemsData, suppliersData] = await Promise.all([
+      const [itemsData, suppliersResponse] = await Promise.all([
         InventoryItem.list(),
-        Supplier.filter({ inventory_supplier: true }, 'name')
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier',
+          match: { inventory_supplier: true }
+        })
       ]);
       setInventoryItems(itemsData);
-      setSuppliers(suppliersData);
+      setSuppliers((suppliersResponse.data.data || []).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
     } catch (error) {
       console.error('Error loading data:', error);
     }
