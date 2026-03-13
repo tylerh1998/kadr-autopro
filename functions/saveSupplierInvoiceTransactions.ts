@@ -179,14 +179,7 @@ Deno.serve(async (req) => {
         let createdLinesForGL = [];
         if (addedLines.length > 0) {
             const linesToInsert = addedLines.map(line => {
-                const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
-                const now = new Date().toISOString();
                 return {
-                    id: newId,
-                    created_date: now,
-                    updated_date: now,
-                    created_by: user.email,
-                    created_by_id: user.id,
                     supplier_id: supplierId,
                     invoice_number: line.invoice_number,
                     invoice_date: line.invoice_date,
@@ -199,15 +192,14 @@ Deno.serve(async (req) => {
                 };
             });
             
-            const { data: insertedData, error: insertError } = await supabase.from('SupplierInvoiceLine').insert(linesToInsert).select();
-            
-            if (insertError) {
+            try {
+                const insertedData = await base44.asServiceRole.entities.SupplierInvoiceLine.bulkCreate(linesToInsert);
+                if (insertedData && insertedData.length > 0) {
+                    createdLinesForGL = insertedData;
+                    anyAmountChanged = true;
+                }
+            } catch (insertError) {
                 throw new Error(`Failed to insert lines: ${insertError.message}`);
-            }
-            
-            if (insertedData && insertedData.length > 0) {
-                createdLinesForGL = insertedData;
-                anyAmountChanged = true;
             }
         }
 
