@@ -1338,19 +1338,14 @@ export default function SupplierTxPage() {
 
     const handleSupplierUpdate = async (updatedSupplierData) => {
         try {
-            if (!supplier?.id) {
-                console.error("No supplier ID found for update.");
-                alert('Failed to update supplier: Missing supplier ID.');
-                return;
-            }
-            await Supplier.update(supplier.id, updatedSupplierData);
+            if (!supplier?.id) return alert('Missing supplier ID.');
+            await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: updatedSupplierData });
             setShowEditSupplierModal(false);
-            const refreshedSupplier = await Supplier.get(supplier.id);
-            setSupplier(refreshedSupplier);
+            const res = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplier.id } });
+            setSupplier(res.data?.data?.[0] || supplier);
             alert('Supplier updated successfully');
-        } catch (error) {
-            console.error('Error updating supplier:', error);
-            alert('Failed to update supplier. Please try again.');
+        } catch (e) {
+            alert('Failed to update supplier.');
         }
     };
 
