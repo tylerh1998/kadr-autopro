@@ -49,15 +49,16 @@ Deno.serve(async (req) => {
             const glAccountMap = {};
 
             if (uniqueSupplierIds.length > 0) {
-                const { data: suppliers } = await supabase.from('Supplier').select('id, name').in('id', uniqueSupplierIds);
-                (suppliers || []).forEach(s => {
-                    supplierMap[s.id] = s.name;
+                const supplierPromises = uniqueSupplierIds.map(id => base44.asServiceRole.entities.Supplier.get(id).catch(() => null));
+                const suppliers = await Promise.all(supplierPromises);
+                suppliers.forEach(s => {
+                    if (s && s.id) supplierMap[s.id] = s.name;
                 });
             }
 
             if (uniqueGLAccounts.length > 0) {
-                const { data: accounts } = await supabase.from('ChartOfAccount').select('account_number, account_name').in('account_number', uniqueGLAccounts);
-                (accounts || []).forEach(acc => {
+                const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000).catch(() => []);
+                allAccounts.forEach(acc => {
                     glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
                 });
             }
@@ -151,8 +152,14 @@ Deno.serve(async (req) => {
                     debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
                     credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
                 }));
-                const { error } = await supabase.from('GLTransaction').insert(sanitizedTxs);
-                if (error) throw new Error(`Failed to insert GL transactions: ${error.message}`);
+                try {
+                    await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
+                } catch (error) {
+                    // Fallback to individual creation if bulk fails
+                    for (const tx of sanitizedTxs) {
+                        await base44.asServiceRole.entities.GLTransaction.create(tx);
+                    }
+                }
             }
         };
 
