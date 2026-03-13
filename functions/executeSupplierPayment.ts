@@ -23,11 +23,16 @@ Deno.serve(async (req) => {
        return Response.json({ success: false, error: 'No paymentId provided' }, { status: 400 });
     }
 
+    const supabaseUrl = Deno.env.get("Supabase_project_url");
+    const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
+
     // Update status to processing
-    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, { status: 'processing' });
+    await supabase.from('SupplierPayment').update({ status: 'processing' }).eq('id', paymentId);
 
     // Get supplier for name
-    const supplier = await base44.asServiceRole.entities.Supplier.get(supplierId);
+    const { data: supplier } = await supabase.from('Supplier').select('*').eq('id', supplierId).single();
     
     // Helper for batched updates
     // Helper for batched updates with robust rate limiting and exponential backoff
