@@ -244,7 +244,12 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       if (!editingChargeLine) {
         try {
           setSubmitting(true);
-          const freshSupplier = await Supplier.get(linkedSupplierId);
+          const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: { id: linkedSupplierId }
+          });
+          const freshSupplier = (supplierResponse.data?.data || [])[0];
           if (freshSupplier && freshSupplier.LockedByUser) {
             alert(`Supplier locked by: ${freshSupplier.LockedByUser}`);
             setSubmitting(false);
