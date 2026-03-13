@@ -29,12 +29,12 @@ Deno.serve(async (req) => {
         });
 
         const reqBody = await req.json().catch(() => ({}));
-        const { action = 'read', id, data: payloadData } = reqBody;
+        const { action = 'read', id, data: payloadData, table = 'SalesClass' } = reqBody;
 
         let result;
         
         if (action === 'read') {
-            result = await supabase.from('SalesClass').select('*');
+            result = await supabase.from(table).select('*');
         } else if (action === 'create') {
             const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
             const now = new Date().toISOString();
@@ -46,15 +46,15 @@ Deno.serve(async (req) => {
                 created_by_id: user.id,
                 ...payloadData
             };
-            result = await supabase.from('SalesClass').insert([insertData]).select();
+            result = await supabase.from(table).insert([insertData]).select();
         } else if (action === 'update') {
             const updateData = {
                 updated_date: new Date().toISOString(),
                 ...payloadData
             };
-            result = await supabase.from('SalesClass').update(updateData).eq('id', id).select();
+            result = await supabase.from(table).update(updateData).eq('id', id).select();
         } else if (action === 'delete') {
-            result = await supabase.from('SalesClass').delete().eq('id', id);
+            result = await supabase.from(table).delete().eq('id', id);
         }
 
         if (result.error) {
