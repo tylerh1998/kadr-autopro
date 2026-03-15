@@ -16,22 +16,52 @@ import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from './SupplierPaymentModal';
 import AddToSheetModal from '@/components/suppliers/AddToSheetModal';
 
+const MOUNTAIN_TIMEZONE = 'America/Edmonton';
+
+const getMountainDateParts = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: MOUNTAIN_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+
+  const parts = formatter.formatToParts(date);
+
+  return {
+    year: Number(parts.find(part => part.type === 'year')?.value),
+    month: Number(parts.find(part => part.type === 'month')?.value),
+    day: Number(parts.find(part => part.type === 'day')?.value)
+  };
+};
+
+const getMountainToday = () => {
+  const { year, month, day } = getMountainDateParts();
+  return new Date(year, month - 1, day);
+};
+
+const formatDateForApi = (date) => {
+  if (!date) return null;
+
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const getDefaultAsOfDate = () => {
+  const previousMonth = subMonths(getMountainToday(), 1);
+  return endOfMonth(previousMonth);
+};
+
 export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate }) {
-  const [suppliers, setSuppliers] = useState([]);
+  const [apSummaryRows, setApSummaryRows] = useState([]);
+  const [locSuppliers, setLocSuppliers] = useState([]);
   const [supplierInvoicesMap, setSupplierInvoicesMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
-  const [asOfDate, setAsOfDate] = useState(() => {
-    // Default to last day of previous month
-    const today = new Date();
-    const previousMonth = subMonths(today, 1);
-    return endOfMonth(previousMonth);
-  });
-  const [pendingAsOfDate, setPendingAsOfDate] = useState(() => {
-    // Default to last day of previous month for the selector
-    const today = new Date();
-    const previousMonth = subMonths(today, 1);
-    return endOfMonth(previousMonth);
-  });
+  const [asOfDate, setAsOfDate] = useState(getDefaultAsOfDate);
+  const [pendingAsOfDate, setPendingAsOfDate] = useState(getDefaultAsOfDate);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
@@ -41,127 +71,100 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        // Call new optimized backend function
-        const [response, cfEntries, locs] = await Promise.all([
-          base44.functions.invoke('getAPSummary', {}),
-          base44.entities.CashFlowEntry.list(),
-          base44.entities.LinesOfCredit.filter({ is_active: true })
-        ]);
+  const loadData = async (selectedAsOfDate = asOfDate) => {
+    setLoading(true);
+    try {
+      const currentMountainDate = getMountainToday();
 
-        if (response.data.success) {
-          const suppliersWithInvoices = response.data.data;
-          
-          // Extract suppliers list
-          let suppliersData = suppliersWithInvoices.map(item => item.supplier);
-          
-          // Add LOCs that have cash flow entries
-          const locIdsInEntries = new Set((cfEntries || []).map(e => e.loc_id).filter(Boolean));
-          const locsToAdd = (locs || []).filter(loc => locIdsInEntries.has(loc.id));
-          
-          const locSuppliers = locsToAdd.map(loc => ({
-            id: loc.id,
-            name: loc.name,
-            is_loc: true
-          }));
+      const [response, cfEntries, locs] = await Promise.all([
+        base44.functions.invoke('getAPSummary', {
+          asOfDate: formatDateForApi(selectedAsOfDate),
+          startDate: '1900-01-01',
+          endDate: formatDateForApi(currentMountainDate),
+          supplierIdFilter: null
+        }),
+        base44.entities.CashFlowEntry.list(),
+        base44.entities.LinesOfCredit.filter({ is_active: true })
+      ]);
 
-          setSuppliers([...suppliersData, ...locSuppliers]);
+      if (response.data.success) {
+        const rows = response.data.data || [];
 
-          // Build map of supplier ID to their conceptual invoices
-          const invoicesMap = new Map();
-          suppliersWithInvoices.forEach(item => {
-            invoicesMap.set(item.supplier.id, item.conceptualInvoices);
-          });
-          setSupplierInvoicesMap(invoicesMap);
-        }
+        setApSummaryRows(rows.map(row => ({
+          id: row.supplier_id,
+          name: row.supplier_name,
+          not_due: Number(row.not_due || 0),
+          balance_0_30: Number(row.balance_0_30 || 0),
+          balance_31_60: Number(row.balance_31_60 || 0),
+          balance_60_plus: Number(row.balance_60_plus || 0),
+          total_balance: Number(row.current_balance || 0)
+        })));
 
-        setCashFlowEntries(cfEntries || []);
-
-      } catch (error) {
-        console.error('Error loading AP data:', error);
-      } finally {
-        setLoading(false);
+        const invoicesMap = new Map();
+        rows.forEach(row => {
+          const invoices = Array.isArray(row.invoices)
+            ? row.invoices.map(invoice => ({ ...invoice, supplier_id: row.supplier_id }))
+            : [];
+          invoicesMap.set(row.supplier_id, invoices);
+        });
+        setSupplierInvoicesMap(invoicesMap);
+      } else {
+        setApSummaryRows([]);
+        setSupplierInvoicesMap(new Map());
       }
-    };
-    loadData();
+
+      setCashFlowEntries(cfEntries || []);
+
+      const locIdsInEntries = new Set((cfEntries || []).map(entry => entry.loc_id).filter(Boolean));
+      const locSummaryRows = (locs || [])
+        .filter(loc => locIdsInEntries.has(loc.id))
+        .map(loc => ({
+          id: loc.id,
+          name: loc.name,
+          is_loc: true,
+          not_due: 0,
+          balance_0_30: 0,
+          balance_31_60: 0,
+          balance_60_plus: 0,
+          total_balance: 0
+        }));
+
+      setLocSuppliers(locSummaryRows);
+    } catch (error) {
+      console.error('Error loading AP data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData(asOfDate);
   }, []);
 
   const summaryData = useMemo(() => {
-    if (loading || !suppliers.length || supplierInvoicesMap.size === 0) return [];
-    
-    // Aggregate by supplier using conceptual invoices from backend
-    const supplierSummary = suppliers.map(supplier => {
-      const conceptualInvoices = supplierInvoicesMap.get(supplier.id) || [];
-      
-      // Calculate Cash Flow Entries for this Supplier or LOC
-      const supplierCashFlowEntries = cashFlowEntries.filter(entry => 
-        (supplier.is_loc ? entry.loc_id === supplier.id : entry.supplier_id === supplier.id)
-      );
+    if (loading) return [];
 
-      // FIRST: Calculate total balance from ALL invoices (ignoring dates)
-      let total_balance = 0;
-      conceptualInvoices.forEach(invoice => {
-        if (Math.abs(invoice.balance_due) > 0.01) {
-          total_balance += invoice.balance_due;
-        }
-      });
-      total_balance = Math.round(total_balance * 100) / 100;
-
-      // SECOND: Calculate aging buckets for display breakdown
-      let not_due = 0;
-      let balance_0_30 = 0;
-      let balance_31_60 = 0;
-      let balance_60_plus = 0;
-
-      conceptualInvoices.forEach(invoice => {
-        const owing = invoice.balance_due;
-        
-        // Skip if balance is essentially zero
-        if (Math.abs(owing) <= 0.01) return;
-        
-        // Calculate days old based on asOfDate
-        const invoiceDate = parseISO(invoice.invoice_date);
-        const daysOld = differenceInDays(asOfDate, invoiceDate);
-
-        // Age the balance (credits reduce aged balances)
-        if (daysOld < 0) {
-          not_due += owing;
-        } else if (daysOld <= 30) {
-          balance_0_30 += owing;
-        } else if (daysOld <= 60) {
-          balance_31_60 += owing;
-        } else {
-          balance_60_plus += owing;
-        }
-      });
-
-      return {
+    const supplierSummary = [
+      ...apSummaryRows.map(supplier => ({
         ...supplier,
-        not_due,
-        balance_0_30,
-        balance_31_60,
-        balance_60_plus,
-        total_balance,
-        cashFlowEntries: supplierCashFlowEntries,
-      };
-    });
+        cashFlowEntries: cashFlowEntries.filter(entry => entry.supplier_id === supplier.id)
+      })),
+      ...locSuppliers.map(supplier => ({
+        ...supplier,
+        cashFlowEntries: cashFlowEntries.filter(entry => entry.loc_id === supplier.id)
+      }))
+    ];
 
-    // Filter out suppliers with no balance
     const filtered = supplierSummary.filter(s => Math.abs(s.total_balance) > 0.01 || s.cashFlowEntries.length > 0);
 
-    // Sort
     if (sortConfig.key) {
       filtered.sort((a, b) => {
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
 
-        // Handle string comparison for names
         if (typeof aValue === 'string') {
-           aValue = aValue.toLowerCase();
-           bValue = bValue.toLowerCase();
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
         }
 
         if (aValue < bValue) {
@@ -175,7 +178,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
     }
 
     return filtered;
-  }, [suppliers, supplierInvoicesMap, loading, asOfDate, sortConfig, cashFlowEntries]);
+  }, [apSummaryRows, locSuppliers, loading, sortConfig, cashFlowEntries]);
 
   const totals = useMemo(() => {
     const result = summaryData.reduce((acc, curr) => {
@@ -199,6 +202,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
 
   const handleApplyDate = () => {
     setAsOfDate(pendingAsOfDate);
+    loadData(pendingAsOfDate);
   };
 
   const handlePrint = () => {
@@ -206,35 +210,9 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
   };
 
   const handlePaymentMade = async () => {
-    // Reload data after payment is made
-    setLoading(true);
     setShowPaymentModal(false);
-    
-    try {
-      // Call new optimized backend function
-      const response = await base44.functions.invoke('getAPSummary', {});
-
-      if (response.data.success) {
-        const suppliersWithInvoices = response.data.data;
-        
-        // Extract suppliers list
-        const suppliersData = suppliersWithInvoices.map(item => item.supplier);
-        setSuppliers(suppliersData);
-
-        // Build map of supplier ID to their conceptual invoices
-        const invoicesMap = new Map();
-        suppliersWithInvoices.forEach(item => {
-          invoicesMap.set(item.supplier.id, item.conceptualInvoices);
-        });
-        setSupplierInvoicesMap(invoicesMap);
-      }
-
-    } catch (error) {
-      console.error('Error loading AP data:', error);
-    } finally {
-      setLoading(false);
-      setSelectedSupplier(null);
-    }
+    await loadData(asOfDate);
+    setSelectedSupplier(null);
   };
 
   const handleContextMenu = (supplier) => {

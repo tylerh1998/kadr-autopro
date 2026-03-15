@@ -1,17 +1,25 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-
-        // Authenticate user
         const user = await base44.auth.me();
+
         if (!user) {
             return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        const supabaseUrl = Deno.env.get("Supabase_project_url");
-        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+        const rawBody = await req.text();
+        const payload = rawBody ? JSON.parse(rawBody) : {};
+        const {
+            asOfDate = null,
+            startDate = '1900-01-01',
+            endDate = null,
+            supplierIdFilter = null,
+        } = payload;
+
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
 
         if (!supabaseUrl || !supabaseSecret) {
             return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
@@ -22,86 +30,23 @@ Deno.serve(async (req) => {
             auth: { persistSession: false }
         });
 
-        // Fetch all active suppliers from Supabase
-        const { data: suppliers, error: suppliersError } = await supabase.from('Supplier').select('*');
-        
-        if (suppliersError) {
-            throw new Error(`Failed to fetch suppliers: ${suppliersError.message}`);
-        }
-
-        if (!suppliers || suppliers.length === 0) {
-            return Response.json({
-                success: true,
-                data: []
-            });
-        }
-
-        // Fetch ALL invoice lines for all suppliers in one query from Supabase
-        const { data: allInvoiceLines, error: linesError } = await supabase.from('SupplierInvoiceLine').select('*');
-
-        if (linesError) {
-            throw new Error(`Failed to fetch invoice lines: ${linesError.message}`);
-        }
-
-        // Group invoice lines by supplier
-        const supplierLinesMap = new Map();
-        allInvoiceLines.forEach(line => {
-            if (!supplierLinesMap.has(line.supplier_id)) {
-                supplierLinesMap.set(line.supplier_id, []);
-            }
-            supplierLinesMap.get(line.supplier_id).push(line);
+        const { data, error } = await supabase.rpc('get_ap_summary_data', {
+            _as_of_date: asOfDate,
+            _start_date: startDate,
+            _end_date: endDate,
+            _supplier_id_filter: supplierIdFilter,
         });
 
-        // Process each supplier to create conceptual invoices
-        const suppliersWithInvoices = suppliers.map(supplier => {
-            const lines = supplierLinesMap.get(supplier.id) || [];
-            
-            // Group lines into conceptual invoices (by invoice_number + invoice_date)
-            const invoiceGroups = new Map();
-            
-            lines.forEach(line => {
-                const key = `${line.invoice_number}_${line.invoice_date}`;
-                if (!invoiceGroups.has(key)) {
-                    invoiceGroups.set(key, []);
-                }
-                invoiceGroups.get(key).push(line);
-            });
+        if (error) {
+            throw new Error(`Failed to fetch AP summary: ${error.message}`);
+        }
 
-            // Create conceptual invoices with proper rounding
-            const conceptualInvoices = Array.from(invoiceGroups.values()).map(invoiceLines => {
-                const firstLine = invoiceLines[0];
-                
-                // Calculate totals with 2-decimal rounding
-                const subtotal = Math.round(invoiceLines.reduce((sum, l) => sum + (l.purchase_amount || 0), 0) * 100) / 100;
-                const tax_amount = Math.round(invoiceLines.reduce((sum, l) => sum + (l.gst_amount || 0), 0) * 100) / 100;
-                const total_amount = Math.round((subtotal + tax_amount) * 100) / 100;
-                const amount_paid = Math.round(invoiceLines.reduce((sum, l) => sum + (l.paid_amount || 0), 0) * 100) / 100;
-                const balance_due = Math.round((total_amount - amount_paid) * 100) / 100;
-
-                return {
-                    supplier_id: firstLine.supplier_id,
-                    invoice_number: firstLine.invoice_number,
-                    invoice_date: firstLine.invoice_date,
-                    line_count: invoiceLines.length,
-                    subtotal,
-                    tax_amount,
-                    total_amount,
-                    amount_paid,
-                    balance_due
-                };
-            });
-
-            return {
-                supplier,
-                conceptualInvoices
-            };
-        });
+        const filteredData = (data || []).filter((row) => Math.abs(Number(row.current_balance || 0)) > 0.01);
 
         return Response.json({
             success: true,
-            data: suppliersWithInvoices
+            data: filteredData,
         });
-
     } catch (error) {
         console.error('Error in getAPSummary:', error);
         return Response.json({
