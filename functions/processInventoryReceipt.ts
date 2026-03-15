@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 /**
  * Backend function to process inventory receipts from suppliers
@@ -25,6 +26,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
+
     // Parse request body
     const payload = await req.json();
     console.log('processInventoryReceipt payload:', JSON.stringify(payload, null, 2));
@@ -47,7 +59,7 @@ Deno.serve(async (req) => {
           error: 'Supplier invoice line ID is required for reverse action' 
         }, { status: 400 });
       }
-      return await processInventoryReceiptReverse(base44, supplier_invoice_line_id);
+      return await processInventoryReceiptReverse(base44, supabase, user, supplier_invoice_line_id);
     }
 
     // Handle edit action
@@ -77,9 +89,11 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       return await processInventoryReceiptEdit(
-        base44, 
-        supplier_invoice_line_id, 
-        invoice_number, 
+        base44,
+        supabase,
+        user,
+        supplier_invoice_line_id,
+        invoice_number,
         invoice_date,
         parseFloat(quantity),
         parseFloat(amount_per_unit)
@@ -124,8 +138,17 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Fetch supplier info for transaction records
-    const supplier = await base44.asServiceRole.entities.Supplier.get(supplier_id);
+    // Fetch supplier info for transaction records from Supabase
+    const { data: supplier, error: supplierError } = await supabase
+      .from('Supplier')
+      .select('*')
+      .eq('id', supplier_id)
+      .maybeSingle();
+
+    if (supplierError) {
+      throw new Error(`Failed to load supplier from Supabase: ${supplierError.message}`);
+    }
+
     if (!supplier) {
       return Response.json({ 
         success: false, 
@@ -135,7 +158,7 @@ Deno.serve(async (req) => {
 
     // Process items based on action
     if (action === 'create') {
-      return await processInventoryReceiptCreate(base44, supplier, invoice_number, invoice_date, items);
+      return await processInventoryReceiptCreate(base44, supabase, user, supplier, invoice_number, invoice_date, items);
     } else {
       return Response.json({ 
         success: false, 
@@ -152,6 +175,80 @@ Deno.serve(async (req) => {
     }, { status: 500 });
   }
 });
+
+function buildSupabaseRecord(user, data, isUpdate = false) {
+  const now = new Date().toISOString();
+
+  if (isUpdate) {
+    return {
+      updated_date: now,
+      ...data
+    };
+  }
+
+  return {
+    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+    created_date: now,
+    updated_date: now,
+    created_by: user.email,
+    created_by_id: user.id,
+    ...data
+  };
+}
+
+async function insertSupplierInvoiceLines(supabase, user, lines) {
+  const insertRows = lines.map((line) => buildSupabaseRecord(user, line));
+  const { data, error } = await supabase.from('SupplierInvoiceLine').insert(insertRows).select();
+
+  if (error) {
+    throw new Error(`Failed to create supplier invoice lines in Supabase: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+async function getSupplierInvoiceLine(supabase, id) {
+  const { data, error } = await supabase
+    .from('SupplierInvoiceLine')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load supplier invoice line from Supabase: ${error.message}`);
+  }
+
+  return data;
+}
+
+async function createSupplierInvoiceLine(supabase, user, line) {
+  const { data, error } = await supabase
+    .from('SupplierInvoiceLine')
+    .insert([buildSupabaseRecord(user, line)])
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to create supplier invoice line in Supabase: ${error.message}`);
+  }
+
+  return data;
+}
+
+async function updateSupplierInvoiceLine(supabase, id, updates) {
+  const { data, error } = await supabase
+    .from('SupplierInvoiceLine')
+    .update(buildSupabaseRecord(null, updates, true))
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to update supplier invoice line in Supabase: ${error.message}`);
+  }
+
+  return data;
+}
 
 /**
  * Helper function to check fiscal period status
@@ -231,7 +328,7 @@ async function checkFiscalPeriodStatus(base44, dateString) {
 /**
  * Process inventory receipt creation
  */
-async function processInventoryReceiptCreate(base44, supplier, invoice_number, invoice_date, items) {
+async function processInventoryReceiptCreate(base44, supabase, user, supplier, invoice_number, invoice_date, items) {
   const results = {
     success: true,
     message: '',
@@ -399,11 +496,11 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
       });
     }
 
-    // Create all supplier invoice lines in bulk
+    // Create all supplier invoice lines in Supabase
     let createdLines = [];
     if (invoiceLinesToCreate.length > 0) {
-      createdLines = await base44.asServiceRole.entities.SupplierInvoiceLine.bulkCreate(invoiceLinesToCreate);
-      console.log(`Created ${createdLines.length} supplier invoice lines for invoice ${invoice_number}`);
+      createdLines = await insertSupplierInvoiceLines(supabase, user, invoiceLinesToCreate);
+      console.log(`Created ${createdLines.length} supplier invoice lines in Supabase for invoice ${invoice_number}`);
       
       results.created_invoice_lines = createdLines.map(line => line.id);
 
@@ -483,7 +580,7 @@ async function processInventoryReceiptCreate(base44, supplier, invoice_number, i
  * Process inventory receipt reversal (delete)
  * Reverses the effects of a previously received inventory transaction
  */
-async function processInventoryReceiptReverse(base44, supplierInvoiceLineId) {
+async function processInventoryReceiptReverse(base44, supabase, user, supplierInvoiceLineId) {
   const results = {
     success: true,
     message: '',
@@ -495,8 +592,8 @@ async function processInventoryReceiptReverse(base44, supplierInvoiceLineId) {
   };
 
   try {
-    // 1. Fetch the original supplier invoice line
-    const originalLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(supplierInvoiceLineId);
+    // 1. Fetch the original supplier invoice line from Supabase
+    const originalLine = await getSupplierInvoiceLine(supabase, supplierInvoiceLineId);
     if (!originalLine) {
       return Response.json({
         success: false,
@@ -594,8 +691,8 @@ async function processInventoryReceiptReverse(base44, supplierInvoiceLineId) {
     results.updated_inventory_item_id = inventoryItem.id;
     console.log(`Updated inventory item ${inventoryItem.id}: QOH ${currentQOH} -> ${newQOH}`);
 
-    // 9. Create a contra supplier invoice line (negative amounts)
-    const contraLine = await base44.asServiceRole.entities.SupplierInvoiceLine.create({
+    // 9. Create a contra supplier invoice line (negative amounts) in Supabase
+    const contraLine = await createSupplierInvoiceLine(supabase, user, {
       supplier_id: originalLine.supplier_id,
       invoice_number: originalLine.invoice_number,
       invoice_date: originalLine.invoice_date,
@@ -678,7 +775,7 @@ async function processInventoryReceiptReverse(base44, supplierInvoiceLineId) {
  * Process inventory receipt edit
  * Updates an existing inventory transaction with new values
  */
-async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInvoiceNumber, newInvoiceDate, newQuantity, newAmountPerUnit) {
+async function processInventoryReceiptEdit(base44, supabase, user, supplierInvoiceLineId, newInvoiceNumber, newInvoiceDate, newQuantity, newAmountPerUnit) {
   const results = {
     success: true,
     message: '',
@@ -693,8 +790,8 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
   };
 
   try {
-    // 1. Fetch the original supplier invoice line
-    const originalLine = await base44.asServiceRole.entities.SupplierInvoiceLine.get(supplierInvoiceLineId);
+    // 1. Fetch the original supplier invoice line from Supabase
+    const originalLine = await getSupplierInvoiceLine(supabase, supplierInvoiceLineId);
     if (!originalLine) {
       return Response.json({
         success: false,
@@ -861,7 +958,7 @@ async function processInventoryReceiptEdit(base44, supplierInvoiceLineId, newInv
       ? `AddCore Qty${newQuantity} ${partNumber}`
       : `AddPart Qty${newQuantity} ${partNumber}`;
 
-    const updatedLine = await base44.asServiceRole.entities.SupplierInvoiceLine.update(supplierInvoiceLineId, {
+    const updatedLine = await updateSupplierInvoiceLine(supabase, supplierInvoiceLineId, {
       invoice_number: newInvoiceNumber,
       invoice_date: newInvoiceDate,
       description: newDescription,
