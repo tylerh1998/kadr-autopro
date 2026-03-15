@@ -201,6 +201,7 @@ Deno.serve(async (req) => {
         if (addedLines.length > 0) {
             const linesToInsert = addedLines.map(line => {
                 return {
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                     supplier_id: supplierId,
                     invoice_number: line.invoice_number,
                     invoice_date: line.invoice_date,
