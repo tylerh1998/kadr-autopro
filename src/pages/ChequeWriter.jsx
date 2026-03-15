@@ -35,7 +35,13 @@ export default function ChequeWriter() {
         });
 
         if (payments && payments.length > 0) {
-          setSupplierId(payments[0].supplier_id);
+          const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: { id: payments[0].supplier_id }
+          });
+          const supplier = supplierResponse.data?.data?.[0];
+          setSupplierId(supplier?.id || payments[0].supplier_id);
         }
 
         const response = await base44.functions.invoke('generateChequePDF', {

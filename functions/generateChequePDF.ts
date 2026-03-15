@@ -31,8 +31,13 @@ Deno.serve(async (req) => {
         const payment = payments[0];
         console.log('generateChequePDF: Found payment:', payment);
 
-        // Fetch the supplier details
-        const supplier = await base44.asServiceRole.entities.Supplier.get(payment.supplier_id);
+        // Fetch the supplier details via SupabaseProxy
+        const supplierResponse = await base44.asServiceRole.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: { id: payment.supplier_id }
+        });
+        const supplier = supplierResponse?.data?.data?.[0];
         if (!supplier) {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
