@@ -78,7 +78,11 @@ Deno.serve(async (req) => {
             id: { $in: inventoryIds }
         });
         
-        const suppliers = await base44.entities.Supplier.list();
+        const suppliersResponse = await base44.asServiceRole.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier'
+        });
+        const suppliers = suppliersResponse?.data?.data || [];
         const supplierMap = Object.fromEntries(suppliers.map(s => [s.id, s.name]));
 
         // 4. Merge Data

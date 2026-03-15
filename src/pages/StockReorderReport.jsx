@@ -71,8 +71,12 @@ export default function StockReorderReport() {
         (item.quantity_on_hand || 0) < (item.minimum_quantity || 0)
       );
 
-      // Fetch all suppliers
-      const suppliersData = await base44.entities.Supplier.list();
+      // Fetch all suppliers via SupabaseProxy
+      const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'Supplier'
+      });
+      const suppliersData = suppliersResponse.data?.data || [];
       setSuppliers(suppliersData);
 
       // Group items by supplier
