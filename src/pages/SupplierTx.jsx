@@ -430,7 +430,7 @@ export default function SupplierTxPage() {
         setLoading(true);
         try {
             const [user, response] = await Promise.all([
-                currentUser ? Promise.resolve(currentUser) : base44.auth.me(),
+                base44.auth.me(),
                 base44.functions.invoke('getSupplierTransactions', {
                     supplierId,
                     dateRange: {
@@ -440,9 +440,7 @@ export default function SupplierTxPage() {
                 })
             ]);
 
-            if (!currentUser) {
-                setCurrentUser(user);
-            }
+            setCurrentUser(user);
 
             if (!response.data.success) {
                 throw new Error(response.data.error || 'Failed to fetch supplier transactions');
