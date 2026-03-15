@@ -162,6 +162,7 @@ export default function InventoryAddPage() {
     const partNumberRef = React.useRef(null);
     const quantityReceivedRef = React.useRef(null);
     const descriptionRef = React.useRef(null);
+    const saveInProgressRef = React.useRef(false);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
@@ -574,14 +575,21 @@ export default function InventoryAddPage() {
     };
 
     const handleSaveAndFinish = async () => {
+        if (saveInProgressRef.current) {
+            return;
+        }
+        saveInProgressRef.current = true;
+
         if (currentItem.part_number && currentItem.part_number.trim() !== '') {
             alert('You have text in the Part # field. Did you mean to Add to Batch (Ctrl+A)? Please clear the field or add the item before saving.');
             partNumberRef.current?.focus();
+            saveInProgressRef.current = false;
             return;
         }
 
         if (batchItems.length === 0) {
             alert('At least one part is required.');
+            saveInProgressRef.current = false;
             return;
         }
 
@@ -599,6 +607,7 @@ export default function InventoryAddPage() {
         
         if (lockedSuppliers.length > 0) {
             alert(`Cannot save batch: The following supplier(s) are currently locked:\n\n${lockedSuppliers.join('\n')}\n\nPlease wait until they finish editing and try again.`);
+            saveInProgressRef.current = false;
             return;
         }
 
@@ -658,6 +667,7 @@ export default function InventoryAddPage() {
             alert(`An overall error occurred during batch processing: ${error.message || 'Please check console for details.'}`);
         } finally {
             setSaving(false);
+            saveInProgressRef.current = false;
         }
     };
 
