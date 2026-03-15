@@ -205,7 +205,6 @@ export default function SupplierTxPage() {
     const [isLockedByOtherUser, setIsLockedByOtherUser] = useState(false);
     const [lockedByUserName, setLockedByUserName] = useState('');
     const [lockAcquired, setLockAcquired] = useState(false);
-    const [checkingLock, setCheckingLock] = useState(true);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -364,21 +363,24 @@ export default function SupplierTxPage() {
         }
     }, []);
 
-    const acquireLock = useCallback(async (userToLock) => {
-        if (!supplierId || !userToLock) return false;
+    const acquireLock = useCallback(async () => {
+        if (!supplierId) return false;
         try {
-            const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
-            const s = res.data?.data?.[0];
-            if (!s) return false;
-            if (s.LockedByUser && s.LockedByUser !== userToLock.email) {
-                setIsLockedByOtherUser(true);
-                setLockedByUserName(s.LockedByUser);
-                return false;
+            const response = await retryWithBackoff(() => base44.functions.invoke('acquireSupplierLock', { supplierId }));
+
+            if (response.data?.success) {
+                setLockAcquired(true);
+                return true;
             }
-            await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: userToLock.email } }));
-            setLockAcquired(true);
-            return true;
-        } catch (e) {
+
+            setLockAcquired(false);
+            setIsLockedByOtherUser(true);
+            setLockedByUserName(response.data?.lockedByUser || 'another user');
+            alert(response.data?.message || 'Edit lock was not obtained. This supplier is now read-only.');
+            return false;
+        } catch (error) {
+            setLockAcquired(false);
+            alert('Edit lock was not obtained. Please reopen the supplier if you still need to edit it.');
             return false;
         }
     }, [supplierId, retryWithBackoff]);
@@ -393,42 +395,11 @@ export default function SupplierTxPage() {
         } catch (e) {}
     }, [supplierId, retryWithBackoff]);
 
-    // Initialize lock check
     useEffect(() => {
-        let userForCleanup = null;
-        let acquiredLockSuccessfully = false;
-
-        const initializeLock = async () => {
-            if (!supplierId) {
-                navigate(createPageUrl('Suppliers'));
-                return;
-            }
-
-            setCheckingLock(true);
-            try {
-                const user = await base44.auth.me();
-                setCurrentUser(user);
-                userForCleanup = user;
-
-                const acquired = await acquireLock(user);
-                if (acquired) {
-                    acquiredLockSuccessfully = true;
-                }
-            } catch (error) {
-                console.error('Error initializing lock:', error);
-            } finally {
-                setCheckingLock(false);
-            }
-        };
-
-        initializeLock();
-
-        return () => {
-            if (acquiredLockSuccessfully && supplierId && userForCleanup) {
-                releaseLock(userForCleanup);
-            }
-        };
-    }, [supplierId, navigate, acquireLock, releaseLock]);
+        if (!supplierId) {
+            navigate(createPageUrl('Suppliers'));
+        }
+    }, [supplierId, navigate]);
 
     // Release lock on window beforeunload event
     useEffect(() => {
@@ -452,19 +423,26 @@ export default function SupplierTxPage() {
     }, [hasUnsavedChanges, supplierId, currentUser, releaseLock]);
 
     const loadData = useCallback(async () => {
-        if (!supplierId || !lockAcquired) {
+        if (!supplierId) {
             return;
         }
 
         setLoading(true);
         try {
-            const response = await base44.functions.invoke('getSupplierTransactions', {
-                supplierId,
-                dateRange: {
-                    from: dateRange.from.toISOString(),
-                    to: dateRange.to.toISOString()
-                }
-            });
+            const [user, response] = await Promise.all([
+                currentUser ? Promise.resolve(currentUser) : base44.auth.me(),
+                base44.functions.invoke('getSupplierTransactions', {
+                    supplierId,
+                    dateRange: {
+                        from: dateRange.from.toISOString(),
+                        to: dateRange.to.toISOString()
+                    }
+                })
+            ]);
+
+            if (!currentUser) {
+                setCurrentUser(user);
+            }
 
             if (!response.data.success) {
                 throw new Error(response.data.error || 'Failed to fetch supplier transactions');
@@ -481,6 +459,16 @@ export default function SupplierTxPage() {
                 allConceptualInvoices: allInvoicesData
             } = response.data.data;
 
+            if (supplierData?.LockedByUser && supplierData.LockedByUser !== user.email) {
+                setSupplier(supplierData);
+                setIsLockedByOtherUser(true);
+                setLockedByUserName(supplierData.LockedByUser);
+                setLockAcquired(false);
+                return;
+            }
+
+            setIsLockedByOtherUser(false);
+            setLockedByUserName('');
             setSupplier(supplierData);
             setChartOfAccounts(chartOfAccountsData);
             setPayments(paymentsData.sort((a,b) => new Date(b.payment_date) - new Date(a.payment_date))); // Sort payments by date descending
@@ -537,7 +525,13 @@ export default function SupplierTxPage() {
             setAllInvoiceLines(roundedAllLines);
             setModifiedLineIds(new Set());
             setDeletedLineIds(new Set());
+            setLockAcquired(supplierData?.LockedByUser === user.email);
 
+            if (!supplierData?.LockedByUser) {
+                setTimeout(() => {
+                    acquireLock();
+                }, 0);
+            }
         } catch (error) {
             console.error('Error loading supplier data:', error);
             if (error.response?.status === 429) {
@@ -549,15 +543,15 @@ export default function SupplierTxPage() {
             setLoading(false);
             setHasUnsavedChanges(false);
         }
-    }, [supplierId, dateRange, ensureEmptyLine, lockAcquired]);
+    }, [supplierId, dateRange, ensureEmptyLine, currentUser, acquireLock]);
 
     useEffect(() => {
-        if (!lockAcquired || isLockedByOtherUser || !supplierId) {
+        if (!supplierId) {
             return;
         }
 
         loadData();
-    }, [lockAcquired, isLockedByOtherUser, supplierId, dateRange, loadData]);
+    }, [supplierId, dateRange, loadData]);
 
     const handlePendingDaysBackChange = (days) => {
         const numDays = parseInt(days, 10);
@@ -1366,17 +1360,6 @@ export default function SupplierTxPage() {
     const handleScrollToBottom = () => {
         window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
     };
-
-    if (checkingLock) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="text-lg font-semibold">Checking supplier availability.....</div>
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mt-4"></div>
-                </div>
-            </div>
-        );
-    }
 
     if (isLockedByOtherUser) {
         return (
