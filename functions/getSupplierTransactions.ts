@@ -1,202 +1,119 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const getMountainDateString = (value) => {
+    if (!value) return null;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Edmonton',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+
+    const year = parts.find((part) => part.type === 'year')?.value;
+    const month = parts.find((part) => part.type === 'month')?.value;
+    const day = parts.find((part) => part.type === 'day')?.value;
+
+    return year && month && day ? `${year}-${month}-${day}` : null;
+};
 
 Deno.serve(async (req) => {
     console.log('--- getSupplierTransactions: Function invoked ---');
-    
+
     try {
         const base44 = createClientFromRequest(req);
-        
-        // Authenticate the user
+
         const user = await base44.auth.me();
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Parse request body
         const { supplierId, dateRange } = await req.json();
-        
+
         if (!supplierId) {
             return Response.json({ error: 'supplierId is required' }, { status: 400 });
         }
 
+        const fromDate = getMountainDateString(dateRange?.from);
+        const toDate = getMountainDateString(dateRange?.to);
+
         console.log(`Fetching data for supplier: ${supplierId}`);
-        console.log(`Date range: ${dateRange?.from || 'N/A'} to ${dateRange?.to || 'N/A'}`);
+        console.log(`Date range: ${fromDate || 'N/A'} to ${toDate || 'N/A'}`);
 
-        // Convert dateRange strings to Date objects if provided
-        let fromDate = null;
-        let toDate = null;
-        if (dateRange?.from && dateRange?.to) {
-            fromDate = new Date(dateRange.from);
-            toDate = new Date(dateRange.to);
-            toDate.setHours(23, 59, 59, 999); // End of day
-        }
-
-        const supabaseUrl = Deno.env.get("Supabase_project_url");
-        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
 
         if (!supabaseUrl || !supabaseSecret) {
             return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
         }
 
-        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
         const supabase = createClient(supabaseUrl, supabaseSecret, {
             auth: { persistSession: false }
         });
 
-        // Fetch supplier data using Supabase directly
         console.log('Fetching supplier...');
-        const { data: supplierDataArr, error: supplierErr } = await supabase.from('Supplier').select('*').eq('id', supplierId);
+        const { data: supplierDataArr, error: supplierErr } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', supplierId)
+            .limit(1);
+
         const supplierData = supplierDataArr?.[0];
 
         if (supplierErr || !supplierData) {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
-        // Fetch chart of accounts
         console.log('Fetching chart of accounts...');
         const chartOfAccountsData = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
 
-        // Fetch all supplier invoice lines for this supplier
-        console.log('Fetching supplier invoice lines...');
-        const { data: allLinesArr, error: linesErr } = await supabase.from('SupplierInvoiceLine').select('*').eq('supplier_id', supplierId);
-        const allLines = allLinesArr || [];
-
-        // Fetch all payments for this supplier (for Payment History tab)
         console.log('Fetching supplier payments...');
         const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
 
-        console.log(`Total lines fetched: ${allLines.length}`);
-        console.log(`Total payments fetched: ${paymentsData.length}`);
-
-        // Group lines by (supplier_id, invoice_number, invoice_date) to create conceptual invoices
-        const invoiceMap = {};
-        
-        allLines.forEach(line => {
-            const key = `${line.supplier_id}_${line.invoice_number}_${line.invoice_date}`;
-            
-            if (!invoiceMap[key]) {
-                invoiceMap[key] = {
-                    supplier_id: line.supplier_id,
-                    invoice_number: line.invoice_number,
-                    invoice_date: line.invoice_date,
-                    lines: [],
-                    subtotal: 0,
-                    tax_amount: 0,
-                    total_amount: 0,
-                    amount_paid: 0,
-                    balance_due: 0,
-                    line_count: 0
-                };
-            }
-            
-            // Add line to invoice
-            invoiceMap[key].lines.push(line);
-            invoiceMap[key].line_count++;
-            
-            // Calculate totals
-            const linePurchaseAmount = parseFloat(line.purchase_amount || 0);
-            const lineGstAmount = parseFloat(line.gst_amount || 0);
-            const linePaidAmount = parseFloat(line.paid_amount || 0);
-            
-            invoiceMap[key].subtotal += linePurchaseAmount;
-            invoiceMap[key].tax_amount += lineGstAmount;
-            invoiceMap[key].total_amount += linePurchaseAmount + lineGstAmount;
-            
-            // NEW: Calculate amount_paid directly from SupplierInvoiceLine.paid_amount
-            invoiceMap[key].amount_paid += linePaidAmount;
+        console.log('Invoking optimized supplier transactions RPC...');
+        const { data: aggregatedData, error: rpcError } = await supabase.rpc('get_supplier_transactions_optimized', {
+            p_supplier_id: supplierId,
+            p_from_date: fromDate,
+            p_to_date: toDate
         });
 
-        // Convert to array
-        let conceptualInvoices = Object.values(invoiceMap);
-
-        console.log(`Created ${conceptualInvoices.length} conceptual invoices from lines`);
-
-        // Calculate balance_due for each invoice
-        conceptualInvoices.forEach(invoice => {
-            invoice.balance_due = invoice.total_amount - invoice.amount_paid;
-            
-            // Round all monetary values to 2 decimal places
-            invoice.subtotal = Math.round(invoice.subtotal * 100) / 100;
-            invoice.tax_amount = Math.round(invoice.tax_amount * 100) / 100;
-            invoice.total_amount = Math.round(invoice.total_amount * 100) / 100;
-            invoice.amount_paid = Math.round(invoice.amount_paid * 100) / 100;
-            invoice.balance_due = Math.round(invoice.balance_due * 100) / 100;
-        });
-
-        // Calculate total current balance (sum of all balance_due)
-        let currentBalance = conceptualInvoices.reduce((sum, inv) => sum + inv.balance_due, 0);
-        currentBalance = Math.round(currentBalance * 100) / 100;
-
-        // Filter conceptual invoices by date range if provided
-        let invoicesInDateRange = conceptualInvoices;
-        if (fromDate && toDate) {
-            invoicesInDateRange = conceptualInvoices.filter(invoice => {
-                const invoiceDate = new Date(invoice.invoice_date);
-                return invoiceDate >= fromDate && invoiceDate <= toDate;
-            });
+        if (rpcError) {
+            console.error('RPC Error:', rpcError);
+            return Response.json({
+                success: false,
+                error: rpcError.message || 'Failed to fetch supplier transactions'
+            }, { status: 500 });
         }
 
-        console.log(`Invoices in date range: ${invoicesInDateRange.length}`);
-
-        // Extract all lines from invoices in date range for the invoice lines tab
-        const linesInDateRange = invoicesInDateRange.flatMap(inv => 
-            inv.lines.map(line => {
-                const pAmt = parseFloat(line.purchase_amount) || 0;
-                const gAmt = parseFloat(line.gst_amount) || 0;
-                return {
-                    ...line,
-                    invoice_number: inv.invoice_number,
-                    invoice_date: inv.invoice_date,
-                    charge: pAmt,
-                    gst: gAmt,
-                    line_total: pAmt + gAmt
-                };
-            })
-        );
-
-        // For payment history, we need ALL lines (enriched with charge, gst, line_total)
-        const allLinesEnriched = allLines.map(line => {
-            const pAmt = parseFloat(line.purchase_amount) || 0;
-            const gAmt = parseFloat(line.gst_amount) || 0;
-            return {
-                ...line,
-                charge: pAmt,
-                gst: gAmt,
-                line_total: pAmt + gAmt
-            };
-        });
-
-        // Calculate date range total
-        const dateRangeTotal = linesInDateRange.reduce((sum, line) => 
-            sum + parseFloat(line.line_total || 0), 0
-        );
-
+        console.log(`Total payments fetched: ${paymentsData.length}`);
         console.log('Data aggregation complete. Returning response...');
 
-        // Return all aggregated data
         return Response.json({
             success: true,
             data: {
                 supplier: supplierData,
                 chartOfAccounts: chartOfAccountsData,
                 payments: paymentsData,
-                conceptualInvoices: invoicesInDateRange, // Filtered by date range
-                allConceptualInvoices: conceptualInvoices, // All invoices for balance calculation
-                invoiceLines: linesInDateRange, // Lines for the invoice lines tab (filtered by date)
-                allInvoiceLines: allLinesEnriched, // All lines for payment history (not filtered by date)
-                currentBalance: currentBalance,
-                dateRangeTotal: Math.round(dateRangeTotal * 100) / 100
+                conceptualInvoices: aggregatedData?.conceptualInvoices || [],
+                allConceptualInvoices: aggregatedData?.allConceptualInvoices || [],
+                invoiceLines: aggregatedData?.invoiceLines || [],
+                allInvoiceLines: aggregatedData?.allInvoiceLines || [],
+                currentBalance: Number(aggregatedData?.currentBalance || 0),
+                dateRangeTotal: Number(aggregatedData?.dateRangeTotal || 0)
             }
         });
-
     } catch (error) {
         console.error('--- Error in getSupplierTransactions ---');
         console.error('Error Message:', error.message);
         console.error('Error Stack:', error.stack);
-        
-        return Response.json({ 
+
+        return Response.json({
             success: false,
-            error: error.message || 'Failed to fetch supplier transactions' 
+            error: error.message || 'Failed to fetch supplier transactions'
         }, { status: 500 });
     }
 });
