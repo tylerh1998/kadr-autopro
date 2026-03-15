@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SupplierPayment, Supplier, BankAccount } from '@/entities/all';
+import { SupplierPayment, BankAccount } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -73,11 +74,16 @@ export default function IssuedChequesTable() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [paymentsData, suppliersData, bankAccountsData] = await Promise.all([
+      const [paymentsData, suppliersResponse, bankAccountsData] = await Promise.all([
         SupplierPayment.filter({ payment_method: 'Cheque' }),
-        Supplier.list(),
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier'
+        }),
         BankAccount.list()
       ]);
+
+      const suppliersData = suppliersResponse.data?.data || [];
 
       // Sort by cheque number (numeric if possible, otherwise alphabetic)
       const sortedPayments = paymentsData.sort((a, b) => {
