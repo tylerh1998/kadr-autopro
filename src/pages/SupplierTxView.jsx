@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ArrowLeft, Calendar as CalendarIcon, Search, ChevronDown, ChevronRight, Loader2, FileText } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import { createPageUrl } from '@/utils';
-import { Badge } from "@/components/ui/badge";
+import { toMountainTime } from '../components/utils/mountainTimeUtils';
 
 const GST_RATE = 0.05; // 5% GST
 
@@ -166,6 +166,47 @@ export default function SupplierTxViewPage() {
         setDaysBack(pendingDaysBack);
     };
 
+    const handleQuickRange = (type) => {
+        const mountainNow = toMountainTime(new Date().toISOString());
+        const currentYear = mountainNow.getFullYear();
+        const currentMonth = mountainNow.getMonth();
+
+        let from, to;
+
+        switch (type) {
+            case 'thisMonth':
+                from = new Date(currentYear, currentMonth, 1);
+                to = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'lastMonth':
+                from = new Date(currentYear, currentMonth - 1, 1);
+                to = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+                break;
+            case 'thisQuarter': {
+                const quarterMonth = Math.floor(currentMonth / 3) * 3;
+                from = new Date(currentYear, quarterMonth, 1);
+                to = new Date(currentYear, quarterMonth + 3, 0, 23, 59, 59, 999);
+                break;
+            }
+            case 'thisYear':
+                from = new Date(currentYear, 0, 1);
+                to = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+                break;
+            case 'lastYear':
+                from = new Date(currentYear - 1, 0, 1);
+                to = new Date(currentYear - 1, 11, 31, 23, 59, 59, 999);
+                break;
+            default:
+                return;
+        }
+
+        from.setHours(0, 0, 0, 0);
+        setPendingDateRange({ from, to });
+        setPendingDaysBack('');
+        setDateRange({ from, to });
+        setDaysBack('');
+    };
+
     const handleBackNavigation = useCallback(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const fromPage = urlParams.get('from');
@@ -181,6 +222,10 @@ export default function SupplierTxViewPage() {
         const targetUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeReference)}`;
         window.location.href = targetUrl;
     }, []);
+
+    const dateRangeTotal = useMemo(() => {
+        return conceptualInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.balance_due) || 0), 0);
+    }, [conceptualInvoices]);
 
     if (loading) {
         return (
@@ -204,64 +249,87 @@ export default function SupplierTxViewPage() {
                             <ArrowLeft className="w-4 h-4 mr-2" />
                             Back
                         </Button>
-                        <h1 className="text-2xl font-bold text-slate-900">{supplier?.name} - Transactions (View Only)</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
                     </div>
                 </div>
 
-                <div className="mb-4 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="daysBackInput">Days Back:</Label>
-                            <Input
-                                id="daysBackInput"
-                                type="number"
-                                value={pendingDaysBack}
-                                onChange={(e) => handlePendingDaysBackChange(e.target.value)}
-                                className="w-20"
-                            />
-                        </div>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    className="w-64 justify-start text-left font-normal"
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {pendingDateRange.from && pendingDateRange.to ?
-                                        `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
-                                        "Select a date range"
-                                    }
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
-                                <Calendar
-                                    mode="range"
-                                    selected={pendingDateRange}
-                                    onSelect={handlePendingDateRangeChange}
-                                    numberOfMonths={2}
+                <div className="mb-4 flex justify-between items-start">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="daysBackInput">Days Back:</Label>
+                                <Input
+                                    id="daysBackInput"
+                                    type="number"
+                                    value={pendingDaysBack}
+                                    onChange={(e) => handlePendingDaysBackChange(e.target.value)}
+                                    className="w-20 bg-white"
                                 />
-                            </PopoverContent>
-                        </Popover>
-                        <Button
-                            onClick={handleApplyDateRange}
-                            disabled={loading}
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            Apply
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <Search className="w-4 h-4 text-slate-400" />
-                            <Input
-                                placeholder="Search invoice #, description, or amount..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-64"
-                            />
+                            </div>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="w-64 justify-start text-left font-normal"
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {pendingDateRange.from && pendingDateRange.to ?
+                                            `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` :
+                                            "Select a date range"
+                                        }
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end">
+                                    <Calendar
+                                        mode="range"
+                                        selected={pendingDateRange}
+                                        onSelect={handlePendingDateRangeChange}
+                                        numberOfMonths={2}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <Button
+                                onClick={handleApplyDateRange}
+                                disabled={loading}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                Apply
+                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Search className="w-4 h-4 text-slate-400" />
+                                <Input
+                                    placeholder="Search invoice #, description, or amount..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-96 bg-white"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-4 text-sm px-1">
+                            <button onClick={() => handleQuickRange('thisMonth')} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                This Month
+                            </button>
+                            <button onClick={() => handleQuickRange('lastMonth')} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                Last Month
+                            </button>
+                            <button onClick={() => handleQuickRange('thisQuarter')} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                This Quarter
+                            </button>
+                            <button onClick={() => handleQuickRange('thisYear')} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                This Year
+                            </button>
+                            <button onClick={() => handleQuickRange('lastYear')} className="text-blue-600 hover:text-blue-800 hover:underline">
+                                Last Year
+                            </button>
                         </div>
                     </div>
                     <Card className="bg-white shadow-sm">
                         <CardContent className="p-4">
                             <div className="flex gap-6">
+                                <div className="text-right">
+                                    <p className="text-sm text-slate-500">Date Range Total</p>
+                                    <p className="text-lg font-bold">${dateRangeTotal.toFixed(2)}</p>
+                                </div>
                                 <div className="text-right">
                                     <p className="text-sm text-slate-500">Total Balance Owing</p>
                                     <p className="text-lg font-bold text-red-600">${currentBalance.toFixed(2)}</p>
