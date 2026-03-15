@@ -21,8 +21,11 @@ export default function LinkSupplierModal({ open, onClose, onSelect }) {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const data = await base44.entities.Supplier.list();
-      setSuppliers(data || []);
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'Supplier'
+      });
+      setSuppliers(response.data?.data || []);
     } catch (error) {
       console.error("Failed to load suppliers:", error);
     } finally {
