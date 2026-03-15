@@ -1030,7 +1030,7 @@ export default function SupplierTxPage() {
 
         } catch (error) {
             console.error('Error saving changes:', error);
-            alert(`Failed to save changes: ${error.message}`);
+            alert(`Failed to save changes: ${error.response?.data?.error || error.message}`);
             return false;
         } finally {
             setIsSaving(false);
