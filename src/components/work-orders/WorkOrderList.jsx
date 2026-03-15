@@ -168,9 +168,8 @@ function WorkOrderList({
     );
   }
 
-  // Check preference: if wo_cards is explicitly false, show table. 
-  // If undefined or true, show cards.
-  if (currentUser?.wo_cards === false) {
+  // Default to table immediately; only explicit true shows cards.
+  if (currentUser?.wo_cards !== true) {
     return (
       <WorkOrderTable 
         workOrders={workOrders}
