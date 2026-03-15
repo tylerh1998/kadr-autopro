@@ -541,7 +541,7 @@ export default function SupplierTxPage() {
             setLoading(false);
             setHasUnsavedChanges(false);
         }
-    }, [supplierId, dateRange, ensureEmptyLine, currentUser, acquireLock]);
+    }, [supplierId, dateRange, ensureEmptyLine, acquireLock]);
 
     useEffect(() => {
         if (!supplierId) {
