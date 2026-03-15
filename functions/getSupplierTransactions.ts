@@ -68,18 +68,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
-        console.log('Fetching chart of accounts...');
-        const chartOfAccountsData = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
-
-        console.log('Fetching supplier payments...');
-        const paymentsData = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
-
-        console.log('Invoking optimized supplier transactions RPC...');
-        const { data: aggregatedData, error: rpcError } = await supabase.rpc('get_supplier_transactions_optimized', {
-            p_supplier_id: supplierId,
-            p_from_date: fromDate,
-            p_to_date: toDate
-        });
+        console.log('Fetching chart of accounts, supplier payments, and optimized supplier transactions in parallel...');
+        const [chartOfAccountsData, paymentsData, { data: aggregatedData, error: rpcError }] = await Promise.all([
+            base44.asServiceRole.entities.ChartOfAccount.list('', 1000),
+            base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId }),
+            supabase.rpc('get_supplier_transactions_optimized', {
+                p_supplier_id: supplierId,
+                p_from_date: fromDate,
+                p_to_date: toDate
+            })
+        ]);
 
         if (rpcError) {
             console.error('RPC Error:', rpcError);
