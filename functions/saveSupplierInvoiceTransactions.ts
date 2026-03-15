@@ -189,7 +189,11 @@ Deno.serve(async (req) => {
         }
 
         if (deletedLinesForGL.length > 0) {
-            await createGLTransactions(deletedLinesForGL, 'delete');
+            try {
+                await createGLTransactions(deletedLinesForGL, 'delete');
+            } catch (error) {
+                throw new Error(`GL creation failed during deletion stage: ${error.message || 'Unknown error'}`);
+            }
         }
 
         // 2. Process Additions
@@ -222,7 +226,11 @@ Deno.serve(async (req) => {
         }
 
         if (createdLinesForGL.length > 0) {
-            await createGLTransactions(createdLinesForGL, 'create');
+            try {
+                await createGLTransactions(createdLinesForGL, 'create');
+            } catch (error) {
+                throw new Error(`GL creation failed during addition stage: ${error.message || 'Unknown error'}`);
+            }
         }
 
         // 3. Process Modifications
@@ -266,64 +274,72 @@ Deno.serve(async (req) => {
         }
 
         if (updatedLinesForGL.length > 0) {
-            await createGLTransactions(updatedLinesForGL, 'update', oldValuesForGL);
+            try {
+                await createGLTransactions(updatedLinesForGL, 'update', oldValuesForGL);
+            } catch (error) {
+                throw new Error(`GL creation failed during modification stage: ${error.message || 'Unknown error'}`);
+            }
         }
 
         // 4. Payment Reallocation (if needed)
         if (anyAmountChanged) {
-            console.log("Invoice line amounts changed. Reallocating payments.");
-            const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
+            try {
+                console.log("Invoice line amounts changed. Reallocating payments.");
+                const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
 
-            for (const payment of (payments || [])) {
-                let appliedInvoices = [];
-                try {
-                    const parsed = JSON.parse(payment.invoice_number || '[]');
-                    if (Array.isArray(parsed)) {
-                        appliedInvoices = parsed;
-                    } else if (payment.invoice_number && typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
-                        appliedInvoices = [{
-                            invoice_number: payment.invoice_number,
-                            amount_applied: payment.amount
-                        }];
+                for (const payment of (payments || [])) {
+                    let appliedInvoices = [];
+                    try {
+                        const parsed = JSON.parse(payment.invoice_number || '[]');
+                        if (Array.isArray(parsed)) {
+                            appliedInvoices = parsed;
+                        } else if (payment.invoice_number && typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
+                            appliedInvoices = [{
+                                invoice_number: payment.invoice_number,
+                                amount_applied: payment.amount
+                            }];
+                        }
+                    } catch (error) {
+                        if (payment.invoice_number && typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
+                            appliedInvoices = [{
+                                invoice_number: payment.invoice_number,
+                                amount_applied: payment.amount
+                            }];
+                        }
                     }
-                } catch (error) {
-                    if (payment.invoice_number && typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
-                        appliedInvoices = [{
-                            invoice_number: payment.invoice_number,
-                            amount_applied: payment.amount
-                        }];
-                    }
-                }
 
-                for (const appliedDetail of appliedInvoices) {
-                    if (appliedDetail.invoice_number === "On Account") continue;
+                    for (const appliedDetail of appliedInvoices) {
+                        if (appliedDetail.invoice_number === "On Account") continue;
 
-                    // Fetch latest lines for this invoice
-                    const { data: invoiceLines } = await supabase.from('SupplierInvoiceLine')
-                        .select('*')
-                        .eq('supplier_id', supplierId)
-                        .eq('invoice_number', appliedDetail.invoice_number);
+                        // Fetch latest lines for this invoice
+                        const { data: invoiceLines } = await supabase.from('SupplierInvoiceLine')
+                            .select('*')
+                            .eq('supplier_id', supplierId)
+                            .eq('invoice_number', appliedDetail.invoice_number);
 
-                    if (invoiceLines && invoiceLines.length > 0) {
-                        const invoiceTotal = invoiceLines.reduce((sum, l) => {
-                            const lineTotal = (l.purchase_amount || 0) + (l.gst_amount || 0);
-                            return sum + lineTotal;
-                        }, 0);
+                        if (invoiceLines && invoiceLines.length > 0) {
+                            const invoiceTotal = invoiceLines.reduce((sum, l) => {
+                                const lineTotal = (l.purchase_amount || 0) + (l.gst_amount || 0);
+                                return sum + lineTotal;
+                            }, 0);
 
-                        for (const l of invoiceLines) {
-                            const lineTotal = (l.purchase_amount || 0) + (l.gst_amount || 0);
-                            const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
-                            const newPaidAmount = appliedDetail.amount_applied * proportion;
+                            for (const l of invoiceLines) {
+                                const lineTotal = (l.purchase_amount || 0) + (l.gst_amount || 0);
+                                const proportion = invoiceTotal !== 0 ? lineTotal / invoiceTotal : 0;
+                                const newPaidAmount = appliedDetail.amount_applied * proportion;
 
-                            await supabase.from('SupplierInvoiceLine')
-                                .update({
-                                    updated_date: new Date().toISOString(),
-                                    paid_amount: Math.round(newPaidAmount * 100) / 100
-                                })
-                                .eq('id', l.id);
+                                await supabase.from('SupplierInvoiceLine')
+                                    .update({
+                                        updated_date: new Date().toISOString(),
+                                        paid_amount: Math.round(newPaidAmount * 100) / 100
+                                    })
+                                    .eq('id', l.id);
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                throw new Error(`Payment reallocation failed: ${error.message || 'Unknown error'}`);
             }
         }
 
