@@ -388,7 +388,6 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 5. Delete the return item from InventoryReturn
       await InventoryReturn.delete(returnItem.id);
 
-      alert("Credit/Refund information has been recorded and logged.");
       setLoading(false);
       onUpdate();
     } catch (error) {
