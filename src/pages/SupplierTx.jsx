@@ -178,7 +178,7 @@ export default function SupplierTxPage() {
     const [payments, setPayments] = useState([]); // Raw payments array
     const [chartOfAccounts, setChartOfAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false); // New state for saving status
+    const [isSaving, setIsSaving] = useState(false), [isNavigatingBack, setIsNavigatingBack] = useState(false); // New state for saving status
     const [daysBack, setDaysBack] = useState(30);
     const [dateRange, setDateRange] = useState({ from: subDays(new Date(), 30), to: new Date() });
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -1270,48 +1270,34 @@ export default function SupplierTxPage() {
     };
 
     const handleBackNavigation = useCallback(async () => {
+        if (isNavigatingBack) return;
+        setIsNavigatingBack(true);
         const urlParams = new URLSearchParams(window.location.search);
         const fromPage = urlParams.get('from');
         const targetPage = fromPage === 'apsummary' ? 'APSummary' : 'Suppliers';
-        
+        const leavePage = async () => {
+            if (lockAcquired && supplierId && currentUser) await releaseLock(currentUser);
+            navigate(createPageUrl(targetPage));
+        };
         if (hasUnsavedChanges) {
             const message = `You have unsaved changes. Would you like to save them before returning to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}?\n\n` +
                            `Click "OK" to save changes and return to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}.\n` +
                            'Click "Cancel" to stay on this page, or click "Cancel" again to discard.';
-
             const userWantsToSave = window.confirm(message);
-
             if (userWantsToSave) {
-                // Perform the save operation
                 const saveSuccessful = await handleSaveAll();
-                // Check if saving was successful (no errors prevented it)
-                if (saveSuccessful) { 
-                    if (lockAcquired && supplierId && currentUser) {
-                        await releaseLock(currentUser);
-                    }
-                    navigate(createPageUrl(targetPage));
-                }
+                if (saveSuccessful) return await leavePage();
             } else {
                 const discardMessage = `Do you want to discard your changes and return to ${fromPage === 'apsummary' ? 'AP Summary' : 'Suppliers'}?\n\n` +
                                       'Click "OK" to discard changes and leave.\n' +
                                       'Click "Cancel" to stay on this page.';
-
-                const userWantsToDiscard = window.confirm(discardMessage);
-
-                if (userWantsToDiscard) {
-                    if (lockAcquired && supplierId && currentUser) {
-                        await releaseLock(currentUser);
-                    }
-                    navigate(createPageUrl(targetPage));
-                }
+                if (window.confirm(discardMessage)) return await leavePage();
             }
         } else {
-            if (lockAcquired && supplierId && currentUser) {
-                await releaseLock(currentUser);
-            }
-            navigate(createPageUrl(targetPage));
+            return await leavePage();
         }
-    }, [hasUnsavedChanges, supplierId, lockAcquired, currentUser, releaseLock, navigate, handleSaveAll]);
+        setIsNavigatingBack(false);
+    }, [hasUnsavedChanges, supplierId, lockAcquired, currentUser, releaseLock, navigate, handleSaveAll, isNavigatingBack]);
 
     const handleEditSupplier = () => {
         setShowEditSupplierModal(true);
@@ -1547,7 +1533,7 @@ export default function SupplierTxPage() {
                         </div>
                     </div>
 
-                    <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button><div className="min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm"><h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></div></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={handleEditSupplier} disabled={isLockedByOtherUser || !lockAcquired} variant="outline" className="bg-white border-slate-300 hover:bg-slate-50"><Edit className="w-4 h-4 mr-2" />Edit Supplier</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\n' + 'Click "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else { setShowPaymentModal(true); } } else { setShowPaymentModal(true); } }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
+                    <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} disabled={isNavigatingBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">{isNavigatingBack ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-2" />}Back</Button><div className="min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm"><h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></div></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={handleEditSupplier} disabled={isLockedByOtherUser || !lockAcquired} variant="outline" className="bg-white border-slate-300 hover:bg-slate-50"><Edit className="w-4 h-4 mr-2" />Edit Supplier</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\n' + 'Click "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else { setShowPaymentModal(true); } } else { setShowPaymentModal(true); } }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
 
                     <div className="mb-4 flex justify-between items-start">
                         <div className="flex flex-col gap-2">
