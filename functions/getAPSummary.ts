@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
         const {
             asOfDate = null,
             startDate = '1900-01-01',
-            endDate = null,
+            endDate = asOfDate,
             supplierIdFilter = null,
         } = payload;
 
