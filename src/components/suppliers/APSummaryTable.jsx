@@ -457,7 +457,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                             </div>
                           </td>
                           <td className="p-3 text-right">${supplier.not_due.toFixed(2)}</td>
-                          <td className="p-3 text-right">${supplier.balance_0_30.toFixed(2)}</td>
+                          <td className="p-3 text-right font-bold">${supplier.balance_0_30.toFixed(2)}</td>
                           <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
                           <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
                           <td className="p-3 text-right font-semibold text-blue-700">${supplier.total_balance}</td>
