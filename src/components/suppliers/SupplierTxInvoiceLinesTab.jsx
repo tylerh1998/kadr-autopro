@@ -74,7 +74,7 @@ export default function SupplierTxInvoiceLinesTab({
           {filteredInvoiceLines.map((line, index) => {
             const locked = isLineLocked(line);
             const isDisabled = isLockedByOtherUser || !lockAcquired || locked;
-            const isEditDisabled = isLockedByOtherUser || !lockAcquired || line.inventory_credit === true || line.paid_amount !== null && line.paid_amount !== undefined;
+            const isEditDisabled = isLockedByOtherUser || !lockAcquired || line.inventory_credit === true || locked;
             return (
               <ContextMenu key={line.id}>
                 <ContextMenuTrigger asChild>
