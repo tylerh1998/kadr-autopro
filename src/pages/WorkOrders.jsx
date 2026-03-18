@@ -238,7 +238,8 @@ export default function WorkOrdersPage() {
       
       // Fine-grained update: only update if data has changed
       setWorkOrders(prev => {
-        if (JSON.stringify(prev.map(w => w.id + w.updated_date)) !== JSON.stringify(workOrdersData.map(w => w.id + w.updated_date))) {
+        const getSignature = (rows) => JSON.stringify(rows.map(w => [w.id, w.last_updated || '', w.locked_timestamp || '', w.status || '', w.stage || '', w.total_amount || 0]));
+        if (getSignature(prev) !== getSignature(workOrdersData)) {
           return workOrdersData;
         }
         return prev;
