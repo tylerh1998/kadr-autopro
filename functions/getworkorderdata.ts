@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
     }
 
-    const { ro_number } = await req.json().catch(() => ({}));
+    const { ro_number, lockAction, lockedByUser } = await req.json().catch(() => ({}));
 
     if (!ro_number) {
       return Response.json({ error: 'ro_number is required' }, { status: 400 });
@@ -41,6 +41,30 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseSecret, {
       auth: { persistSession: false }
     });
+
+    if (lockAction) {
+      if (!['apply', 'release'].includes(lockAction)) {
+        return Response.json({ error: 'lockAction must be apply or release' }, { status: 400 });
+      }
+
+      if (lockAction === 'apply' && !lockedByUser) {
+        return Response.json({ error: 'lockedByUser is required when applying a lock' }, { status: 400 });
+      }
+
+      const lockResult = await supabase.rpc('set_workorder_lock', {
+        p_ro_number: ro_number,
+        p_action: lockAction,
+        p_locked_by_user: lockAction === 'apply' ? lockedByUser : null
+      });
+
+      if (lockResult.error) {
+        console.error('getworkorderdata lock rpc error:', lockResult.error);
+        return Response.json({ error: 'Failed to update work order lock', details: lockResult.error.message }, { status: 500 });
+      }
+
+      const lockedRow = Array.isArray(lockResult.data) ? lockResult.data[0] : lockResult.data;
+      return Response.json({ data: normalizeWorkOrder(lockedRow) || null });
+    }
 
     const result = await supabase
       .from('WorkOrder')
