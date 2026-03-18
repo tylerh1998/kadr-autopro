@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { WorkOrder } from "@/entities/WorkOrder";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
@@ -19,6 +18,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
 import { getworkorderlist } from "@/functions/getworkorderlist";
+import { saveworkorderdata } from "@/functions/saveworkorderdata";
+import { createworkorderdata } from "@/functions/createworkorderdata";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -226,18 +227,12 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const [workOrdersResponse, legacyWorkOrdersData, customersData, vehiclesData] = await Promise.all([
+      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
         getworkorderlist({}),
-        WorkOrder.list('-created_date'),
         Customer.list(),
         Vehicle.list()
       ]);
-      const supabaseWorkOrders = workOrdersResponse?.data?.data || [];
-      const supabaseRoNumbers = new Set(supabaseWorkOrders.map(workOrder => workOrder.ro_number).filter(Boolean));
-      const workOrdersData = [
-        ...supabaseWorkOrders,
-        ...legacyWorkOrdersData.filter(workOrder => !supabaseRoNumbers.has(workOrder.ro_number))
-      ];
+      const workOrdersData = workOrdersResponse?.data?.data || [];
       
       setWorkOrders(workOrdersData);
       
@@ -633,8 +628,8 @@ export default function WorkOrdersPage() {
 
   const handleSubmit = async (workOrderData) => {
     try {
-      if (editingWorkOrder && editingWorkOrder.id) {
-        await WorkOrder.update(editingWorkOrder.id, workOrderData);
+      if (editingWorkOrder && editingWorkOrder.ro_number) {
+        await saveworkorderdata({ ro_number: editingWorkOrder.ro_number, data: workOrderData });
       } else {
         console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
         return;
@@ -652,7 +647,8 @@ export default function WorkOrdersPage() {
     try {
       console.log('Creating work order with data:', workOrderData);
       
-      const createdWorkOrder = await WorkOrder.create(workOrderData);
+      const createResponse = await createworkorderdata({ data: workOrderData });
+      const createdWorkOrder = createResponse?.data?.data;
       console.log('Created work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
@@ -699,7 +695,11 @@ export default function WorkOrdersPage() {
 
   const handleStatusUpdate = async (workOrderId, newStatus) => {
     try {
-      await WorkOrder.update(workOrderId, { status: newStatus });
+      const targetWorkOrder = workOrders.find(wo => wo.id === workOrderId);
+      if (!targetWorkOrder?.ro_number) {
+        throw new Error('Work order not found');
+      }
+      await saveworkorderdata({ ro_number: targetWorkOrder.ro_number, data: { status: newStatus } });
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -774,7 +774,8 @@ export default function WorkOrdersPage() {
       
       console.log('Creating counter sale work order with data:', newWorkOrder);
       
-      const createdWorkOrder = await WorkOrder.create(newWorkOrder);
+      const createResponse = await createworkorderdata({ data: newWorkOrder });
+      const createdWorkOrder = createResponse?.data?.data;
       console.log('Created counter sale work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
@@ -807,16 +808,16 @@ export default function WorkOrdersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const allWorkOrders = await WorkOrder.list();
+      const lockedWorkOrders = workOrders.filter(wo => wo.LockedByUser && wo.ro_number);
 
-      const updates = allWorkOrders.map(wo => {
-        if (wo.LockedByUser) {
-          return WorkOrder.update(wo.id, { LockedByUser: '' });
-        }
-        return Promise.resolve();
-      });
-
-      await Promise.all(updates);
+      await Promise.all(
+        lockedWorkOrders.map(wo =>
+          saveworkorderdata({
+            ro_number: wo.ro_number,
+            data: { LockedByUser: null, locked_timestamp: null }
+          })
+        )
+      );
 
       alert('All work order locks have been flushed.');
       loadData();
@@ -838,7 +839,7 @@ export default function WorkOrdersPage() {
     if (!voidTarget) return;
     
     try {
-      await WorkOrder.update(voidTarget.id, { stage: 'void' });
+      await saveworkorderdata({ ro_number: voidTarget.ro_number, data: { stage: 'void' } });
       loadData();
     } catch (error) {
       console.error('Error voiding work order:', error);
