@@ -170,13 +170,28 @@ Deno.serve(async (req) => {
       }
 
       if (updatesToProcess.length > 0) {
-        await processUpdatesInBatches(updatesToProcess, async (update) => {
-          const { error } = await supabase.from('SupplierInvoiceLine').update({
-            updated_date: new Date().toISOString(),
-            paid_amount: update.paid_amount
-          }).eq('id', update.id);
-          if (error) throw error;
-        }, 10); // increased batch size since supabase is faster
+        const updatedAt = new Date().toISOString();
+        const rpcUpdates = updatesToProcess.map((update) => ({
+          id: update.id,
+          paid_amount: update.paid_amount,
+          updated_date: updatedAt
+        }));
+
+        const { error: rpcError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
+          p_updates: rpcUpdates
+        });
+
+        if (rpcError) {
+          console.warn('apply_supplier_invoice_line_paid_updates RPC unavailable, falling back to direct SupplierInvoiceLine updates:', rpcError.message);
+
+          await processUpdatesInBatches(updatesToProcess, async (update) => {
+            const { error } = await supabase.from('SupplierInvoiceLine').update({
+              updated_date: updatedAt,
+              paid_amount: update.paid_amount
+            }).eq('id', update.id);
+            if (error) throw error;
+          }, 10);
+        }
       }
     }
 
