@@ -17,9 +17,6 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
-import { getworkorderlist } from "@/functions/getworkorderlist";
-import { saveworkorderdata } from "@/functions/saveworkorderdata";
-import { createworkorderdata } from "@/functions/createworkorderdata";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, SystemSettings } from '@/entities/all';
 import { Button } from '@/components/ui/button';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
@@ -46,7 +45,7 @@ export default function WorkOrderViewPage() {
     loading: workOrderLoading,
     error: workOrderError,
     refetch
-  } = useWorkOrder(roNumber, { useFunctionData: true, lockAction: 'none' });
+  } = useWorkOrder(roNumber, { lockAction: 'none' });
   const { inventory, employees, allEmployees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);
