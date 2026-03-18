@@ -22,14 +22,14 @@ import {
 import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
 const AVAILABLE_ENTITIES = [
-  "User", "OtherChargeList", "Customer", "Vehicle", "WorkOrder", "InventoryItem", "Employee", 
-  "Invoice", "TechTimeLog", "SalesClass", "InventoryReturn", "ReturnReason", "Appointment", 
-  "Supplier", "SupplierInvoiceLine", "SupplierPayment", "ChartOfAccount", "GLTransaction", 
-  "BankAccount", "BankTransaction", "CustomerARAdjustment", "CustomerPayments", "Approvals", 
-  "InventoryTxs", "InventoryLocation", "TagAlong", "FiscalPeriod", "LinesOfCredit", 
-  "LinesOfCreditTransaction", "SentEmailLog", "Statement", "PayrollTransaction", "SystemSettings", 
-  "CashDrawerAdjustment", "BankReconciliation", "WorkOrderStatus", "GSTReturn", 
-  "DepositSlipBreakdown", "CustomerPortalWorkOrder"
+  "Appointment", "BankAccount", "BankReconciliation", "BankTransaction", "CashDrawerAdjustment",
+  "CashFlowEntry", "CashFlowSummary", "ChartOfAccount", "Customer", "CustomerARAdjustment",
+  "CustomerPayments", "CustomerPortalWorkOrder", "DepositSlipBreakdown", "Employee", "FiscalPeriod",
+  "GLTransaction", "GSTReturn", "InventoryCategory", "InventoryItem", "InventoryLocation",
+  "InventoryReturn", "InventoryTxs", "Levies", "LinesOfCredit", "LinesOfCreditTransaction",
+  "OtherChargeList", "PayrollTransaction", "ReturnReason", "SalesClass", "SentEmailLog",
+  "Statement", "Supplier", "SupplierInvoiceLine", "SupplierPayment", "SystemSettings",
+  "TagAlong", "User", "Vehicle", "WorkOrder", "WorkOrderStatus"
 ].sort();
 
 export default function AdminPage() {
@@ -39,6 +39,7 @@ export default function AdminPage() {
   // Tool State
   const [selectedEntity, setSelectedEntity] = useState("");
   const [entityFields, setEntityFields] = useState([]);
+  const [fieldMeta, setFieldMeta] = useState([]);
   const [loadingFields, setLoadingFields] = useState(false);
   
   // Extract State
