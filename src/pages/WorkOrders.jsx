@@ -226,12 +226,18 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
+      const [workOrdersResponse, legacyWorkOrdersData, customersData, vehiclesData] = await Promise.all([
         getworkorderlist({}),
+        WorkOrder.list('-created_date'),
         Customer.list(),
         Vehicle.list()
       ]);
-      const workOrdersData = workOrdersResponse?.data?.data || [];
+      const supabaseWorkOrders = workOrdersResponse?.data?.data || [];
+      const supabaseRoNumbers = new Set(supabaseWorkOrders.map(workOrder => workOrder.ro_number).filter(Boolean));
+      const workOrdersData = [
+        ...supabaseWorkOrders,
+        ...legacyWorkOrdersData.filter(workOrder => !supabaseRoNumbers.has(workOrder.ro_number))
+      ];
       
       setWorkOrders(workOrdersData);
       
