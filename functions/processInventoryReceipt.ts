@@ -712,7 +712,7 @@ async function processInventoryReceiptReverse(base44, supabase, user, supplierIn
       inventory_item_id: inventoryItem.id,
       part_num: inventoryItem.part_number,
       tx_date: new Date().toISOString(),
-      tx_type: 'Reversal',
+      tx_type: 'QOH Adjusted',
       quantity_change: -1 * quantityToReverse,
       quantity_ordered_change: 0,
       supplier_inv: originalLine.invoice_number,
