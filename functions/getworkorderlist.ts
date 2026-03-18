@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from('WorkOrder')
-      .select('*');
+      .select('id, created_date, updated_date, ro_number, wo_number, est_number, inv_number, crinv_number, customer_id, vehicle_id, status, kanban_order, priority, stage, approval, converted, LockedByUser, locked_timestamp, description, odometer, labor_rate, estimated_hours, parts_total, labor_total, shop_supply_total, tax_amount, total_amount, est_date, wo_date, completed_date, invoice_date, amount_paid, po_number, cvip, default_taxable, last_updated, last_updated_by, completed_by, cp_id');
 
     if (match && typeof match === 'object') {
       query = query.match(match);
