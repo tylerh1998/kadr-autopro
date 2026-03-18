@@ -723,28 +723,26 @@ async function processInventoryReceiptReverse(base44, supabase, user, supplierIn
     results.created_inventory_tx_id = reversalTx.id;
     console.log(`Created reversal InventoryTxs ${reversalTx.id}`);
 
-    // 11. Post GL transactions for the contra line
+    // 11. Reverse the original GL transactions directly
     try {
       const glResponse = await base44.asServiceRole.functions.invoke('handleSupplierInvoiceLineGL', {
-        supplierInvoiceLine: contraLine,
-        action: 'create'
+        supplierInvoiceLine: originalLine,
+        action: 'delete'
       });
 
       if (!glResponse.data.success) {
-        console.error('GL posting failed for contra line:', contraLine.id, glResponse.data);
+        console.error('GL reversal failed for original line:', originalLine.id, glResponse.data);
         results.errors.push({
-          error: 'GL posting failed for reversal',
+          error: 'GL reversal failed for reversal',
           details: glResponse.data
         });
-        // Note: We continue despite GL errors - the inventory is already reversed
-        // Manual GL correction may be needed
       } else {
-        console.log(`Successfully posted GL transactions for contra line ${contraLine.id}`);
+        console.log(`Successfully reversed GL transactions for original line ${originalLine.id}`);
       }
     } catch (glError) {
-      console.error('Error posting GL transactions for contra line:', contraLine.id, glError);
+      console.error('Error reversing GL transactions for original line:', originalLine.id, glError);
       results.errors.push({
-        error: 'Failed to post GL transactions for reversal',
+        error: 'Failed to reverse GL transactions for reversal',
         details: glError.message
       });
     }
