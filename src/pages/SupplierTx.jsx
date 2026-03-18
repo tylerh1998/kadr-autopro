@@ -658,7 +658,7 @@ export default function SupplierTxPage() {
 
   const handleEditLineClick = (line) => {
     setEditingLine(line);
-    (line.inventory_credit === false && line.inventory_item_id ? setShowInventoryEditModal : setShowLineEditModal)(true);
+    ((line.inventory_credit !== true) && line.inventory_item_id ? setShowInventoryEditModal : setShowLineEditModal)(true);
   };
 
   const handleLineUpdate = useCallback(async (updatedLineData) => {

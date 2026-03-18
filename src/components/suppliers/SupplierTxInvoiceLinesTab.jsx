@@ -74,6 +74,7 @@ export default function SupplierTxInvoiceLinesTab({
           {filteredInvoiceLines.map((line, index) => {
             const locked = isLineLocked(line);
             const isDisabled = isLockedByOtherUser || !lockAcquired || locked;
+            const isEditDisabled = isLockedByOtherUser || !lockAcquired || line.inventory_credit === true || line.paid_amount !== null && line.paid_amount !== undefined;
             return (
               <ContextMenu key={line.id}>
                 <ContextMenuTrigger asChild>
@@ -154,7 +155,7 @@ export default function SupplierTxInvoiceLinesTab({
                   </TableRow>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem onClick={() => handleEditLineClick(line)} disabled={isLockedByOtherUser || !lockAcquired || locked || line.inventory_credit === true}>Edit Line</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleEditLineClick(line)} disabled={isEditDisabled}>Edit Line</ContextMenuItem>
                   <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isLockedByOtherUser || !lockAcquired || locked}>
                     <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
                   </ContextMenuItem>
