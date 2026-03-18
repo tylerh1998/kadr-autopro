@@ -364,7 +364,7 @@ export default function AdminPage() {
                                         </SelectTrigger>
                                         <SelectContent className="max-h-[300px]">
                                             {fieldMeta.map(field => (
-                                                <SelectItem key={field.name} value={field.name}>{field.name} ({field.type}${field.format ? `:${field.format}` : ''})</SelectItem>
+                                                <SelectItem key={field.name} value={field.name}>{`${field.name} (${field.type}${field.format ? `:${field.format}` : ''})`}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
