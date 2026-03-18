@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Save, X, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
-import { Supplier } from '@/entities/Supplier';
+
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
@@ -135,7 +135,13 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     const checkLock = async () => {
       if (transaction?.supplier_id) {
         try {
-          const supplier = await Supplier.get(transaction.supplier_id);
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: { id: transaction.supplier_id }
+          });
+          const supplier = response.data?.data?.[0];
+
           if (supplier?.LockedByUser) {
             setSupplierLocked(true);
             setLockedByUser(supplier.LockedByUser);

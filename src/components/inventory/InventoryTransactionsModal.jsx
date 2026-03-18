@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { SupplierInvoiceLine, Supplier, InventoryTxs } from '@/entities/all';
+import { InventoryTxs } from '@/entities/all';
 import { Loader2, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
@@ -47,11 +47,23 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
     setError(null);
 
     try {
-      const [invoiceLines, suppliersData, inventoryTxsData] = await Promise.all([
-        SupplierInvoiceLine.filter({ inventory_item_id: inventoryItemId }, '-invoice_date'),
-        Supplier.list(),
+      const [invoiceLinesResponse, suppliersResponse, inventoryTxsData] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'SupplierInvoiceLine',
+          match: { inventory_item_id: inventoryItemId }
+        }),
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'Supplier'
+        }),
         InventoryTxs.filter({ inventory_item_id: inventoryItemId })
       ]);
+
+      const invoiceLines = [...(invoiceLinesResponse.data?.data || [])].sort((a, b) =>
+        new Date(b.invoice_date || 0).getTime() - new Date(a.invoice_date || 0).getTime()
+      );
+      const suppliersData = suppliersResponse.data?.data || [];
 
       // Create a map of InventoryTxs by source_record_id for quick lookup (summing quantities)
       const txsMap = {};
