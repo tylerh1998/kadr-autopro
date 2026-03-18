@@ -102,7 +102,6 @@ export default async function handler(req) {
   }
 }
 
-import { createClientFromRequest as createClient } from 'npm:@base44/sdk@0.8.3';
 Deno.serve(async (req) => {
   return await handler(req);
 });
