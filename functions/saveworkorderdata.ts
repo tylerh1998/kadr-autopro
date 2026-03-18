@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const JSON_FIELDS = ['line_items', 'payments', 'accounting_details', 'tech_time'];
 const IMMUTABLE_FIELDS = ['id', 'created_date', 'updated_date', 'created_by', 'created_by_id'];
+const UNSUPPORTED_FIELDS = ['locked_timestamp'];
 
 const normalizeWorkOrder = (row) => {
   if (!row) return row;
@@ -20,7 +21,7 @@ const normalizeWorkOrder = (row) => {
 const normalizePayload = (payload) => {
   const normalized = { ...payload };
 
-  IMMUTABLE_FIELDS.forEach((field) => {
+  [...IMMUTABLE_FIELDS, ...UNSUPPORTED_FIELDS].forEach((field) => {
     delete normalized[field];
   });
 
