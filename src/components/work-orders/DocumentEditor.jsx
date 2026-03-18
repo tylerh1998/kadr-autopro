@@ -4,7 +4,7 @@ import { useShopData } from '../hooks/useInventory';
 import { WorkOrder, Customer, Vehicle, Appointment, InventoryItem, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/base44Client'; import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import {
   Save,
   Printer,
@@ -848,69 +848,44 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           apiPayload.locked_timestamp = new Date().toISOString();
       }
 
-      // Check for real changes to update audit trail
-      try {
-        const originalWorkOrder = await WorkOrder.get(workOrder.id);
-        
-        if (originalWorkOrder) {
-          const ignoreFields = [
-            'updated_date', 
-            'created_date', 
-            'created_by', 
-            'LockedByUser', 
-            'locked_timestamp', 
-            'last_updated', 
-            'last_updated_by', 
-            'id',
-            'line_items' // We handle line_items separately due to JSON string nature
-          ];
-
-          let isRealChange = false;
-
-          // Check simple fields
-          for (const key in apiPayload) {
-            if (ignoreFields.includes(key)) continue;
-            
-            // Check if key exists in original (or if it's being added)
-            // Use loose equality for numbers/strings match (e.g. 5 vs "5") if needed, 
-            // but strict is better. JSON.stringify helps with objects/arrays.
-            const newVal = apiPayload[key];
-            const oldVal = originalWorkOrder[key];
-
-            // Normalize null/undefined/empty string differences if desirable, 
-            // but for strict audit, any change matters.
-            // Using JSON stringify to compare potentially complex objects or ensuring strict primitive check
-            if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
-              isRealChange = true;
-              console.log(`Audit: Change detected in ${key}`);
-              break;
+      let persistedWorkOrder = null;
+      if (useFunctionData) {
+        if (currentUser) {
+          apiPayload.last_updated = new Date().toISOString();
+          apiPayload.last_updated_by = currentUser.email;
+        }
+        const saveResponse = await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
+        persistedWorkOrder = saveResponse?.data?.data || null;
+      } else {
+        try {
+          const originalWorkOrder = await WorkOrder.get(workOrder.id);
+          if (originalWorkOrder) {
+            const ignoreFields = ['updated_date', 'created_date', 'created_by', 'LockedByUser', 'locked_timestamp', 'last_updated', 'last_updated_by', 'id', 'line_items'];
+            let isRealChange = false;
+            for (const key in apiPayload) {
+              if (ignoreFields.includes(key)) continue;
+              if (JSON.stringify(apiPayload[key]) !== JSON.stringify(originalWorkOrder[key])) {
+                isRealChange = true;
+                break;
+              }
+            }
+            if (!isRealChange && apiPayload.line_items && originalWorkOrder.line_items && apiPayload.line_items !== originalWorkOrder.line_items) isRealChange = true;
+            if (isRealChange && currentUser) {
+              apiPayload.last_updated = new Date().toISOString();
+              apiPayload.last_updated_by = currentUser.email;
             }
           }
-
-          // Special check for line_items
-          if (!isRealChange && apiPayload.line_items && originalWorkOrder.line_items) {
-             if (apiPayload.line_items !== originalWorkOrder.line_items) {
-               isRealChange = true;
-               console.log('Audit: Change detected in line_items');
-             }
-          }
-
-          if (isRealChange && currentUser) {
-            apiPayload.last_updated = new Date().toISOString();
-            apiPayload.last_updated_by = currentUser.email;
-          }
+        } catch (auditError) {
+          console.error('Error during audit trail check:', auditError);
         }
-      } catch (auditError) {
-        console.error('Error during audit trail check:', auditError);
+        await WorkOrder.update(workOrder.id, apiPayload);
       }
-
-      await WorkOrder.update(workOrder.id, apiPayload);
 
       // Lock is ONLY cleared when handleHeaderSaveClick explicitly requests it (by calling update separately)
       // or when updatedDetails.LockedByUser is explicitly set to null (which is not typically done via handleSave calls here)
       // The automatic clearing logic has been removed to prevent clearing lock on intermediate saves (like sending email).
 
-      setWorkOrder(prev => ({ ...prev, ...workOrderData, locked_timestamp: apiPayload.locked_timestamp }));
+      setWorkOrder(prev => persistedWorkOrder ? { ...prev, ...persistedWorkOrder } : ({ ...prev, ...workOrderData, locked_timestamp: apiPayload.locked_timestamp }));
       
       // Check if user made changes during the save process
       // We compare the JSON string of critical fields to see if "latest" differs from what we just saved ("working")
@@ -951,7 +926,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     } finally {
       setSaving(false);
     }
-  }, [workOrder, lineItems, systemSettings, invoiceConversionPhase, refetchWorkOrder, pendingReturns, setLineItems, mode]);
+  }, [workOrder, lineItems, systemSettings, invoiceConversionPhase, refetchWorkOrder, pendingReturns, setLineItems, mode, currentUser, useFunctionData]);
 
   const handleProcessAdvancePayment = useCallback(async (action, payload) => {
     if (!workOrder) {
