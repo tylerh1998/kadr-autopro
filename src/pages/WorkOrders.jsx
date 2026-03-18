@@ -224,12 +224,11 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
-        getworkorderlist({}),
+      const [workOrdersData, customersData, vehiclesData] = await Promise.all([
+        base44.entities.WorkOrder.list(),
         Customer.list(),
         Vehicle.list()
       ]);
-      const workOrdersData = workOrdersResponse?.data?.data || [];
       
       setWorkOrders(workOrdersData);
       
@@ -626,7 +625,7 @@ export default function WorkOrdersPage() {
   const handleSubmit = async (workOrderData) => {
     try {
       if (editingWorkOrder && editingWorkOrder.ro_number) {
-        await saveworkorderdata({ ro_number: editingWorkOrder.ro_number, data: workOrderData });
+        await base44.entities.WorkOrder.update(editingWorkOrder.id, workOrderData);
       } else {
         console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
         return;
@@ -644,8 +643,7 @@ export default function WorkOrdersPage() {
     try {
       console.log('Creating work order with data:', workOrderData);
       
-      const createResponse = await createworkorderdata({ data: workOrderData });
-      const createdWorkOrder = createResponse?.data?.data;
+      const createdWorkOrder = await base44.entities.WorkOrder.create(workOrderData);
       console.log('Created work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
@@ -696,7 +694,7 @@ export default function WorkOrdersPage() {
       if (!targetWorkOrder?.ro_number) {
         throw new Error('Work order not found');
       }
-      await saveworkorderdata({ ro_number: targetWorkOrder.ro_number, data: { status: newStatus } });
+      await base44.entities.WorkOrder.update(targetWorkOrder.id, { status: newStatus });
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -771,8 +769,7 @@ export default function WorkOrdersPage() {
       
       console.log('Creating counter sale work order with data:', newWorkOrder);
       
-      const createResponse = await createworkorderdata({ data: newWorkOrder });
-      const createdWorkOrder = createResponse?.data?.data;
+      const createdWorkOrder = await base44.entities.WorkOrder.create(newWorkOrder);
       console.log('Created counter sale work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
