@@ -81,8 +81,8 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
         if (txQuantity !== undefined) {
           quantity = Math.abs(txQuantity);
         } else if (line.description) {
-          // Try to parse quantity from description pattern: "AddPart/x[qty]/[part_number]"
-          const qtyMatch = line.description.match(/x(\d+(?:\.\d+)?)\//);
+          // Try to parse quantity from current and legacy description formats
+          const qtyMatch = line.description.match(/Qty(\d+(?:\.\d+)?)/) || line.description.match(/x(\d+(?:\.\d+)?)\//);
           if (qtyMatch) {
             quantity = parseFloat(qtyMatch[1]);
           }
@@ -136,7 +136,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
   // Helper to check if a description indicates a core line
   const isCoreLine = (description) => {
-    return description && description.startsWith('AddCore/');
+    return description && description.startsWith('AddCore');
   };
 
   // Helper to check if a description indicates a reversal line
