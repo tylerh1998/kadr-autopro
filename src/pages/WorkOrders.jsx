@@ -806,10 +806,7 @@ export default function WorkOrdersPage() {
 
       await Promise.all(
         lockedWorkOrders.map(wo =>
-          saveworkorderdata({
-            ro_number: wo.ro_number,
-            data: { LockedByUser: null, locked_timestamp: null }
-          })
+          base44.entities.WorkOrder.update(wo.id, { LockedByUser: null, locked_timestamp: null })
         )
       );
 
@@ -833,7 +830,7 @@ export default function WorkOrdersPage() {
     if (!voidTarget) return;
     
     try {
-      await saveworkorderdata({ ro_number: voidTarget.ro_number, data: { stage: 'void' } });
+      await base44.entities.WorkOrder.update(voidTarget.id, { stage: 'void' });
       loadData();
     } catch (error) {
       console.error('Error voiding work order:', error);
