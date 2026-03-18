@@ -224,10 +224,7 @@ export default function WorkOrdersPage() {
   };
 
   const loadData = async (isInitialLoad = false) => {
-    // Only show loading indicator on initial load
-    if (isInitialLoad || workOrders.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     try {
       const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
         getworkorderlist({}),
@@ -236,14 +233,7 @@ export default function WorkOrdersPage() {
       ]);
       const workOrdersData = workOrdersResponse?.data?.data || [];
       
-      // Fine-grained update: only update if data has changed
-      setWorkOrders(prev => {
-        const getSignature = (rows) => JSON.stringify(rows.map(w => [w.id, w.last_updated || '', w.LockedByUser || '', w.status || '', w.stage || '', w.total_amount || 0]));
-        if (getSignature(prev) !== getSignature(workOrdersData)) {
-          return workOrdersData;
-        }
-        return prev;
-      });
+      setWorkOrders(workOrdersData);
       
       setCustomers(prev => {
         if (JSON.stringify(prev.map(c => c.id + c.updated_date)) !== JSON.stringify(customersData.map(c => c.id + c.updated_date))) {
