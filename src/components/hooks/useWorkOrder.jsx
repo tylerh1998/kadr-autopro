@@ -88,14 +88,9 @@ export function useWorkOrder(roNumber, options = {}) {
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
 
-      let wo = useFunctionData
+      const wo = useFunctionData
         ? (workOrderResponse?.data?.data || null)
         : (workOrderResponse.length > 0 ? workOrderResponse[0] : null);
-
-      if (!wo && useFunctionData) {
-        const fallbackResults = await WorkOrder.filter({ ro_number: roNumber });
-        wo = fallbackResults.length > 0 ? fallbackResults[0] : null;
-      }
 
       if (!wo) {
         throw new Error(`Work Order with RO Number ${roNumber} not found.`);
