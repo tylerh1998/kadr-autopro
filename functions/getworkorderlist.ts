@@ -1,0 +1,52 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
+
+    const body = await req.json().catch(() => ({}));
+    const { match, limit } = body;
+
+    let query = supabase
+      .from('WorkOrder')
+      .select('*')
+      .order('created_date', { ascending: false });
+
+    if (match && typeof match === 'object') {
+      query = query.match(match);
+    }
+
+    if (limit && Number.isFinite(Number(limit))) {
+      query = query.limit(Number(limit));
+    }
+
+    const result = await query;
+
+    if (result.error) {
+      console.error('getworkorderlist supabase error:', result.error);
+      return Response.json({ error: 'Failed to fetch work orders', details: result.error.message }, { status: 500 });
+    }
+
+    return Response.json({ data: result.data || [] });
+  } catch (error) {
+    console.error('getworkorderlist error:', error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+});

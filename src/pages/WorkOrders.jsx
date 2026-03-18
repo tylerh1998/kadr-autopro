@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
+import { getworkorderlist } from "@/functions/getworkorderlist";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -228,11 +229,12 @@ export default function WorkOrdersPage() {
       setLoading(true);
     }
     try {
-      const [workOrdersData, customersData, vehiclesData] = await Promise.all([
-        WorkOrder.list('-created_date'),
+      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
+        getworkorderlist({}),
         Customer.list(),
         Vehicle.list()
       ]);
+      const workOrdersData = workOrdersResponse?.data?.data || [];
       
       // Fine-grained update: only update if data has changed
       setWorkOrders(prev => {
