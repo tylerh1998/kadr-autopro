@@ -101,6 +101,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!selectedEntity) {
       setEntityFields([]);
+      setFieldMeta([]);
       return;
     }
 
@@ -112,7 +113,8 @@ export default function AdminPage() {
           entityName: selectedEntity
         });
         if (response.data?.fields) {
-          setEntityFields(response.data.fields.sort());
+          setEntityFields(response.data.fields);
+          setFieldMeta(response.data.fieldMeta || []);
         }
       } catch (error) {
         console.error("Failed to fetch schema", error);
@@ -361,8 +363,8 @@ export default function AdminPage() {
                                             <SelectValue placeholder={loadingFields ? "Loading fields..." : "Select Field"} />
                                         </SelectTrigger>
                                         <SelectContent className="max-h-[300px]">
-                                            {entityFields.map(field => (
-                                                <SelectItem key={field} value={field}>{field}</SelectItem>
+                                            {fieldMeta.map(field => (
+                                                <SelectItem key={field.name} value={field.name}>{field.name} ({field.type}${field.format ? `:${field.format}` : ''})</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -407,7 +409,7 @@ export default function AdminPage() {
                             <DropdownMenuContent align="end" className="w-56 max-h-[300px] overflow-y-auto">
                                 <DropdownMenuLabel>Visible Columns (Max 8)</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                {(entityFields.length > 0 ? entityFields : (results.length > 0 ? Object.keys(results[0]) : [])).map(field => (
+                                {(fieldMeta.length > 0 ? fieldMeta.map(field => field.name) : (entityFields.length > 0 ? entityFields : (results.length > 0 ? Object.keys(results[0]) : []))).map(field => (
                                     <DropdownMenuCheckboxItem 
                                         key={field}
                                         checked={visibleColumns.includes(field)}
