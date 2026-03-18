@@ -43,27 +43,29 @@ Deno.serve(async (req) => {
     });
 
     if (lockAction) {
-      if (!['apply', 'release'].includes(lockAction)) {
-        return Response.json({ error: 'lockAction must be apply or release' }, { status: 400 });
+      if (!['apply', 'release', 'none'].includes(lockAction)) {
+        return Response.json({ error: 'lockAction must be apply, release, or none' }, { status: 400 });
       }
 
       if (lockAction === 'apply' && !lockedByUser) {
         return Response.json({ error: 'lockedByUser is required when applying a lock' }, { status: 400 });
       }
 
-      const lockResult = await supabase.rpc('set_workorder_lock', {
-        p_ro_number: ro_number,
-        p_action: lockAction,
-        p_locked_by_user: lockAction === 'apply' ? lockedByUser : null
-      });
+      if (lockAction !== 'none') {
+        const lockResult = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: ro_number,
+          p_action: lockAction,
+          p_locked_by_user: lockAction === 'apply' ? lockedByUser : null
+        });
 
-      if (lockResult.error) {
-        console.error('getworkorderdata lock rpc error:', lockResult.error);
-        return Response.json({ error: 'Failed to update work order lock', details: lockResult.error.message }, { status: 500 });
+        if (lockResult.error) {
+          console.error('getworkorderdata lock rpc error:', lockResult.error);
+          return Response.json({ error: 'Failed to update work order lock', details: lockResult.error.message }, { status: 500 });
+        }
+
+        const lockedRow = Array.isArray(lockResult.data) ? lockResult.data[0] : lockResult.data;
+        return Response.json({ data: normalizeWorkOrder(lockedRow) || null });
       }
-
-      const lockedRow = Array.isArray(lockResult.data) ? lockResult.data[0] : lockResult.data;
-      return Response.json({ data: normalizeWorkOrder(lockedRow) || null });
     }
 
     const result = await supabase
