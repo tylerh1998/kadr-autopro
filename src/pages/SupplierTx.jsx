@@ -14,22 +14,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, Trash2, AlertTriangle, ChevronDown, ChevronRight, Search, Lock, Edit, Receipt, Printer, Loader2, FileText, Calculator, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import { format, subDays, parseISO, differenceInDays, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subYears } from 'date-fns';
 import { createPageUrl } from '@/utils';
-import SupplierPaymentModal from '../components/suppliers/SupplierPaymentModal';
+import SupplierTxModals from '../components/suppliers/SupplierTxModals';
 import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+...
 import SupplierForm from "../components/suppliers/SupplierForm";
-import LineEditModal from '../components/suppliers/LineEditModal';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from "@/components/ui/badge";
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
@@ -192,8 +185,8 @@ export default function SupplierTxPage() {
     const [modifiedLineIds, setModifiedLineIds] = useState(new Set());
     const [deletedLineIds, setDeletedLineIds] = useState(new Set());
 
-    // New state for LineEditModal
     const [showLineEditModal, setShowLineEditModal] = useState(false);
+    const [showInventoryEditModal, setShowInventoryEditModal] = useState(false);
     const [editingLine, setEditingLine] = useState(null);
 
     // Pending date range selections (before Apply is clicked)
@@ -1121,7 +1114,7 @@ export default function SupplierTxPage() {
 
     const handleEditLineClick = (line) => {
         setEditingLine(line);
-        setShowLineEditModal(true);
+        (line.inventory_credit === false && line.inventory_item_id ? setShowInventoryEditModal : setShowLineEditModal)(true);
     };
 
     // New: handleLineUpdate function for LineEditModal to save changes
@@ -1962,7 +1955,7 @@ export default function SupplierTxPage() {
                                                     <ContextMenuContent>
                                                         <ContextMenuItem
                                                             onClick={() => handleEditLineClick(line)}
-                                                            disabled={isLockedByOtherUser || !lockAcquired || locked || line.inventory}
+                                                            disabled={isLockedByOtherUser || !lockAcquired || locked || line.inventory_credit === true}
                                                         >
                                                             Edit Line
                                                         </ContextMenuItem>
@@ -2381,25 +2374,21 @@ export default function SupplierTxPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Line Edit Modal */}
-            <LineEditModal
-                open={showLineEditModal}
-                onClose={() => {
-                    setShowLineEditModal(false);
-                    setEditingLine(null);
-                }}
-                line={editingLine}
-                onSave={handleLineUpdate}
+            <SupplierTxModals
+                showLineEditModal={showLineEditModal}
+                setShowLineEditModal={setShowLineEditModal}
+                showInventoryEditModal={showInventoryEditModal}
+                setShowInventoryEditModal={setShowInventoryEditModal}
+                editingLine={editingLine}
+                setEditingLine={setEditingLine}
+                handleLineUpdate={handleLineUpdate}
                 chartOfAccounts={chartOfAccounts}
-            />
-
-            {/* Supplier Payment Modal */}
-            <SupplierPaymentModal
-                open={showPaymentModal}
-                onClose={() => setShowPaymentModal(false)}
+                loadData={loadData}
+                showPaymentModal={showPaymentModal}
+                setShowPaymentModal={setShowPaymentModal}
                 supplier={supplier}
-                invoiceLines={allConceptualInvoices}
-                onPaymentComplete={handlePaymentComplete}
+                allConceptualInvoices={allConceptualInvoices}
+                handlePaymentComplete={handlePaymentComplete}
             />
         </>
     );
