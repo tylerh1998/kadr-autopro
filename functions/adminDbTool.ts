@@ -66,7 +66,7 @@ export default async function handler(req) {
     else if (mode === 'search') {
       const query = {};
       if (field && searchTerm) {
-        const fieldMeta = buildFieldMeta(entityName).find(f => f.name === field);
+        const fieldMeta = (await buildFieldMeta(adminEntities, entityName)).find(f => f.name === field);
         const isNumericField = fieldMeta?.type === 'number' || ['amount', 'total', 'cost', 'price', 'qty', 'quantity'].some(k => field.toLowerCase().includes(k));
         const isBooleanField = fieldMeta?.type === 'boolean';
 
@@ -85,7 +85,7 @@ export default async function handler(req) {
     else if (mode === 'get_schema') {
       const sample = await adminEntities[entityName].list(50);
       const observedKeys = [...new Set((sample || []).flatMap(record => Object.keys(record || {})))];
-      const fieldMeta = buildFieldMeta(entityName, observedKeys);
+      const fieldMeta = await buildFieldMeta(adminEntities, entityName, observedKeys);
       const fields = fieldMeta.map(field => field.name);
       return new Response(JSON.stringify({ fields, fieldMeta }), {
         headers: { 'Content-Type': 'application/json' }
