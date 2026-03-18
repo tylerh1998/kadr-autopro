@@ -38,7 +38,7 @@ export default function SupplierTxModals({
           setShowInventoryEditModal(false);
           setEditingLine(null);
         }}
-        transaction={editingLine}
+        transaction={editingLine ? { ...editingLine, description: editingLine.description } : null}
         onUpdate={loadData}
       />
 

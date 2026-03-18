@@ -115,6 +115,18 @@ const safeParseDateForCalendar = (dateString) => {
   }
 };
 
+const extractQuantityFromDescription = (description) => {
+  if (!description) return null;
+
+  const slashMatch = description.match(/\/x(\d+(?:\.\d+)?)\//i);
+  if (slashMatch) return parseFloat(slashMatch[1]);
+
+  const qtyMatch = description.match(/qty\s*(\d+(?:\.\d+)?)/i);
+  if (qtyMatch) return parseFloat(qtyMatch[1]);
+
+  return null;
+};
+
 export default function EditInventoryTransactionModal({ isOpen, onClose, transaction, onUpdate }) {
   const [formData, setFormData] = useState({
     invoice_number: '',
@@ -129,26 +141,32 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
   const [error, setError] = useState(null);
   const [supplierLocked, setSupplierLocked] = useState(false);
   const [lockedByUser, setLockedByUser] = useState(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState(null);
 
   // Populate form when transaction changes
   useEffect(() => {
     const checkLock = async () => {
       if (transaction?.supplier_id) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: transaction.supplier_id }
-          });
+          const [currentUser, response] = await Promise.all([
+            base44.auth.me(),
+            base44.functions.invoke('SupabaseProxy', {
+              action: 'read',
+              table: 'Supplier',
+              match: { id: transaction.supplier_id }
+            })
+          ]);
           const supplier = response.data?.data?.[0];
+          const userEmail = currentUser?.email || null;
+          setCurrentUserEmail(userEmail);
 
-          if (supplier?.LockedByUser) {
+          if (supplier?.LockedByUser && supplier.LockedByUser !== userEmail) {
             setSupplierLocked(true);
             setLockedByUser(supplier.LockedByUser);
             setError(`This supplier is currently locked by ${supplier.LockedByUser}. You cannot make changes.`);
           } else {
             setSupplierLocked(false);
-            setLockedByUser(null);
+            setLockedByUser(supplier?.LockedByUser || null);
           }
         } catch (err) {
           console.error('Error checking supplier lock:', err);
@@ -157,14 +175,13 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     };
 
     if (transaction && isOpen) {
-      // Helper to parse quantity from description if not provided
+      // Parse quantity from explicit value first, then from description
       let qty = transaction.quantity;
       if (!qty && transaction.description) {
-        const match = transaction.description.match(/\/x(\d+(?:\.\d+)?)\//);
-        if (match) qty = match[1];
+        qty = extractQuantityFromDescription(transaction.description);
       }
 
-      // Helper to calculate unit price if not provided
+      // Calculate unit price from charge and parsed quantity when needed
       let unitPrice = transaction.amountPerUnit;
       if (!unitPrice && transaction.purchase_amount && qty && parseFloat(qty) > 0) {
         unitPrice = parseFloat(transaction.purchase_amount) / parseFloat(qty);
@@ -196,6 +213,7 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
       setSaving(false);
       setSupplierLocked(false);
       setLockedByUser(null);
+      setCurrentUserEmail(null);
     }
   }, [transaction, isOpen]);
 
