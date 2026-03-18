@@ -26,8 +26,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from('WorkOrder')
-      .select('*')
-      .order('created_date', { ascending: false });
+      .select('*');
 
     if (match && typeof match === 'object') {
       query = query.match(match);
