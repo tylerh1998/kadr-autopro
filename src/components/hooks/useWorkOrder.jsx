@@ -59,7 +59,8 @@ const parseLineItems = async (itemsString) => {
   }
 };
 
-export function useWorkOrder(roNumber) {
+export function useWorkOrder(roNumber, options = {}) {
+  const { useFunctionData = false } = options;
   const [workOrder, setWorkOrder] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -78,8 +79,8 @@ export function useWorkOrder(roNumber) {
     setLoading(true);
     setError('');
     try {
-      const [woResults, tagAlongsData, otherChargesData] = await Promise.all([
-        WorkOrder.filter({ ro_number: roNumber }),
+      const [workOrderResponse, tagAlongsData, otherChargesData] = await Promise.all([
+        useFunctionData ? getworkorderdata({ ro_number: roNumber }) : WorkOrder.filter({ ro_number: roNumber }),
         TagAlong.list(),
         OtherChargeList.list(),
       ]);
@@ -87,11 +88,13 @@ export function useWorkOrder(roNumber) {
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
 
-      if (woResults.length === 0) {
+      const wo = useFunctionData
+        ? (workOrderResponse?.data?.data || null)
+        : (workOrderResponse.length > 0 ? workOrderResponse[0] : null);
+
+      if (!wo) {
         throw new Error(`Work Order with RO Number ${roNumber} not found.`);
       }
-
-      const wo = woResults[0];
       setWorkOrder(wo);
       
       // Parse line items with enrichment
@@ -125,7 +128,7 @@ export function useWorkOrder(roNumber) {
     } finally {
       setLoading(false);
     }
-  }, [roNumber]);
+  }, [roNumber, useFunctionData]);
 
   useEffect(() => {
     fetchData();

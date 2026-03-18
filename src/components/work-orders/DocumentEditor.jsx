@@ -74,7 +74,7 @@ import InvoicePaymentModal from './InvoicePaymentModal';
 // NEW: Import Card components for the lock message
 import { Card, CardContent } from '@/components/ui/card';
 
-export default function DocumentEditor({ mode = 'work_order' }) {
+export default function DocumentEditor({ mode = 'work_order', useFunctionData = false }) {
   const urlParams = new URLSearchParams(window.location.search);
   const roNumber = urlParams.get('id');
 
@@ -92,7 +92,7 @@ export default function DocumentEditor({ mode = 'work_order' }) {
     setWorkOrder,
     setLineItems,
     refetch: refetchWorkOrder
-  } = useWorkOrder(roNumber);
+  } = useWorkOrder(roNumber, { useFunctionData });
 
   const {
     inventory,
