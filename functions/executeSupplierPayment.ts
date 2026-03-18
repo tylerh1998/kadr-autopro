@@ -41,16 +41,138 @@ Deno.serve(async (req) => {
 
     const allocationStartedAt = Date.now();
     if (appliedInvoices && Array.isArray(appliedInvoices) && appliedInvoices.length > 0) {
+      let allocationMode = 'rpc_v2';
+      let allocationUpdatedCount = 0;
+
       const { data: allocationResult, error: allocationError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
         p_supplier_id: supplierId,
         p_applied_invoices: appliedInvoices
       });
 
       if (allocationError) {
-        throw new Error(`SupplierInvoiceLine allocation RPC failed: ${allocationError.message}`);
+        const isMissingNewSignature = allocationError.message?.includes('Could not find the function public.apply_supplier_invoice_line_paid_updates(p_applied_invoices, p_supplier_id)');
+
+        if (!isMissingNewSignature) {
+          throw new Error(`SupplierInvoiceLine allocation RPC failed: ${allocationError.message}`);
+        }
+
+        allocationMode = 'rpc_v1_compat';
+
+        const updatesToProcess = [];
+        const lineMap = new Map();
+        const processLineIntoMap = (line) => ({
+          ...line,
+          _purchase: parseFloat(line.purchase_amount) || 0,
+          _gst: parseFloat(line.gst_amount) || 0,
+          _paid: parseFloat(line.paid_amount) || 0,
+          _total: (parseFloat(line.purchase_amount) || 0) + (parseFloat(line.gst_amount) || 0)
+        });
+
+        const { data: allLinesArr, error: linesError } = await supabase.from('SupplierInvoiceLine')
+          .select('*')
+          .eq('supplier_id', supplierId)
+          .order('invoice_date', { ascending: false });
+
+        if (linesError) {
+          throw new Error(`SupplierInvoiceLine compatibility fetch failed: ${linesError.message}`);
+        }
+
+        if (allLinesArr) {
+          allLinesArr.forEach((line) => {
+            lineMap.set(line.id, processLineIntoMap(line));
+          });
+        }
+
+        for (const appliedDetail of appliedInvoices) {
+          if (appliedDetail.invoice_number === 'On Account') continue;
+
+          let remainingForInvoice = parseFloat(appliedDetail.amount_applied) || 0;
+          if (Math.abs(remainingForInvoice) <= 0.005) continue;
+
+          let targetLine = null;
+
+          if (appliedDetail.id && lineMap.has(appliedDetail.id)) {
+            targetLine = lineMap.get(appliedDetail.id);
+          }
+
+          if (!targetLine) {
+            const candidates = Array.from(lineMap.values()).filter((line) =>
+              String(line.invoice_number) === String(appliedDetail.invoice_number)
+            );
+
+            if (candidates.length > 0) {
+              candidates.sort((a, b) => (a._total - a._paid) - (b._total - b._paid));
+
+              for (const line of candidates) {
+                if (Math.abs(remainingForInvoice) <= 0.005) break;
+
+                const due = line._total - line._paid;
+
+                if (remainingForInvoice > 0) {
+                  if (due <= 0.005) continue;
+                  const payAmount = Math.min(remainingForInvoice, due);
+                  line._paid += payAmount;
+                  remainingForInvoice -= payAmount;
+                } else {
+                  if (due >= -0.005) continue;
+                  const payAmount = Math.max(remainingForInvoice, due);
+                  line._paid += payAmount;
+                  remainingForInvoice -= payAmount;
+                }
+
+                const existingUpdateIndex = updatesToProcess.findIndex((update) => update.id === line.id);
+                if (existingUpdateIndex >= 0) {
+                  updatesToProcess[existingUpdateIndex].paid_amount = Math.round(line._paid * 100) / 100;
+                } else {
+                  updatesToProcess.push({
+                    id: line.id,
+                    paid_amount: Math.round(line._paid * 100) / 100
+                  });
+                }
+              }
+
+              continue;
+            }
+          }
+
+          if (targetLine) {
+            targetLine._paid += remainingForInvoice;
+            const existingUpdateIndex = updatesToProcess.findIndex((update) => update.id === targetLine.id);
+            if (existingUpdateIndex >= 0) {
+              updatesToProcess[existingUpdateIndex].paid_amount = Math.round(targetLine._paid * 100) / 100;
+            } else {
+              updatesToProcess.push({
+                id: targetLine.id,
+                paid_amount: Math.round(targetLine._paid * 100) / 100
+              });
+            }
+          }
+        }
+
+        if (updatesToProcess.length > 0) {
+          const updatedAt = new Date().toISOString();
+          const rpcUpdates = updatesToProcess.map((update) => ({
+            id: update.id,
+            paid_amount: update.paid_amount,
+            updated_date: updatedAt
+          }));
+
+          const { data: legacyResult, error: legacyError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
+            p_updates: rpcUpdates
+          });
+
+          if (legacyError) {
+            throw new Error(`SupplierInvoiceLine compatibility RPC failed: ${legacyError.message}`);
+          }
+
+          allocationUpdatedCount = legacyResult?.updated_count ?? rpcUpdates.length;
+        }
+      } else {
+        allocationUpdatedCount = allocationResult?.updated_count ?? 0;
       }
 
-      console.info('[executeSupplierPayment] allocation_updated_count:', allocationResult?.updated_count ?? 0);
+      console.info('[executeSupplierPayment] allocation_mode:', allocationMode);
+      console.info('[executeSupplierPayment] allocation_updated_count:', allocationUpdatedCount);
     }
     console.info('[executeSupplierPayment] allocation_ms:', Date.now() - allocationStartedAt);
 
