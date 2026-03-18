@@ -828,8 +828,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       };
 
       // Create a copy for the API update to avoid mutating workOrderData which is used for local state
-      const apiPayload = { ...workOrderData };
-
+      const apiPayload = (({ id, created_date, updated_date, created_by, created_at, updated_at, created_by_id, ...rest }) => rest)({ ...workOrderData });
       console.log('DEBUG: Final API payload for WorkOrder update:', apiPayload);
 
       if (invoiceConversionPhase > 0 && invoiceConversionPhase < 4 && !updatedDetails.forceConversion) {
