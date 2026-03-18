@@ -1,9 +1,51 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const JSON_FIELDS = ['line_items', 'payments', 'accounting_details', 'tech_time'];
-const IMMUTABLE_FIELDS = ['id', 'ro_number', 'created_at', 'updated_at', 'created_date', 'updated_date', 'created_by', 'created_by_id'];
-const ALLOWED_FIELDS = new Set(['wo_number', 'est_number', 'inv_number', 'crinv_number', 'customer_id', 'vehicle_id', 'status', 'kanban_order', 'priority', 'stage', 'approval', 'converted', 'LockedByUser', 'locked_timestamp', 'description', 'odometer', 'labor_rate', 'estimated_hours', 'parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'est_date', 'wo_date', 'completed_date', 'invoice_date', 'internal_notes', 'line_items', 'payments', 'amount_paid', 'notes_to_customer', 'po_number', 'cvip', 'default_taxable', 'accounting_details', 'tech_time', 'last_updated', 'last_updated_by', 'completed_by', 'cp_id']);
+const ALLOWED_FIELDS = new Set([
+  'ro_number',
+  'wo_number',
+  'est_number',
+  'inv_number',
+  'crinv_number',
+  'customer_id',
+  'vehicle_id',
+  'status',
+  'kanban_order',
+  'priority',
+  'stage',
+  'approval',
+  'converted',
+  'LockedByUser',
+  'locked_timestamp',
+  'description',
+  'odometer',
+  'labor_rate',
+  'estimated_hours',
+  'parts_total',
+  'labor_total',
+  'shop_supply_total',
+  'tax_amount',
+  'total_amount',
+  'est_date',
+  'wo_date',
+  'completed_date',
+  'invoice_date',
+  'internal_notes',
+  'line_items',
+  'payments',
+  'amount_paid',
+  'notes_to_customer',
+  'po_number',
+  'cvip',
+  'default_taxable',
+  'accounting_details',
+  'tech_time',
+  'last_updated',
+  'last_updated_by',
+  'completed_by',
+  'cp_id'
+]);
 
 const normalizeWorkOrder = (row) => {
   if (!row) return row;
@@ -25,7 +67,7 @@ const normalizePayload = (payload) => {
   const normalized = {};
 
   Object.entries(payload || {}).forEach(([key, value]) => {
-    if (!ALLOWED_FIELDS.has(key) || IMMUTABLE_FIELDS.includes(key) || value === undefined) return;
+    if (!ALLOWED_FIELDS.has(key) || value === undefined) return;
     normalized[key] = JSON_FIELDS.includes(key) && value && typeof value !== 'string' ? JSON.stringify(value) : value;
   });
 
@@ -48,42 +90,36 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
     }
 
-    const { ro_number, data } = await req.json().catch(() => ({}));
-
-    if (!ro_number) {
-      return Response.json({ error: 'ro_number is required' }, { status: 400 });
-    }
+    const { data } = await req.json().catch(() => ({}));
 
     if (!data || typeof data !== 'object') {
       return Response.json({ error: 'data is required' }, { status: 400 });
+    }
+
+    const payload = normalizePayload(data);
+
+    if (!payload.ro_number || !payload.customer_id || !payload.vehicle_id) {
+      return Response.json({ error: 'ro_number, customer_id, and vehicle_id are required' }, { status: 400 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseSecret, {
       auth: { persistSession: false }
     });
 
-    const payload = normalizePayload(data);
-
     const result = await supabase
       .from('WorkOrder')
-      .update(payload)
-      .eq('ro_number', ro_number)
-      .select('*');
+      .insert(payload)
+      .select('*')
+      .single();
 
     if (result.error) {
-      console.error('saveworkorderdata supabase error:', result.error);
-      return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
+      console.error('createworkorderdata supabase error:', result.error);
+      return Response.json({ error: 'Failed to create work order', details: result.error.message }, { status: 500 });
     }
 
-    const savedRow = Array.isArray(result.data) ? result.data[0] : result.data;
-
-    if (!savedRow) {
-      return Response.json({ error: 'Work order not found in Supabase' }, { status: 404 });
-    }
-
-    return Response.json({ data: normalizeWorkOrder(savedRow) });
+    return Response.json({ data: normalizeWorkOrder(result.data) });
   } catch (error) {
-    console.error('saveworkorderdata error:', error);
+    console.error('createworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

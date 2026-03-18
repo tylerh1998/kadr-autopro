@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, WorkOrder, SystemSettings } from '@/entities/all';
+import { User, SystemSettings } from '@/entities/all';
 import { Button } from '@/components/ui/button';
+import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
@@ -45,7 +46,7 @@ export default function WorkOrderViewPage() {
     loading: workOrderLoading,
     error: workOrderError,
     refetch
-  } = useWorkOrder(roNumber);
+  } = useWorkOrder(roNumber, { useFunctionData: true, lockAction: 'none' });
   const { inventory, employees, allEmployees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);
@@ -191,7 +192,7 @@ export default function WorkOrderViewPage() {
 
       // Step 3: Convert the invoice back to work_order stage
       try {
-        await WorkOrder.update(workOrder.id, { stage: 'work_order' });
+        await saveworkorderdata({ ro_number: workOrder.ro_number, data: { stage: 'work_order' } });
         
         // Step 4: Redirect to WorkOrderEdit
         const url = `/WorkOrderEdit?id=${roNumber}`;

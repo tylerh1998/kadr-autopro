@@ -60,7 +60,7 @@ const parseLineItems = async (itemsString) => {
 };
 
 export function useWorkOrder(roNumber, options = {}) {
-  const { useFunctionData = false } = options;
+  const { useFunctionData = false, lockAction, lockedByUser } = options;
   const [workOrder, setWorkOrder] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -80,7 +80,13 @@ export function useWorkOrder(roNumber, options = {}) {
     setError('');
     try {
       const [workOrderResponse, tagAlongsData, otherChargesData] = await Promise.all([
-        useFunctionData ? getworkorderdata({ ro_number: roNumber }) : WorkOrder.filter({ ro_number: roNumber }),
+        useFunctionData
+          ? getworkorderdata({
+              ro_number: roNumber,
+              ...(lockAction ? { lockAction } : {}),
+              ...(lockedByUser ? { lockedByUser } : {})
+            })
+          : WorkOrder.filter({ ro_number: roNumber }),
         TagAlong.list(),
         OtherChargeList.list(),
       ]);
@@ -128,7 +134,7 @@ export function useWorkOrder(roNumber, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [roNumber, useFunctionData]);
+  }, [roNumber, useFunctionData, lockAction, lockedByUser]);
 
   useEffect(() => {
     fetchData();
