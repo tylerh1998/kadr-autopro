@@ -377,11 +377,6 @@ export default function CashDrawerPage() {
         source_id: depositBatchId
       });
 
-      // Trigger balance recalculation for the bank account
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedBankAccount.id
-      });
-
       // Check if deposit contains cash or cheques - if so, trigger deposit slip modal
       const hasCashOrCheques = (forDepositItems.cash?.length > 0) || (forDepositItems.cheque?.length > 0);
 
