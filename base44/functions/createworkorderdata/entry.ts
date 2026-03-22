@@ -102,13 +102,23 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'ro_number, customer_id, and vehicle_id are required' }, { status: 400 });
     }
 
+    const now = new Date().toISOString();
+    const insertData = {
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      created_date: now,
+      updated_date: now,
+      created_by: user.email,
+      created_by_id: user.id,
+      ...payload
+    };
+
     const supabase = createClient(supabaseUrl, supabaseSecret, {
       auth: { persistSession: false }
     });
 
     const result = await supabase
       .from('WorkOrder')
-      .insert(payload)
+      .insert([insertData])
       .select('*')
       .single();
 
