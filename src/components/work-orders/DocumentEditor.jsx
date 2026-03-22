@@ -605,7 +605,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 inventory_item_id: deletedLine.inventory_item_id,
                 part_num: deletedLine.part_number || inventoryItem.part_number,
                 tx_date: txDate,
-                tx_type: 'Ordered',
+                tx_type: 'Order Cancelled',
                 quantity_change: 0,
                 quantity_ordered_change: -qtyOnOrder,
                 ro_number: workOrder.ro_number,
