@@ -391,7 +391,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setLockCheckComplete(true);
         } else {
           const now = new Date().toISOString();
-          await (useFunctionData ? saveworkorderdata({ ro_number: freshWorkOrder.ro_number, data: { LockedByUser: currentUser.email, locked_timestamp: now } }) : WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email, locked_timestamp: now }));
+          await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email, locked_timestamp: now });
           setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: now }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
@@ -444,7 +444,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Release lock on unmount
   useEffect(() => {
     const currentWorkOrderId = workOrder?.id;
-    const currentRoNumber = workOrder?.ro_number;
     const currentUserEmail = currentUser?.email;
 
     const releaseLock = async () => {
@@ -457,7 +456,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
-          await (useFunctionData ? saveworkorderdata({ ro_number: freshWorkOrder.ro_number, data: { LockedByUser: null } }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null }));
+          await WorkOrder.update(currentWorkOrderId, { LockedByUser: null });
         }
         lockAcquiredRef.current = false;
       } catch (error) {
@@ -468,7 +467,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     const handleBeforeUnload = (e) => {
       if (lockAcquiredRef.current && currentWorkOrderId) {
         // Best effort to release lock on tab close
-        (useFunctionData ? saveworkorderdata({ ro_number: currentRoNumber, data: { LockedByUser: null } }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null }))
+        WorkOrder.update(currentWorkOrderId, { LockedByUser: null })
           .then(() => {})
           .catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
       }
@@ -1246,7 +1245,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false);
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
-        await (useFunctionData ? saveworkorderdata({ ro_number: workOrder.ro_number, data: { LockedByUser: null } }) : WorkOrder.update(workOrder.id, { LockedByUser: null }));
+        await WorkOrder.update(workOrder.id, { LockedByUser: null });
         lockAcquiredRef.current = false;
       }
 
@@ -1406,7 +1405,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleViewOnlyMode = async () => {
     try {
       if (workOrder && workOrder.id && currentUser && lockAcquiredRef.current) {
-        await (useFunctionData ? saveworkorderdata({ ro_number: workOrder.ro_number, data: { LockedByUser: null } }) : WorkOrder.update(workOrder.id, { LockedByUser: null }));
+        await WorkOrder.update(workOrder.id, { LockedByUser: null });
         lockAcquiredRef.current = false;
       }
       navigate(createPageUrl(`WorkOrderView?id=${roNumber}`));
