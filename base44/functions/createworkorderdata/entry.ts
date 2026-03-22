@@ -108,7 +108,6 @@ Deno.serve(async (req) => {
       created_date: now,
       updated_date: now,
       created_by: user.email,
-      created_by_id: user.id,
       ...payload
     };
 
