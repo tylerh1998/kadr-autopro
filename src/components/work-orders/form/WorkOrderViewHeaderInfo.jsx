@@ -97,6 +97,34 @@ export default function WorkOrderViewHeaderInfo({
     return date ? format(date, 'MMM d, yyyy') : 'N/A';
   };
 
+  const formatMountainDateTimeSafe = (dateValue) => {
+    if (!dateValue) return '';
+
+    try {
+      const rawValue = String(dateValue).trim();
+      if (!rawValue) return '';
+
+      let normalizedValue = rawValue.replace(' ', 'T');
+      if (/^[\d-]+$/.test(normalizedValue)) return formatDate(normalizedValue);
+      if (/([+-]\d{2})$/.test(normalizedValue)) {
+        normalizedValue = normalizedValue.replace(/([+-]\d{2})$/, '$1:00');
+      }
+      if (!normalizedValue.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(normalizedValue)) {
+        normalizedValue = `${normalizedValue}Z`;
+      }
+
+      const dateObj = new Date(normalizedValue);
+      if (Number.isNaN(dateObj.getTime())) return rawValue;
+
+      const mountainDate = toMountainTime(dateObj);
+      if (Number.isNaN(mountainDate.getTime())) return rawValue;
+
+      return format(mountainDate, 'MMM d, yyyy h:mm a');
+    } catch (e) {
+      return String(dateValue);
+    }
+  };
+
   // Helper function to get customer display name
   const getCustomerDisplayName = () => {
     if (!customer) return 'No Customer';
@@ -365,11 +393,7 @@ export default function WorkOrderViewHeaderInfo({
                     <div className="flex justify-between items-center mt-1">
                       <span>Created:</span>
                       <span className="font-medium text-slate-700">
-                        {(() => {
-                          const dateStr = workOrder.created_date;
-                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
-                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
-                        })()}
+                        {formatMountainDateTimeSafe(workOrder.created_date)}
                       </span>
                     </div>
                   )}
@@ -386,11 +410,7 @@ export default function WorkOrderViewHeaderInfo({
                     <div className="flex justify-between items-center mt-1">
                       <span>Updated:</span>
                       <span className="font-medium text-slate-700">
-                        {(() => {
-                          const dateStr = workOrder.last_updated;
-                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
-                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
-                        })()}
+                        {formatMountainDateTimeSafe(workOrder.last_updated)}
                       </span>
                     </div>
                   )}
