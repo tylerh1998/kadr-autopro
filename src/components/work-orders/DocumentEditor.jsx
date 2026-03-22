@@ -4,7 +4,7 @@ import { useShopData } from '../hooks/useInventory';
 import { WorkOrder, Customer, Vehicle, Appointment, InventoryItem, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client'; import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { base44 } from '@/api/base44Client'; import { saveworkorderdata } from '@/functions/saveworkorderdata'; import { getworkorderdata } from '@/functions/getworkorderdata';
 import {
   Save,
   Printer,
@@ -391,8 +391,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setLockCheckComplete(true);
         } else {
           const now = new Date().toISOString();
-          await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email, locked_timestamp: now });
-          setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: now }));
+          const lockResult = useFunctionData ? await getworkorderdata({ ro_number: freshWorkOrder.ro_number, lockAction: 'apply', lockedByUser: currentUser.email }) : await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email, locked_timestamp: now });
+          setWorkOrder(prev => ({ ...prev, ...(useFunctionData ? (lockResult?.data?.data || {}) : { LockedByUser: currentUser.email, locked_timestamp: now }) }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
           lockAcquiredRef.current = true;
@@ -456,7 +456,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
-          await WorkOrder.update(currentWorkOrderId, { LockedByUser: null });
+          await (useFunctionData ? getworkorderdata({ ro_number: freshWorkOrder.ro_number, lockAction: 'release' }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null }));
         }
         lockAcquiredRef.current = false;
       } catch (error) {
@@ -467,9 +467,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     const handleBeforeUnload = (e) => {
       if (lockAcquiredRef.current && currentWorkOrderId) {
         // Best effort to release lock on tab close
-        WorkOrder.update(currentWorkOrderId, { LockedByUser: null })
-          .then(() => {})
-          .catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
+        (useFunctionData ? getworkorderdata({ ro_number: workOrder?.ro_number, lockAction: 'release' }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null })).then(() => {}).catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
       }
     };
 
@@ -1245,7 +1243,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false);
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
-        await WorkOrder.update(workOrder.id, { LockedByUser: null });
+        await (useFunctionData ? getworkorderdata({ ro_number: workOrder.ro_number, lockAction: 'release' }) : WorkOrder.update(workOrder.id, { LockedByUser: null }));
         lockAcquiredRef.current = false;
       }
 
@@ -1405,7 +1403,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleViewOnlyMode = async () => {
     try {
       if (workOrder && workOrder.id && currentUser && lockAcquiredRef.current) {
-        await WorkOrder.update(workOrder.id, { LockedByUser: null });
+        await (useFunctionData ? getworkorderdata({ ro_number: workOrder.ro_number, lockAction: 'release' }) : WorkOrder.update(workOrder.id, { LockedByUser: null }));
         lockAcquiredRef.current = false;
       }
       navigate(createPageUrl(`WorkOrderView?id=${roNumber}`));
