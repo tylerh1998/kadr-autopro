@@ -67,6 +67,7 @@ import NewWorkOrderModal from './components/work-orders/NewWorkOrderModal';
 import TechClockStatusModal from './components/work-orders/TechClockStatusModal';
 import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
+import { createworkorderdata } from '@/functions/createworkorderdata';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -1033,7 +1034,8 @@ const navigationItems = [
         onClose={() => setShowNewWorkOrderModal(false)}
         onCreateWorkOrder={async (workOrderData) => {
           try {
-            const newWorkOrder = await base44.entities.WorkOrder.create(workOrderData);
+            const response = await createworkorderdata({ data: workOrderData });
+            const newWorkOrder = response.data?.data;
             const pageName = newWorkOrder?.stage === 'estimate' ? "EstimateEdit" : "WorkOrderEdit";
             const url = createPageUrl(pageName) + "?id=" + newWorkOrder.ro_number;
             

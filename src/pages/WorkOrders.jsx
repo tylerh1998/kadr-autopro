@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
 import { getworkorderlist } from "@/functions/getworkorderlist";
+import { createworkorderdata } from "@/functions/createworkorderdata";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -646,7 +647,8 @@ export default function WorkOrdersPage() {
     try {
       console.log('Creating work order with data:', workOrderData);
       
-      const createdWorkOrder = await base44.entities.WorkOrder.create(workOrderData);
+      const response = await createworkorderdata({ data: workOrderData });
+      const createdWorkOrder = response.data?.data;
       console.log('Created work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
@@ -772,7 +774,8 @@ export default function WorkOrdersPage() {
       
       console.log('Creating counter sale work order with data:', newWorkOrder);
       
-      const createdWorkOrder = await base44.entities.WorkOrder.create(newWorkOrder);
+      const response = await createworkorderdata({ data: newWorkOrder });
+      const createdWorkOrder = response.data?.data;
       console.log('Created counter sale work order:', createdWorkOrder);
       
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {

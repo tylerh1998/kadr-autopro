@@ -17,6 +17,7 @@ import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import { Customer, Vehicle, WorkOrder, SystemSettings } from '@/entities/all';
+import { createworkorderdata } from '@/functions/createworkorderdata';
 
 export default function AppointmentForm({
   open,
@@ -619,7 +620,8 @@ export default function AppointmentForm({
         default_taxable: customer?.default_taxable || false,
       };
 
-      const createdWO = await WorkOrder.create(newWorkOrder);
+      const response = await createworkorderdata({ data: newWorkOrder });
+      const createdWO = response.data?.data;
       setLocalWorkOrder(createdWO);
       
       if (onDataRefresh) {
