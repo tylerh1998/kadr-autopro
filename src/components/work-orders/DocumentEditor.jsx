@@ -836,14 +836,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           apiPayload.locked_timestamp = new Date().toISOString();
       }
 
-      let persistedWorkOrder = null;
       if (useFunctionData) {
         if (currentUser) {
           apiPayload.last_updated = new Date().toISOString();
           apiPayload.last_updated_by = currentUser.email;
         }
-        const saveResponse = await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
-        persistedWorkOrder = saveResponse?.data?.data || null;
+        await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
       } else {
         try {
           const originalWorkOrder = await WorkOrder.get(workOrder.id);
@@ -873,7 +871,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       // or when updatedDetails.LockedByUser is explicitly set to null (which is not typically done via handleSave calls here)
       // The automatic clearing logic has been removed to prevent clearing lock on intermediate saves (like sending email).
 
-      setWorkOrder(prev => persistedWorkOrder ? { ...prev, ...persistedWorkOrder } : ({ ...prev, ...workOrderData, locked_timestamp: apiPayload.locked_timestamp }));
+      setWorkOrder(prev => ({ ...prev, ...workOrderData, ...apiPayload, locked_timestamp: apiPayload.locked_timestamp }));
       
       // Check if user made changes during the save process
       // We compare the JSON string of critical fields to see if "latest" differs from what we just saved ("working")

@@ -68,20 +68,19 @@ Deno.serve(async (req) => {
       .from('WorkOrder')
       .update(payload)
       .eq('ro_number', ro_number)
-      .select('*');
+      .select('id')
+      .maybeSingle();
 
     if (result.error) {
       console.error('saveworkorderdata supabase error:', result.error);
       return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
     }
 
-    const savedRow = Array.isArray(result.data) ? result.data[0] : result.data;
-
-    if (!savedRow) {
+    if (!result.data?.id) {
       return Response.json({ error: 'Work order not found in Supabase' }, { status: 404 });
     }
 
-    return Response.json({ data: normalizeWorkOrder(savedRow) });
+    return Response.json({ success: true, id: result.data.id });
   } catch (error) {
     console.error('saveworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });
