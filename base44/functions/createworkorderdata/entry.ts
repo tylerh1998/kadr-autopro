@@ -21,7 +21,6 @@ const ALLOWED_FIELDS = new Set([
   'description',
   'odometer',
   'labor_rate',
-  'estimated_hours',
   'parts_total',
   'labor_total',
   'shop_supply_total',
