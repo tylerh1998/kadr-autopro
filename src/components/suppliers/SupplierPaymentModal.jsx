@@ -490,12 +490,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         // Start polling for status
         const pollInterval = setInterval(async () => {
             try {
-                const payment = await base44.entities.SupplierPayment.get(paymentId);
-                
+                const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
+                    action: 'read',
+                    table: 'SupplierPayment',
+                    match: { id: paymentId }
+                });
+                const payment = paymentResponse.data?.data?.[0];
+                if (!payment) return;
+
                 if (payment.status === 'completed') {
                     clearInterval(pollInterval);
                     if (chequeNumber) {
-                         // Navigate to cheque writer
                          const chequeUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumber)}`;
                          window.location.href = chequeUrl;
                     } else {
@@ -508,7 +513,6 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     setProcessingCheque(false);
                     alert(`Payment processing failed: ${payment.error_message || 'Unknown error'}`);
                 }
-                // If pending or processing, continue polling
             } catch (e) {
                 console.error("Polling error:", e);
             }

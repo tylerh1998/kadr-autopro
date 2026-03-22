@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const getMountainDateString = (value) => {
@@ -26,8 +26,8 @@ Deno.serve(async (req) => {
 
     try {
         const base44 = createClientFromRequest(req);
-
         const user = await base44.auth.me();
+
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -41,9 +41,6 @@ Deno.serve(async (req) => {
         const fromDate = getMountainDateString(dateRange?.from);
         const toDate = getMountainDateString(dateRange?.to);
 
-        console.log(`Fetching data for supplier: ${supplierId}`);
-        console.log(`Date range: ${fromDate || 'N/A'} to ${toDate || 'N/A'}`);
-
         const supabaseUrl = Deno.env.get('Supabase_project_url');
         const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
 
@@ -55,7 +52,6 @@ Deno.serve(async (req) => {
             auth: { persistSession: false }
         });
 
-        console.log('Fetching supplier...');
         const { data: supplierDataArr, error: supplierErr } = await supabase
             .from('Supplier')
             .select('*')
@@ -68,10 +64,13 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
-        console.log('Fetching chart of accounts, supplier payments, and optimized supplier transactions in parallel...');
-        const [chartOfAccountsData, paymentsData, { data: aggregatedData, error: rpcError }] = await Promise.all([
+        const [chartOfAccountsData, paymentsResponse, rpcResponse] = await Promise.all([
             base44.asServiceRole.entities.ChartOfAccount.list('', 1000),
-            base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId }),
+            supabase
+                .from('SupplierPayment')
+                .select('*')
+                .eq('supplier_id', supplierId)
+                .order('payment_date', { ascending: false }),
             supabase.rpc('get_supplier_transactions_optimized', {
                 p_supplier_id: supplierId,
                 p_from_date: fromDate,
@@ -79,29 +78,33 @@ Deno.serve(async (req) => {
             })
         ]);
 
-        if (rpcError) {
-            console.error('RPC Error:', rpcError);
+        if (paymentsResponse.error) {
             return Response.json({
                 success: false,
-                error: rpcError.message || 'Failed to fetch supplier transactions'
+                error: paymentsResponse.error.message || 'Failed to fetch supplier payments'
             }, { status: 500 });
         }
 
-        console.log(`Total payments fetched: ${paymentsData.length}`);
-        console.log('Data aggregation complete. Returning response...');
+        if (rpcResponse.error) {
+            console.error('RPC Error:', rpcResponse.error);
+            return Response.json({
+                success: false,
+                error: rpcResponse.error.message || 'Failed to fetch supplier transactions'
+            }, { status: 500 });
+        }
 
         return Response.json({
             success: true,
             data: {
                 supplier: supplierData,
                 chartOfAccounts: chartOfAccountsData,
-                payments: paymentsData,
-                conceptualInvoices: aggregatedData?.conceptualInvoices || [],
-                allConceptualInvoices: aggregatedData?.allConceptualInvoices || [],
-                invoiceLines: aggregatedData?.invoiceLines || [],
-                allInvoiceLines: aggregatedData?.allInvoiceLines || [],
-                currentBalance: Number(aggregatedData?.currentBalance || 0),
-                dateRangeTotal: Number(aggregatedData?.dateRangeTotal || 0)
+                payments: paymentsResponse.data || [],
+                conceptualInvoices: rpcResponse.data?.conceptualInvoices || [],
+                allConceptualInvoices: rpcResponse.data?.allConceptualInvoices || [],
+                invoiceLines: rpcResponse.data?.invoiceLines || [],
+                allInvoiceLines: rpcResponse.data?.allInvoiceLines || [],
+                currentBalance: Number(rpcResponse.data?.currentBalance || 0),
+                dateRangeTotal: Number(rpcResponse.data?.dateRangeTotal || 0)
             }
         });
     } catch (error) {
