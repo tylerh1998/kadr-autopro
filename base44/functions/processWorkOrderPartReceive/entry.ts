@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
   try {
@@ -10,6 +11,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
+
     // Parse request body
     const { workOrderId, roNumber, lineItemId, receivedQuantity } = await req.json();
 
@@ -20,20 +32,19 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Fetch the work order
-    let workOrder = null;
+    // Fetch the work order from Supabase
+    const workOrderQuery = supabase
+      .from('WorkOrder')
+      .select('*')
+      .limit(1);
 
-    if (workOrderId) {
-      try {
-        workOrder = await base44.asServiceRole.entities.WorkOrder.get(workOrderId);
-      } catch (_error) {
-        workOrder = null;
-      }
-    }
+    const { data: workOrder, error: workOrderError } = roNumber
+      ? await workOrderQuery.eq('ro_number', roNumber).maybeSingle()
+      : await workOrderQuery.eq('id', workOrderId).maybeSingle();
 
-    if (!workOrder && roNumber) {
-      const matches = await base44.asServiceRole.entities.WorkOrder.filter({ ro_number: roNumber });
-      workOrder = matches?.[0] || null;
+    if (workOrderError) {
+      console.error('processWorkOrderPartReceive work order fetch error:', workOrderError);
+      return Response.json({ error: 'Failed to fetch work order', details: workOrderError.message }, { status: 500 });
     }
 
     if (!workOrder) {
@@ -96,9 +107,15 @@ Deno.serve(async (req) => {
       cost_ea: inventoryItem.cost || 0
     };
 
-    await base44.asServiceRole.entities.WorkOrder.update(workOrderId, {
-      line_items: JSON.stringify(lineItems)
-    });
+    const { error: workOrderUpdateError } = await supabase
+      .from('WorkOrder')
+      .update({ line_items: JSON.stringify(lineItems) })
+      .eq('ro_number', workOrder.ro_number);
+
+    if (workOrderUpdateError) {
+      console.error('processWorkOrderPartReceive work order update error:', workOrderUpdateError);
+      return Response.json({ error: 'Failed to update work order', details: workOrderUpdateError.message }, { status: 500 });
+    }
 
     // 2. Update the inventory item
     const newQOH = currentQOH - receivedQuantity;
@@ -118,7 +135,7 @@ Deno.serve(async (req) => {
       quantity_change: -receivedQuantity,
       quantity_ordered_change: 0,
       ro_number: workOrder.ro_number,
-      source_record_id: workOrderId,
+      source_record_id: workOrder.id,
       description: description
     });
 
