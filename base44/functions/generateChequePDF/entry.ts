@@ -1,50 +1,55 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import { jsPDF } from 'npm:jspdf@2.5.2';
 import { format } from 'npm:date-fns@3.6.0';
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
         const user = await base44.auth.me();
+
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const { chequeReference } = await req.json();
-        
+
         if (!chequeReference) {
             return Response.json({ error: 'Missing chequeReference parameter' }, { status: 400 });
         }
 
-        console.log('generateChequePDF: Processing cheque reference:', chequeReference);
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
 
-        // Fetch the supplier payment record using the cheque reference
-        const payments = await base44.asServiceRole.entities.SupplierPayment.filter({
-            cheque_number: chequeReference
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
         });
 
-        if (!payments || payments.length === 0) {
+        const { data: payment, error: paymentError } = await supabase
+            .from('SupplierPayment')
+            .select('*')
+            .eq('cheque_number', chequeReference)
+            .limit(1)
+            .single();
+
+        if (paymentError || !payment) {
             return Response.json({ error: 'No payment found for this cheque reference' }, { status: 404 });
         }
 
-        const payment = payments[0];
-        console.log('generateChequePDF: Found payment:', payment);
+        const { data: supplier, error: supplierError } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', payment.supplier_id)
+            .single();
 
-        // Fetch the supplier details via SupabaseProxy
-        const supplierResponse = await base44.asServiceRole.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: payment.supplier_id }
-        });
-        const supplier = supplierResponse?.data?.data?.[0];
-        if (!supplier) {
+        if (supplierError || !supplier) {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
-        console.log('generateChequePDF: Found supplier:', supplier.name);
-
-        // Parse the invoice_number JSON field to get applied invoices
         let appliedInvoices = [];
         try {
             appliedInvoices = JSON.parse(payment.invoice_number || '[]');
@@ -53,9 +58,6 @@ Deno.serve(async (req) => {
             appliedInvoices = [];
         }
 
-        console.log('generateChequePDF: Applied invoices:', appliedInvoices);
-
-        // Create PDF (8.5 x 11 inches = 215.9 x 279.4 mm)
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -63,37 +65,30 @@ Deno.serve(async (req) => {
         });
 
         const pageWidth = 215.9;
-        const chequeHeight = 93.13; // One third of page height
-        
-        // Format date as "Oct 19, 2025"
+        const chequeHeight = 93.13;
         const formattedDate = format(new Date(payment.payment_date), 'MMM dd, yyyy');
-
-        // ===== TOP SECTION - CHEQUE =====
+        const amount = parseFloat(payment.amount) || 0;
         const chequeTop = 0;
-        
-        // Date (top right)
+
         doc.setFontSize(10);
         doc.text(formattedDate, pageWidth - 40, chequeTop + 15, { align: 'right' });
 
-        // Amount in words (left side, middle area)
-        const amountInWords = numberToWords(payment.amount);
+        const amountInWords = numberToWords(amount);
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
         doc.text(`***** ${amountInWords} *****`, 20, chequeTop + 40);
         doc.setFont(undefined, 'normal');
 
-        // Amount in numbers (right side, middle area)
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text('$' + payment.amount.toFixed(2), pageWidth - 20, chequeTop + 40, { align: 'right' });
+        doc.text('$' + amount.toFixed(2), pageWidth - 20, chequeTop + 40, { align: 'right' });
         doc.setFont(undefined, 'normal');
 
-        // Supplier name and address (moved up 5mm)
         doc.setFontSize(11);
         doc.setFont(undefined, 'bold');
         doc.text(supplier.name.toUpperCase(), 20, chequeTop + 55);
         doc.setFont(undefined, 'normal');
-        
+
         if (supplier.address) {
             doc.setFontSize(9);
             doc.text(supplier.address.toUpperCase(), 20, chequeTop + 61);
@@ -103,13 +98,11 @@ Deno.serve(async (req) => {
             doc.text(`${supplier.town.toUpperCase()}, ${supplier.province.toUpperCase()} ${supplier.postal_code.toUpperCase()}`, 20, chequeTop + 67);
         }
 
-        // ===== MIDDLE STUB =====
         const stub1Top = chequeHeight;
-        renderStub(doc, stub1Top, supplier, payment, appliedInvoices, formattedDate, pageWidth);
+        renderStub(doc, stub1Top, supplier, { ...payment, amount }, appliedInvoices, formattedDate, pageWidth);
 
-        // ===== BOTTOM STUB =====
         const stub2Top = chequeHeight * 2;
-        renderStub(doc, stub2Top, supplier, payment, appliedInvoices, formattedDate, pageWidth);
+        renderStub(doc, stub2Top, supplier, { ...payment, amount }, appliedInvoices, formattedDate, pageWidth);
 
         const pdfBytes = doc.output('arraybuffer');
 
@@ -120,10 +113,9 @@ Deno.serve(async (req) => {
                 'Content-Disposition': `attachment; filename=cheque_${payment.cheque_number}.pdf`
             }
         });
-
     } catch (error) {
         console.error('Error in generateChequePDF:', error);
-        return Response.json({ 
+        return Response.json({
             error: error.message || 'Internal server error',
             details: error.toString()
         }, { status: 500 });
