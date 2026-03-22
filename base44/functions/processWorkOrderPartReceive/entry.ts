@@ -11,17 +11,31 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { workOrderId, lineItemId, receivedQuantity } = await req.json();
+    const { workOrderId, roNumber, lineItemId, receivedQuantity } = await req.json();
 
     // Validate inputs
-    if (!workOrderId || !lineItemId || !receivedQuantity || receivedQuantity <= 0) {
+    if ((!workOrderId && !roNumber) || !lineItemId || !receivedQuantity || receivedQuantity <= 0) {
       return Response.json({ 
         error: 'Invalid input parameters' 
       }, { status: 400 });
     }
 
     // Fetch the work order
-    const workOrder = await base44.entities.WorkOrder.get(workOrderId);
+    let workOrder = null;
+
+    if (workOrderId) {
+      try {
+        workOrder = await base44.asServiceRole.entities.WorkOrder.get(workOrderId);
+      } catch (_error) {
+        workOrder = null;
+      }
+    }
+
+    if (!workOrder && roNumber) {
+      const matches = await base44.asServiceRole.entities.WorkOrder.filter({ ro_number: roNumber });
+      workOrder = matches?.[0] || null;
+    }
+
     if (!workOrder) {
       return Response.json({ error: 'Work order not found' }, { status: 404 });
     }
@@ -58,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch the inventory item
-    const inventoryItem = await base44.entities.InventoryItem.get(lineItem.inventory_item_id);
+    const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(lineItem.inventory_item_id);
     if (!inventoryItem) {
       return Response.json({ error: 'Inventory item not found' }, { status: 404 });
     }

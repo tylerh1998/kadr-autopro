@@ -1093,6 +1093,7 @@ export default function WorkOrderForm({
         lineItem={currentLineItem}
         inventoryItem={inventory.find(i => i.id === currentLineItem?.inventory_item_id)}
         workOrderId={initialWorkOrder?.id}
+        roNumber={initialWorkOrder?.ro_number}
         onReceive={handleReceiveWorkOrderPart}
       />
       <ROCoreModal

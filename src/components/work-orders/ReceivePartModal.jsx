@@ -7,7 +7,7 @@ import { base44 } from '@/api/base44Client';
 import { InventoryItem } from '@/entities/all';
 import { Package, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, onReceive }) {
+export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, roNumber, onReceive }) {
   const [quantityToReceive, setQuantityToReceive] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -80,7 +80,8 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
     try {
       // Call the backend function to handle all updates atomically
       const response = await base44.functions.invoke('processWorkOrderPartReceive', {
-        workOrderId: workOrderId,
+        workOrderId,
+        roNumber,
         lineItemId: lineItem.id,
         receivedQuantity: qtyToReceive
       });
