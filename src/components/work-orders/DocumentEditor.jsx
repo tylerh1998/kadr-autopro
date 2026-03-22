@@ -562,67 +562,59 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         // Detect and process deleted line items
         const previousLines = previousLineItemsRef.current || [];
         const currentLineIds = new Set(workingLineItems.map(line => line.id));
-        const deletedLines = previousLines.filter(prevLine => 
-          prevLine.id && !currentLineIds.has(prevLine.id) && prevLine.inventory_processed && prevLine.inventory_item_id
-        );
+        const deletedLines = previousLines.filter(prevLine => {
+          const totalQty = parseFloat(prevLine.qty) || 0;
+          const qtyOnOrder = parseFloat(prevLine.qty_on_order) || 0;
+          return prevLine.id && !currentLineIds.has(prevLine.id) && prevLine.inventory_item_id && (totalQty > 0 || qtyOnOrder > 0);
+        });
 
-        if (deletedLines.length > 0) {
-          for (const deletedLine of deletedLines) {
-            try {
-              const totalQty = parseFloat(deletedLine.qty) || 0;
-              const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
-              
-              if (totalQty <= 0 && qtyOnOrder <= 0) continue;
+        for (const deletedLine of deletedLines) {
+          try {
+            const totalQty = parseFloat(deletedLine.qty) || 0;
+            const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
+            if (totalQty <= 0 && qtyOnOrder <= 0) continue;
 
-              const inventoryItem = await InventoryItem.get(deletedLine.inventory_item_id);
-              if (!inventoryItem) continue;
+            const inventoryItem = await InventoryItem.get(deletedLine.inventory_item_id);
+            if (!inventoryItem) continue;
 
-              let newQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
-              let newQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
-              let quantityChange = 0;
-              let quantityOrderedChange = 0;
-              let txDescriptions = [];
-              let txTypes = [];
+            const issuedFromQOH = Math.max(0, totalQty - qtyOnOrder);
+            const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + issuedFromQOH;
+            const newQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - qtyOnOrder);
+            const txDate = new Date().toISOString();
 
-              // Handle return to QOH (only if it was issued from QOH)
-              const issuedFromQOH = Math.max(0, totalQty - qtyOnOrder);
-              
-              if (issuedFromQOH > 0) {
-                newQOH += issuedFromQOH;
-                quantityChange = issuedFromQOH;
-                txTypes.push('Returned from WO');
-                txDescriptions.push(`Returned ${issuedFromQOH} units to inventory from deleted line on ${workOrder.ro_number}`);
-              }
+            await InventoryItem.update(deletedLine.inventory_item_id, {
+              quantity_on_hand: newQOH,
+              quantity_on_order: newQOO
+            });
 
-              // Handle cancellation of on-order
-              if (qtyOnOrder > 0) {
-                newQOO = Math.max(0, newQOO - qtyOnOrder);
-                quantityOrderedChange = -qtyOnOrder;
-                txTypes.push('Order cancelled from WO');
-                txDescriptions.push(`Cancelled ${qtyOnOrder} on order from deleted line on ${workOrder.ro_number}`);
-              }
-
-              if (quantityChange !== 0 || quantityOrderedChange !== 0) {
-                await InventoryItem.update(deletedLine.inventory_item_id, {
-                  quantity_on_hand: newQOH,
-                  quantity_on_order: newQOO
-                });
-
-                await InventoryTxs.create({
-                  inventory_item_id: deletedLine.inventory_item_id,
-                  part_num: deletedLine.part_number || inventoryItem.part_number,
-                  tx_date: new Date().toISOString(),
-                  tx_type: txTypes.length > 0 ? txTypes.join(' & ') : 'WO Line Deleted',
-                  quantity_change: quantityChange,
-                  quantity_ordered_change: quantityOrderedChange,
-                  ro_number: workOrder.ro_number,
-                  source_record_id: workOrder.id,
-                  description: txDescriptions.join('; ') || `Line item deleted from WO ${workOrder.ro_number}`
-                });
-              }
-            } catch (error) {
-              console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
+            if (issuedFromQOH > 0) {
+              await InventoryTxs.create({
+                inventory_item_id: deletedLine.inventory_item_id,
+                part_num: deletedLine.part_number || inventoryItem.part_number,
+                tx_date: txDate,
+                tx_type: 'Returned from WO',
+                quantity_change: issuedFromQOH,
+                quantity_ordered_change: 0,
+                ro_number: workOrder.ro_number,
+                source_record_id: workOrder.id,
+                description: `Returned ${issuedFromQOH} units to inventory from deleted line on ${workOrder.ro_number}`
+              });
             }
+            if (qtyOnOrder > 0) {
+              await InventoryTxs.create({
+                inventory_item_id: deletedLine.inventory_item_id,
+                part_num: deletedLine.part_number || inventoryItem.part_number,
+                tx_date: txDate,
+                tx_type: 'Ordered',
+                quantity_change: 0,
+                quantity_ordered_change: -qtyOnOrder,
+                ro_number: workOrder.ro_number,
+                source_record_id: workOrder.id,
+                description: `Cancelled ${qtyOnOrder} on order from deleted line on ${workOrder.ro_number}`
+              });
+            }
+          } catch (error) {
+            console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
           }
         }
 
