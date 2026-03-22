@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
+import { getworkorderlist } from "@/functions/getworkorderlist";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -224,11 +225,13 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const [workOrdersData, customersData, vehiclesData] = await Promise.all([
-        base44.entities.WorkOrder.list(),
+      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
+        getworkorderlist({}),
         Customer.list(),
         Vehicle.list()
       ]);
+
+      const workOrdersData = workOrdersResponse?.data?.data || [];
       
       setWorkOrders(workOrdersData);
       

@@ -31,7 +31,7 @@ export default function CreditInvoicePage() {
   const navigate = useNavigate();
   const roNumber = searchParams.get('id');
 
-  const { workOrder, customer, vehicle, lineItems, tagAlongs, loading: woLoading, error: woError, refetch } = useWorkOrder(roNumber);
+  const { workOrder, customer, vehicle, lineItems, tagAlongs, loading: woLoading, error: woError, refetch } = useWorkOrder(roNumber, { useFunctionData: true });
   const { inventory, employees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);

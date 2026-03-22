@@ -45,7 +45,7 @@ export default function WorkOrderViewPage() {
     loading: workOrderLoading,
     error: workOrderError,
     refetch
-  } = useWorkOrder(roNumber, { lockAction: 'none' });
+  } = useWorkOrder(roNumber, { useFunctionData: true, lockAction: 'none' });
   const { inventory, employees, allEmployees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);

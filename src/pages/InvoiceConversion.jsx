@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, Customer, Vehicle, SystemSettings } from '@/entities/all';
+import { getworkorderdata } from '@/functions/getworkorderdata';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
@@ -40,14 +41,13 @@ export default function InvoiceConversion() {
         console.log('RO Number:', roNumber);
 
         // Fetch work order
-        const workOrders = await WorkOrder.filter({ ro_number: roNumber });
-        if (!workOrders || workOrders.length === 0) {
+        const workOrderResponse = await getworkorderdata({ ro_number: roNumber });
+        const wo = workOrderResponse?.data?.data;
+        if (!wo) {
           setError(`Work order with RO number ${roNumber} not found.`);
           setLoading(false);
           return;
         }
-
-        const wo = workOrders[0];
         console.log('Work Order fetched:', wo);
 
         // Parse line items early and store in state
