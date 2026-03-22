@@ -23,6 +23,7 @@ export default function WorkOrderHeaderInfo({
 }) {
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
+  const [completedByName, setCompletedByName] = useState('');
 
   const getUserDisplayName = async (email) => {
     if (!email) return '';
@@ -69,10 +70,17 @@ export default function WorkOrderHeaderInfo({
       } else {
         setLastUpdatedByName('');
       }
+
+      if (workOrder?.completed_by) {
+        const name = await getUserDisplayName(workOrder.completed_by);
+        setCompletedByName(name);
+      } else {
+        setCompletedByName('');
+      }
     };
 
     fetchNames();
-  }, [workOrder?.created_by, workOrder?.last_updated_by, employees]);
+  }, [workOrder?.created_by, workOrder?.last_updated_by, workOrder?.completed_by, employees]);
 
   // Helper function to get customer display name
   const getCustomerDisplayName = () => {
@@ -159,7 +167,15 @@ export default function WorkOrderHeaderInfo({
       const rawValue = String(dateValue).trim();
       if (!rawValue) return '';
 
-      const normalizedValue = rawValue.endsWith('Z') ? rawValue : `${rawValue}Z`;
+      let normalizedValue = rawValue.replace(' ', 'T');
+      if (/^[\d-]+$/.test(normalizedValue)) return formatDateDisplay(normalizedValue);
+      if (/([+-]\d{2})$/.test(normalizedValue)) {
+        normalizedValue = normalizedValue.replace(/([+-]\d{2})$/, '$1:00');
+      }
+      if (!normalizedValue.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(normalizedValue)) {
+        normalizedValue = `${normalizedValue}Z`;
+      }
+
       const dateObj = new Date(normalizedValue);
       if (Number.isNaN(dateObj.getTime())) return rawValue;
 
@@ -421,7 +437,7 @@ export default function WorkOrderHeaderInfo({
                 Approvals
               </Button>
               
-              {(workOrder?.created_by || workOrder?.created_date) && (
+              {(workOrder?.created_by || workOrder?.created_date || workOrder?.last_updated_by || workOrder?.last_updated || workOrder?.completed_by || workOrder?.completed_date) && (
                 <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
                   {workOrder.created_by && (
                     <div className="flex justify-between items-center">
@@ -452,6 +468,22 @@ export default function WorkOrderHeaderInfo({
                       <span>Updated:</span>
                       <span className="font-medium text-slate-700">
                         {formatMountainDateTimeSafe(workOrder.last_updated)}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.completed_by && (
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                      <span>Completed By:</span>
+                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={completedByName}>
+                        {completedByName}
+                      </span>
+                    </div>
+                  )}
+                  {workOrder.completed_date && (
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Completed:</span>
+                      <span className="font-medium text-slate-700">
+                        {formatDateDisplay(workOrder.completed_date)}
                       </span>
                     </div>
                   )}
