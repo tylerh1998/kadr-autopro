@@ -106,7 +106,6 @@ Deno.serve(async (req) => {
     const insertData = {
       id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
       created_date: now,
-      updated_date: now,
       created_by: user.email,
       ...payload
     };
