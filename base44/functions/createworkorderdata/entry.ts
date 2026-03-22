@@ -43,8 +43,7 @@ const ALLOWED_FIELDS = new Set([
   'tech_time',
   'last_updated',
   'last_updated_by',
-  'completed_by',
-  'cp_id'
+  'completed_by'
 ]);
 
 const normalizeWorkOrder = (row) => {
