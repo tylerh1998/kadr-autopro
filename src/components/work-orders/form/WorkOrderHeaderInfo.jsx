@@ -152,6 +152,26 @@ export default function WorkOrderHeaderInfo({
     }
   };
 
+  const formatMountainDateTimeSafe = (dateValue) => {
+    if (!dateValue) return '';
+
+    try {
+      const rawValue = String(dateValue).trim();
+      if (!rawValue) return '';
+
+      const normalizedValue = rawValue.endsWith('Z') ? rawValue : `${rawValue}Z`;
+      const dateObj = new Date(normalizedValue);
+      if (Number.isNaN(dateObj.getTime())) return rawValue;
+
+      const mountainDate = toMountainTime(dateObj);
+      if (Number.isNaN(mountainDate.getTime())) return rawValue;
+
+      return format(mountainDate, 'MMM d, yyyy h:mm a');
+    } catch (e) {
+      return String(dateValue);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       {/* Customer Card */}
@@ -415,12 +435,7 @@ export default function WorkOrderHeaderInfo({
                     <div className="flex justify-between items-center mt-1">
                       <span>Created:</span>
                       <span className="font-medium text-slate-700">
-                        {(() => {
-                          const dateStr = workOrder.created_date;
-                          // Force UTC interpretation if 'Z' is missing to ensure correct conversion to Mountain Time
-                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
-                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
-                        })()}
+                        {formatMountainDateTimeSafe(workOrder.created_date)}
                       </span>
                     </div>
                   )}
@@ -436,11 +451,7 @@ export default function WorkOrderHeaderInfo({
                     <div className="flex justify-between items-center mt-1">
                       <span>Updated:</span>
                       <span className="font-medium text-slate-700">
-                        {(() => {
-                          const dateStr = workOrder.last_updated;
-                          const dateObj = dateStr.endsWith('Z') ? new Date(dateStr) : new Date(dateStr + 'Z');
-                          return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
-                        })()}
+                        {formatMountainDateTimeSafe(workOrder.last_updated)}
                       </span>
                     </div>
                   )}
