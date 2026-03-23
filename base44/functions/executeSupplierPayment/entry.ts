@@ -28,13 +28,9 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
     const startedAt = Date.now();
 
-    const { data: payment, error: paymentError } = await supabase
-      .from('SupplierPayment')
-      .select('*')
-      .eq('id', paymentId)
-      .single();
+    const payment = await base44.asServiceRole.entities.SupplierPayment.get(paymentId);
 
-    if (paymentError || !payment) {
+    if (!payment) {
       throw new Error('Supplier payment not found');
     }
 
@@ -42,10 +38,10 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, skipped: true });
     }
 
-    await supabase
-      .from('SupplierPayment')
-      .update({ status: 'processing', error_message: null })
-      .eq('id', paymentId);
+    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, {
+      status: 'processing',
+      error_message: null
+    });
 
     const supplierFetchStartedAt = Date.now();
     const { data: supplier, error: supplierError } = await supabase
@@ -155,10 +151,10 @@ Deno.serve(async (req) => {
 
     console.info('[executeSupplierPayment] bank_gl_ms:', Date.now() - bankGlStartedAt);
 
-    await supabase
-      .from('SupplierPayment')
-      .update({ status: 'completed', error_message: null })
-      .eq('id', paymentId);
+    await base44.asServiceRole.entities.SupplierPayment.update(paymentId, {
+      status: 'completed',
+      error_message: null
+    });
 
     console.info('[executeSupplierPayment] total_ms:', Date.now() - startedAt);
 
@@ -173,13 +169,10 @@ Deno.serve(async (req) => {
 
         if (supabaseUrl && supabaseSecret) {
           const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
-          await supabase
-            .from('SupplierPayment')
-            .update({
-              status: 'failed',
-              error_message: error.message || 'Unknown error during background processing'
-            })
-            .eq('id', paymentId);
+          await base44.asServiceRole.entities.SupplierPayment.update(paymentId, {
+            status: 'failed',
+            error_message: error.message || 'Unknown error during background processing'
+          });
         }
       } catch (statusError) {
         console.error('Failed to update payment status to failed:', statusError);

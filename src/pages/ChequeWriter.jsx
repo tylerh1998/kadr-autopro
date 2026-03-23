@@ -29,21 +29,11 @@ export default function ChequeWriter() {
         setChequeReference(ref);
         console.log('ChequeWriter: Loading cheque for reference:', ref);
 
-        const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierPayment',
-          match: { cheque_number: ref }
-        });
-        const payment = paymentResponse.data?.data?.[0];
+        const matchingPayments = await base44.entities.SupplierPayment.filter({ cheque_number: String(ref) });
+        const payment = matchingPayments?.[0];
 
-        if (payment) {
-          const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: payment.supplier_id }
-          });
-          const supplier = supplierResponse.data?.data?.[0];
-          setSupplierId(supplier?.id || payment.supplier_id);
+        if (payment?.supplier_id) {
+          setSupplierId(payment.supplier_id);
         }
 
         const response = await base44.functions.invoke('generateChequePDF', {

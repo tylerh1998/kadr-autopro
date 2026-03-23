@@ -29,14 +29,12 @@ Deno.serve(async (req) => {
             auth: { persistSession: false }
         });
 
-        const { data: payment, error: paymentError } = await supabase
-            .from('SupplierPayment')
-            .select('*')
-            .eq('cheque_number', chequeReference)
-            .limit(1)
-            .single();
+        const matchingPayments = await base44.asServiceRole.entities.SupplierPayment.filter({
+            cheque_number: String(chequeReference)
+        });
+        const payment = matchingPayments?.[0];
 
-        if (paymentError || !payment) {
+        if (!payment) {
             return Response.json({ error: 'No payment found for this cheque reference' }, { status: 404 });
         }
 
