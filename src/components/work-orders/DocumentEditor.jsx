@@ -1232,10 +1232,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       return;
     }
 
-    const confirmed = window.confirm('Convert to Invoice?');
-    if (!confirmed) return;
-
-    setInvoiceConversionPhase(workOrder.vehicle_id === '69562a182efce2529204db01' ? 3 : 1);
+    if(!window.confirm('Convert to Invoice?'))return;
+    workOrder.vehicle_id==='69562a182efce2529204db01'?(await handleSave({},false),setInvoiceConversionPhase(3)):setInvoiceConversionPhase(1);
   }, [workOrder, lineItems]);
 
   const handleHeaderSaveClick = useCallback(async () => {
