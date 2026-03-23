@@ -99,6 +99,35 @@ Deno.serve(async (req) => {
       }
 
       const lockedByUser = existingWorkOrder.LockedByUser || '';
+      const lockedAt = existingWorkOrder.locked_timestamp ? new Date(existingWorkOrder.locked_timestamp) : null;
+      const isStaleLock = lockedByUser &&
+        lockedByUser !== user.email &&
+        lockedAt &&
+        !Number.isNaN(lockedAt.getTime()) &&
+        ((Date.now() - lockedAt.getTime()) / 60000) > 30;
+
+      if (isStaleLock) {
+        const { data: staleLockOverride, error: staleLockError } = await supabase
+          .from('WorkOrder')
+          .update({ LockedByUser: user.email, locked_timestamp: now })
+          .eq('ro_number', ro_number)
+          .eq('LockedByUser', existingWorkOrder.LockedByUser)
+          .eq('locked_timestamp', existingWorkOrder.locked_timestamp)
+          .select('id, ro_number, LockedByUser, locked_timestamp')
+          .maybeSingle();
+
+        if (staleLockError) {
+          return Response.json({ success: false, error: staleLockError.message || 'Failed to override stale work order lock' }, { status: 500 });
+        }
+
+        if (staleLockOverride) {
+          return Response.json({
+            success: true,
+            lockAcquired: true,
+            data: staleLockOverride
+          });
+        }
+      }
 
       return Response.json({
         success: false,
