@@ -92,19 +92,27 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Supplier not found' }, { status: 404 });
     }
 
-    const paymentId = crypto.randomUUID();
     const paymentSource = paymentMethod === 'Cash' ? 'cash' : fromAccountId;
+
+    stage = 'create_supplier_payment';
+    const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create({
+      supplier_id: supplierId,
+      invoice_number: JSON.stringify(appliedInvoices),
+      payment_date: paymentDate,
+      amount: paymentAmount,
+      payment_method: paymentMethod,
+      cheque_number: chequeNumber || null,
+      source: paymentSource,
+      notes: notes || null,
+      status: 'pending',
+      error_message: null,
+    });
+
+    const paymentId = createdPayment.id;
 
     stage = 'apply_supplier_invoice_line_paid_updates';
     const { data: allocationResult, error: allocationError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
-      p_payment_id: paymentId,
       p_supplier_id: supplierId,
-      p_payment_date: paymentDate,
-      p_amount: paymentAmount,
-      p_payment_method: paymentMethod,
-      p_cheque_number: chequeNumber || null,
-      p_source: paymentSource,
-      p_notes: notes || null,
       p_applied_invoices: appliedInvoices
     });
 
@@ -116,6 +124,9 @@ Deno.serve(async (req) => {
         payment_source: paymentSource,
         error: getErrorDetails(allocationError),
       });
+
+      stage = 'rollback_supplier_payment';
+      await base44.asServiceRole.entities.SupplierPayment.delete(paymentId);
 
       throw new Error(`Failed to create supplier payment: ${allocationError.message}`);
     }
