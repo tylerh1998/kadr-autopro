@@ -426,10 +426,6 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     
     try {
       await processPaymentLogic(chequeNumberInput);
-      
-      // Navigate to cheque writer page with full refresh
-      const chequeUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumberInput)}`;
-      window.location.href = chequeUrl;
     } catch (error) {
       setProcessingCheque(false);
       // Error already handled in processPaymentLogic
