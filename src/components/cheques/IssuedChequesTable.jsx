@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SupplierPayment, BankAccount } from '@/entities/all';
+import { BankAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -74,8 +74,12 @@ export default function IssuedChequesTable() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [paymentsData, suppliersResponse, bankAccountsData] = await Promise.all([
-        SupplierPayment.filter({ payment_method: 'Cheque' }),
+      const [paymentsResponse, suppliersResponse, bankAccountsData] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'read',
+          table: 'SupplierPayment',
+          match: { payment_method: 'Cheque' }
+        }),
         base44.functions.invoke('SupabaseProxy', {
           action: 'read',
           table: 'Supplier'
@@ -83,6 +87,7 @@ export default function IssuedChequesTable() {
         BankAccount.list()
       ]);
 
+      const paymentsData = paymentsResponse.data?.data || [];
       const suppliersData = suppliersResponse.data?.data || [];
 
       // Sort by cheque number (numeric if possible, otherwise alphabetic)
@@ -124,7 +129,12 @@ export default function IssuedChequesTable() {
     // Optimistic UI update
     setCheques(prev => prev.map(c => c.id === id ? { ...c, notes: newNote } : c));
     try {
-        await SupplierPayment.update(id, { notes: newNote });
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'SupplierPayment',
+          id,
+          data: { notes: newNote }
+        });
     } catch (error) {
         console.error("Failed to update note:", error);
         // Could reload data or revert optimistic update here if needed

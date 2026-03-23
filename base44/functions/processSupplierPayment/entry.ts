@@ -95,20 +95,32 @@ Deno.serve(async (req) => {
     const paymentSource = paymentMethod === 'Cash' ? 'cash' : fromAccountId;
 
     stage = 'create_supplier_payment';
-    const createdPayment = await base44.asServiceRole.entities.SupplierPayment.create({
-      supplier_id: supplierId,
-      invoice_number: JSON.stringify(appliedInvoices),
-      payment_date: paymentDate,
-      amount: paymentAmount,
-      payment_method: paymentMethod,
-      cheque_number: chequeNumber || null,
-      source: paymentSource,
-      notes: notes || null,
-      status: 'pending',
-      error_message: null,
-    });
+    const paymentId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+    const now = new Date().toISOString();
 
-    const paymentId = createdPayment.id;
+    const { error: createPaymentError } = await supabase
+      .from('SupplierPayment')
+      .insert([{ 
+        id: paymentId,
+        created_date: now,
+        updated_date: now,
+        created_by: user.email,
+        created_by_id: user.id,
+        supplier_id: supplierId,
+        invoice_number: JSON.stringify(appliedInvoices),
+        payment_date: paymentDate,
+        amount: paymentAmount,
+        payment_method: paymentMethod,
+        cheque_number: chequeNumber || null,
+        source: paymentSource,
+        notes: notes || null,
+        status: 'pending',
+        error_message: null,
+      }]);
+
+    if (createPaymentError) {
+      throw new Error(`Failed to create supplier payment: ${createPaymentError.message}`);
+    }
 
     stage = 'apply_supplier_invoice_line_paid_updates';
     const { data: allocationResult, error: allocationError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
@@ -126,7 +138,10 @@ Deno.serve(async (req) => {
       });
 
       stage = 'rollback_supplier_payment';
-      await base44.asServiceRole.entities.SupplierPayment.delete(paymentId);
+      await supabase
+        .from('SupplierPayment')
+        .delete()
+        .eq('id', paymentId);
 
       throw new Error(`Failed to create supplier payment: ${allocationError.message}`);
     }

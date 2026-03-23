@@ -486,7 +486,12 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         // Start polling for status
         const pollInterval = setInterval(async () => {
             try {
-                const payment = await base44.entities.SupplierPayment.get(paymentId);
+                const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
+                    action: 'read',
+                    table: 'SupplierPayment',
+                    match: { id: paymentId }
+                });
+                const payment = paymentResponse.data?.data?.[0];
                 if (!payment) return;
 
                 if (payment.status === 'completed') {
