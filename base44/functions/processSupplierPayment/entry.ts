@@ -1,6 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
+const getErrorDetails = (error) => ({
+  name: error?.name || 'Error',
+  message: error?.message || String(error),
+  stack: error?.stack || null,
+});
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
