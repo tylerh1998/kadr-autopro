@@ -38,14 +38,27 @@ Deno.serve(async (req) => {
       query = query.limit(Number(limit));
     }
 
-    const result = await query;
+    let result = null;
 
-    if (result.error) {
-      console.error('getworkorderlist supabase error:', result.error);
-      return Response.json({ error: 'Failed to fetch work orders', details: result.error.message }, { status: 500 });
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      result = await query;
+
+      if (!result.error) {
+        break;
+      }
+
+      const details = `${result.error.message || ''} ${result.error.details || ''}`.toLowerCase();
+      const isTransient = details.includes('connection reset') || details.includes('error sending request') || details.includes('sendrequest');
+
+      if (!isTransient || attempt === 3) {
+        console.error('getworkorderlist supabase error:', result.error);
+        return Response.json({ error: 'Failed to fetch work orders', details: result.error.message }, { status: 500 });
+      }
+
+      await sleep(attempt * 300);
     }
 
-    return Response.json({ data: result.data || [] });
+    return Response.json({ data: result?.data || [] });
   } catch (error) {
     console.error('getworkorderlist error:', error);
     return Response.json({ error: error.message }, { status: 500 });
