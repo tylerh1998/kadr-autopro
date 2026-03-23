@@ -109,6 +109,14 @@ Deno.serve(async (req) => {
     });
 
     if (allocationError) {
+      console.error('processSupplierPayment allocation RPC failed', {
+        ...logContext,
+        stage,
+        payment_id: paymentId,
+        payment_source: paymentSource,
+        error: getErrorDetails(allocationError),
+      });
+
       throw new Error(`Failed to create supplier payment: ${allocationError.message}`);
     }
 
