@@ -83,6 +83,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (supplierError || !supplier) {
+      console.error('processSupplierPayment supplier lookup failed', {
+        ...logContext,
+        stage,
+        error: getErrorDetails(supplierError || new Error('Supplier not found')),
+      });
+
       return Response.json({ success: false, error: 'Supplier not found' }, { status: 404 });
     }
 
