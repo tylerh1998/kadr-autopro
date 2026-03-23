@@ -830,9 +830,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       
       delete apiPayload.forceConversion;
 
-      // Update locked_timestamp to keep the lock fresh
-      if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser')) {
-          apiPayload.locked_timestamp = new Date().toISOString();
+      if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser') && lockAcquiredRef.current) {
+        apiPayload.locked_timestamp = (await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'apply' }))?.data?.data?.locked_timestamp || workOrder.locked_timestamp;
       }
 
       if (useFunctionData) {
