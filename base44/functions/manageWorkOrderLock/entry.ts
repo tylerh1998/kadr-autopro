@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
         lockedByUser !== user.email &&
         lockedAt &&
         !Number.isNaN(lockedAt.getTime()) &&
-        ((Date.now() - lockedAt.getTime()) / 60000) > 30;
+        ((Date.now() - lockedAt.getTime()) / 60000) > 120;
 
       if (isStaleLock) {
         const { data: staleLockOverride, error: staleLockError } = await supabase
