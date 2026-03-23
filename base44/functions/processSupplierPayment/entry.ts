@@ -138,7 +138,12 @@ Deno.serve(async (req) => {
       payment_id: allocationResult?.payment_id || paymentId
     });
   } catch (error) {
-    console.error('Error in processSupplierPayment:', error);
+    console.error('processSupplierPayment unhandled error', {
+      ...logContext,
+      stage,
+      error: getErrorDetails(error),
+    });
+
     return Response.json({
       success: false,
       error: error.message || 'An error occurred while queuing the payment'
