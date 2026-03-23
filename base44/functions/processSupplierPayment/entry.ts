@@ -120,10 +120,16 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to create supplier payment: ${allocationError.message}`);
     }
 
+    stage = 'queue_executeSupplierPayment';
     base44.functions.invoke('executeSupplierPayment', {
       paymentId
     }).catch((invokeError) => {
-      console.error('Failed to trigger executeSupplierPayment:', invokeError);
+      console.error('processSupplierPayment failed to trigger executeSupplierPayment', {
+        ...logContext,
+        stage,
+        payment_id: paymentId,
+        error: getErrorDetails(invokeError),
+      });
     });
 
     return Response.json({
