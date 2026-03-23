@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
     const paymentId = crypto.randomUUID();
     const paymentSource = paymentMethod === 'Cash' ? 'cash' : fromAccountId;
 
+    stage = 'apply_supplier_invoice_line_paid_updates';
     const { data: allocationResult, error: allocationError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
       p_payment_id: paymentId,
       p_supplier_id: supplierId,
