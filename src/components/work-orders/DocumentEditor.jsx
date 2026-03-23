@@ -467,7 +467,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     const handleBeforeUnload = (e) => {
       if (lockAcquiredRef.current && currentWorkOrderId) {
         // Best effort to release lock on tab close
-        (useFunctionData ? manageWorkOrderLock({ ro_number: workOrder?.ro_number, action: 'release' }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null }))
+        manageWorkOrderLock({ ro_number: workOrder?.ro_number, action: 'release' })
           .then(() => {})
           .catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
       }
