@@ -8,7 +8,11 @@ const getErrorDetails = (error) => ({
 });
 
 Deno.serve(async (req) => {
+  let stage = 'initializing';
+  let logContext = {};
+
   try {
+    stage = 'auth';
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
 
