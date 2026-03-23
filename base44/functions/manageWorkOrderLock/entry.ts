@@ -32,9 +32,37 @@ Deno.serve(async (req) => {
     });
 
     const escapedEmail = user.email.replaceAll('"', '\\"');
+    const getMountainTimeISOString = () => {
+      const now = new Date();
+      const dateParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Edmonton',
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).formatToParts(now).reduce((acc, part) => {
+        if (part.type !== 'literal') acc[part.type] = part.value;
+        return acc;
+      }, {});
+
+      const offsetLabel = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Edmonton',
+        timeZoneName: 'shortOffset'
+      }).formatToParts(now).find((part) => part.type === 'timeZoneName')?.value || 'GMT-7';
+
+      const offsetMatch = offsetLabel.replace('GMT', '').match(/^([+-])?(\d{1,2})(?::?(\d{2}))?$/);
+      const offsetSign = offsetMatch?.[1] || '-';
+      const offsetHours = String(offsetMatch?.[2] || '7').padStart(2, '0');
+      const offsetMinutes = String(offsetMatch?.[3] || '00').padStart(2, '0');
+
+      return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}.${String(now.getMilliseconds()).padStart(3, '0')}${offsetSign}${offsetHours}:${offsetMinutes}`;
+    };
 
     if (action === 'apply') {
-      const now = new Date().toISOString();
+      const now = getMountainTimeISOString();
 
       const { data: lockedWorkOrder, error: updateError } = await supabase
         .from('WorkOrder')
