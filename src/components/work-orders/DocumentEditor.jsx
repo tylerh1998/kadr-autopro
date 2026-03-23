@@ -456,7 +456,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
-          await (useFunctionData ? manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'release' }) : WorkOrder.update(currentWorkOrderId, { LockedByUser: null }));
+          await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'release' });
         }
         lockAcquiredRef.current = false;
       } catch (error) {
