@@ -13,6 +13,7 @@ import { ArrowLeft, Calendar as CalendarIcon, Search, ChevronDown, ChevronRight,
 import { format, subDays, parseISO } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import { toMountainTime } from '../components/utils/mountainTimeUtils';
+import { parseSupplierPaymentInvoices } from '../components/suppliers/utils/parseSupplierPaymentInvoices';
 
 const GST_RATE = 0.05; // 5% GST
 
@@ -489,28 +490,7 @@ export default function SupplierTxViewPage() {
                                   <TableBody>
                                     {payments.map((payment) => {
                                       const isExpanded = expandedPayments.has(payment.id);
-                                      let appliedInvoices = [];
-
-                                      if (payment.invoice_number) {
-                                          try {
-                                              const parsed = JSON.parse(payment.invoice_number);
-                                              if (Array.isArray(parsed)) {
-                                                  appliedInvoices = parsed;
-                                              } else if (typeof parsed === 'string' && parsed !== 'On Account') {
-                                                  appliedInvoices = [{
-                                                      invoice_number: parsed,
-                                                      amount_applied: payment.amount
-                                                  }];
-                                              }
-                                          } catch (error) {
-                                              if (typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') {
-                                                  appliedInvoices = [{
-                                                      invoice_number: payment.invoice_number,
-                                                      amount_applied: payment.amount
-                                                  }];
-                                              }
-                                          }
-                                      }
+                                      const appliedInvoices = parseSupplierPaymentInvoices(payment.invoice_number, payment.amount);
 
                                       return (
                                         <React.Fragment key={payment.id}>

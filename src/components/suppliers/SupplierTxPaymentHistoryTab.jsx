@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, FileText, Loader2, Trash2 } from 'lucide-react';
+import { parseSupplierPaymentInvoices } from './utils/parseSupplierPaymentInvoices';
 
 export default function SupplierTxPaymentHistoryTab({ loading, payments, expandedPayments, togglePaymentExpansion, safeFormatDate, handlePrintCheque, handleCancelPayment, sourceMap, isLockedByOtherUser, lockAcquired }) {
   return (
@@ -30,16 +31,7 @@ export default function SupplierTxPaymentHistoryTab({ loading, payments, expande
               <TableBody>
                 {payments.map((payment) => {
                   const isExpanded = expandedPayments.has(payment.id);
-                  let appliedInvoices = [];
-                  if (payment.invoice_number) {
-                    try {
-                      const parsed = JSON.parse(payment.invoice_number);
-                      if (Array.isArray(parsed)) appliedInvoices = parsed;
-                      else if (typeof parsed === 'string' && parsed !== 'On Account') appliedInvoices = [{ invoice_number: parsed, amount_applied: payment.amount }];
-                    } catch {
-                      if (typeof payment.invoice_number === 'string' && payment.invoice_number !== 'On Account') appliedInvoices = [{ invoice_number: payment.invoice_number, amount_applied: payment.amount }];
-                    }
-                  }
+                  const appliedInvoices = parseSupplierPaymentInvoices(payment.invoice_number, payment.amount);
                   return (
                     <React.Fragment key={payment.id}>
                       <TableRow className={`hover:bg-slate-100 cursor-pointer ${payments.indexOf(payment) % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} onClick={() => togglePaymentExpansion(payment.id)}>
