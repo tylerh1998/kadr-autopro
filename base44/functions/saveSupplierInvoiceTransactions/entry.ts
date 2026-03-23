@@ -286,7 +286,14 @@ Deno.serve(async (req) => {
         if (anyAmountChanged) {
             try {
                 console.log("Invoice line amounts changed. Reallocating payments.");
-                const payments = await base44.asServiceRole.entities.SupplierPayment.filter({ supplier_id: supplierId });
+                const { data: payments, error: paymentsError } = await supabase
+                    .from('SupplierPayment')
+                    .select('*')
+                    .eq('supplier_id', supplierId);
+
+                if (paymentsError) {
+                    throw paymentsError;
+                }
 
                 for (const payment of (payments || [])) {
                     let appliedInvoices = [];
@@ -312,7 +319,6 @@ Deno.serve(async (req) => {
                     for (const appliedDetail of appliedInvoices) {
                         if (appliedDetail.invoice_number === "On Account") continue;
 
-                        // Fetch latest lines for this invoice
                         const { data: invoiceLines } = await supabase.from('SupplierInvoiceLine')
                             .select('*')
                             .eq('supplier_id', supplierId)
