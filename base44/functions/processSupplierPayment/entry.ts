@@ -73,6 +73,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
     }
 
+    stage = 'supplier_lookup';
     const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
 
     const { data: supplier, error: supplierError } = await supabase
