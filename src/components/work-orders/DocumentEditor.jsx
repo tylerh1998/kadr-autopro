@@ -390,8 +390,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setIsAlreadyOpenByMe(true);
           setLockCheckComplete(true);
         } else {
-          const lockResult = useFunctionData ? await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'apply' }) : await WorkOrder.update(freshWorkOrder.id, { LockedByUser: currentUser.email, locked_timestamp: new Date().toISOString() });
-          const lockedTimestamp = lockResult?.data?.data?.locked_timestamp || new Date().toISOString();
+          const lockResult = await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'apply' });
+          const lockedTimestamp = lockResult?.data?.data?.locked_timestamp || freshWorkOrder.locked_timestamp || null;
           setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: lockedTimestamp }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
