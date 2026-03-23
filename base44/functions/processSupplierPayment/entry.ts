@@ -32,6 +32,17 @@ Deno.serve(async (req) => {
       appliedInvoices
     } = payload;
 
+    logContext = {
+      user_email: user.email,
+      supplier_id: supplierId || null,
+      payment_date: paymentDate || null,
+      payment_method: paymentMethod || null,
+      from_account_id: fromAccountId || null,
+      total_payment_amount: totalPaymentAmount ?? null,
+      cheque_number: chequeNumber || null,
+      applied_invoice_count: Array.isArray(appliedInvoices) ? appliedInvoices.length : null,
+    };
+
     if (!supplierId || !paymentDate || !paymentMethod || totalPaymentAmount === undefined || totalPaymentAmount === null) {
       return Response.json({
         success: false,
