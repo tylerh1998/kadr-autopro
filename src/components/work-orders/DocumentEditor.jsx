@@ -1404,7 +1404,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleViewOnlyMode = async () => {
     try {
       if (workOrder && workOrder.id && currentUser && lockAcquiredRef.current) {
-        await (useFunctionData ? manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' }) : WorkOrder.update(workOrder.id, { LockedByUser: null }));
+        await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
         lockAcquiredRef.current = false;
       }
       navigate(createPageUrl(`WorkOrderView?id=${roNumber}`));
