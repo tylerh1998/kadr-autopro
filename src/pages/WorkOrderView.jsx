@@ -297,7 +297,7 @@ export default function WorkOrderViewPage() {
           <div className="p-6">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Header with Stage Indicator and Actions */}
-              <div className="flex items-center justify-between no-print">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 no-print">
                 {/* Stage/Number Box */}
                 <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[200px]">
                   <div className={`${stageConfig.headerColor} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
@@ -314,55 +314,80 @@ export default function WorkOrderViewPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={() => setShowProfitabilityModal(true)}>
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Profitability
+                <div className="flex flex-wrap items-stretch justify-start xl:justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowProfitabilityModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                    <span className="leading-tight">Profitability</span>
                   </Button>
 
-                  <Button variant="outline" onClick={() => setShowNotesModal(true)}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    WO Notes
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowNotesModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span className="leading-tight">WO Notes</span>
                   </Button>
 
-                  <Button variant="outline" onClick={() => setShowWorkPROModal(true)}>
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    WorkPRO
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowWorkPROModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <Briefcase className="w-5 h-5" />
+                    <span className="leading-tight">WorkPRO</span>
                   </Button>
 
-                  <Button variant="outline" onClick={() => setShowSendModal(true)}>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowSendModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <Send className="w-5 h-5" />
+                    <span className="leading-tight">Send</span>
                   </Button>
 
-                  <Button variant="outline" onClick={handlePrint}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Print
+                  <Button
+                    variant="outline"
+                    onClick={handlePrint}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <Printer className="w-5 h-5" />
+                    <span className="leading-tight">Print</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
                     onClick={handleEditWorkOrder} 
                     disabled={workOrder.stage === 'credit_invoice'}
-                    className="border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-auto min-h-[88px] w-[120px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    Edit Work Order
+                    <Edit3 className="w-5 h-5" />
+                    <span className="leading-tight">Edit Work Order</span>
                   </Button>
 
                   {workOrder.stage === 'invoice' && (
-                    <Button variant="outline" onClick={handleCreateCreditInvoice} className="border-red-300 text-red-700 hover:bg-red-50">
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Create Credit Invoice
+                    <Button
+                      variant="outline"
+                      onClick={handleCreateCreditInvoice}
+                      className="h-auto min-h-[88px] w-[132px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span className="leading-tight">Create Credit Invoice</span>
                     </Button>
                   )}
 
                   <Button
                     variant="outline"
                     onClick={handleExit}
-                    className="bg-slate-100 hover:bg-slate-200"
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal bg-slate-100 hover:bg-slate-200"
                   >
-                    Exit
+                    <X className="w-5 h-5" />
+                    <span className="leading-tight">Exit</span>
                   </Button>
                 </div>
               </div>
