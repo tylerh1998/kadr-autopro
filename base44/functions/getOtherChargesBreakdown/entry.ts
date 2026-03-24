@@ -1,4 +1,42 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const OTHER_CHARGES_SELECT = 'id, customer_id, customer_snapshot, line_items, ro_number, invoice_date, wo_date, stage';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
+
+const fetchAllRows = async (queryFactory) => {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const batch = data || [];
+    rows.push(...batch);
+
+    if (batch.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+};
 
 Deno.serve(async (req) => {
   try {
@@ -15,20 +53,31 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'startDate and endDate are required' }, { status: 400 });
     }
 
-    // Fetch invoices and work orders within the date range
-    // Using a high limit to ensure we get all records for the report
-    const workOrders = await base44.entities.WorkOrder.filter({
-      $or: [
-        {
-          stage: { $in: ['invoice', 'credit_invoice'] },
-          invoice_date: { $gte: startDate, $lte: endDate }
-        },
-        {
-          stage: 'work_order',
-          wo_date: { $gte: startDate, $lte: endDate }
-        }
-      ]
-    }, undefined, 1000);
+    const supabase = createSupabaseClient();
+
+    const invoicedDocs = await fetchAllRows((from, to) =>
+      supabase
+        .from('WorkOrder')
+        .select(OTHER_CHARGES_SELECT)
+        .in('stage', ['invoice', 'credit_invoice'])
+        .gte('invoice_date', startDate)
+        .lte('invoice_date', endDate)
+        .order('invoice_date', { ascending: false, nullsFirst: false })
+        .range(from, to)
+    );
+
+    const openWorkOrders = await fetchAllRows((from, to) =>
+      supabase
+        .from('WorkOrder')
+        .select(OTHER_CHARGES_SELECT)
+        .eq('stage', 'work_order')
+        .gte('wo_date', startDate)
+        .lte('wo_date', endDate)
+        .order('wo_date', { ascending: false, nullsFirst: false })
+        .range(from, to)
+    );
+
+    const workOrders = [...invoicedDocs, ...openWorkOrders];
 
     // Fetch customers for the work orders
     const customerIds = [...new Set(workOrders.map(wo => wo.customer_id).filter(Boolean))];

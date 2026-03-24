@@ -1,4 +1,42 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const CUSTOMER_REPORT_SELECT = 'customer_id, total_amount, invoice_date';
+
+const createSupabaseClient = () => {
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+        throw new Error('Supabase credentials not configured');
+    }
+
+    return createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+};
+
+const fetchAllRows = async (queryFactory) => {
+    const rows = [];
+    let from = 0;
+
+    while (true) {
+        const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const batch = data || [];
+        rows.push(...batch);
+
+        if (batch.length < PAGE_SIZE) {
+            break;
+        }
+
+        from += PAGE_SIZE;
+    }
+
+    return rows;
+};
 
 export const getCustomerReportData = async (req) => {
     const base44 = createClientFromRequest(req);
@@ -11,25 +49,22 @@ export const getCustomerReportData = async (req) => {
 
         const { dateFrom, dateTo } = await req.json();
 
-        // Build query
-        const query = {
-            stage: { $in: ['invoice', 'credit_invoice'] }
-        };
+        const supabase = createSupabaseClient();
 
-        // Add date filter if provided
-        if (dateFrom && dateTo) {
-            // Using invoice_date as the primary date for sales reports
-            // Fallback to wo_date if invoice_date is missing?
-            // Usually invoice_date is set when stage is invoice.
-            query.invoice_date = {
-                $gte: dateFrom,
-                $lte: dateTo
-            };
-        }
+        const workOrders = await fetchAllRows((from, to) => {
+            let query = supabase
+                .from('WorkOrder')
+                .select(CUSTOMER_REPORT_SELECT)
+                .in('stage', ['invoice', 'credit_invoice']);
 
-        // Fetch Work Orders
-        // Increase limit to handle decent volume
-        const workOrders = await base44.entities.WorkOrder.filter(query, '-invoice_date', 5000);
+            if (dateFrom && dateTo) {
+                query = query.gte('invoice_date', dateFrom).lte('invoice_date', dateTo);
+            }
+
+            return query
+                .order('invoice_date', { ascending: false, nullsFirst: false })
+                .range(from, to);
+        });
 
         // Aggregate Data
         const customerStats = {};

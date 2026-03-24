@@ -1,4 +1,42 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const TECHNICIAN_WORK_ORDER_SELECT = 'id, ro_number, wo_number, est_number, inv_number, crinv_number, wo_date, tech_time, line_items, labor_total';
+
+const createSupabaseClient = () => {
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+        throw new Error('Supabase credentials not configured');
+    }
+
+    return createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+};
+
+const fetchAllRows = async (queryFactory) => {
+    const rows = [];
+    let from = 0;
+
+    while (true) {
+        const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const batch = data || [];
+        rows.push(...batch);
+
+        if (batch.length < PAGE_SIZE) {
+            break;
+        }
+
+        from += PAGE_SIZE;
+    }
+
+    return rows;
+};
 
 Deno.serve(async (req) => {
     // 1. Setup & Auth
@@ -96,18 +134,17 @@ Deno.serve(async (req) => {
 
         // 5. Index WorkOrders for matching
         let workOrders = [];
+        const supabase = createSupabaseClient();
         
         console.log("Fetching WorkOrders...");
-        // Fetch WOs within the date range, using wo_date
-        workOrders = await base44.entities.WorkOrder.filter(
-            {
-                wo_date: {
-                    $gte: dateFrom,
-                    $lte: dateTo
-                }
-            },
-            '-wo_date', // Sort by wo_date descending
-            3000 // Keep a reasonable limit for performance
+        workOrders = await fetchAllRows((from, to) =>
+            supabase
+                .from('WorkOrder')
+                .select(TECHNICIAN_WORK_ORDER_SELECT)
+                .gte('wo_date', dateFrom)
+                .lte('wo_date', dateTo)
+                .order('wo_date', { ascending: false, nullsFirst: false })
+                .range(from, to)
         );
 
         console.log(`Fetched ${workOrders.length} Work Orders for report period.`);
