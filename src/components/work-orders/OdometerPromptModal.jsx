@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { WorkOrder, Vehicle } from '@/entities/all';
+import { Vehicle } from '@/entities/all';
 import { format } from 'date-fns';
+import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder, workPROProject, mode = 'invoiceConversion', vehicle }) {
   const [odometer, setOdometer] = useState('');
@@ -42,14 +43,10 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
       // Submit the odometer value as a number if provided, null if empty
       const odometerValue = odometer.trim() ? Number(odometer.trim()) : null;
       
-      // Update WorkOrder entity
-      if (workOrder && workOrder.id) {
-        await WorkOrder.update(workOrder.id, { odometer: odometerValue });
-      }
-      
       // Update Vehicle entity with mileage and odometer_date
       if (odometerValue !== null && workOrder && workOrder.vehicle_id) {
-        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        const mountainNow = getMountainTimeNow();
+        const currentDate = `${mountainNow.getFullYear()}-${String(mountainNow.getMonth() + 1).padStart(2, '0')}-${String(mountainNow.getDate()).padStart(2, '0')}`;
         await Vehicle.update(workOrder.vehicle_id, {
           mileage: odometerValue,
           odometer_date: currentDate
@@ -69,10 +66,6 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
     setIsLoading(true);
     try {
       // Skip odometer - submit null value, no vehicle update
-      if (workOrder && workOrder.id) {
-        await WorkOrder.update(workOrder.id, { odometer: null });
-      }
-      
       await onSubmit({ odometer: null });
     } catch (error) {
       console.error('Error skipping odometer:', error);
