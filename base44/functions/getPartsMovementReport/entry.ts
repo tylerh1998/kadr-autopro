@@ -1,4 +1,42 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const PARTS_MOVEMENT_SELECT = 'line_items, invoice_date';
+
+const createSupabaseClient = () => {
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+        throw new Error('Supabase credentials not configured');
+    }
+
+    return createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+};
+
+const fetchAllRows = async (queryFactory) => {
+    const rows = [];
+    let from = 0;
+
+    while (true) {
+        const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const batch = data || [];
+        rows.push(...batch);
+
+        if (batch.length < PAGE_SIZE) {
+            break;
+        }
+
+        from += PAGE_SIZE;
+    }
+
+    return rows;
+};
 
 export const getPartsMovementReport = async (req) => {
     const base44 = createClientFromRequest(req);
@@ -11,22 +49,22 @@ export const getPartsMovementReport = async (req) => {
 
         const { dateFrom, dateTo, search } = await req.json();
 
-        // Build query for Work Orders
-        const query = {
-            stage: { $in: ['invoice', 'credit_invoice'] }
-        };
+        const supabase = createSupabaseClient();
 
-        if (dateFrom && dateTo) {
-            query.invoice_date = {
-                $gte: dateFrom,
-                $lte: dateTo
-            };
-        }
+        const workOrders = await fetchAllRows((from, to) => {
+            let query = supabase
+                .from('WorkOrder')
+                .select(PARTS_MOVEMENT_SELECT)
+                .in('stage', ['invoice', 'credit_invoice']);
 
-        // Fetch Work Orders
-        // Limit 5000 should cover a reasonable timeframe. 
-        // For very large datasets, we'd need more complex batching.
-        const workOrders = await base44.entities.WorkOrder.filter(query, '-invoice_date', 5000);
+            if (dateFrom && dateTo) {
+                query = query.gte('invoice_date', dateFrom).lte('invoice_date', dateTo);
+            }
+
+            return query
+                .order('invoice_date', { ascending: false, nullsFirst: false })
+                .range(from, to);
+        });
 
         // Aggregate Data
         // Map: inventory_item_id -> { qty: 0, salesCount: 0 }

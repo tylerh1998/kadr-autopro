@@ -1,4 +1,63 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const WORK_ORDER_LOOKUP_SELECT = 'id, ro_number, wo_number, est_number, inv_number, crinv_number';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
+
+const resolveWorkOrdersMap = async (supabase, workOrderIds) => {
+  const ids = [...new Set(workOrderIds.filter(Boolean))];
+  const workOrdersMap = {};
+
+  if (ids.length === 0) {
+    return workOrdersMap;
+  }
+
+  const { data: directMatches, error: directError } = await supabase
+    .from('WorkOrder')
+    .select(WORK_ORDER_LOOKUP_SELECT)
+    .in('id', ids);
+
+  if (directError) throw directError;
+
+  (directMatches || []).forEach((wo) => {
+    workOrdersMap[wo.id] = wo;
+  });
+
+  const unresolvedIds = ids.filter((id) => !workOrdersMap[id]);
+
+  for (const unresolvedId of unresolvedIds) {
+    const fields = ['ro_number', 'wo_number', 'est_number', 'inv_number', 'crinv_number'];
+
+    for (const field of fields) {
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .select(WORK_ORDER_LOOKUP_SELECT)
+        .eq(field, unresolvedId)
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        workOrdersMap[unresolvedId] = data[0];
+        break;
+      }
+    }
+  }
+
+  return workOrdersMap;
+};
 
 Deno.serve(async (req) => {
   try {
@@ -35,30 +94,10 @@ Deno.serve(async (req) => {
     });
 
     // 2. Fetch related data
-    // We need unique IDs to fetch related records efficiently
     const workOrderIds = [...new Set(levies.map(l => l.work_order_id).filter(Boolean))];
-    const otherChargeIds = [...new Set(levies.map(l => l.other_charge_id).filter(Boolean))];
+    const supabase = createSupabaseClient();
 
-    // Fetch WorkOrders
-    // We can't do bulk get by ID list easily in one call unless we loop or use $in if supported.
-    // If $in is not supported, we loop. Documentation doesn't explicitly mention $in.
-    // Let's loop for now, or fetch all active work orders if that's too many.
-    // Actually, for a report, we might have many IDs. 
-    // Best effort: fetch them in parallel batches or just loop.
-    
-    const workOrdersMap = {};
-    const batchSize = 10;
-    for (let i = 0; i < workOrderIds.length; i += batchSize) {
-      const batch = workOrderIds.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (id) => {
-        try {
-          const wo = await base44.asServiceRole.entities.WorkOrder.get(id);
-          if (wo) workOrdersMap[id] = wo;
-        } catch (e) {
-          console.error(`Failed to fetch WO ${id}`, e);
-        }
-      }));
-    }
+    const workOrdersMap = await resolveWorkOrdersMap(supabase, workOrderIds);
 
     // Fetch OtherChargeList (usually small list, can fetch all)
     const otherCharges = await base44.asServiceRole.entities.OtherChargeList.list();

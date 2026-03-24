@@ -1,15 +1,60 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const INVENTORY_ON_ORDER_SELECT = 'id, line_items, ro_number, wo_date, created_date';
+
+const createSupabaseClient = () => {
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+        throw new Error('Supabase credentials not configured');
+    }
+
+    return createClient(supabaseUrl, supabaseSecret, {
+        auth: { persistSession: false }
+    });
+};
+
+const fetchAllRows = async (queryFactory) => {
+    const rows = [];
+    let from = 0;
+
+    while (true) {
+        const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const batch = data || [];
+        rows.push(...batch);
+
+        if (batch.length < PAGE_SIZE) {
+            break;
+        }
+
+        from += PAGE_SIZE;
+    }
+
+    return rows;
+};
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
         
+        const supabase = createSupabaseClient();
+
         // 1. Fetch active Work Orders
         // We only care about active WOs where parts might be on order. 
         // 'work_order' stage is the primary one. 'estimate' usually doesn't trigger "on order" until converted.
-        const activeWorkOrders = await base44.entities.WorkOrder.filter({ 
-            stage: 'work_order' 
-        });
+        const activeWorkOrders = await fetchAllRows((from, to) =>
+            supabase
+                .from('WorkOrder')
+                .select(INVENTORY_ON_ORDER_SELECT)
+                .eq('stage', 'work_order')
+                .order('wo_date', { ascending: false, nullsFirst: false })
+                .range(from, to)
+        );
 
         // 2. Aggregate counts from Line Items
         const itemsMap = {}; // inventory_item_id -> { qty_on_order, wos: [] }
