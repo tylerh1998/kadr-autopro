@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const PAGE_SIZE = 1000;
-const OTHER_CHARGES_SELECT = 'id, customer_id, customer_snapshot, line_items, ro_number, invoice_date, wo_date, stage';
+const OTHER_CHARGES_SELECT = 'id, customer_id, line_items, ro_number, invoice_date, wo_date, stage';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -112,21 +112,6 @@ Deno.serve(async (req) => {
       const customer = customerMap[wo.customer_id];
       if (customer) {
         customerName = customer.org_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
-      } else if (wo.customer_snapshot) {
-        // Fallback to snapshot if customer not found in map (e.g. deleted or limit reached)
-        try {
-          const snapshot = JSON.parse(wo.customer_snapshot);
-          // Snapshot structure might vary, try to find best name
-          if (snapshot.name) {
-             customerName = snapshot.name;
-          } else if (snapshot.org_name) {
-             customerName = snapshot.org_name;
-          } else if (snapshot.first_name || snapshot.last_name) {
-             customerName = `${snapshot.first_name || ''} ${snapshot.last_name || ''}`.trim();
-          }
-        } catch (e) {
-          // ignore parse error
-        }
       }
 
       for (const line of lineItems) {
