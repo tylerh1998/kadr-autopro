@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Search, FileText, DollarSign, CreditCard } from "lucide-react";
-import { WorkOrder } from "@/entities/all";
+import { getworkorderlist } from "@/functions/getworkorderlist";
 
 export default function OpenROModal({ open, onClose }) {
   const [activeTab, setActiveTab] = useState("work_order");
@@ -41,29 +40,41 @@ export default function OpenROModal({ open, onClose }) {
           ];
           break;
         case "work_order":
-          // Try both formats: WO-XXXXX and WOXXXXX
           searchAttempts = [
+            { field: "ro_number", value: `RO${cleanNumber}` },
             { field: "wo_number", value: `WO-${cleanNumber}` },
             { field: "wo_number", value: `WO${cleanNumber}` }
           ];
           break;
         case "invoice":
+          searchAttempts = cleanNumber.length <= 5
+            ? [
+                { field: "inv_number", value: `INV0${cleanNumber}` },
+                { field: "inv_number", value: `INV${cleanNumber}` }
+              ]
+            : [
+                { field: "inv_number", value: `INV${cleanNumber}` },
+                { field: "inv_number", value: `INV0${cleanNumber}` }
+              ];
+          break;
         case "credit_invoice":
-          // Try with leading zero first for shorter numbers, then without
-          if (cleanNumber.length <= 5) {
-            searchAttempts = [
-              { field: "inv_number", value: `INV0${cleanNumber}` },
-              { field: "inv_number", value: `INV${cleanNumber}` }
-            ];
-          } else {
-            searchAttempts = [
-              { field: "inv_number", value: `INV${cleanNumber}` },
-              { field: "inv_number", value: `INV0${cleanNumber}` }
-            ];
-          }
+          searchAttempts = cleanNumber.length <= 5
+            ? [
+                { field: "crinv_number", value: `CRINV0${cleanNumber}` },
+                { field: "crinv_number", value: `CRINV${cleanNumber}` },
+                { field: "inv_number", value: `INV0${cleanNumber}` },
+                { field: "inv_number", value: `INV${cleanNumber}` }
+              ]
+            : [
+                { field: "crinv_number", value: `CRINV${cleanNumber}` },
+                { field: "crinv_number", value: `CRINV0${cleanNumber}` },
+                { field: "inv_number", value: `INV${cleanNumber}` },
+                { field: "inv_number", value: `INV0${cleanNumber}` }
+              ];
           break;
         default:
           searchAttempts = [
+            { field: "ro_number", value: `RO${cleanNumber}` },
             { field: "wo_number", value: `WO-${cleanNumber}` },
             { field: "wo_number", value: `WO${cleanNumber}` }
           ];
@@ -75,7 +86,8 @@ export default function OpenROModal({ open, onClose }) {
 
       // Try each search attempt until we find a match
       for (const attempt of searchAttempts) {
-        const workOrders = await WorkOrder.filter({ [attempt.field]: attempt.value });
+        const response = await getworkorderlist({ match: { [attempt.field]: attempt.value }, limit: 1 });
+        const workOrders = response?.data?.data || [];
         if (workOrders.length > 0) {
           workOrder = workOrders[0];
           console.log(`Found match with ${attempt.field}: ${attempt.value}`);
