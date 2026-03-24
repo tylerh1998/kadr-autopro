@@ -192,7 +192,7 @@ export default function WorkOrderViewPage() {
 
       // Step 3: Convert the invoice back to work_order stage
       try {
-        await base44.entities.WorkOrder.update(workOrder.id, { stage: 'work_order' });
+        await saveworkorderdata({ ro_number: workOrder.ro_number, data: { stage: 'work_order' } });
         
         // Step 4: Redirect to WorkOrderEdit
         const url = `/WorkOrderEdit?id=${roNumber}`;
