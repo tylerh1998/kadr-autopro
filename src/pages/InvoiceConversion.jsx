@@ -202,8 +202,11 @@ export default function InvoiceConversion() {
             console.log('Summary:', glResponse.data.summary);
             
             // Save accounting_details back to work order
-            await WorkOrder.update(wo.id, {
-              accounting_details: glResponse.data.accounting_details
+            await saveworkorderdata({
+              ro_number: wo.ro_number,
+              data: {
+                accounting_details: glResponse.data.accounting_details
+              }
             });
 
             console.log('Accounting details saved to work order');
@@ -227,7 +230,10 @@ export default function InvoiceConversion() {
                 setPortalUrl(portalUrl);
                 
                 // Update work order with cp_id
-                await WorkOrder.update(wo.id, { cp_id: snapshotResponse.data.cp_id });
+                await saveworkorderdata({
+                  ro_number: wo.ro_number,
+                  data: { cp_id: snapshotResponse.data.cp_id }
+                });
                 updatedWorkOrder.cp_id = snapshotResponse.data.cp_id;
               } else {
                 console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
