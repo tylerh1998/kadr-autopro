@@ -27,6 +27,10 @@ const normalizePayload = (payload) => {
 
   Object.entries(payload || {}).forEach(([key, value]) => {
     if (!ALLOWED_FIELDS.has(key) || IMMUTABLE_FIELDS.includes(key) || value === undefined) return;
+    if (DATE_FIELDS.has(key) && value === '') {
+      normalized[key] = null;
+      return;
+    }
     normalized[key] = JSON_FIELDS.includes(key) && value && typeof value !== 'string' ? JSON.stringify(value) : value;
   });
 
