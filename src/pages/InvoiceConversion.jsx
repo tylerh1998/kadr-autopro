@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, Customer, Vehicle, SystemSettings } from '@/entities/all';
 import { getworkorderdata } from '@/functions/getworkorderdata';
+import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
@@ -163,12 +164,15 @@ export default function InvoiceConversion() {
 
         // Update work order to invoice stage BEFORE calling GL function
         console.log('Updating work order to invoice stage');
-        await WorkOrder.update(wo.id, {
-          stage: 'invoice',
-          converted: true,
-          inv_number: invNumber,
-          invoice_date: invoiceDate,
-          status: 'Completed'
+        await saveworkorderdata({
+          ro_number: wo.ro_number,
+          data: {
+            stage: 'invoice',
+            converted: true,
+            inv_number: invNumber,
+            invoice_date: invoiceDate,
+            status: 'Completed'
+          }
         });
 
         const updatedWorkOrder = { 
