@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const PAGE_SIZE = 1000;
 const INVENTORY_ON_ORDER_SELECT = 'id, line_items, ro_number, wo_date, created_date';
+const SUPPLIER_SELECT = 'id, name';
 
 const createSupabaseClient = () => {
     const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -123,11 +124,13 @@ Deno.serve(async (req) => {
             id: { $in: inventoryIds }
         });
         
-        const suppliersResponse = await base44.asServiceRole.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier'
-        });
-        const suppliers = suppliersResponse?.data?.data || [];
+        const suppliers = await fetchAllRows((from, to) =>
+            supabase
+                .from('Supplier')
+                .select(SUPPLIER_SELECT)
+                .order('name', { ascending: true, nullsFirst: false })
+                .range(from, to)
+        );
         const supplierMap = Object.fromEntries(suppliers.map(s => [s.id, s.name]));
 
         // 4. Merge Data
