@@ -1,4 +1,42 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const SALES_ANALYSIS_SELECT = 'id, invoice_date, ro_number, wo_number, total_amount, parts_total, labor_total, shop_supply_total, line_items, tech_time';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
+
+const fetchAllRows = async (queryFactory) => {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const batch = data || [];
+    rows.push(...batch);
+
+    if (batch.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+};
 
 Deno.serve(async (req) => {
   try {
@@ -14,11 +52,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Start date and end date are required' }, { status: 400 });
     }
 
+    const supabase = createSupabaseClient();
+
     // 1. Fetch Invoiced Work Orders
-    const workOrders = await base44.entities.WorkOrder.filter({
-      stage: { "$in": ["invoice", "credit_invoice"] },
-      invoice_date: { "$gte": startDate, "$lte": endDate }
-    });
+    const workOrders = await fetchAllRows((from, to) =>
+      supabase
+        .from('WorkOrder')
+        .select(SALES_ANALYSIS_SELECT)
+        .in('stage', ['invoice', 'credit_invoice'])
+        .gte('invoice_date', startDate)
+        .lte('invoice_date', endDate)
+        .order('invoice_date', { ascending: true, nullsFirst: false })
+        .range(from, to)
+    );
 
     // 2. Fetch Employees (for pay rates)
     const employees = await base44.entities.Employee.list();

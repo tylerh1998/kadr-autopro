@@ -1,4 +1,47 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const PAGE_SIZE = 1000;
+const ACTIVE_WORK_ORDER_SELECT = 'id, stage, status, wo_date, created_date, wo_number, ro_number, parts_total, labor_total, shop_supply_total, total_amount, tax_amount, line_items, tech_time';
+const RECENT_INVOICE_SELECT = 'id, total_amount, tax_amount, invoice_date';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
+
+const fetchAllRows = async (queryFactory) => {
+  const rows = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const batch = data || [];
+    rows.push(...batch);
+
+    if (batch.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+};
+
+const formatMountainDate = (date) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Edmonton'
+}).format(date);
 
 Deno.serve(async (req) => {
   try {
@@ -8,11 +51,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch Active Work Orders and Estimates
-    // We want all open stuff.
-    const activeDocs = await base44.entities.WorkOrder.filter({
-      stage: { "$in": ["work_order", "estimate"] }
-    });
+    const supabase = createSupabaseClient();
+
+    const activeDocs = await fetchAllRows((from, to) =>
+      supabase
+        .from('WorkOrder')
+        .select(ACTIVE_WORK_ORDER_SELECT)
+        .in('stage', ['work_order', 'estimate'])
+        .order('stage', { ascending: true })
+        .order('wo_date', { ascending: true, nullsFirst: false })
+        .range(from, to)
+    );
 
     // Fetch Employees (for pay rates)
     const employees = await base44.entities.Employee.list();
@@ -126,12 +175,17 @@ Deno.serve(async (req) => {
     // Fetch Invoiced WOs from last 30 days for comparison
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const thirtyDaysAgoStr = formatMountainDate(thirtyDaysAgo);
 
-    const recentInvoices = await base44.entities.WorkOrder.filter({
-        stage: { "$in": ["invoice", "credit_invoice"] },
-        invoice_date: { "$gte": thirtyDaysAgoStr }
-    });
+    const recentInvoices = await fetchAllRows((from, to) =>
+      supabase
+        .from('WorkOrder')
+        .select(RECENT_INVOICE_SELECT)
+        .in('stage', ['invoice', 'credit_invoice'])
+        .gte('invoice_date', thirtyDaysAgoStr)
+        .order('invoice_date', { ascending: false, nullsFirst: false })
+        .range(from, to)
+    );
 
     let closedRevenue = 0;
     for (const inv of recentInvoices) {
