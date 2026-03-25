@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,6 @@ import InterestCalculationModal from '@/components/ar/InterestCalculationModal';
 
 export default function CustomerARSummaryPage() {
   const [arSummaryData, setArSummaryData] = useState([]);
-  const [workOrders, setWorkOrders] = useState([]); // Keep for context menu on Statement
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
@@ -64,9 +62,6 @@ export default function CustomerARSummaryPage() {
         setArSummaryData([]);
       }
 
-      // Still need work orders for statement/payment modals
-      const workOrdersData = await WorkOrder.filter({ stage: 'invoice' });
-      setWorkOrders(workOrdersData);
 
     } catch (error) {
       console.error('Error loading A/R data:', error);
@@ -145,11 +140,6 @@ export default function CustomerARSummaryPage() {
     loadData(); // Reload data after interest is applied
     setShowInterestModal(false); // Close the modal
   };
-
-  const customerInvoices = useMemo(() => {
-    if (!selectedCustomer) return [];
-    return workOrders.filter(wo => wo.customer_id === selectedCustomer.id);
-  }, [selectedCustomer, workOrders]);
 
   return (
     <>
@@ -306,7 +296,7 @@ export default function CustomerARSummaryPage() {
               setSelectedCustomer(null);
             }}
             customer={selectedCustomer}
-            invoices={customerInvoices}
+            invoices={[]}
             onTakePayment={handleTakePayment} // Pass the simplified handleTakePayment
           />
         )}

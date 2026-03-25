@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
-import { Statement, WorkOrder, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { Statement, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import StatementEmailModal from './StatementEmailModal';
 
@@ -38,9 +38,8 @@ export default function StatementModal({ open, onClose, customer }) {
           ];
           setTransactions(allTransactions);
 
-          // 2. Fetch additional data needed for calculations and cp_id mapping
-          const [allWorkOrders, allCustomerPayments, customerAdj] = await Promise.all([
-            WorkOrder.filter({ customer_id: customer.id }),
+          // 2. Fetch additional data needed for aging calculations
+          const [allCustomerPayments, customerAdj] = await Promise.all([
             CustomerPayments.filter({ customer_id: customer.id }),
             CustomerARAdjustment.filter({ customer_id: customer.id })
           ]);
@@ -81,32 +80,13 @@ export default function StatementModal({ open, onClose, customer }) {
           calculatedAgedBalances.total = calculatedAgedBalances.current + calculatedAgedBalances['30'] + calculatedAgedBalances['60'] + calculatedAgedBalances['90+'];
           setAgedBalances(calculatedAgedBalances);
 
-          // 4. Create a comprehensive work order mapping for cp_id lookup
-          const workOrderMap = {};
-          allWorkOrders.forEach(wo => {
-            if (wo.inv_number && wo.cp_id) {
-              workOrderMap[wo.inv_number] = wo.cp_id;
-            }
+          // 4. Keep the backend-enriched transaction data and filter out fully paid items
+          const enrichedTransactions = allTransactions.filter(t => {
+            const roundedBalance = Math.round((t.balance || 0) * 100) / 100;
+            return Math.abs(roundedBalance) > 0;
           });
 
-          // 5. Enrich transactions with cp_id for portal linking and filter out fully paid
-          const enrichedTransactions = allTransactions
-            .map(transaction => {
-              if (transaction.type === 'On Account Charge' && transaction.reference) {
-                const matchingCpId = workOrderMap[transaction.reference];
-                
-                if (matchingCpId) {
-                  return { ...transaction, cp_id: matchingCpId };
-                }
-              }
-              return transaction;
-            })
-            .filter(t => {
-              const roundedBalance = Math.round((t.balance || 0) * 100) / 100;
-              return Math.abs(roundedBalance) > 0;
-            });
-
-          // 6. Create the Statement record
+          // 5. Create the Statement record
           const generateRandomString = (length) => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let result = '';

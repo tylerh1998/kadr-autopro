@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Customer, WorkOrder, CustomerPayments, CustomerARAdjustment, GLTransaction, FiscalPeriod } from '@/entities/all';
+import { Customer, CustomerPayments, CustomerARAdjustment, GLTransaction, FiscalPeriod } from '@/entities/all';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -160,45 +160,19 @@ export default function CustomerARTransactionsPage() {
 
   const handleViewInvoice = async (transaction) => {
     try {
-      // Check for legacy invoice URL first
       if (transaction.lankar_invoice) {
         setViewInvoiceUrl(transaction.lankar_invoice);
         setShowInvoiceViewer(true);
         return;
       }
 
-      let workOrder = null;
-
-      // Try to get work order by ID first (most reliable)
-      if (transaction.workOrderId) {
-        try {
-          workOrder = await WorkOrder.get(transaction.workOrderId);
-        } catch (e) {
-          console.log('Work order not found by ID, trying reference');
-        }
-      } 
-      
-      // Fall back to searching by reference
-      if (!workOrder && transaction.reference) {
-        if (transaction.reference.startsWith('INV')) {
-          const workOrders = await WorkOrder.filter({ inv_number: transaction.reference });
-          if (workOrders && workOrders.length > 0) {
-            workOrder = workOrders[0];
-          }
-        } else {
-          const workOrders = await WorkOrder.filter({ ro_number: transaction.reference });
-          if (workOrders && workOrders.length > 0) {
-            workOrder = workOrders[0];
-          }
-        }
-      }
-
-      if (workOrder && workOrder.ro_number) {
-        const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
+      if (transaction.workOrderLookupNumber) {
+        const url = `/WorkOrderEdit?id=${transaction.workOrderLookupNumber}`;
         window.open(url, '_blank', 'width=1600,height=1000');
-      } else {
-        alert("Could not find the associated work order.");
+        return;
       }
+
+      alert("Could not find the associated work order.");
     } catch (error) {
       console.error('Error finding work order:', error);
       alert("An error occurred while trying to find the work order.");
