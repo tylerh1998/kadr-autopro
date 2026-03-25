@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { WorkOrder } from "@/entities/all";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getVehicleWorkOrderHistory } from "@/functions/getVehicleWorkOrderHistory";
 import { 
   X, 
   Edit3, 
@@ -26,12 +26,16 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
   useEffect(() => {
     const fetchWorkOrders = async () => {
-      if (!vehicle?.id) return;
-      
+      if (!vehicle?.id) {
+        setWorkOrders([]);
+        setLoadingWorkOrders(false);
+        return;
+      }
+
       setLoadingWorkOrders(true);
       try {
-        const orders = await WorkOrder.filter({ vehicle_id: vehicle.id }, '-created_date');
-        setWorkOrders(orders);
+        const response = await getVehicleWorkOrderHistory({ vehicleId: vehicle.id });
+        setWorkOrders(response.data?.workOrders || []);
       } catch (error) {
         console.error('Error fetching work orders:', error);
       } finally {

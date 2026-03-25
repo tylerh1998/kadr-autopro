@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { WorkOrder, Vehicle, Customer } from '@/entities/all';
+import { Vehicle, Customer } from '@/entities/all';
 import { Skeleton } from "@/components/ui/skeleton";
+import { getVehicleWorkOrderHistory } from '@/functions/getVehicleWorkOrderHistory';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge, Edit } from 'lucide-react';
 import VehicleForm from './VehicleForm';
@@ -25,8 +26,8 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
       const fetchHistory = async () => {
         setLoading(true);
         try {
-          const workOrders = await WorkOrder.filter({ vehicle_id: vehicle.id }, '-created_date');
-          setHistory(workOrders);
+          const response = await getVehicleWorkOrderHistory({ vehicleId: vehicle.id });
+          setHistory(response.data?.workOrders || []);
         } catch (error) {
           console.error("Failed to fetch vehicle history:", error);
           alert("Could not load vehicle history.");
