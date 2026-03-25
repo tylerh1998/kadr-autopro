@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
-const WORK_ORDER_LOOKUP_SELECT = 'id, customer_id, description, ro_number, wo_number, est_number, inv_number, crinv_number, cp_id';
+const WORK_ORDER_LOOKUP_SELECT = 'id, customer_id, description, ro_number, wo_number, est_number, inv_number, crinv_number';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
