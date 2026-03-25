@@ -45,7 +45,10 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      workOrders: data || []
+      workOrders: (data || []).map((workOrder) => ({
+        ...workOrder,
+        scheduled_date: null
+      }))
     });
   } catch (error) {
     console.error('Error in getVehicleWorkOrderHistory:', error);
