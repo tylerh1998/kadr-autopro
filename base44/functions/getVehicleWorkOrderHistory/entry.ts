@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
-const WORK_ORDER_HISTORY_SELECT = 'id, vehicle_id, stage, status, description, ro_number, wo_number, est_number, inv_number, crinv_number, scheduled_date, created_date, total_amount, odometer';
+const WORK_ORDER_HISTORY_SELECT = 'id, vehicle_id, stage, status, description, ro_number, wo_number, est_number, inv_number, crinv_number, created_date, total_amount, odometer';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
