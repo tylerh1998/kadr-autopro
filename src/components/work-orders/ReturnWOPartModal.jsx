@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn, ReturnReason, InventoryItem, InventoryTxs, Supplier } from '@/entities/all';
+import { InventoryReturn, ReturnReason, InventoryItem, InventoryTxs } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Package, RotateCcw } from 'lucide-react';
 
 export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
@@ -72,8 +73,18 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         console.log('Fetched inventory item:', inventoryItem);
 
         if (inventoryItem && inventoryItem.supplier_id) {
-          console.log('=== DEBUG: Fetching supplier ===');
-          supplier = await Supplier.get(inventoryItem.supplier_id);
+          console.log('=== DEBUG: Fetching supplier from Supabase ===');
+          const { data, error } = await base44.supabase.client
+            .from('Supplier')
+            .select('*')
+            .eq('id', inventoryItem.supplier_id)
+            .single();
+
+          if (error) {
+            throw new Error(`Failed to fetch supplier: ${error.message}`);
+          }
+
+          supplier = data;
           console.log('Fetched supplier:', supplier);
         }
       }
