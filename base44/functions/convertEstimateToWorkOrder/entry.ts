@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import { format } from 'npm:date-fns@3.6.0';
 import { toZonedTime } from 'npm:date-fns-tz@3.1.3';
 
@@ -11,24 +12,39 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
         const { workOrderId } = await req.json();
 
         if (!workOrderId) {
             return Response.json({ error: 'Work Order ID is required' }, { status: 400 });
         }
 
-        // Fetch Work Order from Supabase-backed source
-        const workOrderResponse = await base44.functions.invoke('workProProxy', {
-            entityName: 'WorkOrder',
-            method: 'get',
-            id: workOrderId
-        });
+        const workOrderResult = await supabase
+            .from('WorkOrder')
+            .select('*')
+            .eq('id', workOrderId)
+            .maybeSingle();
 
-        if (!workOrderResponse.data?.success || !workOrderResponse.data?.data) {
+        if (workOrderResult.error) {
+            console.error('convertEstimateToWorkOrder fetch error:', workOrderResult.error);
+            return Response.json({ error: 'Failed to fetch work order', details: workOrderResult.error.message }, { status: 500 });
+        }
+
+        if (!workOrderResult.data) {
             return Response.json({ error: 'Work Order not found' }, { status: 404 });
         }
 
-        const workOrder = workOrderResponse.data.data;
+        const workOrder = workOrderResult.data;
 
         // Fetch Suppliers for lookup
         let supplierMap = new Map();
@@ -161,18 +177,23 @@ Deno.serve(async (req) => {
             updateData.wo_number = `WO${roNumericPart}`;
         }
 
-        const updateResponse = await base44.functions.invoke('workProProxy', {
-            entityName: 'WorkOrder',
-            method: 'update',
-            id: workOrderId,
-            params: updateData
-        });
+        const updateResult = await supabase
+            .from('WorkOrder')
+            .update(updateData)
+            .eq('id', workOrderId)
+            .select('*')
+            .maybeSingle();
 
-        if (!updateResponse.data?.success) {
-            return Response.json({ error: 'Failed to update work order during conversion' }, { status: 500 });
+        if (updateResult.error) {
+            console.error('convertEstimateToWorkOrder update error:', updateResult.error);
+            return Response.json({ error: 'Failed to update work order during conversion', details: updateResult.error.message }, { status: 500 });
         }
 
-        return Response.json({ success: true, data: updateResponse.data.data });
+        if (!updateResult.data) {
+            return Response.json({ error: 'Work Order not found during update' }, { status: 404 });
+        }
+
+        return Response.json({ success: true, data: updateResult.data });
 
     } catch (error) {
         console.error('Error converting estimate:', error);
