@@ -1428,8 +1428,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       if (response.data.success) {
         //alert("Estimate successfully converted to Work Order!"); // Optional: remove alert for smoother flow
         
-        // Reload page to switch to Work Order mode
-        window.location.href = `/WorkOrderEdit?id=${workOrder.ro_number}`;
+        isClosingAfterSaveRef.current = true;
+        navigate(createPageUrl(`WorkOrderEdit?id=${workOrder.ro_number}`));
       } else {
         alert(`Conversion failed: ${response.data.error}`);
       }
