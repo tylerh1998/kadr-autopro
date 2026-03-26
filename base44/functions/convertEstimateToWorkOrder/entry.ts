@@ -169,7 +169,9 @@ Deno.serve(async (req) => {
         const updateData = {
             stage: 'work_order',
             line_items: JSON.stringify(updatedLineItems),
-            wo_date: format(mountainNow, 'yyyy-MM-dd')
+            wo_date: format(mountainNow, 'yyyy-MM-dd'),
+            LockedByUser: null,
+            locked_timestamp: null
         };
 
         if (!workOrder.wo_number && workOrder.ro_number) {
