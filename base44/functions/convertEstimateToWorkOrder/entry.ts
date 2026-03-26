@@ -1,5 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { format } from 'npm:date-fns@3.6.0';
+import { toZonedTime } from 'npm:date-fns-tz@3.1.3';
 
 Deno.serve(async (req) => {
     try {
@@ -16,11 +17,18 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Work Order ID is required' }, { status: 400 });
         }
 
-        // Fetch Work Order
-        const workOrder = await base44.entities.WorkOrder.get(workOrderId);
-        if (!workOrder) {
+        // Fetch Work Order from Supabase-backed source
+        const workOrderResponse = await base44.functions.invoke('workProProxy', {
+            entityName: 'WorkOrder',
+            method: 'get',
+            id: workOrderId
+        });
+
+        if (!workOrderResponse.data?.success || !workOrderResponse.data?.data) {
             return Response.json({ error: 'Work Order not found' }, { status: 404 });
         }
+
+        const workOrder = workOrderResponse.data.data;
 
         // Fetch Suppliers for lookup
         let supplierMap = new Map();
@@ -141,10 +149,11 @@ Deno.serve(async (req) => {
         }
 
         // Update Work Order
+        const mountainNow = toZonedTime(new Date(), 'America/Edmonton');
         const updateData = {
             stage: 'work_order',
             line_items: JSON.stringify(updatedLineItems),
-            wo_date: format(new Date(), 'yyyy-MM-dd')
+            wo_date: format(mountainNow, 'yyyy-MM-dd')
         };
 
         if (!workOrder.wo_number && workOrder.ro_number) {
@@ -152,9 +161,18 @@ Deno.serve(async (req) => {
             updateData.wo_number = `WO${roNumericPart}`;
         }
 
-        await base44.asServiceRole.entities.WorkOrder.update(workOrderId, updateData);
+        const updateResponse = await base44.functions.invoke('workProProxy', {
+            entityName: 'WorkOrder',
+            method: 'update',
+            id: workOrderId,
+            params: updateData
+        });
 
-        return Response.json({ success: true });
+        if (!updateResponse.data?.success) {
+            return Response.json({ error: 'Failed to update work order during conversion' }, { status: 500 });
+        }
+
+        return Response.json({ success: true, data: updateResponse.data.data });
 
     } catch (error) {
         console.error('Error converting estimate:', error);
