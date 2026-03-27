@@ -794,7 +794,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPaymentDetailsDialog && !showChequeNumberPrompt && !processingCheque} onOpenChange={(open) => { if (!open) setShowPaymentDetailsDialog(false); }}>
+      <Dialog open={showPaymentDetailsDialog && !showChequeNumberPrompt && !processingCheque} onOpenChange={(open) => { if (!open) { setShowPaymentDetailsDialog(false); setActionLocked(false); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Payment Details</DialogTitle>
@@ -935,10 +935,10 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowPaymentDetailsDialog(false)} disabled={loading || actionLocked}>
+              <Button variant="outline" onClick={() => { setShowPaymentDetailsDialog(false); setActionLocked(false); }} disabled={loading || actionLocked}>
                 Back
               </Button>
-              <Button onClick={handleSubmit} disabled={loading || actionLocked}>
+              <Button onClick={handleSubmit} disabled={loading || !!paymentData.dateError || !paymentData.payment_method || (paymentData.payment_method !== 'Cash' && !paymentData.from_account_id)}>
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
