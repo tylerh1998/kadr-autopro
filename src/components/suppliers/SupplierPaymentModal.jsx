@@ -127,6 +127,7 @@ const parseAndValidateDateInput = (inputDate) => {
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const [loading, setLoading] = useState(false);
+  const [actionLocked, setActionLocked] = useState(false);
   const [activeTab, setActiveTab] = useState('pay_invoices');
   const [bankAccounts, setBankAccounts] = useState([]);
   const [linesOfCredit, setLinesOfCredit] = useState([]);
@@ -211,6 +212,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   };
 
   const resetModal = () => {
+    setActionLocked(false);
     setActiveTab('pay_invoices');
     setSelectedInvoices({});
     setPaymentData({
@@ -331,6 +333,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   };
 
   const handleProceedToPaymentDetails = () => {
+    if (actionLocked || loading) return;
+
     if (activeTab === 'pay_invoices' && Object.values(selectedInvoices).filter(Boolean).length === 0) {
       alert('Please select at least one invoice to pay');
       return;
@@ -347,21 +351,31 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       }
     }
 
+    setActionLocked(true);
     setShowPaymentDetailsDialog(true);
   };
 
   const handleSubmit = async () => {
+    if (actionLocked && !showPaymentDetailsDialog) return;
+    if (loading) return;
+
+    setActionLocked(true);
+    setLoading(true);
+
     if (paymentData.dateError) {
+      setLoading(false);
       alert(`Invalid date: ${paymentData.dateError}`);
       return;
     }
 
     if (!paymentData.payment_method) {
+      setLoading(false);
       alert('Please select a payment method');
       return;
     }
 
     if (paymentData.payment_method !== 'Cash' && !paymentData.from_account_id) {
+      setLoading(false);
       alert('Please select a source account');
       return;
     }
@@ -379,6 +393,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             const lockStatus = checkEntityLock(accountToCheck, currentUser?.email || '');
             
             if (lockStatus.isLocked) {
+              setLoading(false);
               alert(`This line of credit account is currently locked by ${accountToCheck.locked_by_user}. Please wait until the lock is released before making a payment.`);
               return;
             }
@@ -391,6 +406,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             const lockStatus = checkBankAccountLock(accountToCheck, currentUser?.email || '');
             
             if (!lockStatus.isExpired) {
+              setLoading(false);
               alert(`This bank account is currently locked by ${accountToCheck.locked_by_user}. Please wait until the lock is released before making a payment.`);
               return;
             }
@@ -398,6 +414,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         }
       } catch (error) {
         console.error('Error checking bank account lock:', error);
+        setLoading(false);
         alert('Failed to verify bank account status. Please try again.');
         return;
       }
@@ -406,10 +423,13 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     if (paymentData.payment_method === 'Cheque') {
       const selectedBank = bankAccounts.find(b => b.id === paymentData.from_account_id);
       if (selectedBank) {
+        setLoading(false);
         setNextChequeNumber(selectedBank.next_cheque_number || 1);
         setChequeNumberInput(String(selectedBank.next_cheque_number || 1));
         setShowPaymentDetailsDialog(false);
         setShowChequeNumberPrompt(true);
+      } else {
+        setLoading(false);
       }
     } else {
       await processPaymentLogic();
@@ -674,6 +694,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                         />
                         <Button 
                             onClick={async () => {
+                                if (actionLocked || loading) return;
                                 const amount = parseAmount(paymentData.amount);
                                 if (!amount) {
                                     alert("Please enter a valid amount");
@@ -698,7 +719,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                                     setCalculating(false);
                                 }
                             }}
-                            disabled={calculating || !paymentData.amount}
+                            disabled={calculating || loading || actionLocked || !paymentData.amount}
                         >
                             {calculating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Calculate"}
                         </Button>
@@ -760,12 +781,12 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               </Button>
               <Button 
                 onClick={() => setShowAddToSheetModal(true)}
-                disabled={loading || totalSelectedAmount === 0}
+                disabled={loading || actionLocked || totalSelectedAmount === 0}
                 className="bg-amber-500 hover:bg-amber-600 text-white"
               >
                 Next: Add to Cash Flow
               </Button>
-              <Button onClick={handleProceedToPaymentDetails} disabled={loading || totalSelectedAmount === 0}>
+              <Button onClick={handleProceedToPaymentDetails} disabled={loading || actionLocked || totalSelectedAmount === 0}>
                 Next: Payment Details ({totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})
               </Button>
             </div>
@@ -914,10 +935,10 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowPaymentDetailsDialog(false)} disabled={loading}>
+              <Button variant="outline" onClick={() => setShowPaymentDetailsDialog(false)} disabled={loading || actionLocked}>
                 Back
               </Button>
-              <Button onClick={handleSubmit} disabled={loading}>
+              <Button onClick={handleSubmit} disabled={loading || actionLocked}>
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
