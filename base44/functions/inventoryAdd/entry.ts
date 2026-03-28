@@ -28,9 +28,14 @@ Deno.serve(async (req) => {
             auth: { persistSession: false },
         });
 
+        const recordToCreate = {
+            id: crypto.randomUUID(),
+            ...itemData,
+        };
+
         const { data, error } = await supabase
             .from('InventoryItem')
-            .insert(itemData)
+            .insert(recordToCreate)
             .select()
             .single();
 
