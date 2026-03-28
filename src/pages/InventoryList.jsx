@@ -6,6 +6,7 @@ import {
   InventoryCategory,
 } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
+import { inventoryAdd } from "@/functions/inventoryAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -279,12 +280,22 @@ export default function InventoryListPage() {
 
   const handleAdd = async (itemData) => {
     try {
-      await InventoryItem.create(itemData);
+      const response = await inventoryAdd({ itemData });
+      const newItem = response.data?.data;
+
+      if (newItem?.id) {
+        setInventory(prev => [newItem, ...prev]);
+        setTotalCount(prev => prev + 1);
+      } else {
+        fetchInventory();
+      }
+
       setIsAddModalOpen(false);
-      fetchInventory();
+      return newItem;
     } catch (error) {
       console.error('Error creating inventory item:', error);
       alert('Failed to create inventory item. Please try again.');
+      throw error;
     }
   };
 
