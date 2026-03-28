@@ -40,8 +40,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const [tagAlongs, setTagAlongs] = useState([]);
   const [otherCharges, setOtherCharges] = useState([]);
   const [inventoryCategories, setInventoryCategories] = useState([]);
-  const [inventoryItems, setInventoryItems] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchingParts, setSearchingParts] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [processingBatch, setProcessingBatch] = useState(false);
   const [calculatedMargin, setCalculatedMargin] = useState('');
   const [suggestingCategory, setSuggestingCategory] = useState(false);
@@ -116,11 +119,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     setIsExistingPart(false);
     setExistingPartId(null);
     setExistingPartQOH(0);
+    setSearchTerm(overrides.part_number || '');
+    setActiveSearchTerm('');
+    setSearchResults([]);
+    setPartSearchOpen(false);
   };
 
   const loadDropdownData = async () => {
     try {
-      const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData, inventoryData] = await Promise.all([
+      const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
         base44.functions.invoke('SupabaseProxy', {
           action: 'read',
           table: 'Supplier',
@@ -129,44 +136,47 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         base44.functions.invoke('SupabaseProxy', { action: 'read' }),
         TagAlong.list(),
         OtherChargeList.list(),
-        InventoryCategory.list(),
-        InventoryItem.list()
+        InventoryCategory.list()
       ]);
       setSuppliers(suppliersData);
       setSalesClasses(salesClassesResponse.data?.data || []);
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
       setInventoryCategories(categoriesData);
-      setInventoryItems(inventoryData);
     } catch (error) {
       console.error('Error loading dropdown data:', error);
     }
   };
 
-  const filteredInventory = useMemo(() => {
-    if (!formData.part_number || formData.part_number.trim() === '') return [];
-    const searchLower = formData.part_number.toLowerCase();
-    
-    return inventoryItems
-        .map(item => {
-            const partNumber = (item.part_number || '').toLowerCase();
-            const description = (item.description || '').toLowerCase();
-            const manufacturer = (item.manufacturer || '').toLowerCase();
-            
-            let score = 0;
-            if (partNumber === searchLower) score = 100;
-            else if (partNumber.startsWith(searchLower)) score = 80;
-            else if (partNumber.includes(searchLower)) score = 60;
-            else if (description.startsWith(searchLower)) score = 40;
-            else if (description.includes(searchLower)) score = 20;
-            else if (manufacturer.includes(searchLower)) score = 10;
-            
-            return { ...item, _score: score };
-        })
-        .filter(item => item._score > 0)
-        .sort((a, b) => b._score - a._score)
-        .slice(0, 50);
-  }, [formData.part_number, inventoryItems]);
+  useEffect(() => {
+    const runInventorySearch = async () => {
+      const trimmedSearch = activeSearchTerm.trim();
+
+      if (!partSearchOpen || !trimmedSearch) {
+        setSearchResults([]);
+        setSearchingParts(false);
+        return;
+      }
+
+      setSearchingParts(true);
+      try {
+        const response = await base44.functions.invoke('searchInventory', {
+          search: trimmedSearch,
+          limit: 50,
+          sortBy: 'part_number',
+          sortOrder: 'asc'
+        });
+        setSearchResults(response.data?.items || []);
+      } catch (error) {
+        console.error('Error searching inventory:', error);
+        setSearchResults([]);
+      } finally {
+        setSearchingParts(false);
+      }
+    };
+
+    runInventorySearch();
+  }, [activeSearchTerm, partSearchOpen]);
 
   const selectPartFromList = (itemToSelect) => {
     setIsCategorySuggested(false);
@@ -541,16 +551,22 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   const handlePartNumberKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
-        if (filteredInventory.length > 0) {
+        const trimmedSearch = searchTerm.trim();
+
+        if (!activeSearchTerm || activeSearchTerm !== trimmedSearch) {
             e.preventDefault();
-            selectPartFromList(filteredInventory[0]);
+            setActiveSearchTerm(trimmedSearch);
+            setPartSearchOpen(!!trimmedSearch);
+            return;
+        }
+
+        if (searchResults.length > 0) {
+            e.preventDefault();
+            selectPartFromList(searchResults[0]);
             setPartSearchOpen(false);
-        } else {
-            // New part, move to next field
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                descriptionRef.current?.focus();
-            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            descriptionRef.current?.focus();
         }
     }
   };
@@ -624,10 +640,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                                 onChange={(e) => {
                                     const val = e.target.value.toUpperCase();
                                     handleInputChange("part_number", val);
-                                    setPartSearchOpen(true);
+                                    setSearchTerm(val);
+                                    setActiveSearchTerm('');
+                                    setSearchResults([]);
+                                    setPartSearchOpen(!!val.trim());
                                 }}
                                 onKeyDown={handlePartNumberKeyDown}
-                                onFocus={() => setPartSearchOpen(true)}
+                                onFocus={() => setPartSearchOpen(!!searchTerm.trim())}
                                 required
                                 placeholder="SEARCH OR TYPE PART #..."
                                 className="pl-8 uppercase"
@@ -637,13 +656,22 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     </PopoverTrigger>
                     <PopoverContent className="p-0 w-[300px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                         <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
-                            {filteredInventory.length === 0 ? (
+                            {searchingParts ? (
+                                <div className="py-4 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Searching parts...
+                                </div>
+                            ) : searchTerm.trim() && !activeSearchTerm ? (
+                                <div className="py-4 text-center text-sm text-slate-500">
+                                    Press Enter or Tab to search.
+                                </div>
+                            ) : searchResults.length === 0 ? (
                                 <div className="py-4 text-center text-sm text-slate-500">
                                     No existing parts found.<br/>Type to create new.
                                 </div>
                             ) : (
                                 <div className="space-y-1">
-                                    {filteredInventory.map((item) => (
+                                    {searchResults.map((item) => (
                                         <div
                                             key={item.id}
                                             onClick={() => {
