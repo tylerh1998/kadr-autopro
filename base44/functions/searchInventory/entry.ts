@@ -1,4 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const ALLOWED_SORT_FIELDS = new Set([
+    'part_number',
+    'description',
+    'manufacturer',
+    'category',
+    'location',
+    'cost',
+    'selling_price',
+    'quantity_on_hand',
+    'quantity_on_order',
+    'minimum_quantity',
+    'maximum_quantity',
+    'created_date',
+    'updated_date'
+]);
 
 Deno.serve(async (req) => {
     try {
@@ -9,18 +26,15 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const supabaseUrl = Deno.env.get("Supabase_project_url");
-        const supabaseSecret = Deno.env.get("Supabase_Secret_Key");
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
 
         if (!supabaseUrl || !supabaseSecret) {
             return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
         }
 
-        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
         const supabase = createClient(supabaseUrl, supabaseSecret, {
-            auth: {
-                persistSession: false,
-            },
+            auth: { persistSession: false },
         });
 
         let searchTerm = '';
@@ -36,154 +50,70 @@ Deno.serve(async (req) => {
             filter = body.filter || 'all';
             sortBy = body.sortBy || 'part_number';
             sortDirection = body.sortDirection || 'asc';
-            limit = body.limit || 50;
-            offset = body.offset || 0;
+            limit = Number(body.limit || 50);
+            offset = Number(body.offset || 0);
         } catch {
             console.log('No JSON body, using defaults');
         }
 
+        const normalizedSearchTerm = searchTerm.trim();
+        const safeSortBy = ALLOWED_SORT_FIELDS.has(sortBy) ? sortBy : 'part_number';
+        const ascending = sortDirection !== 'desc';
+        const safeLimit = Math.max(1, Math.min(limit, 200));
+        const safeOffset = Math.max(0, offset);
+
         let query = supabase
             .from('InventoryItem')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('is_active', true);
 
         if (filter === 'stocked') {
             query = query.eq('stocked_item', true);
         } else if (filter === 'non-stocked') {
             query = query.eq('stocked_item', false);
+        } else if (filter === 'non-zero') {
+            query = query.gt('quantity_on_hand', 0);
+        } else if (filter === 'inventory-count') {
+            query = query.not('location', 'is', null).neq('location', '');
+        } else if (filter === 'no-location') {
+            query = query.or('location.is.null,location.eq.').gt('quantity_on_hand', 0);
         }
 
-        const { data: allMatchingItems, error } = await query;
+        if (normalizedSearchTerm) {
+            const escapedSearchTerm = normalizedSearchTerm
+                .replace(/,/g, '\\,')
+                .replace(/\(/g, '\\(')
+                .replace(/\)/g, '\\)');
 
-        console.log('searchInventory debug payload:', {
-            searchTerm,
+            query = query.or(
+                `part_number.ilike.%${escapedSearchTerm}%,description.ilike.%${escapedSearchTerm}%,manufacturer.ilike.%${escapedSearchTerm}%`
+            );
+        }
+
+        query = query.order(safeSortBy, { ascending, nullsFirst: false });
+        query = query.range(safeOffset, safeOffset + safeLimit - 1);
+
+        const { data, error, count } = await query;
+
+        console.log('searchInventory query payload:', {
+            searchTerm: normalizedSearchTerm,
             filter,
-            sortBy,
-            sortDirection,
-            limit,
-            offset,
+            sortBy: safeSortBy,
+            sortDirection: ascending ? 'asc' : 'desc',
+            limit: safeLimit,
+            offset: safeOffset,
+            returnedCount: data?.length || 0,
+            totalCount: count || 0,
         });
-        console.log('searchInventory debug query count:', allMatchingItems?.length || 0);
-        console.log('searchInventory debug target item:', allMatchingItems?.find(item => item.id === '19e1a978c5704a73a8d597df') || null);
 
         if (error) {
             console.error('Supabase InventoryItem query error:', error);
-            return Response.json({ error: 'Failed to fetch inventory', details: error }, { status: 500 });
+            return Response.json({ error: 'Failed to fetch inventory', details: error.message }, { status: 500 });
         }
-
-        let filteredItems = allMatchingItems || [];
-        let hasSearchTerm = false;
-
-        if (searchTerm && searchTerm.trim() !== '') {
-            hasSearchTerm = true;
-            const searchLower = searchTerm.trim().toLowerCase();
-            filteredItems = filteredItems.filter(item => {
-                const partNumber = (item.part_number || '').toLowerCase();
-                const description = (item.description || '').toLowerCase();
-                const manufacturer = (item.manufacturer || '').toLowerCase();
-
-                return partNumber.includes(searchLower) ||
-                    description.includes(searchLower) ||
-                    manufacturer.includes(searchLower);
-            });
-
-            filteredItems = filteredItems.map(item => {
-                const partNumber = (item.part_number || '').toLowerCase();
-                const description = (item.description || '').toLowerCase();
-                const manufacturer = (item.manufacturer || '').toLowerCase();
-
-                let relevancyScore = 0;
-
-                if (partNumber === searchLower) {
-                    relevancyScore = 100;
-                } else if (partNumber.startsWith(searchLower)) {
-                    relevancyScore = 80;
-                } else if (partNumber.includes(searchLower)) {
-                    relevancyScore = 60;
-                } else if (description.startsWith(searchLower)) {
-                    relevancyScore = 40;
-                } else if (description.includes(searchLower)) {
-                    relevancyScore = 20;
-                } else if (manufacturer.includes(searchLower)) {
-                    relevancyScore = 10;
-                }
-
-                return { ...item, _relevancyScore: relevancyScore };
-            });
-        }
-
-        if (filter === 'no-location') {
-            filteredItems = filteredItems.filter(item => {
-                const hasNoLocation = !item.location || item.location.trim() === '';
-                const hasQOH = (item.quantity_on_hand || 0) > 0;
-                return hasNoLocation && hasQOH;
-            });
-        }
-
-        if (filter === 'non-zero') {
-            filteredItems = filteredItems.filter(item => (item.quantity_on_hand || 0) > 0);
-        }
-
-        if (filter === 'inventory-count') {
-            filteredItems = filteredItems.filter(item => item.location && item.location.trim() !== '');
-        }
-
-        filteredItems.sort((a, b) => {
-            if (hasSearchTerm) {
-                const aScore = a._relevancyScore || 0;
-                const bScore = b._relevancyScore || 0;
-
-                if (aScore !== bScore) {
-                    return bScore - aScore;
-                }
-
-                const aPartNum = (a.part_number || '').toLowerCase();
-                const bPartNum = (b.part_number || '').toLowerCase();
-                return aPartNum < bPartNum ? -1 : aPartNum > bPartNum ? 1 : 0;
-            }
-
-            let aVal = a[sortBy];
-            let bVal = b[sortBy];
-
-            if (sortBy === 'location') {
-                const aEmpty = !aVal || aVal.trim() === '';
-                const bEmpty = !bVal || bVal.trim() === '';
-
-                if (aEmpty && !bEmpty) return 1;
-                if (!aEmpty && bEmpty) return -1;
-            }
-
-            if (aVal == null && bVal == null) return 0;
-            if (aVal == null) return 1;
-            if (bVal == null) return -1;
-
-            const aIsNumber = typeof aVal === 'number';
-            const bIsNumber = typeof bVal === 'number';
-
-            if (aIsNumber && bIsNumber) {
-                return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-            }
-
-            aVal = String(aVal).toLowerCase();
-            bVal = String(bVal).toLowerCase();
-
-            if (sortDirection === 'asc') {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            }
-
-            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-        });
-
-        if (hasSearchTerm) {
-            filteredItems = filteredItems.map(({ _relevancyScore, ...item }) => item);
-        }
-
-        const totalCount = filteredItems.length;
-        const paginatedItems = filteredItems.slice(offset, offset + limit);
 
         return Response.json({
-            records: paginatedItems,
-            totalCount,
+            records: data || [],
+            totalCount: count || 0,
         });
     } catch (error) {
         console.error('Error in searchInventory:', error);
