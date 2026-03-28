@@ -118,6 +118,15 @@ export default function InventoryReturnsPage() {
     }
   };
 
+  const handleRowClick = (returnItem) => {
+    if (returnItem.status === 'Returned') {
+      openModal(setShowReceiveCreditModal, returnItem);
+      return;
+    }
+
+    handleStatusClick(returnItem);
+  };
+
   const handleBulkReturn = async () => {
     if (stagedReturns.size === 0) return;
 
@@ -522,7 +531,10 @@ export default function InventoryReturnsPage() {
                           {supplierReturns.map((returnItem) => (
                             <ContextMenu key={returnItem.id}>
                               <ContextMenuTrigger asChild>
-                                <tr className="border-b hover:bg-slate-50 transition-colors">
+                                <tr
+                                  className="border-b hover:bg-slate-50 transition-colors cursor-pointer"
+                                  onClick={() => handleRowClick(returnItem)}
+                                >
                                   <td className="p-3"><span className="font-mono text-sm font-medium text-slate-900">{returnItem.part_number}</span></td>
                                   <td className="p-3"><p className="font-medium text-slate-900">{returnItem.description}</p></td>
                                   <td className="p-3">{getReturnTypeBadge(returnItem.return_type)}</td>
@@ -551,7 +563,10 @@ export default function InventoryReturnsPage() {
                                     <TooltipProvider><Tooltip>
                                       <TooltipTrigger asChild>
                                         <Badge
-                                          onClick={() => handleStatusClick(returnItem)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusClick(returnItem);
+                                          }}
                                           variant={returnItem.status === 'Returned' || stagedReturns.has(returnItem.id) ? 'default' : 'outline'}
                                           className={`cursor-pointer ${
                                             returnItem.status === 'Returned' 
