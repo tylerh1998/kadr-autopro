@@ -16,6 +16,7 @@ import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
+import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
@@ -169,6 +170,8 @@ export default function InventoryAddPage() {
     const [isCategorySuggested, setIsCategorySuggested] = useState(false);
     const [showFlushConfirm, setShowFlushConfirm] = useState(false);
     const [flushing, setFlushing] = useState(false);
+    const [showBatchResultDialog, setShowBatchResultDialog] = useState(false);
+    const [batchResult, setBatchResult] = useState({ successfulInvoices: [], failedInvoices: [] });
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -644,23 +647,8 @@ export default function InventoryAddPage() {
             const successfulInvoices = results.filter(r => r.success);
             const failedInvoices = results.filter(r => !r.success);
 
-            let summaryMessage = '';
-            if (successfulInvoices.length > 0) {
-                summaryMessage += `Successfully processed ${successfulInvoices.length} invoice(s):\n${successfulInvoices.map(r => `- ${r.invoice}`).join('\n')}`;
-            }
-            if (failedInvoices.length > 0) {
-                if (summaryMessage) summaryMessage += '\n\n';
-                summaryMessage += `Failed to process ${failedInvoices.length} invoice(s):\n${failedInvoices.map(r => `- ${r.invoice}: ${r.message}`).join('\n')}`;
-            }
-
-            alert(summaryMessage || 'No invoices were processed.');
-
-            // Only reload if at least one invoice succeeded (or if user wants to clear)
-            // Ideally, we might want to keep failed ones, but reload is safest for state sync if partial success.
-            // If ALL failed, we don't reload so user can retry.
-            if (successfulInvoices.length > 0) {
-                window.location.reload();
-            }
+            setBatchResult({ successfulInvoices, failedInvoices });
+            setShowBatchResultDialog(true);
 
         } catch (error) {
             console.error('Overall error saving received items:', error);
@@ -1382,6 +1370,22 @@ export default function InventoryAddPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <InventoryBatchResultDialog
+                open={showBatchResultDialog}
+                onClose={() => {
+                    setShowBatchResultDialog(false);
+                    if (batchResult.successfulInvoices.length > 0) {
+                        window.location.reload();
+                    }
+                }}
+                onGoToSuppliers={() => {
+                    setShowBatchResultDialog(false);
+                    handleNavigateAway(createPageUrl('Suppliers'));
+                }}
+                successfulInvoices={batchResult.successfulInvoices}
+                failedInvoices={batchResult.failedInvoices}
+            />
         </div>
     );
 }
