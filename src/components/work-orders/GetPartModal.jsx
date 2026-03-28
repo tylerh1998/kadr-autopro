@@ -34,20 +34,16 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         setSearching(true);
         setSearchError('');
         
-        const [salesClassesResponse, tagAlongsData, otherChargesData, defaultInventory] = await Promise.all([
+        const [salesClassesResponse, tagAlongsData, otherChargesData] = await Promise.all([
           base44.functions.invoke('SupabaseProxy', { action: 'read' }),
           TagAlong.list(null, 1000),
-          OtherChargeList.list(null, 1000),
-          base44.functions.invoke('searchInventory', { limit: 50 })
+          OtherChargeList.list(null, 1000)
         ]);
         
         setSalesClasses(salesClassesResponse.data?.data || []);
         setTagAlongs(tagAlongsData || []);
         setOtherCharges(otherChargesData || []);
-        
-        if (defaultInventory?.data?.records) {
-          setInventoryResults(defaultInventory.data.records);
-        }
+        setInventoryResults([]);
       } catch (error) {
         console.error('Error loading data:', error);
         setSearchError('Failed to load inventory. Please try again.');
@@ -103,12 +99,19 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   // Handle search when activeSearchTerm changes
   useEffect(() => {
     const performSearch = async () => {
+      if (activeSearchTerm.trim() === '') {
+        setSearchError('');
+        setInventoryResults([]);
+        setSearching(false);
+        return;
+      }
+
       setSearching(true);
       setSearchError('');
       try {
         const response = await base44.functions.invoke('searchInventory', {
           searchTerm: activeSearchTerm,
-          limit: activeSearchTerm.trim() === '' ? 50 : 100
+          limit: 100
         });
         
         if (response?.data?.records) {
@@ -499,42 +502,51 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
               <div className="flex flex-col">
                 <h3 className="font-semibold mb-2 text-slate-700">Available Parts</h3>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2" style={{ maxHeight: '400px' }}>
-                  {inventoryResults.map(item => {
-                    const isSelected = selectedParts.some(p => p.id === item.id);
-                    const tagAlong = item.tag_along_id ? tagAlongs.find(ta => ta.id === item.tag_along_id) : null;
-                    
-                    return (
-                      <Card
-                        key={item.id}
-                        className={`cursor-pointer transition-all hover:shadow-md ${
-                          isSelected ? 'border-blue-500 bg-blue-50' : ''
-                        }`}
-                        onClick={() => !isSelected && handleSelectPart(item)}
-                        tabIndex={0}
-                        onKeyDown={(e) => handleKeyDown(e, item, isSelected)}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex justify-between items-start mb-1">
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm">{item.part_number}</p>
-                              <p className="text-xs text-slate-600">{item.description}</p>
-                            </div>
-                            <Badge variant={item.quantity_on_hand > 0 ? 'default' : 'destructive'} className="ml-2">
-                              {item.quantity_on_hand || 0} {item.unit || 'ea'}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center text-xs text-slate-500">
-                            <span>${(item.selling_price || 0).toFixed(2)}</span>
-                            {tagAlong && (
-                              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                + {tagAlong.name}
+                  {activeSearchTerm.trim() === '' && !searching ? (
+                    <div className="flex items-center justify-center h-full text-slate-400">
+                      <div className="text-center px-6">
+                        <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>Enter a part # or description to view a part for selection.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    inventoryResults.map(item => {
+                      const isSelected = selectedParts.some(p => p.id === item.id);
+                      const tagAlong = item.tag_along_id ? tagAlongs.find(ta => ta.id === item.tag_along_id) : null;
+                      
+                      return (
+                        <Card
+                          key={item.id}
+                          className={`cursor-pointer transition-all hover:shadow-md ${
+                            isSelected ? 'border-blue-500 bg-blue-50' : ''
+                          }`}
+                          onClick={() => !isSelected && handleSelectPart(item)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleKeyDown(e, item, isSelected)}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex-1">
+                                <p className="font-semibold text-sm">{item.part_number}</p>
+                                <p className="text-xs text-slate-600">{item.description}</p>
+                              </div>
+                              <Badge variant={item.quantity_on_hand > 0 ? 'default' : 'destructive'} className="ml-2">
+                                {item.quantity_on_hand || 0} {item.unit || 'ea'}
                               </Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                            </div>
+                            <div className="flex justify-between items-center text-xs text-slate-500">
+                              <span>${(item.selling_price || 0).toFixed(2)}</span>
+                              {tagAlong && (
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                  + {tagAlong.name}
+                                </Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
