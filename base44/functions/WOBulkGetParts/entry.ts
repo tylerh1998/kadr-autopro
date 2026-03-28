@@ -65,16 +65,16 @@ export default Deno.serve(async (req) => {
                 const updatedQOH = originalQOH - qty_to_issue;
                 const updatedQOO = originalQOO + qty_to_order;
 
-                const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
-                    itemId: inventoryItemId,
-                    updates: {
+                const { error: updateError } = await supabase
+                    .from('InventoryItem')
+                    .update({
                         quantity_on_hand: updatedQOH,
-                        quantity_on_order: updatedQOO
-                    }
-                });
+                        quantity_on_order: updatedQOO,
+                    })
+                    .eq('id', inventoryItemId);
 
-                if (!inventoryUpdateResponse.data?.success) {
-                    throw new Error(inventoryUpdateResponse.data?.error || 'Failed to update inventory item');
+                if (updateError) {
+                    throw new Error(updateError.message || 'Failed to update inventory item');
                 }
 
                 // Add to rollback actions
@@ -163,16 +163,16 @@ export default Deno.serve(async (req) => {
                 const action = rollbackActions[i];
                 try {
                     if (action.type === 'update_inventory') {
-                        const rollbackResponse = await base44.functions.invoke('inventoryUpdate', {
-                            itemId: action.id,
-                            updates: {
+                        const { error: rollbackUpdateError } = await supabase
+                            .from('InventoryItem')
+                            .update({
                                 quantity_on_hand: action.originalQOH,
-                                quantity_on_order: action.originalQOO
-                            }
-                        });
+                                quantity_on_order: action.originalQOO,
+                            })
+                            .eq('id', action.id);
 
-                        if (!rollbackResponse.data?.success) {
-                            throw new Error(rollbackResponse.data?.error || 'Failed to roll back inventory item');
+                        if (rollbackUpdateError) {
+                            throw new Error(rollbackUpdateError.message || 'Failed to roll back inventory item');
                         }
                     } else if (action.type === 'delete_tx') {
                         await base44.asServiceRole.entities.InventoryTxs.delete(action.id);
