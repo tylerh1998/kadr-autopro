@@ -257,7 +257,7 @@ export default function InventoryListPage() {
   const handleDelete = async (itemId) => {
     if (confirm("Are you sure you want to delete this inventory item? This cannot be undone.")) {
       try {
-        await InventoryItem.delete(itemId);
+        await base44.functions.invoke('inventoryDelete', { itemId });
         fetchInventory();
       } catch (error) {
         console.error("Error deleting item:", error);

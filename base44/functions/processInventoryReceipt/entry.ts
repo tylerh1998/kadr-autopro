@@ -371,16 +371,21 @@ async function processInventoryReceiptCreate(base44, supabase, user, supplier, i
         continue;
       }
 
-      // Check if inventory item already exists
-      const existingItems = await base44.asServiceRole.entities.InventoryItem.filter({ 
-        part_number: item.part_number 
-      });
+      // Check if inventory item already exists in Supabase
+      const { data: existingItems, error: existingItemsError } = await supabase
+        .from('InventoryItem')
+        .select('*')
+        .eq('part_number', item.part_number);
+
+      if (existingItemsError) {
+        throw new Error(`Failed to load inventory item from Supabase: ${existingItemsError.message}`);
+      }
       
       let inventoryRecordId;
       let quantityOrderedChange = 0;
       const quantityReceived = parseFloat(item.quantity_received);
 
-      if (existingItems.length > 0) {
+      if (existingItems && existingItems.length > 0) {
         // Update existing inventory item
         const existingItem = existingItems[0];
         inventoryRecordId = existingItem.id;
@@ -389,31 +394,39 @@ async function processInventoryReceiptCreate(base44, supabase, user, supplier, i
         const newQOO = Math.max(0, (existingItem.quantity_on_order || 0) - quantityReceived);
         quantityOrderedChange = newQOO - (existingItem.quantity_on_order || 0);
 
-        await base44.asServiceRole.entities.InventoryItem.update(existingItem.id, {
-          part_number: item.part_number,
-          description: item.description,
-          unit: item.unit || existingItem.unit,
-          cost: parseFloat(item.cost),
-          selling_price: parseFloat(item.selling_price),
-          profit_margin: parseFloat(item.profit_margin || 0),
-          sales_class: item.sales_class || existingItem.sales_class,
-          tag_along_id: item.tag_along_id || existingItem.tag_along_id,
-          minimum_quantity: parseInt(item.minimum_quantity || 0, 10),
-          maximum_quantity: parseInt(item.maximum_quantity || 0, 10),
-          location: item.location || existingItem.location,
-          category: item.category || existingItem.category,
-          core: item.core !== undefined ? item.core : existingItem.core,
-          core_cost: parseFloat(item.core_cost || 0),
-          stocked_item: item.stocked_item !== undefined ? item.stocked_item : existingItem.stocked_item,
-          quantity_on_hand: newQOH,
-          quantity_on_order: newQOO,
-          supplier_id: supplier.id
-        });
+        const { error: updateInventoryError } = await supabase
+          .from('InventoryItem')
+          .update({
+            updated_date: new Date().toISOString(),
+            part_number: item.part_number,
+            description: item.description,
+            unit: item.unit || existingItem.unit,
+            cost: parseFloat(item.cost),
+            selling_price: parseFloat(item.selling_price),
+            profit_margin: parseFloat(item.profit_margin || 0),
+            sales_class: item.sales_class || existingItem.sales_class,
+            tag_along_id: item.tag_along_id || existingItem.tag_along_id,
+            minimum_quantity: parseInt(item.minimum_quantity || 0, 10),
+            maximum_quantity: parseInt(item.maximum_quantity || 0, 10),
+            location: item.location || existingItem.location,
+            category: item.category || existingItem.category,
+            core: item.core !== undefined ? item.core : existingItem.core,
+            core_cost: parseFloat(item.core_cost || 0),
+            stocked_item: item.stocked_item !== undefined ? item.stocked_item : existingItem.stocked_item,
+            quantity_on_hand: newQOH,
+            quantity_on_order: newQOO,
+            supplier_id: supplier.id
+          })
+          .eq('id', existingItem.id);
+
+        if (updateInventoryError) {
+          throw new Error(`Failed to update inventory item in Supabase: ${updateInventoryError.message}`);
+        }
 
         results.updated_inventory_items.push(existingItem.id);
       } else {
         // Create new inventory item
-        const newRecord = await base44.asServiceRole.entities.InventoryItem.create({
+        const newInventoryRecord = buildSupabaseRecord(user, {
           part_number: item.part_number,
           description: item.description,
           unit: item.unit || '',
@@ -434,6 +447,16 @@ async function processInventoryReceiptCreate(base44, supabase, user, supplier, i
           supplier_id: supplier.id,
           is_active: true
         });
+
+        const { data: newRecord, error: createInventoryError } = await supabase
+          .from('InventoryItem')
+          .insert([newInventoryRecord])
+          .select()
+          .maybeSingle();
+
+        if (createInventoryError) {
+          throw new Error(`Failed to create inventory item in Supabase: ${createInventoryError.message}`);
+        }
 
         inventoryRecordId = newRecord.id;
         results.created_inventory_items.push(newRecord.id);
@@ -641,7 +664,16 @@ async function processInventoryReceiptReverse(base44, supabase, user, supplierIn
       }, { status: 400 });
     }
 
-    const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(originalLine.inventory_item_id);
+    const { data: inventoryItem, error: inventoryItemError } = await supabase
+      .from('InventoryItem')
+      .select('*')
+      .eq('id', originalLine.inventory_item_id)
+      .maybeSingle();
+
+    if (inventoryItemError) {
+      throw new Error(`Failed to load inventory item from Supabase: ${inventoryItemError.message}`);
+    }
+
     if (!inventoryItem) {
       return Response.json({
         success: false,
@@ -685,9 +717,18 @@ async function processInventoryReceiptReverse(base44, supabase, user, supplierIn
     }
 
     // 8. Update the inventory item QOH
-    await base44.asServiceRole.entities.InventoryItem.update(inventoryItem.id, {
-      quantity_on_hand: newQOH
-    });
+    const { error: reverseInventoryUpdateError } = await supabase
+      .from('InventoryItem')
+      .update({
+        updated_date: new Date().toISOString(),
+        quantity_on_hand: newQOH
+      })
+      .eq('id', inventoryItem.id);
+
+    if (reverseInventoryUpdateError) {
+      throw new Error(`Failed to update inventory item in Supabase: ${reverseInventoryUpdateError.message}`);
+    }
+
     results.updated_inventory_item_id = inventoryItem.id;
     console.log(`Updated inventory item ${inventoryItem.id}: QOH ${currentQOH} -> ${newQOH}`);
 
@@ -847,7 +888,16 @@ async function processInventoryReceiptEdit(base44, supabase, user, supplierInvoi
       }, { status: 400 });
     }
 
-    const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(originalLine.inventory_item_id);
+    const { data: inventoryItem, error: inventoryItemError } = await supabase
+      .from('InventoryItem')
+      .select('*')
+      .eq('id', originalLine.inventory_item_id)
+      .maybeSingle();
+
+    if (inventoryItemError) {
+      throw new Error(`Failed to load inventory item from Supabase: ${inventoryItemError.message}`);
+    }
+
     if (!inventoryItem) {
       return Response.json({
         success: false,
@@ -968,9 +1018,18 @@ async function processInventoryReceiptEdit(base44, supabase, user, supplierInvoi
 
     // 11. Update the InventoryItem QOH
     console.log(`Step 3: Updating InventoryItem ${inventoryItem.id} QOH: ${currentQOH} -> ${newQOH}`);
-    await base44.asServiceRole.entities.InventoryItem.update(inventoryItem.id, {
-      quantity_on_hand: newQOH
-    });
+    const { error: editInventoryUpdateError } = await supabase
+      .from('InventoryItem')
+      .update({
+        updated_date: new Date().toISOString(),
+        quantity_on_hand: newQOH
+      })
+      .eq('id', inventoryItem.id);
+
+    if (editInventoryUpdateError) {
+      throw new Error(`Failed to update inventory item in Supabase: ${editInventoryUpdateError.message}`);
+    }
+
     results.updated_inventory_item_id = inventoryItem.id;
 
     // 12. Update the InventoryTxs record (Metadata only)
