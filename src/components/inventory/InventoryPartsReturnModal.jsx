@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn, ReturnReason, InventoryItem, InventoryTxs, Supplier } from '@/entities/all';
+import { InventoryReturn, ReturnReason, InventoryTxs, Supplier } from '@/entities/all';
+import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { Package, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
@@ -56,8 +57,8 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
     if (source === 'workOrder' && onReturnWorkOrderPart) {
       // This path is for returning a part FROM a work order back TO general stock
       try {
-          const currentQOH = item.quantity_on_hand || 0;
-          await InventoryItem.update(item.id, { quantity_on_hand: currentQOH + qtyReturned });
+          const currentQOH = Number(item.quantity_on_hand || 0);
+          await inventoryUpdate({ itemId: item.id, updates: { quantity_on_hand: currentQOH + qtyReturned } });
 
           await InventoryTxs.create({
               inventory_item_id: item.id,
@@ -120,8 +121,8 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       }
 
       // Decrement QOH from inventory
-      const updatedQOH = (item.quantity_on_hand || 0) - qtyReturned;
-      await InventoryItem.update(item.id, { quantity_on_hand: updatedQOH });
+      const updatedQOH = Number(item.quantity_on_hand || 0) - qtyReturned;
+      await inventoryUpdate({ itemId: item.id, updates: { quantity_on_hand: updatedQOH } });
       
       // Create transaction record
       await InventoryTxs.create({

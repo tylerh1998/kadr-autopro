@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn, InventoryItem } from '@/entities/all';
+import { InventoryReturn } from '@/entities/all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,8 @@ import ReceiveCreditModal from '../components/inventory/ReceiveCreditModal';
 import EditReturnInfoModal from '../components/inventory/EditReturnInfoModal';
 import LegacyWarrantyReturnModal from '../components/inventory/LegacyWarrantyReturnModal';
 import { base44 } from '@/api/base44Client';
+import { inventoryUpdate } from '@/functions/inventoryUpdate';
+import { searchInventory } from '@/functions/searchInventory';
 
 export default function InventoryReturnsPage() {
   const [returns, setReturns] = useState([]);
@@ -144,9 +146,21 @@ export default function InventoryReturnsPage() {
     }
     if (window.confirm(`Are you sure you want to return ${returnItem.quantity_returned} of ${returnItem.part_number} to inventory? This will delete the return record.`)) {
       try {
-        const originalItem = await InventoryItem.get(returnItem.inventory_item_id);
-        const newQOH = (originalItem.quantity_on_hand || 0) + returnItem.quantity_returned;
-        await InventoryItem.update(originalItem.id, { quantity_on_hand: newQOH });
+        const response = await searchInventory({
+          searchTerm: returnItem.part_number,
+          limit: 20,
+          offset: 0,
+        });
+        const matchingItems = response.data?.records || [];
+        const originalItem = matchingItems.find(item => item.id === returnItem.inventory_item_id);
+
+        if (!originalItem) {
+          alert('Cannot return to inventory: matching Supabase inventory item was not found.');
+          return;
+        }
+
+        const newQOH = Number(originalItem.quantity_on_hand || 0) + Number(returnItem.quantity_returned || 0);
+        await inventoryUpdate({ itemId: originalItem.id, updates: { quantity_on_hand: newQOH } });
         await InventoryReturn.delete(returnItem.id);
         alert('Item returned to inventory successfully.');
         loadReturns();
