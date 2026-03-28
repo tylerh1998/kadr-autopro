@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn } from '@/entities/all';
+import { InventoryReturn, InventoryTxs } from '@/entities/all';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -159,8 +159,20 @@ export default function InventoryReturnsPage() {
           return;
         }
 
-        const newQOH = Number(originalItem.quantity_on_hand || 0) + Number(returnItem.quantity_returned || 0);
+        const quantityReturned = Number(returnItem.quantity_returned || 0);
+        const newQOH = Number(originalItem.quantity_on_hand || 0) + quantityReturned;
         await inventoryUpdate({ itemId: originalItem.id, updates: { quantity_on_hand: newQOH } });
+        await InventoryTxs.create({
+          inventory_item_id: originalItem.id,
+          part_num: returnItem.part_number,
+          tx_date: getMountainTimeNow().toISOString(),
+          tx_type: 'QOH Adjusted',
+          quantity_change: quantityReturned,
+          quantity_ordered_change: 0,
+          supplier_name: getSupplierName(returnItem.supplier),
+          source_record_id: returnItem.id,
+          description: 'Part removed from inventory, back to inventory.'
+        });
         await InventoryReturn.delete(returnItem.id);
         alert('Item returned to inventory successfully.');
         loadReturns();
