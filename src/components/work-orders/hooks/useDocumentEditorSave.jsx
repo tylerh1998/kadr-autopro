@@ -64,9 +64,12 @@ export default function useDocumentEditorSave({
             const newQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - qtyOnOrder);
             const txDate = new Date().toISOString();
 
-            await InventoryItem.update(deletedLine.inventory_item_id, {
-              quantity_on_hand: newQOH,
-              quantity_on_order: newQOO
+            await base44.functions.invoke('inventoryUpdate', {
+              itemId: deletedLine.inventory_item_id,
+              updates: {
+                quantity_on_hand: newQOH,
+                quantity_on_order: newQOO
+              }
             });
 
             if (issuedFromQOH > 0) {
@@ -107,8 +110,11 @@ export default function useDocumentEditorSave({
               const currentQOH = inventoryItem.quantity_on_hand || 0;
               const newQOH = currentQOH + returnItem.qtyToReturn;
 
-              await InventoryItem.update(returnItem.inventory_item_id, {
-                quantity_on_hand: newQOH
+              await base44.functions.invoke('inventoryUpdate', {
+                itemId: returnItem.inventory_item_id,
+                updates: {
+                  quantity_on_hand: newQOH
+                }
               });
 
               await InventoryTxs.create({
