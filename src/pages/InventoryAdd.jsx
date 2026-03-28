@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -164,6 +164,7 @@ export default function InventoryAddPage() {
     const quantityReceivedRef = React.useRef(null);
     const descriptionRef = React.useRef(null);
     const saveInProgressRef = React.useRef(false);
+    const bypassUnsavedWarningRef = React.useRef(false);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
@@ -243,7 +244,7 @@ export default function InventoryAddPage() {
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (batchItems.length > 0 && !saving) {
+            if (batchItems.length > 0 && !saving && !bypassUnsavedWarningRef.current) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -650,6 +651,10 @@ export default function InventoryAddPage() {
             const successfulInvoices = results.filter(r => r.success);
             const failedInvoices = results.filter(r => !r.success);
 
+            if (successfulInvoices.length > 0) {
+                bypassUnsavedWarningRef.current = true;
+            }
+
             setBatchResult({ successfulInvoices, failedInvoices });
             setShowBatchResultDialog(true);
 
@@ -774,7 +779,7 @@ export default function InventoryAddPage() {
     };
 
     const handleNavigateAway = (destination) => {
-        if (batchItems.length > 0) {
+        if (batchItems.length > 0 && !bypassUnsavedWarningRef.current) {
             if (window.confirm('You have unsaved items in your batch. Are you sure you want to leave? All batch items will be lost.')) {
                 navigate(destination);
             }
@@ -1382,7 +1387,7 @@ export default function InventoryAddPage() {
                 }}
                 onGoToSuppliers={() => {
                     setShowBatchResultDialog(false);
-                    navigate(createPageUrl('Suppliers'));
+                    handleNavigateAway(createPageUrl('Suppliers'));
                 }}
                 successfulInvoices={batchResult.successfulInvoices}
                 failedInvoices={batchResult.failedInvoices}
