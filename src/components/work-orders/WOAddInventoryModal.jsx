@@ -8,6 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
 import { InventoryItem, InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { inventoryAdd } from '@/functions/inventoryAdd';
+import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 
@@ -370,14 +372,17 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 const freshItem = await InventoryItem.get(item.existingPartId);
                 const currentQOO = freshItem.quantity_on_order || 0;
                 
-                await InventoryItem.update(freshItem.id, {
-                    quantity_on_order: currentQOO + quantityToOrder
+                const updateResponse = await inventoryUpdate({
+                    itemId: freshItem.id,
+                    updates: {
+                        quantity_on_order: currentQOO + quantityToOrder
+                    }
                 });
                 
                 // We use the fresh item, but we might want to ensure the line item uses the entered cost/price
                 // if they differ from master (for this specific order).
                 // But generally we link to the inventory item ID.
-                processedInventoryItem = freshItem;
+                processedInventoryItem = updateResponse.data?.data || { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
             } else {
                 // Create new item
                 const newInventoryItemData = {
@@ -403,7 +408,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     is_active: item.is_active,
                 };
                 
-                processedInventoryItem = await InventoryItem.create(newInventoryItemData);
+                const createResponse = await inventoryAdd({ itemData: newInventoryItemData });
+                processedInventoryItem = createResponse.data?.data;
             }
 
             // Create Inventory Transaction

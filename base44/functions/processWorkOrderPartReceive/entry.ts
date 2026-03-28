@@ -119,9 +119,22 @@ Deno.serve(async (req) => {
 
     // 2. Update the inventory item
     const newQOH = currentQOH - receivedQuantity;
-    await base44.asServiceRole.entities.InventoryItem.update(lineItem.inventory_item_id, {
-      quantity_on_hand: newQOH
-    });
+    const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
+
+    const { data: inventoryUpdateResult, error: inventoryUpdateError } = await supabase
+      .from('InventoryItem')
+      .update({
+        quantity_on_hand: newQOH,
+        quantity_on_order: newInventoryQOO
+      })
+      .eq('id', lineItem.inventory_item_id)
+      .select()
+      .single();
+
+    if (inventoryUpdateError) {
+      console.error('processWorkOrderPartReceive inventory update error:', inventoryUpdateError);
+      return Response.json({ error: 'Failed to update inventory item', details: inventoryUpdateError.message }, { status: 500 });
+    }
 
     // 3. Create the inventory transaction record
     const txDate = new Date().toISOString();
@@ -143,7 +156,8 @@ Deno.serve(async (req) => {
       success: true,
       message: `Successfully received ${receivedQuantity} unit(s) and issued to work order`,
       updatedLineItem: lineItems[lineItemIndex],
-      newInventoryQOH: newQOH
+      newInventoryQOH: newQOH,
+      newInventoryQOO: inventoryUpdateResult?.quantity_on_order ?? newInventoryQOO
     });
 
   } catch (error) {
