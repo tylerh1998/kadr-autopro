@@ -47,11 +47,18 @@ Deno.serve(async (req) => {
         const updatedQOH = currentQOH - qty_to_issue;
         const updatedQOO = currentQOO + qty_to_order;
 
-        // Update the inventory item
-        await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
-            quantity_on_hand: updatedQOH,
-            quantity_on_order: updatedQOO
+        // Update the inventory item via the standard inventory RPC
+        const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
+            itemId: inventoryItemId,
+            updates: {
+                quantity_on_hand: updatedQOH,
+                quantity_on_order: updatedQOO
+            }
         });
+
+        if (!inventoryUpdateResponse.data?.success) {
+            throw new Error(inventoryUpdateResponse.data?.error || 'Failed to update inventory item');
+        }
 
         try {
             const now = new Date().toISOString();
@@ -91,10 +98,17 @@ Deno.serve(async (req) => {
         } catch (txError) {
             console.error('Failed to create InventoryTxs, rolling back InventoryItem update:', txError);
             // ROLLBACK
-            await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
-                quantity_on_hand: currentQOH,
-                quantity_on_order: currentQOO
+            const rollbackResponse = await base44.functions.invoke('inventoryUpdate', {
+                itemId: inventoryItemId,
+                updates: {
+                    quantity_on_hand: currentQOH,
+                    quantity_on_order: currentQOO
+                }
             });
+
+            if (!rollbackResponse.data?.success) {
+                throw new Error(rollbackResponse.data?.error || 'Failed to roll back inventory item');
+            }
             throw new Error(`Failed to create inventory transaction: ${txError.message}`);
         }
 
