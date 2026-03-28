@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 export default Deno.serve(async (req) => {
     try {
@@ -24,6 +25,17 @@ export default Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false },
+        });
+
         const rollbackActions = [];
         const results = [];
 
@@ -32,10 +44,13 @@ export default Deno.serve(async (req) => {
             for (const item of items) {
                 const { inventoryItemId, requestedQuantity, lineDescription, linePartNumber } = item;
                 
-                // Fetch the inventory item
-                const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(inventoryItemId);
-                
-                if (!inventoryItem) {
+                const { data: inventoryItem, error: inventoryError } = await supabase
+                    .from('InventoryItem')
+                    .select('*')
+                    .eq('id', inventoryItemId)
+                    .single();
+
+                if (inventoryError || !inventoryItem) {
                     throw new Error(`Inventory item not found: ${inventoryItemId}`);
                 }
 
@@ -50,11 +65,17 @@ export default Deno.serve(async (req) => {
                 const updatedQOH = originalQOH - qty_to_issue;
                 const updatedQOO = originalQOO + qty_to_order;
 
-                // Update the inventory item
-                await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, {
-                    quantity_on_hand: updatedQOH,
-                    quantity_on_order: updatedQOO
+                const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
+                    itemId: inventoryItemId,
+                    updates: {
+                        quantity_on_hand: updatedQOH,
+                        quantity_on_order: updatedQOO
+                    }
                 });
+
+                if (!inventoryUpdateResponse.data?.success) {
+                    throw new Error(inventoryUpdateResponse.data?.error || 'Failed to update inventory item');
+                }
 
                 // Add to rollback actions
                 rollbackActions.push({
@@ -142,10 +163,17 @@ export default Deno.serve(async (req) => {
                 const action = rollbackActions[i];
                 try {
                     if (action.type === 'update_inventory') {
-                        await base44.asServiceRole.entities.InventoryItem.update(action.id, {
-                            quantity_on_hand: action.originalQOH,
-                            quantity_on_order: action.originalQOO
+                        const rollbackResponse = await base44.functions.invoke('inventoryUpdate', {
+                            itemId: action.id,
+                            updates: {
+                                quantity_on_hand: action.originalQOH,
+                                quantity_on_order: action.originalQOO
+                            }
                         });
+
+                        if (!rollbackResponse.data?.success) {
+                            throw new Error(rollbackResponse.data?.error || 'Failed to roll back inventory item');
+                        }
                     } else if (action.type === 'delete_tx') {
                         await base44.asServiceRole.entities.InventoryTxs.delete(action.id);
                     }
