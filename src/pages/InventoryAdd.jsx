@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { InventoryItem, SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
+import { SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -216,7 +216,10 @@ export default function InventoryAddPage() {
                         match: { inventory_supplier: true }
                     }).then(res => res.data.data || []),
                     base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
-                    InventoryItem.list(),
+                    base44.functions.invoke('SupabaseProxy', {
+                        action: 'read',
+                        table: 'InventoryItem'
+                    }).then(res => res.data.data || []),
                     TagAlong.list(),
                     InventoryLocation.list(),
                     InventoryCategory.list()
