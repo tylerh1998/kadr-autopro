@@ -57,9 +57,12 @@ export default function GLJournalPage() {
       };
       const filteredTransactions = await base44.entities.GLTransaction.filter(query, '-transaction_date', 20000);
 
-      // Sort by date (newest first)
+      // Sort by transaction date (newest first), then by created date (newest first) within the same transaction date
       const sortedTransactions = filteredTransactions.sort((a, b) => {
-        return new Date(b.transaction_date) - new Date(a.transaction_date);
+        const transactionDateDiff = new Date(b.transaction_date) - new Date(a.transaction_date);
+        if (transactionDateDiff !== 0) return transactionDateDiff;
+
+        return new Date(b.created_date || 0) - new Date(a.created_date || 0);
       });
 
       setTransactions(sortedTransactions);
