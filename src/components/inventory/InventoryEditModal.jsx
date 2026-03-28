@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { InventoryItem, InventoryCategory } from '@/entities/all';
 import { TagAlong } from "@/entities/TagAlong";
 import { base44 } from '@/api/base44Client';
+import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { Save, Loader2, Search, Check, AlertCircle, Merge } from "lucide-react";
 import MergeInventoryModal from './MergeInventoryModal';
 
@@ -277,7 +278,8 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 category: formData.category === "none" || formData.category === "" ? null : formData.category,
             };
 
-            const updatedItem = await InventoryItem.update(item.id, dataToSubmit);
+            const response = await inventoryUpdate({ itemId: item.id, updates: dataToSubmit });
+            const updatedItem = response.data?.data;
 
             // Create GL entry if cost changed and QOH > 0
             if (newCost !== oldCost && qoh > 0) {
