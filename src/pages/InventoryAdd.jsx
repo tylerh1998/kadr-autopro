@@ -1378,13 +1378,11 @@ export default function InventoryAddPage() {
                 open={showBatchResultDialog}
                 onClose={() => {
                     setShowBatchResultDialog(false);
-                    if (batchResult.successfulInvoices.length > 0) {
-                        window.location.reload();
-                    }
+                    window.location.reload();
                 }}
                 onGoToSuppliers={() => {
                     setShowBatchResultDialog(false);
-                    handleNavigateAway(createPageUrl('Suppliers'));
+                    navigate(createPageUrl('Suppliers'));
                 }}
                 successfulInvoices={batchResult.successfulInvoices}
                 failedInvoices={batchResult.failedInvoices}
