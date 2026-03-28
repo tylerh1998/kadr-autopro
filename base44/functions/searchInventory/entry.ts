@@ -55,6 +55,17 @@ Deno.serve(async (req) => {
 
         const { data: allMatchingItems, error } = await query;
 
+        console.log('searchInventory debug payload:', {
+            searchTerm,
+            filter,
+            sortBy,
+            sortDirection,
+            limit,
+            offset,
+        });
+        console.log('searchInventory debug query count:', allMatchingItems?.length || 0);
+        console.log('searchInventory debug target item:', allMatchingItems?.find(item => item.id === '19e1a978c5704a73a8d597df') || null);
+
         if (error) {
             console.error('Supabase InventoryItem query error:', error);
             return Response.json({ error: 'Failed to fetch inventory', details: error }, { status: 500 });
