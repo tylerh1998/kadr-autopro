@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
-import { WorkOrder, InventoryItem, InventoryTxs } from '@/entities/all';
+import { WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
+import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
 
 export default function useDocumentEditorSave({
   workOrder,
@@ -56,47 +57,18 @@ export default function useDocumentEditorSave({
             const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
             if (totalQty <= 0 && qtyOnOrder <= 0) continue;
 
-            const inventoryItem = await InventoryItem.get(deletedLine.inventory_item_id);
-            if (!inventoryItem) continue;
-
-            const issuedFromQOH = Math.max(0, totalQty - qtyOnOrder);
-            const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + issuedFromQOH;
-            const newQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - qtyOnOrder);
-            const txDate = new Date().toISOString();
-
-            await base44.functions.invoke('inventoryUpdate', {
-              itemId: deletedLine.inventory_item_id,
-              updates: {
-                quantity_on_hand: newQOH,
-                quantity_on_order: newQOO
-              }
+            const response = await processWorkOrderPartReturn({
+              inventoryItemId: deletedLine.inventory_item_id,
+              workOrderId: workOrder.id,
+              roNumber: workOrder.ro_number,
+              partNumber: deletedLine.part_number,
+              description: deletedLine.description,
+              totalQty,
+              qtyOnOrder,
             });
 
-            if (issuedFromQOH > 0) {
-              await InventoryTxs.create({
-                inventory_item_id: deletedLine.inventory_item_id,
-                part_num: deletedLine.part_number || inventoryItem.part_number,
-                tx_date: txDate,
-                tx_type: 'Returned from WO',
-                quantity_change: issuedFromQOH,
-                quantity_ordered_change: 0,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                description: `Returned ${issuedFromQOH} units to inventory from deleted line on ${workOrder.ro_number}`
-              });
-            }
-            if (qtyOnOrder > 0) {
-              await InventoryTxs.create({
-                inventory_item_id: deletedLine.inventory_item_id,
-                part_num: deletedLine.part_number || inventoryItem.part_number,
-                tx_date: txDate,
-                tx_type: 'Order Cancelled',
-                quantity_change: 0,
-                quantity_ordered_change: -qtyOnOrder,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                description: `Cancelled ${qtyOnOrder} on order from deleted line on ${workOrder.ro_number}`
-              });
+            if (!response.data?.success) {
+              throw new Error(response.data?.error || 'Failed to process deleted line inventory return');
             }
           } catch (error) {
             console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
@@ -106,28 +78,18 @@ export default function useDocumentEditorSave({
         if (pendingReturns.length > 0) {
           for (const returnItem of pendingReturns) {
             try {
-              const inventoryItem = await InventoryItem.get(returnItem.inventory_item_id);
-              const currentQOH = inventoryItem.quantity_on_hand || 0;
-              const newQOH = currentQOH + returnItem.qtyToReturn;
-
-              await base44.functions.invoke('inventoryUpdate', {
-                itemId: returnItem.inventory_item_id,
-                updates: {
-                  quantity_on_hand: newQOH
-                }
+              const response = await processWorkOrderPartReturn({
+                inventoryItemId: returnItem.inventory_item_id,
+                workOrderId: workOrder.id,
+                roNumber: workOrder.ro_number,
+                partNumber: returnItem.part_number,
+                description: returnItem.description,
+                qtyToReturn: returnItem.qtyToReturn,
               });
 
-              await InventoryTxs.create({
-                inventory_item_id: returnItem.inventory_item_id,
-                part_num: returnItem.part_number,
-                tx_date: new Date().toISOString(),
-                tx_type: 'Returned from WO',
-                quantity_change: returnItem.qtyToReturn,
-                quantity_ordered_change: 0,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                description: `Returned ${returnItem.qtyToReturn} units to inventory from ${workOrder.ro_number}`
-              });
+              if (!response.data?.success) {
+                throw new Error(response.data?.error || 'Failed to process pending return');
+              }
             } catch (error) {
               console.error(`Failed to process return for ${returnItem.part_number}:`, error);
             }

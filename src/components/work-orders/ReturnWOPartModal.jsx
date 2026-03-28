@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn, ReturnReason, InventoryItem, InventoryTxs } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { ReturnReason } from '@/entities/all';
+import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
 import { Package, RotateCcw } from 'lucide-react';
 
 export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
@@ -59,93 +59,23 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     setLoading(true);
 
     try {
-      console.log('=== DEBUG: Phase 6 - Starting return process ===');
-      console.log('Line item:', lineItem);
-      console.log('Quantity to return:', qtyReturned);
+      const response = await processWorkOrderPartReturn({
+        inventoryItemId: lineItem.inventory_item_id,
+        workOrderId: workOrder?.id || '',
+        roNumber: workOrder?.ro_number || '',
+        partNumber: lineItem.part_number || 'UNKNOWN',
+        description: lineItem.description || '',
+        qtyToReturn: qtyReturned,
+        createInventoryReturn: true,
+        returnReason,
+        returnNotes,
+        costEach: lineItem.cost_ea || 0,
+      });
 
-      // Step 1: Fetch InventoryItem and Supplier data
-      let inventoryItem = null;
-      let supplier = null;
-      
-      if (lineItem.inventory_item_id) {
-        console.log('=== DEBUG: Fetching inventory item ===');
-        inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
-        console.log('Fetched inventory item:', inventoryItem);
-
-        if (inventoryItem && inventoryItem.supplier_id) {
-          console.log('=== DEBUG: Fetching supplier from Supabase ===');
-          const { data, error } = await base44.supabase.client
-            .from('Supplier')
-            .select('*')
-            .eq('id', inventoryItem.supplier_id)
-            .single();
-
-          if (error) {
-            throw new Error(`Failed to fetch supplier: ${error.message}`);
-          }
-
-          supplier = data;
-          console.log('Fetched supplier:', supplier);
-        }
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to process work order part return');
       }
 
-      // Step 2: Create First InventoryTxs Record (Returned from WO)
-      console.log('=== DEBUG: Creating first InventoryTxs (Returned from WO) ===');
-      const txData1 = {
-        inventory_item_id: inventoryItem?.id || null,
-        part_num: lineItem.part_number || 'UNKNOWN',
-        tx_date: new Date().toISOString(),
-        tx_type: 'Returned from WO',
-        quantity_change: qtyReturned, // POSITIVE: returning to stock
-        quantity_ordered_change: 0,
-        ro_number: workOrder?.ro_number || '',
-        source_record_id: workOrder?.id || '',
-        description: `Part ${lineItem.part_number} returned from Work Order ${workOrder?.ro_number || 'Unknown'} to general inventory. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
-      };
-      console.log('Creating InventoryTxs 1:', txData1);
-      await InventoryTxs.create(txData1);
-
-      // Step 3: Create InventoryReturn Record
-      console.log('=== DEBUG: Creating InventoryReturn record ===');
-      const returnData = {
-        part_number: lineItem.part_number || 'UNKNOWN',
-        description: lineItem.description || '',
-        supplier: supplier?.id || inventoryItem?.supplier_id || 'UNKNOWN',
-        quantity_returned: qtyReturned,
-        return_type: 'return',
-        return_reason: returnReason,
-        cost_per_unit: inventoryItem?.cost || lineItem.cost_ea || 0,
-        total_cost: (inventoryItem?.cost || lineItem.cost_ea || 0) * qtyReturned,
-        return_date: new Date().toISOString().split('T')[0],
-        status: 'On-site',
-        work_order_id: workOrder?.id || '',
-        inventory_item_id: inventoryItem?.id || null,
-        notes: returnNotes || `Returned from Work Order ${workOrder?.ro_number || 'Unknown'}. ${returnReason}`
-      };
-      console.log('Creating InventoryReturn:', returnData);
-      const createdInventoryReturn = await InventoryReturn.create(returnData);
-      console.log('Created InventoryReturn:', createdInventoryReturn);
-
-      // Step 4: Create Second InventoryTxs Record (Returned to Supplier)
-      console.log('=== DEBUG: Creating second InventoryTxs (Returned to Supplier) ===');
-      const txData2 = {
-        inventory_item_id: inventoryItem?.id || null,
-        part_num: lineItem.part_number || 'UNKNOWN',
-        tx_date: new Date().toISOString(),
-        tx_type: 'Returned to Supplier',
-        quantity_change: -qtyReturned, // NEGATIVE: leaving to supplier
-        quantity_ordered_change: 0,
-        ro_number: workOrder?.ro_number || '',
-        source_record_id: createdInventoryReturn?.id || '',
-        supplier_name: supplier?.name || 'Unknown Supplier',
-        description: `Part ${lineItem.part_number} shipped to supplier ${supplier?.name || 'Unknown Supplier'} for credit, from WO ${workOrder?.ro_number || 'Unknown'}. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
-      };
-      console.log('Creating InventoryTxs 2:', txData2);
-      await InventoryTxs.create(txData2);
-
-      console.log('=== DEBUG: Phase 6 - Return process complete ===');
-
-      // Step 5: Call parent handler to update the line item in the UI
       onReturn(qtyReturned, 'return', returnReason);
       onClose();
 
