@@ -161,12 +161,12 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       setSearchingParts(true);
       try {
         const response = await base44.functions.invoke('searchInventory', {
-          search: trimmedSearch,
+          searchTerm: trimmedSearch,
           limit: 50,
           sortBy: 'part_number',
-          sortOrder: 'asc'
+          sortDirection: 'asc'
         });
-        setSearchResults(response.data?.items || []);
+        setSearchResults(response.data?.records || []);
       } catch (error) {
         console.error('Error searching inventory:', error);
         setSearchResults([]);
