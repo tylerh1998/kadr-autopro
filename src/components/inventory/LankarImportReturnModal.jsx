@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { InventoryItem, InventoryReturn, Supplier } from '@/entities/all';
+import { searchInventory } from '@/functions/searchInventory';
 
 // Helper function to safely parse and format dates
 const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
@@ -143,36 +144,12 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
     additional_notes: '',
   });
 
-  const [inventoryItems, setInventoryItems] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [existingPart, setExistingPart] = useState(null);
   const [partSearchOpen, setPartSearchOpen] = useState(false);
-
-  const filteredInventory = useMemo(() => {
-    if (!formData.part_number || formData.part_number.trim() === '') return [];
-    const searchLower = formData.part_number.toLowerCase();
-    
-    return inventoryItems
-        .map(item => {
-            const partNumber = (item.part_number || '').toLowerCase();
-            const description = (item.description || '').toLowerCase();
-            const manufacturer = (item.manufacturer || '').toLowerCase();
-            
-            let score = 0;
-            if (partNumber === searchLower) score = 100;
-            else if (partNumber.startsWith(searchLower)) score = 80;
-            else if (partNumber.includes(searchLower)) score = 60;
-            else if (description.startsWith(searchLower)) score = 40;
-            else if (description.includes(searchLower)) score = 20;
-            else if (manufacturer.includes(searchLower)) score = 10;
-            
-            return { ...item, _score: score };
-        })
-        .filter(item => item._score > 0)
-        .sort((a, b) => b._score - a._score)
-        .slice(0, 50);
-  }, [formData.part_number, inventoryItems]);
+  const [searchingParts, setSearchingParts] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -198,45 +175,70 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
       additional_notes: '',
     });
     setExistingPart(null);
+    setSearchResults([]);
   };
 
   const loadData = async () => {
     try {
-      const [itemsData, suppliersData] = await Promise.all([
-        InventoryItem.list(),
-        Supplier.filter({ inventory_supplier: true }, 'name')
-      ]);
-      setInventoryItems(itemsData);
+      const suppliersData = await Supplier.filter({ inventory_supplier: true }, 'name');
       setSuppliers(suppliersData);
+      setSearchResults([]);
     } catch (error) {
       console.error('Error loading data:', error);
     }
   };
 
-  const handlePartNumberChange = (value) => {
+  const runPartSearch = async (value) => {
+    const searchValue = value.trim();
+
+    if (!searchValue) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchingParts(true);
+    try {
+      const response = await searchInventory({
+        searchTerm: searchValue,
+        limit: 50,
+        offset: 0,
+      });
+      setSearchResults(response.data?.records || []);
+    } catch (error) {
+      console.error('Error searching inventory:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchingParts(false);
+    }
+  };
+
+  const handlePartNumberChange = async (value) => {
     setFormData(prev => ({ ...prev, part_number: value }));
-    
-    // Check if this part exists in inventory
-    const found = inventoryItems.find(item => item.part_number === value);
+
+    const found = searchResults.find(item => item.part_number === value);
     if (found) {
       setExistingPart(found);
       setFormData(prev => ({
         ...prev,
+        part_number: value,
         description: found.description || '',
-        cost_per_unit: (found.cost || 0).toFixed(2),
-        core_cost: (found.core_cost || 0).toFixed(2),
+        cost_per_unit: found.cost != null ? Number(found.cost).toFixed(2) : '',
+        core_cost: found.core_cost != null ? Number(found.core_cost).toFixed(2) : '',
         supplier_id: found.supplier_id || '',
       }));
-    } else {
-      setExistingPart(null);
-      // Clear fields if it's a new part
-      setFormData(prev => ({
-        ...prev,
-        description: '',
-        cost_per_unit: '',
-        core_cost: '',
-      }));
+      return;
     }
+
+    setExistingPart(null);
+    setFormData(prev => ({
+      ...prev,
+      part_number: value,
+      description: '',
+      cost_per_unit: '',
+      core_cost: '',
+    }));
+
+    await runPartSearch(value);
   };
 
   const handleInputChange = (field, value) => {
@@ -440,7 +442,12 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
                                   handlePartNumberChange(upperValue);
                                   setPartSearchOpen(true);
                               }}
-                              onFocus={() => setPartSearchOpen(true)}
+                              onFocus={() => {
+                                  setPartSearchOpen(true);
+                                  if (formData.part_number.trim()) {
+                                    runPartSearch(formData.part_number);
+                                  }
+                              }}
                               className="pl-8 uppercase"
                               required
                               autoComplete="off"
@@ -449,7 +456,12 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
                   </PopoverTrigger>
                   <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                       <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
-                          {filteredInventory.length === 0 ? (
+                          {searchingParts ? (
+                              <div className="py-6 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Searching parts...
+                              </div>
+                          ) : searchResults.length === 0 ? (
                               <div className="py-6 text-center text-sm text-slate-500">
                                   No existing parts found.
                                   <br />
@@ -457,7 +469,7 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
                               </div>
                           ) : (
                               <div className="space-y-1">
-                                  {filteredInventory.map((item) => (
+                                  {searchResults.map((item) => (
                                       <div
                                           key={item.id}
                                           onClick={() => {
