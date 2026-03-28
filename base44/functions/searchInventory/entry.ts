@@ -17,6 +17,30 @@ const ALLOWED_SORT_FIELDS = new Set([
     'updated_date'
 ]);
 
+function applyInventoryFilter(query, filter) {
+    if (filter === 'stocked') {
+        return query.eq('stocked_item', true);
+    }
+
+    if (filter === 'non-stocked') {
+        return query.eq('stocked_item', false);
+    }
+
+    if (filter === 'non-zero') {
+        return query.gt('quantity_on_hand', 0);
+    }
+
+    if (filter === 'inventory-count') {
+        return query.not('location', 'is', null).neq('location', '');
+    }
+
+    if (filter === 'no-location') {
+        return query.or('location.is.null,location.eq.').gt('quantity_on_hand', 0);
+    }
+
+    return query;
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -62,40 +86,51 @@ Deno.serve(async (req) => {
         const safeLimit = Math.max(1, Math.min(limit, 200));
         const safeOffset = Math.max(0, offset);
 
+        if (normalizedSearchTerm) {
+            const rpcPayload = {
+                p_search_term: normalizedSearchTerm,
+                p_filter: filter,
+                p_sort_by: safeSortBy,
+                p_sort_direction: ascending ? 'asc' : 'desc',
+                p_limit: safeLimit,
+                p_offset: safeOffset,
+            };
+
+            const { data, error } = await supabase.rpc('search_inventory_ranked', rpcPayload);
+
+            console.log('searchInventory rpc payload:', rpcPayload);
+
+            if (error) {
+                console.error('Supabase search_inventory_ranked rpc error:', error);
+                return Response.json({
+                    error: 'Failed to fetch inventory',
+                    details: error.message,
+                    rpc_name: 'search_inventory_ranked'
+                }, { status: 500 });
+            }
+
+            const records = data || [];
+            const totalCount = records.length > 0 ? Number(records[0].total_count || 0) : 0;
+            const cleanedRecords = records.map(({ total_count, match_rank, ...item }) => item);
+
+            return Response.json({
+                records: cleanedRecords,
+                totalCount,
+            });
+        }
+
         let query = supabase
             .from('InventoryItem')
             .select('*', { count: 'exact' })
             .eq('is_active', true);
 
-        if (filter === 'stocked') {
-            query = query.eq('stocked_item', true);
-        } else if (filter === 'non-stocked') {
-            query = query.eq('stocked_item', false);
-        } else if (filter === 'non-zero') {
-            query = query.gt('quantity_on_hand', 0);
-        } else if (filter === 'inventory-count') {
-            query = query.not('location', 'is', null).neq('location', '');
-        } else if (filter === 'no-location') {
-            query = query.or('location.is.null,location.eq.').gt('quantity_on_hand', 0);
-        }
-
-        if (normalizedSearchTerm) {
-            const escapedSearchTerm = normalizedSearchTerm
-                .replace(/,/g, '\\,')
-                .replace(/\(/g, '\\(')
-                .replace(/\)/g, '\\)');
-
-            query = query.or(
-                `part_number.ilike.%${escapedSearchTerm}%,description.ilike.%${escapedSearchTerm}%,manufacturer.ilike.%${escapedSearchTerm}%`
-            );
-        }
-
+        query = applyInventoryFilter(query, filter);
         query = query.order(safeSortBy, { ascending, nullsFirst: false });
         query = query.range(safeOffset, safeOffset + safeLimit - 1);
 
         const { data, error, count } = await query;
 
-        console.log('searchInventory query payload:', {
+        console.log('searchInventory standard query payload:', {
             searchTerm: normalizedSearchTerm,
             filter,
             sortBy: safeSortBy,
