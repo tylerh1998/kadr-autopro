@@ -75,7 +75,7 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
 
     if (!searchValue) {
       setSearchResults([]);
-      return;
+      return [];
     }
 
     setSearchingParts(true);
@@ -85,40 +85,49 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
         limit: 50,
         offset: 0,
       });
-      setSearchResults(response.data?.records || []);
+      const records = response.data?.records || [];
+      setSearchResults(records);
+      return records;
     } catch (error) {
       console.error('Error searching inventory:', error);
       setSearchResults([]);
+      return [];
     } finally {
       setSearchingParts(false);
     }
   };
 
-  const handlePartNumberChange = async (value) => {
+  const handlePartNumberChange = (value) => {
     setFormData(prev => ({ ...prev, part_number: value }));
+    setExistingPart(null);
+  };
 
-    const found = searchResults.find(item => item.part_number === value);
-    if (found) {
-      setExistingPart(found);
-      setFormData(prev => ({
-        ...prev,
-        part_number: value,
-        description: found.description || '',
-        cost_per_unit: found.cost != null ? Number(found.cost).toFixed(2) : '',
-        supplier_id: found.supplier_id || '',
-      }));
+  const handlePartSearchKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+
+    e.preventDefault();
+    const searchValue = formData.part_number.trim();
+
+    if (!searchValue) {
+      setSearchResults([]);
+      setExistingPart(null);
       return;
     }
 
-    setExistingPart(null);
-    setFormData(prev => ({
-      ...prev,
-      part_number: value,
-      description: '',
-      cost_per_unit: '',
-    }));
+    const results = await runPartSearch(searchValue);
 
-    await runPartSearch(value);
+    const exactMatch = results.find(item => item.part_number === searchValue);
+    if (exactMatch) {
+      setExistingPart(exactMatch);
+      setFormData(prev => ({
+        ...prev,
+        description: exactMatch.description || '',
+        cost_per_unit: exactMatch.cost != null ? Number(exactMatch.cost).toFixed(2) : '',
+        supplier_id: exactMatch.supplier_id || '',
+      }));
+    }
+
+    setPartSearchOpen(true);
   };
 
   const handleInputChange = (field, value) => {
@@ -264,19 +273,14 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
                           <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
                           <Input
                               id="part_number"
-                              placeholder="Search or type part #..."
+                              placeholder="Search or type part #... (Press Enter)"
                               value={formData.part_number}
                               onChange={(e) => {
                                   const upperValue = e.target.value.toUpperCase();
                                   handlePartNumberChange(upperValue);
-                                  setPartSearchOpen(true);
                               }}
-                              onFocus={() => {
-                                  setPartSearchOpen(true);
-                                  if (formData.part_number.trim()) {
-                                    runPartSearch(formData.part_number);
-                                  }
-                              }}
+                              onKeyDown={handlePartSearchKeyDown}
+                              onFocus={() => setPartSearchOpen(false)}
                               className="pl-8 uppercase"
                               required
                               autoComplete="off"
@@ -302,7 +306,14 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
                                       <div
                                           key={item.id}
                                           onClick={() => {
-                                              handlePartNumberChange(item.part_number);
+                                              setExistingPart(item);
+                                              setFormData(prev => ({
+                                                  ...prev,
+                                                  part_number: item.part_number,
+                                                  description: item.description || '',
+                                                  cost_per_unit: item.cost != null ? Number(item.cost).toFixed(2) : '',
+                                                  supplier_id: item.supplier_id || '',
+                                              }));
                                               setPartSearchOpen(false);
                                           }}
                                           className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
@@ -324,7 +335,7 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
               {existingPart && (
                 <p className="text-xs text-green-600 mt-1">✓ Existing part found - data pre-filled</p>
               )}
-              {formData.part_number && !existingPart && (
+              {formData.part_number && !existingPart && !searchResults.length && (
                 <p className="text-xs text-blue-600 mt-1">New part - will be added to inventory</p>
               )}
             </div>
