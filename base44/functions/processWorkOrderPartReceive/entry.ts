@@ -152,12 +152,22 @@ Deno.serve(async (req) => {
     const newQOH = currentQOH - receivedQuantity;
     const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
 
-    const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
+    const inventoryUpdatePayload = {
       itemId: effectiveInventoryItemId,
       updates: {
         quantity_on_hand: newQOH,
         quantity_on_order: newInventoryQOO
       }
+    };
+
+    console.log('processWorkOrderPartReceive inventoryUpdate request:', inventoryUpdatePayload);
+
+    const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', inventoryUpdatePayload);
+
+    console.log('processWorkOrderPartReceive inventoryUpdate response:', {
+      effectiveInventoryItemId,
+      inventoryUpdatePayload,
+      inventoryUpdateResponse: inventoryUpdateResponse?.data
     });
 
     if (!inventoryUpdateResponse.data?.success) {
@@ -170,8 +180,7 @@ Deno.serve(async (req) => {
     // 3. Create the inventory transaction record
     const txDate = getMountainTxDate();
     const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
-    
-    await base44.asServiceRole.entities.InventoryTxs.create({
+    const inventoryTxPayload = {
       inventory_item_id: effectiveInventoryItemId,
       part_num: lineItem.part_number || inventoryItem.part_number,
       tx_date: txDate,
@@ -181,7 +190,21 @@ Deno.serve(async (req) => {
       ro_number: workOrder.ro_number,
       source_record_id: workOrder.id,
       description: description
-    });
+    };
+
+    console.log('processWorkOrderPartReceive InventoryTxs.create payload:', inventoryTxPayload);
+
+    try {
+      await base44.asServiceRole.entities.InventoryTxs.create(inventoryTxPayload);
+      console.log('processWorkOrderPartReceive InventoryTxs.create success:', {
+        inventory_item_id: inventoryTxPayload.inventory_item_id,
+        ro_number: inventoryTxPayload.ro_number,
+        tx_type: inventoryTxPayload.tx_type
+      });
+    } catch (inventoryTxCreateError) {
+      console.error('processWorkOrderPartReceive InventoryTxs.create error:', inventoryTxCreateError);
+      throw inventoryTxCreateError;
+    }
 
     return Response.json({
       success: true,
