@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
-import { InventoryItem } from '@/entities/all';
 import { Package, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, roNumber, onReceive }) {
@@ -22,10 +21,20 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
       if (open && inventoryItemId) {
         setFetchLoading(true);
         try {
-          const freshItem = await InventoryItem.get(inventoryItemId);
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'InventoryItem',
+            match: { id: inventoryItemId }
+          });
+
+          const freshItem = response.data?.data?.[0] || null;
           setCurrentInventoryItem(freshItem);
+
+          if (!freshItem) {
+            setError('Failed to fetch latest inventory data.');
+            return;
+          }
           
-          // Calculate default quantity based on FRESH data
           const currentQOH = freshItem?.quantity_on_hand || 0;
           const qtyOnOrder = lineItem?.qty_on_order || 0;
           const defaultQty = Math.min(currentQOH, qtyOnOrder);

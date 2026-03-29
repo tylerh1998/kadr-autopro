@@ -1,5 +1,22 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+function getMountainTxDate() {
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Edmonton',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}:${map.second}-06:00`;
+}
 
 Deno.serve(async (req) => {
   try {
@@ -82,8 +99,17 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Fetch the inventory item
-    const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(lineItem.inventory_item_id);
+    const { data: inventoryItem, error: inventoryItemError } = await supabase
+      .from('InventoryItem')
+      .select('*')
+      .eq('id', lineItem.inventory_item_id)
+      .maybeSingle();
+
+    if (inventoryItemError) {
+      console.error('processWorkOrderPartReceive inventory fetch error:', inventoryItemError);
+      return Response.json({ error: 'Failed to fetch inventory item', details: inventoryItemError.message }, { status: 500 });
+    }
+
     if (!inventoryItem) {
       return Response.json({ error: 'Inventory item not found' }, { status: 404 });
     }
@@ -121,23 +147,23 @@ Deno.serve(async (req) => {
     const newQOH = currentQOH - receivedQuantity;
     const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
 
-    const { data: inventoryUpdateResult, error: inventoryUpdateError } = await supabase
-      .from('InventoryItem')
-      .update({
+    const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
+      itemId: lineItem.inventory_item_id,
+      updates: {
         quantity_on_hand: newQOH,
         quantity_on_order: newInventoryQOO
-      })
-      .eq('id', lineItem.inventory_item_id)
-      .select()
-      .single();
+      }
+    });
 
-    if (inventoryUpdateError) {
-      console.error('processWorkOrderPartReceive inventory update error:', inventoryUpdateError);
-      return Response.json({ error: 'Failed to update inventory item', details: inventoryUpdateError.message }, { status: 500 });
+    if (!inventoryUpdateResponse.data?.success) {
+      return Response.json({
+        error: 'Failed to update inventory item',
+        details: inventoryUpdateResponse.data?.error || 'inventoryUpdate did not return success'
+      }, { status: 500 });
     }
 
     // 3. Create the inventory transaction record
-    const txDate = new Date().toISOString();
+    const txDate = getMountainTxDate();
     const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
     
     await base44.asServiceRole.entities.InventoryTxs.create({
@@ -157,7 +183,7 @@ Deno.serve(async (req) => {
       message: `Successfully received ${receivedQuantity} unit(s) and issued to work order`,
       updatedLineItem: lineItems[lineItemIndex],
       newInventoryQOH: newQOH,
-      newInventoryQOO: inventoryUpdateResult?.quantity_on_order ?? newInventoryQOO
+      newInventoryQOO: inventoryUpdateResponse.data?.data?.quantity_on_order ?? newInventoryQOO
     });
 
   } catch (error) {
