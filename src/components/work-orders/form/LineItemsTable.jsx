@@ -307,8 +307,13 @@ export default function LineItemsTable({
             setInventoryCategories(categoriesData);
         }
 
-        // Fetch the item details
-        const item = await InventoryItem.get(line.inventory_item_id);
+        // Fetch the item details from Supabase
+        const itemResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'InventoryItem',
+            match: { id: line.inventory_item_id }
+        });
+        const item = itemResponse.data?.data?.[0];
         setEditingInventoryItem(item);
         setEditInventoryModalOpen(true);
     } catch (error) {
