@@ -472,10 +472,24 @@ export default function InventoryListPage() {
           drawFooter(i, totalPages);
       }
 
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      const newWindow = window.open(blobUrl, '_blank');
-      if (!newWindow) {
+      const pdfDataUri = doc.output('datauristring');
+      const windowFeatures = 'width=1200,height=800,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+      const newWindow = window.open('', '_blank', windowFeatures);
+      
+      if (newWindow) {
+          newWindow.document.write(`
+            <html>
+              <head>
+                <title>Inventory Report</title>
+                <style>body { margin: 0; padding: 0; overflow: hidden; }</style>
+              </head>
+              <body>
+                <iframe width='100%' height='100%' style='border:none; margin:0; padding:0;' src='${pdfDataUri}'></iframe>
+              </body>
+            </html>
+          `);
+          newWindow.document.close();
+      } else {
           doc.save('Inventory_Report.pdf');
       }
 
