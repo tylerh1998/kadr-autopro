@@ -370,50 +370,56 @@ export default function InventoryListPage() {
       });
       const usableWidth = pageWidth - margin * 2;
       
-      let currentY = margin + 20;
+      let currentY = margin + 30;
 
       const drawHeader = () => {
-          doc.setFontSize(14);
+          doc.setFontSize(18);
           doc.setFont('helvetica', 'bold');
-          doc.text(`Inventory Report - ${new Date().toLocaleDateString()}`, margin, margin);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`Inventory List - ${new Date().toLocaleDateString()}`, pageWidth / 2, margin + 10, { align: 'center' });
           
           doc.setFontSize(9);
-          doc.setFillColor(240, 240, 240);
-          doc.rect(margin, currentY, usableWidth, 20, 'F');
-          doc.setDrawColor(200);
-          doc.rect(margin, currentY, usableWidth, 20, 'S');
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(1);
+          doc.rect(margin, currentY, usableWidth, 25, 'FD');
           
           let currentX = margin;
           cols.forEach((col) => {
               const colWidth = (col.weight / totalWeight) * usableWidth;
-              doc.text(col.label, currentX + 5, currentY + 14);
+              doc.setFont('helvetica', 'bold');
+              doc.text(col.label, currentX + 5, currentY + 16);
+              if (currentX > margin) {
+                  doc.line(currentX, currentY, currentX, currentY + 25);
+              }
               currentX += colWidth;
           });
-          currentY += 20;
+          currentY += 25;
       };
 
       const drawFooter = (pageNum, totalPages) => {
           doc.setFontSize(9);
           doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
           doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
       };
 
       drawHeader();
       
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(9);
 
       records.forEach((item) => {
+          const rowHeight = 25;
           if (currentY > pageHeight - 50) {
               doc.addPage();
-              currentY = margin + 20;
+              currentY = margin + 30;
               drawHeader();
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(8);
+              doc.setFontSize(9);
           }
           
-          doc.setDrawColor(220);
-          doc.rect(margin, currentY, usableWidth, 15, 'S');
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(1);
+          doc.rect(margin, currentY, usableWidth, rowHeight, 'S');
           
           let currentX = margin;
           cols.forEach((col) => {
@@ -426,6 +432,14 @@ export default function InventoryListPage() {
               else if (col.id === 'core' || col.id === 'stocked_item' || col.id === 'is_active') text = item[col.id] ? 'Yes' : 'No';
               else text = (item[col.id] || '').toString();
               
+              // Set font styles based on column
+              if (col.id === 'part_number' || col.id === 'quantity_on_hand' || col.id === 'selling_price') {
+                  doc.setFont('helvetica', 'bold');
+              } else {
+                  doc.setFont('helvetica', 'normal');
+              }
+
+              // Truncate text
               const maxLen = colWidth - 10;
               let truncated = text;
               if (doc.getTextWidth(truncated) > maxLen) {
@@ -434,12 +448,25 @@ export default function InventoryListPage() {
                   }
                   truncated += '...';
               }
+
+              // Set text color based on QOH
+              if (col.id === 'quantity_on_hand' && item.quantity_on_hand <= 0) {
+                  doc.setTextColor(220, 38, 38); // Red
+              } else {
+                  doc.setTextColor(0, 0, 0); // Black
+              }
               
-              doc.text(truncated, currentX + 5, currentY + 11);
+              doc.text(truncated, currentX + 5, currentY + 16);
+              
+              if (currentX > margin) {
+                  doc.setDrawColor(200, 200, 200);
+                  doc.line(currentX, currentY, currentX, currentY + rowHeight);
+              }
+              
               currentX += colWidth;
           });
           
-          currentY += 15;
+          currentY += rowHeight;
       });
 
       const totalPages = doc.getNumberOfPages();
