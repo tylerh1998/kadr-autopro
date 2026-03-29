@@ -48,7 +48,7 @@ export default Deno.serve(async (req) => {
                     .from('InventoryItem')
                     .select('*')
                     .eq('id', inventoryItemId)
-                    .single();
+                    .maybeSingle();
 
                 if (inventoryError || !inventoryItem) {
                     throw new Error(`Inventory item not found: ${inventoryItemId}`);

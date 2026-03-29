@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
     try {
@@ -27,9 +28,31 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false },
+        });
+
         // Fetch the inventory item
-        const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(inventoryItemId);
-        
+        const { data: inventoryItem, error: inventoryError } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', inventoryItemId)
+            .maybeSingle();
+
+        if (inventoryError) {
+            return Response.json({
+                success: false,
+                message: inventoryError.message || 'Failed to fetch inventory item'
+            }, { status: 500 });
+        }
+
         if (!inventoryItem) {
             return Response.json({
                 success: false,
