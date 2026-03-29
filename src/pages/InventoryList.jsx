@@ -372,7 +372,11 @@ export default function InventoryListPage() {
   return (
     <>
       <style>{`
+        .print-footer-row { display: none; }
         @media print {
+          @page {
+            margin: 10mm;
+          }
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
           .print-area { 
@@ -416,6 +420,16 @@ export default function InventoryListPage() {
           }
           .print-table .text-red-600 {
             color: red !important;
+          }
+          .print-table {
+            counter-reset: page;
+          }
+          .print-footer-row {
+            display: table-footer-group !important;
+          }
+          .page-number::after {
+            counter-increment: page;
+            content: "Page " counter(page);
           }
         }
       `}</style>
@@ -800,6 +814,13 @@ export default function InventoryListPage() {
                       ))
                     )}
                   </TableBody>
+                  <tfoot className="print-footer-row">
+                    <tr>
+                      <td colSpan={20} style={{ borderTop: '1px solid #ddd', borderBottom: 'none', borderLeft: 'none', borderRight: 'none', textAlign: 'right', paddingTop: '10px', fontSize: '12px', color: '#666' }}>
+                        <span className="page-number"></span>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </Table>
 
                 {/* Pagination Controls */}
