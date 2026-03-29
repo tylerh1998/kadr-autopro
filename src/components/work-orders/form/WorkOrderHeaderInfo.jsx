@@ -370,7 +370,11 @@ export default function WorkOrderHeaderInfo({
         <CardContent className="p-4">
           <div className="flex gap-4">
             {/* Left Column - Data */}
-            <div className="flex-1">
+            <div 
+              className={`flex-1 ${!isLocked ? 'cursor-pointer hover:bg-slate-50 transition-colors p-2 -m-2 rounded-lg' : ''}`}
+              onClick={!isLocked ? onEditWorkOrderDetails : undefined}
+              title={!isLocked ? "Click to edit document details" : ""}
+            >
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-3">
                   <FileText className="w-5 h-5 text-purple-600" />
