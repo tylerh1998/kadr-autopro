@@ -21,15 +21,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
-const AVAILABLE_ENTITIES = [
+const SUPABASE_TABLES = [
+  "ChartOfAccount", "InventoryItem", "SalesClass", "Supplier", 
+  "SupplierInvoiceLine", "SupplierPayment", "WorkOrder"
+].sort();
+
+const LOCAL_ENTITIES = [
   "Appointment", "BankAccount", "BankReconciliation", "BankTransaction", "CashDrawerAdjustment",
   "CashFlowEntry", "CashFlowSummary", "ChartOfAccount", "Customer", "CustomerARAdjustment",
   "CustomerPayments", "CustomerPortalWorkOrder", "DepositSlipBreakdown", "Employee", "FiscalPeriod",
-  "GLTransaction", "GSTReturn", "InventoryCategory", "InventoryItem", "InventoryLocation",
+  "GLTransaction", "GSTReturn", "InventoryCategory", "InventoryLocation",
   "InventoryReturn", "InventoryTxs", "Levies", "LinesOfCredit", "LinesOfCreditTransaction",
-  "OtherChargeList", "PayrollTransaction", "ReturnReason", "SalesClass", "SentEmailLog",
-  "Statement", "Supplier", "SupplierInvoiceLine", "SupplierPayment", "SystemSettings",
-  "TagAlong", "User", "Vehicle", "WorkOrder", "WorkOrderStatus"
+  "OtherChargeList", "PayrollTransaction", "ReturnReason", "SentEmailLog",
+  "Statement", "SystemSettings", "TagAlong", "User", "Vehicle", "WorkOrderStatus"
 ].sort();
 
 export default function AdminPage() {
@@ -38,7 +42,24 @@ export default function AdminPage() {
   
   // Tool State
   const [selectedEntity, setSelectedEntity] = useState("");
+  const [targetType, setTargetType] = useState(""); // 'local' or 'supabase'
+  const [selectedLocalEntity, setSelectedLocalEntity] = useState("");
+  const [selectedSupabaseTable, setSelectedSupabaseTable] = useState("");
   const [entityFields, setEntityFields] = useState([]);
+
+  const handleSelectLocal = (val) => {
+    setSelectedLocalEntity(val);
+    setSelectedSupabaseTable("");
+    setSelectedEntity(val);
+    setTargetType('local');
+  };
+
+  const handleSelectSupabase = (val) => {
+    setSelectedSupabaseTable(val);
+    setSelectedLocalEntity("");
+    setSelectedEntity(val);
+    setTargetType('supabase');
+  };
   const [fieldMeta, setFieldMeta] = useState([]);
   const [loadingFields, setLoadingFields] = useState(false);
   
@@ -108,13 +129,29 @@ export default function AdminPage() {
     const fetchSchema = async () => {
       setLoadingFields(true);
       try {
-        const response = await base44.functions.invoke('adminDbTool', {
-          mode: 'get_schema',
-          entityName: selectedEntity
-        });
-        if (response.data?.fields) {
-          setEntityFields(response.data.fields);
-          setFieldMeta(response.data.fieldMeta || []);
+        if (targetType === 'supabase') {
+          const response = await base44.functions.invoke('SupabaseProxy', {
+             action: 'read',
+             table: selectedEntity
+          });
+          const data = response.data?.data || [];
+          if (data.length > 0) {
+             const keys = Object.keys(data[0]);
+             setEntityFields(keys);
+             setFieldMeta(keys.map(k => ({ name: k, type: 'string' })));
+          } else {
+             setEntityFields([]);
+             setFieldMeta([]);
+          }
+        } else {
+          const response = await base44.functions.invoke('adminDbTool', {
+            mode: 'get_schema',
+            entityName: selectedEntity
+          });
+          if (response.data?.fields) {
+            setEntityFields(response.data.fields);
+            setFieldMeta(response.data.fieldMeta || []);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch schema", error);
@@ -130,22 +167,36 @@ export default function AdminPage() {
     setProcessing(true);
     setResults([]);
     try {
-        // Convert Mountain Time inputs to UTC for query if needed, 
-        // but typically standard YYYY-MM-DD string is sufficient for >= query 
-        // if the backend/db treats dates consistently.
-        // Adding T00:00:00 for start and T23:59:59 for end to capture full days.
         let isoStart = startDate ? new Date(startDate + "T00:00:00").toISOString() : null;
         let isoEnd = endDate ? new Date(endDate + "T23:59:59").toISOString() : null;
 
-        const response = await base44.functions.invoke('adminDbTool', {
-            mode: 'extract',
-            entityName: selectedEntity,
-            startDate: isoStart,
-            endDate: isoEnd
-        });
-        
-        if (response.data?.results) {
-            setResults(response.data.results);
+        if (targetType === 'supabase') {
+            const response = await base44.functions.invoke('SupabaseProxy', {
+                action: 'read',
+                table: selectedEntity
+            });
+            let data = response.data?.data || [];
+            if (isoStart || isoEnd) {
+                data = data.filter(row => {
+                    const rowDate = new Date(row.created_date || row.created_at || row.updated_date || row.updated_at || row.invoice_date);
+                    if (isNaN(rowDate)) return true;
+                    if (isoStart && rowDate < new Date(isoStart)) return false;
+                    if (isoEnd && rowDate > new Date(isoEnd)) return false;
+                    return true;
+                });
+            }
+            setResults(data);
+        } else {
+            const response = await base44.functions.invoke('adminDbTool', {
+                mode: 'extract',
+                entityName: selectedEntity,
+                startDate: isoStart,
+                endDate: isoEnd
+            });
+            
+            if (response.data?.results) {
+                setResults(response.data.results);
+            }
         }
     } catch (error) {
         console.error("Extract failed", error);
@@ -160,15 +211,28 @@ export default function AdminPage() {
     setProcessing(true);
     setResults([]);
     try {
-        const response = await base44.functions.invoke('adminDbTool', {
-            mode: 'search',
-            entityName: selectedEntity,
-            field: searchField,
-            searchTerm: searchTerm
-        });
-        
-        if (response.data?.results) {
-            setResults(response.data.results);
+        if (targetType === 'supabase') {
+            const response = await base44.functions.invoke('SupabaseProxy', {
+                action: 'read',
+                table: selectedEntity
+            });
+            let data = response.data?.data || [];
+            data = data.filter(row => {
+                const val = String(row[searchField] || '').toLowerCase();
+                return val.includes(searchTerm.toLowerCase());
+            });
+            setResults(data);
+        } else {
+            const response = await base44.functions.invoke('adminDbTool', {
+                mode: 'search',
+                entityName: selectedEntity,
+                field: searchField,
+                searchTerm: searchTerm
+            });
+            
+            if (response.data?.results) {
+                setResults(response.data.results);
+            }
         }
     } catch (error) {
         console.error("Search failed", error);
@@ -181,19 +245,24 @@ export default function AdminPage() {
   const handleUpdateRecord = async (updatedRecord) => {
     if (!selectedEntity || !updatedRecord.id) return;
     try {
-      // Use the base44 SDK to update the entity directly
-      // This assumes base44.entities[selectedEntity] is available
-      if (base44.entities[selectedEntity]) {
-        await base44.entities[selectedEntity].update(updatedRecord.id, updatedRecord);
+      if (targetType === 'supabase') {
+         await base44.functions.invoke('SupabaseProxy', {
+             action: 'update',
+             table: selectedEntity,
+             id: updatedRecord.id,
+             data: updatedRecord
+         });
       } else {
-        // Fallback to adminDbTool if direct entity access isn't available/working 
-        // (though direct access is preferred and standard)
-         await base44.functions.invoke('adminDbTool', {
-            mode: 'update',
-            entityName: selectedEntity,
-            id: updatedRecord.id,
-            data: updatedRecord
-        });
+        if (base44.entities[selectedEntity]) {
+          await base44.entities[selectedEntity].update(updatedRecord.id, updatedRecord);
+        } else {
+           await base44.functions.invoke('adminDbTool', {
+              mode: 'update',
+              entityName: selectedEntity,
+              id: updatedRecord.id,
+              data: updatedRecord
+          });
+        }
       }
       
       // Update local state
@@ -282,18 +351,33 @@ export default function AdminPage() {
                 <CardDescription>Select an entity to begin.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="max-w-md mb-6">
-                    <Label>Target Entity</Label>
-                    <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select an Entity..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[300px]">
-                            {AVAILABLE_ENTITIES.map(entity => (
-                                <SelectItem key={entity} value={entity}>{entity}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 max-w-2xl">
+                    <div>
+                        <Label>Local Entity</Label>
+                        <Select value={selectedLocalEntity} onValueChange={handleSelectLocal}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Local Entity..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                                {LOCAL_ENTITIES.map(entity => (
+                                    <SelectItem key={entity} value={entity}>{entity}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label>Supabase Table</Label>
+                        <Select value={selectedSupabaseTable} onValueChange={handleSelectSupabase}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select Supabase Table..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                                {SUPABASE_TABLES.map(table => (
+                                    <SelectItem key={table} value={table}>{table}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {selectedEntity && (
