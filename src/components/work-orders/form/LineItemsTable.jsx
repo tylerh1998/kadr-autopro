@@ -88,7 +88,12 @@ export default function LineItemsTable({
       const partIds = [...new Set(lineItems.map(item => item.inventory_item_id).filter(Boolean))];
       if (partIds.length > 0) {
         try {
-          const fetchedItems = await InventoryItem.filter({ id: { $in: partIds } });
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'InventoryItem',
+            match: { id: { in: partIds } }
+          });
+          const fetchedItems = response.data?.data || [];
           const pricesMap = {};
           fetchedItems.forEach(item => {
             pricesMap[item.id] = parseFloat(item.selling_price) || 0;
