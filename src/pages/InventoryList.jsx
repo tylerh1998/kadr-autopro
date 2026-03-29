@@ -330,32 +330,29 @@ export default function InventoryListPage() {
       if (isInventoryCount && !activeSearchTerm) {
         const response = await base44.functions.invoke('getPopulatedInventory', {});
         records = response?.data?.records || [];
-        if (records.length > 0) {
-          const { key, direction } = sortConfig;
-          const sortMultiplier = direction === 'ascending' ? 1 : -1;
-          const sortKey = isInventoryCount && key === 'part_number' ? 'location' : key;
-          
-          records.sort((a, b) => {
-            const valA = a[sortKey] || '';
-            const valB = b[sortKey] || '';
-            if (valA < valB) return -1 * sortMultiplier;
-            if (valA > valB) return 1 * sortMultiplier;
-            return 0;
-          });
-        }
       } else {
         const response = await base44.functions.invoke('searchInventory', {
           searchTerm: activeSearchTerm,
           filter: filter,
-          sortBy: isInventoryCount ? 'location' : sortConfig.key,
-          sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+          sortBy: 'location',
+          sortDirection: 'asc',
           limit: 999999,
           offset: 0
         });
         records = response?.data?.records || [];
       }
 
-      const doc = new jsPDF('l', 'pt', 'letter');
+      // Sort records by location ascending for the report
+      records.sort((a, b) => {
+        const locA = a.location || '';
+        const locB = b.location || '';
+        if (locA === locB) return 0;
+        if (locA === '') return -1;
+        if (locB === '') return 1;
+        return locA.localeCompare(locB);
+      });
+
+      const doc = new jsPDF('p', 'pt', 'letter');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 30;
@@ -475,11 +472,10 @@ export default function InventoryListPage() {
           drawFooter(i, totalPages);
       }
 
-      const pdfDataUri = doc.output('datauristring');
-      const newWindow = window.open();
-      if (newWindow) {
-          newWindow.document.write(`<iframe width='100%' height='100%' style='border:none; margin:0; padding:0;' src='${pdfDataUri}'></iframe>`);
-      } else {
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const newWindow = window.open(blobUrl, '_blank');
+      if (!newWindow) {
           doc.save('Inventory_Report.pdf');
       }
 
