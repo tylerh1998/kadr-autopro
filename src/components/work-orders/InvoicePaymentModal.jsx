@@ -252,7 +252,7 @@ export default function InvoicePaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-4xl"> {/* Adjusted max-width for new layout */}
+      <DialogContent className="max-w-4xl" onInteractOutside={(e) => e.preventDefault()}> {/* Adjusted max-width for new layout */}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DollarSign className="w-6 h-6 text-green-600" />
