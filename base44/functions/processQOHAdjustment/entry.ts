@@ -18,7 +18,12 @@ Deno.serve(async (req) => {
         }
 
         // Fetch the inventory item to get current QOH and cost
-        const inventoryItem = await base44.asServiceRole.entities.InventoryItem.get(inventory_item_id);
+        const proxyResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'InventoryItem',
+            match: { id: inventory_item_id }
+        });
+        const inventoryItem = proxyResponse.data?.data && proxyResponse.data.data.length > 0 ? proxyResponse.data.data[0] : null;
         
         if (!inventoryItem) {
             return Response.json({ error: 'Inventory item not found' }, { status: 404 });
@@ -30,8 +35,9 @@ Deno.serve(async (req) => {
         const value_change = quantity_change * item_cost;
 
         // Update inventory item QOH
-        await base44.asServiceRole.entities.InventoryItem.update(inventory_item_id, {
-            quantity_on_hand: new_quantity_on_hand
+        await base44.functions.invoke('inventoryUpdate', {
+            itemId: inventory_item_id,
+            updates: { quantity_on_hand: new_quantity_on_hand }
         });
 
         // Create inventory transaction record
