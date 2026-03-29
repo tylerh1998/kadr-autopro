@@ -94,11 +94,19 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
+    console.log('processWorkOrderPartReceive resolvedInventoryItemId:', resolvedInventoryItemId);
+
     const { data: inventoryItem, error: inventoryItemError } = await supabase
       .from('InventoryItem')
       .select('*')
       .eq('id', resolvedInventoryItemId)
       .maybeSingle();
+
+    console.log('processWorkOrderPartReceive inventory fetch result:', {
+      resolvedInventoryItemId,
+      inventoryItemError,
+      inventoryItem
+    });
 
     if (inventoryItemError) {
       console.error('processWorkOrderPartReceive inventory fetch error:', inventoryItemError);
