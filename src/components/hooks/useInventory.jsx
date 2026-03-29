@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { InventoryItem, Employee } from '@/entities/all';
+import { Employee } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export function useShopData() {
   const [inventory, setInventory] = useState([]);
@@ -12,10 +13,11 @@ export function useShopData() {
     setLoading(true);
     setError('');
     try {
-      const [inventoryData, employeeData] = await Promise.all([
-        InventoryItem.list(),
+      const [inventoryResponse, employeeData] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryItem' }),
         Employee.list(),
       ]);
+      const inventoryData = inventoryResponse.data?.data || [];
       setInventory(inventoryData);
       setAllEmployees(employeeData); // Store all employees
       setEmployees(employeeData.filter(e => e.position === 'Technician'));

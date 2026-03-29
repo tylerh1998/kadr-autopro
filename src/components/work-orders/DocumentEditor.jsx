@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, Appointment, InventoryItem, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client'; import { saveworkorderdata } from '@/functions/saveworkorderdata'; import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';

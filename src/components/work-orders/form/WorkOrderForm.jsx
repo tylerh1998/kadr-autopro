@@ -4,7 +4,7 @@ import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
-import { InventoryItem, InventoryTxs } from '@/entities/all';
+import { InventoryTxs } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 
 // Modals
