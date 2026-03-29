@@ -20,7 +20,24 @@ export default function RecordDetailsModal({ open, onClose, record, entityName, 
   if (!record) return null;
 
   const handleEdit = () => {
-    setEditedJson(JSON.stringify(record, null, 2));
+    const beautifiedRecord = {};
+    for (const key in record) {
+      if (typeof record[key] === 'string') {
+        try {
+          const parsed = JSON.parse(record[key]);
+          if (typeof parsed === 'object' && parsed !== null) {
+            beautifiedRecord[key] = parsed;
+          } else {
+            beautifiedRecord[key] = record[key];
+          }
+        } catch {
+          beautifiedRecord[key] = record[key];
+        }
+      } else {
+        beautifiedRecord[key] = record[key];
+      }
+    }
+    setEditedJson(JSON.stringify(beautifiedRecord, null, 2));
     setIsEditing(true);
   };
 
@@ -32,8 +49,18 @@ export default function RecordDetailsModal({ open, onClose, record, entityName, 
   const handleSave = async () => {
     try {
       const parsed = JSON.parse(editedJson);
+      
+      const finalRecord = {};
+      for (const key in parsed) {
+        if (record && typeof record[key] === 'string' && typeof parsed[key] === 'object' && parsed[key] !== null) {
+          finalRecord[key] = JSON.stringify(parsed[key]);
+        } else {
+          finalRecord[key] = parsed[key];
+        }
+      }
+
       setSaving(true);
-      await onUpdate(parsed);
+      await onUpdate(finalRecord);
       setSaving(false);
       setIsEditing(false);
     } catch (e) {
