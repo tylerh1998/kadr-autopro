@@ -73,15 +73,20 @@ Deno.serve(async (req) => {
     const issuedFromQOH = parsedQtyToReturn > 0 ? parsedQtyToReturn : Math.max(0, parsedTotalQty - parsedQtyOnOrder);
     const cancelledOnOrder = parsedQtyToReturn > 0 ? 0 : parsedQtyOnOrder;
 
-    const newQOH = currentQOH + issuedFromQOH;
+    const newQOH = createInventoryReturn ? currentQOH : currentQOH + issuedFromQOH;
     const newQOO = Math.max(0, currentQOO - cancelledOnOrder);
+
+    const updates = {
+      quantity_on_order: newQOO,
+    };
+    
+    if (!createInventoryReturn) {
+      updates.quantity_on_hand = newQOH;
+    }
 
     const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
       itemId: inventoryItemId,
-      updates: {
-        quantity_on_hand: newQOH,
-        quantity_on_order: newQOO,
-      },
+      updates,
     });
 
     if (!inventoryUpdateResponse.data?.success) {
@@ -99,13 +104,13 @@ Deno.serve(async (req) => {
         inventory_item_id: inventoryItemId,
         part_num: partNumber || inventoryItem.part_number,
         tx_date: txDateTime,
-        tx_type: 'Returned from WO',
-        quantity_change: issuedFromQOH,
+        tx_type: createInventoryReturn ? 'Returned to Supplier' : 'Returned from WO',
+        quantity_change: createInventoryReturn ? 0 : issuedFromQOH,
         quantity_ordered_change: 0,
         ro_number: roNumber || '',
         source_record_id: workOrderId || '',
         description: createInventoryReturn
-          ? `Returned ${issuedFromQOH} units to inventory from ${roNumber || 'work order'}. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
+          ? `Returned ${issuedFromQOH} units to supplier from ${roNumber || 'work order'}. Reason: ${returnReason}. Notes: ${returnNotes || ''}`
           : `Returned ${issuedFromQOH} units to inventory from deleted line on ${roNumber || 'work order'}`,
       });
       txResults.push(returnedTx);
