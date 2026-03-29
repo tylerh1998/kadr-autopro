@@ -134,14 +134,34 @@ export default function InventoryListPage() {
     try {
       const isInventoryCount = filter === 'inventory-count';
       const isUnlimitedView = filter === 'inventory-count' || filter === 'non-zero';
-      const response = await base44.functions.invoke('searchInventory', {
-        searchTerm: activeSearchTerm,
-        filter: filter,
-        sortBy: isInventoryCount ? 'location' : sortConfig.key,
-        sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
-        limit: isUnlimitedView ? 999999 : itemsPerPage,
-        offset: isUnlimitedView ? 0 : (currentPage - 1) * itemsPerPage
-      });
+      
+      let response;
+      if (isInventoryCount && !activeSearchTerm) {
+        response = await base44.functions.invoke('getPopulatedInventory', {});
+        // Sort the results in memory since the RPC doesn't sort
+        if (response?.data?.records) {
+          const { key, direction } = sortConfig;
+          const sortMultiplier = direction === 'ascending' ? 1 : -1;
+          const sortKey = isInventoryCount && key === 'part_number' ? 'location' : key; // Default sort for inventory count is location
+          
+          response.data.records.sort((a, b) => {
+            const valA = a[sortKey] || '';
+            const valB = b[sortKey] || '';
+            if (valA < valB) return -1 * sortMultiplier;
+            if (valA > valB) return 1 * sortMultiplier;
+            return 0;
+          });
+        }
+      } else {
+        response = await base44.functions.invoke('searchInventory', {
+          searchTerm: activeSearchTerm,
+          filter: filter,
+          sortBy: isInventoryCount ? 'location' : sortConfig.key,
+          sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+          limit: isUnlimitedView ? 999999 : itemsPerPage,
+          offset: isUnlimitedView ? 0 : (currentPage - 1) * itemsPerPage
+        });
+      }
       
       if (response?.data?.records) {
         setInventory(response.data.records);
