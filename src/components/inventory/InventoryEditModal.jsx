@@ -63,7 +63,16 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
         if (!selectedSalesClass || !selectedSalesClass.pricing_matrix) return null;
 
         try {
-            const parsedData = JSON.parse(selectedSalesClass.pricing_matrix);
+            let parsedData = selectedSalesClass.pricing_matrix;
+            if (typeof parsedData === 'string') {
+                try {
+                    parsedData = JSON.parse(parsedData);
+                } catch (e) {
+                    console.warn(`Failed to parse pricing matrix string for sales class "${selectedSalesClass.name}":`, parsedData);
+                    return null;
+                }
+            }
+            
             if (!Array.isArray(parsedData)) {
                 console.warn(`Pricing matrix for sales class "${selectedSalesClass.name}" is not a valid array.`, parsedData);
                 return null;
