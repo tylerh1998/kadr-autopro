@@ -308,12 +308,15 @@ export default function LineItemsTable({
         }
 
         // Fetch the item details from Supabase
+        console.log('Fetching item with ID:', line.inventory_item_id);
         const itemResponse = await base44.functions.invoke('SupabaseProxy', {
             action: 'read',
             table: 'InventoryItem',
             match: { id: line.inventory_item_id }
         });
+        console.log('SupabaseProxy item response:', itemResponse);
         const item = itemResponse.data?.data?.[0];
+        console.log('Extracted item:', item);
         setEditingInventoryItem(item);
         setEditInventoryModalOpen(true);
     } catch (error) {
