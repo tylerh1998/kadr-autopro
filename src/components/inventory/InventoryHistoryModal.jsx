@@ -70,7 +70,10 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
           data = await InventoryTxs.filter({ part_num: pn }, '-tx_date');
         }
       }
-      setTransactions(data || []);
+      
+      // Ensure data is sorted with newest at the top
+      const sortedData = (data || []).sort((a, b) => new Date(b.tx_date) - new Date(a.tx_date));
+      setTransactions(sortedData);
     } catch (err) {
       console.error('Error fetching inventory history:', err);
       setError('Failed to fetch transaction history. Please try again.');
