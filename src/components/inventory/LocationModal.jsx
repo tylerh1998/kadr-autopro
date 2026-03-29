@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { InventoryItem, InventoryLocation } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { MapPin, Plus, Edit, Search, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -32,7 +32,12 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
 
   const loadLocations = async () => {
     try {
-      const data = await InventoryLocation.filter({ is_active: true });
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'InventoryLocation',
+        match: { is_active: true }
+      });
+      const data = response.data?.data || [];
       setLocations(data.sort((a, b) => (a.location_name || '').localeCompare(b.location_name || '')));
     } catch (error) {
       console.error('Error loading locations:', error);
@@ -52,7 +57,10 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
 
     setLoading(true);
     try {
-      await InventoryItem.update(item.id, { location: selectedLocation });
+      await base44.functions.invoke('inventoryUpdate', {
+        itemId: item.id,
+        updates: { location: selectedLocation }
+      });
       onUpdate();
       onClose();
     } catch (error) {
@@ -70,10 +78,14 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
     }
 
     try {
-      await InventoryLocation.create({
-        location_name: newLocationName.trim(),
-        description: `Location: ${newLocationName.trim()}`,
-        is_active: true
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'insert',
+        table: 'InventoryLocation',
+        data: {
+          location_name: newLocationName.trim(),
+          description: `Location: ${newLocationName.trim()}`,
+          is_active: true
+        }
       });
       
       setNewLocationName('');
@@ -93,9 +105,14 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
     }
 
     try {
-      await InventoryLocation.update(editLocationId, {
-        location_name: editLocationName.trim(),
-        description: `Location: ${editLocationName.trim()}`
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'InventoryLocation',
+        match: { id: editLocationId },
+        data: {
+          location_name: editLocationName.trim(),
+          description: `Location: ${editLocationName.trim()}`
+        }
       });
       
       setEditLocationName('');
