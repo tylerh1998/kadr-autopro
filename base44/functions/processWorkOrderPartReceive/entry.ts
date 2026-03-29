@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     });
 
     // Parse request body
-    const { workOrderId, roNumber, lineItemId, inventoryItemId, receivedQuantity } = await req.json();
+    const { workOrderId, roNumber, lineItemId, receivedQuantity } = await req.json();
 
     // Validate inputs
     if ((!workOrderId && !roNumber) || !lineItemId || !receivedQuantity || receivedQuantity <= 0) {
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
     const lineItem = lineItems[lineItemIndex];
 
-    const resolvedInventoryItemId = lineItem.inventory_item_id || inventoryItemId;
+    const resolvedInventoryItemId = lineItem.id;
 
     // Validate received quantity doesn't exceed qty_on_order
     const currentQtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
@@ -94,31 +94,11 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    let inventoryItem = null;
-    let inventoryItemError = null;
-
-    if (resolvedInventoryItemId) {
-      const inventoryByIdResult = await supabase
-        .from('InventoryItem')
-        .select('*')
-        .eq('id', resolvedInventoryItemId)
-        .maybeSingle();
-
-      inventoryItem = inventoryByIdResult.data;
-      inventoryItemError = inventoryByIdResult.error;
-    }
-
-    if (!inventoryItem && lineItem.part_number) {
-      const inventoryByPartNumberResult = await supabase
-        .from('InventoryItem')
-        .select('*')
-        .eq('part_number', lineItem.part_number)
-        .limit(1)
-        .maybeSingle();
-
-      inventoryItem = inventoryByPartNumberResult.data;
-      inventoryItemError = inventoryItemError || inventoryByPartNumberResult.error;
-    }
+    const { data: inventoryItem, error: inventoryItemError } = await supabase
+      .from('InventoryItem')
+      .select('*')
+      .eq('id', resolvedInventoryItemId)
+      .maybeSingle();
 
     if (inventoryItemError) {
       console.error('processWorkOrderPartReceive inventory fetch error:', inventoryItemError);
@@ -126,7 +106,7 @@ Deno.serve(async (req) => {
     }
 
     if (!inventoryItem) {
-      return Response.json({ error: `Inventory item not found for line item ${lineItem.part_number || lineItem.id}` }, { status: 404 });
+      return Response.json({ error: `Inventory item not found for line item id ${lineItem.id}` }, { status: 404 });
     }
 
     const effectiveInventoryItemId = inventoryItem.id;
