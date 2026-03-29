@@ -33,12 +33,7 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
 
   const loadLocations = async () => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'InventoryLocation',
-        match: { is_active: true }
-      });
-      const data = response.data?.data || [];
+      const data = await InventoryLocation.filter({ is_active: true });
       setLocations(data.sort((a, b) => (a.location_name || '').localeCompare(b.location_name || '')));
     } catch (error) {
       console.error('Error loading locations:', error);
