@@ -298,8 +298,8 @@ export default function LineItemsTable({
                     table: 'Supplier'
                 }),
                 base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data?.data || []),
-                InventoryLocation.list(),
-                InventoryCategory.list()
+                base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryLocation' }).then(res => res.data?.data || []),
+                base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryCategory' }).then(res => res.data?.data || [])
             ]);
             setSuppliers(suppliersResponse.data?.data || []);
             setSalesClasses(salesClassesData);

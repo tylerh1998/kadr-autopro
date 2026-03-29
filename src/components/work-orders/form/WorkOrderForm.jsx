@@ -712,7 +712,7 @@ export default function WorkOrderForm({
       }
 
       try {
-          const inventoryItem = inventory.find(i => i.id === lineItem.inventory_item_id);
+          const inventoryItem = freshInventoryItem || inventory.find(i => i.id === lineItem.inventory_item_id);
           if (!inventoryItem) {
               console.error('Inventory item not found for id:', lineItem.inventory_item_id);
               alert('Inventory item not found.');
