@@ -92,6 +92,7 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
         workOrderId,
         roNumber,
         lineItemId: lineItem.id,
+        inventoryItemId: currentInventoryItem?.id || lineItem?.inventory_item_id || initialInventoryItem?.id,
         receivedQuantity: qtyToReceive
       });
 

@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     });
 
     // Parse request body
-    const { workOrderId, roNumber, lineItemId, receivedQuantity } = await req.json();
+    const { workOrderId, roNumber, lineItemId, inventoryItemId, receivedQuantity } = await req.json();
 
     // Validate inputs
     if ((!workOrderId && !roNumber) || !lineItemId || !receivedQuantity || receivedQuantity <= 0) {
@@ -84,8 +84,9 @@ Deno.serve(async (req) => {
 
     const lineItem = lineItems[lineItemIndex];
 
-    // Validate that line item has an inventory item
-    if (!lineItem.inventory_item_id) {
+    const resolvedInventoryItemId = lineItem.inventory_item_id || inventoryItemId;
+
+    if (!resolvedInventoryItemId) {
       return Response.json({ 
         error: 'Line item does not have an associated inventory item' 
       }, { status: 400 });
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
     const { data: inventoryItem, error: inventoryItemError } = await supabase
       .from('InventoryItem')
       .select('*')
-      .eq('id', lineItem.inventory_item_id)
+      .eq('id', resolvedInventoryItemId)
       .maybeSingle();
 
     if (inventoryItemError) {
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
     const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
 
     const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
-      itemId: lineItem.inventory_item_id,
+      itemId: resolvedInventoryItemId,
       updates: {
         quantity_on_hand: newQOH,
         quantity_on_order: newInventoryQOO
@@ -167,7 +168,7 @@ Deno.serve(async (req) => {
     const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
     
     await base44.asServiceRole.entities.InventoryTxs.create({
-      inventory_item_id: lineItem.inventory_item_id,
+      inventory_item_id: resolvedInventoryItemId,
       part_num: lineItem.part_number || inventoryItem.part_number,
       tx_date: txDate,
       tx_type: 'Issued to WO',
