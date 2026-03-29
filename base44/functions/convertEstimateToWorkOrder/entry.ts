@@ -73,8 +73,18 @@ Deno.serve(async (req) => {
                 const inventoryItemId = line.inventory_item_id;
 
                 try {
-                    // Fetch fresh inventory item
-                    const inventoryItem = await base44.entities.InventoryItem.get(inventoryItemId);
+                    // Fetch fresh inventory item using SupabaseProxy
+                    const proxyResponse = await base44.functions.invoke('SupabaseProxy', {
+                        action: 'read',
+                        table: 'InventoryItem',
+                        match: { id: inventoryItemId }
+                    });
+                    
+                    let inventoryItem = null;
+                    if (proxyResponse.data && proxyResponse.data.data && proxyResponse.data.data.length > 0) {
+                        inventoryItem = proxyResponse.data.data[0];
+                    }
+
                     if (!inventoryItem) {
                         updatedLineItems.push(line);
                         continue;
@@ -112,7 +122,10 @@ Deno.serve(async (req) => {
 
                     // Perform Inventory Update if needed
                     if (Object.keys(updateData).length > 0) {
-                        await base44.asServiceRole.entities.InventoryItem.update(inventoryItemId, updateData);
+                        await base44.functions.invoke('inventoryUpdate', {
+                            itemId: inventoryItemId,
+                            updates: updateData
+                        });
                     }
 
                     // Create Transaction for Taking from Hand
