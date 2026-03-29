@@ -1,6 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { InventoryTxs, InventoryItem, Supplier } from '@/entities/all';
+import { InventoryTxs } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { createPageUrl } from '@/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +22,8 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
 
   const loadSuppliers = useCallback(async () => {
     try {
-      const suppliersData = await Supplier.list();
-      setSuppliers(suppliersData);
+      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
+      setSuppliers(response.data?.data || []);
     } catch (error) {
       console.error('Error loading suppliers:', error);
     }
@@ -60,7 +61,8 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
         data = await InventoryTxs.filter({ inventory_item_id: inventoryItemId }, '-tx_date');
       } else {
         // Fallback to searching by part number and then finding inventory_item_id
-        const inventoryItems = await InventoryItem.filter({ part_number: pn });
+        const inventoryItemsResponse = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryItem', match: { part_number: pn } });
+        const inventoryItems = inventoryItemsResponse.data?.data || [];
         if (inventoryItems.length > 0) {
           const itemId = inventoryItems[0].id;
           data = await InventoryTxs.filter({ inventory_item_id: itemId }, '-tx_date');
@@ -135,12 +137,17 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     );
   };
 
+  const handleOpenRO = (roNumber) => {
+    const url = createPageUrl(`WorkOrderEdit?id=${roNumber}`);
+    window.open(url, '_blank', 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no');
+  };
+
   const renderReference = (tx) => {
     const refs = [];
     
     if (tx.ro_number) {
       refs.push(
-        <div key="ro" className="text-xs font-mono text-blue-600">
+        <div key="ro" className="text-xs font-mono text-blue-600 cursor-pointer hover:underline" onClick={() => handleOpenRO(tx.ro_number)}>
           RO: {tx.ro_number}
         </div>
       );
