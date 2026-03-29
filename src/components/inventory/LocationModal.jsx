@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
+import { InventoryLocation } from '@/entities/all';
 import { MapPin, Plus, Edit, Search, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -78,14 +79,10 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
     }
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'insert',
-        table: 'InventoryLocation',
-        data: {
-          location_name: newLocationName.trim(),
-          description: `Location: ${newLocationName.trim()}`,
-          is_active: true
-        }
+      await InventoryLocation.create({
+        location_name: newLocationName.trim(),
+        description: `Location: ${newLocationName.trim()}`,
+        is_active: true
       });
       
       setNewLocationName('');
@@ -105,14 +102,9 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
     }
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'InventoryLocation',
-        match: { id: editLocationId },
-        data: {
-          location_name: editLocationName.trim(),
-          description: `Location: ${editLocationName.trim()}`
-        }
+      await InventoryLocation.update(editLocationId, {
+        location_name: editLocationName.trim(),
+        description: `Location: ${editLocationName.trim()}`
       });
       
       setEditLocationName('');
