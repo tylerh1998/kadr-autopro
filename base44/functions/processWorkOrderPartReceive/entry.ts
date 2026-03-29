@@ -86,12 +86,6 @@ Deno.serve(async (req) => {
 
     const resolvedInventoryItemId = lineItem.inventory_item_id || inventoryItemId;
 
-    if (!resolvedInventoryItemId) {
-      return Response.json({ 
-        error: 'Line item does not have an associated inventory item' 
-      }, { status: 400 });
-    }
-
     // Validate received quantity doesn't exceed qty_on_order
     const currentQtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
     if (receivedQuantity > currentQtyOnOrder) {
@@ -100,11 +94,31 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    const { data: inventoryItem, error: inventoryItemError } = await supabase
-      .from('InventoryItem')
-      .select('*')
-      .eq('id', resolvedInventoryItemId)
-      .maybeSingle();
+    let inventoryItem = null;
+    let inventoryItemError = null;
+
+    if (resolvedInventoryItemId) {
+      const inventoryByIdResult = await supabase
+        .from('InventoryItem')
+        .select('*')
+        .eq('id', resolvedInventoryItemId)
+        .maybeSingle();
+
+      inventoryItem = inventoryByIdResult.data;
+      inventoryItemError = inventoryByIdResult.error;
+    }
+
+    if (!inventoryItem && lineItem.part_number) {
+      const inventoryByPartNumberResult = await supabase
+        .from('InventoryItem')
+        .select('*')
+        .eq('part_number', lineItem.part_number)
+        .limit(1)
+        .maybeSingle();
+
+      inventoryItem = inventoryByPartNumberResult.data;
+      inventoryItemError = inventoryItemError || inventoryByPartNumberResult.error;
+    }
 
     if (inventoryItemError) {
       console.error('processWorkOrderPartReceive inventory fetch error:', inventoryItemError);
@@ -112,8 +126,10 @@ Deno.serve(async (req) => {
     }
 
     if (!inventoryItem) {
-      return Response.json({ error: 'Inventory item not found' }, { status: 404 });
+      return Response.json({ error: `Inventory item not found for line item ${lineItem.part_number || lineItem.id}` }, { status: 404 });
     }
+
+    const effectiveInventoryItemId = inventoryItem.id;
 
     // Validate inventory has sufficient quantity on hand
     const currentQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
@@ -149,7 +165,7 @@ Deno.serve(async (req) => {
     const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
 
     const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', {
-      itemId: resolvedInventoryItemId,
+      itemId: effectiveInventoryItemId,
       updates: {
         quantity_on_hand: newQOH,
         quantity_on_order: newInventoryQOO
@@ -168,7 +184,7 @@ Deno.serve(async (req) => {
     const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
     
     await base44.asServiceRole.entities.InventoryTxs.create({
-      inventory_item_id: resolvedInventoryItemId,
+      inventory_item_id: effectiveInventoryItemId,
       part_num: lineItem.part_number || inventoryItem.part_number,
       tx_date: txDate,
       tx_type: 'Issued to WO',
