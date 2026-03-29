@@ -4,6 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
 import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
+import { processDeletedWorkOrderLineItem } from '@/functions/processDeletedWorkOrderLineItem';
 
 export default function useDocumentEditorSave({
   workOrder,
@@ -57,18 +58,17 @@ export default function useDocumentEditorSave({
             const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
             if (totalQty <= 0 && qtyOnOrder <= 0) continue;
 
-            const response = await processWorkOrderPartReturn({
+            const response = await processDeletedWorkOrderLineItem({
               inventoryItemId: deletedLine.inventory_item_id,
               workOrderId: workOrder.id,
               roNumber: workOrder.ro_number,
               partNumber: deletedLine.part_number,
-              description: deletedLine.description,
               totalQty,
               qtyOnOrder,
             });
 
             if (!response.data?.success) {
-              throw new Error(response.data?.error || 'Failed to process deleted line inventory return');
+              throw new Error(response.data?.error || 'Failed to process deleted work order line');
             }
           } catch (error) {
             console.error(`Failed to replenish inventory for deleted line ${deletedLine.part_number}:`, error);
