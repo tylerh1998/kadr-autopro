@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { jsPDF } from "jspdf";
 import {
   InventoryItem,
   SalesClass,
@@ -319,8 +320,148 @@ export default function InventoryListPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    setLoading(true);
+    try {
+      let records = [];
+      const isInventoryCount = filter === 'inventory-count';
+      const isUnlimitedView = filter === 'inventory-count' || filter === 'non-zero';
+      
+      if (isInventoryCount && !activeSearchTerm) {
+        const response = await base44.functions.invoke('getPopulatedInventory', {});
+        records = response?.data?.records || [];
+        if (records.length > 0) {
+          const { key, direction } = sortConfig;
+          const sortMultiplier = direction === 'ascending' ? 1 : -1;
+          const sortKey = isInventoryCount && key === 'part_number' ? 'location' : key;
+          
+          records.sort((a, b) => {
+            const valA = a[sortKey] || '';
+            const valB = b[sortKey] || '';
+            if (valA < valB) return -1 * sortMultiplier;
+            if (valA > valB) return 1 * sortMultiplier;
+            return 0;
+          });
+        }
+      } else {
+        const response = await base44.functions.invoke('searchInventory', {
+          searchTerm: activeSearchTerm,
+          filter: filter,
+          sortBy: isInventoryCount ? 'location' : sortConfig.key,
+          sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+          limit: 999999,
+          offset: 0
+        });
+        records = response?.data?.records || [];
+      }
+
+      const doc = new jsPDF('l', 'pt', 'letter');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 30;
+      
+      const cols = availableColumns.filter(c => visibleColumns.has(c.id));
+      let totalWeight = 0;
+      cols.forEach(c => {
+          if (c.id === 'description') c.weight = 3;
+          else if (c.id === 'part_number') c.weight = 1.5;
+          else c.weight = 1;
+          totalWeight += c.weight;
+      });
+      const usableWidth = pageWidth - margin * 2;
+      
+      let currentY = margin + 20;
+
+      const drawHeader = () => {
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Inventory Report - ${new Date().toLocaleDateString()}`, margin, margin);
+          
+          doc.setFontSize(9);
+          doc.setFillColor(240, 240, 240);
+          doc.rect(margin, currentY, usableWidth, 20, 'F');
+          doc.setDrawColor(200);
+          doc.rect(margin, currentY, usableWidth, 20, 'S');
+          
+          let currentX = margin;
+          cols.forEach((col) => {
+              const colWidth = (col.weight / totalWeight) * usableWidth;
+              doc.text(col.label, currentX + 5, currentY + 14);
+              currentX += colWidth;
+          });
+          currentY += 20;
+      };
+
+      const drawFooter = (pageNum, totalPages) => {
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth / 2, pageHeight - 20, { align: 'center' });
+      };
+
+      drawHeader();
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+
+      records.forEach((item) => {
+          if (currentY > pageHeight - 50) {
+              doc.addPage();
+              currentY = margin + 20;
+              drawHeader();
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(8);
+          }
+          
+          doc.setDrawColor(220);
+          doc.rect(margin, currentY, usableWidth, 15, 'S');
+          
+          let currentX = margin;
+          cols.forEach((col) => {
+              const colWidth = (col.weight / totalWeight) * usableWidth;
+              let text = '';
+              if (col.id === 'supplier') text = suppliers.find(s => s.id === item.supplier_id)?.name || '-';
+              else if (col.id === 'sales_class') text = salesClasses.find(sc => sc.id === item.sales_class)?.name || '-';
+              else if (col.id === 'cost' || col.id === 'selling_price' || col.id === 'core_cost') text = `$${(item[col.id] || 0).toFixed(2)}`;
+              else if (col.id === 'profit_margin') text = `${(item[col.id] || 0).toFixed(2)}%`;
+              else if (col.id === 'core' || col.id === 'stocked_item' || col.id === 'is_active') text = item[col.id] ? 'Yes' : 'No';
+              else text = (item[col.id] || '').toString();
+              
+              const maxLen = colWidth - 10;
+              let truncated = text;
+              if (doc.getTextWidth(truncated) > maxLen) {
+                  while (truncated.length > 0 && doc.getTextWidth(truncated + '...') > maxLen) {
+                      truncated = truncated.slice(0, -1);
+                  }
+                  truncated += '...';
+              }
+              
+              doc.text(truncated, currentX + 5, currentY + 11);
+              currentX += colWidth;
+          });
+          
+          currentY += 15;
+      });
+
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          drawFooter(i, totalPages);
+      }
+
+      const pdfDataUri = doc.output('datauristring');
+      const newWindow = window.open();
+      if (newWindow) {
+          newWindow.document.write(`<iframe width='100%' height='100%' style='border:none; margin:0; padding:0;' src='${pdfDataUri}'></iframe>`);
+      } else {
+          doc.save('Inventory_Report.pdf');
+      }
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getSortIndicator = (key) => {
