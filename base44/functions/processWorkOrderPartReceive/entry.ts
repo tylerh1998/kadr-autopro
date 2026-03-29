@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
     const lineItem = lineItems[lineItemIndex];
 
-    const resolvedInventoryItemId = lineItem.id;
+    const resolvedInventoryItemId = lineItem.inventory_item_id;
 
     // Validate received quantity doesn't exceed qty_on_order
     const currentQtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
