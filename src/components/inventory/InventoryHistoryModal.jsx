@@ -17,7 +17,6 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentPartNumber, setCurrentPartNumber] = useState(partNumber);
-  const [searchInput, setSearchInput] = useState(partNumber);
   const [suppliers, setSuppliers] = useState([]);
 
   const loadSuppliers = useCallback(async () => {
@@ -83,16 +82,9 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
   useEffect(() => {
     if (open) {
       setCurrentPartNumber(partNumber);
-      setSearchInput(partNumber);
       fetchHistory(partNumber);
     }
   }, [open, partNumber, fetchHistory]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setCurrentPartNumber(searchInput);
-    fetchHistory(searchInput);
-  };
 
   const getTxTypeBadge = (txType) => {
     const typeStyles = {
@@ -190,18 +182,6 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
             View the complete transaction history for this inventory item.
           </DialogDescription>
         </DialogHeader>
-
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <Input
-            placeholder="Enter Part Number"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <Button type="submit" variant="outline">
-            <Search className="w-4 h-4 mr-2" />
-            View
-          </Button>
-        </form>
 
         <div className="flex-grow overflow-hidden">
           <ScrollArea className="h-full pr-4">
