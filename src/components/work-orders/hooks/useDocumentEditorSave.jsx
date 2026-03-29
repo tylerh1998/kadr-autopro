@@ -272,7 +272,12 @@ export default function useDocumentEditorSave({
         await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
       } else {
         try {
-          const originalWorkOrder = await WorkOrder.get(workOrder.id);
+          const originalWorkOrderResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'WorkOrder',
+            match: { id: workOrder.id }
+          });
+          const originalWorkOrder = originalWorkOrderResponse.data?.data?.[0];
           if (originalWorkOrder) {
             const ignoreFields = ['updated_date', 'created_date', 'created_by', 'LockedByUser', 'locked_timestamp', 'last_updated', 'last_updated_by', 'id', 'line_items'];
             let isRealChange = false;
