@@ -98,13 +98,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
             const loadData = async () => {
                 try {
                     // Always load tag alongs
-                    const tagAlongsResponse = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'TagAlong' });
-                    setTagAlongs(tagAlongsResponse.data?.data || []);
+                    const tagAlongsData = await TagAlong.list();
+                    setTagAlongs(tagAlongsData);
         
                     // Only load categories if not provided via props
                     if (!propInventoryCategories || propInventoryCategories.length === 0) {
-                        const categoriesResponse = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryCategory' });
-                        setInternalCategories(categoriesResponse.data?.data || []);
+                        const categoriesData = await InventoryCategory.list();
+                        setInternalCategories(categoriesData);
                     }
                 } catch (error) {
                     console.error('Error loading data:', error);
