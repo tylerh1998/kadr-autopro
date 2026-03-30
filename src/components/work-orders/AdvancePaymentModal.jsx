@@ -76,17 +76,17 @@ export default function AdvancePaymentModal({
    * @returns {Promise<boolean>} True if the work order is an invoice.
    */
   const isStageInvoiceInDatabase = async () => {
-    if (!workOrder?.id) {
-      console.error("DATABASE CHECK FAILED: workOrder.id is missing.");
+    if (!workOrder?.ro_number) {
+      console.error("DATABASE CHECK FAILED: workOrder.ro_number is missing.");
       alert("Cannot verify document status. Action blocked for security.");
       return true;
     }
     try {
-      console.log(`DATABASE CHECK: Verifying stage for WorkOrder ID: ${workOrder.id}`);
+      console.log(`DATABASE CHECK: Verifying stage for WorkOrder RO: ${workOrder.ro_number}`);
       const response = await base44.functions.invoke('SupabaseProxy', {
         action: 'read',
         table: 'WorkOrder',
-        match: { id: workOrder.id }
+        match: { ro_number: workOrder.ro_number }
       });
       
       if (!response.data || !response.data.success || !response.data.data || response.data.data.length === 0) {
