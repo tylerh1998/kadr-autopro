@@ -83,7 +83,17 @@ export default function AdvancePaymentModal({
     }
     try {
       console.log(`DATABASE CHECK: Verifying stage for WorkOrder ID: ${workOrder.id}`);
-      const currentWorkOrder = await WorkOrder.get(workOrder.id);
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'WorkOrder',
+        match: { id: workOrder.id }
+      });
+      
+      if (!response.data || !response.data.success || !response.data.data || response.data.data.length === 0) {
+          throw new Error("Could not find work order");
+      }
+      
+      const currentWorkOrder = response.data.data[0];
       const currentStage = currentWorkOrder?.stage;
       console.log(`DATABASE CHECK RESULT: Stage is '${currentStage}'.`);
       return currentStage === 'invoice';
