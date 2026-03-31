@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
         });
 
         const reqBody = await req.json().catch(() => ({}));
+        console.log("DEBUG SupabaseProxy received payload:", JSON.stringify(reqBody));
         const { action = 'read', id, data: payloadData, table = 'SalesClass', match } = reqBody;
 
         let result;

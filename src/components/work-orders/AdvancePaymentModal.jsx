@@ -83,6 +83,9 @@ export default function AdvancePaymentModal({
     }
     try {
       console.log(`DATABASE CHECK: Verifying stage for WorkOrder RO: ${workOrder.ro_number}`);
+      console.log("DEBUG: workOrder object at call time:", workOrder);
+      console.log("DEBUG: ro_number used:", workOrder.ro_number);
+      
       const response = await base44.functions.invoke('SupabaseProxy', {
         action: 'read',
         table: 'WorkOrder',
