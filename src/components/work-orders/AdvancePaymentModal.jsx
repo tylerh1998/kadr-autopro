@@ -92,7 +92,7 @@ export default function AdvancePaymentModal({
         match: { ro_number: workOrder.ro_number }
       });
       
-      if (!response.data || !response.data.success || !response.data.data || response.data.data.length === 0) {
+      if (!response.data || !response.data.data || response.data.data.length === 0) {
           throw new Error("Could not find work order");
       }
       
