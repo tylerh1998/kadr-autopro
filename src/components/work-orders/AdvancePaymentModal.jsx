@@ -239,30 +239,34 @@ export default function AdvancePaymentModal({
 
     setProcessing(true);
     try {
-      // Create reversal GL transactions instead of deleting the original ones
-      // Removing source_type filter to catch older payments that might have been saved as 'payment'
-      const glTransactions = await base44.entities.GLTransaction.filter({
+      const paymentAmount = paymentToDelete.amount || 0;
+      const woRef = workOrder.wo_number || workOrder.ro_number;
+      const reversalDesc = `Reversal: Advance payment - WO ${woRef}`;
+
+      // Reverse the 1010 debit (credit 1010 to remove the asset)
+      await base44.entities.GLTransaction.create({
+        account_number: '1010',
+        transaction_date: reversalDate,
+        description: reversalDesc,
+        reference: paymentToDelete.reference || woRef,
+        debit_amount: 0,
+        credit_amount: paymentAmount,
+        source_type: 'work_order',
         source_id: paymentIdToDelete
       });
-      
-      for (const glTx of glTransactions) {
-        // Skip existing reversals so we don't reverse a reversal if the user clicks multiple times
-        if (glTx.description && glTx.description.startsWith('Reversal:')) {
-          continue;
-        }
 
-        await base44.entities.GLTransaction.create({
-          account_number: glTx.account_number,
-          transaction_date: reversalDate,
-          description: `Reversal: ${glTx.description}`,
-          reference: glTx.reference || '',
-          debit_amount: glTx.credit_amount || 0,
-          credit_amount: glTx.debit_amount || 0,
-          source_type: glTx.source_type || 'work_order',
-          source_id: paymentIdToDelete
-        });
-      }
-      
+      // Reverse the 2100 credit (debit 2100 to remove the liability)
+      await base44.entities.GLTransaction.create({
+        account_number: '2100',
+        transaction_date: reversalDate,
+        description: reversalDesc,
+        reference: paymentToDelete.reference || woRef,
+        debit_amount: paymentAmount,
+        credit_amount: 0,
+        source_type: 'work_order',
+        source_id: paymentIdToDelete
+      });
+
       // Delete the payment via parent
       await onProcessPayment('delete', { id: paymentIdToDelete });
     } catch (error) {
