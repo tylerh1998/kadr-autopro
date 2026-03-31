@@ -205,12 +205,8 @@ export default function AdvancePaymentModal({
       return;
     }
 
-    const reversalDate = format(new Date(), 'yyyy-MM-dd');
-    const revFiscalCheck = await checkFiscalPeriodStatus(reversalDate);
-    if (!revFiscalCheck.isValid) {
-      alert(`Cannot process reversal: Current date is in a closed fiscal period.`);
-      return;
-    }
+    // Use original transaction date for the reversal
+    const reversalDate = originalDateStr;
 
     try {
       // Validation: Check CustomerPayments entity
@@ -244,20 +240,25 @@ export default function AdvancePaymentModal({
     setProcessing(true);
     try {
       // Create reversal GL transactions instead of deleting the original ones
-      const glTransactions = await GLTransaction.filter({
-        source_type: 'work_order',
+      // Removing source_type filter to catch older payments that might have been saved as 'payment'
+      const glTransactions = await base44.entities.GLTransaction.filter({
         source_id: paymentIdToDelete
       });
       
       for (const glTx of glTransactions) {
-        await GLTransaction.create({
+        // Skip existing reversals so we don't reverse a reversal if the user clicks multiple times
+        if (glTx.description && glTx.description.startsWith('Reversal:')) {
+          continue;
+        }
+
+        await base44.entities.GLTransaction.create({
           account_number: glTx.account_number,
           transaction_date: reversalDate,
           description: `Reversal: ${glTx.description}`,
-          reference: glTx.reference,
+          reference: glTx.reference || '',
           debit_amount: glTx.credit_amount || 0,
           credit_amount: glTx.debit_amount || 0,
-          source_type: 'work_order',
+          source_type: glTx.source_type || 'work_order',
           source_id: paymentIdToDelete
         });
       }
