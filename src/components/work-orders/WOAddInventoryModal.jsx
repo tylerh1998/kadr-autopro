@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
-import { InventoryItem, InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
+import { InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { inventoryAdd } from '@/functions/inventoryAdd';
 import { inventoryUpdate } from '@/functions/inventoryUpdate';
@@ -368,8 +368,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
             if (item.isExistingPart && item.existingPartId) {
                 // Update existing item QOO
-                // Fetch fresh to get current QOO
-                const freshItem = await InventoryItem.get(item.existingPartId);
+                // Fetch fresh to get current QOO via SupabaseProxy
+                const freshItemRes = await base44.functions.invoke('SupabaseProxy', {
+                    action: 'read',
+                    table: 'InventoryItem',
+                    match: { id: item.existingPartId }
+                });
+                const freshItem = freshItemRes.data?.data?.[0];
+                if (!freshItem) throw new Error("Could not find existing part in database.");
+                
                 const currentQOO = freshItem.quantity_on_order || 0;
                 
                 const updateResponse = await inventoryUpdate({
