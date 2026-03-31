@@ -339,7 +339,7 @@ export default function AdvancePaymentModal({
                         {payment.reference && ` - ${payment.reference}`}
                       </span>
                       <div className="text-xs text-slate-400">
-                        {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'Unknown Date'}
+                        {payment.payment_date ? format(new Date(payment.payment_date), 'MMMM d, yyyy') : 'Unknown Date'}
                       </div>
                     </div>
                     {payment.id && !viewOnly && (
