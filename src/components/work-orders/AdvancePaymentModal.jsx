@@ -9,6 +9,7 @@ import { Plus, Lock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { WorkOrder, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 
 export default function AdvancePaymentModal({
   open,
@@ -123,6 +124,12 @@ export default function AdvancePaymentModal({
       return;
     }
 
+    const fiscalCheck = await checkFiscalPeriodStatus(paymentDate);
+    if (!fiscalCheck.isValid) {
+      alert(fiscalCheck.message);
+      return;
+    }
+
     const paymentAmount = parseFloat(amount);
     
     const newPaymentData = {
@@ -188,6 +195,23 @@ export default function AdvancePaymentModal({
         return;
     }
 
+    let originalDateStr = format(new Date(), 'yyyy-MM-dd');
+    if (paymentToDelete.payment_date && !isNaN(paymentToDelete.payment_date.getTime())) {
+      originalDateStr = format(paymentToDelete.payment_date, 'yyyy-MM-dd');
+    }
+    const origFiscalCheck = await checkFiscalPeriodStatus(originalDateStr);
+    if (!origFiscalCheck.isValid) {
+      alert(`Cannot delete payment: Original payment date is in a closed fiscal period.`);
+      return;
+    }
+
+    const reversalDate = format(new Date(), 'yyyy-MM-dd');
+    const revFiscalCheck = await checkFiscalPeriodStatus(reversalDate);
+    if (!revFiscalCheck.isValid) {
+      alert(`Cannot process reversal: Current date is in a closed fiscal period.`);
+      return;
+    }
+
     try {
       // Validation: Check CustomerPayments entity
       const cp = await base44.entities.CustomerPayments.get(paymentIdToDelete);
@@ -219,15 +243,23 @@ export default function AdvancePaymentModal({
 
     setProcessing(true);
     try {
-      // Delete GL transactions associated with this payment
-      // Find and delete GL transactions linked to this payment
+      // Create reversal GL transactions instead of deleting the original ones
       const glTransactions = await GLTransaction.filter({
-        source_type: 'work_order', // Changed from 'payment' to 'work_order'
+        source_type: 'work_order',
         source_id: paymentIdToDelete
       });
       
       for (const glTx of glTransactions) {
-        await GLTransaction.delete(glTx.id);
+        await GLTransaction.create({
+          account_number: glTx.account_number,
+          transaction_date: reversalDate,
+          description: `Reversal: ${glTx.description}`,
+          reference: glTx.reference,
+          debit_amount: glTx.credit_amount || 0,
+          credit_amount: glTx.debit_amount || 0,
+          source_type: 'work_order',
+          source_id: paymentIdToDelete
+        });
       }
       
       // Delete the payment via parent
