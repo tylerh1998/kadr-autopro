@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WorkOrder, Customer, Vehicle, TagAlong, Appointment, SupplierInvoiceLine, OtherChargeList } from '@/entities/all';
+import { Customer, Vehicle, TagAlong, Appointment, OtherChargeList } from '@/entities/all';
 import { getworkorderdata } from '@/functions/getworkorderdata';
 
 const parseLineItems = async (itemsString) => {
@@ -29,7 +29,9 @@ const parseLineItems = async (itemsString) => {
       // If this line item has a supplier_invoice_line_id, fetch the details
       if (item.supplier_invoice_line_id) {
         try {
-          const supplierInvoiceLine = await SupplierInvoiceLine.get(item.supplier_invoice_line_id);
+          const supplierInvoiceLineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: item.supplier_invoice_line_id } });
+          const supplierInvoiceLine = supplierInvoiceLineRes.data?.data?.[0];
+          if (!supplierInvoiceLine) throw new Error('Supplier invoice line not found');
           // Enrich the line item with supplier invoice line details
           return {
             ...baseItem,
@@ -86,7 +88,7 @@ export function useWorkOrder(roNumber, options = {}) {
               ...(lockAction ? { lockAction } : {}),
               ...(lockedByUser ? { lockedByUser } : {})
             })
-          : WorkOrder.filter({ ro_number: roNumber }),
+          : base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder', match: { ro_number: roNumber } }).then(res => res.data?.data || []),
         TagAlong.list(),
         OtherChargeList.list(),
       ]);

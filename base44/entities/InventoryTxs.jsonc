@@ -1,0 +1,67 @@
+{
+  "name": "InventoryTxs",
+  "type": "object",
+  "properties": {
+    "inventory_item_id": {
+      "type": "string",
+      "description": "Direct reference to the id of the InventoryItem record (Supabase)"
+    },
+    "ro_number": {
+      "type": "string",
+      "description": "Work order/RO number (also acts as PO number for ordered parts)"
+    },
+    "part_num": {
+      "type": "string",
+      "description": "Part number"
+    },
+    "tx_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Transaction date and time"
+    },
+    "tx_type": {
+      "type": "string",
+      "enum": [
+        "Received",
+        "Ordered",
+        "Issued to WO",
+        "Returned from WO",
+        "QOH Adjusted",
+        "Returned to Supplier",
+        "Credit Received",
+        "Order Cancelled"
+      ],
+      "description": "Type of inventory transaction"
+    },
+    "quantity_change": {
+      "type": "number",
+      "description": "Net change to InventoryItem.quantity_on_hand (positive for increases, negative for decreases)"
+    },
+    "quantity_ordered_change": {
+      "type": "number",
+      "description": "Net change to InventoryItem.quantity_on_order (positive for increases, negative for decreases)"
+    },
+    "supplier_inv": {
+      "type": "string",
+      "description": "Supplier invoice number"
+    },
+    "supplier_name": {
+      "type": "string",
+      "description": "Supplier name"
+    },
+    "source_record_id": {
+      "type": "string",
+      "description": "ID of the specific record that triggered this transaction (work_order.id, supplier_invoice.id, etc.)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the transaction"
+    }
+  },
+  "required": [
+    "inventory_item_id",
+    "part_num",
+    "tx_date",
+    "tx_type"
+  ]
+}
