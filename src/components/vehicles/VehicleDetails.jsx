@@ -163,7 +163,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                       <Gauge className="w-4 h-4" />
                       Mileage
                     </span>
-                    <span className="text-slate-900 font-medium">{vehicle.mileage.toLocaleString()} miles</span>
+                    <span className="text-slate-900 font-medium">{vehicle.mileage.toLocaleString()} km</span>
                   </div>
                 )}
 
