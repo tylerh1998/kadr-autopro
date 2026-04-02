@@ -137,7 +137,9 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
           <p className="leading-tight"><strong>VIN:</strong> {vehicle?.vin || 'N/A'}</p>
           <p className="leading-tight"><strong>License:</strong> {vehicle?.license_plate || 'N/A'}</p>
           {vehicle?.color && <p className="leading-tight"><strong>Color:</strong> {vehicle.color}</p>}
-          {workOrder?.odometer && <p className="leading-tight"><strong>Odometer:</strong> {workOrder.odometer.toLocaleString()} km</p>}
+          {(workOrder?.odometer || vehicle?.mileage) && (
+            <p className="leading-tight"><strong>Odometer:</strong> {(workOrder?.odometer || vehicle?.mileage).toLocaleString()} km</p>
+          )}
         </div>
       </div>
 
