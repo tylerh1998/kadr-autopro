@@ -156,33 +156,36 @@ export default function WorkOrderViewPage() {
       return;
     }
 
-    // Check if the work order is an invoice
-    if (workOrder.stage === 'invoice') {
-      // Check for existing credits
-      const hasCredits = lineItems.some(line => line.credit || line.core_credit);
-      if (hasCredits) {
-        alert("This invoice cannot be converted back into a work order because a credit invoice has been created for this invoice.");
-        return;
-      }
+    // Check if the work order is an invoice or void
+    if (workOrder.stage === 'invoice' || workOrder.stage === 'void') {
+      if (workOrder.stage === 'invoice') {
+        // Check for existing credits
+        const hasCredits = lineItems.some(line => line.credit || line.core_credit);
+        if (hasCredits) {
+          alert("This invoice cannot be converted back into a work order because a credit invoice has been created for this invoice.");
+          return;
+        }
 
-      // Check if invoice_date exists
-      if (!workOrder.invoice_date) {
-        alert("This invoice does not have an invoice date set. Please contact the Administrator to resolve this issue before editing.");
-        return;
-      }
+        // Check if invoice_date exists
+        if (!workOrder.invoice_date) {
+          alert("This invoice does not have an invoice date set. Please contact the Administrator to resolve this issue before editing.");
+          return;
+        }
 
-      // Step 1: Check fiscal period
-      const { isValid, message } = await checkFiscalPeriodStatus(workOrder.invoice_date);
-      
-      if (!isValid) {
-        // Show alert and return if fiscal period is closed or invalid
-        alert(message);
-        return;
+        // Step 1: Check fiscal period
+        const { isValid, message } = await checkFiscalPeriodStatus(workOrder.invoice_date);
+        
+        if (!isValid) {
+          // Show alert and return if fiscal period is closed or invalid
+          alert(message);
+          return;
+        }
       }
 
       // Step 2: Prompt user to convert back to work order
+      const documentType = workOrder.stage === 'void' ? 'a voided document' : 'an invoice';
       const userConfirmed = window.confirm(
-        "This document is an invoice. Do you want to convert it back to a work order to make changes?"
+        `This document is ${documentType}. Do you want to convert it back to a work order to make changes?`
       );
 
       if (!userConfirmed) {
@@ -198,8 +201,8 @@ export default function WorkOrderViewPage() {
         const url = `/WorkOrderEdit?id=${roNumber}`;
         navigate(url);
       } catch (error) {
-        console.error('Error converting invoice back to work order:', error);
-        alert('Failed to convert invoice back to work order. Please try again.');
+        console.error(`Error converting ${workOrder.stage} back to work order:`, error);
+        alert(`Failed to convert ${workOrder.stage} back to work order. Please try again.`);
       }
     } else {
       // For non-invoice work orders, navigate directly to edit page

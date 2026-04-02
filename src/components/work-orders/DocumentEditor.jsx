@@ -357,7 +357,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           return;
         }
 
-        if (freshWorkOrder.stage === 'invoice' || freshWorkOrder.stage === 'credit_invoice') {
+        if (freshWorkOrder.stage === 'invoice' || freshWorkOrder.stage === 'credit_invoice' || freshWorkOrder.stage === 'void') {
           navigate(createPageUrl(`WorkOrderView?id=${roNumber}`), { replace: true });
           return;
         }
