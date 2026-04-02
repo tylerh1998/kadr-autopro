@@ -101,7 +101,7 @@ export default function WorkOrdersPage() {
   // Sort state for each tab
   const [estimatesSort, setEstimatesSort] = useState("customer_az");
   const [wipSort, setWipSort] = useState("customer_az");
-  const [invoicesSort, setInvoicesSort] = useState("date_newest");
+  const [invoicesSort, setInvoicesSort] = useState("number_desc");
 
   useEffect(() => {
     loadData(true);
@@ -609,15 +609,15 @@ export default function WorkOrdersPage() {
 
       case "number_asc":
         return sorted.sort((a, b) => {
-          const numA = a.wo_number || a.ro_number || "";
-          const numB = b.wo_number || b.ro_number || "";
+          const numA = a.inv_number || a.crinv_number || a.est_number || a.wo_number || a.ro_number || "";
+          const numB = b.inv_number || b.crinv_number || b.est_number || b.wo_number || b.ro_number || "";
           return numA.localeCompare(numB, undefined, { numeric: true });
         });
 
       case "number_desc":
         return sorted.sort((a, b) => {
-          const numA = a.wo_number || a.ro_number || "";
-          const numB = b.wo_number || b.ro_number || "";
+          const numA = a.inv_number || a.crinv_number || a.est_number || a.wo_number || a.ro_number || "";
+          const numB = b.inv_number || b.crinv_number || b.est_number || b.wo_number || b.ro_number || "";
           return numB.localeCompare(numA, undefined, { numeric: true });
         });
       
@@ -964,6 +964,8 @@ export default function WorkOrdersPage() {
                 <span>Sort</span>
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="number_desc">Number (Highest)</SelectItem>
+                <SelectItem value="number_asc">Number (Lowest)</SelectItem>
                 <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
                 <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
                 <SelectItem value="date_newest">Date (Newest)</SelectItem>
