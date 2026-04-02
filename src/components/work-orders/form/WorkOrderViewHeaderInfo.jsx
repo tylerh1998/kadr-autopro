@@ -17,6 +17,7 @@ export default function WorkOrderViewHeaderInfo({
   onShowVehicleHistory,
   onEditWorkOrderDetails,
   onOpenWorkPRO,
+  onViewVehicleDetails,
 }) {
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
@@ -261,7 +262,10 @@ export default function WorkOrderViewHeaderInfo({
           </div>
 
           {/* Vehicle Info */}
-          <div className="space-y-4">
+          <div 
+            className="space-y-4 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-lg transition-colors duration-200"
+            onClick={onViewVehicleDetails}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                 <Car className="w-5 h-5" />

@@ -23,6 +23,8 @@ import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WONotesModal from '../components/work-orders/WONotesModal';
 import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
 import WorkOrderProfitability from '../components/work-orders/WorkOrderProfitability';
+import VehicleDetails from '../components/vehicles/VehicleDetails';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -65,6 +67,7 @@ export default function WorkOrderViewPage() {
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
   const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
+  const [showVehicleDetailsModal, setShowVehicleDetailsModal] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -410,6 +413,7 @@ export default function WorkOrderViewPage() {
                 onPaymentsClick={() => setShowPaymentModal(true)}
                 onReturnForWarranty={handleReturnForWarranty}
                 shopSupplyRate={shopSupplyRate}
+                onViewVehicleDetails={() => setShowVehicleDetailsModal(true)}
               />
             </div>
           </div>
@@ -503,6 +507,23 @@ export default function WorkOrderViewPage() {
         vehicle={vehicle}
         lineItems={lineItems}
       />
+
+      {/* Vehicle Details Modal */}
+      <Dialog open={showVehicleDetailsModal} onOpenChange={setShowVehicleDetailsModal}>
+        <DialogContent className="max-w-4xl p-0 bg-transparent border-0 shadow-none">
+          {vehicle && customer && (
+            <VehicleDetails
+              vehicle={vehicle}
+              customer={customer}
+              onClose={() => setShowVehicleDetailsModal(false)}
+              onEdit={() => {
+                // If they want to edit, we can redirect or show an edit modal. For now, just close or navigate.
+                setShowVehicleDetailsModal(false);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
