@@ -378,18 +378,13 @@ Deno.serve(async (req) => {
            
            doc.setFontSize(7);
            doc.setFont('helvetica', 'normal');
-           const termsText = wipLegal || "I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken's Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken's Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.";
+           const termsText = wipLegal || "I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken's Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken's Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.\n\n\nX __________________________________________\n\nName: ______________________________________";
            const termsLines = doc.splitTextToSize(termsText, boxWidth - 10);
            let ty = y + 22;
            termsLines.forEach(l => {
                doc.text(l, margin + 5, ty);
                ty += 8;
            });
-           
-           ty = y + 110;
-           doc.text("X __________________________________________", margin + 5, ty);
-           ty += 15;
-           doc.text("Name: ______________________________________", margin + 5, ty);
            
            const rightX = margin + boxWidth + gap;
            
