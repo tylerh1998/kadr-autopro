@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
 
 Deno.serve(async (req) => {
     try {
@@ -70,10 +70,15 @@ Deno.serve(async (req) => {
         }
 
         // Work Orders
-        const workOrders = await base44.entities.WorkOrder.filter({ customer_id: duplicateId }, undefined, 1000);
+        const workOrdersRes = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read', table: 'WorkOrder', match: { customer_id: duplicateId }
+        });
+        const workOrders = workOrdersRes.data?.data || [];
         if (workOrders.length > 0) {
             await Promise.all(workOrders.map(wo => 
-                base44.entities.WorkOrder.update(wo.id, { customer_id: masterId })
+                base44.functions.invoke('SupabaseProxy', {
+                    action: 'update', table: 'WorkOrder', id: wo.id, data: { customer_id: masterId }
+                })
             ));
         }
 
