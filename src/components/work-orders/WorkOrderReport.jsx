@@ -115,6 +115,11 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
                 workOrder.wo_date
               )}
             </p>
+            {workOrder?.po_number && (
+              <p className="text-xs mt-1">
+                <strong>PO:</strong> {workOrder.po_number}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -139,6 +144,9 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
           {vehicle?.color && <p className="leading-tight"><strong>Color:</strong> {vehicle.color}</p>}
           {(workOrder?.odometer || vehicle?.mileage) && (
             <p className="leading-tight"><strong>Odometer:</strong> {(workOrder?.odometer || vehicle?.mileage).toLocaleString()} km</p>
+          )}
+          {workOrder?.cvip && (
+            <p className="leading-tight"><strong>CVIP:</strong> {workOrder.cvip}</p>
           )}
         </div>
       </div>

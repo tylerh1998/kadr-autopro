@@ -165,6 +165,13 @@ Deno.serve(async (req) => {
                 doc.text(`Date: ${dateStr}`, pageWidth - margin - dateWidth, currentY + 50);
             }
 
+            if (workOrder?.po_number) {
+                doc.setFont('helvetica', 'bold');
+                const poWidth = doc.getTextWidth(`PO: ${workOrder.po_number}`);
+                doc.text(`PO: ${workOrder.po_number}`, pageWidth - margin - poWidth, currentY + 65);
+                doc.setFont('helvetica', 'normal');
+            }
+
             // Line
             doc.setDrawColor(0);
             doc.setLineWidth(2);
@@ -260,6 +267,12 @@ Deno.serve(async (req) => {
                     // Unit Number
                     if (vehicle.unit_number) {
                         doc.text(`Unit: ${vehicle.unit_number}`, margin + 280, vehicleY);
+                        vehicleY += 12;
+                    }
+
+                    // CVIP
+                    if (workOrder?.cvip) {
+                        doc.text(`CVIP: ${workOrder.cvip}`, margin + 280, vehicleY);
                         vehicleY += 12;
                     }
                 }
