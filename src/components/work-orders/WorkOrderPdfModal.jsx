@@ -4,7 +4,7 @@ import { Loader2, AlertTriangle, Printer, X, Download } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { base44 } from "@/api/base44Client";
 
-export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, vehicle, lineItems }) {
+export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
     const [blobUrl, setBlobUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -38,7 +38,9 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                     workOrder,
                     customer,
                     vehicle,
-                    lineItems
+                    lineItems,
+                    wipLegal,
+                    defaultMessage
                 });
 
                 const { pdfDataUri, filename } = response.data;

@@ -506,6 +506,8 @@ export default function WorkOrderViewPage() {
         customer={customer}
         vehicle={vehicle}
         lineItems={lineItems}
+        wipLegal={wipLegal}
+        defaultMessage={defaultMessage}
       />
 
       {/* Vehicle Details Modal */}

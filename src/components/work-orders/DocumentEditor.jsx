@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
 import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
@@ -1744,6 +1744,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             customer={customer}
             vehicle={vehicle}
             lineItems={lineItems}
+            wipLegal={wipLegal}
+            defaultMessage={defaultMessage}
           />
         </>
       )}

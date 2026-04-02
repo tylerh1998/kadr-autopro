@@ -28,9 +28,9 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        let workOrder, customer, vehicle, lineItems;
+        let workOrder, customer, vehicle, lineItems, wipLegal, defaultMessage;
         try {
-            ({ workOrder, customer, vehicle, lineItems } = await req.json());
+            ({ workOrder, customer, vehicle, lineItems, wipLegal, defaultMessage } = await req.json());
         } catch (jsonError) {
             console.error('Error parsing request JSON:', jsonError);
             return Response.json({ error: 'Invalid JSON payload', details: jsonError.message }, { status: 400 });
@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
            
            doc.setFontSize(7);
            doc.setFont('helvetica', 'normal');
-           const termsText = "I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken's Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken's Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.";
+           const termsText = wipLegal || "I agree to pay the amount displayed on this repair order, and any subsequent interest. Any balance owing after 30 days of the invoice date may be subject to 24.99% interest. An express lien is acknowledged on the above vehicle, to secure the amount agreed to, under the Alberta Garagekeepers Lien Act. I agree to hold Ken's Auto harmless and free from indemnity for any loss or damage to the vehicle or any articles in it, while in the care of Ken's Auto, for fire, theft, vandalism, or any other event beyond our control. Any payment applied to the above work or signature below constitutes an acknowledgement and agreement to these terms of service.";
            const termsLines = doc.splitTextToSize(termsText, boxWidth - 10);
            let ty = y + 22;
            termsLines.forEach(l => {
@@ -394,13 +394,15 @@ Deno.serve(async (req) => {
            const rightX = margin + boxWidth + gap;
            
            let wy = y + 10;
-           const wLines = [
-              'IF YOUR WHEELS HAVE BEEN REMOVED for any service performed, your wheels have been torqued to manufacturer\'s specifications. Ken\'s Auto reminds you that wheel nut tightness should be re-checked in the next 100 KM for vehicle safety.',
-              '',
-              'Ken\'s Auto will accept Debit, Mastercard, Visa, Cash, Cheque, or E-transfer to settle the balance owing. E-transfers can be sent to: Shop@kensauto.ca. Ken\'s Auto reserves the right to refuse cheques at their discretion. We assess a $30 fee on all returned cheques.',
-              '',
-              '10,000 KM OR 3 MONTH PARTS & LABOUR WARRANTY - whichever occurs first. Installed parts & work performed not warrantied beyond warranties given by respective manufacturers.'
-           ];
+           const wLines = defaultMessage 
+              ? defaultMessage.split('\n') 
+              : [
+                  'IF YOUR WHEELS HAVE BEEN REMOVED for any service performed, your wheels have been torqued to manufacturer\'s specifications. Ken\'s Auto reminds you that wheel nut tightness should be re-checked in the next 100 KM for vehicle safety.',
+                  '',
+                  'Ken\'s Auto will accept Debit, Mastercard, Visa, Cash, Cheque, or E-transfer to settle the balance owing. E-transfers can be sent to: Shop@kensauto.ca. Ken\'s Auto reserves the right to refuse cheques at their discretion. We assess a $30 fee on all returned cheques.',
+                  '',
+                  '10,000 KM OR 3 MONTH PARTS & LABOUR WARRANTY - whichever occurs first. Installed parts & work performed not warrantied beyond warranties given by respective manufacturers.'
+                ];
            
            wLines.forEach(para => {
               if (!para) { wy += 5; return; }
