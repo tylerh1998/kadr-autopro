@@ -45,8 +45,15 @@ with filtered as (
         c.state,
         c.zip_code,
         c.notes,
-        c.default_taxable::boolean as default_taxable,
-        c.is_active::boolean as is_active,
+        case 
+            when c.default_taxable::text in ('true', '1', 't', 'y', 'yes') then true 
+            when c.default_taxable::text in ('false', '0', 'f', 'n', 'no') then false 
+            else false 
+        end as default_taxable,
+        case 
+            when c.is_active::text in ('false', '0', 'f', 'n', 'no') then false 
+            else true 
+        end as is_active,
         c.cusid,
         case
             when lower(coalesce(c.org_name, '')) = lower(p_search_term) then 1
@@ -66,7 +73,7 @@ with filtered as (
             else 999
         end as match_rank
     from public."Customer" c
-    where (p_include_inactive = true or coalesce(c.is_active::boolean, true) = true)
+    where (p_include_inactive = true or case when c.is_active::text in ('false', '0', 'f', 'n', 'no') then false else true end = true)
       and (
         lower(coalesce(c.org_name, '')) like '%' || lower(p_search_term) || '%'
         or lower(coalesce(c.first_name, '')) like '%' || lower(p_search_term) || '%'
