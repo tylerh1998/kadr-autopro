@@ -71,7 +71,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
   const handleEditClick = async () => {
     try {
       const res = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'list', 
+        action: 'read', 
         table: 'Customer'
       });
       setCustomers(res.data?.data || []);

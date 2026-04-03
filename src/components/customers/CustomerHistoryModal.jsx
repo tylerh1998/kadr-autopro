@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Vehicle } from '@/entities/all';
 import { Skeleton } from "@/components/ui/skeleton";
+import { base44 } from '@/api/base44Client';
 import { Car } from 'lucide-react';
 import VehicleHistoryModal from '../vehicles/VehicleHistoryModal';
 
@@ -19,8 +19,12 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
       const fetchVehicles = async () => {
         setLoading(true);
         try {
-          const customerVehicles = await Vehicle.filter({ customer_id: customer.id });
-          setVehicles(customerVehicles);
+          const res = await base44.functions.invoke('SupabaseProxy', { 
+            action: 'read', 
+            table: 'Vehicle',
+            match: { customer_id: customer.id } 
+          });
+          setVehicles(res.data?.data || []);
         } catch (error) {
           console.error("Failed to fetch customer vehicles:", error);
           alert("Could not load customer vehicles.");

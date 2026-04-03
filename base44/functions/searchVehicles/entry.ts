@@ -15,10 +15,13 @@ Deno.serve(async (req) => {
     // Fetch necessary data
     // Note: Ideally we would filter at DB level, but for comprehensive search across joined fields (customer name),
     // and custom ranking, we'll fetch and process in memory for now.
-    const [allVehicles, customers] = await Promise.all([
-      base44.entities.Vehicle.list(),
-      base44.entities.Customer.list()
+    const [allVehiclesRes, customersRes] = await Promise.all([
+      base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle' }),
+      base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' })
     ]);
+    
+    const allVehicles = allVehiclesRes.data?.data || [];
+    const customers = customersRes.data?.data || [];
     
     // Filter based on active status if includeInactive is false
     // Treat undefined/null as true (active) for backward compatibility
