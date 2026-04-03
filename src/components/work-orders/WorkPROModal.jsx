@@ -58,10 +58,37 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   
   // Multiple projects state
   const [projectsList, setProjectsList] = useState([]);
-
-  // This will be defined later but needs a placeholder to prevent reference error if order is tricky
-  // However, since we're using find_replace to move it, we'll just delete this block and re-insert it after fetchTechTimeTotal
   
+  const [localCustomer, setLocalCustomer] = useState(null);
+  const [localVehicle, setLocalVehicle] = useState(null);
+
+  useEffect(() => {
+    if (open && workOrder) {
+      const fetchSupabaseData = async () => {
+        try {
+          if (workOrder.customer_id) {
+            const custRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer', match: { id: workOrder.customer_id } });
+            if (custRes.data?.data && custRes.data.data.length > 0) {
+              setLocalCustomer(custRes.data.data[0]);
+            }
+          }
+          if (workOrder.vehicle_id) {
+            const vehRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle', match: { id: workOrder.vehicle_id } });
+            if (vehRes.data?.data && vehRes.data.data.length > 0) {
+              setLocalVehicle(vehRes.data.data[0]);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching from SupabaseProxy:", error);
+        }
+      };
+      fetchSupabaseData();
+    } else {
+      setLocalCustomer(null);
+      setLocalVehicle(null);
+    }
+  }, [open, workOrder]);
+
   const [formData, setFormData] = useState({
     priority: '',
     task: '',
@@ -297,11 +324,12 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
     setLoading(true);
     try {
-      const vehicle = vehicles && vehicles.length > 0 ? vehicles.find(v => v.id === workOrder.vehicle_id) : null;
+      const vehicle = localVehicle || (vehicles && vehicles.length > 0 ? vehicles.find(v => v.id === workOrder.vehicle_id) : null);
       
-      const customerName = customer?.org_name && customer.org_name.trim() !== '' 
-        ? customer.org_name 
-        : `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
+      const targetCustomer = localCustomer || customer;
+      const customerName = targetCustomer?.org_name && targetCustomer.org_name.trim() !== '' 
+        ? targetCustomer.org_name 
+        : `${targetCustomer?.first_name || ''} ${targetCustomer?.last_name || ''}`.trim();
       
       const updatePayload = {
         work_order: workOrderIdentifier,
@@ -1147,14 +1175,18 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         onClose={() => setShowNewWorkPROModal(false)}
         customers={customers}
         vehicles={vehicles}
-        initialData={workOrderIdentifier ? {
-          customer: customer?.org_name && customer.org_name.trim() !== '' 
-            ? customer.org_name 
-            : `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim(),
-          vehicle: vehicles && vehicles.length > 0 && workOrder ? vehicles.find(v => v.id === workOrder.vehicle_id)?.year + ' ' + vehicles.find(v => v.id === workOrder.vehicle_id)?.make + ' ' + vehicles.find(v => v.id === workOrder.vehicle_id)?.model : '',
-          vin: vehicles && vehicles.length > 0 && workOrder ? vehicles.find(v => v.id === workOrder.vehicle_id)?.vin : '',
-          work_order: workOrderIdentifier
-        } : null}
+        initialData={workOrderIdentifier ? (() => {
+          const targetCustomer = localCustomer || customer;
+          const targetVehicle = localVehicle || (vehicles && vehicles.length > 0 && workOrder ? vehicles.find(v => v.id === workOrder.vehicle_id) : null);
+          return {
+            customer: targetCustomer?.org_name && targetCustomer.org_name.trim() !== '' 
+              ? targetCustomer.org_name 
+              : `${targetCustomer?.first_name || ''} ${targetCustomer?.last_name || ''}`.trim(),
+            vehicle: targetVehicle ? `${targetVehicle.year} ${targetVehicle.make} ${targetVehicle.model}` : '',
+            vin: targetVehicle?.vin || '',
+            work_order: workOrderIdentifier
+          };
+        })() : null}
         lockedFields={workOrderIdentifier ? ['vin', 'work_order'] : []}
         onProjectCreated={() => {
           setShowNewWorkPROModal(false);
