@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import { Vehicle } from '@/entities/all';
 import { format } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
+import { base44 } from '@/api/base44Client';
 
 export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder, workPROProject, mode = 'invoiceConversion', vehicle }) {
   const [odometer, setOdometer] = useState('');
@@ -43,14 +43,42 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
       // Submit the odometer value as a number if provided, null if empty
       const odometerValue = odometer.trim() ? Number(odometer.trim()) : null;
       
-      // Update Vehicle entity with mileage and odometer_date
-      if (odometerValue !== null && workOrder && workOrder.vehicle_id) {
+      if (odometerValue !== null && workOrder) {
         const mountainNow = getMountainTimeNow();
         const currentDate = `${mountainNow.getFullYear()}-${String(mountainNow.getMonth() + 1).padStart(2, '0')}-${String(mountainNow.getDate()).padStart(2, '0')}`;
-        await Vehicle.update(workOrder.vehicle_id, {
-          mileage: odometerValue,
-          odometer_date: currentDate
-        });
+        
+        // Update Vehicle entity with mileage and odometer_date in Supabase
+        if (workOrder.vehicle_id) {
+          try {
+            await base44.functions.invoke('SupabaseProxy', {
+              action: 'update',
+              table: 'Vehicle',
+              match: { id: workOrder.vehicle_id },
+              data: {
+                mileage: odometerValue,
+                odometer_date: currentDate
+              }
+            });
+          } catch (e) {
+            console.error('Failed to update Vehicle in Supabase:', e);
+          }
+        }
+        
+        // Update WorkOrder table in Supabase
+        if (workOrder.id) {
+          try {
+            await base44.functions.invoke('SupabaseProxy', {
+              action: 'update',
+              table: 'WorkOrder',
+              match: { id: workOrder.id },
+              data: {
+                odometer: odometerValue
+              }
+            });
+          } catch (e) {
+            console.error('Failed to update WorkOrder in Supabase:', e);
+          }
+        }
       }
       
       await onSubmit({ odometer: odometerValue });
