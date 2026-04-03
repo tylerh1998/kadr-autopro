@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
         result = await supabase.from('Customer').select('*').eq('id', id).single();
         break;
       case 'create':
+        if (!data.id) data.id = crypto.randomUUID();
         result = await supabase.from('Customer').insert(data).select().single();
         break;
       case 'update':
