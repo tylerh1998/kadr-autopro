@@ -1,13 +1,20 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CustomerForm from './CustomerForm';
-import { Customer } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
   
   const handleSubmit = async (customerData) => {
     try {
-      const newCustomer = await Customer.create(customerData);
+      const response = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: customerData });
+      
+      if (!response.data?.data) {
+          throw new Error('Failed to create customer: No data returned');
+      }
+
+      const newCustomer = response.data.data;
+      
       alert('Customer created successfully!');
       if (onCustomerCreated) {
         onCustomerCreated(newCustomer);
