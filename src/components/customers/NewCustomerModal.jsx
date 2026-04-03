@@ -13,13 +13,16 @@ export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
         created_date: new Date().toISOString(),
         created_by: user?.email || '',
       };
-      const response = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: payload });
+      const response = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'create', 
+        table: 'Customer',
+        data: payload 
+      });
       
-      if (!response.data?.data) {
+      const newCustomer = response.data?.data?.[0];
+      if (!newCustomer) {
           throw new Error('Failed to create customer: No data returned');
       }
-
-      const newCustomer = response.data.data;
       
       alert('Customer created successfully!');
       if (onCustomerCreated) {

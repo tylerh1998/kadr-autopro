@@ -103,8 +103,9 @@ export default function CustomersPage() {
           created_date: new Date().toISOString(),
           created_by: currentUser?.email || '',
         };
-        await base44.functions.invoke('supabaseCustomer', { 
+        await base44.functions.invoke('SupabaseProxy', { 
           action: 'create', 
+          table: 'Customer',
           data: payload 
         });
       }

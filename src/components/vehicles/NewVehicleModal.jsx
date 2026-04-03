@@ -28,8 +28,12 @@ export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
         created_date: new Date().toISOString(),
         created_by: user?.email || '',
       };
-      const res = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: payload });
-      const newVehicle = res.data?.data;
+      const res = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'create', 
+        table: 'Vehicle',
+        data: payload 
+      });
+      const newVehicle = res.data?.data?.[0];
       alert('Vehicle added successfully!');
       if (onVehicleCreated) {
         onVehicleCreated(newVehicle);

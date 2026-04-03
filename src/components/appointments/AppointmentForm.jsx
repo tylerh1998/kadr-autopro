@@ -496,8 +496,12 @@ export default function AppointmentForm({
         created_date: new Date().toISOString(),
         created_by: user?.email || '',
       };
-      const custRes = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: payload });
-      const newCustomer = custRes.data?.data;
+      const custRes = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'create', 
+        table: 'Customer',
+        data: payload 
+      });
+      const newCustomer = custRes.data?.data?.[0];
       
       // Refresh customer and vehicle data from parent
       if (onDataRefresh) {
@@ -541,8 +545,12 @@ export default function AppointmentForm({
         created_date: new Date().toISOString(),
         created_by: user?.email || '',
       };
-      const vehRes = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: payload });
-      const newVehicle = vehRes.data?.data;
+      const vehRes = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'create', 
+        table: 'Vehicle',
+        data: payload 
+      });
+      const newVehicle = vehRes.data?.data?.[0];
       
       // Update local available vehicles list
       try {
