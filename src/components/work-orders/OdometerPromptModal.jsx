@@ -53,7 +53,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
             await base44.functions.invoke('SupabaseProxy', {
               action: 'update',
               table: 'Vehicle',
-              match: { id: workOrder.vehicle_id },
+              id: workOrder.vehicle_id,
               data: {
                 mileage: odometerValue,
                 odometer_date: currentDate
@@ -61,22 +61,6 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
             });
           } catch (e) {
             console.error('Failed to update Vehicle in Supabase:', e);
-          }
-        }
-        
-        // Update WorkOrder table in Supabase
-        if (workOrder.id) {
-          try {
-            await base44.functions.invoke('SupabaseProxy', {
-              action: 'update',
-              table: 'WorkOrder',
-              match: { id: workOrder.id },
-              data: {
-                odometer: odometerValue
-              }
-            });
-          } catch (e) {
-            console.error('Failed to update WorkOrder in Supabase:', e);
           }
         }
       }
