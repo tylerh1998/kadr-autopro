@@ -13,9 +13,25 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [linking, setLinking] = useState(false);
+  
+  const [localCustomers, setLocalCustomers] = useState(customers || []);
+  const [localVehicles, setLocalVehicles] = useState(vehicles || []);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      const fetchSupabaseData = async () => {
+        try {
+          const custRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' });
+          if (custRes.data?.data) setLocalCustomers(custRes.data.data);
+          
+          const vehRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle' });
+          if (vehRes.data?.data) setLocalVehicles(vehRes.data.data);
+        } catch (error) {
+          console.error("Error fetching from SupabaseProxy:", error);
+        }
+      };
+      fetchSupabaseData();
+    } else {
       setSearchTerm('');
       setSelectedWorkOrder(null);
       setShowConfirm(false);
@@ -29,8 +45,8 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
   // Filter based on search term
   const filteredWorkOrders = availableWorkOrders.filter(wo => {
-    const customer = customers.find(c => c.id === wo.customer_id);
-    const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+    const customer = localCustomers.find(c => c.id === wo.customer_id);
+    const vehicle = localVehicles.find(v => v.id === wo.vehicle_id);
     const searchLower = searchTerm.toLowerCase();
 
     const woNumber = wo.wo_number?.toLowerCase() || '';
@@ -128,8 +144,8 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
               </div>
             ) : (
               filteredWorkOrders.map((wo) => {
-                const customer = customers.find(c => c.id === wo.customer_id);
-                const vehicle = vehicles.find(v => v.id === wo.vehicle_id);
+                const customer = localCustomers.find(c => c.id === wo.customer_id);
+                const vehicle = localVehicles.find(v => v.id === wo.vehicle_id);
                 const displayNumber = wo.stage === 'estimate' ? wo.est_number : wo.wo_number;
                 const isSelected = selectedWorkOrder?.id === wo.id;
                 const existingProject = getProjectForWorkOrder(wo);
@@ -244,7 +260,7 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
               <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <p className="text-sm text-slate-600">
                   Customer: {(() => {
-                    const c = customers.find(cust => cust.id === selectedWorkOrder.customer_id);
+                    const c = localCustomers.find(cust => cust.id === selectedWorkOrder.customer_id);
                     return c ? (c.org_name || `${c.first_name} ${c.last_name}`) : 'Unknown Customer';
                   })()}
                 </p>
