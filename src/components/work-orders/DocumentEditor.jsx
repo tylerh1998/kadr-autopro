@@ -960,7 +960,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (customer) {
         await handleSave({}, false);
-        await Customer.update(customer.id, customerData);
+        await base44.functions.invoke('supabaseCustomer', { action: 'update', id: customer.id, data: customerData });
         closeModal('editCustomer');
         alert('Customer updated successfully!');
       }
@@ -974,7 +974,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (vehicle) {
         await handleSave({}, false);
-        await Vehicle.update(vehicle.id, vehicleData);
+        await base44.functions.invoke('supabaseVehicle', { action: 'update', id: vehicle.id, data: vehicleData });
         closeModal('editVehicle');
         alert('Vehicle updated successfully!');
       }

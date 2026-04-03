@@ -91,9 +91,22 @@ export default function CustomersPage() {
   const handleSubmit = async (customerData) => {
     try {
       if (editingCustomer) {
-        await Customer.update(editingCustomer.id, customerData);
+        await base44.functions.invoke('supabaseCustomer', { 
+          action: 'update', 
+          id: editingCustomer.id, 
+          data: customerData 
+        });
       } else {
-        await Customer.create(customerData);
+        const currentUser = await base44.auth.me();
+        const payload = {
+          ...customerData,
+          created_date: new Date().toISOString(),
+          created_by: currentUser?.email || '',
+        };
+        await base44.functions.invoke('supabaseCustomer', { 
+          action: 'create', 
+          data: payload 
+        });
       }
       setShowEditDialog(false);
       setEditingCustomer(null);
@@ -118,7 +131,10 @@ export default function CustomersPage() {
     e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete ${customer.org_name || customer.first_name + ' ' + customer.last_name}? This cannot be undone.`)) {
       try {
-        await Customer.delete(customer.id);
+        await base44.functions.invoke('supabaseCustomer', { 
+          action: 'delete', 
+          id: customer.id 
+        });
         loadCustomers(pagination.page);
       } catch (error) {
         console.error('Error deleting customer:', error);
