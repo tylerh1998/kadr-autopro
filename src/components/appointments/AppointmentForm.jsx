@@ -490,7 +490,13 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     setIsCreatingCustomer(true);
     try {
-      const custRes = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: customerData });
+      const user = await base44.auth.me();
+      const payload = {
+        ...customerData,
+        created_date: new Date().toISOString(),
+        created_by: user?.email || '',
+      };
+      const custRes = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: payload });
       const newCustomer = custRes.data?.data;
       
       // Refresh customer and vehicle data from parent
@@ -529,7 +535,13 @@ export default function AppointmentForm({
   const handleCreateVehicle = async (vehicleData) => {
     setIsCreatingVehicle(true);
     try {
-      const vehRes = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: vehicleData });
+      const user = await base44.auth.me();
+      const payload = {
+        ...vehicleData,
+        created_date: new Date().toISOString(),
+        created_by: user?.email || '',
+      };
+      const vehRes = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: payload });
       const newVehicle = vehRes.data?.data;
       
       // Update local available vehicles list

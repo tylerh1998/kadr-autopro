@@ -7,7 +7,13 @@ export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
   
   const handleSubmit = async (customerData) => {
     try {
-      const response = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: customerData });
+      const user = await base44.auth.me();
+      const payload = {
+        ...customerData,
+        created_date: new Date().toISOString(),
+        created_by: user?.email || '',
+      };
+      const response = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: payload });
       
       if (!response.data?.data) {
           throw new Error('Failed to create customer: No data returned');

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import VehicleForm from './VehicleForm';
-import { Customer, Vehicle } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
   const [customers, setCustomers] = useState([]);
@@ -10,8 +10,8 @@ export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
     if (open) {
       const fetchCustomers = async () => {
         try {
-          const customerList = await Customer.list();
-          setCustomers(customerList);
+          const res = await base44.functions.invoke('supabaseCustomer', { action: 'list' });
+          setCustomers(res.data?.data || []);
         } catch (error) {
           console.error("Failed to fetch customers:", error);
         }
@@ -22,7 +22,14 @@ export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
 
   const handleSubmit = async (vehicleData) => {
     try {
-      const newVehicle = await Vehicle.create(vehicleData);
+      const user = await base44.auth.me();
+      const payload = {
+        ...vehicleData,
+        created_date: new Date().toISOString(),
+        created_by: user?.email || '',
+      };
+      const res = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: payload });
+      const newVehicle = res.data?.data;
       alert('Vehicle added successfully!');
       if (onVehicleCreated) {
         onVehicleCreated(newVehicle);
