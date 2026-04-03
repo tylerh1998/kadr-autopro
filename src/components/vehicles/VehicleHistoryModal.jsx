@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Vehicle, Customer } from '@/entities/all';
 import { Skeleton } from "@/components/ui/skeleton";
+import { base44 } from '@/api/base44Client';
 import { getVehicleWorkOrderHistory } from '@/functions/getVehicleWorkOrderHistory';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge, Edit } from 'lucide-react';
@@ -70,8 +70,11 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
 
   const handleEditClick = async () => {
     try {
-      const customerList = await Customer.list();
-      setCustomers(customerList);
+      const res = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'list', 
+        table: 'Customer'
+      });
+      setCustomers(res.data?.data || []);
       setShowEditVehicle(true);
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -81,12 +84,21 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
   const handleUpdateVehicle = async (vehicleData) => {
     setIsSubmitting(true);
     try {
-      await Vehicle.update(currentVehicle.id, vehicleData);
-      const updated = await Vehicle.get(currentVehicle.id);
-      setCurrentVehicle(updated);
-      setShowEditVehicle(false);
-      if (onVehicleUpdated) {
-        onVehicleUpdated(updated);
+      const response = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'update', 
+        table: 'Vehicle',
+        id: currentVehicle.id,
+        data: vehicleData 
+      });
+      const updated = response.data?.data?.[0];
+      if (updated) {
+        setCurrentVehicle(updated);
+        setShowEditVehicle(false);
+        if (onVehicleUpdated) {
+          onVehicleUpdated(updated);
+        }
+      } else {
+        throw new Error('Failed to update vehicle');
       }
     } catch (error) {
       console.error("Failed to update vehicle:", error);
