@@ -68,19 +68,53 @@ Deno.serve(async (req) => {
       }
     }
 
-    const result = await supabase
+    const { data: workOrderData, error: workOrderError } = await supabase
       .from('WorkOrder')
       .select('*')
       .eq('ro_number', ro_number)
       .limit(1)
       .maybeSingle();
 
-    if (result.error) {
-      console.error('getworkorderdata supabase error:', result.error);
-      return Response.json({ error: 'Failed to fetch work order', details: result.error.message }, { status: 500 });
+    if (workOrderError) {
+      console.error('getworkorderdata supabase error fetching WorkOrder:', workOrderError);
+      return Response.json({ error: 'Failed to fetch work order', details: workOrderError.message }, { status: 500 });
     }
 
-    return Response.json({ data: normalizeWorkOrder(result.data) || null });
+    if (!workOrderData) {
+      return Response.json({ data: null });
+    }
+
+    let customerData = null;
+    if (workOrderData.customer_id) {
+      const { data, error } = await supabase
+        .from('Customer')
+        .select('*')
+        .eq('id', workOrderData.customer_id)
+        .limit(1)
+        .maybeSingle();
+      if (error) console.error('getworkorderdata supabase error fetching Customer:', error);
+      customerData = data;
+    }
+
+    let vehicleData = null;
+    if (workOrderData.vehicle_id) {
+      const { data, error } = await supabase
+        .from('Vehicle')
+        .select('*')
+        .eq('id', workOrderData.vehicle_id)
+        .limit(1)
+        .maybeSingle();
+      if (error) console.error('getworkorderdata supabase error fetching Vehicle:', error);
+      vehicleData = data;
+    }
+
+    const combinedData = {
+      ...workOrderData,
+      customer_details: customerData,
+      vehicle_details: vehicleData,
+    };
+
+    return Response.json({ data: normalizeWorkOrder(combinedData) || null });
   } catch (error) {
     console.error('getworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });

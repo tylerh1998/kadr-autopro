@@ -110,11 +110,22 @@ export function useWorkOrder(roNumber, options = {}) {
       setLineItems(parsedLineItems);
 
       if (wo.customer_id && wo.vehicle_id) {
-        const [customerData, vehicleData, appointmentsData] = await Promise.all([
-          Customer.get(wo.customer_id),
-          Vehicle.get(wo.vehicle_id),
-          Appointment.filter({ work_order_id: wo.id }),
-        ]);
+        let customerData = null;
+        let vehicleData = null;
+        let appointmentsData = [];
+
+        if (useFunctionData && wo.customer_details && wo.vehicle_details) {
+            customerData = wo.customer_details;
+            vehicleData = wo.vehicle_details;
+            appointmentsData = await Appointment.filter({ work_order_id: wo.id });
+        } else {
+            [customerData, vehicleData, appointmentsData] = await Promise.all([
+              Customer.get(wo.customer_id),
+              Vehicle.get(wo.vehicle_id),
+              Appointment.filter({ work_order_id: wo.id }),
+            ]);
+        }
+
         setCustomer(customerData);
         setVehicle(vehicleData);
         
