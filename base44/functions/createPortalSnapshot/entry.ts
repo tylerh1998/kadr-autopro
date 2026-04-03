@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 function generateCpId() {
@@ -53,17 +53,35 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Work order not found' }, { status: 404 });
     }
 
-    const customers = await base44.entities.Customer.filter({ id: workOrder.customer_id });
-    if (!customers || customers.length === 0) {
+    const customerResult = await supabase
+      .from('Customer')
+      .select('*')
+      .eq('id', workOrder.customer_id)
+      .maybeSingle();
+
+    if (customerResult.error) {
+      console.error('createPortalSnapshot customer fetch error:', customerResult.error);
+      return Response.json({ error: 'Failed to fetch customer', details: customerResult.error.message }, { status: 500 });
+    }
+    const customer = customerResult.data;
+    if (!customer) {
       return Response.json({ error: 'Customer not found' }, { status: 404 });
     }
-    const customer = customers[0];
 
-    const vehicles = await base44.entities.Vehicle.filter({ id: workOrder.vehicle_id });
-    if (!vehicles || vehicles.length === 0) {
+    const vehicleResult = await supabase
+      .from('Vehicle')
+      .select('*')
+      .eq('id', workOrder.vehicle_id)
+      .maybeSingle();
+
+    if (vehicleResult.error) {
+      console.error('createPortalSnapshot vehicle fetch error:', vehicleResult.error);
+      return Response.json({ error: 'Failed to fetch vehicle', details: vehicleResult.error.message }, { status: 500 });
+    }
+    const vehicle = vehicleResult.data;
+    if (!vehicle) {
       return Response.json({ error: 'Vehicle not found' }, { status: 404 });
     }
-    const vehicle = vehicles[0];
 
     let cpId = generateCpId();
     let isUnique = false;
