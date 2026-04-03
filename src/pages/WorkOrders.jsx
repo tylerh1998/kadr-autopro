@@ -816,16 +816,14 @@ export default function WorkOrdersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const lockedWorkOrders = workOrders.filter(wo => wo.LockedByUser && wo.ro_number);
-
-      await Promise.all(
-        lockedWorkOrders.map(wo =>
-          base44.entities.WorkOrder.update(wo.id, { LockedByUser: null, locked_timestamp: null })
-        )
-      );
-
-      alert('All work order locks have been flushed.');
-      loadData();
+      const response = await base44.functions.invoke('flushWorkOrderLocks');
+      
+      if (response.data && response.data.success) {
+        alert(`All work order locks have been flushed. (${response.data.flushedCount} flushed)`);
+        loadData();
+      } else {
+        throw new Error(response.data?.error || 'Failed to flush locks');
+      }
     } catch (error) {
       console.error('Error flushing locks:', error);
       alert('Failed to flush locks. Please try again.');
