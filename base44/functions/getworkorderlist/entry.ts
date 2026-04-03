@@ -58,7 +58,56 @@ Deno.serve(async (req) => {
       await sleep(attempt * 300);
     }
 
-    return Response.json({ data: result?.data || [] });
+    const workOrders = result?.data || [];
+    
+    const customerIds = [...new Set(workOrders.map(wo => wo.customer_id).filter(Boolean))];
+    const vehicleIds = [...new Set(workOrders.map(wo => wo.vehicle_id).filter(Boolean))];
+
+    let customers = [];
+    let vehicles = [];
+
+    // Fetch Customers
+    if (customerIds.length > 0) {
+      const { data: custData, error: custError } = await supabase
+        .from('Customer')
+        .select('id, first_name, last_name, org_name')
+        .in('id', customerIds);
+      
+      if (!custError && custData) {
+        customers = custData;
+      } else {
+        const allCust = await base44.entities.Customer.list().catch(() => []);
+        customers = allCust.filter(c => customerIds.includes(c.id));
+      }
+    }
+
+    // Fetch Vehicles
+    if (vehicleIds.length > 0) {
+      const { data: vehData, error: vehError } = await supabase
+        .from('Vehicle')
+        .select('id, year, make, model, unit_number, vin')
+        .in('id', vehicleIds);
+      
+      if (!vehError && vehData) {
+        vehicles = vehData;
+      } else {
+        const allVeh = await base44.entities.Vehicle.list().catch(() => []);
+        vehicles = allVeh.filter(v => vehicleIds.includes(v.id));
+      }
+    }
+
+    // Embed data into work orders
+    const enrichedData = workOrders.map(wo => {
+      const customer = customers.find(c => c.id === wo.customer_id) || null;
+      const vehicle = vehicles.find(v => v.id === wo.vehicle_id) || null;
+      return {
+        ...wo,
+        Customer: customer,
+        Vehicle: vehicle
+      };
+    });
+
+    return Response.json({ data: enrichedData });
   } catch (error) {
     console.error('getworkorderlist error:', error);
     return Response.json({ error: error.message }, { status: 500 });

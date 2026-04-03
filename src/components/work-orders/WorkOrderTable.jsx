@@ -73,8 +73,8 @@ export default function WorkOrderTable({
   onSortChange,
   onVoid
 }) {
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
+  const getCustomerName = (workOrder) => {
+    const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
     if (!customer) return 'Customer Not Found';
     
     if (customer.org_name && customer.org_name.trim() !== '') {
@@ -217,8 +217,8 @@ export default function WorkOrderTable({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {workOrders.map((workOrder) => {
-                const customer = customers.find(c => c.id === workOrder.customer_id);
-                const vehicle = vehicles.find(v => v.id === workOrder.vehicle_id);
+                const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
+                const vehicle = workOrder.Vehicle || vehicles.find(v => v.id === workOrder.vehicle_id);
                 
                 const contactPerson = (customer && customer.org_name && (customer.first_name || customer.last_name)) 
                   ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() 
@@ -267,8 +267,8 @@ export default function WorkOrderTable({
                             <span>{displayNumber || workOrder.ro_number}</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder.customer_id)}>
-                          {getCustomerName(workOrder.customer_id)}
+                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder)}>
+                          {getCustomerName(workOrder)}
                         </td>
                         <td className="px-4 py-2 text-black truncate max-w-[250px]" title={vehicle?.unit_number ? `Unit #: ${vehicle.unit_number}` : ''}>
                           {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '-'}

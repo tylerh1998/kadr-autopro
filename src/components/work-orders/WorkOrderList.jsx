@@ -84,8 +84,8 @@ function WorkOrderList({
   onSortChange
 }) {
   // Helper function to get customer display name
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
+  const getCustomerName = (workOrder) => {
+    const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
     if (!customer) return 'Customer Not Found';
     
     if (customer.org_name && customer.org_name.trim() !== '') {
@@ -189,8 +189,8 @@ function WorkOrderList({
     <TooltipProvider>
       <div className="space-y-2">
         {workOrders.map((workOrder) => {
-          const customer = customers.find(c => c.id === workOrder.customer_id);
-          const vehicle = vehicles.find(v => v.id === workOrder.vehicle_id);
+          const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
+          const vehicle = workOrder.Vehicle || vehicles.find(v => v.id === workOrder.vehicle_id);
           
           const displayNumber = workOrder.stage === 'estimate' ? workOrder.est_number :
                               workOrder.stage === 'invoice' ? workOrder.inv_number :
@@ -216,7 +216,7 @@ function WorkOrderList({
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base font-bold text-slate-900">
-                            {getCustomerName(workOrder.customer_id)}
+                            {getCustomerName(workOrder)}
                           </h3>
                           {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
                             <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>

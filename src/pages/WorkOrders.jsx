@@ -226,29 +226,32 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const [workOrdersResponse, customersData, vehiclesData] = await Promise.all([
-        getworkorderlist({}),
-        Customer.list(),
-        Vehicle.list()
-      ]);
+      const workOrdersResponse = await getworkorderlist({});
 
       const workOrdersData = workOrdersResponse?.data?.data || [];
       
       setWorkOrders(workOrdersData);
       
-      setCustomers(prev => {
-        if (JSON.stringify(prev.map(c => c.id + c.updated_date)) !== JSON.stringify(customersData.map(c => c.id + c.updated_date))) {
-          return customersData;
+      // Extract unique customers and vehicles from the work orders to populate local state
+      // This ensures components like NewWorkOrderModal have at least the active options
+      const extractedCustomers = [];
+      const extractedVehicles = [];
+      const customerIds = new Set();
+      const vehicleIds = new Set();
+      
+      workOrdersData.forEach(wo => {
+        if (wo.Customer && !customerIds.has(wo.Customer.id)) {
+          extractedCustomers.push(wo.Customer);
+          customerIds.add(wo.Customer.id);
         }
-        return prev;
+        if (wo.Vehicle && !vehicleIds.has(wo.Vehicle.id)) {
+          extractedVehicles.push(wo.Vehicle);
+          vehicleIds.add(wo.Vehicle.id);
+        }
       });
       
-      setVehicles(prev => {
-        if (JSON.stringify(prev.map(v => v.id + v.updated_date)) !== JSON.stringify(vehiclesData.map(v => v.id + v.updated_date))) {
-          return vehiclesData;
-        }
-        return prev;
-      });
+      setCustomers(extractedCustomers);
+      setVehicles(extractedVehicles);
     } catch (error) {
       console.error('Error loading work orders:', error);
     } finally {
@@ -530,8 +533,13 @@ export default function WorkOrdersPage() {
     ));
   };
 
-  const getCustomerName = (customerId) => {
-    const customer = customers.find(c => c.id === customerId);
+  const getCustomerName = (woOrId) => {
+    let customer;
+    if (typeof woOrId === 'object') {
+      customer = woOrId.Customer || customers.find(c => c.id === woOrId.customer_id);
+    } else {
+      customer = customers.find(c => c.id === woOrId);
+    }
     if (!customer) return '';
     
     if (customer.org_name && customer.org_name.trim() !== '') {
@@ -559,15 +567,15 @@ export default function WorkOrdersPage() {
     switch(sortBy) {
       case "customer_az":
         return sorted.sort((a, b) => {
-          const nameA = getCustomerName(a.customer_id).toLowerCase();
-          const nameB = getCustomerName(b.customer_id).toLowerCase();
+          const nameA = getCustomerName(a).toLowerCase();
+          const nameB = getCustomerName(b).toLowerCase();
           return nameA.localeCompare(nameB);
         });
       
       case "customer_za":
         return sorted.sort((a, b) => {
-          const nameA = getCustomerName(a.customer_id).toLowerCase();
-          const nameB = getCustomerName(b.customer_id).toLowerCase();
+          const nameA = getCustomerName(a).toLowerCase();
+          const nameB = getCustomerName(b).toLowerCase();
           return nameB.localeCompare(nameA);
         });
       
@@ -899,8 +907,7 @@ export default function WorkOrdersPage() {
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
-    const customer = customers.find(c => c.id === wo.customer_id);
-    const customerFullName = customer ? getCustomerName(customer.id) : '';
+    const customerFullName = getCustomerName(wo);
 
     const matchesSearch = !searchTerm || 
       wo.wo_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
