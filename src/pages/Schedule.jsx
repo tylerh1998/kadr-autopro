@@ -96,6 +96,34 @@ export default function SchedulePage() {
       const workOrderMap = new Map(workOrdersData.map(wo => [wo.id, wo]));
       const customerMap = new Map(customersList.map(c => [c.id, c]));
 
+      // Fetch missing work orders that were excluded due to query limits
+      const missingWoIds = [...new Set(appointmentsData.map(app => app.work_order_id).filter(id => id && !workOrderMap.has(id)))];
+      if (missingWoIds.length > 0) {
+        try {
+          const missingWoPromises = missingWoIds.map(id => getworkorderlist({ match: { id } }));
+          const missingResponses = await Promise.all(missingWoPromises);
+          
+          missingResponses.forEach(res => {
+            if (res?.data?.data && res.data.data.length > 0) {
+              const wo = res.data.data[0];
+              workOrdersData.push(wo);
+              workOrderMap.set(wo.id, wo);
+              
+              // Add customer/vehicle if they came embedded and are missing
+              if (wo.Customer && !customerMap.has(wo.Customer.id)) {
+                 customersList.push(wo.Customer);
+                 customerMap.set(wo.Customer.id, wo.Customer);
+              }
+              if (wo.Vehicle && !vehiclesList.some(v => v.id === wo.Vehicle.id)) {
+                 vehiclesList.push(wo.Vehicle);
+              }
+            }
+          });
+        } catch (e) {
+          console.error('Error fetching missing work orders:', e);
+        }
+      }
+
       const formattedEvents = appointmentsData.map(app => {
         const workOrder = workOrderMap.get(app.work_order_id);
         const customer = customerMap.get(app.customer_id);

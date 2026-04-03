@@ -18,6 +18,7 @@ import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import { WorkOrder, SystemSettings } from '@/entities/all';
 import { createworkorderdata } from '@/functions/createworkorderdata';
+import { getworkorderlist } from '@/functions/getworkorderlist';
 import { base44 } from '@/api/base44Client';
 
 export default function AppointmentForm({
@@ -250,6 +251,17 @@ export default function AppointmentForm({
         const loadAppointmentData = async () => {
           // Get customer for autofill
           const customer = customers?.find(c => c.id === appointment.customer_id);
+
+          // Load missing work order if not in the provided workOrders list
+          if (appointment.work_order_id && (!workOrders || !workOrders.some(wo => wo.id === appointment.work_order_id))) {
+            getworkorderlist({ match: { id: appointment.work_order_id } })
+              .then(res => {
+                if (res.data?.data?.length > 0) {
+                  setLocalWorkOrder(res.data.data[0]);
+                }
+              })
+              .catch(err => console.error('Error loading missing work order:', err));
+          }
 
           // First, load vehicles if there's a customer
           if (appointment.customer_id) {
