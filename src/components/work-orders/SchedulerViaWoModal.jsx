@@ -58,7 +58,13 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       ]);
       
       const customersList = custRes.data?.data || [];
+      if (customer && !customersList.some(c => c.id === customer.id)) {
+        customersList.push(customer);
+      }
       const vehiclesList = vehRes.data?.data || [];
+      if (vehicle && !vehiclesList.some(v => v.id === vehicle.id)) {
+        vehiclesList.push(vehicle);
+      }
       
       const techMap = new Map(employeesData.map(e => [e.id, e]));
       const customerMap = new Map(customersList.map(c => [c.id, c]));
@@ -96,7 +102,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     } finally {
       setLoading(false);
     }
-  }, [open]);
+  }, [open, customer, vehicle, workOrder]);
 
   useEffect(() => {
     loadData();
@@ -270,9 +276,9 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
                   slotInfo={selectedAppointment ? null : slotInfo}
                   employees={employees}
                   workOrders={[workOrder]}
-                  workOrderForNew={selectedAppointment ? null : workOrder}
-                  customerForNew={selectedAppointment ? null : customer}
-                  vehicleForNew={selectedAppointment ? null : vehicle}
+                  workOrderForNew={workOrder}
+                  customerForNew={customer}
+                  vehicleForNew={vehicle}
                   customers={allCustomers}
                   vehicles={allVehicles}
                 />

@@ -130,13 +130,13 @@ export default function AppointmentForm({
   };
 
   // Get selected customer
-  const selectedCustomer = customers?.find(c => c.id === formData.customer_id);
+  const selectedCustomer = customers?.find(c => c.id === formData.customer_id) || (customerForNew?.id === formData.customer_id ? customerForNew : null);
 
   // Get selected work order
-  const selectedWorkOrder = workOrders?.find(wo => wo.id === formData.work_order_id) || (localWorkOrder?.id === formData.work_order_id ? localWorkOrder : null);
+  const selectedWorkOrder = workOrders?.find(wo => wo.id === formData.work_order_id) || (localWorkOrder?.id === formData.work_order_id ? localWorkOrder : null) || (workOrderForNew?.id === formData.work_order_id ? workOrderForNew : null);
 
   // Get selected vehicle
-  const selectedVehicle = availableVehicles.find(v => v.id === formData.vehicle_id);
+  const selectedVehicle = availableVehicles.find(v => v.id === formData.vehicle_id) || (vehicleForNew?.id === formData.vehicle_id ? vehicleForNew : null);
 
   // Memoize handleCustomerSelect to prevent it from changing on every render,
   // making it safe to include in useEffect dependencies.

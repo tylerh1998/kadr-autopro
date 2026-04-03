@@ -15,22 +15,32 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const loadPrerequisites = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeesData, workOrdersData, custRes, vehRes] = await Promise.all([
+      const [employeesData, custRes, vehRes] = await Promise.all([
         Employee.list(),
-        WorkOrder.list(),
         base44.functions.invoke('supabaseCustomer', { action: 'list' }),
         base44.functions.invoke('supabaseVehicle', { action: 'list' }),
       ]);
       setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
-      setWorkOrders(workOrdersData);
-      setCustomers(custRes.data?.data || []);
-      setVehicles(vehRes.data?.data || []);
+      
+      const fetchedCustomers = [...(custRes.data?.data || [])];
+      if (customer && !fetchedCustomers.some(c => c.id === customer.id)) {
+        fetchedCustomers.push(customer);
+      }
+      setCustomers(fetchedCustomers);
+
+      const fetchedVehicles = [...(vehRes.data?.data || [])];
+      if (vehicle && !fetchedVehicles.some(v => v.id === vehicle.id)) {
+        fetchedVehicles.push(vehicle);
+      }
+      setVehicles(fetchedVehicles);
+      
+      setWorkOrders(workOrder ? [workOrder] : []);
     } catch (error) {
       console.error('Error loading prerequisites for appointment form:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [customer, vehicle, workOrder]);
 
   useEffect(() => {
     if (open) {
@@ -113,9 +123,9 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
               workOrders={workOrders}
               customers={customers}
               vehicles={vehicles}
-              workOrderForNew={!appointment ? workOrder : null}
-              customerForNew={!appointment ? customer : null}
-              vehicleForNew={!appointment ? vehicle : null}
+              workOrderForNew={workOrder}
+              customerForNew={customer}
+              vehicleForNew={vehicle}
             />
           )}
         </div>
