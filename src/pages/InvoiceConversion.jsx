@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrder, Customer, Vehicle, SystemSettings } from '@/entities/all';
+import { WorkOrder, SystemSettings } from '@/entities/all';
 import { getworkorderdata } from '@/functions/getworkorderdata';
 import { saveworkorderdata } from '@/functions/saveworkorderdata';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,10 +69,8 @@ export default function InvoiceConversion() {
           if (wo.cp_id) {
             setPortalUrl(`https://portal.kensauto.ca/WorkOrder?cp_id=${wo.cp_id}`);
           }
-          const customerData = await Customer.get(wo.customer_id);
-          setCustomer(customerData);
-          const vehicleData = await Vehicle.get(wo.vehicle_id);
-          setVehicle(vehicleData);
+          setCustomer(wo.customer_details);
+          setVehicle(wo.vehicle_details);
           
           // Parse and display accounting summary if available
           try {
@@ -90,12 +88,10 @@ export default function InvoiceConversion() {
           return;
         }
 
-        // Fetch customer and vehicle
-        console.log('Fetching customer and vehicle data');
-        const customerData = await Customer.get(wo.customer_id);
-        setCustomer(customerData);
-        const vehicleData = await Vehicle.get(wo.vehicle_id);
-        setVehicle(vehicleData);
+        // Set customer and vehicle from work order data
+        console.log('Setting customer and vehicle data');
+        setCustomer(wo.customer_details);
+        setVehicle(wo.vehicle_details);
 
         // Fetch system settings
         console.log('Fetching system settings');
