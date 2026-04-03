@@ -39,11 +39,8 @@ export default function NewWorkOrderModal({
           const vehiclesData = await Vehicle.list();
           setLocalVehicles(vehiclesData || []);
           
-          // Load customers using search function
-          const response = await base44.functions.invoke('searchCustomers', { searchTerm: '', includeInactive });
-          if (response.data.success) {
-            setLocalCustomers(response.data.customers || []);
-          }
+          // Do not load customers initially, let the user search
+          setLocalCustomers([]);
         } catch (error) {
           console.error("Failed to fetch customers and vehicles:", error);
           setLocalCustomers([]);
@@ -65,7 +62,7 @@ export default function NewWorkOrderModal({
 
   useEffect(() => {
     // Reload customers when search term or includeInactive changes
-    if (open) {
+    if (open && activeSearchTerm) {
       const searchCustomers = async () => {
         setLoading(true);
         try {
@@ -83,12 +80,14 @@ export default function NewWorkOrderModal({
         }
       };
       searchCustomers();
+    } else if (open && !activeSearchTerm) {
+      setLocalCustomers([]);
     }
   }, [activeSearchTerm, includeInactive, open]);
 
   // Customers are now filtered by the backend function
-  // Limit to 10 if no search term
-  const filteredCustomers = activeSearchTerm ? (localCustomers || []) : (localCustomers || []).slice(0, 10);
+  // Only show if there's an active search term
+  const filteredCustomers = activeSearchTerm ? (localCustomers || []) : [];
 
   const customerVehicles = (localVehicles || []).filter(v => 
     v.customer_id === selectedCustomer?.id && (includeInactive || v.is_active !== false)
@@ -341,7 +340,20 @@ export default function NewWorkOrderModal({
                   className="pl-10" 
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
+              
+              {!activeSearchTerm && !loading && (
+                <div className="text-center p-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200 mt-4">
+                  <Search className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                  <p>Search to select a customer</p>
+                </div>
+              )}
+              {activeSearchTerm && filteredCustomers.length === 0 && !loading && (
+                <div className="text-center p-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200 mt-4">
+                  <p>No customers found matching "{activeSearchTerm}"</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1 mt-4">
                 {filteredCustomers.map((customer) => (
                   <Card 
                     key={customer.id} 
