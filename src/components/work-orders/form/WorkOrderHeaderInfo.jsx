@@ -133,12 +133,15 @@ export default function WorkOrderHeaderInfo({
 
   // Determine odometer display value and color
   const getOdometerDisplay = () => {
-    if (workOrder?.odometer !== null && workOrder?.odometer !== undefined) {
+    if (workOrder?.odometer !== null && workOrder?.odometer !== undefined && workOrder?.odometer !== '') {
       // WorkOrder has odometer - Blue hyperlink
       return { text: workOrder.odometer.toString(), color: 'text-blue-600 hover:text-blue-800' };
-    } else if (vehicle?.mileage !== null && vehicle?.mileage !== undefined) {
+    } else if (vehicle?.mileage !== null && vehicle?.mileage !== undefined && vehicle?.mileage !== '') {
       // Vehicle has mileage - Red hyperlink
       return { text: vehicle.mileage.toString(), color: 'text-red-600 hover:text-red-800' };
+    } else if (vehicle?.odometer !== null && vehicle?.odometer !== undefined && vehicle?.odometer !== '') {
+      // Vehicle has odometer (fallback if DB field differs) - Red hyperlink
+      return { text: vehicle.odometer.toString(), color: 'text-red-600 hover:text-red-800' };
     } else {
       // No data - Red hyperlink
       return { text: 'None Recorded', color: 'text-red-600 hover:text-red-800' };

@@ -114,14 +114,14 @@ export function useWorkOrder(roNumber, options = {}) {
         let vehicleData = null;
         let appointmentsData = [];
 
-        if (useFunctionData && wo.customer_details && wo.vehicle_details) {
-            customerData = wo.customer_details;
-            vehicleData = wo.vehicle_details;
+        if (useFunctionData) {
+            customerData = wo.customer_details || await Customer.get(wo.customer_id).catch(() => null);
+            vehicleData = wo.vehicle_details || await Vehicle.get(wo.vehicle_id).catch(() => null);
             appointmentsData = await Appointment.filter({ work_order_id: wo.id });
         } else {
             [customerData, vehicleData, appointmentsData] = await Promise.all([
-              Customer.get(wo.customer_id),
-              Vehicle.get(wo.vehicle_id),
+              Customer.get(wo.customer_id).catch(() => null),
+              Vehicle.get(wo.vehicle_id).catch(() => null),
               Appointment.filter({ work_order_id: wo.id }),
             ]);
         }
