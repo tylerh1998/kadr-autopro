@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppointmentForm from '../appointments/AppointmentForm';
-import { Employee, WorkOrder, Appointment, Customer, Vehicle } from '@/entities/all';
+import { Employee, WorkOrder, Appointment } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 
 export default function EditApptViaWoModal({ open, onClose, appointment, workOrder, customer, vehicle, onAppointmentUpdated }) {
   const [employees, setEmployees] = useState([]);
@@ -14,16 +15,16 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const loadPrerequisites = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeesData, workOrdersData, customersData, vehiclesData] = await Promise.all([
+      const [employeesData, workOrdersData, custRes, vehRes] = await Promise.all([
         Employee.list(),
         WorkOrder.list(),
-        Customer.list(),
-        Vehicle.list(),
+        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
+        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
       ]);
       setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
       setWorkOrders(workOrdersData);
-      setCustomers(customersData);
-      setVehicles(vehiclesData);
+      setCustomers(custRes.data?.data || []);
+      setVehicles(vehRes.data?.data || []);
     } catch (error) {
       console.error('Error loading prerequisites for appointment form:', error);
     } finally {
