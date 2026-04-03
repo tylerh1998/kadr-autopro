@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Appointment, Employee, Customer, Vehicle } from '@/entities/all';
+import { Appointment, Employee } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import AppointmentForm from '../appointments/AppointmentForm';
 import CustomCalendar from '../appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -49,15 +50,18 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     if (!open) return;
     setLoading(true);
     try {
-      const [allAppointments, employeesData, customersData, vehiclesData] = await Promise.all([
+      const [allAppointments, employeesData, custRes, vehRes] = await Promise.all([
         Appointment.list(),
         Employee.filter({ position: ['technician', 'apprentice'] }),
-        Customer.list(), // NEW: Fetch all customers
-        Vehicle.list(), // NEW: Fetch all vehicles
+        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
+        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
       ]);
       
+      const customersList = custRes.data?.data || [];
+      const vehiclesList = vehRes.data?.data || [];
+      
       const techMap = new Map(employeesData.map(e => [e.id, e]));
-      const customerMap = new Map(customersData.map(c => [c.id, c]));
+      const customerMap = new Map(customersList.map(c => [c.id, c]));
       
       const formattedEvents = allAppointments.map(app => {
         const customer = customerMap.get(app.customer_id);
@@ -84,8 +88,8 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
       setEvents(formattedEvents);
       setEmployees(employeesData);
-      setAllCustomers(customersData); // NEW: Set customers state
-      setAllVehicles(vehiclesData); // NEW: Set vehicles state
+      setAllCustomers(customersList); // NEW: Set customers state
+      setAllVehicles(vehiclesList); // NEW: Set vehicles state
       setTechColors(generateTechColors(employeesData));
     } catch (error) {
       console.error('Error loading schedule data in modal:', error);

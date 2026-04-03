@@ -112,6 +112,7 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
               employees={employees}
               workOrders={workOrders}
               customers={customers}
+              vehicles={vehicles}
               workOrderForNew={!appointment ? workOrder : null}
               customerForNew={!appointment ? customer : null}
               vehicleForNew={!appointment ? vehicle : null}
