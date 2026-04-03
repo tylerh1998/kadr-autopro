@@ -100,9 +100,10 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     // Check if customer is being deactivated and deactivate associated vehicles
     if (customer && (customer.is_active !== false) && !formData.is_active) {
       try {
-        const vehicles = await base44.entities.Vehicle.filter({ customer_id: customer.id }, undefined, 1000);
+        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customer.id } });
+        const vehicles = res.data?.data || [];
         if (vehicles && vehicles.length > 0) {
-          await Promise.all(vehicles.map(v => base44.entities.Vehicle.update(v.id, { is_active: false })));
+          await Promise.all(vehicles.map(v => base44.functions.invoke('supabaseVehicle', { action: 'update', id: v.id, data: { is_active: false } })));
         }
       } catch (error) {
         console.error("Failed to deactivate customer vehicles:", error);

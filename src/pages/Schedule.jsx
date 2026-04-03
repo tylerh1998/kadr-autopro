@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Appointment, Employee, Customer, Vehicle } from '@/entities/all';
+import { Appointment, Employee } from '@/entities/all';
 import { getworkorderlist } from '@/functions/getworkorderlist';
+import { base44 } from '@/api/base44Client';
 import AppointmentForm from '../components/appointments/AppointmentForm';
 import CustomCalendar from '../components/appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -66,32 +67,34 @@ export default function SchedulePage() {
   };
 
   const loadCustomersAndVehicles = useCallback(async () => {
-    const [customersData, vehiclesData, workOrdersResponse] = await Promise.all([
-      Customer.list(),
-      Vehicle.list(),
+    const [custRes, vehRes, workOrdersResponse] = await Promise.all([
+      base44.functions.invoke('supabaseCustomer', { action: 'list' }),
+      base44.functions.invoke('supabaseVehicle', { action: 'list' }),
       getworkorderlist({}),
     ]);
     const workOrdersData = workOrdersResponse?.data?.data || [];
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
+    setCustomers(custRes.data?.data || []);
+    setVehicles(vehRes.data?.data || []);
     setWorkOrders(workOrdersData);
   }, []);
 
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
     setLoading(true);
     try {
-      const [appointmentsData, employeesData, workOrdersResponse, customersData, vehiclesData] = await Promise.all([
+      const [appointmentsData, employeesData, workOrdersResponse, custRes, vehRes] = await Promise.all([
         Appointment.list(),
         Employee.list(),
         getworkorderlist({}),
-        Customer.list(),
-        Vehicle.list(),
+        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
+        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
       ]);
       const workOrdersData = workOrdersResponse?.data?.data || [];
+      const customersList = custRes.data?.data || [];
+      const vehiclesList = vehRes.data?.data || [];
 
       const techMap = new Map(employeesData.map(e => [e.id, e]));
       const workOrderMap = new Map(workOrdersData.map(wo => [wo.id, wo]));
-      const customerMap = new Map(customersData.map(c => [c.id, c]));
+      const customerMap = new Map(customersList.map(c => [c.id, c]));
 
       const formattedEvents = appointmentsData.map(app => {
         const workOrder = workOrderMap.get(app.work_order_id);
@@ -129,8 +132,8 @@ export default function SchedulePage() {
       setEvents(formattedEvents);
       setEmployees(availableTechs);
       setWorkOrders(workOrdersData);
-      setCustomers(customersData);
-      setVehicles(vehiclesData);
+      setCustomers(customersList);
+      setVehicles(vehiclesList);
 
       if (appointmentIdToSelect) {
         const appointmentToEdit = formattedEvents.find(e => e.id === appointmentIdToSelect);

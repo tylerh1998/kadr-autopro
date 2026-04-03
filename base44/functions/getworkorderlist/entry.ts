@@ -75,9 +75,6 @@ Deno.serve(async (req) => {
       
       if (!custError && custData) {
         customers = custData;
-      } else {
-        const allCust = await base44.entities.Customer.list().catch(() => []);
-        customers = allCust.filter(c => customerIds.includes(c.id));
       }
     }
 
@@ -90,9 +87,6 @@ Deno.serve(async (req) => {
       
       if (!vehError && vehData) {
         vehicles = vehData;
-      } else {
-        const allVeh = await base44.entities.Vehicle.list().catch(() => []);
-        vehicles = allVeh.filter(v => vehicleIds.includes(v.id));
       }
     }
 

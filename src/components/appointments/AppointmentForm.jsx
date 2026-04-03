@@ -16,8 +16,9 @@ import SelectWorkOrderModal from './SelectWorkOrderModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
-import { Customer, Vehicle, WorkOrder, SystemSettings } from '@/entities/all';
+import { WorkOrder, SystemSettings } from '@/entities/all';
 import { createworkorderdata } from '@/functions/createworkorderdata';
+import { base44 } from '@/api/base44Client';
 
 export default function AppointmentForm({
   open,
@@ -143,8 +144,9 @@ export default function AppointmentForm({
     const customer = customers?.find(c => c.id === customerId);
     if (customer) {
       try {
-        const customerVehicles = await Vehicle.filter({ customer_id: customerId });
-        setAvailableVehicles(customerVehicles || []);
+        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customerId } });
+        const customerVehicles = res.data?.data || [];
+        setAvailableVehicles(customerVehicles);
         
         setTimeout(() => {
           setFormData(prev => ({
@@ -190,10 +192,11 @@ export default function AppointmentForm({
     // Load vehicles for the work order's customer first
     if (workOrder.customer_id) {
       try {
-        const customerVehicles = await Vehicle.filter({ customer_id: workOrder.customer_id });
+        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: workOrder.customer_id } });
+        const customerVehicles = res.data?.data || [];
         
         // Set available vehicles FIRST
-        setAvailableVehicles(customerVehicles || []);
+        setAvailableVehicles(customerVehicles);
         
         // Get customer for email
         const customer = customers?.find(c => c.id === workOrder.customer_id);
@@ -255,9 +258,9 @@ export default function AppointmentForm({
             setAvailableVehicles(propVehicles);
 
             // Then fetch from server to ensure completeness (async)
-            Vehicle.filter({ customer_id: appointment.customer_id })
-              .then(serverVehicles => {
-                 setAvailableVehicles(serverVehicles || []);
+            base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: appointment.customer_id } })
+              .then(res => {
+                 setAvailableVehicles(res.data?.data || []);
               })
               .catch(error => {
                  console.error('Error loading vehicles:', error);
@@ -299,8 +302,9 @@ export default function AppointmentForm({
           // Load vehicles if we have a customer
           if (customerId) {
             try {
-              const customerVehicles = await Vehicle.filter({ customer_id: customerId });
-              setAvailableVehicles(customerVehicles || []);
+              const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customerId } });
+              const customerVehicles = res.data?.data || [];
+              setAvailableVehicles(customerVehicles);
             } catch (error) {
               console.error('Error loading vehicles:', error);
               setAvailableVehicles([]);
@@ -474,7 +478,8 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     setIsCreatingCustomer(true);
     try {
-      const newCustomer = await Customer.create(customerData);
+      const custRes = await base44.functions.invoke('supabaseCustomer', { action: 'create', data: customerData });
+      const newCustomer = custRes.data?.data;
       
       // Refresh customer and vehicle data from parent
       if (onDataRefresh) {
@@ -483,8 +488,9 @@ export default function AppointmentForm({
       
       // Load vehicles for the new customer
       try {
-        const customerVehicles = await Vehicle.filter({ customer_id: newCustomer.id });
-        setAvailableVehicles(customerVehicles || []);
+        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: newCustomer.id } });
+        const customerVehicles = res.data?.data || [];
+        setAvailableVehicles(customerVehicles);
       } catch (error) {
         console.error('Error loading vehicles:', error);
         setAvailableVehicles([]);
@@ -511,11 +517,13 @@ export default function AppointmentForm({
   const handleCreateVehicle = async (vehicleData) => {
     setIsCreatingVehicle(true);
     try {
-      const newVehicle = await Vehicle.create(vehicleData);
+      const vehRes = await base44.functions.invoke('supabaseVehicle', { action: 'create', data: vehicleData });
+      const newVehicle = vehRes.data?.data;
       
       // Update local available vehicles list
       try {
-        const customerVehicles = await Vehicle.filter({ customer_id: formData.customer_id });
+        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: formData.customer_id } });
+        const customerVehicles = res.data?.data || [];
         setAvailableVehicles(customerVehicles);
         
         // Auto-select the new vehicle after state update completes
