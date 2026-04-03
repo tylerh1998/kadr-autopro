@@ -1,148 +1,123 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    
     const user = await base44.auth.me();
+    
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let searchTerm, page = 1, limit = 50, includeInactive = false;
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false },
+    });
+
+    let searchTerm = '';
+    let page = 1;
+    let limit = 50;
+    let includeInactive = false;
+    
     try {
       const body = await req.json();
-      searchTerm = body.searchTerm;
-      if (body.page !== undefined) page = body.page;
-      if (body.limit !== undefined) limit = body.limit;
-      if (body.includeInactive !== undefined) includeInactive = body.includeInactive;
-    } catch (jsonError) {
-      console.error('Error parsing request JSON:', jsonError);
-      return Response.json({ error: 'Invalid JSON payload', details: jsonError.message }, { status: 400 });
+      searchTerm = body.searchTerm || '';
+      if (body.page !== undefined) page = Number(body.page);
+      if (body.limit !== undefined) limit = Number(body.limit);
+      if (body.includeInactive !== undefined) includeInactive = Boolean(body.includeInactive);
+    } catch {
+      console.log('No JSON body, using defaults');
     }
-    const skip = (page - 1) * limit;
 
-    // Optimization: If no search term, use efficient DB pagination
-    if (!searchTerm || searchTerm.trim() === '') {
-      // We need total count for pagination. 
-      // Current SDK might not give total count easily without fetching all ID's or similar.
-      // For now, we'll fetch all to get total count, but slice for return.
-      // Ideally we'd have a count() method.
-      // Use service role to ensure we get all customers regardless of ownership
-      // Fetch up to 5000 customers to ensure we cover the dataset for now
-      const allCustomers = await base44.entities.Customer.list(undefined, 5000);
-      
-      // Filter based on active status if includeInactive is false
-      // Treat undefined/null as true (active) for backward compatibility
-      const filteredCustomers = includeInactive 
-        ? allCustomers 
-        : allCustomers.filter(c => c.is_active !== false);
+    const skip = Math.max(0, (page - 1) * limit);
+    const safeLimit = Math.max(1, Math.min(limit, 200));
+    const normalizedSearchTerm = searchTerm.trim();
 
-      const total = filteredCustomers.length;
-      const totalPages = Math.ceil(total / limit);
-      
-      const sorted = filteredCustomers.sort((a, b) => {
-        const nameA = a.org_name || `${a.last_name || ''} ${a.first_name || ''}`;
-        const nameB = b.org_name || `${b.last_name || ''} ${b.first_name || ''}`;
-        return nameA.localeCompare(nameB);
-      });
+    if (normalizedSearchTerm) {
+      const rpcPayload = {
+        p_search_term: normalizedSearchTerm,
+        p_include_inactive: includeInactive,
+        p_limit: safeLimit,
+        p_offset: skip,
+      };
 
-      const paginatedCustomers = sorted.slice(skip, skip + limit);
-      
-      return Response.json({ 
-        success: true, 
-        customers: paginatedCustomers,
+      const { data, error } = await supabase.rpc('search_customers_ranked', rpcPayload);
+
+      if (error) {
+        console.error('Supabase search_customers_ranked rpc error:', error);
+        return Response.json({
+          error: 'Failed to fetch customers',
+          details: error.message,
+          success: false
+        }, { status: 500 });
+      }
+
+      const records = data || [];
+      const totalCount = records.length > 0 ? Number(records[0].total_count || 0) : 0;
+      const totalPages = Math.ceil(totalCount / safeLimit);
+      const cleanedRecords = records.map(({ total_count, match_rank, ...item }) => item);
+
+      return Response.json({
+        success: true,
+        customers: cleanedRecords,
         pagination: {
-          total,
+          total: totalCount,
           page,
-          limit,
+          limit: safeLimit,
           totalPages
         }
       });
     }
 
-    // Search Logic (Ranking)
-    // Use service role to ensure we search across all customers
-    const allCustomers = await base44.asServiceRole.entities.Customer.list(null, 5000);
-    
-    // Filter based on active status if includeInactive is false before scoring
-    const candidates = includeInactive 
-      ? allCustomers 
-      : allCustomers.filter(c => c.is_active !== false);
+    // No search term - return paginated list of all customers
+    let query = supabase
+      .from('Customer')
+      .select('*', { count: 'exact' });
 
-    const searchLower = searchTerm.toLowerCase().trim();
-    
-    const scoredCustomers = candidates
-      .map(customer => {
-        const orgName = (customer.org_name || '').toLowerCase();
-        const firstName = (customer.first_name || '').toLowerCase();
-        const lastName = (customer.last_name || '').toLowerCase();
-        const fullName = `${firstName} ${lastName}`.trim();
-        const email = (customer.email || '').toLowerCase();
-        const phone = (customer.phone || '').replace(/\D/g, '');
-        const secondaryPhone = (customer.secondary_phone || '').replace(/\D/g, '');
-        const searchDigits = searchLower.replace(/\D/g, '');
-        
-        let hitValue = 0;
-        
-        // Organization name matches
-        if (orgName) {
-          if (orgName === searchLower) hitValue = 100;
-          else if (orgName.startsWith(searchLower)) hitValue = 90;
-          else if (orgName.includes(searchLower)) hitValue = 70;
-        }
-        
-        // Name matches
-        if (hitValue === 0) {
-          if (fullName === searchLower) hitValue = 95;
-          else if (lastName === searchLower || firstName === searchLower) hitValue = 85;
-          else if (lastName.startsWith(searchLower) || firstName.startsWith(searchLower)) hitValue = 75;
-          else if (fullName.includes(searchLower)) hitValue = 60;
-        }
-        
-        // Email matches
-        if (hitValue === 0 && email) {
-          if (email === searchLower) hitValue = 65;
-          else if (email.startsWith(searchLower)) hitValue = 55;
-          else if (email.includes(searchLower)) hitValue = 45;
-        }
-        
-        // Phone matches
-        if (hitValue === 0 && searchDigits) {
-          if (phone === searchDigits || secondaryPhone === searchDigits) hitValue = 60;
-          else if (phone.includes(searchDigits) || secondaryPhone.includes(searchDigits)) hitValue = 40;
-        }
-        
-        return { ...customer, hitValue };
-      })
-      .filter(customer => customer.hitValue > 0)
-      .sort((a, b) => {
-        if (b.hitValue !== a.hitValue) return b.hitValue - a.hitValue;
-        const nameA = a.org_name || `${a.last_name || ''} ${a.first_name || ''}`;
-        const nameB = b.org_name || `${b.last_name || ''} ${b.first_name || ''}`;
-        return nameA.localeCompare(nameB);
-      });
+    if (!includeInactive) {
+      query = query.or('is_active.eq.true,is_active.is.null');
+    }
 
-    const total = scoredCustomers.length;
-    const totalPages = Math.ceil(total / limit);
-    const paginatedCustomers = scoredCustomers.slice(skip, skip + limit);
+    // Order by org_name first, then first_name, then last_name
+    query = query.order('org_name', { ascending: true, nullsLast: true })
+                 .order('first_name', { ascending: true, nullsLast: true })
+                 .order('last_name', { ascending: true, nullsLast: true });
+                 
+    query = query.range(skip, skip + safeLimit - 1);
 
-    return Response.json({ 
-      success: true, 
-      customers: paginatedCustomers,
-       pagination: {
-        total,
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error('Supabase Customer query error:', error);
+      return Response.json({ error: 'Failed to fetch customers', details: error.message, success: false }, { status: 500 });
+    }
+
+    const totalPages = count ? Math.ceil(count / safeLimit) : 0;
+
+    return Response.json({
+      success: true,
+      customers: data || [],
+      pagination: {
+        total: count || 0,
         page,
-        limit,
+        limit: safeLimit,
         totalPages
       }
     });
 
   } catch (error) {
-    console.error('Error searching customers:', error);
-    return Response.json({ 
-      success: false, 
-      error: error.message 
+    console.error('Error in searchCustomers:', error);
+    return Response.json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
     }, { status: 500 });
   }
 });

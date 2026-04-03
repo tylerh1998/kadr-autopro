@@ -1,0 +1,110 @@
+create or replace function public.search_customers_ranked(
+    p_search_term text,
+    p_include_inactive boolean default false,
+    p_limit integer default 50,
+    p_offset integer default 0
+)
+returns table (
+    id text,
+    created_date timestamptz,
+    updated_date timestamptz,
+    created_by text,
+    org_name text,
+    first_name text,
+    last_name text,
+    phone text,
+    secondary_phone text,
+    email text,
+    address text,
+    city text,
+    state text,
+    zip_code text,
+    notes text,
+    default_taxable boolean,
+    is_active boolean,
+    cusid text,
+    match_rank integer,
+    total_count bigint
+)
+language sql
+as $$
+with filtered as (
+    select
+        c.id::text as id,
+        c.created_date,
+        c.updated_date,
+        c.created_by,
+        c.org_name,
+        c.first_name,
+        c.last_name,
+        c.phone,
+        c.secondary_phone,
+        c.email,
+        c.address,
+        c.city,
+        c.state,
+        c.zip_code,
+        c.notes,
+        c.default_taxable,
+        c.is_active,
+        c.cusid,
+        case
+            when lower(coalesce(c.org_name, '')) = lower(p_search_term) then 1
+            when lower(coalesce(c.org_name, '')) like lower(p_search_term) || '%' then 2
+            when lower(btrim(coalesce(c.first_name, '') || ' ' || coalesce(c.last_name, ''))) = lower(p_search_term) then 3
+            when lower(coalesce(c.last_name, '')) = lower(p_search_term) or lower(coalesce(c.first_name, '')) = lower(p_search_term) then 4
+            when lower(coalesce(c.last_name, '')) like lower(p_search_term) || '%' or lower(coalesce(c.first_name, '')) like lower(p_search_term) || '%' then 5
+            when lower(coalesce(c.email, '')) = lower(p_search_term) then 6
+            when regexp_replace(coalesce(c.phone, ''), '\D', '', 'g') = regexp_replace(p_search_term, '\D', '', 'g') and regexp_replace(p_search_term, '\D', '', 'g') <> '' then 7
+            when regexp_replace(coalesce(c.secondary_phone, ''), '\D', '', 'g') = regexp_replace(p_search_term, '\D', '', 'g') and regexp_replace(p_search_term, '\D', '', 'g') <> '' then 7
+            when lower(coalesce(c.org_name, '')) like '%' || lower(p_search_term) || '%' then 8
+            when lower(btrim(coalesce(c.first_name, '') || ' ' || coalesce(c.last_name, ''))) like '%' || lower(p_search_term) || '%' then 9
+            when lower(coalesce(c.email, '')) like lower(p_search_term) || '%' then 10
+            when lower(coalesce(c.email, '')) like '%' || lower(p_search_term) || '%' then 11
+            when regexp_replace(coalesce(c.phone, ''), '\D', '', 'g') like '%' || regexp_replace(p_search_term, '\D', '', 'g') || '%' and regexp_replace(p_search_term, '\D', '', 'g') <> '' then 12
+            when regexp_replace(coalesce(c.secondary_phone, ''), '\D', '', 'g') like '%' || regexp_replace(p_search_term, '\D', '', 'g') || '%' and regexp_replace(p_search_term, '\D', '', 'g') <> '' then 12
+            else 999
+        end as match_rank
+    from public."Customer" c
+    where (p_include_inactive = true or coalesce(c.is_active, true) = true)
+      and (
+        lower(coalesce(c.org_name, '')) like '%' || lower(p_search_term) || '%'
+        or lower(coalesce(c.first_name, '')) like '%' || lower(p_search_term) || '%'
+        or lower(coalesce(c.last_name, '')) like '%' || lower(p_search_term) || '%'
+        or lower(coalesce(c.email, '')) like '%' || lower(p_search_term) || '%'
+        or (regexp_replace(p_search_term, '\D', '', 'g') <> '' and regexp_replace(coalesce(c.phone, ''), '\D', '', 'g') like '%' || regexp_replace(p_search_term, '\D', '', 'g') || '%')
+        or (regexp_replace(p_search_term, '\D', '', 'g') <> '' and regexp_replace(coalesce(c.secondary_phone, ''), '\D', '', 'g') like '%' || regexp_replace(p_search_term, '\D', '', 'g') || '%')
+      )
+),
+counted as (
+    select *, count(*) over() as total_count
+    from filtered
+)
+select
+    id,
+    created_date,
+    updated_date,
+    created_by,
+    org_name,
+    first_name,
+    last_name,
+    phone,
+    secondary_phone,
+    email,
+    address,
+    city,
+    state,
+    zip_code,
+    notes,
+    default_taxable,
+    is_active,
+    cusid,
+    match_rank,
+    total_count
+from counted
+order by
+    match_rank asc,
+    coalesce(org_name, btrim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))) asc
+limit greatest(p_limit, 1)
+offset greatest(p_offset, 0);
+$$;
