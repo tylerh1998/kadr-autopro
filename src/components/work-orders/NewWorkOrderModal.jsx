@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
-import { Customer, Vehicle, SystemSettings } from "@/entities/all"; // Added SystemSettings
+import { SystemSettings } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
@@ -36,8 +36,11 @@ export default function NewWorkOrderModal({
       const fetchData = async () => {
         setLoading(true);
         try {
-          const vehiclesData = await Vehicle.list();
-          setLocalVehicles(vehiclesData || []);
+          const vehiclesResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Vehicle'
+          });
+          setLocalVehicles(vehiclesResponse.data?.data || []);
           
           // Do not load customers initially, let the user search
           setLocalCustomers([]);
@@ -112,10 +115,13 @@ export default function NewWorkOrderModal({
     
     // Check for open work orders or estimates for this vehicle
     try {
-      const openWOs = await base44.entities.WorkOrder.filter({
-        vehicle_id: vehicle.id,
-        stage: { $in: ['estimate', 'work_order'] }
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'WorkOrder',
+        match: { vehicle_id: vehicle.id }
       });
+      
+      const openWOs = response.data?.data?.filter(wo => wo.stage === 'estimate' || wo.stage === 'work_order') || [];
       if (openWOs && openWOs.length > 0) {
         setHasOpenWO(true);
       }
@@ -179,10 +185,20 @@ export default function NewWorkOrderModal({
 
     // Reactivate customer or vehicle if they are inactive
     if (selectedCustomer.is_active === false) {
-      await Customer.update(selectedCustomer.id, { is_active: true });
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Customer',
+        id: selectedCustomer.id,
+        data: { is_active: true }
+      });
     }
     if (selectedVehicle.is_active === false) {
-      await Vehicle.update(selectedVehicle.id, { is_active: true });
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Vehicle',
+        id: selectedVehicle.id,
+        data: { is_active: true }
+      });
     }
 
     const numbers = await generateNumbers(stage);
@@ -234,7 +250,14 @@ export default function NewWorkOrderModal({
 
   const handleNewCustomerSubmit = async (customerData) => {
     try {
-      const newCustomer = await Customer.create(customerData);
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'Customer',
+        data: customerData
+      });
+      const newCustomer = response.data?.data?.[0];
+      if (!newCustomer) throw new Error("Failed to create customer");
+
       setLocalCustomers(prev => [newCustomer, ...prev]);
       handleCustomerSelect(newCustomer);
       setShowCustomerForm(false);
@@ -246,7 +269,14 @@ export default function NewWorkOrderModal({
 
   const handleNewVehicleSubmit = async (vehicleData) => {
     try {
-      const newVehicle = await Vehicle.create(vehicleData);
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'Vehicle',
+        data: vehicleData
+      });
+      const newVehicle = response.data?.data?.[0];
+      if (!newVehicle) throw new Error("Failed to create vehicle");
+      
       setLocalVehicles(prev => [newVehicle, ...prev]);
       handleVehicleSelect(newVehicle);
       setShowVehicleForm(false);
