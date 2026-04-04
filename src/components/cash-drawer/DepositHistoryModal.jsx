@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { BankTransaction, BankAccount } from '@/entities/all';
+import { BankTransaction, BankAccount, FiscalPeriod } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import DepositDetailsModal from './DepositDetailsModal';
 
@@ -24,50 +23,55 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const recentDeposits = await BankTransaction.filter(
-        { source_type: 'deposit' },
-        '-created_date',
-        100
-      );
+      const [recentDeposits, allBankAccounts, fiscalPeriods] = await Promise.all([
+        BankTransaction.filter({ source_type: 'deposit' }, '-created_date', 100),
+        BankAccount.list(),
+        FiscalPeriod.list()
+      ]);
 
-      const allBankAccounts = await BankAccount.list();
       const accountsMap = allBankAccounts.reduce((acc, account) => {
         acc[account.id] = account.name;
         return acc;
       }, {});
       setBankAccountsMap(accountsMap);
 
-      const depositsWithStatus = await Promise.all(
-        recentDeposits.map(async (dep) => {
-          let canReverse = true;
-          let reversalReason = '';
+      const depositsWithStatus = recentDeposits.map((dep) => {
+        let canReverse = true;
+        let reversalReason = '';
 
-          if (dep.cleared) {
-            canReverse = false;
-            reversalReason = 'Cleared';
-          } else if (dep.reconciled) {
-            canReverse = false;
-            reversalReason = 'Reconciled';
-          } else {
-            try {
-              const periodStatus = await checkFiscalPeriodStatus(dep.transaction_date);
-              if (periodStatus === 'closed') {
-                canReverse = false;
-                reversalReason = 'Fiscal Period Closed';
-              } else if (periodStatus === 'none') {
-                canReverse = false;
-                reversalReason = 'No Fiscal Period';
-              }
-            } catch (error) {
-              console.error('Error checking fiscal period status for deposit:', dep.id, error);
+        if (dep.cleared) {
+          canReverse = false;
+          reversalReason = 'Cleared';
+        } else if (dep.reconciled) {
+          canReverse = false;
+          reversalReason = 'Reconciled';
+        } else {
+          try {
+            const datePart = dep.transaction_date.split('T')[0];
+            const checkDate = new Date(datePart + 'T00:00:00Z');
+            
+            const period = fiscalPeriods.find(p => {
+              const start = new Date(p.start_date + 'T00:00:00Z');
+              const end = new Date(p.end_date + 'T00:00:00Z');
+              return checkDate >= start && checkDate <= end;
+            });
+
+            if (!period) {
               canReverse = false;
-              reversalReason = 'Fiscal Period Check Error';
+              reversalReason = 'No Fiscal Period';
+            } else if (period.is_closed) {
+              canReverse = false;
+              reversalReason = 'Fiscal Period Closed';
             }
+          } catch (error) {
+            console.error('Error checking fiscal period status for deposit:', dep.id, error);
+            canReverse = false;
+            reversalReason = 'Fiscal Period Check Error';
           }
+        }
 
-          return { ...dep, canReverse, reversalReason };
-        })
-      );
+        return { ...dep, canReverse, reversalReason };
+      });
       
       setDeposits(depositsWithStatus);
     } catch (error) {
