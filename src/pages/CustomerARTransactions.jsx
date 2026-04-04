@@ -407,66 +407,69 @@ export default function CustomerARTransactionsPage() {
     if (!adjustmentToDelete) return;
 
     try {
-      // Check fiscal period status
+      // Check fiscal period status — only block if the period is explicitly closed
       const periodStatus = await checkFiscalPeriodStatus(adjustmentToDelete.adjustment_date);
-      
-      if (!periodStatus.isValid) {
+      if (!periodStatus.isValid && periodStatus.message && periodStatus.message.includes('closed')) {
         alert('Cannot delete this adjustment as it was created in a closed fiscal period. You can record a new adjustment to reverse it if needed.');
         return;
       }
 
-      // Create reversing GL transactions
+      // Create reversing GL transactions (only if gl_account is set)
       const amount = Math.abs(adjustmentToDelete.amount);
       const isCharge = adjustmentToDelete.amount > 0;
       const glDescription = `Reversal: ${adjustmentToDelete.description}`;
       const reference = `REV-${adjustmentToDelete.reference || adjustmentToDelete.id}`;
 
-      if (isCharge) {
-        // Original was: Debit 1100, Credit gl_account
-        // Reversal: Debit gl_account, Credit 1100
-        await GLTransaction.create({
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
-          account_number: adjustmentToDelete.gl_account,
-          description: glDescription,
-          debit_amount: amount,
-          credit_amount: 0,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustmentToDelete.id
-        });
-        await GLTransaction.create({
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
-          account_number: '1100',
-          description: glDescription,
-          debit_amount: 0,
-          credit_amount: amount,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustmentToDelete.id
-        });
+      if (adjustmentToDelete.gl_account) {
+        if (isCharge) {
+          // Original was: Debit 1100, Credit gl_account
+          // Reversal: Debit gl_account, Credit 1100
+          await GLTransaction.create({
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            account_number: adjustmentToDelete.gl_account,
+            description: glDescription,
+            debit_amount: amount,
+            credit_amount: 0,
+            reference: reference,
+            source_type: 'adjustment',
+            source_id: adjustmentToDelete.id
+          });
+          await GLTransaction.create({
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            account_number: '1100',
+            description: glDescription,
+            debit_amount: 0,
+            credit_amount: amount,
+            reference: reference,
+            source_type: 'adjustment',
+            source_id: adjustmentToDelete.id
+          });
+        } else {
+          // Original was: Debit gl_account, Credit 1100
+          // Reversal: Debit 1100, Credit gl_account
+          await GLTransaction.create({
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            account_number: '1100',
+            description: glDescription,
+            debit_amount: amount,
+            credit_amount: 0,
+            reference: reference,
+            source_type: 'adjustment',
+            source_id: adjustmentToDelete.id
+          });
+          await GLTransaction.create({
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+            account_number: adjustmentToDelete.gl_account,
+            description: glDescription,
+            debit_amount: 0,
+            credit_amount: amount,
+            reference: reference,
+            source_type: 'adjustment',
+            source_id: adjustmentToDelete.id
+          });
+        }
       } else {
-        // Original was: Debit gl_account, Credit 1100
-        // Reversal: Debit 1100, Credit gl_account
-        await GLTransaction.create({
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
-          account_number: '1100',
-          description: glDescription,
-          debit_amount: amount,
-          credit_amount: 0,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustmentToDelete.id
-        });
-        await GLTransaction.create({
-          transaction_date: format(new Date(), 'yyyy-MM-dd'),
-          account_number: adjustmentToDelete.gl_account,
-          description: glDescription,
-          debit_amount: 0,
-          credit_amount: amount,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustmentToDelete.id
-        });
+        console.warn('Adjustment has no gl_account set — skipping GL reversal entries for adjustment:', adjustmentToDelete.id);
       }
 
       // Delete the adjustment
