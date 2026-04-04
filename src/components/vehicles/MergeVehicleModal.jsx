@@ -41,8 +41,11 @@ export default function MergeVehicleModal({ open, onClose, onMergeComplete, mast
         });
         
         if (response?.data?.vehicles) {
-          // Filter out the master vehicle from results
-          setSearchResults(response.data.vehicles.filter(v => v.id !== masterVehicle?.id));
+          // Filter out the master vehicle from results, and only keep vehicles from the SAME customer
+          setSearchResults(response.data.vehicles.filter(v => 
+            v.id !== masterVehicle?.id && 
+            v.customer_id === masterVehicle?.customer_id
+          ));
         } else {
           setSearchResults([]);
         }
@@ -129,7 +132,7 @@ export default function MergeVehicleModal({ open, onClose, onMergeComplete, mast
           <div className="space-y-4">
             <div className="bg-blue-50 p-3 rounded-md border border-blue-200 text-sm mb-4">
               <span className="font-bold">Master Vehicle:</span> {getVehicleName(masterVehicle)}
-              <div className="text-xs text-gray-500 mt-1">Search for the vehicle you want to merge INTO this master vehicle.</div>
+              <div className="text-xs text-gray-500 mt-1">Search for the vehicle you want to merge INTO this master vehicle. Only vehicles belonging to the same customer can be selected.</div>
             </div>
 
             <div className="relative">
