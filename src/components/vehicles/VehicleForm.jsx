@@ -45,22 +45,60 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     return name;
   };
 
+  const [localCustomers, setLocalCustomers] = useState(customers || []);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+
   useEffect(() => {
-    if (formData.customer_id && customers) {
-      const c = customers.find(c => c.id === formData.customer_id);
-      if (c) setCustomerSearchTerm(getCustomerDisplayName(c));
+    if (formData.customer_id) {
+      const c = localCustomers.find(c => c.id === formData.customer_id) || customers?.find(c => c.id === formData.customer_id);
+      if (c) {
+        if (!localCustomers.some(lc => lc.id === c.id)) {
+          setLocalCustomers(prev => [...prev, c]);
+        }
+        setCustomerSearchTerm(getCustomerDisplayName(c));
+      }
     } else {
       setCustomerSearchTerm("");
     }
   }, [formData.customer_id, customers]);
 
-  const filteredCustomers = customers?.filter(c => {
-    const selected = customers?.find(x => x.id === formData.customer_id);
-    if (selected && getCustomerDisplayName(selected) === customerSearchTerm) {
-      return true;
+  useEffect(() => {
+    if (!customerSearchOpen) {
+      if (!customerSearchTerm && customers && customers.length > 0) {
+        setLocalCustomers(customers);
+      }
+      return;
     }
-    return getCustomerDisplayName(c).toLowerCase().includes(customerSearchTerm.toLowerCase());
-  }) || [];
+    
+    let isMounted = true;
+    const searchDb = async () => {
+      setLoadingCustomers(true);
+      try {
+        const response = await base44.functions.invoke('searchCustomers', { 
+          searchTerm: customerSearchTerm,
+          includeInactive: false 
+        });
+        if (response.data.success && isMounted) {
+          setLocalCustomers(response.data.customers || []);
+        }
+      } catch (error) {
+        console.error("Failed to search customers:", error);
+      } finally {
+        if (isMounted) setLoadingCustomers(false);
+      }
+    };
+    
+    const timeoutId = setTimeout(() => {
+      searchDb();
+    }, 400);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [customerSearchTerm, customerSearchOpen, customers]);
+
+  const filteredCustomers = localCustomers || [];
 
   useEffect(() => {
     if (vehicle) {
@@ -183,7 +221,11 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               </PopoverTrigger>
               <PopoverContent className="p-0 w-[400px] max-w-[90vw]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
-                  {filteredCustomers.length === 0 ? (
+                  {loadingCustomers ? (
+                    <div className="py-6 text-center text-sm text-slate-500">
+                      Searching...
+                    </div>
+                  ) : filteredCustomers.length === 0 ? (
                     <div className="py-6 text-center text-sm text-slate-500">
                       No customers found.
                     </div>
