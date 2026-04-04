@@ -52,7 +52,7 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
 
   const filteredVehicles = includeInactive 
     ? vehicles 
-    : vehicles.filter(v => v.is_active !== false);
+    : vehicles.filter(v => v.is_active !== false && String(v.is_active).toLowerCase() !== 'false');
 
   return (
     <>
