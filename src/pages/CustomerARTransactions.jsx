@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Customer, CustomerPayments, CustomerARAdjustment, GLTransaction, FiscalPeriod } from '@/entities/all';
+import { Customer, GLTransaction, FiscalPeriod } from '@/entities/all';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -198,7 +198,8 @@ export default function CustomerARTransactionsPage() {
   const handleRecordAdjustment = async (adjustmentData) => {
     try {
       // Create the CustomerARAdjustment record
-      const adjustment = await CustomerARAdjustment.create(adjustmentData);
+      const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: adjustmentData });
+      const adjustment = res.data.data;
       
       const amount = Math.abs(adjustmentData.amount);
       const isCharge = adjustmentData.amount > 0;
@@ -271,7 +272,8 @@ export default function CustomerARTransactionsPage() {
       // Fetch the actual CustomerPayments record to get ar_applyto
       // The transaction object constructed in useMemo might not have all details,
       // especially ar_applyto array, which is crucial for the details modal.
-      const paymentRecord = await CustomerPayments.get(transaction.sourceId);
+      const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: transaction.sourceId });
+      const paymentRecord = res.data.data;
       setSelectedPaymentForDetails(paymentRecord);
       setShowPaymentDetailsModal(true);
     } catch (error) {
@@ -289,7 +291,8 @@ export default function CustomerARTransactionsPage() {
       }
       
       // Fetch the full payment record
-      const paymentRecord = await CustomerPayments.get(transaction.sourceId);
+      const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: transaction.sourceId });
+      const paymentRecord = res.data.data;
       
       // Validate that payment hasn't been deposited
       if (paymentRecord.deposited === true) {
@@ -314,7 +317,7 @@ export default function CustomerARTransactionsPage() {
       if (!arApplyTo) {
         // If there's no ar_applyto, it implies the payment was potentially an unapplied credit (though ar_pmt true usually means it was applied)
         // or a payment that didn't apply to anything explicitly (e.g., initial credit). Just delete it.
-        await CustomerPayments.delete(paymentToDelete.id);
+        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentToDelete.id });
       } else {
         // Parse ar_applyto string: "id1:amount1,id2:amount2,..."
         const entries = arApplyTo.split(',').filter(e => e.trim());
@@ -328,12 +331,13 @@ export default function CustomerARTransactionsPage() {
           let updated = false;
           // Try to update CustomerPayments (e.g., if it was an invoice created as a payment type 'on_account')
           try {
-            const payment = await CustomerPayments.get(recordId);
+            const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
+            const payment = res?.data?.data;
             if (payment) {
               const newArPaid = Math.max(0, (payment.ar_paid || 0) - amountApplied);
-              await CustomerPayments.update(recordId, {
+              await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: recordId, data: {
                 ar_paid: newArPaid
-              });
+              } });
               console.log(`Reversed $${amountApplied.toFixed(2)} from CustomerPayments record ${recordId}, new ar_paid: ${newArPaid}`);
               updated = true;
             }
@@ -345,12 +349,13 @@ export default function CustomerARTransactionsPage() {
           // If not updated, try to update CustomerARAdjustment record
           if (!updated) {
             try {
-              const adjustment = await CustomerARAdjustment.get(recordId);
+              const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
+              const adjustment = res?.data?.data;
               if (adjustment) {
                 const newArPaid = Math.max(0, (adjustment.ar_paid || 0) - amountApplied);
-                await CustomerARAdjustment.update(recordId, {
+                await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'update', id: recordId, data: {
                   ar_paid: newArPaid
-                });
+                } });
                 console.log(`Reversed $${amountApplied.toFixed(2)} from CustomerARAdjustment record ${recordId}, new ar_paid: ${newArPaid}`);
                 updated = true;
               }
@@ -365,7 +370,7 @@ export default function CustomerARTransactionsPage() {
         }
         
         // After reversing all applications, delete the payment record itself
-        await CustomerPayments.delete(paymentToDelete.id);
+        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentToDelete.id });
       }
       
       console.log('Payment deleted successfully:', paymentToDelete.id);
@@ -388,7 +393,8 @@ export default function CustomerARTransactionsPage() {
     }
 
     try {
-      const adjustment = await CustomerARAdjustment.get(transaction.sourceId);
+      const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: transaction.sourceId });
+      const adjustment = res.data.data;
       setAdjustmentToDelete(adjustment);
       setShowDeleteAdjustmentConfirm(true);
     } catch (error) {
@@ -464,7 +470,7 @@ export default function CustomerARTransactionsPage() {
       }
 
       // Delete the adjustment
-      await CustomerARAdjustment.delete(adjustmentToDelete.id);
+      await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'delete', id: adjustmentToDelete.id });
 
       console.log('Adjustment deleted with reversing GL transactions:', adjustmentToDelete.id);
 

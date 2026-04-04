@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
-import { CustomerPayments, CustomerARAdjustment, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
+import { GLTransaction } from '@/entities/all';
 
 export default function TakePaymentModal({ open, onClose, customer, invoices = [], onTakePayment, onPaymentComplete }) {
   const [paymentDate, setPaymentDate] = useState(new Date());
@@ -30,10 +31,12 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       if (!customer || !open) return;
 
       try {
-        const [allPayments, allAdjustments] = await Promise.all([
-          CustomerPayments.filter({ customer_id: customer.id }),
-          CustomerARAdjustment.filter({ customer_id: customer.id })
+        const [paymentsRes, adjustmentsRes] = await Promise.all([
+          base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { customer_id: customer.id } }),
+          base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'filter', match: { customer_id: customer.id } })
         ]);
+        const allPayments = paymentsRes?.data?.data || [];
+        const allAdjustments = adjustmentsRes?.data?.data || [];
 
         const charges = [];
 
@@ -132,7 +135,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         const feeReference = `CCFEE-${format(paymentDate, 'yyyyMMdd')}-${Date.now()}`;
         
         // Create the AR adjustment for the credit card fee
-        const feeAdjustment = await CustomerARAdjustment.create({
+        const feeAdjRes = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: {
           customer_id: customer.id,
           adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
           amount: creditCardFeeAmount,
@@ -140,7 +143,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: 'Credit Card Processing Fee (3%)',
           reference: '',
           ar_paid: creditCardFeeAmount // Immediately paid by this payment
-        });
+        } });
+        const feeAdjustment = feeAdjRes.data.data;
 
         // Create GL entries: Debit 1100 (AR), Credit 4009 (CC Fees Collected)
         await GLTransaction.create({
@@ -172,7 +176,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       }
 
       // Step 2: Create the CustomerPayments record
-      const newPaymentRecord = await CustomerPayments.create({
+      const newPaymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: {
         customer_id: customer.id,
         amount: totalAmountWithFee,
         payment_method: paymentMethod,
@@ -181,7 +185,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         notes: `AR Payment for ${customer.first_name} ${customer.last_name}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`,
         ar_pmt: true,
         ar_applyto: '' // Will be updated after applying to charges
-      });
+      } });
+      const newPaymentRecord = newPaymentRes.data.data;
 
       console.log('Created payment record:', newPaymentRecord);
 
@@ -240,13 +245,13 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
         // Update the charge's ar_paid field
         if (charge.type === 'invoice') {
-          await CustomerPayments.update(charge.id, {
+          await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: charge.id, data: {
             ar_paid: newArPaid
-          });
+          } });
         } else if (charge.type === 'adjustment') {
-          await CustomerARAdjustment.update(charge.id, {
+          await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'update', id: charge.id, data: {
             ar_paid: newArPaid
-          });
+          } });
         }
 
         // Add to ar_applyto string
@@ -259,7 +264,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       // Step 4b: Handle overpayment - create credit adjustment for unapplied amount
       const overpaymentAmount = paymentAmount - totalApplied;
       if (overpaymentAmount > 0.01) {
-        const overpaymentAdjustment = await CustomerARAdjustment.create({
+        const overpaymentRes = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: {
           customer_id: customer.id,
           adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
           amount: -overpaymentAmount,
@@ -267,7 +272,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           description: 'Overpayment',
           ar_paid: 0,
           overpayment: true
-        });
+        } });
+        const overpaymentAdjustment = overpaymentRes.data.data;
 
         // Create GL entries for overpayment: Debit 1100 (AR), Credit 2100 (Payments in Advance)
         await GLTransaction.create({
@@ -300,9 +306,9 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
       // Step 5: Update the payment record with ar_applyto
       const arApplyToString = applyToEntries.join(',');
-      await CustomerPayments.update(newPaymentRecord.id, {
+      await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: newPaymentRecord.id, data: {
         ar_applyto: arApplyToString
-      });
+      } });
 
       console.log('Payment application complete. ar_applyto:', arApplyToString);
 
@@ -320,7 +326,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       setShowPaymentDetailsDialog(false);
       
       // Fetch the updated payment record with ar_applyto populated
-      const updatedPaymentRecord = await CustomerPayments.get(newPaymentRecord.id);
+      const updatedPaymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: newPaymentRecord.id });
+      const updatedPaymentRecord = updatedPaymentRes.data.data;
       
       // Close modal and notify parent to open payment details
       onClose();
