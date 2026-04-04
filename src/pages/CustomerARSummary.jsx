@@ -39,7 +39,7 @@ export default function CustomerARSummaryPage() {
     setLoading(true);
     try {
       // Fetch AR summary data from backend
-      const response = await base44.functions.invoke('getCustomerARSummary', { 
+      const response = await base44.functions.invoke('supabaseCustomerARSummary', { 
         searchTerm: activeSearchTerm,
         showOnlyWithBalance,
         asOfDate
