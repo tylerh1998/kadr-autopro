@@ -197,7 +197,8 @@ export default function InvoicePaymentModal({
       setLoading(true);
 
       // Validation: Check CustomerPayments entity
-      const cp = await base44.entities.CustomerPayments.get(payment.id);
+      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: payment.id });
+      const cp = cpRes.data?.data;
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");
