@@ -93,7 +93,7 @@ export default function NewWorkOrderModal({
   const filteredCustomers = activeSearchTerm ? (localCustomers || []) : [];
 
   const customerVehicles = (localVehicles || []).filter(v => 
-    v.customer_id === selectedCustomer?.id && (includeInactive || v.is_active !== false)
+    v.customer_id === selectedCustomer?.id && (includeInactive || (v.is_active !== false && String(v.is_active).toLowerCase() !== 'false'))
   );
 
   const getCustomerDisplayName = (customer) => {
