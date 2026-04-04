@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { WorkOrder, Customer } from '@/entities/all';
+// Using supabase proxy for entities
 import { format, parseISO } from 'date-fns';
 import { Loader2, FileText, Mail } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -24,7 +24,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         // Fetch customer email
         if (paymentRecord.customer_id) {
           try {
-            const customer = await Customer.get(paymentRecord.customer_id);
+            const res = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: paymentRecord.customer_id });
+            const customer = res?.data?.data;
             setCustomerEmail(customer?.email || null);
           } catch (e) {
             console.warn('Could not fetch customer:', e);
@@ -64,7 +65,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
               
               if (payment.work_order_id) {
                 try {
-                  const wo = await WorkOrder.get(payment.work_order_id);
+                  const woRes = await base44.functions.invoke('supabaseWorkOrder', { action: 'get', id: payment.work_order_id });
+                  const wo = woRes?.data?.data;
                   if (wo) {
                     description = wo.description || description;
                     reference = wo.inv_number || payment.invoice_number || wo.ro_number || '';

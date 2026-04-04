@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
         console.log('generateARReceiptPDF: Processing payment ID:', paymentId);
 
         // Fetch the payment record
-        const paymentRes = await base44.asServiceRole.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentId });
+        const paymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentId });
         const payment = paymentRes?.data?.data;
         if (!payment) {
             return Response.json({ error: 'Payment not found' }, { status: 404 });
@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
         console.log('generateARReceiptPDF: Found payment:', payment);
 
         // Fetch the customer details
-        const customer = await base44.asServiceRole.entities.Customer.get(payment.customer_id);
+        const customerRes = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: payment.customer_id });
+        const customer = customerRes?.data?.data;
         if (!customer) {
             return Response.json({ error: 'Customer not found' }, { status: 404 });
         }
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
 
                 // Try to fetch as CustomerPayments (invoice)
                 try {
-                    const res = await base44.asServiceRole.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
+                    const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
                     const customerPayment = res?.data?.data;
                     if (customerPayment) {
                         let description = customerPayment.notes || 'Invoice';
@@ -59,7 +60,8 @@ Deno.serve(async (req) => {
                         
                         if (customerPayment.work_order_id) {
                             try {
-                                const wo = await base44.asServiceRole.entities.WorkOrder.get(customerPayment.work_order_id);
+                                const woRes = await base44.functions.invoke('supabaseWorkOrder', { action: 'get', id: customerPayment.work_order_id });
+                                const wo = woRes?.data?.data;
                                 if (wo) {
                                     description = wo.description || description;
                                     reference = wo.inv_number || customerPayment.invoice_number || wo.ro_number || '';
@@ -84,7 +86,7 @@ Deno.serve(async (req) => {
 
                 // Try to fetch as CustomerARAdjustment
                 try {
-                    const res = await base44.asServiceRole.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
+                    const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
                     const adjustment = res?.data?.data;
                     if (adjustment) {
                         appliedDetails.push({
