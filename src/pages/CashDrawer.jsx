@@ -62,38 +62,33 @@ export default function CashDrawerPage() {
     try {
         console.log('Loading cash drawer data');
 
-        // Load all payments that are not deposited
-        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
-        const allPayments = allPaymentsRes?.data?.data || [];
-        console.log('All payments:', allPayments);
-
-        // Filter for not deposited only
-        const paymentsData = allPayments.filter(payment => {
-          const isNotDeposited = !payment.deposited;
-          console.log(`Payment ${payment.id}: deposited=${payment.deposited}, include=${isNotDeposited}`);
-          return isNotDeposited;
+        // Load non-deposited payments directly from Supabase
+        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
+            action: 'filter', 
+            match: { deposited: false } 
         });
-
+        const paymentsData = allPaymentsRes?.data?.data || [];
         console.log('Filtered payments for cash drawer:', paymentsData);
 
-        // Load all adjustments that are not deposited
-        const allAdjustments = await CashDrawerAdjustment.list();
-        console.log('All adjustments:', allAdjustments);
-
-        // Filter for not deposited only
-        const adjustmentsData = allAdjustments.filter(adj => !adj.deposited);
+        // Load non-deposited adjustments directly
+        const adjustmentsData = await CashDrawerAdjustment.filter({ deposited: false });
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
         const bankAccountsData = await BankAccount.filter({ is_active: true });
         
         // Load recent adjustments (last 10 for the modal history)
-        const recentAdjustments = allAdjustments.slice(0, 10);
+        const recentAdjustments = await CashDrawerAdjustment.list('-created_date', 10);
 
-        // Get unique customer IDs to fetch customer names
+        // Get unique customer IDs to fetch customer names in bulk
         const customerIds = [...new Set(paymentsData.map(p => p.customer_id))];
-        const customers = await Promise.all(
-          customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
-        );
+        let customers = [];
+        if (customerIds.length > 0) {
+            const customersRes = await base44.functions.invoke('supabaseCustomer', { 
+                action: 'get_multiple', 
+                data: { ids: customerIds } 
+            });
+            customers = customersRes?.data?.data || [];
+        }
         const customerMap = customers.reduce((acc, customer) => {
           if (customer) {
             // Prefer org_name, then full name
@@ -600,18 +595,24 @@ export default function CashDrawerPage() {
       }
 
       // Fallback: Fetch from CustomerPayments and CashDrawerAdjustments
-      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
-      const allPayments = allPaymentsRes?.data?.data || [];
-      const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
+      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
+          action: 'filter', 
+          match: { deposit_batch_id: batchId } 
+      });
+      const batchPayments = allPaymentsRes?.data?.data || [];
 
-      const allAdjustments = await CashDrawerAdjustment.list();
-      const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === batchId);
+      const batchAdjustments = await CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
 
-      // Get customer names for the payments
+      // Get customer names for the payments in bulk
       const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
-      const customers = await Promise.all(
-        customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
-      );
+      let customers = [];
+      if (customerIds.length > 0) {
+          const customersRes = await base44.functions.invoke('supabaseCustomer', { 
+              action: 'get_multiple', 
+              data: { ids: customerIds } 
+          });
+          customers = customersRes?.data?.data || [];
+      }
       const customerMap = customers.reduce((acc, customer) => {
         if (customer) {
           acc[customer.id] = `${customer.first_name} ${customer.last_name}`;

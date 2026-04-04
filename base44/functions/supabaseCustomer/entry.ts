@@ -24,6 +24,9 @@ Deno.serve(async (req) => {
       case 'filter':
         result = await supabase.from('Customer').select('*').match(match || {});
         break;
+      case 'get_multiple':
+        result = await supabase.from('Customer').select('*').in('id', data?.ids || []);
+        break;
       case 'get':
         result = await supabase.from('Customer').select('*').eq('id', id).single();
         break;
