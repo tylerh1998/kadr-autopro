@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
-import { Statement, CustomerPayments, CustomerARAdjustment } from '@/entities/all';
+import { Statement } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import StatementEmailModal from './StatementEmailModal';
 
@@ -38,11 +38,9 @@ export default function StatementModal({ open, onClose, customer }) {
           ];
           setTransactions(allTransactions);
 
-          // 2. Fetch additional data needed for aging calculations
-          const [allCustomerPayments, customerAdj] = await Promise.all([
-            CustomerPayments.filter({ customer_id: customer.id }),
-            CustomerARAdjustment.filter({ customer_id: customer.id })
-          ]);
+          // 2. Extract additional data needed for aging calculations from the backend response
+          const allCustomerPayments = transactionsResponse.data.allPayments || [];
+          const customerAdj = transactionsResponse.data.allAdjustments || [];
 
           // 3. Calculate aged balances using logic from AR Summary
           const today = new Date();

@@ -249,7 +249,9 @@ Deno.serve(async (req) => {
       allTimeBalance,
       openingBalance,
       transactionsTab,
-      paymentsTab
+      paymentsTab,
+      allPayments,
+      allAdjustments
     });
 
   } catch (error) {
