@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
             { data: adjustmentsData, error: adjustmentsError }
         ] = await Promise.all([
             supabase.from('Vehicle').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
-            supabase.from('WorkOrder').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
+            supabase.from('WorkOrder').update({ customer_id: masterId, updated_at: now }).eq('customer_id', duplicateId).select('id'),
             supabase.from('CustomerPayments').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
             supabase.from('CustomerARAdjustment').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id')
         ]);
@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
         });
 
     } catch (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        console.error("Merge Customers Error:", error);
+        return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
     }
 });

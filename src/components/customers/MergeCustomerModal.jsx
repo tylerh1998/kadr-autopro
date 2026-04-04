@@ -81,7 +81,8 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
       onClose();
     } catch (error) {
       console.error("Merge failed:", error);
-      alert(`Merge failed: ${error.message}`);
+      const serverError = error.response?.data?.error || error.message;
+      alert(`Merge failed: ${serverError}`);
     } finally {
       setMerging(false);
     }
