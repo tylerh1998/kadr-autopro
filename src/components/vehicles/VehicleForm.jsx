@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Save, X, Car, Loader2, Merge } from "lucide-react";
+import { Save, X, Car, Loader2, Merge, Search, Check } from "lucide-react";
 import { base44 } from '@/api/base44Client'; // Added base44 import
 import MergeVehicleModal from './MergeVehicleModal';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, isSubmitting }) {
   const [showMergeModal, setShowMergeModal] = useState(false);
@@ -29,6 +30,37 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
   });
   const [decoding, setDecoding] = useState(false); // Renamed from isDecodingVin
   const prevVehicleRef = useRef(vehicle);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return "";
+    const org = customer.org_name?.trim();
+    const first = customer.first_name?.trim() || "";
+    const last = customer.last_name?.trim() || "";
+    const name = `${first} ${last}`.trim();
+    if (org) {
+      return name ? `${org} (${name})` : org;
+    }
+    return name;
+  };
+
+  useEffect(() => {
+    if (formData.customer_id && customers) {
+      const c = customers.find(c => c.id === formData.customer_id);
+      if (c) setCustomerSearchTerm(getCustomerDisplayName(c));
+    } else {
+      setCustomerSearchTerm("");
+    }
+  }, [formData.customer_id, customers]);
+
+  const filteredCustomers = customers?.filter(c => {
+    const selected = customers?.find(x => x.id === formData.customer_id);
+    if (selected && getCustomerDisplayName(selected) === customerSearchTerm) {
+      return true;
+    }
+    return getCustomerDisplayName(c).toLowerCase().includes(customerSearchTerm.toLowerCase());
+  }) || [];
 
   useEffect(() => {
     if (vehicle) {
@@ -132,20 +164,52 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="customer_id">Customer *</Label>
-            <Select value={formData.customer_id} onValueChange={(value) => handleChange('customer_id', value)}>
-              <SelectTrigger id="customer_id">
-                <SelectValue placeholder="Select a customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers?.map(customer => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.org_name 
-                      ? `${customer.org_name} ${customer.first_name || customer.last_name ? `(${customer.first_name} ${customer.last_name})` : ''}`
-                      : `${customer.first_name} ${customer.last_name}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+              <PopoverTrigger asChild>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search or select a customer..."
+                    value={customerSearchTerm}
+                    onChange={(e) => {
+                      setCustomerSearchTerm(e.target.value);
+                      if (formData.customer_id) handleChange('customer_id', ""); // Clear ID if they start typing
+                      setCustomerSearchOpen(true);
+                    }}
+                    onFocus={() => setCustomerSearchOpen(true)}
+                    className="pl-9"
+                  />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[400px] max-w-[90vw]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                  {filteredCustomers.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-slate-500">
+                      No customers found.
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {filteredCustomers.map((customer) => (
+                        <div
+                          key={customer.id}
+                          onClick={() => {
+                            handleChange('customer_id', customer.id);
+                            setCustomerSearchTerm(getCustomerDisplayName(customer));
+                            setCustomerSearchOpen(false);
+                          }}
+                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                        >
+                          <span className="font-medium text-slate-900">{getCustomerDisplayName(customer)}</span>
+                          {formData.customer_id === customer.id && (
+                            <Check className="h-4 w-4 text-green-600" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
