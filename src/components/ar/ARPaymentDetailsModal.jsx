@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CustomerPayments, CustomerARAdjustment, WorkOrder, Customer } from '@/entities/all';
+import { WorkOrder, Customer } from '@/entities/all';
 import { format, parseISO } from 'date-fns';
 import { Loader2, FileText, Mail } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
@@ -55,7 +55,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
           // Try to fetch as CustomerPayments (invoice)
           try {
-            const payment = await CustomerPayments.get(recordId);
+            const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
+            const payment = res?.data?.data;
             if (payment) {
               // Fetch work order for description and reference
               let description = payment.notes || 'Invoice';
@@ -89,7 +90,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
           // Try to fetch as CustomerARAdjustment
           try {
-            const adjustment = await CustomerARAdjustment.get(recordId);
+            const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
+            const adjustment = res?.data?.data;
             if (adjustment) {
               const isOverpayment = adjustment.amount < 0 && adjustment.reference && adjustment.reference.startsWith('OVERPMT');
               details.push({

@@ -20,7 +20,8 @@ Deno.serve(async (req) => {
         console.log('generateARReceiptPDF: Processing payment ID:', paymentId);
 
         // Fetch the payment record
-        const payment = await base44.asServiceRole.entities.CustomerPayments.get(paymentId);
+        const paymentRes = await base44.asServiceRole.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentId });
+        const payment = paymentRes?.data?.data;
         if (!payment) {
             return Response.json({ error: 'Payment not found' }, { status: 404 });
         }
@@ -50,7 +51,8 @@ Deno.serve(async (req) => {
 
                 // Try to fetch as CustomerPayments (invoice)
                 try {
-                    const customerPayment = await base44.asServiceRole.entities.CustomerPayments.get(recordId);
+                    const res = await base44.asServiceRole.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
+                    const customerPayment = res?.data?.data;
                     if (customerPayment) {
                         let description = customerPayment.notes || 'Invoice';
                         let reference = customerPayment.invoice_number || '';
@@ -82,7 +84,8 @@ Deno.serve(async (req) => {
 
                 // Try to fetch as CustomerARAdjustment
                 try {
-                    const adjustment = await base44.asServiceRole.entities.CustomerARAdjustment.get(recordId);
+                    const res = await base44.asServiceRole.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
+                    const adjustment = res?.data?.data;
                     if (adjustment) {
                         appliedDetails.push({
                             type: adjustment.amount > 0 ? 'Charge' : 'Credit',
