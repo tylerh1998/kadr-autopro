@@ -1,4 +1,18 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
 
 Deno.serve(async (req) => {
     try {
@@ -19,9 +33,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Cannot merge a vehicle into itself' }, { status: 400 });
         }
 
+        const supabase = createSupabaseClient();
+
         // Fetch both vehicles
-        const [masterVehicle] = await base44.entities.Vehicle.filter({ id: masterId });
-        const [duplicateVehicle] = await base44.entities.Vehicle.filter({ id: duplicateId });
+        const [
+            { data: masterVehicle },
+            { data: duplicateVehicle }
+        ] = await Promise.all([
+            supabase.from('Vehicle').select('*').eq('id', masterId).single(),
+            supabase.from('Vehicle').select('*').eq('id', duplicateId).single()
+        ]);
 
         if (!masterVehicle || !duplicateVehicle) {
             return Response.json({ error: 'One or both vehicles not found' }, { status: 404 });
@@ -62,27 +83,32 @@ Deno.serve(async (req) => {
         // Handle notes - append duplicate notes to master
         if (!isEmpty(duplicateVehicle.notes)) {
             const separator = masterVehicle.notes ? '\n\n' : '';
-            const duplicateInfo = `${duplicateVehicle.year} ${duplicateVehicle.make} ${duplicateVehicle.model}`;
+            const duplicateInfo = `${duplicateVehicle.year || ''} ${duplicateVehicle.make || ''} ${duplicateVehicle.model || ''}`;
             updatesToMaster.notes = (masterVehicle.notes || '') + separator + 
-                                   `--- Merged Data from ${duplicateInfo} (${duplicateVehicle.vin || 'No VIN'}) ---\n` + 
+                                   `--- Merged Data from ${duplicateInfo.trim()} (${duplicateVehicle.vin || 'No VIN'}) ---\n` + 
                                    duplicateVehicle.notes;
         }
 
+        const now = new Date().toISOString();
+
         if (Object.keys(updatesToMaster).length > 0) {
-            await base44.entities.Vehicle.update(masterId, updatesToMaster);
+            updatesToMaster.updated_date = now;
+            const { error: masterUpdateError } = await supabase.from('Vehicle').update(updatesToMaster).eq('id', masterId);
+            if (masterUpdateError) throw masterUpdateError;
         }
 
         // 2. Reassign Related Records
         
-        // Work Orders
-        const workOrders = await base44.entities.WorkOrder.filter({ vehicle_id: duplicateId }, undefined, 1000);
-        if (workOrders.length > 0) {
-            await Promise.all(workOrders.map(wo => 
-                base44.entities.WorkOrder.update(wo.id, { vehicle_id: masterId })
-            ));
-        }
+        // Work Orders (Supabase)
+        const { data: workOrdersData, error: workOrdersError } = await supabase
+            .from('WorkOrder')
+            .update({ vehicle_id: masterId, updated_at: now })
+            .eq('vehicle_id', duplicateId)
+            .select('id');
+            
+        if (workOrdersError) throw workOrdersError;
 
-        // Appointments
+        // Appointments (Base44)
         const appointments = await base44.entities.Appointment.filter({ vehicle_id: duplicateId }, undefined, 1000);
         if (appointments.length > 0) {
             await Promise.all(appointments.map(app => 
@@ -91,27 +117,31 @@ Deno.serve(async (req) => {
         }
 
         // 3. Deactivate Duplicate Vehicle and Update Audit Trail
-        const masterInfo = `${masterVehicle.year} ${masterVehicle.make} ${masterVehicle.model}`;
-        const auditNote = `merged into ${masterInfo} - ${masterId} for audit trail creation`;
+        const masterInfo = `${masterVehicle.year || ''} ${masterVehicle.make || ''} ${masterVehicle.model || ''}`;
+        const auditNote = `merged into ${masterInfo.trim()} - ${masterId} for audit trail creation`;
         
         const currentNotes = duplicateVehicle.notes || '';
         const newNotes = currentNotes ? `${currentNotes}\n\n${auditNote}` : auditNote;
 
-        await base44.entities.Vehicle.update(duplicateId, {
+        const { error: duplicateUpdateError } = await supabase.from('Vehicle').update({
             is_active: false,
-            notes: newNotes
-        });
+            notes: newNotes,
+            updated_date: now
+        }).eq('id', duplicateId);
+
+        if (duplicateUpdateError) throw duplicateUpdateError;
 
         return Response.json({ 
             success: true, 
             message: 'Vehicles merged successfully',
             mergedCount: {
-                workOrders: workOrders.length,
+                workOrders: workOrdersData?.length || 0,
                 appointments: appointments.length
             }
         });
 
     } catch (error) {
-        return Response.json({ error: error.message }, { status: 500 });
+        console.error("Merge Vehicles Error:", error);
+        return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
     }
 });
