@@ -83,10 +83,16 @@ Deno.serve(async (req) => {
 
     const supabase = createSupabaseClient();
 
-    const [allPayments, allAdjustments] = await Promise.all([
-      base44.entities.CustomerPayments.filter({ customer_id: customerId }),
-      base44.entities.CustomerARAdjustment.filter({ customer_id: customerId })
+    const [paymentsResponse, adjustmentsResponse] = await Promise.all([
+      supabase.from('CustomerPayments').select('*').eq('customer_id', customerId),
+      supabase.from('CustomerARAdjustment').select('*').eq('customer_id', customerId)
     ]);
+
+    if (paymentsResponse.error) throw paymentsResponse.error;
+    if (adjustmentsResponse.error) throw adjustmentsResponse.error;
+
+    const allPayments = paymentsResponse.data || [];
+    const allAdjustments = adjustmentsResponse.data || [];
 
     const workOrderLookupValues = [
       ...allPayments.map((payment) => payment?.work_order_id),

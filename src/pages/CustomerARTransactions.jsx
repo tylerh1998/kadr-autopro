@@ -99,8 +99,14 @@ export default function CustomerARTransactionsPage() {
     
     setLoading(true);
     try {
-      const customerData = await Customer.get(customerId);
-      setCustomer(customerData);
+      const customerRes = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: customerId });
+      if (customerRes.data && customerRes.data.data) {
+        setCustomer(customerRes.data.data);
+      } else {
+        // Fallback if supabase proxy fails or returns empty
+        const customerData = await Customer.get(customerId);
+        setCustomer(customerData);
+      }
 
       // Call backend function to get transactions
       const response = await base44.functions.invoke('getCustomerARTransactions', {
