@@ -210,7 +210,8 @@ export default function AdvancePaymentModal({
 
     try {
       // Validation: Check CustomerPayments entity
-      const cp = await base44.entities.CustomerPayments.get(paymentIdToDelete);
+      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentIdToDelete });
+      const cp = cpRes?.data?.data;
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");

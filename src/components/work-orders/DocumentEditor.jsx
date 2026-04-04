@@ -580,7 +580,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           invoice_number: workOrder.inv_number || ''
         };
 
-        const createdPayment = await CustomerPayments.create(newCustomerPaymentData);
+        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
+        const createdPayment = res?.data?.data;
 
         let currentPayments = [];
         try {
@@ -610,7 +611,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
-        await CustomerPayments.delete(paymentIdToDelete);
+        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
 
         let currentPayments = [];
         try {
@@ -726,7 +727,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           newCustomerPaymentData.cheque_number = payload.cheque_number || '';
         }
 
-        const createdPayment = await CustomerPayments.create(newCustomerPaymentData);
+        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
+        const createdPayment = res?.data?.data;
 
         let currentPayments = [];
         try {
@@ -796,7 +798,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           console.log("Removed Credit Card Fee line item:", lineIdToRemove);
         }
 
-        await CustomerPayments.delete(paymentIdToDelete);
+        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
 
         const filteredPayments = currentPayments.filter(p => p.id !== paymentIdToDelete);
         const updatedPaymentsJson = JSON.stringify(filteredPayments);
