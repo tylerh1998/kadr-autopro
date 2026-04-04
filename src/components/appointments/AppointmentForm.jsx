@@ -70,6 +70,7 @@ export default function AppointmentForm({
   const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
   const [reminderInfo, setReminderInfo] = useState(null);
   const [hasOpenWO, setHasOpenWO] = useState(false);
+  const [isCreatingWO, setIsCreatingWO] = useState(false);
 
   // Calculate reminder date and status
   useEffect(() => {
@@ -625,6 +626,7 @@ export default function AppointmentForm({
       return;
     }
 
+    setIsCreatingWO(true);
     try {
       const numbers = await generateWorkOrderNumbers(stage);
       
@@ -680,6 +682,8 @@ export default function AppointmentForm({
     } catch (error) {
       console.error('Error creating work order:', error);
       alert('Failed to create work order: ' + error.message);
+    } finally {
+      setIsCreatingWO(false);
     }
   };
 
@@ -870,18 +874,18 @@ export default function AppointmentForm({
                         <Button
                           type="button"
                           onClick={() => handleCreateWorkOrder('estimate')}
-                          disabled={!formData.customer_id || !formData.vehicle_id}
+                          disabled={!formData.customer_id || !formData.vehicle_id || isCreatingWO}
                           className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
                         >
-                          Create Estimate
+                          {isCreatingWO ? 'Creating...' : 'Create Estimate'}
                         </Button>
                         <Button
                           type="button"
                           onClick={() => handleCreateWorkOrder('work_order')}
-                          disabled={!formData.customer_id || !formData.vehicle_id}
+                          disabled={!formData.customer_id || !formData.vehicle_id || isCreatingWO}
                           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          Create Work Order
+                          {isCreatingWO ? 'Creating...' : 'Create Work Order'}
                         </Button>
                       </>
                     )}
