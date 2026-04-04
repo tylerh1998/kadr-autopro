@@ -67,7 +67,8 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
       setLoading(true);
       try {
         // Fetch payments for this deposit batch
-        const allPayments = await CustomerPayments.list();
+        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
+        const allPayments = allPaymentsRes?.data?.data || [];
         const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
 
         // Fetch adjustments for this deposit batch

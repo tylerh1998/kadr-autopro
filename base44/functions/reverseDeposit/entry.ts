@@ -79,14 +79,19 @@ Deno.serve(async (req) => {
             });
         }
 
-        const customerPayments = await base44.entities.CustomerPayments.filter({ deposit_batch_id: depositBatchId });
+        const customerPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { deposit_batch_id: depositBatchId } });
+        const customerPayments = customerPaymentsRes?.data?.data || [];
         const cashDrawerAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: depositBatchId });
 
         for (const payment of customerPayments) {
-            await base44.entities.CustomerPayments.update(payment.id, {
-                deposited: false,
-                deposit_date: null,
-                deposit_batch_id: null
+            await base44.functions.invoke('supabaseCustomerPayments', {
+                action: 'update',
+                id: payment.id,
+                data: {
+                    deposited: false,
+                    deposit_date: null,
+                    deposit_batch_id: null
+                }
             });
         }
 

@@ -63,7 +63,8 @@ export default function CashDrawerPage() {
         console.log('Loading cash drawer data');
 
         // Load all payments that are not deposited
-        const allPayments = await CustomerPayments.list();
+        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
+        const allPayments = allPaymentsRes?.data?.data || [];
         console.log('All payments:', allPayments);
 
         // Filter for not deposited only
@@ -304,10 +305,14 @@ export default function CashDrawerPage() {
 
       // Update each CustomerPayment to mark as deposited
       for (const item of paymentsToDeposit) {
-        await CustomerPayments.update(item.customerPaymentId, {
-          deposited: true,
-          deposit_date: depositData.depositDate,
-          deposit_batch_id: depositBatchId
+        await base44.functions.invoke('supabaseCustomerPayments', {
+          action: 'update',
+          id: item.customerPaymentId,
+          data: {
+            deposited: true,
+            deposit_date: depositData.depositDate,
+            deposit_batch_id: depositBatchId
+          }
         });
       }
 
@@ -595,7 +600,8 @@ export default function CashDrawerPage() {
       }
 
       // Fallback: Fetch from CustomerPayments and CashDrawerAdjustments
-      const allPayments = await CustomerPayments.list();
+      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
+      const allPayments = allPaymentsRes?.data?.data || [];
       const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
 
       const allAdjustments = await CashDrawerAdjustment.list();
@@ -689,8 +695,12 @@ export default function CashDrawerPage() {
   const handleSavePaymentMethod = async (item, newMethod) => {
     try {
       setLoading(true);
-      await CustomerPayments.update(item.customerPaymentId, {
-        payment_method: newMethod
+      await base44.functions.invoke('supabaseCustomerPayments', {
+        action: 'update',
+        id: item.customerPaymentId,
+        data: {
+          payment_method: newMethod
+        }
       });
       
       setShowChangeMethodModal(false);
