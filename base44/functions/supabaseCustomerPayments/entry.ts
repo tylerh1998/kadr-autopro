@@ -29,9 +29,12 @@ Deno.serve(async (req) => {
         break;
       case 'create':
         if (!data.id) data.id = crypto.randomUUID();
+        if (!data.created_date) data.created_date = new Date().toISOString();
+        if (!data.updated_date) data.updated_date = new Date().toISOString();
         result = await supabase.from('CustomerPayments').insert(data).select().single();
         break;
       case 'update':
+        if (!data.updated_date) data.updated_date = new Date().toISOString();
         result = await supabase.from('CustomerPayments').update(data).eq('id', id).select().single();
         break;
       case 'delete':
