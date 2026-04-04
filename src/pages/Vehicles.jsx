@@ -81,10 +81,29 @@ export default function VehiclesPage() {
 
   const handleSubmit = async (vehicleData) => {
     try {
+      const user = await base44.auth.me();
       if (editingVehicle) {
-        await Vehicle.update(editingVehicle.id, vehicleData);
+        const payload = {
+          ...vehicleData,
+          updated_date: new Date().toISOString(),
+        };
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'Vehicle',
+          id: editingVehicle.id,
+          data: payload
+        });
       } else {
-        await Vehicle.create(vehicleData);
+        const payload = {
+          ...vehicleData,
+          created_date: new Date().toISOString(),
+          created_by: user?.email || '',
+        };
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'Vehicle',
+          data: payload
+        });
       }
       
       setShowForm(false);
