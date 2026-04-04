@@ -92,7 +92,7 @@ export default function CashDrawerPage() {
         // Get unique customer IDs to fetch customer names
         const customerIds = [...new Set(paymentsData.map(p => p.customer_id))];
         const customers = await Promise.all(
-          customerIds.map(id => Customer.get(id).catch(() => null))
+          customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
         );
         const customerMap = customers.reduce((acc, customer) => {
           if (customer) {
@@ -610,7 +610,7 @@ export default function CashDrawerPage() {
       // Get customer names for the payments
       const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
       const customers = await Promise.all(
-        customerIds.map(id => Customer.get(id).catch(() => null))
+        customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
       );
       const customerMap = customers.reduce((acc, customer) => {
         if (customer) {

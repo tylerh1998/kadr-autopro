@@ -78,7 +78,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
         // Get customer names
         const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
         const customers = await Promise.all(
-          customerIds.map(id => Customer.get(id).catch(() => null))
+          customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
         );
         const customerMap = customers.reduce((acc, customer) => {
           if (customer) {
