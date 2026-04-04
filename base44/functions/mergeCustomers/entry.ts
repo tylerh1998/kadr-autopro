@@ -1,4 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+
+const createSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('Supabase_project_url');
+  const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+  if (!supabaseUrl || !supabaseSecret) {
+    throw new Error('Supabase credentials not configured');
+  }
+
+  return createClient(supabaseUrl, supabaseSecret, {
+    auth: { persistSession: false }
+  });
+};
 
 Deno.serve(async (req) => {
     try {
@@ -19,9 +33,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Cannot merge a customer into itself' }, { status: 400 });
         }
 
+        const supabase = createSupabaseClient();
+
         // Fetch both customers
-        const [masterCustomer] = await base44.entities.Customer.filter({ id: masterId });
-        const [duplicateCustomer] = await base44.entities.Customer.filter({ id: duplicateId });
+        const [
+            { data: masterCustomer },
+            { data: duplicateCustomer }
+        ] = await Promise.all([
+            supabase.from('Customer').select('*').eq('id', masterId).single(),
+            supabase.from('Customer').select('*').eq('id', duplicateId).single()
+        ]);
 
         if (!masterCustomer || !duplicateCustomer) {
             return Response.json({ error: 'One or both customers not found' }, { status: 404 });
@@ -50,74 +71,59 @@ Deno.serve(async (req) => {
         if (!isEmpty(duplicateCustomer.notes)) {
             const separator = masterCustomer.notes ? '\n\n' : '';
             updatesToMaster.notes = (masterCustomer.notes || '') + separator + 
-                                   `--- Merged Data from ${duplicateCustomer.first_name} ${duplicateCustomer.last_name} (${duplicateCustomer.org_name || ''}) ---\n` + 
+                                   `--- Merged Data from ${duplicateCustomer.first_name || ''} ${duplicateCustomer.last_name || ''} (${duplicateCustomer.org_name || ''}) ---\n` + 
                                    duplicateCustomer.notes;
         }
 
         if (Object.keys(updatesToMaster).length > 0) {
-            await base44.entities.Customer.update(masterId, updatesToMaster);
+            updatesToMaster.updated_date = new Date().toISOString();
+            const { error: masterUpdateError } = await supabase.from('Customer').update(updatesToMaster).eq('id', masterId);
+            if (masterUpdateError) throw masterUpdateError;
         }
 
-        // 2. Reassign Related Records
+        // 2. Reassign Related Records using Supabase bulk updates
+        const now = new Date().toISOString();
         
-        // Vehicles
-        const vehicles = await base44.entities.Vehicle.filter({ customer_id: duplicateId }, undefined, 1000); // Pagination safety
-        if (vehicles.length > 0) {
-            // Process in chunks if needed, but for now Promise.all is okay for typical volumes
-            await Promise.all(vehicles.map(v => 
-                base44.entities.Vehicle.update(v.id, { customer_id: masterId })
-            ));
-        }
+        const [
+            { data: vehiclesData, error: vehiclesError },
+            { data: workOrdersData, error: workOrdersError },
+            { data: paymentsData, error: paymentsError },
+            { data: adjustmentsData, error: adjustmentsError }
+        ] = await Promise.all([
+            supabase.from('Vehicle').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
+            supabase.from('WorkOrder').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
+            supabase.from('CustomerPayments').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id'),
+            supabase.from('CustomerARAdjustment').update({ customer_id: masterId, updated_date: now }).eq('customer_id', duplicateId).select('id')
+        ]);
 
-        // Work Orders
-        const workOrdersRes = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read', table: 'WorkOrder', match: { customer_id: duplicateId }
-        });
-        const workOrders = workOrdersRes.data?.data || [];
-        if (workOrders.length > 0) {
-            await Promise.all(workOrders.map(wo => 
-                base44.functions.invoke('SupabaseProxy', {
-                    action: 'update', table: 'WorkOrder', id: wo.id, data: { customer_id: masterId }
-                })
-            ));
-        }
-
-        // Customer Payments
-        const payments = await base44.entities.CustomerPayments.filter({ customer_id: duplicateId }, undefined, 1000);
-        if (payments.length > 0) {
-            await Promise.all(payments.map(p => 
-                base44.entities.CustomerPayments.update(p.id, { customer_id: masterId })
-            ));
-        }
-
-        // Customer AR Adjustments
-        const adjustments = await base44.entities.CustomerARAdjustment.filter({ customer_id: duplicateId }, undefined, 1000);
-        if (adjustments.length > 0) {
-            await Promise.all(adjustments.map(adj => 
-                base44.entities.CustomerARAdjustment.update(adj.id, { customer_id: masterId })
-            ));
-        }
+        if (vehiclesError) throw vehiclesError;
+        if (workOrdersError) throw workOrdersError;
+        if (paymentsError) throw paymentsError;
+        if (adjustmentsError) throw adjustmentsError;
 
         // 3. Deactivate Duplicate Customer and Update Audit Trail
-        const masterName = masterCustomer.org_name || `${masterCustomer.first_name} ${masterCustomer.last_name}`;
-        const auditNote = `merged into ${masterName} - ${masterId} for audit trail creation`;
+        const masterName = masterCustomer.org_name || `${masterCustomer.first_name || ''} ${masterCustomer.last_name || ''}`;
+        const auditNote = `merged into ${masterName.trim()} - ${masterId} for audit trail creation`;
         
         const currentNotes = duplicateCustomer.notes || '';
         const newNotes = currentNotes ? `${currentNotes}\n\n${auditNote}` : auditNote;
 
-        await base44.entities.Customer.update(duplicateId, {
+        const { error: duplicateUpdateError } = await supabase.from('Customer').update({
             is_active: false,
-            notes: newNotes
-        });
+            notes: newNotes,
+            updated_date: now
+        }).eq('id', duplicateId);
+
+        if (duplicateUpdateError) throw duplicateUpdateError;
 
         return Response.json({ 
             success: true, 
             message: 'Customers merged successfully',
             mergedCount: {
-                vehicles: vehicles.length,
-                workOrders: workOrders.length,
-                payments: payments.length,
-                adjustments: adjustments.length
+                vehicles: vehiclesData?.length || 0,
+                workOrders: workOrdersData?.length || 0,
+                payments: paymentsData?.length || 0,
+                adjustments: adjustmentsData?.length || 0
             }
         });
 
