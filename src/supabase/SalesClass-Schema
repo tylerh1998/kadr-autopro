@@ -1,0 +1,13 @@
+create table public."SalesClass" (
+  name text null,
+  description text null,
+  pricing_matrix jsonb null,
+  is_active boolean null,
+  id text not null,
+  created_date timestamp with time zone null,
+  updated_date timestamp with time zone null,
+  created_by_id text null,
+  created_by text null,
+  is_sample boolean null,
+  constraint SalesClass_pkey primary key (id)
+) TABLESPACE pg_default;
