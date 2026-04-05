@@ -1046,6 +1046,7 @@ export default function WorkOrderForm({
         onReceivePart={handleReceivePart}
         onCores={handleCores}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
+        onInsertLine={handleInsertLine}
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}

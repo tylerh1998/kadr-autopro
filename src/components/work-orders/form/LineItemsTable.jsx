@@ -55,6 +55,7 @@ export default function LineItemsTable({
   onReceivePart,
   onCores,
   onDeleteLine, // Accept onDeleteLine prop
+  onInsertLine,
   workOrder,
   selectedLineIndex,
   onSelectLine,
@@ -340,6 +341,11 @@ export default function LineItemsTable({
 
     return (
       <ContextMenuContent>
+        <ContextMenuItem onClick={() => onInsertLine(index)}>
+          <Plus className="mr-2 h-4 w-4" />
+          <span>Add Line</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
       {!line.inventory_item_id && (
         <>
           <ContextMenuItem onClick={() => onGetPart(index)}>
