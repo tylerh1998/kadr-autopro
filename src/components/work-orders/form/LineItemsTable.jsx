@@ -341,11 +341,6 @@ export default function LineItemsTable({
 
     return (
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onInsertLine(index)}>
-          <Plus className="mr-2 h-4 w-4" />
-          <span>Add Line</span>
-        </ContextMenuItem>
-        <ContextMenuSeparator />
       {!line.inventory_item_id && (
         <>
           <ContextMenuItem onClick={() => onGetPart(index)}>
@@ -407,6 +402,11 @@ export default function LineItemsTable({
           </ContextMenuItem>
         </>
       )}
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => onInsertLine(index)}>
+        <Plus className="mr-2 h-4 w-4" />
+        <span>Add Line</span>
+      </ContextMenuItem>
       <ContextMenuItem
         onClick={() => onDeleteLine(index)}
         className="text-red-600 focus:text-red-700"
