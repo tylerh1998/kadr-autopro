@@ -53,19 +53,56 @@ Deno.serve(async (req) => {
         // Pre-calculate Financials
         const roundToTwo = (num) => Math.round((Number(num) + Number.EPSILON) * 100) / 100;
 
-        const partsTotal = roundToTwo(workOrder?.parts_total || 0);
-        const laborTotal = roundToTwo(workOrder?.labor_total || 0);
-        const shopSupplyTotal = roundToTwo(workOrder?.shop_supply_total || 0);
-        
-        const otherChargesTotal = roundToTwo(Array.isArray(lineItems) ? lineItems.reduce((sum, item) => {
-           const isOther = item.isothercharge === true || item.isothercharge === 'true' || item.isothercharge === 1 ||
-                           item.is_other_charge === true || item.is_other_charge === 'true' || item.is_other_charge === 1;
-           return isOther ? sum + (Number(item.total || item.line_total || 0)) : sum;
-        }, 0) : 0);
+        let partsTotal = 0;
+        let laborTotal = 0;
+        let otherChargesTotal = 0;
+        let shopSupplyTotal = 0;
+        let taxAmount = 0;
+        let totalAmount = 0;
 
+        if (Array.isArray(lineItems) && lineItems.length > 0) {
+            partsTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.tot_parts) || 0), 0);
+            laborTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.labour) || 0), 0);
+            otherChargesTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.oc_total) || 0), 0);
+            
+            const grandTotalBeforeTax = partsTotal + laborTotal + otherChargesTotal;
+            
+            let totalTaxableBase = 0;
+            lineItems.forEach(item => {
+                if (item.taxable === true) {
+                    totalTaxableBase += (parseFloat(item.total) || 0);
+                }
+            });
+            
+            const taxableLaborForShopSupply = lineItems.reduce((sum, item) => {
+                if (item.taxable === true) {
+                    return sum + (parseFloat(item.labour) || 0);
+                }
+                return sum;
+            }, 0);
+            
+            shopSupplyTotal = laborTotal * 0.07;
+            const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+            totalTaxableBase += taxableShopSupplies;
+            
+            taxAmount = totalTaxableBase * 0.05;
+            totalAmount = grandTotalBeforeTax + shopSupplyTotal + taxAmount;
+        } else {
+            partsTotal = Number(workOrder?.parts_total || 0);
+            laborTotal = Number(workOrder?.labor_total || 0);
+            shopSupplyTotal = Number(workOrder?.shop_supply_total || 0);
+            otherChargesTotal = Number(workOrder?.other_charges_total || 0);
+            taxAmount = Number(workOrder?.tax_amount || 0);
+            totalAmount = Number(workOrder?.total_amount || 0);
+        }
+
+        partsTotal = roundToTwo(partsTotal);
+        laborTotal = roundToTwo(laborTotal);
+        otherChargesTotal = roundToTwo(otherChargesTotal);
+        shopSupplyTotal = roundToTwo(shopSupplyTotal);
+        taxAmount = roundToTwo(taxAmount);
+        totalAmount = roundToTwo(totalAmount);
         const subTotal = roundToTwo(partsTotal + laborTotal + otherChargesTotal + shopSupplyTotal);
-        const taxAmount = roundToTwo(workOrder?.tax_amount || 0);
-        const totalAmount = roundToTwo(workOrder?.total_amount || 0);
         
         // Calculate payments sum from payments array to be sure
         let paymentsList = [];
