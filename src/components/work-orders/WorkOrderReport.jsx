@@ -44,8 +44,8 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
     return sum;
   }, 0);
 
-  const shopSupplyTotal = laborTotal * 0.07;
-  const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+  const shopSupplyTotal = laborTotal * 0.06;
+  const taxableShopSupplies = taxableLaborForShopSupply * 0.06;
   totalTaxableBase += taxableShopSupplies;
 
   const taxAmount = totalTaxableBase * 0.05;

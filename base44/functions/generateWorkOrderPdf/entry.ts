@@ -81,8 +81,8 @@ Deno.serve(async (req) => {
                 return sum;
             }, 0);
             
-            shopSupplyTotal = laborTotal * 0.07;
-            const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+            shopSupplyTotal = laborTotal * 0.06;
+            const taxableShopSupplies = taxableLaborForShopSupply * 0.06;
             totalTaxableBase += taxableShopSupplies;
             
             taxAmount = totalTaxableBase * 0.05;

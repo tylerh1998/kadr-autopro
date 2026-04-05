@@ -160,7 +160,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   // NEW: State for system settings
   const [systemSettings, setSystemSettings] = useState({
-    shop_supply_rate: 0.07,
+    shop_supply_rate: 0.06,
     default_taxable: true,
     tax_rate: 0.05,
   });
@@ -235,7 +235,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     const laborTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.labour) || 0), 0);
     const otherChargesTotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.oc_total) || 0), 0);
     const grandTotalBeforeTax = partsTotal + laborTotal + otherChargesTotal;
-    const shopSupplyTotal = laborTotal * 0.07;
+    const shopSupplyTotal = laborTotal * 0.06;
 
     let totalTaxableBase = 0;
     lineItems.forEach(item => {
@@ -261,7 +261,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       return sum;
     }, 0);
 
-    const taxableShopSupplies = taxableLaborForShopSupply * 0.07;
+    const taxableShopSupplies = taxableLaborForShopSupply * 0.06;
     totalTaxableBase += taxableShopSupplies;
     const taxAmount = totalTaxableBase * 0.05;
 
@@ -309,7 +309,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setDefaultMessage(settings[0].default_message || '');
           setSystemSettings(prev => ({
             ...prev,
-            shop_supply_rate: settings[0].shop_supply_rate !== undefined ? settings[0].shop_supply_rate / 100 : 0.07,
+            shop_supply_rate: settings[0].shop_supply_rate !== undefined ? settings[0].shop_supply_rate / 100 : 0.06,
             default_taxable: settings[0].default_taxable !== undefined ? settings[0].default_taxable : true,
             tax_rate: settings[0].tax_rate !== undefined ? settings[0].tax_rate : 0.05,
           }));
