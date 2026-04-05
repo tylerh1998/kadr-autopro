@@ -30,14 +30,20 @@ Deno.serve(async (req) => {
 
         const reqBody = await req.json().catch(() => ({}));
         console.log("DEBUG SupabaseProxy received payload:", JSON.stringify(reqBody));
-        const { action = 'read', id, data: payloadData, table = 'SalesClass', match } = reqBody;
+        const { action = 'read', id, data: payloadData, table = 'SalesClass', match, params } = reqBody;
 
         let result;
         
-        if (action === 'read') {
+        if (action === 'read' || action === 'list') {
             let query = supabase.from(table).select('*');
             if (match) {
                 query = query.match(match);
+            }
+            result = await query;
+        } else if (action === 'filter') {
+            let query = supabase.from(table).select('*');
+            if (params) {
+                query = query.match(params);
             }
             result = await query;
         } else if (action === 'create') {
