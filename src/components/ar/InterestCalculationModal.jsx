@@ -5,9 +5,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Customer, CustomerPayments, CustomerARAdjustment, GLTransaction } from '@/entities/all';
 import { differenceInDays, differenceInMonths, addDays, format } from 'date-fns';
 import { Calculator, DollarSign, AlertTriangle } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 export default function InterestCalculationModal({ open, onClose, customers, onInterestCalculated }) {
   const [selectedCustomers, setSelectedCustomers] = useState({});
@@ -26,126 +26,32 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
   };
 
   const calculateInterest = useCallback(async () => {
+    if (!customers || customers.length === 0) {
+      setInterestCalculations([]);
+      return;
+    }
+    
     setCalculating(true);
     try {
-      const today = new Date();
-      const calculations = [];
+      const response = await base44.functions.invoke('calculateARInterest', {
+        customerIds: customers.map(c => c.id)
+      });
 
-      for (const customer of customers) {
-        // Get all payments and adjustments for this customer
-        const [allPayments, adjustments] = await Promise.all([
-          CustomerPayments.filter({ customer_id: customer.id }),
-          CustomerARAdjustment.filter({ customer_id: customer.id })
-        ]);
-
-        // Filter payments to only include On Account charges and AR payments
-        const onAccountCharges = allPayments.filter(p => p.payment_method === 'on_account');
-        const actualPayments = allPayments.filter(p => p.ar_pmt && p.payment_method !== 'on_account');
-
-        // Get charge items (on_account + positive adjustments)
-        const chargeItems = [];
-        
-        onAccountCharges.forEach(charge => {
-          if (charge.payment_date) {
-            const chargeDate = new Date(charge.payment_date);
-            const gracePeriodEnd = addDays(chargeDate, 30);
-            const interestStartDate = gracePeriodEnd;
-            
-            chargeItems.push({
-              date: chargeDate,
-              interestStartDate,
-              amount: charge.amount || 0,
-              description: `Invoice ${charge.invoice_number || 'N/A'}`,
-              type: 'charge'
-            });
-          }
-        });
-
-        adjustments.forEach(adj => {
-          if (adj.amount > 0) {
-            const adjDate = new Date(adj.adjustment_date);
-            const gracePeriodEnd = addDays(adjDate, 30);
-            const interestStartDate = gracePeriodEnd;
-            
-            chargeItems.push({
-              date: adjDate,
-              interestStartDate,
-              amount: adj.amount,
-              description: adj.description || 'Adjustment',
-              type: 'adjustment'
-            });
-          }
-        });
-
-        // Sort charge items by date
-        chargeItems.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        // Calculate total credits
-        const totalCredits = actualPayments.reduce((sum, p) => sum + (p.amount || 0), 0) +
-                           adjustments.reduce((sum, adj) => sum + (adj.amount < 0 ? Math.abs(adj.amount) : 0), 0);
-
-        // Apply credits to charges in chronological order to determine outstanding amounts
-        let remainingCredits = totalCredits;
-        const outstandingCharges = [];
-
-        for (const charge of chargeItems) {
-          let outstandingAmount = charge.amount;
-          
-          if (remainingCredits > 0) {
-            const creditApplied = Math.min(remainingCredits, charge.amount);
-            outstandingAmount = charge.amount - creditApplied;
-            remainingCredits -= creditApplied;
-          }
-          
-          if (outstandingAmount > 0) {
-            outstandingCharges.push({
-              ...charge,
-              outstandingAmount
-            });
-          }
-        }
-
-        // Calculate interest on outstanding charges
-        let totalInterest = 0;
-        const interestDetails = [];
-
-        for (const charge of outstandingCharges) {
-          if (today > charge.interestStartDate) {
-            const monthsOverdue = differenceInMonths(today, charge.interestStartDate);
-            
-            if (monthsOverdue > 0) {
-              // Calculate compound interest: A = P(1 + r/n)^(nt)
-              // Where: P = principal, r = 0.24 (24%), n = 12 (monthly), t = monthsOverdue/12
-              const monthlyRate = 0.24 / 12; // 2% per month
-              const compoundFactor = Math.pow(1 + monthlyRate, monthsOverdue);
-              const totalWithInterest = charge.outstandingAmount * compoundFactor;
-              const interestAmount = totalWithInterest - charge.outstandingAmount;
-
-              if (interestAmount > 0.01) { // Only include if interest is at least 1 cent
-                totalInterest += interestAmount;
-                interestDetails.push({
-                  description: charge.description,
-                  principal: charge.outstandingAmount,
-                  monthsOverdue,
-                  interestAmount,
-                  interestStartDate: charge.interestStartDate
-                });
-              }
-            }
-          }
-        }
-
-        if (totalInterest > 0.01) {
-          calculations.push({
-            customer,
-            totalInterest,
-            interestDetails,
-            currentBalance: outstandingCharges.reduce((sum, c) => sum + c.outstandingAmount, 0)
-          });
-        }
+      if (response.data?.error) {
+        throw new Error(response.data.error);
       }
 
-      setInterestCalculations(calculations);
+      const calculations = response.data?.data || [];
+      // parse date strings back to objects
+      const parsedCalculations = calculations.map(calc => ({
+        ...calc,
+        interestDetails: calc.interestDetails.map(detail => ({
+          ...detail,
+          interestStartDate: new Date(detail.interestStartDate)
+        }))
+      }));
+
+      setInterestCalculations(parsedCalculations);
     } catch (error) {
       console.error('Error calculating interest:', error);
       alert('Failed to calculate interest. Please try again.');
@@ -199,42 +105,12 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
 
     setLoading(true);
     try {
-      // Create interest adjustments and GL transactions for each selected customer
-      for (const calc of selectedCalculations) {
-        const adjustmentData = {
-          customer_id: calc.customer.id,
-          adjustment_date: format(new Date(), 'yyyy-MM-dd'),
-          amount: calc.totalInterest,
-          gl_account: '4010',
-          description: `Interest charge - 24% APR (${calc.interestDetails.length} item(s))`,
-          reference: `INT-${format(new Date(), 'yyyyMMdd')}-${calc.customer.id.substring(0, 6)}`
-        };
-        
-        // Create the CustomerARAdjustment
-        const adjustment = await CustomerARAdjustment.create(adjustmentData);
-        
-        // Create GL transactions: Debit 1100 (AR), Credit 4100 (Interest Income)
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: '1100',
-          description: `Interest - ${formatCustomerName(calc.customer)}`,
-          debit_amount: calc.totalInterest,
-          credit_amount: 0,
-          reference: adjustmentData.reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
-        
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: '4010',
-          description: `Interest - ${formatCustomerName(calc.customer)}`,
-          debit_amount: 0,
-          credit_amount: calc.totalInterest,
-          reference: adjustmentData.reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
+      const response = await base44.functions.invoke('applyARInterest', {
+        selectedCalculations
+      });
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
       }
 
       alert(`Successfully applied interest charges to ${selectedCalculations.length} customer(s).`);
