@@ -1,0 +1,100 @@
+create table public."WorkOrder" (
+  id text not null,
+  ro_number text not null,
+  wo_number text null,
+  est_number text null,
+  inv_number text null,
+  crinv_number text null,
+  customer_id text not null,
+  vehicle_id text not null,
+  status text null,
+  kanban_order integer null default 0,
+  priority text null default 'medium'::text,
+  stage text null default 'work_order'::text,
+  approval text null default 'pending'::text,
+  converted boolean null default false,
+  "LockedByUser" text null,
+  description text null,
+  odometer integer null,
+  labor_rate numeric(12, 2) null,
+  parts_total numeric(12, 2) null,
+  labor_total numeric(12, 2) null,
+  shop_supply_total numeric(12, 2) null default 0,
+  tax_amount numeric(12, 2) null,
+  total_amount numeric(12, 2) null,
+  est_date date null,
+  wo_date date null,
+  completed_date date null,
+  invoice_date date null,
+  internal_notes text null,
+  line_items jsonb null,
+  payments jsonb null,
+  amount_paid numeric(12, 2) null default 0,
+  notes_to_customer text null,
+  po_number text null,
+  cvip text null,
+  default_taxable boolean null default true,
+  accounting_details jsonb null,
+  tech_time jsonb null,
+  last_updated timestamp with time zone null,
+  last_updated_by text null,
+  completed_by text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  created_by text null,
+  created_date timestamp with time zone null,
+  locked_timestamp timestamp with time zone null,
+  constraint WorkOrder_pkey primary key (id),
+  constraint WorkOrder_id_key unique (id),
+  constraint WorkOrder_ro_number_key unique (ro_number),
+  constraint WorkOrder_approval_check check (
+    (
+      approval = any (
+        array[
+          'approved'::text,
+          'skip_deny'::text,
+          'pending'::text
+        ]
+      )
+    )
+  ),
+  constraint WorkOrder_priority_check check (
+    (
+      priority = any (
+        array[
+          'low'::text,
+          'medium'::text,
+          'high'::text,
+          'urgent'::text
+        ]
+      )
+    )
+  ),
+  constraint WorkOrder_stage_check check (
+    (
+      stage = any (
+        array[
+          'estimate'::text,
+          'work_order'::text,
+          'invoice'::text,
+          'credit_invoice'::text,
+          'void'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_workorder_ro_number on public."WorkOrder" using btree (ro_number) TABLESPACE pg_default;
+
+create index IF not exists idx_workorder_stage on public."WorkOrder" using btree (stage) TABLESPACE pg_default;
+
+create index IF not exists idx_workorder_customer on public."WorkOrder" using btree (customer_id) TABLESPACE pg_default;
+
+create index IF not exists idx_workorder_vehicle on public."WorkOrder" using btree (vehicle_id) TABLESPACE pg_default;
+
+create index IF not exists idx_workorder_status on public."WorkOrder" using btree (status) TABLESPACE pg_default;
+
+create trigger trg_workorder_updated_at BEFORE
+update on "WorkOrder" for EACH row
+execute FUNCTION workorder_set_updated_at ();
