@@ -340,19 +340,23 @@ export default function LineItemsTable({
 
     return (
       <ContextMenuContent>
-      <ContextMenuItem onClick={() => onGetPart(index)}>
-        <Package className="mr-2 h-4 w-4" />
-        <span>Get Part</span>
-      </ContextMenuItem>
-      <ContextMenuItem onClick={() => onOtherCharge(index)}>
-        <Plus className="mr-2 h-4 w-4" />
-        <span>Other Charge</span>
-      </ContextMenuItem>
-      <ContextMenuItem onClick={() => onAddPart(index)}>
-        <Plus className="mr-2 h-4 w-4" />
-        <span>Add New Part</span>
-      </ContextMenuItem>
-      <ContextMenuSeparator />
+      {!line.inventory_item_id && (
+        <>
+          <ContextMenuItem onClick={() => onGetPart(index)}>
+            <Package className="mr-2 h-4 w-4" />
+            <span>Get Part</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onOtherCharge(index)}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Other Charge</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onAddPart(index)}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Add New Part</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       {line.part_number && (
         <>
           {mode !== 'estimate' && (
