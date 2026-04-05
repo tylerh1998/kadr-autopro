@@ -200,6 +200,8 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Catch autofocus on modal open to prevent the customer search popover from opening automatically */}
+          <div tabIndex={0} className="w-0 h-0 p-0 m-0 opacity-0 focus:outline-none pointer-events-none" aria-hidden="true" />
           <div className="space-y-2">
             <Label htmlFor="customer_id">Customer *</Label>
             <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
