@@ -428,8 +428,7 @@ export default function CreditInvoicePage() {
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: -Math.abs(creditTotalAmount),
           payment_method: paymentMethod,
-          notes: `Refund for credit invoice ${creditInvoiceNumber}`,
-          cash_drawer: refundSource === 'cash_drawer'
+          notes: `Refund for credit invoice ${creditInvoiceNumber}`
         }});
 
         console.log('Created CustomerPayment refund record');
