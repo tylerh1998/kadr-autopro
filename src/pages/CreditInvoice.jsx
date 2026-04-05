@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { User } from "@/entities/User";
-import { WorkOrder } from "@/entities/WorkOrder";
-import { InventoryItem } from "@/entities/InventoryItem";
-import { InventoryTxs } from "@/entities/InventoryTxs";
 import { SystemSettings } from "@/entities/SystemSettings";
-import { InventoryReturn } from "@/entities/InventoryReturn";
-import { Supplier } from "@/entities/Supplier";
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -211,10 +206,15 @@ export default function CreditInvoicePage() {
       const invNumericPart = invNumberMatch ? invNumberMatch[0] : '0000';
       
       // Find existing credit invoices for this invoice to determine suffix
-      const existingCreditInvoices = await WorkOrder.filter({ 
-        customer_id: workOrder.customer_id,
-        stage: 'credit_invoice'
+      const existingCreditInvoicesRes = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'filter', 
+        table: 'WorkOrder', 
+        params: { 
+          customer_id: workOrder.customer_id,
+          stage: 'credit_invoice'
+        }
       });
+      const existingCreditInvoices = existingCreditInvoicesRes.data?.data || [];
       
       // Filter to only those related to this original invoice
       const relatedCredits = existingCreditInvoices.filter(ci => {
@@ -283,7 +283,8 @@ export default function CreditInvoicePage() {
       
       console.log('Creating credit invoice:', creditInvoiceData);
       
-      const createdCreditInvoice = await WorkOrder.create(creditInvoiceData);
+      const createRes = await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'WorkOrder', data: creditInvoiceData });
+      const createdCreditInvoice = createRes.data?.data?.[0];
       console.log('Created credit invoice:', createdCreditInvoice);
 
       // Invoke GL function to create accounting entries for the credit invoice
@@ -298,9 +299,9 @@ export default function CreditInvoicePage() {
       });
 
       if (glResponse.data.success) {
-        await WorkOrder.update(createdCreditInvoice.id, {
+        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: createdCreditInvoice.id, data: {
           accounting_details: glResponse.data.accounting_details
-        });
+        }});
         console.log('GL transactions for credit invoice recorded successfully.');
       } else {
         console.error('Failed to record GL transactions for credit invoice:', glResponse.data.error);
@@ -309,7 +310,8 @@ export default function CreditInvoicePage() {
       // Fetch suppliers to map IDs to names for returns
       let suppliers = [];
       try {
-        suppliers = await Supplier.list();
+        const suppliersRes = await base44.functions.invoke('SupabaseProxy', { action: 'list', table: 'Supplier' });
+        suppliers = suppliersRes.data?.data || [];
       } catch (err) {
         console.error("Failed to load suppliers for return processing", err);
       }
@@ -325,7 +327,7 @@ export default function CreditInvoicePage() {
                 const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
                 const supplierName = supplier ? supplier.name : 'Unknown';
 
-                await InventoryReturn.create({
+                await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'InventoryReturn', data: {
                   part_number: line.part_number || inventoryItem.part_number,
                   description: line.description || inventoryItem.description,
                   supplier: supplierName,
@@ -339,18 +341,18 @@ export default function CreditInvoicePage() {
                   inventory_item_id: line.inventory_item_id,
                   status: 'On-site',
                   notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`
-                });
+                }});
                 console.log(`Created Core Return for ${line.part_number}`);
               } else {
                 // Regular Part Return Logic: Update QOH and create TX
                 const returnQty = parseFloat(line.qty) || 0;
                 const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + returnQty;
                 
-                await InventoryItem.update(line.inventory_item_id, {
+                await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'InventoryItem', id: line.inventory_item_id, data: {
                   quantity_on_hand: newQOH
-                });
+                }});
                 
-                await InventoryTxs.create({
+                await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'InventoryTxs', data: {
                   inventory_item_id: line.inventory_item_id,
                   ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
                   part_num: line.part_number || inventoryItem.part_number,
@@ -359,7 +361,7 @@ export default function CreditInvoicePage() {
                   quantity_change: returnQty,
                   quantity_ordered_change: 0,
                   description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
-                });
+                }});
                 
                 console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
               }
@@ -404,9 +406,9 @@ export default function CreditInvoicePage() {
         }
       });
       
-      await WorkOrder.update(workOrder.id, {
+      await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: workOrder.id, data: {
         line_items: JSON.stringify(updatedLineItems)
-      });
+      }});
       
       console.log('Updated original work order line items with credit reference');
 
@@ -420,7 +422,7 @@ export default function CreditInvoicePage() {
           paymentMethod = 'on_account';
         }
 
-        await base44.entities.CustomerPayments.create({
+        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'CustomerPayments', data: {
           customer_id: workOrder.customer_id,
           work_order_id: createdCreditInvoice.id,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -428,7 +430,7 @@ export default function CreditInvoicePage() {
           payment_method: paymentMethod,
           notes: `Refund for credit invoice ${creditInvoiceNumber}`,
           cash_drawer: refundSource === 'cash_drawer'
-        });
+        }});
 
         console.log('Created CustomerPayment refund record');
       }
@@ -503,7 +505,7 @@ export default function CreditInvoicePage() {
       `}</style>
 
       {!isPrinting && (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen p-6">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between no-print">
               <div>
