@@ -11,7 +11,8 @@ export default function ConfirmCreditInvoiceModal({
   selectedLines, 
   lineItems, 
   workOrder,
-  onConfirmCreditInvoice 
+  onConfirmCreditInvoice,
+  shopSupplyRate = 0.06
 }) {
   const [refundSource, setRefundSource] = useState('');
   const [cashDrawerPaymentType, setCashDrawerPaymentType] = useState('');
@@ -37,7 +38,7 @@ export default function ConfirmCreditInvoiceModal({
     return sum + (parseFloat(item.oc_total) || 0);
   }, 0);
 
-  const shopSupplyTotal = laborTotal * 0.07;
+  const shopSupplyTotal = laborTotal * shopSupplyRate;
 
   // Calculate tax
   const taxableAmount = selectedLineItems.reduce((sum, item) => {
@@ -140,7 +141,7 @@ export default function ConfirmCreditInvoiceModal({
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1 text-right">
-                Includes parts, labor, other charges, shop supplies (7%), and GST (5%)
+                Includes parts, labor, other charges, shop supplies ({(shopSupplyRate * 100).toFixed(0)}%), and GST (5%)
               </p>
             </div>
           </div>

@@ -39,7 +39,7 @@ export default function CreditInvoicePage() {
   const [processing, setProcessing] = useState(false);
   const [wipLegal, setWipLegal] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
-  const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
+  const [shopSupplyRate, setShopSupplyRate] = useState(0.06);
 
   // Parse date string as local date (no timezone conversion)
   const parseLocalDate = (dateStr) => {
@@ -708,6 +708,7 @@ export default function CreditInvoicePage() {
         lineItems={processedLineItems}
         workOrder={workOrder}
         onConfirmCreditInvoice={handleConfirmCreditInvoice}
+        shopSupplyRate={shopSupplyRate}
       />
     </>
   );
