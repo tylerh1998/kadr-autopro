@@ -1,0 +1,19 @@
+create table public."SupplierPayment" (
+  amount double precision null,
+  cheque_number text null,
+  error_message text null,
+  invoice_number jsonb null,
+  notes text null,
+  payment_date text null,
+  payment_method text null,
+  source text null,
+  status text null,
+  supplier_id text null,
+  id text not null,
+  created_date timestamp with time zone null,
+  updated_date timestamp with time zone null,
+  created_by_id text null,
+  created_by text null,
+  is_sample boolean null,
+  constraint SupplierPayment_pkey primary key (id)
+) TABLESPACE pg_default;
