@@ -1,0 +1,23 @@
+create table public."Customer" (
+  address text null,
+  notes text null,
+  is_active text null,
+  city text null,
+  default_taxable boolean null,
+  last_name text null,
+  zip_code text null,
+  phone text null,
+  secondary_phone text null,
+  cusid text null,
+  state text null,
+  org_name text null,
+  first_name text null,
+  email text null,
+  id text not null,
+  created_date timestamp with time zone null,
+  updated_date timestamp with time zone null,
+  created_by_id text null,
+  created_by text null,
+  is_sample boolean null,
+  constraint Customer_pkey primary key (id)
+) TABLESPACE pg_default;
