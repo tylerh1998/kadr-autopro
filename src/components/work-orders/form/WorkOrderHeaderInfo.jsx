@@ -385,7 +385,12 @@ export default function WorkOrderHeaderInfo({
                 </h3>
 
                 <div className="space-y-1 text-sm">
-                  <p className="text-slate-900 font-semibold text-base">WO #{workOrder?.wo_number || workOrder?.ro_number || 'N/A'}</p>
+                  <p className="text-slate-900 font-semibold text-base">
+                    {workOrder?.stage === 'estimate' ? `EST #${workOrder?.est_number || workOrder?.ro_number?.replace('RO', '') || 'N/A'}` : 
+                     workOrder?.stage === 'invoice' ? `INV #${workOrder?.inv_number || 'N/A'}` : 
+                     workOrder?.stage === 'credit_invoice' ? `CRINV #${workOrder?.crinv_number || 'N/A'}` : 
+                     `WO #${workOrder?.wo_number || workOrder?.ro_number || 'N/A'}`}
+                  </p>
 
                   {workOrder?.stage === 'estimate' && workOrder?.est_date && (
                     <p className="text-slate-700">{formatDateDisplay(workOrder.est_date)}</p>
@@ -426,13 +431,17 @@ export default function WorkOrderHeaderInfo({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const woNumber = workOrder?.wo_number?.replace('WO', '') || workOrder?.ro_number?.replace('RO', '') || '';
-                  copyToClipboard(woNumber, 'WO Number');
+                  let docNum = '';
+                  if (workOrder?.stage === 'estimate') docNum = workOrder?.est_number || workOrder?.ro_number?.replace('RO', '');
+                  else if (workOrder?.stage === 'invoice') docNum = workOrder?.inv_number;
+                  else if (workOrder?.stage === 'credit_invoice') docNum = workOrder?.crinv_number;
+                  else docNum = workOrder?.wo_number?.replace('WO', '') || workOrder?.ro_number?.replace('RO', '');
+                  copyToClipboard(docNum || '', 'Document Number');
                 }}
                 className="w-full justify-start"
               >
                 <Copy className="w-4 h-4 mr-2" />
-                Copy WO#
+                Copy Number
               </Button>
               <Button
                 variant="outline"
