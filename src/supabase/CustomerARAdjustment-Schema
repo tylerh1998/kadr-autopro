@@ -1,0 +1,17 @@
+create table public."CustomerARAdjustment" (
+  reference text null,
+  amount double precision null,
+  overpayment boolean null,
+  description text null,
+  customer_id text null,
+  gl_account text null,
+  adjustment_date text null,
+  ar_paid double precision null,
+  id text not null,
+  created_date timestamp with time zone null,
+  updated_date timestamp with time zone null,
+  created_by_id text null,
+  created_by text null,
+  is_sample boolean null,
+  constraint CustomerARAdjustment_pkey primary key (id)
+) TABLESPACE pg_default;
