@@ -189,24 +189,18 @@ export default function LinesOfCreditPage() {
       let startingBalance = 0;
 
       if (filterMode === 'all_unpaid') {
-        // In "All Unpaid" mode, we filter for transactions that are charges and not fully paid
-        // We ignore the date range for filtering, but we might want to include all "Unpaid" items
+        const hundredDaysAgo = format(subDays(new Date(), 100), 'yyyy-MM-dd');
+        
         filteredTransactions = allTransactionsData.filter(tx => {
-            // Check if it's a charge (charge_amount > 0)
+            if (tx.source_type === 'payment_made') {
+                return tx.transaction_date >= hundredDaysAgo;
+            }
             if ((tx.charge_amount || 0) > 0) {
-                // Check if unpaid: charge_amount > payment_amount
-                // We use a small epsilon for float comparison safety
                 return (tx.charge_amount || 0) - (tx.payment_amount || 0) > 0.005;
             }
-            // For credits or payments, do we show them in "All Unpaid"? 
-            // Typically "Unpaid" implies outstanding charges.
-            // If the user wants to see "unapplied payments", that's different.
-            // Based on typical "Unpaid" invoice logic, we show only unpaid charges.
             return false;
         });
         
-        // Starting balance is less relevant here, maybe just 0 or sum of displayed?
-        // Let's set it to 0 so the running balance just sums the displayed items
         startingBalance = 0;
 
       } else {
