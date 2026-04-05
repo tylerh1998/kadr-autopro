@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { format } from 'date-fns';
 import { Mail, User, FileText, Calendar, CheckCircle, XCircle, Copy, AlertTriangle, Clock, Ban, Eye, MousePointerClick } from 'lucide-react';
 
-export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
+export default function EmailLogDetailsModal({ log, customer, workOrder, open, onClose }) {
   if (!log) return null;
 
   const StatusBadge = ({ status }) => {
@@ -99,7 +99,7 @@ export default function EmailLogDetailsModal({ log, customer, open, onClose }) {
             <div className="space-y-2">
               <h3 className="font-semibold">Metadata</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm p-3 bg-slate-50 rounded-md border">
-                {log.work_order_id && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-slate-500" /> <strong>WO Number:</strong> <span>{log.work_order_id}</span></div>}
+                {log.work_order_id && <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-slate-500" /> <strong>WO Number:</strong> <span>{workOrder ? workOrder.ro_number : log.work_order_id}</span></div>}
                 {log.tracking_id && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-500" /> <strong>Tracking ID:</strong> <span className="font-mono text-xs">{log.tracking_id}</span></div>}
               </div>
             </div>

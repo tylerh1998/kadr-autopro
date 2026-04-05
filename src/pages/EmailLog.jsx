@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SentEmailLog, Customer } from '@/entities/all';
+import { SentEmailLog } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
 export default function EmailLogPage() {
   const [logs, setLogs] = useState([]);
   const [customers, setCustomers] = useState({});
+  const [workOrders, setWorkOrders] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
@@ -23,18 +25,30 @@ export default function EmailLogPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [logsData, customersData] = await Promise.all([
-        SentEmailLog.list('-sent_date', 200), // Get latest 200 logs
-        Customer.list()
-      ]);
-      
+      const logsData = await SentEmailLog.list('-sent_date', 200); // Get latest 200 logs
       setLogs(logsData);
 
-      const customerMap = customersData.reduce((acc, customer) => {
-        acc[customer.id] = customer;
-        return acc;
-      }, {});
-      setCustomers(customerMap);
+      // Fetch customers and work orders from Supabase Proxy
+      const [customersRes, workOrdersRes] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customers' }),
+        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder' })
+      ]);
+
+      if (customersRes.data?.data) {
+        const customerMap = customersRes.data.data.reduce((acc, customer) => {
+          acc[customer.id] = customer;
+          return acc;
+        }, {});
+        setCustomers(customerMap);
+      }
+
+      if (workOrdersRes.data?.data) {
+        const woMap = workOrdersRes.data.data.reduce((acc, wo) => {
+          acc[wo.id] = wo;
+          return acc;
+        }, {});
+        setWorkOrders(woMap);
+      }
 
     } catch (error) {
       console.error("Failed to load email logs:", error);
@@ -208,6 +222,7 @@ export default function EmailLogPage() {
       <EmailLogDetailsModal 
         log={selectedLog}
         customer={selectedLog ? customers[selectedLog.customer_id] : null}
+        workOrder={selectedLog ? workOrders[selectedLog.work_order_id] : null}
         open={isModalOpen}
         onClose={handleCloseModal}
       />
