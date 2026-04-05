@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     };
 
     // Fetch data
-    const customers = await batchFetch('Customers', 'id', customerIds);
+    const customers = await batchFetch('Customer', 'id', customerIds);
     const allPayments = await batchFetch('CustomerPayments', 'customer_id', customerIds);
     const allAdjustments = await batchFetch('CustomerARAdjustment', 'customer_id', customerIds);
 
