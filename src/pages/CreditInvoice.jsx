@@ -327,7 +327,7 @@ export default function CreditInvoicePage() {
                 const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
                 const supplierName = supplier ? supplier.name : 'Unknown';
 
-                await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'InventoryReturn', data: {
+                await base44.entities.InventoryReturn.create({
                   part_number: line.part_number || inventoryItem.part_number,
                   description: line.description || inventoryItem.description,
                   supplier: supplierName,
@@ -341,7 +341,7 @@ export default function CreditInvoicePage() {
                   inventory_item_id: line.inventory_item_id,
                   status: 'On-site',
                   notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`
-                }});
+                });
                 console.log(`Created Core Return for ${line.part_number}`);
               } else {
                 // Regular Part Return Logic: Update QOH and create TX
@@ -352,7 +352,7 @@ export default function CreditInvoicePage() {
                   quantity_on_hand: newQOH
                 }});
                 
-                await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'InventoryTxs', data: {
+                await base44.entities.InventoryTxs.create({
                   inventory_item_id: line.inventory_item_id,
                   ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
                   part_num: line.part_number || inventoryItem.part_number,
@@ -361,7 +361,7 @@ export default function CreditInvoicePage() {
                   quantity_change: returnQty,
                   quantity_ordered_change: 0,
                   description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
-                }});
+                });
                 
                 console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
               }

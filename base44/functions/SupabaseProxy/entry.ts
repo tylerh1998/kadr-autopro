@@ -48,18 +48,13 @@ Deno.serve(async (req) => {
             result = await query;
         } else if (action === 'create') {
             const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
-            const now = new Date().toISOString();
             const insertData = {
                 id: newId,
-                created_date: now,
-                updated_date: now,
-                created_by: user.email,
                 ...payloadData
             };
             result = await supabase.from(table).insert([insertData]).select();
         } else if (action === 'update') {
             const updateData = {
-                updated_date: new Date().toISOString(),
                 ...payloadData
             };
             result = await supabase.from(table).update(updateData).eq('id', id).select();
