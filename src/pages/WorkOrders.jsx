@@ -619,14 +619,18 @@ export default function WorkOrdersPage() {
         return sorted.sort((a, b) => {
           const numA = a.inv_number || a.crinv_number || a.est_number || a.wo_number || a.ro_number || "";
           const numB = b.inv_number || b.crinv_number || b.est_number || b.wo_number || b.ro_number || "";
-          return numA.localeCompare(numB, undefined, { numeric: true });
+          const cleanA = numA.replace(/^[A-Za-z]+/, '');
+          const cleanB = numB.replace(/^[A-Za-z]+/, '');
+          return cleanA.localeCompare(cleanB, undefined, { numeric: true });
         });
 
       case "number_desc":
         return sorted.sort((a, b) => {
           const numA = a.inv_number || a.crinv_number || a.est_number || a.wo_number || a.ro_number || "";
           const numB = b.inv_number || b.crinv_number || b.est_number || b.wo_number || b.ro_number || "";
-          return numB.localeCompare(numA, undefined, { numeric: true });
+          const cleanA = numA.replace(/^[A-Za-z]+/, '');
+          const cleanB = numB.replace(/^[A-Za-z]+/, '');
+          return cleanB.localeCompare(cleanA, undefined, { numeric: true });
         });
       
       default:
