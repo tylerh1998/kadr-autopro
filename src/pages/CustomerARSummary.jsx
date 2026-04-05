@@ -178,6 +178,9 @@ export default function CustomerARSummaryPage() {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <CardTitle>Customer Balances</CardTitle>
+                    <span className="hidden print:inline text-sm font-medium text-slate-600">
+                      As of: {asOfDate}
+                    </span>
                     <div className="flex items-center gap-2 no-print">
                       <Checkbox 
                         id="show-only-balance"
