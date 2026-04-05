@@ -30,7 +30,7 @@ export default function EmailLogPage() {
 
       // Fetch customers and work orders from Supabase Proxy
       const [customersRes, workOrdersRes] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customers' }),
+        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' }),
         base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder' })
       ]);
 
