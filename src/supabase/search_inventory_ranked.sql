@@ -4,7 +4,9 @@ create or replace function public.search_inventory_ranked(
     p_sort_by text default 'part_number',
     p_sort_direction text default 'asc',
     p_limit integer default 50,
-    p_offset integer default 0
+    p_offset integer default 0,
+    p_location_from text default null,
+    p_location_to text default null
 )
 returns table (
     id text,
@@ -94,6 +96,8 @@ with filtered as (
         or (p_filter = 'inventory-count' and i.location is not null and btrim(i.location) <> '')
         or (p_filter = 'no-location' and (i.location is null or btrim(i.location) = '') and coalesce(i.quantity_on_hand::numeric, 0) > 0)
       )
+      and (p_location_from is null or p_location_from = '' or i.location >= p_location_from)
+      and (p_location_to is null or p_location_to = '' or i.location <= p_location_to)
 ),
 counted as (
     select *, count(*) over() as total_count

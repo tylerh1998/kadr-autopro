@@ -67,6 +67,8 @@ Deno.serve(async (req) => {
         let sortDirection = 'asc';
         let limit = 50;
         let offset = 0;
+        let locationFrom = '';
+        let locationTo = '';
 
         try {
             const body = await req.json();
@@ -76,6 +78,8 @@ Deno.serve(async (req) => {
             sortDirection = body.sortDirection || 'asc';
             limit = Number(body.limit || 50);
             offset = Number(body.offset || 0);
+            locationFrom = body.locationFrom || '';
+            locationTo = body.locationTo || '';
         } catch {
             console.log('No JSON body, using defaults');
         }
@@ -86,7 +90,7 @@ Deno.serve(async (req) => {
         const safeLimit = Math.max(1, Math.min(limit, 200));
         const safeOffset = Math.max(0, offset);
 
-        if (normalizedSearchTerm) {
+        if (normalizedSearchTerm || locationFrom || locationTo) {
             const rpcPayload = {
                 p_search_term: normalizedSearchTerm,
                 p_filter: filter,
@@ -94,6 +98,8 @@ Deno.serve(async (req) => {
                 p_sort_direction: ascending ? 'asc' : 'desc',
                 p_limit: safeLimit,
                 p_offset: safeOffset,
+                p_location_from: locationFrom,
+                p_location_to: locationTo,
             };
 
             const { data, error } = await supabase.rpc('search_inventory_ranked', rpcPayload);
@@ -125,6 +131,14 @@ Deno.serve(async (req) => {
             .eq('is_active', true);
 
         query = applyInventoryFilter(query, filter);
+        
+        if (locationFrom) {
+            query = query.gte('location', locationFrom);
+        }
+        if (locationTo) {
+            query = query.lte('location', locationTo);
+        }
+        
         query = query.order(safeSortBy, { ascending, nullsFirst: false });
         query = query.range(safeOffset, safeOffset + safeLimit - 1);
 

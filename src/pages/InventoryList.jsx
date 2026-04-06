@@ -62,6 +62,7 @@ import InventoryPartsReturnModal from "@/components/inventory/InventoryPartsRetu
 import InventoryHistoryModal from "@/components/inventory/InventoryHistoryModal";
 import LocationModal from "@/components/inventory/LocationModal";
 import InventoryTransactionsModal from "@/components/inventory/InventoryTransactionsModal";
+import LocationFilterDialog from "@/components/inventory/LocationFilterDialog";
 
 export default function InventoryListPage() {
   const navigate = useNavigate();
@@ -82,6 +83,9 @@ export default function InventoryListPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isTransactionsModalOpen, setIsTransactionsModalOpen] = useState(false);
+  const [showLocationFilterDialog, setShowLocationFilterDialog] = useState(false);
+  const [filterLocationFrom, setFilterLocationFrom] = useState("");
+  const [filterLocationTo, setFilterLocationTo] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
@@ -139,6 +143,17 @@ export default function InventoryListPage() {
       let response;
       if (isInventoryCount && !activeSearchTerm) {
         response = await base44.functions.invoke('getPopulatedInventory', {});
+        // Apply location filter in memory if present
+        if (response?.data?.records) {
+            if (filterLocationFrom || filterLocationTo) {
+                response.data.records = response.data.records.filter(r => {
+                    const loc = r.location || '';
+                    if (filterLocationFrom && loc < filterLocationFrom) return false;
+                    if (filterLocationTo && loc > filterLocationTo) return false;
+                    return true;
+                });
+            }
+        }
         // Sort the results in memory since the RPC doesn't sort
         if (response?.data?.records) {
           const { key, direction } = sortConfig;
@@ -160,7 +175,9 @@ export default function InventoryListPage() {
           sortBy: isInventoryCount ? 'location' : sortConfig.key,
           sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
           limit: isUnlimitedView ? 999999 : itemsPerPage,
-          offset: isUnlimitedView ? 0 : (currentPage - 1) * itemsPerPage
+          offset: isUnlimitedView ? 0 : (currentPage - 1) * itemsPerPage,
+          locationFrom: filterLocationFrom,
+          locationTo: filterLocationTo
         });
       }
       
@@ -178,7 +195,7 @@ export default function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeSearchTerm, filter, sortConfig, currentPage, itemsPerPage]);
+  }, [activeSearchTerm, filter, sortConfig, currentPage, itemsPerPage, filterLocationFrom, filterLocationTo]);
 
   // Search triggered on Enter key
   const handleSearchKeyDown = (e) => {
@@ -330,6 +347,14 @@ export default function InventoryListPage() {
       if (isInventoryCount && !activeSearchTerm) {
         const response = await base44.functions.invoke('getPopulatedInventory', {});
         records = response?.data?.records || [];
+        if (filterLocationFrom || filterLocationTo) {
+            records = records.filter(r => {
+                const loc = r.location || '';
+                if (filterLocationFrom && loc < filterLocationFrom) return false;
+                if (filterLocationTo && loc > filterLocationTo) return false;
+                return true;
+            });
+        }
       } else {
         const response = await base44.functions.invoke('searchInventory', {
           searchTerm: activeSearchTerm,
@@ -337,7 +362,9 @@ export default function InventoryListPage() {
           sortBy: 'location',
           sortDirection: 'asc',
           limit: 999999,
-          offset: 0
+          offset: 0,
+          locationFrom: filterLocationFrom,
+          locationTo: filterLocationTo
         });
         records = response?.data?.records || [];
       }
@@ -613,6 +640,16 @@ export default function InventoryListPage() {
       `}</style>
       
       <div className="p-6 min-h-screen">
+        <LocationFilterDialog
+          open={showLocationFilterDialog}
+          onClose={() => setShowLocationFilterDialog(false)}
+          onApplyFilter={(from, to) => {
+            setFilterLocationFrom(from);
+            setFilterLocationTo(to);
+          }}
+          initialLocationFrom={filterLocationFrom}
+          initialLocationTo={filterLocationTo}
+        />
         <InventoryAddModal 
           open={isAddModalOpen} 
           onClose={() => setIsAddModalOpen(false)} 
@@ -707,12 +744,15 @@ export default function InventoryListPage() {
                   autoFocus
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                  <Filter className="h-5 w-5 text-gray-400" />
                  <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')}>All</Button>
                  <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')}>Has Stock</Button>
                  <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')}>No Location</Button>
                  <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')}>Inventory Count</Button>
+                 <Button variant={(filterLocationFrom || filterLocationTo) ? 'default' : 'outline'} onClick={() => setShowLocationFilterDialog(true)} className="ml-2">
+                   Location Range {(filterLocationFrom || filterLocationTo) && `(${filterLocationFrom || '*'} - ${filterLocationTo || '*'})`}
+                 </Button>
               </div>
               
               <div className="flex justify-end">
