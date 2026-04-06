@@ -732,27 +732,29 @@ export default function InventoryListPage() {
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6 no-print">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  placeholder="Search by Part # or Description (Press Enter)"
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeyDown}
-                  className="pl-10"
-                  autoFocus
-                />
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                 <Filter className="h-5 w-5 text-gray-400" />
-                 <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')}>All</Button>
-                 <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')}>Has Stock</Button>
-                 <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')}>No Location</Button>
-                 <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')}>Inventory Count</Button>
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+              <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
+                <div className="relative w-full md:w-80 lg:w-96 shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Input
+                    placeholder="Search by Part # or Description (Press Enter)"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyDown}
+                    className="pl-10"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                   <Filter className="h-5 w-5 text-gray-400 shrink-0" />
+                   <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')} className="whitespace-nowrap">All</Button>
+                   <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')} className="whitespace-nowrap">Has Stock</Button>
+                   <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')} className="whitespace-nowrap">No Location</Button>
+                   <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')} className="whitespace-nowrap">Inventory Count</Button>
+                </div>
               </div>
               
-              <div className="flex justify-end items-center gap-2">
+              <div className="flex justify-start md:justify-end items-center gap-2 shrink-0">
                 <Button variant={(filterLocationFrom || filterLocationTo) ? 'default' : 'outline'} onClick={() => setShowLocationFilterDialog(true)}>
                   Location Range {(filterLocationFrom || filterLocationTo) && `(${filterLocationFrom || '*'} - ${filterLocationTo || '*'})`}
                 </Button>
