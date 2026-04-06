@@ -135,7 +135,7 @@ export default function CustomerReportModal() {
                 Customer Sales Report
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-auto p-0">
+            <CardContent className="flex-1 overflow-auto p-0 max-h-[60vh]">
               <Table>
                 <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
                   <TableRow className="bg-slate-50">

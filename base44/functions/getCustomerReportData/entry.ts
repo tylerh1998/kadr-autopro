@@ -103,7 +103,7 @@ export const getCustomerReportData = async (req) => {
         for (let i = 0; i < customerIdsArray.length; i += chunkSize) {
             const chunk = customerIdsArray.slice(i, i + chunkSize);
             const { data, error } = await supabase
-                .from('Customers')
+                .from('Customer')
                 .select('id, org_name, first_name, last_name')
                 .in('id', chunk);
                 
@@ -145,9 +145,11 @@ export const getCustomerReportData = async (req) => {
         // Sort by Total Sales DESC
         report.sort((a, b) => b.totalSales - a.totalSales);
 
+        const top50 = report.slice(0, 50);
+
         return Response.json({
-            data: report,
-            count: report.length
+            data: top50,
+            count: top50.length
         });
 
     } catch (error) {
