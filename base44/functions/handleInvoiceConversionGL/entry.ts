@@ -43,7 +43,7 @@ export default Deno.serve(async (req) => {
         const invoiceDate = workOrder.invoice_date || new Date().toISOString().split('T')[0];
         const reference = workOrder.inv_number || workOrder.ro_number;
 
-        // --- Step 1: Reversal Logic (unchanged) ---
+        // --- Step 1: Reversal Logic (Modified) ---
         if (workOrder.accounting_details && action === 'convert') {
             try {
                 const previousEntries = JSON.parse(workOrder.accounting_details);
@@ -58,8 +58,9 @@ export default Deno.serve(async (req) => {
                         source_type: 'work_order',
                         source_id: workOrder.id
                     };
+                    // Save reversal to GL table, but DO NOT add to generatedGLTransactions
+                    // This ensures accounting_details only contains the current active entries
                     await base44.asServiceRole.entities.GLTransaction.create(reversalEntry);
-                    generatedGLTransactions.push(reversalEntry);
                 }
             } catch (error) {
                 console.error('Error reversing previous entries:', error);
