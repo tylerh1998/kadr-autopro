@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
     try {
@@ -17,18 +18,35 @@ Deno.serve(async (req) => {
 
         const term = searchTerm.toLowerCase();
 
-        // Fetch recent work orders. 
-        // We limit to 2000 to prevent timeout/memory issues, but sort by newest first.
-        const workOrdersList = await base44.asServiceRole.entities.WorkOrder.list('-created_date', 2000);
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials missing' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
+
+        // Fetch recent work orders from Supabase
+        const { data: workOrdersList, error: woError } = await supabase
+            .from('WorkOrder')
+            .select('id, ro_number, wo_date, created_at, customer_id, vehicle_id, line_items')
+            .order('created_at', { ascending: false })
+            .limit(2000);
+
+        if (woError) {
+            console.error('Error fetching work orders from Supabase:', woError);
+            return Response.json({ error: 'Failed to fetch work orders' }, { status: 500 });
+        }
 
         const results = [];
 
-        for (const wo of workOrdersList) {
+        for (const wo of workOrdersList || []) {
             if (!wo.line_items) continue;
             
             let lineItems = [];
             try {
-                lineItems = JSON.parse(wo.line_items);
+                // Supabase might return JSONB as an object/array already, but if it's string, we parse it
+                lineItems = typeof wo.line_items === 'string' ? JSON.parse(wo.line_items) : wo.line_items;
             } catch (e) {
                 continue;
             }
@@ -61,7 +79,7 @@ Deno.serve(async (req) => {
                     results.push({
                         work_order_id: wo.id,
                         ro_number: wo.ro_number,
-                        wo_date: wo.wo_date || wo.created_date,
+                        wo_date: wo.wo_date || wo.created_at,
                         customer_id: wo.customer_id,
                         vehicle_id: wo.vehicle_id,
                         description: item.description,
@@ -73,24 +91,30 @@ Deno.serve(async (req) => {
             }
         }
 
-        // Fetch customers for the results to display names
+        // Fetch customers from Supabase for the results to display names
         if (results.length > 0) {
             const customerIds = [...new Set(results.map(r => r.customer_id).filter(Boolean))];
-            // Fetch customers in chunks if too many, but for now assuming < 100 unique customers in results
+            
             if (customerIds.length > 0) {
-                 // The SDK might not support $in with huge arrays, but 100 is usually fine.
-                 // We'll try to fetch all needed customers.
-                 // If there are many, we might skip or do multiple queries. 
-                 // For now, let's assume filtering 2000 WOs won't yield too many unique customers to break the query.
-                 const customers = await base44.asServiceRole.entities.Customer.filter({ id: { $in: customerIds } });
-                 const customerMap = {};
-                 customers.forEach(c => {
-                     const name = c.org_name ? c.org_name : `${c.first_name || ''} ${c.last_name || ''}`.trim();
-                     customerMap[c.id] = name;
-                 });
-                 results.forEach(r => {
-                     r.customer_name = customerMap[r.customer_id] || 'Unknown';
-                 });
+                 const { data: customers, error: custError } = await supabase
+                    .from('Customers')
+                    .select('id, first_name, last_name, org_name')
+                    .in('id', customerIds);
+
+                 if (!custError && customers) {
+                     const customerMap = {};
+                     customers.forEach(c => {
+                         const name = c.org_name ? c.org_name : `${c.first_name || ''} ${c.last_name || ''}`.trim();
+                         customerMap[c.id] = name;
+                     });
+                     results.forEach(r => {
+                         r.customer_name = customerMap[r.customer_id] || 'Unknown';
+                     });
+                 } else {
+                     results.forEach(r => {
+                         r.customer_name = 'Unknown';
+                     });
+                 }
             }
         }
 
