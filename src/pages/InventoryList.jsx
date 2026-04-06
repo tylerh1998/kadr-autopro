@@ -758,7 +758,7 @@ export default function InventoryListPage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="ml-auto">
+                    <Button variant="outline">
                       <Settings className="mr-2 h-4 w-4" />
                       Customize
                     </Button>
