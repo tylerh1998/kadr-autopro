@@ -65,16 +65,42 @@ export default function InvoiceConversion() {
         // Check if already converted to prevent re-conversion logic if page is refreshed
         if (wo.stage === 'invoice' && wo.inv_number && wo.accounting_details) {
           console.log('Work order already converted, loading existing data');
-          setWorkOrder(wo);
-          if (wo.cp_id) {
-            setPortalUrl(`https://portal.kensauto.ca/WorkOrder?cp_id=${wo.cp_id}`);
+          let currentWo = { ...wo };
+          
+          if (currentWo.cp_id) {
+            setPortalUrl(`https://portal.kensauto.ca/WorkOrder?cp_id=${currentWo.cp_id}`);
+          } else {
+            console.log('=== Creating missing customer portal snapshot ===');
+            try {
+              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
+                work_order_id: currentWo.id
+              });
+              
+              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
+                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
+                const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+                setPortalUrl(newPortalUrl);
+                
+                await saveworkorderdata({
+                  ro_number: currentWo.ro_number,
+                  data: { cp_id: snapshotResponse.data.cp_id }
+                });
+                currentWo.cp_id = snapshotResponse.data.cp_id;
+              } else {
+                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+              }
+            } catch (snapshotError) {
+              console.error('Error creating portal snapshot:', snapshotError);
+            }
           }
-          setCustomer(wo.customer_details);
-          setVehicle(wo.vehicle_details);
+          
+          setWorkOrder(currentWo);
+          setCustomer(currentWo.customer_details);
+          setVehicle(currentWo.vehicle_details);
           
           // Parse and display accounting summary if available
           try {
-            const accountingDetails = JSON.parse(wo.accounting_details);
+            const accountingDetails = JSON.parse(currentWo.accounting_details);
             const summary = {
               total_transactions: accountingDetails.length,
               message: 'Accounting entries already posted'
