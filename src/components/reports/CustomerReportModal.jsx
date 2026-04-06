@@ -8,12 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Users } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import CustomerHistoryModal from "@/components/customers/CustomerHistoryModal";
 
 export default function CustomerReportModal() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [reportData, setReportData] = useState([]);
+  const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
+
+  const handleCustomerClick = (item) => {
+    setSelectedCustomerForHistory({
+      id: item.customerId,
+      first_name: item.name,
+      last_name: ''
+    });
+  };
 
   const setDateRange = (range) => {
     const today = new Date();
@@ -147,8 +157,12 @@ export default function CustomerReportModal() {
                 </TableHeader>
                 <TableBody>
                   {reportData.map((item, idx) => (
-                    <TableRow key={idx} className="hover:bg-slate-50/50">
-                      <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableRow 
+                      key={idx} 
+                      className="hover:bg-slate-50/50 cursor-pointer"
+                      onClick={() => handleCustomerClick(item)}
+                    >
+                      <TableCell className="font-medium text-blue-600 hover:underline">{item.name}</TableCell>
                       <TableCell className="text-right">{item.workOrderCount}</TableCell>
                       <TableCell className="text-right text-green-600 font-medium">
                         ${item.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -194,6 +208,14 @@ export default function CustomerReportModal() {
               </Table>
             </CardContent>
           </Card>
+          
+          {selectedCustomerForHistory && (
+            <CustomerHistoryModal
+              open={!!selectedCustomerForHistory}
+              onClose={() => setSelectedCustomerForHistory(null)}
+              customer={selectedCustomerForHistory}
+            />
+          )}
     </div>
   );
 }
