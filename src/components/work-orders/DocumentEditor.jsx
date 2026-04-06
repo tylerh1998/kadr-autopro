@@ -841,22 +841,46 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         console.log('DEBUG: currentUser email at Phase 3 save:', currentUser?.email);
         console.log('DEBUG: Completed date being sent:', format(toMountainTime(new Date()), 'yyyy-MM-dd'));
 
-        await handleSave({
-          invoice_date: data.invoice_date,
-          stage: 'invoice',
-          converted: true,
-          completed_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
-          completed_by: currentUser?.email,
-          forceConversion: true
-        }, false);
-        setInvoiceConversionPhase(0);
+        try {
+          const glResponse = await base44.functions.invoke('handleInvoiceConversionGL', {
+            workOrder,
+            lineItems,
+            payments: existingPayments,
+            systemSettings,
+            action: 'convert'
+          });
+
+          let accountingDetails = workOrder.accounting_details;
+          if (glResponse.data?.success) {
+            accountingDetails = glResponse.data.accounting_details;
+          } else {
+            console.error("Failed to generate GL transactions:", glResponse.data?.error);
+            alert("Failed to generate accounting records: " + (glResponse.data?.error || "Unknown error"));
+            return;
+          }
+
+          await handleSave({
+            invoice_date: data.invoice_date,
+            stage: 'invoice',
+            converted: true,
+            completed_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
+            completed_by: currentUser?.email,
+            accounting_details: accountingDetails,
+            forceConversion: true
+          }, false);
+          setInvoiceConversionPhase(0);
+        } catch (glError) {
+          console.error("Error invoking GL conversion function:", glError);
+          alert("Failed to generate accounting records. Please try again.");
+          return;
+        }
       }
     } catch (error) {
       console.error('Error during conversion step submission:', error);
       alert('An error occurred while saving conversion data. Conversion cancelled.');
       onConversionModalCancel();
     }
-  }, [invoiceConversionPhase, handleSave, onConversionModalCancel]);
+  }, [invoiceConversionPhase, handleSave, onConversionModalCancel, workOrder, lineItems, existingPayments, systemSettings, currentUser]);
 
   const handleConvertToInvoice = useCallback(async () => {
     if (!workOrder) return;
