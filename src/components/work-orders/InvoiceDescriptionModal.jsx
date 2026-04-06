@@ -23,6 +23,12 @@ export default function InvoiceDescriptionModal({ open, onClose, onSubmit, workO
       return;
     }
     
+    const newDescription = description.trim();
+    if (newDescription === workOrder.description) {
+      // If description hasn't changed, skip saving and just proceed
+      return onSubmit({ description: newDescription, action: 'no_change' });
+    }
+    
     setIsLoading(true);
     try {
       // Submit the description

@@ -37,6 +37,13 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
       alert('Please enter a valid number for the odometer reading.');
       return;
     }
+
+    const odometerValueCheck = odometer.trim() ? Number(odometer.trim()) : null;
+    const currentWorkOrderOdometer = workOrder?.odometer !== null && workOrder?.odometer !== undefined ? Number(workOrder.odometer) : null;
+
+    if (odometerValueCheck === currentWorkOrderOdometer) {
+      return onSubmit({ odometer: odometerValueCheck, action: 'no_change' });
+    }
     
     setIsLoading(true);
     try {
@@ -75,16 +82,8 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
   };
   
   const handleSkip = async () => {
-    setIsLoading(true);
-    try {
-      // Skip odometer - submit null value, no vehicle update
-      await onSubmit({ odometer: null });
-    } catch (error) {
-      console.error('Error skipping odometer:', error);
-      alert('Error during skip. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    // Skip odometer - submit null value, no vehicle update, no loading state
+    onSubmit({ odometer: null, action: 'skipped' });
   };
 
   const hasWorkPROOdometer = workPROProject?.odometer_reading !== null && 

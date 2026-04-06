@@ -832,10 +832,18 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const onConversionModalSubmit = useCallback(async (data) => {
     try {
       if (invoiceConversionPhase === 1) {
-        await handleSave({ odometer: data.odometer }, false);
+        if (data.action === 'skipped' || data.action === 'no_change') {
+          console.log('Odometer update skipped or no change detected, proceeding to next phase.');
+        } else {
+          await handleSave({ odometer: data.odometer }, false);
+        }
         setInvoiceConversionPhase(2);
       } else if (invoiceConversionPhase === 2) {
-        await handleSave({ description: data.description }, false);
+        if (data.action === 'no_change') {
+          console.log('Description update skipped as no change detected, proceeding to next phase.');
+        } else {
+          await handleSave({ description: data.description }, false);
+        }
         setInvoiceConversionPhase(3);
       } else if (invoiceConversionPhase === 3) {
         console.log('DEBUG: currentUser email at Phase 3 save:', currentUser?.email);
@@ -1757,7 +1765,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             onSubmit={onConversionModalSubmit}
             workOrder={workOrder}
             customer={customer}
-            totalAmount={workOrder?.total_amount || 0}
+            totalAmount={liveGrandTotal}
             existingPayments={existingPayments}
             onProcessPayment={handleProcessInvoicePayment}
             onNavigateAway={handlePaymentModalNavigate}
