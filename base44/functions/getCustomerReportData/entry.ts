@@ -95,11 +95,25 @@ export const getCustomerReportData = async (req) => {
             stats.totalSales += amount;
         });
 
-        // Fetch Customers
-        // If we have many customers, we might need to batch or fetch all
-        // For now, let's try fetching all active customers or just the ones we need
-        // Fetching all is usually safer if we can't do complex $in queries with many IDs
-        const customers = await base44.entities.Customer.list();
+        // Fetch Customers from Supabase
+        const customerIdsArray = Array.from(customerIds);
+        const customers = [];
+        const chunkSize = 200; // Batch to avoid URL length limits on the Supabase API
+        
+        for (let i = 0; i < customerIdsArray.length; i += chunkSize) {
+            const chunk = customerIdsArray.slice(i, i + chunkSize);
+            const { data, error } = await supabase
+                .from('Customers')
+                .select('id, org_name, first_name, last_name')
+                .in('id', chunk);
+                
+            if (error) {
+                console.error("Error fetching customers chunk:", error);
+            } else if (data) {
+                customers.push(...data);
+            }
+        }
+
         const customerMap = {};
         customers.forEach(c => {
             customerMap[c.id] = c;
