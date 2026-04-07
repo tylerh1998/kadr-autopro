@@ -55,16 +55,16 @@ with filtered as (
         i.vendor,
         i.manufacturer,
         i.sales_class,
-        i.cost::numeric as cost,
-        i.selling_price::numeric as selling_price,
-        i.profit_margin::numeric as profit_margin,
-        i.quantity_on_hand::numeric as quantity_on_hand,
-        i.quantity_on_order::numeric as quantity_on_order,
-        i.minimum_quantity::numeric as minimum_quantity,
-        i.maximum_quantity::numeric as maximum_quantity,
+        nullif(i.cost::text, '')::numeric as cost,
+        nullif(i.selling_price::text, '')::numeric as selling_price,
+        nullif(i.profit_margin::text, '')::numeric as profit_margin,
+        nullif(i.quantity_on_hand::text, '')::numeric as quantity_on_hand,
+        nullif(i.quantity_on_order::text, '')::numeric as quantity_on_order,
+        nullif(i.minimum_quantity::text, '')::numeric as minimum_quantity,
+        nullif(i.maximum_quantity::text, '')::numeric as maximum_quantity,
         i.location,
         i.core,
-        i.core_cost::numeric as core_cost,
+        nullif(i.core_cost::text, '')::numeric as core_cost,
         i.tag_along_id,
         i.is_active,
         i.stocked_item,
@@ -92,9 +92,9 @@ with filtered as (
         p_filter = 'all'
         or (p_filter = 'stocked' and coalesce(i.stocked_item, false) = true)
         or (p_filter = 'non-stocked' and coalesce(i.stocked_item, false) = false)
-        or (p_filter = 'non-zero' and coalesce(i.quantity_on_hand::numeric, 0) > 0)
+        or (p_filter = 'non-zero' and coalesce(nullif(i.quantity_on_hand::text, '')::numeric, 0) > 0)
         or (p_filter = 'inventory-count' and i.location is not null and btrim(i.location) <> '')
-        or (p_filter = 'no-location' and (i.location is null or btrim(i.location) = '') and coalesce(i.quantity_on_hand::numeric, 0) > 0)
+        or (p_filter = 'no-location' and (i.location is null or btrim(i.location) = '') and coalesce(nullif(i.quantity_on_hand::text, '')::numeric, 0) > 0)
       )
       and (p_location_from is null or p_location_from = '' or i.location >= p_location_from)
       and (p_location_to is null or p_location_to = '' or i.location <= p_location_to)
