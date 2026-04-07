@@ -22,7 +22,13 @@ Deno.serve(async (req) => {
         result = await supabase.from('CustomerPayments').select('*').order('payment_date', { ascending: false });
         break;
       case 'filter':
-        result = await supabase.from('CustomerPayments').select('*').match(match || {});
+        if (match && match.deposited === false) {
+          const matchCopy = { ...match };
+          delete matchCopy.deposited;
+          result = await supabase.from('CustomerPayments').select('*').match(matchCopy).or('deposited.eq.false,deposited.is.null');
+        } else {
+          result = await supabase.from('CustomerPayments').select('*').match(match || {});
+        }
         break;
       case 'get':
         result = await supabase.from('CustomerPayments').select('*').eq('id', id).single();
