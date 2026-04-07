@@ -71,22 +71,22 @@ with filtered as (
         i.master_inventory_item_id,
         i.duplicate_inventory_item_ids::jsonb as duplicate_inventory_item_ids,
         case
-            when lower(coalesce(i.part_number, '')) = lower(p_search_term) then 1
-            when lower(coalesce(i.part_number, '')) like lower(p_search_term) || '%' then 2
-            when lower(coalesce(i.part_number, '')) like '%' || lower(p_search_term) || '%' then 3
-            when lower(coalesce(i.description, '')) = lower(p_search_term) then 4
-            when lower(coalesce(i.description, '')) like lower(p_search_term) || '%' then 5
-            when lower(coalesce(i.description, '')) like '%' || lower(p_search_term) || '%' then 6
-            when lower(coalesce(i.manufacturer, '')) like lower(p_search_term) || '%' then 7
-            when lower(coalesce(i.manufacturer, '')) like '%' || lower(p_search_term) || '%' then 8
+            when lower(btrim(coalesce(i.part_number, ''))) = lower(btrim(p_search_term)) then 1
+            when lower(btrim(coalesce(i.part_number, ''))) like lower(btrim(p_search_term)) || '%' then 2
+            when lower(btrim(coalesce(i.part_number, ''))) like '%' || lower(btrim(p_search_term)) || '%' then 3
+            when lower(btrim(coalesce(i.description, ''))) = lower(btrim(p_search_term)) then 4
+            when lower(btrim(coalesce(i.description, ''))) like lower(btrim(p_search_term)) || '%' then 5
+            when lower(btrim(coalesce(i.description, ''))) like '%' || lower(btrim(p_search_term)) || '%' then 6
+            when lower(btrim(coalesce(i.manufacturer, ''))) like lower(btrim(p_search_term)) || '%' then 7
+            when lower(btrim(coalesce(i.manufacturer, ''))) like '%' || lower(btrim(p_search_term)) || '%' then 8
             else 999
         end as match_rank
     from public."InventoryItem" i
     where i.is_active = true
       and (
-        lower(coalesce(i.part_number, '')) like '%' || lower(p_search_term) || '%'
-        or lower(coalesce(i.description, '')) like '%' || lower(p_search_term) || '%'
-        or lower(coalesce(i.manufacturer, '')) like '%' || lower(p_search_term) || '%'
+        lower(btrim(coalesce(i.part_number, ''))) like '%' || lower(btrim(p_search_term)) || '%'
+        or lower(btrim(coalesce(i.description, ''))) like '%' || lower(btrim(p_search_term)) || '%'
+        or lower(btrim(coalesce(i.manufacturer, ''))) like '%' || lower(btrim(p_search_term)) || '%'
       )
       and (
         p_filter = 'all'
