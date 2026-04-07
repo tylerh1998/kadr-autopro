@@ -19,19 +19,19 @@ Deno.serve(async (req) => {
     let result;
     switch (action) {
       case 'list':
-        result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').order('payment_date', { ascending: false });
+        result = await supabase.from('CustomerPayments').select('*').order('payment_date', { ascending: false });
         break;
       case 'filter':
         if (match && match.deposited === false) {
           const matchCopy = { ...match };
           delete matchCopy.deposited;
-          result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').match(matchCopy).or('deposited.eq.false,deposited.is.null');
+          result = await supabase.from('CustomerPayments').select('*').match(matchCopy).or('deposited.eq.false,deposited.is.null');
         } else {
-          result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').match(match || {});
+          result = await supabase.from('CustomerPayments').select('*').match(match || {});
         }
         break;
       case 'get':
-        result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').eq('id', id).single();
+        result = await supabase.from('CustomerPayments').select('*').eq('id', id).single();
         break;
       case 'create':
         if (!data.id) data.id = crypto.randomUUID();
@@ -51,6 +51,26 @@ Deno.serve(async (req) => {
     }
 
     if (result.error) throw result.error;
+
+    if (['list', 'filter', 'get'].includes(action) && result.data) {
+      let isArray = Array.isArray(result.data);
+      let records = isArray ? result.data : [result.data];
+      const customerIds = [...new Set(records.map(p => p.customer_id).filter(id => id))];
+      
+      if (customerIds.length > 0) {
+        const { data: customers } = await supabase.from('Customer').select('id, first_name, last_name, org_name').in('id', customerIds);
+        if (customers) {
+          const customerMap = {};
+          customers.forEach(c => customerMap[c.id] = c);
+          records = records.map(p => ({
+            ...p,
+            customer: customerMap[p.customer_id] || null
+          }));
+          result.data = isArray ? records : records[0];
+        }
+      }
+    }
+
     return Response.json({ data: result.data || result });
   } catch (error) {
     console.error('Supabase CustomerPayments error:', error);
