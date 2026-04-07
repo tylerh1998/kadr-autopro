@@ -330,11 +330,11 @@ export default function InvoiceConversion() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600 mb-4" />
-          <p className="text-slate-600 text-lg font-medium">Converting work order to invoice...</p>
-          <p className="text-slate-500 text-sm mt-2">Processing accounting transactions...</p>
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary mb-4" />
+          <p className="text-foreground text-lg font-medium">Converting work order to invoice...</p>
+          <p className="text-muted-foreground text-sm mt-2">Processing accounting transactions...</p>
         </div>
       </div>
     );
@@ -344,14 +344,14 @@ export default function InvoiceConversion() {
     const isWarning = error.includes('warning');
     
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
         <Card className="w-full max-w-2xl shadow-lg">
           <CardHeader className="text-center">
-            <div className={`mx-auto rounded-full p-3 w-fit ${isWarning ? 'bg-yellow-100' : 'bg-red-100'}`}>
+            <div className={`mx-auto rounded-full p-3 w-fit ${isWarning ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-destructive/10'}`}>
               {isWarning ? (
-                <AlertTriangle className="w-12 h-12 text-yellow-600" />
+                <AlertTriangle className="w-12 h-12 text-yellow-600 dark:text-yellow-500" />
               ) : (
-                <X className="w-12 h-12 text-red-600" />
+                <X className="w-12 h-12 text-destructive" />
               )}
             </div>
             <CardTitle className="text-2xl font-bold mt-4">
@@ -359,21 +359,21 @@ export default function InvoiceConversion() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-6">
-            <p className={isWarning ? 'text-yellow-700' : 'text-red-600'}>{error}</p>
+            <p className={isWarning ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}>{error}</p>
             
             {isWarning && workOrder && (
               <>
                 <p className="text-lg font-semibold">
-                  Invoice Number: <span className="text-blue-600">{workOrder.inv_number}</span>
+                  Invoice Number: <span className="text-primary">{workOrder.inv_number}</span>
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   The invoice was created successfully, but there may be issues with the accounting entries. 
                   Please verify the GL transactions in the accounting system.
                 </p>
               </>
             )}
             
-            <Button onClick={handleExit} size="lg" className="bg-red-600 hover:bg-red-700 text-white gap-2">
+            <Button onClick={handleExit} size="lg" variant="destructive" className="gap-2">
               <X className="w-5 h-5" />
               Close Window
             </Button>
@@ -385,10 +385,10 @@ export default function InvoiceConversion() {
 
   if (!workOrder) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-slate-600">No work order details available. Please ensure a valid RO number was provided and try again.</p>
-          <Button onClick={handleExit} size="lg" className="bg-red-600 hover:bg-red-700 text-white gap-2 mt-4">
+          <p className="text-muted-foreground">No work order details available. Please ensure a valid RO number was provided and try again.</p>
+          <Button onClick={handleExit} size="lg" variant="destructive" className="gap-2 mt-4">
             <X className="w-5 h-5" />
             Close Window
           </Button>
@@ -423,95 +423,95 @@ export default function InvoiceConversion() {
         `}
       </style>
 
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 screen-only-area">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 screen-only-area">
       <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto bg-green-100 rounded-full p-3 w-fit">
-            <CheckCircle className="w-12 h-12 text-green-600" />
+          <div className="mx-auto bg-green-100 dark:bg-green-900/30 rounded-full p-3 w-fit">
+            <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-500" />
           </div>
           <CardTitle className="text-2xl font-bold mt-4">Conversion Successful!</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-6">
-          <p className="text-slate-600">
+          <p className="text-muted-foreground">
             The Work Order has been successfully converted into an invoice.
           </p>
           
           <p className="text-lg font-semibold">
-            Invoice Number: <span className="text-blue-600">{workOrder.inv_number}</span>
+            Invoice Number: <span className="text-primary">{workOrder.inv_number}</span>
           </p>
 
-          <p className="text-md text-slate-700">
+          <p className="text-md text-foreground">
             <strong>Customer:</strong> {customer ? (customer.org_name || `${customer.first_name} ${customer.last_name}`) : 'N/A'}<br />
             <strong>Vehicle:</strong> {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model} (${vehicle.license_plate || 'N/A'})` : 'N/A'}
           </p>
 
           {/* Accounting Summary */}
           {accountingSummary && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
+            <div className="bg-primary/10 border border-primary/20 rounded-lg overflow-hidden">
               <div 
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-100/50 transition-colors"
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-primary/20 transition-colors"
                 onClick={() => setIsAccountingSummaryOpen(!isAccountingSummaryOpen)}
               >
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-blue-900">Accounting Summary</p>
-                  <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                  <p className="text-sm font-semibold text-foreground">Accounting Summary</p>
+                  <span className="text-xs bg-primary/20 text-foreground px-2 py-0.5 rounded-full">
                     {accountingSummary.total_transactions} txs
                   </span>
                 </div>
                 {isAccountingSummaryOpen ? (
-                  <ChevronDown className="w-4 h-4 text-blue-700" />
+                  <ChevronDown className="w-4 h-4 text-foreground" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-blue-700" />
+                  <ChevronRight className="w-4 h-4 text-foreground" />
                 )}
               </div>
               
               {isAccountingSummaryOpen && (
-                <div className="px-4 pb-4 space-y-2 border-t border-blue-200 pt-3">
-                  <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                <div className="px-4 pb-4 space-y-2 border-t border-primary/20 pt-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                     {accountingSummary.parts_sales !== undefined && (
                       <div className="text-left">
-                        <span className="font-medium">Parts Sales:</span>
+                        <span className="font-medium text-foreground">Parts Sales:</span>
                         <span className="float-right">${accountingSummary.parts_sales?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.labor_sales !== undefined && (
                       <div className="text-left">
-                        <span className="font-medium">Labor Sales:</span>
+                        <span className="font-medium text-foreground">Labor Sales:</span>
                         <span className="float-right">${accountingSummary.labor_sales?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.shop_supplies !== undefined && accountingSummary.shop_supplies !== 0 && (
                       <div className="text-left">
-                        <span className="font-medium">Shop Supplies:</span>
+                        <span className="font-medium text-foreground">Shop Supplies:</span>
                         <span className="float-right">${accountingSummary.shop_supplies?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.gst !== undefined && (
                       <div className="text-left">
-                        <span className="font-medium">GST:</span>
+                        <span className="font-medium text-foreground">GST:</span>
                         <span className="float-right">${accountingSummary.gst?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.cash_payments !== undefined && accountingSummary.cash_payments !== 0 && (
                       <div className="text-left">
-                        <span className="font-medium">Cash Payments:</span>
+                        <span className="font-medium text-foreground">Cash Payments:</span>
                         <span className="float-right">${accountingSummary.cash_payments?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.advance_payments !== undefined && accountingSummary.advance_payments !== 0 && (
                       <div className="text-left">
-                        <span className="font-medium">Advance Payments:</span>
+                        <span className="font-medium text-foreground">Advance Payments:</span>
                         <span className="float-right">${accountingSummary.advance_payments?.toFixed(2)}</span>
                       </div>
                     )}
                     {accountingSummary.remaining_balance !== undefined && accountingSummary.remaining_balance !== 0 && (
-                      <div className="text-left col-span-2 pt-2 border-t border-blue-300">
-                        <span className="font-bold">Balance Due:</span>
-                        <span className="float-right font-bold">${accountingSummary.remaining_balance?.toFixed(2)}</span>
+                      <div className="text-left col-span-2 pt-2 border-t border-primary/20">
+                        <span className="font-bold text-foreground">Balance Due:</span>
+                        <span className="float-right font-bold text-foreground">${accountingSummary.remaining_balance?.toFixed(2)}</span>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-blue-700 pt-2">
+                  <p className="text-xs text-muted-foreground pt-2">
                     {accountingSummary.total_transactions} GL transactions posted
                   </p>
                 </div>
@@ -520,14 +520,14 @@ export default function InvoiceConversion() {
           )}
 
           {/* Customer Portal URL Section */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700">Customer Portal URL:</p>
+          <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Customer Portal URL:</p>
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={portalUrl || 'No customer portal available for this work order.'}
                 readOnly
-                className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded text-sm text-slate-700"
+                className="flex-1 px-3 py-2 bg-background border border-input rounded text-sm text-foreground"
               />
               <Button
                 onClick={handleCopyPortalUrl}
@@ -551,7 +551,7 @@ export default function InvoiceConversion() {
             </div>
           </div>
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             This window can now be closed.
           </p>
 
@@ -582,7 +582,8 @@ export default function InvoiceConversion() {
             <Button
               onClick={handleExit}
               size="lg"
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+              variant="default"
+              className="gap-2"
             >
               <X className="w-5 h-5" />
               Close Window
