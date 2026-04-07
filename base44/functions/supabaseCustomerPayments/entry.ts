@@ -19,19 +19,19 @@ Deno.serve(async (req) => {
     let result;
     switch (action) {
       case 'list':
-        result = await supabase.from('CustomerPayments').select('*').order('payment_date', { ascending: false });
+        result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').order('payment_date', { ascending: false });
         break;
       case 'filter':
         if (match && match.deposited === false) {
           const matchCopy = { ...match };
           delete matchCopy.deposited;
-          result = await supabase.from('CustomerPayments').select('*').match(matchCopy).or('deposited.eq.false,deposited.is.null');
+          result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').match(matchCopy).or('deposited.eq.false,deposited.is.null');
         } else {
-          result = await supabase.from('CustomerPayments').select('*').match(match || {});
+          result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').match(match || {});
         }
         break;
       case 'get':
-        result = await supabase.from('CustomerPayments').select('*').eq('id', id).single();
+        result = await supabase.from('CustomerPayments').select('*, customer:customer_id(first_name, last_name, org_name)').eq('id', id).single();
         break;
       case 'create':
         if (!data.id) data.id = crypto.randomUUID();

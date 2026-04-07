@@ -79,28 +79,6 @@ export default function CashDrawerPage() {
         // Load recent adjustments (last 10 for the modal history)
         const recentAdjustments = await CashDrawerAdjustment.list('-created_date', 10);
 
-        // Get unique customer IDs to fetch customer names in bulk
-        const customerIds = [...new Set(paymentsData.map(p => p.customer_id))];
-        let customers = [];
-        if (customerIds.length > 0) {
-            const customersRes = await base44.functions.invoke('supabaseCustomer', { 
-                action: 'get_multiple', 
-                data: { ids: customerIds } 
-            });
-            customers = customersRes?.data?.data || [];
-        }
-        const customerMap = customers.reduce((acc, customer) => {
-          if (customer) {
-            // Prefer org_name, then full name
-            if (customer.org_name && customer.org_name.trim() !== '') {
-              acc[customer.id] = customer.org_name;
-            } else {
-              acc[customer.id] = `${customer.first_name} ${customer.last_name}`;
-            }
-          }
-          return acc;
-        }, {});
-
         setBankAccounts(bankAccountsData);
         setAdjustments(recentAdjustments);
 
@@ -112,6 +90,15 @@ export default function CashDrawerPage() {
 
         // Add CustomerPayments to cash drawer
         paymentsData.forEach(payment => {
+          let customerName = 'Unknown Customer';
+          if (payment.customer) {
+            if (payment.customer.org_name && payment.customer.org_name.trim() !== '') {
+              customerName = payment.customer.org_name;
+            } else if (payment.customer.first_name || payment.customer.last_name) {
+              customerName = `${payment.customer.first_name || ''} ${payment.customer.last_name || ''}`.trim();
+            }
+          }
+
           const method = payment.payment_method;
           if (initialCashDrawer[method]) {
             initialCashDrawer[method].push({
@@ -122,7 +109,7 @@ export default function CashDrawerPage() {
               method: method,
               date: payment.payment_date,
               workOrderNumber: payment.invoice_number || 'N/A',
-              customerName: customerMap[payment.customer_id] || 'Unknown Customer',
+              customerName: customerName,
               reference: payment.reference || '',
               notes: payment.notes || '',
               // Cheque-specific fields
@@ -603,23 +590,6 @@ export default function CashDrawerPage() {
 
       const batchAdjustments = await CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
 
-      // Get customer names for the payments in bulk
-      const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
-      let customers = [];
-      if (customerIds.length > 0) {
-          const customersRes = await base44.functions.invoke('supabaseCustomer', { 
-              action: 'get_multiple', 
-              data: { ids: customerIds } 
-          });
-          customers = customersRes?.data?.data || [];
-      }
-      const customerMap = customers.reduce((acc, customer) => {
-        if (customer) {
-          acc[customer.id] = `${customer.first_name} ${customer.last_name}`;
-        }
-        return acc;
-      }, {});
-
       // Reconstruct forDepositItems structure
       const reconstructedForDeposit = {};
       paymentMethods.forEach(method => {
@@ -628,6 +598,15 @@ export default function CashDrawerPage() {
 
       // Add payments
       batchPayments.forEach(payment => {
+        let customerName = 'Unknown Customer';
+        if (payment.customer) {
+          if (payment.customer.org_name && payment.customer.org_name.trim() !== '') {
+            customerName = payment.customer.org_name;
+          } else if (payment.customer.first_name || payment.customer.last_name) {
+            customerName = `${payment.customer.first_name || ''} ${payment.customer.last_name || ''}`.trim();
+          }
+        }
+
         const method = payment.payment_method;
         if (reconstructedForDeposit[method]) {
           reconstructedForDeposit[method].push({
@@ -638,7 +617,7 @@ export default function CashDrawerPage() {
             method: method,
             date: payment.payment_date,
             workOrderNumber: payment.invoice_number || 'N/A',
-            customerName: customerMap[payment.customer_id] || 'Unknown Customer',
+            customerName: customerName,
             reference: payment.reference || '',
             notes: payment.notes || '',
             // Cheque-specific fields
