@@ -54,22 +54,30 @@ Deno.serve(async (req) => {
     logs.push(`Merging duplicate item ${duplicateItem.part_number} (${duplicateId}) into master item ${masterItem.part_number} (${masterId})`);
 
     // 2. Update Work Orders in Supabase
-    const { data: workOrdersToUpdate, error: woError } = await supabase
+    const { data: allWorkOrders, error: woError } = await supabase
       .from('WorkOrder')
-      .select('*')
-      .ilike('line_items', `%${duplicateId}%`);
+      .select('id, wo_number, ro_number, line_items')
+      .not('line_items', 'is', null);
 
     if (woError) {
       console.error("Error fetching work orders:", woError);
       logs.push(`Error fetching work orders: ${woError.message}`);
     } else {
-      logs.push(`Found ${workOrdersToUpdate?.length || 0} work orders to update`);
+      const workOrdersToUpdate = (allWorkOrders || []).filter(wo => {
+          try {
+              const itemsStr = typeof wo.line_items === 'string' ? wo.line_items : JSON.stringify(wo.line_items);
+              return itemsStr.includes(duplicateId);
+          } catch(e) {
+              return false;
+          }
+      });
+      logs.push(`Found ${workOrdersToUpdate.length} work orders to update`);
 
-      for (const wo of (workOrdersToUpdate || [])) {
+      for (const wo of workOrdersToUpdate) {
           if (!wo.line_items) continue;
           
           try {
-              let lineItems = JSON.parse(wo.line_items);
+              let lineItems = typeof wo.line_items === 'string' ? JSON.parse(wo.line_items) : wo.line_items;
               let woUpdated = false;
 
               lineItems = lineItems.map(item => {
@@ -82,7 +90,7 @@ Deno.serve(async (req) => {
 
               if (woUpdated) {
                   await supabase.from('WorkOrder').update({
-                      line_items: JSON.stringify(lineItems)
+                      line_items: lineItems
                   }).eq('id', wo.id);
                   logs.push(`Updated WorkOrder ${wo.wo_number || wo.ro_number}`);
               }
@@ -112,7 +120,12 @@ Deno.serve(async (req) => {
     const newQoo = (masterItem.quantity_on_order || 0) + (duplicateItem.quantity_on_order || 0);
     const newCost = Math.max((masterItem.cost || 0), (duplicateItem.cost || 0));
 
-    const currentDuplicates = masterItem.duplicate_inventory_item_ids || [];
+    let currentDuplicates = masterItem.duplicate_inventory_item_ids;
+    if (typeof currentDuplicates === 'string') {
+        try { currentDuplicates = JSON.parse(currentDuplicates); } catch (e) { currentDuplicates = []; }
+    }
+    if (!Array.isArray(currentDuplicates)) currentDuplicates = [];
+
     if (!currentDuplicates.includes(duplicateId)) {
         currentDuplicates.push(duplicateId);
     }
