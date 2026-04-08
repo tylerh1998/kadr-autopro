@@ -62,8 +62,18 @@ export default function BankPage() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [flushingLocks, setFlushingLocks] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: 'transaction_date', direction: 'asc' });
 
   const navigate = useNavigate();
+
+  const handleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
   // Fetch current user
   useEffect(() => {
@@ -163,11 +173,23 @@ export default function BankPage() {
         return txDate >= appliedFromDate && txDate <= appliedToDate;
       });
 
-      // Sort by date (earliest first)
+      // Sort by configured key and direction
       filteredTransactions.sort((a, b) => {
-        const dateA = new Date(a.transaction_date);
-        const dateB = new Date(b.transaction_date);
-        return dateA - dateB;
+        let valA, valB;
+        if (sortConfig.key === 'transaction_date') {
+          valA = new Date(a.transaction_date).getTime();
+          valB = new Date(b.transaction_date).getTime();
+        } else if (sortConfig.key === 'debit') {
+          valA = a.debit_amount || 0;
+          valB = b.debit_amount || 0;
+        } else if (sortConfig.key === 'credit') {
+          valA = a.credit_amount || 0;
+          valB = b.credit_amount || 0;
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
       });
 
       setTransactions(filteredTransactions);
@@ -176,7 +198,7 @@ export default function BankPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccountId, appliedFromDate, appliedToDate]);
+  }, [selectedAccountId, appliedFromDate, appliedToDate, sortConfig]);
 
   // This useEffect will still run when selectedAccountId changes (which can happen from loadData)
   useEffect(() => {
@@ -894,10 +916,40 @@ export default function BankPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 border-b">
                       <tr>
-                        <th className="text-left p-3 font-semibold text-slate-700">Date</th>
+                        <th 
+                          className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => handleSort('transaction_date')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date
+                            {sortConfig.key === 'transaction_date' && (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
                         <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
-                        <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => handleSort('debit')}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            Debit
+                            {sortConfig.key === 'debit' && (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                          onClick={() => handleSort('credit')}
+                        >
+                          <div className="flex items-center justify-end gap-1">
+                            Credit
+                            {sortConfig.key === 'credit' && (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                            )}
+                          </div>
+                        </th>
                         <th className="text-center p-3 font-semibold text-slate-700">Cleared</th>
                       </tr>
                     </thead>
