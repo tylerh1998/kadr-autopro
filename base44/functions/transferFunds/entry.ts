@@ -55,16 +55,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check sufficient balance
-    if ((fromAccount.current_balance || 0) < transferAmount) {
-      return Response.json(
-        { 
-          error: `Insufficient funds in ${fromAccount.name}. Available: $${(fromAccount.current_balance || 0).toFixed(2)}` 
-        },
-        { status: 400 }
-      );
-    }
-
     // Check for GL accounts
     if (!fromAccount.gl_account || !toAccount.gl_account) {
       return Response.json(
