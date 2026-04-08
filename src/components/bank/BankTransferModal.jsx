@@ -189,13 +189,6 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
       return false;
     }
 
-    // Optional: Check if source account has sufficient funds
-    const fromAccount = bankAccounts.find(acc => acc.id === formData.fromAccountId);
-    if (fromAccount && fromAccount.current_balance < amount) {
-      setValidationError(`Insufficient funds in ${fromAccount.name}. Available: $${fromAccount.current_balance.toFixed(2)}`);
-      return false;
-    }
-
     if (!formData.transferDate) {
       setValidationError('Please select a transfer date');
       return false;
