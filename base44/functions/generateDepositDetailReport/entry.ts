@@ -22,10 +22,28 @@ Deno.serve(async (req) => {
         const pageWidth = doc.internal.pageSize.getWidth();
 
         // Company Header - Left Side
-        doc.setFillColor(150, 160, 170);
-        doc.rect(20, 20, 12, 18, 'F');
-        doc.setFillColor(0, 0, 0);
-        doc.triangle(32, 38, 50, 20, 42, 38, 'F');
+        try {
+            const logoRes = await fetch("https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg");
+            if (logoRes.ok) {
+                const logoBuffer = await logoRes.arrayBuffer();
+                const logoArray = new Uint8Array(logoBuffer);
+                const chunkSize = 8192;
+                let binary = '';
+                for (let i = 0; i < logoArray.length; i += chunkSize) {
+                    binary += String.fromCharCode.apply(null, logoArray.subarray(i, i + chunkSize));
+                }
+                const logoBase64 = btoa(binary);
+                doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', 18, 16, 32, 20, undefined, 'FAST');
+            } else {
+                throw new Error("Failed to fetch logo");
+            }
+        } catch (e) {
+            console.error('Error loading logo:', e);
+            doc.setFillColor(150, 160, 170);
+            doc.rect(20, 20, 12, 18, 'F');
+            doc.setFillColor(0, 0, 0);
+            doc.triangle(32, 38, 50, 20, 42, 38, 'F');
+        }
 
         doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
