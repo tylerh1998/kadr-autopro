@@ -3,12 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, TrendingUp, TrendingDown, History, DollarSign, CreditCard, Banknote, ArrowLeftRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, TrendingUp, TrendingDown, DollarSign, CreditCard, Banknote, ArrowLeftRight, Calendar, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartOfAccount } from '@/entities/all';
-import AdjustmentHistoryModal from './AdjustmentHistoryModal';
 
 export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adjustments = [] }) {
   const [formData, setFormData] = useState({
@@ -16,13 +15,12 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
     amount: '',
     type: 'shortage',
     paymentMethod: 'cash',
-    glAccount: '',
+    glAccount: '4013',
     description: '',
     reference: ''
   });
   const [glAccounts, setGlAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -33,10 +31,11 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
         amount: '',
         type: 'shortage',
         paymentMethod: 'cash',
-        glAccount: '',
+        glAccount: '4013',
         description: '',
         reference: ''
       });
+      setLoading(false);
     }
   }, [open]);
 
@@ -100,20 +99,20 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
-              Record Cash Drawer Adjustment
-            </DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-orange-600" />
+            Cash Drawer Adjustment
+          </DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="border-b pb-6 mb-2 flex-shrink-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="adjustmentDate">Adjustment Date *</Label>
+              <Label htmlFor="adjustmentDate">Date *</Label>
               <Input
                 id="adjustmentDate"
                 type="date"
@@ -125,7 +124,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
 
             {/* Type */}
             <div className="space-y-2">
-              <Label htmlFor="type">Adjustment Type *</Label>
+              <Label htmlFor="type">Type *</Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) => setFormData(prev => ({...prev, type: value}))}
@@ -137,13 +136,13 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                   <SelectItem value="shortage">
                     <div className="flex items-center gap-2">
                       <TrendingDown className="w-4 h-4 text-red-500" />
-                      <span>Shortage (Missing Cash)</span>
+                      <span>Shortage</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="overage">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span>Overage (Extra Cash)</span>
+                      <span>Overage</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -152,13 +151,13 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
 
             {/* Payment Method */}
             <div className="space-y-2">
-              <Label htmlFor="paymentMethod">Payment Method *</Label>
+              <Label htmlFor="paymentMethod">Method *</Label>
               <Select
                 value={formData.paymentMethod}
                 onValueChange={(value) => setFormData(prev => ({...prev, paymentMethod: value}))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select payment method..." />
+                  <SelectValue placeholder="Method..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cash">
@@ -199,9 +198,6 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500">
-                Select the payment method this adjustment applies to (typically Cash)
-              </p>
             </div>
 
             {/* Amount */}
@@ -221,20 +217,17 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                   required
                 />
               </div>
-              <p className="text-xs text-slate-500">
-                Enter the absolute amount (do not include negative sign)
-              </p>
             </div>
 
             {/* GL Account */}
             <div className="space-y-2">
-              <Label htmlFor="glAccount">GL Account for Adjustment *</Label>
+              <Label htmlFor="glAccount">GL Account *</Label>
               <Select
                 value={formData.glAccount}
                 onValueChange={(value) => setFormData(prev => ({...prev, glAccount: value}))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select GL account..." />
+                  <SelectValue placeholder="GL account..." />
                 </SelectTrigger>
                 <SelectContent>
                   {glAccounts.map(account => (
@@ -244,27 +237,23 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500">
-                Typically a "Cash Short/Over" expense or revenue account
-              </p>
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
+            <div className="space-y-2 xl:col-span-3">
               <Label htmlFor="description">Description *</Label>
-              <Textarea
+              <Input
                 id="description"
                 placeholder="Explain the reason for this adjustment..."
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({...prev, description: e.target.value}))}
-                rows={3}
                 required
               />
             </div>
 
             {/* Reference */}
-            <div className="space-y-2">
-              <Label htmlFor="reference">Reference Number (Optional)</Label>
+            <div className="space-y-2 xl:col-span-2">
+              <Label htmlFor="reference">Reference</Label>
               <Input
                 id="reference"
                 placeholder="Optional reference..."
@@ -272,60 +261,109 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                 onChange={(e) => setFormData(prev => ({...prev, reference: e.target.value}))}
               />
             </div>
+          </div>
 
-            {/* Summary */}
-            {formData.amount && (
-              <div className={`p-3 rounded-lg ${
-                formData.type === 'shortage' 
-                  ? 'bg-red-50 border border-red-200' 
-                  : 'bg-green-50 border border-green-200'
-              }`}>
-                <p className="text-sm font-medium">
-                  {formData.type === 'shortage' ? (
-                    <span className="text-red-800">
-                      Cash Shortage: ${parseFloat(formData.amount || 0).toFixed(2)} will be removed from {formData.paymentMethod.replace('_', ' ')} in Cash Drawer
-                    </span>
-                  ) : (
-                    <span className="text-green-800">
-                      Cash Overage: ${parseFloat(formData.amount || 0).toFixed(2)} will be added to {formData.paymentMethod.replace('_', ' ')} in Cash Drawer
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
-
-            <DialogFooter className="flex justify-between items-center">
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={() => setShowHistoryModal(true)}
-                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-              >
-                <History className="w-4 h-4 mr-1" />
-                View History
+          <div className="flex justify-between items-center mt-6">
+            <div className="flex-1 pr-4">
+              {formData.amount && (
+                <div className={`p-2 rounded-md inline-block ${
+                  formData.type === 'shortage' 
+                    ? 'bg-red-50 border border-red-200 text-red-800' 
+                    : 'bg-green-50 border border-green-200 text-green-800'
+                }`}>
+                  <p className="text-sm font-medium">
+                    {formData.type === 'shortage' 
+                      ? `Shortage: $${parseFloat(formData.amount || 0).toFixed(2)} will be removed from ${formData.paymentMethod.replace('_', ' ')}`
+                      : `Overage: $${parseFloat(formData.amount || 0).toFixed(2)} will be added to ${formData.paymentMethod.replace('_', ' ')}`
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                Cancel
               </Button>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className={formData.type === 'shortage' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
-                  disabled={loading}
-                >
-                  {loading ? 'Recording...' : 'Record Adjustment'}
-                </Button>
-              </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <Button 
+                type="submit" 
+                className={formData.type === 'shortage' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+                disabled={loading}
+              >
+                {loading ? 'Recording...' : 'Record Adjustment'}
+              </Button>
+            </div>
+          </div>
+        </form>
 
-      <AdjustmentHistoryModal
-        open={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
-        adjustments={adjustments}
-      />
-    </>
+        {/* History Table */}
+        <div className="flex-1 flex flex-col min-h-[300px] mt-4">
+          <h3 className="font-medium text-slate-800 mb-3">Recent Adjustments</h3>
+          
+          {adjustments.length === 0 ? (
+            <div className="py-8 text-center text-slate-500 border rounded-lg bg-slate-50">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p>No adjustments have been recorded yet.</p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto border rounded-md">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left p-3 font-semibold text-slate-700">Date</th>
+                    <th className="text-left p-3 font-semibold text-slate-700">Type</th>
+                    <th className="text-right p-3 font-semibold text-slate-700">Amount</th>
+                    <th className="text-left p-3 font-semibold text-slate-700">Description</th>
+                    <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
+                    <th className="text-center p-3 font-semibold text-slate-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adjustments.map((adj) => (
+                    <tr key={adj.id} className="border-b hover:bg-slate-50">
+                      <td className="p-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-slate-400" />
+                          {format(new Date(adj.adjustment_date), 'MMM d, yyyy')}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge 
+                          className={adj.type === 'shortage' ? 'bg-red-100 text-red-800 hover:bg-red-100' : 'bg-green-100 text-green-800 hover:bg-green-100'}
+                        >
+                          {adj.type === 'shortage' ? 'Shortage' : 'Overage'}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-right">
+                        <span className={`font-semibold ${adj.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ${Math.abs(adj.amount || 0).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="p-3 text-slate-700">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[200px] block" title={adj.description}>
+                            {adj.description}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
+                          {adj.reference || '-'}
+                        </code>
+                      </td>
+                      <td className="p-3 text-center">
+                        <Badge variant={adj.status === 'posted_to_gl' ? 'default' : 'secondary'}>
+                          {adj.status === 'posted_to_gl' ? 'Posted' : 'Recorded'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
