@@ -3,18 +3,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-
     const { startDate, endDate } = await req.json();
 
-    const accounts = await base44.asServiceRole.entities.ChartOfAccount.filter({ is_active: true }, undefined, 5000);
+    const accounts = await base44.asServiceRole.entities.ChartOfAccount.filter({ account_number: "2051" }, undefined, 5000);
     
     // Fetch all GL transactions up to endDate with pagination
     const allTransactions = [];
     let skip = 0;
     while(true) {
-      const batch = await base44.asServiceRole.entities.GLTransaction.filter({}, undefined, 5000, skip);
+      const batch = await base44.asServiceRole.entities.GLTransaction.filter({account_number: "2051"}, undefined, 5000, skip);
       if (batch.length === 0) break;
       allTransactions.push(...batch);
       if (batch.length < 5000) break;
@@ -52,7 +49,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      accounts: Object.values(accountMap)
+      acc2051: Object.values(accountMap)[0]
     });
 
   } catch (error) {

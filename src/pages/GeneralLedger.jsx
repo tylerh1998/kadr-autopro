@@ -176,7 +176,7 @@ export default function GeneralLedgerPage() {
             </div>
           </td>
           <td className="p-3 text-right font-semibold">
-            <span className={balance !== 0 ? (balance < -0.001 ? 'text-red-600' : 'text-slate-900') : 'text-slate-400'}>
+            <span className={Math.abs(balance) > 0.001 ? (balance < -0.001 ? 'text-red-600' : 'text-slate-900') : 'text-slate-400'}>
               ${Math.abs(balance).toFixed(2)}
               {isCr && <span className="ml-1">CR</span>}
               {isDr && <span className="ml-1">DR</span>}
