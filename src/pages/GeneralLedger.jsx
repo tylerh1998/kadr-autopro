@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChartOfAccount, GLTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,50 +25,26 @@ export default function GeneralLedgerPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load all accounts
-      const accountsData = await ChartOfAccount.list(undefined, 1000);
-      const activeAccounts = accountsData.filter(acc => acc.is_active);
-      setAccounts(activeAccounts);
+      const response = await base44.functions.invoke('getGeneralLedgerData', {
+        startDate,
+        endDate
+      });
 
-      // Load all transactions
-      const allTransactions = await GLTransaction.list(undefined, 10000);
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to fetch GL data');
+      }
+
+      const activeAccounts = response.data.accounts;
 
       // --- Build Hierarchy & Calculate Totals (Client-Side) ---
 
       // 1. Initialize Nodes
       const accountMap = {};
       activeAccounts.forEach(account => {
-        const isDebitNormal = ['Asset', 'Expense'].includes(account.account_type);
-
-        // Find own transactions
-        const accountTxs = allTransactions.filter(
-          tx => tx.account_number === account.account_number
-        );
-        
-        let ownBalance = 0;
-        let transactionCount = 0;
-
-        accountTxs.forEach(tx => {
-          if (!tx.transaction_date) return;
-          const txDate = tx.transaction_date.split('T')[0];
-          
-          if (txDate <= endDate) {
-            const dr = tx.debit_amount || 0;
-            const cr = tx.credit_amount || 0;
-            ownBalance += isDebitNormal ? (dr - cr) : (cr - dr);
-            
-            if (txDate >= startDate) {
-              transactionCount++;
-            }
-          }
-        });
-
         accountMap[account.account_number] = {
           ...account,
           children: [],
-          own_balance: ownBalance,
-          total_balance: 0, // Will be calculated
-          transactionCount: transactionCount
+          total_balance: 0 // Will be calculated
         };
       });
 
@@ -167,6 +144,17 @@ export default function GeneralLedgerPage() {
     const balance = account.total_balance || 0;
     const transactionCount = account.transactionCount || 0;
     const hasChildren = account.children && account.children.length > 0;
+    const isDebitNormal = ['Asset', 'Expense'].includes(account.account_type);
+    
+    let isDr = false;
+    let isCr = false;
+    if (balance > 0.001) {
+      if (isDebitNormal) isDr = true;
+      else isCr = true;
+    } else if (balance < -0.001) {
+      if (isDebitNormal) isCr = true;
+      else isDr = true;
+    }
     
     return (
       <React.Fragment>
@@ -188,10 +176,10 @@ export default function GeneralLedgerPage() {
             </div>
           </td>
           <td className="p-3 text-right font-semibold">
-            <span className={balance !== 0 ? 'text-slate-900' : 'text-slate-400'}>
+            <span className={balance !== 0 ? (balance < -0.001 ? 'text-red-600' : 'text-slate-900') : 'text-slate-400'}>
               ${Math.abs(balance).toFixed(2)}
-              {balance < 0 && <span className="text-red-600 ml-1">CR</span>}
-              {balance > 0 && <span className="text-blue-600 ml-1">DR</span>}
+              {isCr && <span className="ml-1">CR</span>}
+              {isDr && <span className="ml-1">DR</span>}
             </span>
           </td>
           <td className="p-3 text-center">
