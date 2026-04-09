@@ -26,6 +26,14 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching transactions for account ${accountNumber}, range: ${appliedStartDate} to ${appliedEndDate}`);
 
+    // Fetch account details to determine account type
+    const accounts = await base44.asServiceRole.entities.ChartOfAccount.filter({ account_number: accountNumber });
+    if (!accounts || accounts.length === 0) {
+      return Response.json({ success: false, error: 'Account not found' }, { status: 404 });
+    }
+    const accountType = accounts[0].account_type;
+    const isDebitNormal = ['Asset', 'Expense'].includes(accountType);
+
     // Fetch ALL transactions for this account
     const allTransactions = await base44.asServiceRole.entities.GLTransaction.filter(
       { account_number: accountNumber },
@@ -53,7 +61,9 @@ Deno.serve(async (req) => {
 
       if (txDateStr < appliedStartDate) {
         // Transaction is before our filter range - add to opening balance
-        openingBalance += (tx.debit_amount || 0) - (tx.credit_amount || 0);
+        const dr = tx.debit_amount || 0;
+        const cr = tx.credit_amount || 0;
+        openingBalance += isDebitNormal ? (dr - cr) : (cr - dr);
       } else if (txDateStr >= appliedStartDate && txDateStr <= appliedEndDate) {
         // Transaction is in our filter range - collect for processing
         transactionsInRange.push(tx);
@@ -67,7 +77,9 @@ Deno.serve(async (req) => {
     // Calculate running balance for transactions in range, starting from opening balance
     let runningBalance = openingBalance;
     const processedTransactions = transactionsInRange.map(tx => {
-      runningBalance += (tx.debit_amount || 0) - (tx.credit_amount || 0);
+      const dr = tx.debit_amount || 0;
+      const cr = tx.credit_amount || 0;
+      runningBalance += isDebitNormal ? (dr - cr) : (cr - dr);
       return {
         ...tx,
         balance: runningBalance

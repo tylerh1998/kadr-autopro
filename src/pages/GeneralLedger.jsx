@@ -25,46 +25,49 @@ export default function GeneralLedgerPage() {
     setLoading(true);
     try {
       // Load all accounts
-      const accountsData = await ChartOfAccount.list();
+      const accountsData = await ChartOfAccount.list(undefined, 1000);
       const activeAccounts = accountsData.filter(acc => acc.is_active);
       setAccounts(activeAccounts);
 
-      // Load all transactions in date range
-      const allTransactions = await GLTransaction.list();
-      const filteredTransactions = allTransactions.filter(tx => {
-        const txDate = new Date(tx.transaction_date);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        return txDate >= start && txDate <= end;
-      });
+      // Load all transactions
+      const allTransactions = await GLTransaction.list(undefined, 10000);
 
       // --- Build Hierarchy & Calculate Totals (Client-Side) ---
 
       // 1. Initialize Nodes
       const accountMap = {};
       activeAccounts.forEach(account => {
+        const isDebitNormal = ['Asset', 'Expense'].includes(account.account_type);
+
         // Find own transactions
-        const accountTxs = filteredTransactions.filter(
+        const accountTxs = allTransactions.filter(
           tx => tx.account_number === account.account_number
         );
         
-        // Calculate basic Dr-Cr
-        const drMinusCr = accountTxs.reduce((sum, tx) => sum + (tx.debit_amount || 0) - (tx.credit_amount || 0), 0);
-
-        // Determine Sign based on Type
         let ownBalance = 0;
-        if (['Asset', 'Expense'].includes(account.account_type)) {
-           ownBalance = drMinusCr;
-        } else {
-           ownBalance = -drMinusCr; // Cr - Dr
-        }
+        let transactionCount = 0;
+
+        accountTxs.forEach(tx => {
+          if (!tx.transaction_date) return;
+          const txDate = tx.transaction_date.split('T')[0];
+          
+          if (txDate <= endDate) {
+            const dr = tx.debit_amount || 0;
+            const cr = tx.credit_amount || 0;
+            ownBalance += isDebitNormal ? (dr - cr) : (cr - dr);
+            
+            if (txDate >= startDate) {
+              transactionCount++;
+            }
+          }
+        });
 
         accountMap[account.account_number] = {
           ...account,
           children: [],
           own_balance: ownBalance,
           total_balance: 0, // Will be calculated
-          transactionCount: accountTxs.length
+          transactionCount: transactionCount
         };
       });
 
