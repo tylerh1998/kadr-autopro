@@ -32,8 +32,16 @@ Deno.serve(async (req) => {
     const gstCollectedAccount = settings.gst_collected_account_number || '2002';
     const gstPaidAccount = settings.gst_paid_account_number || '2003';
 
-    // Fetch all GL transactions within the date range
-    const allTransactions = await base44.asServiceRole.entities.GLTransaction.list();
+    // Fetch all GL transactions with pagination to ensure we don't hit the limit
+    const allTransactions = [];
+    let skip = 0;
+    while(true) {
+      const batch = await base44.asServiceRole.entities.GLTransaction.filter({ }, undefined, 5000, skip);
+      if (batch.length === 0) break;
+      allTransactions.push(...batch);
+      if (batch.length < 5000) break;
+      skip += 5000;
+    }
     
     // Filter transactions by date range
     const transactions = allTransactions.filter(tx => {
