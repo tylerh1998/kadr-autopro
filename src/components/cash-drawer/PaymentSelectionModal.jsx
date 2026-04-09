@@ -191,7 +191,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
           <div className="flex gap-2">
             {selectedPayments.length === 1 && (() => {
               const item = payments.find(p => p.id === selectedPayments[0]);
-              const hasWorkOrder = item && item.workOrderNumber && item.workOrderNumber !== 'N/A';
+              const hasWorkOrder = item && item.workOrderId;
               
               if (!hasWorkOrder) return null;
               
@@ -200,7 +200,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                   variant="outline" 
                   className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
                   onClick={() => {
-                    const url = createPageUrl("WorkOrderEdit") + "?id=" + item.workOrderNumber;
+                    const url = createPageUrl("WorkOrderEdit") + "?id=" + item.workOrderId;
                     window.open(url, '_blank');
                   }}
                 >

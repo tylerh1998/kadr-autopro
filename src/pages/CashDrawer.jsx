@@ -109,6 +109,7 @@ export default function CashDrawerPage() {
               method: method,
               date: payment.payment_date,
               workOrderNumber: payment.invoice_number || 'N/A',
+              workOrderId: payment.work_order_id || null,
               customerName: customerName,
               reference: payment.reference || '',
               notes: payment.notes || '',
