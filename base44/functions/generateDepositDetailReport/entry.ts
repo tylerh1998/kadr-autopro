@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
 import { jsPDF } from 'npm:jspdf@2.5.1';
 import { format } from 'npm:date-fns@3.6.0';
+import { Buffer } from "node:buffer";
 
 Deno.serve(async (req) => {
     try {
@@ -26,13 +27,8 @@ Deno.serve(async (req) => {
             const logoRes = await fetch("https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg");
             if (logoRes.ok) {
                 const logoBuffer = await logoRes.arrayBuffer();
-                const logoArray = new Uint8Array(logoBuffer);
-                let binary = '';
-                for (let i = 0; i < logoArray.byteLength; i++) {
-                    binary += String.fromCharCode(logoArray[i]);
-                }
-                const logoBase64 = btoa(binary);
-                doc.addImage(logoBase64, 'JPEG', 18, 16, 32, 20);
+                const logoBase64 = Buffer.from(logoBuffer).toString('base64');
+                doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', 20, 15, 26, 26);
             } else {
                 throw new Error("Failed to fetch logo");
             }
