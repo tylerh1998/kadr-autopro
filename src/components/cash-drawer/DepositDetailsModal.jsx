@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban } from 'lucide-react';
+import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder, BankAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
@@ -18,6 +18,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
   const [isReversible, setIsReversible] = useState(false);
   const [reversalReason, setReversalReason] = useState('');
   const [processingReverse, setProcessingReverse] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
     const checkReversible = async () => {
@@ -199,6 +200,40 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
     }
   };
 
+  const handlePrintReport = async () => {
+    setGeneratingPdf(true);
+    try {
+      const response = await base44.functions.invoke('generateDepositDetailReport', {
+        payments,
+        adjustments,
+        depositDate: deposit?.transaction_date
+      });
+
+      if (response.data instanceof Blob || response.headers?.['content-type'] === 'application/pdf' || response.data?.type === 'application/pdf') {
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `DepositDetailReport_${deposit?.transaction_date || 'report'}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+      } else if (response.data && response.data.error) {
+        alert(`Failed to generate report: ${response.data.error}`);
+      } else {
+        // Fallback for arraybuffer/blob response without explicit blob wrapping
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Failed to generate report: ' + error.message);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
@@ -350,12 +385,12 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
         )}
 
         <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
-          <div>
+          <div className="flex gap-2">
             {isReversible ? (
               <Button
                 variant="destructive"
                 onClick={handleReverseDeposit}
-                disabled={processingReverse || loading}
+                disabled={processingReverse || loading || generatingPdf}
               >
                 {processingReverse ? (
                   <>
@@ -375,8 +410,26 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                 Cannot Reverse: {reversalReason}
               </div>
             )}
+            <Button
+              variant="outline"
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+              onClick={handlePrintReport}
+              disabled={loading || generatingPdf}
+            >
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print Details
+                </>
+              )}
+            </Button>
           </div>
-          <Button variant="outline" onClick={onClose} disabled={processingReverse}>Close</Button>
+          <Button variant="outline" onClick={onClose} disabled={processingReverse || generatingPdf}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
