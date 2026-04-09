@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 
 export default function PaymentSelectionModal({ open, onClose, paymentMethod, payments, title, onMove, onChangeMethod }) {
   const [selectedPayments, setSelectedPayments] = useState([]);
@@ -95,13 +96,18 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
           </DialogTitle>
         </DialogHeader>
         
-        <div className="flex gap-2 mb-4">
-          <Button variant="outline" size="sm" onClick={handleSelectAll}>
-            Select All
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleUnselectAll}>
-            Unselect All
-          </Button>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleSelectAll}>
+              Select All
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleUnselectAll}>
+              Unselect All
+            </Button>
+          </div>
+          <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+            Selected: {selectedPayments.length} items (${selectedTotal.toFixed(2)})
+          </div>
         </div>
 
         <div className="flex-grow overflow-y-auto border rounded-md">
@@ -182,8 +188,26 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
         </div>
 
         <DialogFooter className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-            Selected: {selectedPayments.length} items (${selectedTotal.toFixed(2)})
+          <div className="flex gap-2">
+            {selectedPayments.length === 1 && (() => {
+              const item = payments.find(p => p.id === selectedPayments[0]);
+              const hasWorkOrder = item && item.workOrderNumber && item.workOrderNumber !== 'N/A';
+              
+              if (!hasWorkOrder) return null;
+              
+              return (
+                <Button 
+                  variant="outline" 
+                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
+                  onClick={() => {
+                    const url = createPageUrl("WorkOrderEdit") + "?id=" + item.workOrderNumber;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  Open Work Order
+                </Button>
+              );
+            })()}
           </div>
           <div className="flex gap-2">
             {selectedPayments.length === 1 && onChangeMethod && (
