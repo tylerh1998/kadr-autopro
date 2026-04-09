@@ -27,13 +27,12 @@ Deno.serve(async (req) => {
             if (logoRes.ok) {
                 const logoBuffer = await logoRes.arrayBuffer();
                 const logoArray = new Uint8Array(logoBuffer);
-                const chunkSize = 8192;
                 let binary = '';
-                for (let i = 0; i < logoArray.length; i += chunkSize) {
-                    binary += String.fromCharCode.apply(null, logoArray.subarray(i, i + chunkSize));
+                for (let i = 0; i < logoArray.byteLength; i++) {
+                    binary += String.fromCharCode(logoArray[i]);
                 }
                 const logoBase64 = btoa(binary);
-                doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', 18, 16, 32, 20, undefined, 'FAST');
+                doc.addImage(logoBase64, 'JPEG', 18, 16, 32, 20);
             } else {
                 throw new Error("Failed to fetch logo");
             }
@@ -71,7 +70,6 @@ Deno.serve(async (req) => {
             }
         }
         doc.text(`Date: ${formattedDate}`, pageWidth - 20, 32, { align: 'right' });
-        doc.text(`User: ${user.email}`, pageWidth - 20, 39, { align: 'right' });
 
         let yPos = 55;
 
