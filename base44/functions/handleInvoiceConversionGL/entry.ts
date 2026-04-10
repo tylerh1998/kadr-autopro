@@ -40,30 +40,42 @@ export default Deno.serve(async (req) => {
         };
 
         const generatedGLTransactions = [];
-        const invoiceDate = workOrder.invoice_date || new Date().toISOString().split('T')[0];
+        
+        // Mountain Time Utility
+        const getMountainTimeDateString = () => {
+            const mtDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
+            const year = mtDate.getFullYear();
+            const month = String(mtDate.getMonth() + 1).padStart(2, '0');
+            const day = String(mtDate.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const invoiceDate = workOrder.invoice_date || getMountainTimeDateString();
         const reference = workOrder.inv_number || workOrder.ro_number;
 
         // --- Step 1: Reversal Logic (Modified) ---
-        if (workOrder.accounting_details && workOrder.accounting_details !== '[]' && workOrder.accounting_details !== 'null' && action === 'convert') {
+        if (action === 'convert' && workOrder.accounting_details) {
             try {
                 const previousEntries = JSON.parse(workOrder.accounting_details);
-                for (const entry of previousEntries) {
-                    const reversalEntry = {
-                        account_number: entry.account_number,
-                        transaction_date: invoiceDate,
-                        description: `REVERSAL: ${entry.description}`,
-                        reference: reference,
-                        debit_amount: entry.credit_amount,
-                        credit_amount: entry.debit_amount,
-                        source_type: 'work_order',
-                        source_id: workOrder.id
-                    };
-                    // Save reversal to GL table, but DO NOT add to generatedGLTransactions
-                    // This ensures accounting_details only contains the current active entries
-                    await base44.asServiceRole.entities.GLTransaction.create(reversalEntry);
+                if (Array.isArray(previousEntries) && previousEntries.length > 0) {
+                    for (const entry of previousEntries) {
+                        const reversalEntry = {
+                            account_number: entry.account_number,
+                            transaction_date: invoiceDate,
+                            description: `REVERSAL: ${entry.description}`,
+                            reference: reference,
+                            debit_amount: entry.credit_amount,
+                            credit_amount: entry.debit_amount,
+                            source_type: 'work_order',
+                            source_id: workOrder.id
+                        };
+                        // Save reversal to GL table, but DO NOT add to generatedGLTransactions
+                        // This ensures accounting_details only contains the current active entries
+                        await base44.asServiceRole.entities.GLTransaction.create(reversalEntry);
+                    }
                 }
             } catch (error) {
-                console.error('Error reversing previous entries:', error);
+                console.error('Error parsing or reversing previous entries:', error);
             }
         }
 
