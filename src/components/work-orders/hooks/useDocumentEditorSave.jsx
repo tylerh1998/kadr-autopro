@@ -249,6 +249,11 @@ export default function useDocumentEditorSave({
         line_items: JSON.stringify(lineItemsToSave),
       };
 
+      if (workOrder.stage === 'work_order' && !workOrder.converted && invoiceConversionPhase > 0 && invoiceConversionPhase < 4) {
+        console.log('DEBUG: Clearing accounting_details for first-time invoice conversion.');
+        workOrderData.accounting_details = null;
+      }
+
       const apiPayload = (({ id, created_date, updated_date, created_by, created_at, updated_at, created_by_id, ...rest }) => rest)({ ...workOrderData });
       console.log('DEBUG: Final API payload for WorkOrder update:', apiPayload);
 
