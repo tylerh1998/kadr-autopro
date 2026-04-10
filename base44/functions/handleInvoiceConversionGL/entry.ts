@@ -44,7 +44,7 @@ export default Deno.serve(async (req) => {
         const reference = workOrder.inv_number || workOrder.ro_number;
 
         // --- Step 1: Reversal Logic (Modified) ---
-        if (workOrder.accounting_details && action === 'convert') {
+        if (workOrder.accounting_details && workOrder.accounting_details !== '[]' && workOrder.accounting_details !== 'null' && action === 'convert') {
             try {
                 const previousEntries = JSON.parse(workOrder.accounting_details);
                 for (const entry of previousEntries) {
