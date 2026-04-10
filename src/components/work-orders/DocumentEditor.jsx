@@ -848,6 +848,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       } else if (invoiceConversionPhase === 3) {
         console.log('DEBUG: currentUser email at Phase 3 save:', currentUser?.email);
         console.log('DEBUG: Completed date being sent:', format(toMountainTime(new Date()), 'yyyy-MM-dd'));
+        console.log('DEBUG workOrder.accounting_details before GL call:', workOrder.accounting_details);
 
         try {
           const glResponse = await base44.functions.invoke('handleInvoiceConversionGL', {
