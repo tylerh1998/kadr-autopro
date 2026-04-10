@@ -96,21 +96,17 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   } = useWorkOrder(roNumber, { useFunctionData });
 
   const setWorkOrder = useCallback((value) => {
+    console.trace('WorkOrder state updated in DocumentEditor:', value);
     if (typeof value !== 'function') {
-      if (value?.converted || value?.accounting_details) {
-        console.trace('🚨 setWorkOrder called with converted: true or accounting_details:', value);
-      }
+      return originalSetWorkOrder(value);
     } else {
       const wrappedUpdater = (prevState) => {
         const nextState = value(prevState);
-        if (nextState?.converted || nextState?.accounting_details) {
-          console.trace('🚨 setWorkOrder functional update resulted in converted: true or accounting_details:', nextState);
-        }
+        console.trace('WorkOrder state updated (functional update) in DocumentEditor:', nextState);
         return nextState;
       };
       return originalSetWorkOrder(wrappedUpdater);
     }
-    return originalSetWorkOrder(value);
   }, [originalSetWorkOrder]);
 
   const {
