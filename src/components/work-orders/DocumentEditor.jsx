@@ -90,10 +90,28 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     upcomingAppointment,
     loading: workOrderLoading,
     error: workOrderError,
-    setWorkOrder,
+    setWorkOrder: originalSetWorkOrder,
     setLineItems,
     refetch: refetchWorkOrder
   } = useWorkOrder(roNumber, { useFunctionData });
+
+  const setWorkOrder = useCallback((value) => {
+    if (typeof value !== 'function') {
+      if (value?.converted || value?.accounting_details) {
+        console.trace('🚨 setWorkOrder called with converted: true or accounting_details:', value);
+      }
+    } else {
+      const wrappedUpdater = (prevState) => {
+        const nextState = value(prevState);
+        if (nextState?.converted || nextState?.accounting_details) {
+          console.trace('🚨 setWorkOrder functional update resulted in converted: true or accounting_details:', nextState);
+        }
+        return nextState;
+      };
+      return originalSetWorkOrder(wrappedUpdater);
+    }
+    return originalSetWorkOrder(value);
+  }, [originalSetWorkOrder]);
 
   const {
     inventory,
