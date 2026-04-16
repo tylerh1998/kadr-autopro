@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { inventory_item_id, new_quantity_on_hand, notes } = await req.json();
+        const { inventory_item_id, new_quantity_on_hand, notes, system_issue } = await req.json();
 
         if (!inventory_item_id || new_quantity_on_hand === undefined || new_quantity_on_hand === null) {
             return Response.json({ 
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Inventory item not found' }, { status: 404 });
         }
 
-        const old_quantity_on_hand = inventoryItem.quantity_on_hand || 0;
+        const old_quantity_on_hand = parseFloat(inventoryItem.quantity_on_hand || 0);
         const quantity_change = new_quantity_on_hand - old_quantity_on_hand;
         const item_cost = inventoryItem.cost || 0;
         const value_change = quantity_change * item_cost;
@@ -50,6 +50,32 @@ Deno.serve(async (req) => {
             quantity_ordered_change: 0,
             description: notes || `Manual QOH adjustment from ${old_quantity_on_hand} to ${new_quantity_on_hand}.`
         });
+
+        if (system_issue) {
+            const mountainDateTime = new Date().toLocaleString('en-US', {
+                timeZone: 'America/Edmonton',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+
+            await base44.asServiceRole.functions.invoke('sendEmailViaSMTP', {
+                to: 'tyler@kensauto.ca',
+                subject: 'QOH Adjustment - System Issue',
+                body: `
+                    <p><strong>Part #:</strong> ${inventoryItem.part_number || ''}</p>
+                    <p><strong>Date:</strong> ${mountainDateTime}</p>
+                    <p><strong>Current QOH:</strong> ${old_quantity_on_hand}</p>
+                    <p><strong>New QOH:</strong> ${new_quantity_on_hand}</p>
+                    <p><strong>Notes:</strong> ${notes || ''}</p>
+                `,
+                from_name: "Ken's Auto & Diesel Repair"
+            });
+        }
 
         // Create GL transactions only if there is a value change
         if (value_change !== 0) {

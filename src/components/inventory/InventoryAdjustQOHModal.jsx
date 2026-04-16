@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, ChevronRight, Loader2 } from "lucide-react";
 
 export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate }) {
   const [newQOH, setNewQOH] = useState("");
   const [notes, setNotes] = useState("");
+  const [systemIssue, setSystemIssue] = useState(false);
   const [nextPartNumber, setNextPartNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const newQOHInputRef = useRef(null);
@@ -18,6 +20,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     if (open && item) {
       setNewQOH(item.quantity_on_hand?.toString() || "0");
       setNotes("");
+      setSystemIssue(false);
       setNextPartNumber("");
       
       // Focus and select the input field
@@ -46,7 +49,8 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       const response = await base44.functions.invoke('processQOHAdjustment', {
         inventory_item_id: item.id,
         new_quantity_on_hand: targetQOH,
-        notes: notes || ''
+        notes: notes || '',
+        system_issue: systemIssue
       });
 
       if (!response.data.success) {
@@ -58,6 +62,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       // Reset form
       setNewQOH("");
       setNotes("");
+      setSystemIssue(false);
       
       alert(`QOH updated successfully! New quantity: ${targetQOH}`);
       onClose();
@@ -85,7 +90,8 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       const response = await base44.functions.invoke('processQOHAdjustment', {
         inventory_item_id: item.id,
         new_quantity_on_hand: targetQOH,
-        notes: notes || ''
+        notes: notes || '',
+        system_issue: systemIssue
       });
 
       if (!response.data.success) {
@@ -97,6 +103,7 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
       // Reset form but keep modal open
       setNewQOH("");
       setNotes("");
+      setSystemIssue(false);
       setNextPartNumber("");
       
       alert(`QOH updated for ${item.part_number}! New quantity: ${targetQOH}\n\nEnter the next part number to continue.`);
@@ -179,6 +186,16 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
                   rows={2}
                   disabled={loading}
                 />
+              </div>
+
+              <div className="flex items-center space-x-2 rounded-lg border p-3">
+                <Checkbox
+                  id="system_issue"
+                  checked={systemIssue}
+                  onCheckedChange={(checked) => setSystemIssue(checked === true)}
+                  disabled={loading}
+                />
+                <Label htmlFor="system_issue" className="cursor-pointer">Adjustment Due to System Issue</Label>
               </div>
 
               <div className="space-y-2">
