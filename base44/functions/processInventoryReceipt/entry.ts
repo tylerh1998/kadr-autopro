@@ -390,7 +390,10 @@ async function processInventoryReceiptCreate(base44, supabase, user, supplier, i
         const existingItem = existingItems[0];
         inventoryRecordId = existingItem.id;
         
+        console.log(`DEBUG: Part ${item.part_number} - Existing QOH before add: ${existingItem.quantity_on_hand || 0}`);
+        console.log(`DEBUG: Part ${item.part_number} - Quantity Received (payload): ${quantityReceived}`);
         const newQOH = (existingItem.quantity_on_hand || 0) + quantityReceived;
+        console.log(`DEBUG: Part ${item.part_number} - Calculated New QOH: ${newQOH}`);
         const newQOO = Math.max(0, (existingItem.quantity_on_order || 0) - quantityReceived);
         quantityOrderedChange = newQOO - (existingItem.quantity_on_order || 0);
 
