@@ -63,18 +63,30 @@ Deno.serve(async (req) => {
                 hour12: true
             });
 
+            const emailBody = `
+                <p><strong>Part #:</strong> ${inventoryItem.part_number || ''}</p>
+                <p><strong>Date:</strong> ${mountainDateTime}</p>
+                <p><strong>Adjusted By:</strong> ${user.full_name || user.email || ''}</p>
+                <p><strong>Current QOH:</strong> ${old_quantity_on_hand}</p>
+                <p><strong>New QOH:</strong> ${new_quantity_on_hand}</p>
+                <p><strong>Notes:</strong> ${notes || ''}</p>
+            `;
+
             await base44.asServiceRole.functions.invoke('sendEmailViaSMTP', {
                 to: 'tyler@kensauto.ca',
                 subject: 'QOH Adjustment - System Issue',
-                body: `
-                    <p><strong>Part #:</strong> ${inventoryItem.part_number || ''}</p>
-                    <p><strong>Date:</strong> ${mountainDateTime}</p>
-                    <p><strong>Current QOH:</strong> ${old_quantity_on_hand}</p>
-                    <p><strong>New QOH:</strong> ${new_quantity_on_hand}</p>
-                    <p><strong>Notes:</strong> ${notes || ''}</p>
-                `,
+                body: emailBody,
                 from_name: "Ken's Auto & Diesel Repair"
             });
+
+            if (user.email) {
+                await base44.asServiceRole.functions.invoke('sendEmailViaSMTP', {
+                    to: user.email,
+                    subject: 'QOH Adjustment - System Issue',
+                    body: emailBody,
+                    from_name: "Ken's Auto & Diesel Repair"
+                });
+            }
         }
 
         // Create GL transactions only if there is a value change
