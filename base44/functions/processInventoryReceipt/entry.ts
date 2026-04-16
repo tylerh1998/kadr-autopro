@@ -390,12 +390,14 @@ async function processInventoryReceiptCreate(base44, supabase, user, supplier, i
         const existingItem = existingItems[0];
         inventoryRecordId = existingItem.id;
         
-        console.log(`DEBUG: Part ${item.part_number} - Existing QOH before add: ${existingItem.quantity_on_hand || 0}`);
+        const currentQOH = parseFloat(existingItem.quantity_on_hand || 0);
+        const currentQOO = parseFloat(existingItem.quantity_on_order || 0);
+        console.log(`DEBUG: Part ${item.part_number} - Existing QOH before add: ${currentQOH}`);
         console.log(`DEBUG: Part ${item.part_number} - Quantity Received (payload): ${quantityReceived}`);
-        const newQOH = (existingItem.quantity_on_hand || 0) + quantityReceived;
+        const newQOH = currentQOH + quantityReceived;
         console.log(`DEBUG: Part ${item.part_number} - Calculated New QOH: ${newQOH}`);
-        const newQOO = Math.max(0, (existingItem.quantity_on_order || 0) - quantityReceived);
-        quantityOrderedChange = newQOO - (existingItem.quantity_on_order || 0);
+        const newQOO = Math.max(0, currentQOO - quantityReceived);
+        quantityOrderedChange = newQOO - currentQOO;
 
         const { error: updateInventoryError } = await supabase
           .from('InventoryItem')
