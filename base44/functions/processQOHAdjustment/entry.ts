@@ -78,15 +78,6 @@ Deno.serve(async (req) => {
                 body: emailBody,
                 from_name: "Ken's Auto & Diesel Repair"
             });
-
-            if (user.email) {
-                await base44.asServiceRole.functions.invoke('sendEmailViaSMTP', {
-                    to: user.email,
-                    subject: 'QOH Adjustment - System Issue',
-                    body: emailBody,
-                    from_name: "Ken's Auto & Diesel Repair"
-                });
-            }
         }
 
         // Create GL transactions only if there is a value change
