@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Customer, Vehicle, TagAlong, Appointment, OtherChargeList } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { getworkorderdata } from '@/functions/getworkorderdata';
 
 const parseLineItems = async (itemsString) => {

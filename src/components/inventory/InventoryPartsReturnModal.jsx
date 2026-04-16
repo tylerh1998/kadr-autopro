@@ -72,7 +72,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
               description: `Part returned from WO ${workOrderNumber}. Reason: ${returnReason}`
           });
           
-          onReturnWorkOrderPart(qtyReturned, returnType, returnReason); // Notify parent about the return
+          onReturnWorkOrderPart(qtyReturned, returnReason); // Notify parent about the return
           onClose();
           return;
 
