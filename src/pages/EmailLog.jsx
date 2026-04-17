@@ -22,6 +22,12 @@ export default function EmailLogPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 25;
 
+  const getCustomerDisplayName = (customer) => {
+    if (!customer) return 'N/A';
+    if (customer.org_name?.trim()) return customer.org_name.trim();
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'N/A';
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -73,7 +79,7 @@ export default function EmailLogPage() {
 
   const filteredLogs = logs.filter(log => {
     const customer = customers[log.customer_id];
-    const customerName = customer ? `${customer.first_name} ${customer.last_name}` : '';
+    const customerName = getCustomerDisplayName(customer);
     const searchLower = searchTerm.toLowerCase();
 
     return (
@@ -172,7 +178,7 @@ export default function EmailLogPage() {
                         <TableCell><StatusBadge status={log.status} /></TableCell>
                         <TableCell>{format(new Date(log.sent_date), 'MMM d, yyyy h:mm a')}</TableCell>
                         <TableCell>{log.to_email}</TableCell>
-                        <TableCell>{customers[log.customer_id] ? `${customers[log.customer_id].first_name} ${customers[log.customer_id].last_name}` : 'N/A'}</TableCell>
+                        <TableCell>{getCustomerDisplayName(customers[log.customer_id])}</TableCell>
                         <TableCell className="font-medium">{log.subject}</TableCell>
                       </TableRow>
                     ))
