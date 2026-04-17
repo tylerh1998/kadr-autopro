@@ -11,6 +11,7 @@ import { createPageUrl } from "@/utils";
 
 import CustomerForm from "../components/customers/CustomerForm";
 import CustomerHistoryModal from "../components/customers/CustomerHistoryModal";
+import CustomerWorkOrderHistoryModal from "../components/customers/CustomerWorkOrderHistoryModal";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -27,6 +28,7 @@ export default function CustomersPage() {
     total: 0
   });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showCustomerWorkOrderHistoryModal, setShowCustomerWorkOrderHistoryModal] = useState(false);
   const [selectedCustomerForHistory, setSelectedCustomerForHistory] = useState(null);
   const [user, setUser] = useState(null);
   const searchInputRef = React.useRef(null);
@@ -122,10 +124,16 @@ export default function CustomersPage() {
     navigate(`${createPageUrl('CustomerARTransactions')}?customerId=${customer.id}&from=customers`);
   };
 
-  const handleHistoryClick = (customer, e) => {
+  const handleVehicleHistoryClick = (customer, e) => {
     e.stopPropagation();
     setSelectedCustomerForHistory(customer);
     setShowHistoryModal(true);
+  };
+
+  const handleCustomerHistoryClick = (customer, e) => {
+    e.stopPropagation();
+    setSelectedCustomerForHistory(customer);
+    setShowCustomerWorkOrderHistoryModal(true);
   };
 
   const handleDelete = async (customer, e) => {
@@ -286,7 +294,15 @@ export default function CustomersPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={(e) => handleHistoryClick(customer, e)}
+                      onClick={(e) => handleCustomerHistoryClick(customer, e)}
+                    >
+                      <History className="w-4 h-4 mr-2" />
+                      History
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => handleVehicleHistoryClick(customer, e)}
                     >
                       <Car className="w-4 h-4 mr-2" />
                       Vehicles
@@ -350,14 +366,37 @@ export default function CustomersPage() {
       </div>
 
       {selectedCustomerForHistory && (
-        <CustomerHistoryModal
-          open={showHistoryModal}
-          onClose={() => {
-            setShowHistoryModal(false);
-            setSelectedCustomerForHistory(null);
-          }}
-          customer={selectedCustomerForHistory}
-        />
+        <>
+          <CustomerHistoryModal
+            open={showHistoryModal}
+            onClose={() => {
+              setShowHistoryModal(false);
+              if (!showCustomerWorkOrderHistoryModal) {
+                setSelectedCustomerForHistory(null);
+              }
+            }}
+            onOpenCustomerHistory={() => {
+              setShowHistoryModal(false);
+              setShowCustomerWorkOrderHistoryModal(true);
+            }}
+            customer={selectedCustomerForHistory}
+          />
+
+          <CustomerWorkOrderHistoryModal
+            open={showCustomerWorkOrderHistoryModal}
+            onClose={() => {
+              setShowCustomerWorkOrderHistoryModal(false);
+              if (!showHistoryModal) {
+                setSelectedCustomerForHistory(null);
+              }
+            }}
+            customer={selectedCustomerForHistory}
+            onOpenVehicleHistory={() => {
+              setShowCustomerWorkOrderHistoryModal(false);
+              setShowHistoryModal(true);
+            }}
+          />
+        </>
       )}
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

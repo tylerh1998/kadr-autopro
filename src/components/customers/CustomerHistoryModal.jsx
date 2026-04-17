@@ -4,10 +4,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from '@/api/base44Client';
-import { Car } from 'lucide-react';
+import { Car, History } from 'lucide-react';
 import VehicleHistoryModal from '../vehicles/VehicleHistoryModal';
 
-export default function CustomerHistoryModal({ open, onClose, customer }) {
+export default function CustomerHistoryModal({ open, onClose, customer, onOpenCustomerHistory }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -59,8 +59,20 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Vehicles for {customer?.first_name} {customer?.last_name}</DialogTitle>
-            <DialogDescription>Select a vehicle to view its service history.</DialogDescription>
+            <div className="flex justify-between items-center pr-8">
+              <div>
+                <DialogTitle>Vehicles for {customer?.first_name} {customer?.last_name}</DialogTitle>
+                <DialogDescription>Select a vehicle to view its service history.</DialogDescription>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenCustomerHistory}
+                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm hover:bg-slate-50"
+              >
+                <History className="w-4 h-4 mr-2" />
+                Customer History
+              </button>
+            </div>
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox 
                 id="includeInactiveVehicles" 
@@ -106,6 +118,7 @@ export default function CustomerHistoryModal({ open, onClose, customer }) {
           onVehicleUpdated={handleVehicleUpdated}
         />
       )}
+
     </>
   );
 }

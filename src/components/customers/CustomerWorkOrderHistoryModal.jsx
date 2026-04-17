@@ -1,0 +1,160 @@
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { base44 } from '@/api/base44Client';
+import { format } from 'date-fns';
+import { FileText, Calendar, DollarSign, Gauge, Car } from 'lucide-react';
+
+export default function CustomerWorkOrderHistoryModal({ open, onClose, customer, onOpenVehicleHistory }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && customer?.id) {
+      const fetchHistory = async () => {
+        setLoading(true);
+        try {
+          const workOrdersResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'WorkOrder',
+            match: { customer_id: customer.id }
+          });
+
+          const vehicleResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Vehicle',
+            match: { customer_id: customer.id }
+          });
+
+          const workOrders = workOrdersResponse.data?.data || [];
+          const vehicles = vehicleResponse.data?.data || [];
+          const vehicleMap = new Map(vehicles.map(vehicle => [vehicle.id, vehicle]));
+
+          const enrichedHistory = workOrders
+            .map(workOrder => ({
+              ...workOrder,
+              vehicle: vehicleMap.get(workOrder.vehicle_id) || null,
+              scheduled_date: null
+            }))
+            .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+
+          setHistory(enrichedHistory);
+        } catch (error) {
+          console.error("Failed to fetch customer work order history:", error);
+          alert("Could not load customer history.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchHistory();
+    }
+  }, [open, customer]);
+
+  const getDisplayNumber = (workOrder) => {
+    if (workOrder.stage === 'estimate') return workOrder.est_number;
+    if (workOrder.stage === 'invoice') return workOrder.inv_number;
+    if (workOrder.stage === 'credit_invoice') return workOrder.crinv_number;
+    return workOrder.wo_number;
+  };
+
+  const getStageLabel = (stage) => {
+    switch(stage) {
+      case 'estimate': return 'Estimate';
+      case 'work_order': return 'Work Order';
+      case 'invoice': return 'Invoice';
+      case 'credit_invoice': return 'Credit Invoice';
+      default: return stage;
+    }
+  };
+
+  const getStageBadgeColor = (stage) => {
+    switch(stage) {
+      case 'estimate': return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'work_order': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'invoice': return 'bg-green-100 text-green-800 border-green-300';
+      case 'credit_invoice': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+  };
+
+  const getVehicleLabel = (vehicle) => {
+    if (!vehicle) return 'Vehicle information unavailable';
+    return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle information unavailable';
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <div className="flex justify-between items-center pr-8">
+            <div>
+              <DialogTitle>Customer History for {customer?.org_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</DialogTitle>
+              <DialogDescription>A list of all previous work orders for this customer.</DialogDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={onOpenVehicleHistory}>
+              <Car className="w-4 h-4 mr-2" />
+              Vehicle History
+            </Button>
+          </div>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1">
+          {loading ? (
+            Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
+          ) : history.length > 0 ? (
+            history.map(wo => (
+              <a
+                key={wo.id}
+                href={`/WorkOrderEdit?id=${wo.ro_number}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-blue-700">
+                      {getDisplayNumber(wo) || `RO ${wo.ro_number}`}
+                    </p>
+                    <Badge variant="outline" className={`text-xs border ${getStageBadgeColor(wo.stage)}`}>
+                      {getStageLabel(wo.stage)}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {format(new Date(wo.scheduled_date || wo.created_date), 'MMM d, yyyy')}
+                  </p>
+                </div>
+                <p className="text-sm text-slate-600 mb-2 flex items-start gap-2">
+                  <FileText className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{wo.description}</span>
+                </p>
+                <p className="text-sm text-slate-600 mb-3 flex items-start gap-2">
+                  <Car className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{getVehicleLabel(wo.vehicle)}</span>
+                </p>
+                <div className="flex items-center justify-between">
+                  {wo.odometer !== undefined && wo.odometer !== null ? (
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                      <Gauge className="w-4 h-4" />
+                      {Number(wo.odometer).toLocaleString()} km
+                    </div>
+                  ) : <div />}
+                  {wo.total_amount !== undefined && wo.total_amount !== null && (
+                    <div className="flex items-center gap-1 text-sm font-medium text-slate-700 ml-auto">
+                      <DollarSign className="w-4 h-4" />
+                      {Number(wo.total_amount).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              </a>
+            ))
+          ) : (
+            <p className="text-center text-slate-500 py-8">No work order history found for this customer.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
