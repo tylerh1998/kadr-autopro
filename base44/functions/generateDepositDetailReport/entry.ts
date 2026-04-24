@@ -76,8 +76,8 @@ Deno.serve(async (req) => {
         doc.setFontSize(10);
         doc.setFont(undefined, 'bold');
         doc.text("Customer", 22, yPos + 5.5);
-        doc.text("Date", 80, yPos + 5.5);
-        doc.text("Method", 130, yPos + 5.5);
+        doc.text("Description", 68, yPos + 5.5);
+        doc.text("Method", 132, yPos + 5.5);
         doc.text("Amount", 170, yPos + 5.5);
 
         yPos += 8;
@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
             rows.push({
                 customer: p.customerName || 'Unknown',
-                date: d,
+                description: p.descriptionText || [p.notes, p.documentReference].filter(Boolean).join(' - ') || '-',
                 method: m,
                 amount: p.amount || 0,
                 rawMethod: p.payment_method
@@ -120,8 +120,8 @@ Deno.serve(async (req) => {
             }
 
             rows.push({
-                customer: a.description || 'Adjustment',
-                date: d,
+                customer: 'Adjustment',
+                description: [a.description, a.notes || a.reference].filter(Boolean).join(' - ') || 'Adjustment',
                 method: m,
                 amount: a.amount || 0,
                 rawMethod: a.payment_method
@@ -135,9 +135,9 @@ Deno.serve(async (req) => {
                 yPos = 20;
             }
             doc.rect(20, yPos, pageWidth - 40, 8, 'S');
-            doc.text(row.customer.substring(0, 30), 22, yPos + 5.5);
-            doc.text(row.date, 80, yPos + 5.5);
-            doc.text(row.method, 130, yPos + 5.5);
+            doc.text((row.customer || '').substring(0, 22), 22, yPos + 5.5);
+            doc.text((row.description || '').substring(0, 42), 68, yPos + 5.5);
+            doc.text(row.method, 132, yPos + 5.5);
             doc.text(`$${row.amount.toFixed(2)}`, 170, yPos + 5.5);
             yPos += 8;
         });

@@ -106,14 +106,15 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
           return wo.crinv_number || wo.inv_number || wo.wo_number || wo.est_number || wo.ro_number || null;
         };
 
-        // Enrich payments with customer names and document references
+        // Enrich payments with customer names and description text
         const enrichedPayments = batchPayments.map(p => {
           const wo = p.work_order_id ? workOrderMap[p.work_order_id] : null;
           const docRef = p.work_order_id ? resolveDocNumber(wo) : 'AR Payment';
+          const description = [p.notes, docRef].filter(Boolean).join(' - ');
           return {
             ...p,
             customerName: customerMap[p.customer_id] || 'Unknown',
-            documentReference: docRef || 'AR Payment'
+            descriptionText: description || p.notes || docRef || '-'
           };
         });
 
@@ -301,7 +302,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead>Method</TableHead>
-                        <TableHead>Reference</TableHead>
+                        <TableHead>Description</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                       </TableRow>
@@ -316,7 +317,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-slate-600">
-                            {payment.documentReference}
+                            {payment.descriptionText}
                           </TableCell>
                           <TableCell className="text-sm">{formatDate(payment.payment_date)}</TableCell>
                           <TableCell className="text-right font-medium">${(payment.amount || 0).toFixed(2)}</TableCell>
@@ -346,7 +347,6 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                       <TableRow>
                         <TableHead>Type</TableHead>
                         <TableHead>Description</TableHead>
-                        <TableHead>Reference</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                       </TableRow>
@@ -359,8 +359,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                               {adj.type}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">{adj.description || '-'}</TableCell>
-                          <TableCell className="text-sm text-slate-600">{adj.reference || '-'}</TableCell>
+                          <TableCell className="font-medium">{[adj.description, adj.notes || adj.reference].filter(Boolean).join(' - ') || '-'}</TableCell>
                           <TableCell className="text-sm">{formatDate(adj.adjustment_date)}</TableCell>
                           <TableCell className={`text-right font-medium ${adj.amount < 0 ? 'text-red-600' : ''}`}>
                             ${(adj.amount || 0).toFixed(2)}
