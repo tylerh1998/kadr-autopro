@@ -1,8 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.24';
 import { jsPDF } from 'npm:jspdf@2.5.1';
 import { format } from 'npm:date-fns@3.6.0';
-import { Buffer } from "node:buffer";
-
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -23,32 +21,15 @@ Deno.serve(async (req) => {
         const pageWidth = doc.internal.pageSize.getWidth();
 
         // Company Header - Left Side
-        try {
-            const logoRes = await fetch("https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg");
-            if (logoRes.ok) {
-                const logoBuffer = await logoRes.arrayBuffer();
-                const logoBase64 = Buffer.from(logoBuffer).toString('base64');
-                doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', 20, 15, 26, 26);
-            } else {
-                throw new Error("Failed to fetch logo");
-            }
-        } catch (e) {
-            console.error('Error loading logo:', e);
-            doc.setFillColor(150, 160, 170);
-            doc.rect(20, 20, 12, 18, 'F');
-            doc.setFillColor(0, 0, 0);
-            doc.triangle(32, 38, 50, 20, 42, 38, 'F');
-        }
-
         doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
-        doc.text("Ken's Auto & Diesel Repair", 55, 24);
+        doc.text("Ken's Auto & Diesel Repair", 20, 24);
         doc.setFontSize(7);
         doc.setFont(undefined, 'normal');
-        doc.text("5002 49 Ave - PO Box 160", 55, 28);
-        doc.text("Dewberry, AB T0B 1G0", 55, 32);
-        doc.text("Phone: 780-847-3002           Fax: 780-847-3004", 55, 36);
-        doc.text("Email: Shop@kensauto.ca     Website: www.kensauto.ca", 55, 40);
+        doc.text("5002 49 Ave - PO Box 160", 20, 28);
+        doc.text("Dewberry, AB T0B 1G0", 20, 32);
+        doc.text("Phone: 780-847-3002           Fax: 780-847-3004", 20, 36);
+        doc.text("Email: Shop@kensauto.ca     Website: www.kensauto.ca", 20, 40);
 
         // Header - Right Side
         doc.setFontSize(18);
