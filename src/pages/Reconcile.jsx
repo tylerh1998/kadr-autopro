@@ -658,6 +658,7 @@ export default function ReconcilePage() {
         open={showAutoReconcileModal}
         onClose={() => setShowAutoReconcileModal(false)}
         bankAccountId={bankAccountId}
+        periodEnd={periodEnd}
         onApplyMatches={handleApplyMatches}
       />
     </div>

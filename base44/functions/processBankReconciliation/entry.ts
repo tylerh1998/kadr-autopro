@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
         }
 
         const payload = await req.json();
-        const { fileUrl, bankAccountId } = payload;
+        const { fileUrl, bankAccountId, periodEnd } = payload;
 
-        if (!fileUrl || !bankAccountId) {
-            return Response.json({ error: 'Missing fileUrl or bankAccountId' }, { status: 400 });
+        if (!fileUrl || !bankAccountId || !periodEnd) {
+            return Response.json({ error: 'Missing fileUrl, bankAccountId, or periodEnd' }, { status: 400 });
         }
 
         // 1. Fetch CSV Content
@@ -44,6 +44,11 @@ Deno.serve(async (req) => {
              bank_account_id: bankAccountId,
              reconciled: false
         }, '-transaction_date', 2000);
+
+        const filteredSystemTransactions = systemTransactions.filter((tx) => {
+            if (!tx.transaction_date) return false;
+            return tx.transaction_date.substring(0, 10) <= periodEnd;
+        });
         
         // 4. Matching Logic
         const matches = [];
@@ -89,7 +94,7 @@ Deno.serve(async (req) => {
             let matchFound = null;
 
             // Strategy: Find match based on amount only (tolerance <= 0.005), ignoring dates
-            for (const sysTx of systemTransactions) {
+            for (const sysTx of filteredSystemTransactions) {
                 if (matchedSystemIds.has(sysTx.id)) continue;
 
                 let isAmountMatch = false;
@@ -118,7 +123,7 @@ Deno.serve(async (req) => {
             }
         }
 
-        const unmatchedSystem = systemTransactions.filter(tx => !matchedSystemIds.has(tx.id));
+        const unmatchedSystem = filteredSystemTransactions.filter(tx => !matchedSystemIds.has(tx.id));
 
         return Response.json({
             matches,

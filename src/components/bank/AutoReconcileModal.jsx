@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer } from 'lucide-react';
 
-export default function AutoReconcileModal({ open, onClose, bankAccountId, onApplyMatches }) {
+export default function AutoReconcileModal({ open, onClose, bankAccountId, periodEnd, onApplyMatches }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('upload'); // 'upload', 'review'
@@ -29,7 +29,8 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, onApp
       // 2. Process Reconciliation
       const response = await base44.functions.invoke('processBankReconciliation', {
         fileUrl: file_url,
-        bankAccountId: bankAccountId
+        bankAccountId: bankAccountId,
+        periodEnd
       });
 
       if (response.data.error) {
