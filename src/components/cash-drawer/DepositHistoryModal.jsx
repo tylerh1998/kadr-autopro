@@ -24,7 +24,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
     setLoading(true);
     try {
       const [recentDeposits, allBankAccounts, fiscalPeriods] = await Promise.all([
-        BankTransaction.filter({ source_type: 'deposit' }, '-created_date', 100),
+        BankTransaction.filter({ source_type: 'deposit' }, '-created_date'),
         BankAccount.list(),
         FiscalPeriod.list()
       ]);
