@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { createPageUrl } from '@/utils';
+import { getWorkOrderRoNumber } from '@/functions/getWorkOrderRoNumber';
 
 export default function PaymentSelectionModal({ open, onClose, paymentMethod, payments, title, onMove, onChangeMethod }) {
   const [selectedPayments, setSelectedPayments] = useState([]);
@@ -199,9 +200,16 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                 <Button 
                   variant="outline" 
                   className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
-                  onClick={() => {
-                    const url = createPageUrl("WorkOrderEdit") + "?id=" + item.workOrderId;
-                    window.open(url, '_blank');
+                  onClick={async () => {
+                    const response = await getWorkOrderRoNumber({ workOrderId: item.workOrderId });
+                    const roNumber = response.data?.ro_number;
+                    if (!roNumber) {
+                      alert('Unable to find the work order number.');
+                      return;
+                    }
+                    const url = createPageUrl("WorkOrderEdit") + "?id=" + roNumber;
+                    const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+                    window.open(url, '_blank', windowFeatures);
                   }}
                 >
                   Open Work Order
