@@ -1,8 +1,8 @@
 create table public."SupplierInvoiceLine" (
-  gst_amount text null,
+  gst_amount numeric(10, 2) null,
   purchase_amount double precision null,
   inventory_item_id text null,
-  paid_amount text null,
+  paid_amount numeric(10, 2) null,
   description text null,
   gst_override boolean null,
   inventory boolean null,
