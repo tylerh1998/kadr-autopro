@@ -102,7 +102,10 @@ const parseAndValidateDateInput = (inputDate) => {
   }
 };
 
-const isLineLocked = (line) => typeof line.paid_amount === 'number' && line.paid_amount !== 0;
+const isLineLocked = (line) => {
+  const paidAmount = parseFloat(line?.paid_amount);
+  return !isNaN(paidAmount) && paidAmount !== 0;
+};
 
 export default function SupplierTxPage() {
   const [supplier, setSupplier] = useState(null);
