@@ -19,6 +19,7 @@ import SupplierTxInvoiceSummaryTab from '../components/suppliers/SupplierTxInvoi
 import SupplierTxPaymentHistoryTab from '../components/suppliers/SupplierTxPaymentHistoryTab';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { toMountainTime } from '../components/utils/mountainTimeUtils';
+import { useSupplierLock } from '../components/context/SupplierLockContext';
 
 const GST_RATE = 0.05;
 
@@ -142,6 +143,7 @@ export default function SupplierTxPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const supplierId = new URLSearchParams(location.search).get('id');
+  const { registerSupplierLock, updateSupplierLock, clearSupplierLock } = useSupplierLock();
 
   const togglePaymentExpansion = (paymentId) => setExpandedPayments(prev => {
     const next = new Set(prev);
@@ -248,7 +250,7 @@ export default function SupplierTxPage() {
     }
   }, [supplierId, retryWithBackoff]);
 
-  const releaseLock = useCallback(async (userToUnlock) => {
+  const releaseLock = useCallback(async (userToUnlock = currentUser) => {
     if (!supplierId || !userToUnlock) return;
     try {
       const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
@@ -256,9 +258,21 @@ export default function SupplierTxPage() {
         await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: '' } }));
       }
     } catch {}
-  }, [supplierId, retryWithBackoff]);
+  }, [supplierId, retryWithBackoff, currentUser]);
 
   useEffect(() => { if (!supplierId) navigate(createPageUrl('Suppliers')); }, [supplierId, navigate]);
+
+  useEffect(() => {
+    registerSupplierLock({
+      supplierId,
+      supplierName: supplier?.name || '',
+      hasUnsavedChanges,
+      releaseLock: async () => await releaseLock(currentUser),
+      saveBeforeLeave: handleSaveAll,
+    });
+
+    return () => clearSupplierLock();
+  }, [supplierId, supplier?.name, hasUnsavedChanges, currentUser, releaseLock, handleSaveAll, registerSupplierLock, clearSupplierLock]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -270,7 +284,10 @@ export default function SupplierTxPage() {
       if (supplierId && currentUser) releaseLock(currentUser);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (supplierId && currentUser) releaseLock(currentUser);
+    };
   }, [hasUnsavedChanges, supplierId, currentUser, releaseLock]);
 
   const loadData = useCallback(async () => {

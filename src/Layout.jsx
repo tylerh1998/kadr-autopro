@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
 import { 
@@ -68,6 +68,7 @@ import TechClockStatusModal from './components/work-orders/TechClockStatusModal'
 import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
 import { createworkorderdata } from '@/functions/createworkorderdata';
+import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -82,6 +83,8 @@ function LayoutContent({ children, currentPageName }) {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [user, setUser] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { lockState, clearSupplierLock } = useSupplierLock();
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -403,6 +406,39 @@ function LayoutContent({ children, currentPageName }) {
     setHoverTimeout(timeout);
   };
 
+  const handleLockedNavigation = async (targetUrl) => {
+    const isOnSupplierTx = location.pathname.startsWith('/SupplierTx');
+    const hasActiveSupplierLock = isOnSupplierTx && lockState?.isActive && lockState?.supplierId;
+
+    const proceedToTarget = () => {
+      clearSupplierLock();
+      navigate(targetUrl);
+    };
+
+    if (!hasActiveSupplierLock) {
+      proceedToTarget();
+      return;
+    }
+
+    if (lockState.hasUnsavedChanges) {
+      const userWantsToSave = window.confirm(`You have unsaved changes for ${lockState.supplierName || 'this supplier'}. Click "OK" to save and leave, or "Cancel" for more options.`);
+      if (userWantsToSave) {
+        const saveSuccessful = await lockState.saveBeforeLeave?.();
+        if (saveSuccessful) {
+          await lockState.releaseLock?.();
+          proceedToTarget();
+        }
+        return;
+      }
+
+      const discardChanges = window.confirm(`Discard changes and leave ${lockState.supplierName || 'this supplier'}? Click "OK" to leave without saving, or "Cancel" to stay on this page.`);
+      if (!discardChanges) return;
+    }
+
+    await lockState.releaseLock?.();
+    proceedToTarget();
+  };
+
   const handleMenuClick = (action) => {
     console.log('🎯 handleMenuClick called with action:', action);
     console.log('📍 Current location:', window.location.href);
@@ -656,7 +692,7 @@ const navigationItems = [
               {/* AutoPRO Area */}
               <div
                 onClick={() => {
-                  window.location.href = createPageUrl("Home");
+                  handleLockedNavigation(createPageUrl("Home"));
                 }}
                 className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100"
               >
@@ -702,7 +738,7 @@ const navigationItems = [
                                 defaultUrl: item.defaultUrl,
                                 currentLocation: window.location.href
                               });
-                              window.location.href = item.defaultUrl;
+                              handleLockedNavigation(item.defaultUrl);
                             }}
                             className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
                               isActive
@@ -732,7 +768,7 @@ const navigationItems = [
                                       url: subItem.url,
                                       currentLocation: window.location.href
                                     });
-                                    window.location.href = subItem.url;
+                                    handleLockedNavigation(subItem.url);
                                   }}
                                   className="flex items-center gap-3 px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
                                 >
@@ -767,7 +803,7 @@ const navigationItems = [
                             if (item.title === 'Payroll') {
                               handlePayrollClick(e);
                               if (!e.defaultPrevented) {
-                                window.location.href = item.url;
+                                handleLockedNavigation(item.url);
                               }
                             } else {
                               window.location.href = item.url;
@@ -938,7 +974,7 @@ const navigationItems = [
                               <div
                                 onClick={() => {
                                   handleMobileLinkClick();
-                                  window.location.href = subItem.url;
+                                  handleLockedNavigation(subItem.url);
                                 }}
                                 className="flex items-center gap-3 px-12 py-3 text-slate-600 hover:text-blue-700 hover:bg-white transition-colors cursor-pointer"
                               >
@@ -969,7 +1005,7 @@ const navigationItems = [
                             handlePayrollClick(e);
                             if (!e.defaultPrevented) {
                               handleMobileLinkClick();
-                              window.location.href = item.url;
+                              handleLockedNavigation(item.url);
                             }
                           } else {
                             handleMobileLinkClick();
@@ -1070,7 +1106,9 @@ const navigationItems = [
 export default function Layout({ children, currentPageName }) {
   return (
     <TechClockStatusProvider>
-      <LayoutContent children={children} currentPageName={currentPageName} />
+      <SupplierLockProvider>
+        <LayoutContent children={children} currentPageName={currentPageName} />
+      </SupplierLockProvider>
     </TechClockStatusProvider>
   );
 }
