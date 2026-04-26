@@ -44,9 +44,9 @@ begin
     if nullif(v_applied_detail->>'id', '') is not null then
       select
         id,
-        coalesce(nullif(purchase_amount::text, '')::numeric, 0) as purchase_amount,
-        coalesce(nullif(gst_amount::text, '')::numeric, 0) as gst_amount,
-        coalesce(nullif(paid_amount::text, '')::numeric, 0) as paid_amount
+        coalesce(purchase_amount, 0) as purchase_amount,
+        coalesce(gst_amount, 0) as gst_amount,
+        coalesce(paid_amount, 0) as paid_amount
       into v_target_line
       from public."SupplierInvoiceLine"
       where id::text = v_applied_detail->>'id'
@@ -61,13 +61,7 @@ begin
     if v_found_by_id then
       update public."SupplierInvoiceLine"
       set
-        paid_amount = round(
-          (
-            coalesce(nullif(paid_amount::text, '')::numeric, 0)
-            + v_remaining_for_invoice
-          )::numeric,
-          2
-        ),
+        paid_amount = round(paid_amount + v_remaining_for_invoice, 2),
         updated_date = v_updated_at
       where id = v_target_line.id;
 
@@ -78,16 +72,16 @@ begin
     for v_target_line in
       select
         id,
-        coalesce(nullif(purchase_amount::text, '')::numeric, 0) as purchase_amount,
-        coalesce(nullif(gst_amount::text, '')::numeric, 0) as gst_amount,
-        coalesce(nullif(paid_amount::text, '')::numeric, 0) as paid_amount
+        coalesce(purchase_amount, 0) as purchase_amount,
+        coalesce(gst_amount, 0) as gst_amount,
+        coalesce(paid_amount, 0) as paid_amount
       from public."SupplierInvoiceLine"
       where supplier_id::text = p_supplier_id
         and coalesce(invoice_number::text, '') = coalesce(v_applied_detail->>'invoice_number', '')
       order by (
-        coalesce(nullif(purchase_amount::text, '')::numeric, 0)
-        + coalesce(nullif(gst_amount::text, '')::numeric, 0)
-        - coalesce(nullif(paid_amount::text, '')::numeric, 0)
+        coalesce(purchase_amount, 0)
+        + coalesce(gst_amount, 0)
+        - coalesce(paid_amount, 0)
       ) asc,
       invoice_date desc nulls last,
       created_date desc nulls last,
