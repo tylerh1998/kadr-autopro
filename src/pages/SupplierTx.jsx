@@ -263,18 +263,6 @@ export default function SupplierTxPage() {
   useEffect(() => { if (!supplierId) navigate(createPageUrl('Suppliers')); }, [supplierId, navigate]);
 
   useEffect(() => {
-    registerSupplierLock({
-      supplierId,
-      supplierName: supplier?.name || '',
-      hasUnsavedChanges,
-      releaseLock: async () => await releaseLock(currentUser),
-      saveBeforeLeave: handleSaveAll,
-    });
-
-    return () => clearSupplierLock();
-  }, [supplierId, supplier?.name, hasUnsavedChanges, currentUser, releaseLock, handleSaveAll, registerSupplierLock, clearSupplierLock]);
-
-  useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
@@ -620,6 +608,18 @@ export default function SupplierTxPage() {
       setIsSaving(false);
     }
   }, [isLockedByOtherUser, lockAcquired, invoiceLines, modifiedLineIds, deletedLineIds, supplierId, loadData]);
+
+  useEffect(() => {
+    registerSupplierLock({
+      supplierId,
+      supplierName: supplier?.name || '',
+      hasUnsavedChanges,
+      releaseLock: async () => await releaseLock(currentUser),
+      saveBeforeLeave: handleSaveAll,
+    });
+
+    return () => clearSupplierLock();
+  }, [supplierId, supplier?.name, hasUnsavedChanges, currentUser, releaseLock, handleSaveAll, registerSupplierLock, clearSupplierLock]);
 
   useEffect(() => {
     const handleKeyDown = async (e) => {
