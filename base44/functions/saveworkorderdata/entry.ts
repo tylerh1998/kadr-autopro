@@ -4,7 +4,45 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 const JSON_FIELDS = ['line_items', 'payments', 'accounting_details', 'tech_time'];
 const DATE_FIELDS = new Set(['est_date', 'wo_date', 'completed_date', 'invoice_date']);
 const IMMUTABLE_FIELDS = ['id', 'ro_number', 'created_at', 'updated_at', 'created_date', 'updated_date', 'created_by', 'created_by_id'];
+const AUDIT_FIELDS = ['last_updated', 'last_updated_by'];
+const NON_PERTINENT_FIELDS = new Set(['LockedByUser', 'locked_timestamp', ...AUDIT_FIELDS]);
 const ALLOWED_FIELDS = new Set(['wo_number', 'est_number', 'inv_number', 'crinv_number', 'customer_id', 'vehicle_id', 'status', 'kanban_order', 'priority', 'stage', 'approval', 'converted', 'LockedByUser', 'locked_timestamp', 'description', 'odometer', 'labor_rate', 'parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'est_date', 'wo_date', 'completed_date', 'invoice_date', 'internal_notes', 'line_items', 'payments', 'amount_paid', 'notes_to_customer', 'po_number', 'cvip', 'default_taxable', 'accounting_details', 'cp_id', 'tech_time', 'last_updated', 'last_updated_by', 'completed_by']);
+
+const getMountainTimeISOString = () => {
+  const now = new Date();
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Edmonton',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).formatToParts(now).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  const offsetLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Edmonton',
+    timeZoneName: 'shortOffset'
+  }).formatToParts(now).find((part) => part.type === 'timeZoneName')?.value || 'GMT-7';
+
+  const offsetMatch = offsetLabel.replace('GMT', '').match(/^([+-])?(\d{1,2})(?::?(\d{2}))?$/);
+  const offsetSign = offsetMatch?.[1] || '-';
+  const offsetHours = String(offsetMatch?.[2] || '7').padStart(2, '0');
+  const offsetMinutes = String(offsetMatch?.[3] || '00').padStart(2, '0');
+
+  return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}.${String(now.getMilliseconds()).padStart(3, '0')}${offsetSign}${offsetHours}:${offsetMinutes}`;
+};
+
+const hasPertinentChanges = (existingRow, incomingPayload) => {
+  return Object.entries(incomingPayload || {}).some(([key, value]) => {
+    if (NON_PERTINENT_FIELDS.has(key)) return false;
+    return JSON.stringify(value ?? null) !== JSON.stringify(existingRow?.[key] ?? null);
+  });
+};
 
 const normalizeWorkOrder = (row) => {
   if (!row) return row;
@@ -68,6 +106,31 @@ Deno.serve(async (req) => {
     });
 
     const payload = normalizePayload(data);
+
+    const existingResult = await supabase
+      .from('WorkOrder')
+      .select('*')
+      .eq('ro_number', ro_number)
+      .maybeSingle();
+
+    if (existingResult.error) {
+      console.error('saveworkorderdata read error:', existingResult.error);
+      return Response.json({ error: 'Failed to read work order', details: existingResult.error.message }, { status: 500 });
+    }
+
+    if (!existingResult.data) {
+      return Response.json({ error: 'Work order not found in Supabase' }, { status: 404 });
+    }
+
+    const pertinentChangeDetected = hasPertinentChanges(existingResult.data, payload);
+
+    if (pertinentChangeDetected) {
+      payload.last_updated = getMountainTimeISOString();
+      payload.last_updated_by = user.email;
+    } else {
+      delete payload.last_updated;
+      delete payload.last_updated_by;
+    }
 
     const result = await supabase
       .from('WorkOrder')

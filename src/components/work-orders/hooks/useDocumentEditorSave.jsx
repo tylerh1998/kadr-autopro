@@ -270,10 +270,8 @@ export default function useDocumentEditorSave({
       }
 
       if (useFunctionData) {
-        if (currentUser) {
-          apiPayload.last_updated = new Date().toISOString();
-          apiPayload.last_updated_by = currentUser.email;
-        }
+        delete apiPayload.last_updated;
+        delete apiPayload.last_updated_by;
         await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
       } else {
         try {
