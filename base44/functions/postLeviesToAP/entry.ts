@@ -1,5 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import { format, endOfQuarter, getQuarter, getYear } from 'npm:date-fns@2.30.0';
+
+function buildSupabaseRecord(user, data) {
+  const now = new Date().toISOString();
+
+  return {
+    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+    created_date: now,
+    updated_date: now,
+    created_by: user.email,
+    created_by_id: user.id,
+    ...data
+  };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -14,6 +28,17 @@ Deno.serve(async (req) => {
     if (!startDate || !endDate) {
       return Response.json({ success: false, error: 'Start date and end date are required' }, { status: 400 });
     }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
 
     // 1. Fetch Levies
     // We fetch all levies in range.
@@ -113,7 +138,7 @@ Deno.serve(async (req) => {
       // Create SupplierInvoiceLine
       const lineDescription = `${otherCharge.description} - Qty${totalQty}`;
       
-      const invoiceLine = await base44.asServiceRole.entities.SupplierInvoiceLine.create({
+      const invoiceLineRecord = buildSupabaseRecord(user, {
         supplier_id: linkedSupplierId,
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
@@ -125,6 +150,16 @@ Deno.serve(async (req) => {
         gst_override: true,
         inventory_credit: false
       });
+
+      const { data: invoiceLine, error: invoiceLineError } = await supabase
+        .from('SupplierInvoiceLine')
+        .insert([invoiceLineRecord])
+        .select()
+        .maybeSingle();
+
+      if (invoiceLineError) {
+        throw new Error(`Failed to create supplier invoice line in Supabase: ${invoiceLineError.message}`);
+      }
 
       createdLines.push(invoiceLine);
 
