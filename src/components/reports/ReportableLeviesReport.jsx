@@ -17,6 +17,18 @@ export default function ReportableLeviesReport() {
   const [summary, setSummary] = useState({ totalQty: 0, totalAmount: 0 });
   const [posting, setPosting] = useState(false);
 
+  const levyTypeSummary = data.reduce((acc, item) => {
+    const key = item.description || 'Unknown Levy';
+    if (!acc[key]) {
+      acc[key] = { description: key, totalQty: 0, totalAmount: 0 };
+    }
+    acc[key].totalQty += parseFloat(item.qty) || 0;
+    acc[key].totalAmount += parseFloat(item.total_amount) || 0;
+    return acc;
+  }, {});
+
+  const levyTypeSummaryRows = Object.values(levyTypeSummary).sort((a, b) => a.description.localeCompare(b.description));
+
   const fetchReport = async () => {
     setLoading(true);
     try {
@@ -110,6 +122,32 @@ export default function ReportableLeviesReport() {
           <h1>Reportable Levies Report</h1>
           <p><strong>Period:</strong> ${dateRange.startDate} to ${dateRange.endDate}</p>
           
+          <h2 style="margin: 0 0 10px 0;">Levy Type Summary</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-right">Total Qty</th>
+                <th class="text-right">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${levyTypeSummaryRows.map(item => `
+                <tr>
+                  <td>${item.description}</td>
+                  <td class="text-right">${item.totalQty}</td>
+                  <td class="text-right">$${item.totalAmount.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr class="bg-slate-100 font-bold">
+                <td class="text-right">Totals:</td>
+                <td class="text-right">${summary.totalQty}</td>
+                <td class="text-right">$${summary.totalAmount.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2 style="margin: 0 0 10px 0;">Levy Detail</h2>
           <table>
             <thead>
               <tr>
