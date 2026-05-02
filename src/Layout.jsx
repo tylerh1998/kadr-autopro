@@ -174,11 +174,11 @@ function LayoutContent({ children, currentPageName }) {
 
       try {
         // Check if user is an employee in WorkPro
-        let empName = user.full_name;
+        let empName = user?.full_name;
         let isEmp = false;
 
         // Try by email first
-        if (user.email) {
+        if (user?.email) {
           const empCheck = await base44.functions.invoke('workProProxy', {
             entityName: 'Employee',
             method: 'filter',
@@ -192,7 +192,7 @@ function LayoutContent({ children, currentPageName }) {
         }
 
         // Fallback to name if not found by email
-        if (!isEmp && user.full_name) {
+        if (!isEmp && user?.full_name) {
           const empCheckName = await base44.functions.invoke('workProProxy', {
             entityName: 'Employee',
             method: 'filter',
@@ -286,7 +286,7 @@ function LayoutContent({ children, currentPageName }) {
 
   const handleClockToggle = async () => {
     if (!user || !isEmployee || clockLoading) return;
-    const empName = workProName || user.full_name;
+    const empName = workProName || user?.full_name;
     if (!empName) return;
 
     setClockLoading(true);
