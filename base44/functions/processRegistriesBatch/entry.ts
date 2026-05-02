@@ -30,10 +30,21 @@ function toMountainDateParts(date) {
 
 function parseBatchDate(value) {
   const clean = String(value || '').trim();
+
+  const nativeParsed = new Date(clean);
+  if (!Number.isNaN(nativeParsed.getTime())) {
+    return toMountainDateParts(nativeParsed);
+  }
+
   const [day, mon, yy] = clean.split('-');
   const months = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
-  const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
-  return `${year}-${months[mon]}-${String(day).padStart(2, '0')}`;
+
+  if (day && mon && yy && months[mon]) {
+    const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
+    return `${year}-${months[mon]}-${String(day).padStart(2, '0')}`;
+  }
+
+  throw new Error(`Invalid Batch Date format: ${clean}`);
 }
 
 function parseBracketDate(label) {
