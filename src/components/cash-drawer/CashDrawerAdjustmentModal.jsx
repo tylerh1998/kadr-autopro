@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import RegistriesBatchUploaderModal from '@/components/cash-drawer/RegistriesBatchUploaderModal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +22,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
   });
   const [glAccounts, setGlAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showRegistriesUploader, setShowRegistriesUploader] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -281,6 +283,14 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
               )}
             </div>
             <div className="flex gap-2 shrink-0">
+              <Button
+                type="button"
+                onClick={() => setShowRegistriesUploader(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={loading}
+              >
+                Add Registries Batch
+              </Button>
               <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
                 Cancel
               </Button>
@@ -364,6 +374,11 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
           )}
         </div>
       </DialogContent>
+      <RegistriesBatchUploaderModal
+        open={showRegistriesUploader}
+        onClose={() => setShowRegistriesUploader(false)}
+        onSuccess={() => window.location.reload()}
+      />
     </Dialog>
   );
 }
