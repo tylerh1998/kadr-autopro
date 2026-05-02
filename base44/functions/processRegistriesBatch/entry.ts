@@ -54,14 +54,13 @@ function normalizeRegistriesPayload(payload) {
     throw new Error('No registriesItems with non-zero amounts found in payload.');
   }
 
-  const settlements = [];
-  const cardSettlementAmount = normalizeAmount(payload.cardSettlementAmount || 0, 'cardSettlementAmount');
-  if (cardSettlementAmount !== 0) {
-    settlements.push({
-      payment_date: normalizeDate(payload.cardSettlementDate, 'cardSettlementDate'),
-      amount: cardSettlementAmount
-    });
-  }
+  const settlementsInput = Array.isArray(payload.settlements) ? payload.settlements : [];
+  const settlements = settlementsInput
+    .map((item, index) => ({
+      payment_date: normalizeDate(item.payment_date, `settlements[${index}].payment_date`),
+      amount: normalizeAmount(item.amount, `settlements[${index}].amount`)
+    }))
+    .filter((item) => item.amount !== 0);
 
   return {
     batchDate,
