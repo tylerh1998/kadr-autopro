@@ -90,12 +90,15 @@ function buildInvoiceNumber(code, batchDate) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) {
+    const payload = await req.json();
+
+    const providedSecret = req.headers.get('x-registries-batch-secret') || payload.sharedSecret;
+    const expectedSecret = Deno.env.get('REGISTRIES_BATCH_SHARED_SECRET');
+
+    if (!expectedSecret || providedSecret !== expectedSecret) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const payload = await req.json();
     const parsed = normalizeRegistriesPayload(payload);
 
     const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -225,8 +228,8 @@ Deno.serve(async (req) => {
       id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
       created_date: now,
       updated_date: now,
-      created_by: user.email,
-      created_by_id: user.id,
+      created_by: 'registries-batch-service',
+      created_by_id: 'registries-batch-service',
       gst_amount: null,
       purchase_amount: category.amount,
       paid_amount: 0,
