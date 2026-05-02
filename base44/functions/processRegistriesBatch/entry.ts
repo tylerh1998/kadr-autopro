@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
     const insertedSupplierLines = supplierInsert.data || [];
     for (const line of insertedSupplierLines) {
       const baseDescription = `Supplier Inv Line: ${line.description || 'No description'} - Alberta Registries`;
-      const reference = `Alberta Registries - ${line.invoice_number || 'N/A'}`;
+      const reference = confirmationReference;
       const purchaseAmount = normalizeAmount(line.purchase_amount || 0, `supplierInvoiceLine.${line.id}.purchase_amount`);
 
       if (purchaseAmount !== 0) {
