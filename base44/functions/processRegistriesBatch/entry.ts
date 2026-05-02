@@ -7,6 +7,7 @@ const CASH_DRAWER_GL = '1010';
 const AR_GL = '1100';
 const REGISTRIES_PAYABLE_GL = '2050';
 const REGISTRIES_COMMISSION_GL = '4101';
+const ACCOUNTS_PAYABLE_GL = '2000';
 
 function normalizeAmount(value, fieldName) {
   const num = typeof value === 'number' ? value : parseFloat(String(value || '').replace(/[$,]/g, '').trim());
@@ -118,16 +119,6 @@ Deno.serve(async (req) => {
         reference: confirmationReference,
         debit_amount: parsed.grandTotal,
         credit_amount: 0,
-        source_type: 'manual',
-        source_id: confirmationReference
-      },
-      {
-        account_number: REGISTRIES_PAYABLE_GL,
-        transaction_date: parsed.batchDate,
-        description: `Registries Sales - ${batchReference}`,
-        reference: confirmationReference,
-        debit_amount: 0,
-        credit_amount: parsed.categories.reduce((sum, item) => sum + item.amount, 0),
         source_type: 'manual',
         source_id: confirmationReference
       }
@@ -244,6 +235,38 @@ Deno.serve(async (req) => {
 
     const supplierInsert = await supabase.from('SupplierInvoiceLine').insert(supplierInvoiceLines).select();
     if (supplierInsert.error) throw supplierInsert.error;
+
+    const insertedSupplierLines = supplierInsert.data || [];
+    for (const line of insertedSupplierLines) {
+      const baseDescription = `Supplier Inv Line: ${line.description || 'No description'} - Alberta Registries`;
+      const reference = `Alberta Registries - ${line.invoice_number || 'N/A'}`;
+      const purchaseAmount = normalizeAmount(line.purchase_amount || 0, `supplierInvoiceLine.${line.id}.purchase_amount`);
+
+      if (purchaseAmount !== 0) {
+        glTransactions.push(
+          {
+            account_number: REGISTRIES_PAYABLE_GL,
+            transaction_date: line.invoice_date,
+            description: `${baseDescription} - ${REGISTRIES_PAYABLE_GL} - Alberta Registries Payable`,
+            reference,
+            debit_amount: purchaseAmount,
+            credit_amount: 0,
+            source_type: 'supplier_invoice',
+            source_id: line.id || ''
+          },
+          {
+            account_number: ACCOUNTS_PAYABLE_GL,
+            transaction_date: line.invoice_date,
+            description: `${baseDescription} - Accounts Payable`,
+            reference,
+            debit_amount: 0,
+            credit_amount: purchaseAmount,
+            source_type: 'supplier_invoice',
+            source_id: line.id || ''
+          }
+        );
+      }
+    }
 
     const glCreate = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
 
