@@ -89,7 +89,6 @@ function buildInvoiceNumber(code, batchDate) {
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
     const payload = await req.json();
 
     const providedSecret = req.headers.get('x-registries-batch-secret') || payload.sharedSecret;
@@ -99,6 +98,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const base44 = createClientFromRequest(req);
     const parsed = normalizeRegistriesPayload(payload);
 
     const supabaseUrl = Deno.env.get('Supabase_project_url');
