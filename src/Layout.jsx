@@ -623,13 +623,7 @@ const navigationItems = [
   };
 
   const getUserInitials = (user) => {
-    if (user?.Initials) return user.Initials;
-    if (!user || !user.full_name) return "?";
-    const names = user.full_name.split(' ');
-    if (names.length > 1) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return names[0].substring(0, 2).toUpperCase();
+    return user?.Initials || "?";
   };
 
   const toggleMobileDropdown = (itemTitle) => {
