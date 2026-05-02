@@ -13,8 +13,23 @@ const CATEGORY_CODES = {
   'Vital Statistics': 'VS',
   'Land Titles': 'LT',
   'Corporate Registries': 'CR',
-  'APPRES': 'AP',
+  'APPRES': 'PP',
   'Other': 'OT'
+};
+
+const MONTH_ABBREVIATIONS = {
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
+  may: '05',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  sep: '09',
+  oct: '10',
+  nov: '11',
+  dec: '12'
 };
 
 function toMountainDateParts(date) {
@@ -28,30 +43,43 @@ function toMountainDateParts(date) {
   return `${map.year}-${map.month}-${map.day}`;
 }
 
-function parseBatchDate(value) {
+function parseMonthNameDate(value) {
   const clean = String(value || '').trim();
+  const match = clean.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+  if (!match) return null;
 
-  const nativeParsed = new Date(clean);
-  if (!Number.isNaN(nativeParsed.getTime())) {
-    return toMountainDateParts(nativeParsed);
-  }
+  const [, monthName, day, year] = match;
+  const month = MONTH_ABBREVIATIONS[monthName.slice(0, 3).toLowerCase()];
+  if (!month) return null;
 
+  return `${year}-${month}-${String(day).padStart(2, '0')}`;
+}
+
+function parseShortBatchDate(value) {
+  const clean = String(value || '').trim();
   const [day, mon, yy] = clean.split('-');
-  const months = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
+  const month = MONTH_ABBREVIATIONS[String(mon || '').slice(0, 3).toLowerCase()];
+  if (!day || !month || !yy) return null;
 
-  if (day && mon && yy && months[mon]) {
-    const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
-    return `${year}-${months[mon]}-${String(day).padStart(2, '0')}`;
-  }
+  const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
+  return `${year}-${month}-${String(day).padStart(2, '0')}`;
+}
 
-  throw new Error(`Invalid Batch Date format: ${clean}`);
+function parseBatchDate(value) {
+  const monthNameDate = parseMonthNameDate(value);
+  if (monthNameDate) return monthNameDate;
+
+  const shortBatchDate = parseShortBatchDate(value);
+  if (shortBatchDate) return shortBatchDate;
+
+  throw new Error(`Invalid Batch Date format: ${String(value || '').trim()}`);
 }
 
 function parseBracketDate(label) {
   const match = label.match(/\(([^)]+)\)/);
   if (!match) return null;
-  const parsed = new Date(match[1]);
-  return toMountainDateParts(parsed);
+
+  return parseMonthNameDate(match[1]) || parseShortBatchDate(match[1]);
 }
 
 function parseAmount(value) {
@@ -83,6 +111,7 @@ function parseCsvLine(line) {
 function parseRegistriesCsv(csvText) {
   const lines = csvText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   let batchDate = null;
+  let confirmation = '';
   const categories = [];
   const settlements = [];
   let bankDepositAmount = 0;
@@ -96,6 +125,11 @@ function parseRegistriesCsv(csvText) {
 
     if (left === 'Batch Date') {
       batchDate = parseBatchDate(right);
+      continue;
+    }
+
+    if (left.toLowerCase() === 'confirmation') {
+      confirmation = right.trim();
       continue;
     }
 
@@ -133,8 +167,22 @@ function parseRegistriesCsv(csvText) {
 
   if (!batchDate) throw new Error('Batch Date not found in CSV.');
   if (categories.length === 0) throw new Error('No registries category amounts found in CSV.');
+  if (!confirmation) throw new Error('Confirmation not found in CSV.');
 
-  return { batchDate, categories, settlements, bankDepositAmount, totalServiceFees, grandTotal };
+  return { batchDate, confirmation, categories, settlements, bankDepositAmount, totalServiceFees, grandTotal };
+}
+
+function buildInvoiceNumber(code, batchDate) {
+  if (code === 'MV') {
+    return `${code}${batchDate.replace(/-/g, '')}`;
+  }
+
+  if (['VS', 'LT', 'PP', 'OT'].includes(code)) {
+    const [year, month] = batchDate.split('-');
+    return `${code}${month}${year}`;
+  }
+
+  return `${code}${batchDate.replace(/-/g, '')}`;
 }
 
 Deno.serve(async (req) => {
@@ -156,27 +204,28 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
     const batchReference = `DEP-${parsed.batchDate.replace(/-/g, '')}`;
+    const confirmationReference = parsed.confirmation;
 
     const glTransactions = [
       {
         account_number: AR_GL,
         transaction_date: parsed.batchDate,
         description: `Invoice Total - Registries Batch ${batchReference}`,
-        reference: batchReference,
+        reference: confirmationReference,
         debit_amount: parsed.grandTotal,
         credit_amount: 0,
         source_type: 'manual',
-        source_id: batchReference
+        source_id: confirmationReference
       },
       {
         account_number: REGISTRIES_PAYABLE_GL,
         transaction_date: parsed.batchDate,
         description: `Registries Sales - ${batchReference}`,
-        reference: batchReference,
+        reference: confirmationReference,
         debit_amount: 0,
         credit_amount: parsed.categories.reduce((sum, item) => sum + item.amount, 0),
         source_type: 'manual',
-        source_id: batchReference
+        source_id: confirmationReference
       }
     ];
 
@@ -185,11 +234,11 @@ Deno.serve(async (req) => {
         account_number: REGISTRIES_COMMISSION_GL,
         transaction_date: parsed.batchDate,
         description: `Registries Commission - ${batchReference}`,
-        reference: batchReference,
+        reference: confirmationReference,
         debit_amount: 0,
         credit_amount: parsed.totalServiceFees,
         source_type: 'manual',
-        source_id: batchReference
+        source_id: confirmationReference
       });
     }
 
@@ -203,7 +252,7 @@ Deno.serve(async (req) => {
         payment_method: 'other',
         notes: 'Registries Settlement/Deposit',
         payment_date: settlement.payment_date,
-        reference: batchReference
+        reference: confirmationReference
       }).select().single();
       if (paymentCreate.error) throw paymentCreate.error;
 
@@ -212,21 +261,21 @@ Deno.serve(async (req) => {
           account_number: CASH_DRAWER_GL,
           transaction_date: settlement.payment_date,
           description: `Registries Settlement - ${batchReference}`,
-          reference: batchReference,
+          reference: confirmationReference,
           debit_amount: settlement.amount,
           credit_amount: 0,
           source_type: 'manual',
-          source_id: batchReference
+          source_id: confirmationReference
         },
         {
           account_number: AR_GL,
           transaction_date: settlement.payment_date,
           description: `Registries Settlement - ${batchReference}`,
-          reference: batchReference,
+          reference: confirmationReference,
           debit_amount: 0,
           credit_amount: settlement.amount,
           source_type: 'manual',
-          source_id: batchReference
+          source_id: confirmationReference
         }
       );
     }
@@ -241,7 +290,7 @@ Deno.serve(async (req) => {
         payment_method: 'other',
         notes: 'Registries Settlement/Deposit',
         payment_date: parsed.batchDate,
-        reference: batchReference
+        reference: confirmationReference
       }).select().single();
       if (depositCreate.error) throw depositCreate.error;
 
@@ -250,21 +299,21 @@ Deno.serve(async (req) => {
           account_number: CASH_DRAWER_GL,
           transaction_date: parsed.batchDate,
           description: `Registries Deposit - ${batchReference}`,
-          reference: batchReference,
+          reference: confirmationReference,
           debit_amount: parsed.bankDepositAmount,
           credit_amount: 0,
           source_type: 'manual',
-          source_id: batchReference
+          source_id: confirmationReference
         },
         {
           account_number: AR_GL,
           transaction_date: parsed.batchDate,
           description: `Registries Deposit - ${batchReference}`,
-          reference: batchReference,
+          reference: confirmationReference,
           debit_amount: 0,
           credit_amount: parsed.bankDepositAmount,
           source_type: 'manual',
-          source_id: batchReference
+          source_id: confirmationReference
         }
       );
     }
@@ -283,7 +332,7 @@ Deno.serve(async (req) => {
       gst_override: true,
       inventory: false,
       supplier_id: REGISTRIES_SUPPLIER_ID,
-      invoice_number: `${category.code}${parsed.batchDate.replace(/-/g, '')}`,
+      invoice_number: buildInvoiceNumber(category.code, parsed.batchDate),
       gl_account: Number(REGISTRIES_PAYABLE_GL),
       invoice_date: parsed.batchDate,
       inventory_credit: false
