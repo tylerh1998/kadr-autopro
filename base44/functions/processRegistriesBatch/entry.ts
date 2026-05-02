@@ -8,168 +8,70 @@ const AR_GL = '1100';
 const REGISTRIES_PAYABLE_GL = '2050';
 const REGISTRIES_COMMISSION_GL = '4101';
 
-const CATEGORY_CODES = {
-  'Motor Vehicles': 'MV',
-  'Vital Statistics': 'VS',
-  'Land Titles': 'LT',
-  'Corporate Registries': 'CR',
-  'APPRES': 'PP',
-  'Other': 'OT'
-};
-
-const MONTH_ABBREVIATIONS = {
-  jan: '01',
-  feb: '02',
-  mar: '03',
-  apr: '04',
-  may: '05',
-  jun: '06',
-  jul: '07',
-  aug: '08',
-  sep: '09',
-  oct: '10',
-  nov: '11',
-  dec: '12'
-};
-
-function toMountainDateParts(date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Edmonton',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(date);
-  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-  return `${map.year}-${map.month}-${map.day}`;
-}
-
-function parseMonthNameDate(value) {
-  const clean = String(value || '').trim();
-  const match = clean.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
-  if (!match) return null;
-
-  const [, monthName, day, year] = match;
-  const month = MONTH_ABBREVIATIONS[monthName.slice(0, 3).toLowerCase()];
-  if (!month) return null;
-
-  return `${year}-${month}-${String(day).padStart(2, '0')}`;
-}
-
-function parseShortBatchDate(value) {
-  const clean = String(value || '').trim();
-  const [day, mon, yy] = clean.split('-');
-  const month = MONTH_ABBREVIATIONS[String(mon || '').slice(0, 3).toLowerCase()];
-  if (!day || !month || !yy) return null;
-
-  const year = Number(yy) >= 70 ? `19${yy}` : `20${yy}`;
-  return `${year}-${month}-${String(day).padStart(2, '0')}`;
-}
-
-function parseBatchDate(value) {
-  const monthNameDate = parseMonthNameDate(value);
-  if (monthNameDate) return monthNameDate;
-
-  const shortBatchDate = parseShortBatchDate(value);
-  if (shortBatchDate) return shortBatchDate;
-
-  throw new Error(`Invalid Batch Date format: ${String(value || '').trim()}`);
-}
-
-function parseBracketDate(label) {
-  const match = label.match(/\(([^)]+)\)/);
-  if (!match) return null;
-
-  return parseMonthNameDate(match[1]) || parseShortBatchDate(match[1]);
-}
-
-function parseAmount(value) {
-  const num = parseFloat(String(value || '').replace(/[$,]/g, '').trim());
-  return Number.isFinite(num) ? Math.round(num * 100) / 100 : 0;
-}
-
-function parseCsvLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-    if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-      continue;
-    }
-    current += char;
+function normalizeAmount(value, fieldName) {
+  const num = typeof value === 'number' ? value : parseFloat(String(value || '').replace(/[$,]/g, '').trim());
+  if (!Number.isFinite(num)) {
+    throw new Error(`Invalid amount for ${fieldName}`);
   }
-  result.push(current.trim());
-  return result;
+  return Math.round(num * 100) / 100;
 }
 
-function parseRegistriesCsv(csvText) {
-  const lines = csvText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  let batchDate = null;
-  let confirmation = '';
-  const categories = [];
+function normalizeDate(value, fieldName) {
+  const clean = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    throw new Error(`Invalid date for ${fieldName}. Expected YYYY-MM-DD.`);
+  }
+  return clean;
+}
+
+function normalizeRegistriesPayload(payload) {
+  const batchDate = normalizeDate(payload.batchDate, 'batchDate');
+  const confirmation = String(payload.confirmation || '').trim();
+  if (!confirmation) {
+    throw new Error('Missing confirmation in payload.');
+  }
+
+  const registriesItems = Array.isArray(payload.registriesItems) ? payload.registriesItems : [];
+  const categories = registriesItems
+    .map((item, index) => {
+      const code = String(item.categoryCode || '').trim().toUpperCase();
+      const name = String(item.description || '').trim();
+      if (!code) {
+        throw new Error(`Missing categoryCode for registriesItems[${index}]`);
+      }
+      if (!name) {
+        throw new Error(`Missing description for registriesItems[${index}]`);
+      }
+      return {
+        code,
+        name,
+        amount: normalizeAmount(item.amount, `registriesItems[${index}].amount`)
+      };
+    })
+    .filter((item) => item.amount !== 0);
+
+  if (categories.length === 0) {
+    throw new Error('No registriesItems with non-zero amounts found in payload.');
+  }
+
   const settlements = [];
-  let bankDepositAmount = 0;
-  let totalServiceFees = 0;
-  let grandTotal = 0;
-
-  for (const line of lines) {
-    const cols = parseCsvLine(line);
-    const left = cols[0] || '';
-    const right = cols[1] || '';
-
-    if (left === 'Batch Date') {
-      batchDate = parseBatchDate(right);
-      continue;
-    }
-
-    if (left.toLowerCase() === 'confirmation') {
-      confirmation = right.trim();
-      continue;
-    }
-
-    if (CATEGORY_CODES[left]) {
-      const amount = parseAmount(right);
-      if (amount !== 0) {
-        categories.push({ name: left, code: CATEGORY_CODES[left], amount });
-      }
-      continue;
-    }
-
-    if (left === 'Total Service Fees') {
-      totalServiceFees = parseAmount(right);
-      continue;
-    }
-
-    if (left === 'Grand Total') {
-      grandTotal = parseAmount(right);
-      continue;
-    }
-
-    if (left.startsWith('Card Settlement (')) {
-      const paymentDate = parseBracketDate(left);
-      const amount = parseAmount(right);
-      if (paymentDate && amount !== 0) {
-        settlements.push({ label: left, payment_date: paymentDate, amount });
-      }
-      continue;
-    }
-
-    if (left === 'Bank Deposit Amount') {
-      bankDepositAmount = parseAmount(right);
-    }
+  const cardSettlementAmount = normalizeAmount(payload.cardSettlementAmount || 0, 'cardSettlementAmount');
+  if (cardSettlementAmount !== 0) {
+    settlements.push({
+      payment_date: normalizeDate(payload.cardSettlementDate, 'cardSettlementDate'),
+      amount: cardSettlementAmount
+    });
   }
 
-  if (!batchDate) throw new Error('Batch Date not found in CSV.');
-  if (categories.length === 0) throw new Error('No registries category amounts found in CSV.');
-  if (!confirmation) throw new Error('Confirmation not found in CSV.');
-
-  return { batchDate, confirmation, categories, settlements, bankDepositAmount, totalServiceFees, grandTotal };
+  return {
+    batchDate,
+    confirmation,
+    categories,
+    settlements,
+    bankDepositAmount: normalizeAmount(payload.bankDepositAmount || 0, 'bankDepositAmount'),
+    totalServiceFees: normalizeAmount(payload.totalServiceFees || 0, 'totalServiceFees'),
+    grandTotal: normalizeAmount(payload.grandTotal, 'grandTotal')
+  };
 }
 
 function buildInvoiceNumber(code, batchDate) {
@@ -193,8 +95,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { csvText } = await req.json();
-    const parsed = parseRegistriesCsv(csvText);
+    const payload = await req.json();
+    const parsed = normalizeRegistriesPayload(payload);
 
     const supabaseUrl = Deno.env.get('Supabase_project_url');
     const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
