@@ -121,6 +121,16 @@ Deno.serve(async (req) => {
         credit_amount: 0,
         source_type: 'manual',
         source_id: confirmationReference
+      },
+      {
+        account_number: REGISTRIES_PAYABLE_GL,
+        transaction_date: parsed.batchDate,
+        description: `Registries Sales - ${batchReference}`,
+        reference: confirmationReference,
+        debit_amount: 0,
+        credit_amount: parsed.categories.reduce((sum, item) => sum + item.amount, 0),
+        source_type: 'manual',
+        source_id: confirmationReference
       }
     ];
 
