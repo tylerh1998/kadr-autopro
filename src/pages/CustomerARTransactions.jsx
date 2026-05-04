@@ -16,7 +16,8 @@ import {
   Eye,
   Printer,
   Calendar as CalendarIcon,
-  Trash2, // Added Trash2 icon
+  Trash2,
+  Send,
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, subDays } from 'date-fns';
 import {
@@ -33,6 +34,7 @@ import RecordAdjustmentModal from '@/components/ar/RecordAdjustmentModal';
 import StatementModal from '@/components/ar/StatementModal';
 import ARPaymentDetailsModal from '@/components/ar/ARPaymentDetailsModal';
 import InvoiceViewerModal from '@/components/ar/InvoiceViewerModal';
+import BatchSendWorkOrdersModal from '@/components/ar/BatchSendWorkOrdersModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { // Added AlertDialog components
   AlertDialog,
@@ -68,6 +70,9 @@ export default function CustomerARTransactionsPage() {
   const [adjustmentToDelete, setAdjustmentToDelete] = useState(null);
   const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
   const [viewInvoiceUrl, setViewInvoiceUrl] = useState(null);
+  const [selectedWorkOrderIds, setSelectedWorkOrderIds] = useState([]);
+  const [showBatchSendModal, setShowBatchSendModal] = useState(false);
+  const [batchSendResults, setBatchSendResults] = useState([]);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -505,6 +510,36 @@ export default function CustomerARTransactionsPage() {
     return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
   };
 
+  const eligibleTransactions = useMemo(
+    () => transactionsTabData.filter((transaction) => transaction.work_order_id),
+    [transactionsTabData]
+  );
+
+  const selectedWorkOrders = useMemo(() => {
+    const workOrderMap = new Map();
+    eligibleTransactions.forEach((transaction) => {
+      if (!workOrderMap.has(transaction.work_order_id)) {
+        workOrderMap.set(transaction.work_order_id, transaction.work_order);
+      }
+    });
+    return selectedWorkOrderIds.map((id) => workOrderMap.get(id)).filter(Boolean);
+  }, [eligibleTransactions, selectedWorkOrderIds]);
+
+  const handleToggleWorkOrderSelection = (transaction) => {
+    const workOrderId = transaction.work_order_id;
+    if (!workOrderId) return;
+    setSelectedWorkOrderIds((prev) =>
+      prev.includes(workOrderId)
+        ? prev.filter((id) => id !== workOrderId)
+        : [...prev, workOrderId]
+    );
+  };
+
+  const handleBatchSendComplete = (results) => {
+    setBatchSendResults(results);
+    setSelectedWorkOrderIds([]);
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -540,6 +575,7 @@ export default function CustomerARTransactionsPage() {
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-200">
+            {!showPaymentDetails && <th className="w-12 p-3"></th>}
             <th className="text-left p-3 font-semibold text-slate-700">Date</th>
             {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
             <th className="text-left p-3 font-semibold text-slate-700">Description</th>
@@ -589,6 +625,18 @@ export default function CustomerARTransactionsPage() {
                       }
                     }}
                   >
+                    {!showPaymentDetails && (
+                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                        {transaction.work_order_id && (
+                          <input
+                            type="checkbox"
+                            checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
+                            onChange={() => handleToggleWorkOrderSelection(transaction)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="p-3">
                       {format(parseISO(transaction.date), 'MMM d, yyyy')}
                     </td>
@@ -793,7 +841,15 @@ export default function CustomerARTransactionsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
+            <div className="flex items-center justify-between gap-4">
+              <CardTitle>Transaction History</CardTitle>
+              {selectedWorkOrderIds.length > 0 && (
+                <Button onClick={() => setShowBatchSendModal(true)}>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Selected
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="transactions" className="w-full">
@@ -840,6 +896,27 @@ export default function CustomerARTransactionsPage() {
             onClose={() => setShowStatementModal(false)}
             customer={customer}
         />
+      )}
+
+      {batchSendResults.length > 0 && (
+       <Card className="mt-6">
+         <CardHeader>
+           <CardTitle>Last Batch Send Status</CardTitle>
+         </CardHeader>
+         <CardContent className="space-y-3">
+           {batchSendResults.map((result) => (
+             <div key={result.work_order_id} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+               <div>
+                 <p className="font-medium text-slate-900">{result.label}</p>
+                 <p className="text-slate-500">{result.message}</p>
+               </div>
+               <Badge className={result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                 {result.success ? 'Sent' : 'Failed'}
+               </Badge>
+             </div>
+           ))}
+         </CardContent>
+       </Card>
       )}
 
       <ARPaymentDetailsModal
@@ -912,6 +989,14 @@ export default function CustomerARTransactionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BatchSendWorkOrdersModal
+       open={showBatchSendModal}
+       onClose={() => setShowBatchSendModal(false)}
+       customer={customer}
+       selectedWorkOrders={selectedWorkOrders}
+       onSent={handleBatchSendComplete}
+      />
       </div>
       );
       }
