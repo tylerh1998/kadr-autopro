@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, Copy, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import { createPortalSnapshot } from '@/functions/createPortalSnapshot';
+import { createBatchPortalSnapshot } from '@/functions/createBatchPortalSnapshot';
 import { sendBatchWorkOrderEmails } from '@/functions/sendBatchWorkOrderEmails';
 
 function getStageTitle(workOrder) {
@@ -67,7 +67,7 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
 
       for (const workOrder of selectedWorkOrders) {
         try {
-          const response = await createPortalSnapshot({ work_order_id: workOrder.id });
+          const response = await createBatchPortalSnapshot({ work_order_id: workOrder.id });
           if (response.data?.success) {
             nextLinks[workOrder.id] = response.data.portal_url || `https://portal.kensauto.ca/WorkOrder?cp_id=${response.data.cp_id}`;
           } else {
