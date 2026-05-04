@@ -12,6 +12,7 @@ import DepositHistoryModal from '@/components/cash-drawer/DepositHistoryModal';
 export default function CashFlowTotals({ rows, overheadRows, summaryData, onSummaryChange }) {
   const [isPadDialogOpen, setIsPadDialogOpen] = useState(false);
   const [isDepositHistoryOpen, setIsDepositHistoryOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const formatCurrencyInput = (value) => {
     if (!value) return '';
     const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
@@ -123,63 +124,71 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
 
   return (
     <Card className="bg-white shadow-sm border">
-      <CardHeader className="pb-3 border-b">
-        <CardTitle className="text-lg text-slate-800">Cash Flow Summary</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-4 space-y-3">
-        
-        {/* Current Bank Balance */}
-        {renderEditableRow("Current Bank Balance", "bankBalance")}
-
-        {/* Outstanding Cheques (Calculated) */}
-        {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
-
-        {/* PAD & Registries (Clickable) */}
-        {renderClickableRow("PAD & Registries", padRegistries, () => setIsPadDialogOpen(true))}
-
-        {/* Upcoming Payroll */}
-        {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
-
-        {/* Upcoming Payroll Remit */}
-        {renderEditableRow("Upcoming Payroll Remit", "payrollRemit")}
-
-        {/* Upcoming GST Remit */}
-        {renderEditableRow("Upcoming GST Remit", "gstRemit")}
-
-        {/* Fiscal Cushion */}
-        {renderEditableRow("Fiscal Cushion", "fiscalCushion")}
-
-        {/* Expected Deposits */}
-        <div className="flex justify-between items-center gap-2">
-            <span 
-                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
-                onClick={() => setIsDepositHistoryOpen(true)}
-            >
-                Expected Deposits
-            </span>
-            <div className="w-32">
-                <Input 
-                    type="text" 
-                    value={summaryData.expectedDeposits} 
-                    onChange={(e) => handleChange("expectedDeposits", e.target.value)}
-                    onBlur={(e) => handleBlur("expectedDeposits", e.target.value)}
-                    className="h-8 text-right font-mono"
-                    placeholder="$0.00"
-                />
+      <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
+        <CardHeader className="pb-3 border-b">
+          <CollapsibleTrigger asChild>
+            <div className="flex items-center justify-between cursor-pointer group">
+              <CardTitle className="text-lg text-slate-800 group-hover:text-blue-600 transition-colors">Cash Flow Summary</CardTitle>
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`} />
             </div>
-        </div>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="pt-4 space-y-3">
+            
+            {/* Current Bank Balance */}
+            {renderEditableRow("Current Bank Balance", "bankBalance")}
 
-        <Separator className="my-2" />
+            {/* Outstanding Cheques (Calculated) */}
+            {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
 
-        {/* Current Cash Position */}
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-base font-bold text-slate-700">Current Cash Position</span>
-          <span className={`text-xl font-bold font-mono ${currentCashPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(currentCashPosition)}
-          </span>
-        </div>
+            {/* PAD & Registries (Clickable) */}
+            {renderClickableRow("PAD & Registries", padRegistries, () => setIsPadDialogOpen(true))}
 
-      </CardContent>
+            {/* Upcoming Payroll */}
+            {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
+
+            {/* Upcoming Payroll Remit */}
+            {renderEditableRow("Upcoming Payroll Remit", "payrollRemit")}
+
+            {/* Upcoming GST Remit */}
+            {renderEditableRow("Upcoming GST Remit", "gstRemit")}
+
+            {/* Fiscal Cushion */}
+            {renderEditableRow("Fiscal Cushion", "fiscalCushion")}
+
+            {/* Expected Deposits */}
+            <div className="flex justify-between items-center gap-2">
+                <span 
+                    className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                    onClick={() => setIsDepositHistoryOpen(true)}
+                >
+                    Expected Deposits
+                </span>
+                <div className="w-32">
+                    <Input 
+                        type="text" 
+                        value={summaryData.expectedDeposits} 
+                        onChange={(e) => handleChange("expectedDeposits", e.target.value)}
+                        onBlur={(e) => handleBlur("expectedDeposits", e.target.value)}
+                        className="h-8 text-right font-mono"
+                        placeholder="$0.00"
+                    />
+                </div>
+            </div>
+
+            <Separator className="my-2" />
+
+            {/* Current Cash Position */}
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-base font-bold text-slate-700">Current Cash Position</span>
+              <span className={`text-xl font-bold font-mono ${currentCashPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(currentCashPosition)}
+              </span>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
 
       <RemainingPaymentsSection rows={rows} val={val} formatCurrency={formatCurrency} />
       <MonthlyEstimatesSection 
@@ -255,6 +264,8 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
 }
 
 function RemainingPaymentsSection({ rows, val, formatCurrency }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   // Calculate remaining amounts by method
   // Remaining = Amount - AmountPaid
   const breakdown = rows.reduce((acc, row) => {
@@ -263,7 +274,7 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
     const amountPaid = val(row.amountPaid);
     const remaining = amount - amountPaid;
 
-    if (remaining > 0.01) { // Only count if there is a positive remaining amount
+    if (remaining > 0.01) {
         if (!acc[method]) acc[method] = 0;
         acc[method] += remaining;
     }
@@ -273,25 +284,36 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
   const totalRemaining = Object.values(breakdown).reduce((sum, v) => sum + v, 0);
 
   return (
-    <>
-        <Separator />
-        <CardContent className="pt-4 space-y-3 bg-white">
-            <h3 className="font-semibold text-slate-700">Remaining Payments</h3>
-            <div className="space-y-2">
-                {Object.entries(breakdown).sort((a,b) => b[1] - a[1]).map(([method, amount]) => (
-                    <div key={method} className="flex justify-between items-center text-sm">
-                        <span className="text-slate-500">{method === 'Unassigned' ? 'No Method' : method}</span>
-                        <span className="font-medium font-mono text-slate-700">{formatCurrency(amount)}</span>
-                    </div>
-                ))}
-                <Separator className="my-2" />
-                <div className="flex justify-between items-center font-bold">
-                    <span className="text-slate-700">Total Remaining</span>
-                    <span className="font-mono text-red-600">{formatCurrency(totalRemaining)}</span>
-                </div>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Separator />
+      <CardContent className="pt-4 pb-2 bg-white">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between cursor-pointer group">
+            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Payments</h3>
+            <div className="flex items-center gap-2">
+              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(totalRemaining)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
-        </CardContent>
-    </>
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="space-y-3 pt-3">
+          <div className="space-y-2">
+            {Object.entries(breakdown).sort((a,b) => b[1] - a[1]).map(([method, amount]) => (
+              <div key={method} className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">{method === 'Unassigned' ? 'No Method' : method}</span>
+                <span className="font-medium font-mono text-slate-700">{formatCurrency(amount)}</span>
+              </div>
+            ))}
+            <Separator className="my-2" />
+            <div className="flex justify-between items-center font-bold">
+              <span className="text-slate-700">Total Remaining</span>
+              <span className="font-mono text-red-600">{formatCurrency(totalRemaining)}</span>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </CardContent>
+    </Collapsible>
   );
 }
 
