@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, Copy, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
@@ -41,8 +40,6 @@ function getPaidAmount(workOrder) {
 
 export default function BatchSendWorkOrdersModal({ open, onClose, customer, selectedWorkOrders, onSent }) {
   const [emailTo, setEmailTo] = useState('');
-  const [subject, setSubject] = useState('');
-  const [customMessage, setCustomMessage] = useState('');
   const [portalLinks, setPortalLinks] = useState({});
   const [snapshotErrors, setSnapshotErrors] = useState({});
   const [creatingSnapshots, setCreatingSnapshots] = useState(false);
@@ -54,14 +51,7 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
   useEffect(() => {
     if (!open) return;
     setEmailTo(customer?.email || '');
-    setCustomMessage('');
     setResults([]);
-    if (selectedWorkOrders.length === 1) {
-      const onlyOrder = selectedWorkOrders[0];
-      setSubject(`${getStageTitle(onlyOrder)} #${getWorkOrderNumber(onlyOrder)} from Ken's Auto & Diesel Repair`);
-    } else {
-      setSubject(`Your selected work orders from Ken's Auto & Diesel Repair`);
-    }
   }, [open, customer, selectedWorkOrders]);
 
   useEffect(() => {
@@ -110,8 +100,6 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
     try {
       const response = await sendBatchWorkOrderEmails({
         to: emailTo,
-        subject,
-        customMessage,
         customer,
         workOrders: selectedWorkOrders.map((workOrder) => ({
           id: workOrder.id,
@@ -144,6 +132,7 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Send Selected Work Orders</DialogTitle>
+          <DialogDescription>Send one email per selected work order using the customer portal links below.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -151,16 +140,6 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
             <div className="space-y-2">
               <Label htmlFor="batch-email">Email Address</Label>
               <Input id="batch-email" type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="batch-subject">Subject</Label>
-              <Input id="batch-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="batch-message">Custom Message (Optional)</Label>
-              <Textarea id="batch-message" rows={4} value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} />
             </div>
           </div>
 
@@ -239,7 +218,7 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
-          <Button onClick={handleSend} disabled={sending || creatingSnapshots || !emailTo || !subject || readyCount !== selectedWorkOrders.length}>
+          <Button onClick={handleSend} disabled={sending || creatingSnapshots || !emailTo || readyCount !== selectedWorkOrders.length}>
             <Send className="w-4 h-4 mr-2" />
             {sending ? 'Sending...' : `Send ${selectedWorkOrders.length} Email${selectedWorkOrders.length === 1 ? '' : 's'}`}
           </Button>

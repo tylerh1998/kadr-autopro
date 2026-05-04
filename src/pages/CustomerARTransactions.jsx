@@ -574,9 +574,7 @@ export default function CustomerARTransactionsPage() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-slate-200">
-            {!showPaymentDetails && <th className="w-12 p-3"></th>}
-            <th className="text-left p-3 font-semibold text-slate-700">Date</th>
+          <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
             {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
             <th className="text-left p-3 font-semibold text-slate-700">Description</th>
             {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Payment Method</th>}

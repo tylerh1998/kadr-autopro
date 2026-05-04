@@ -1,21 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-function getStageTitle(workOrder) {
-  if (workOrder?.stage === 'estimate') return 'Estimate';
-  if (workOrder?.stage === 'invoice') return 'Invoice';
-  return 'Work Order';
-}
-
 function getWorkOrderNumber(workOrder) {
   return workOrder?.inv_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.ro_number || '';
 }
 
-function buildHtml({ customerName, customMessage, stageTitle, total, paid, balance, portalUrl }) {
+function buildHtml({ customerName, total, paid, balance, portalUrl }) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
       <p style="font-size: 16px; margin-bottom: 20px;">Hello ${customerName},</p>
-      ${customMessage ? `<p style="font-size: 16px; margin-bottom: 20px;">${customMessage.replace(/\n/g, '<br>')}</p>` : ''}
-      <p style="font-size: 16px; margin-bottom: 20px;">Please find your ${stageTitle.toLowerCase()} details below:</p>
+      <p style="font-size: 16px; margin-bottom: 20px;">Please find your work order details below:</p>
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
@@ -51,9 +44,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { to, subject, customMessage, customer, workOrders } = await req.json();
+    const { to, customer, workOrders } = await req.json();
 
-    if (!to || !subject || !customer || !Array.isArray(workOrders) || workOrders.length === 0) {
+    if (!to || !customer || !Array.isArray(workOrders) || workOrders.length === 0) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -64,13 +57,12 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const workOrder of workOrders) {
-      const stageTitle = getStageTitle(workOrder);
       const number = getWorkOrderNumber(workOrder);
       const total = Number(workOrder.total_amount || 0);
       const paid = Number(workOrder.amount_paid || 0);
       const balance = total - paid;
       const portalUrl = workOrder.portal_url;
-      const label = `${stageTitle} #${number}`;
+      const label = `Invoice #${number}`;
 
       if (!portalUrl) {
         results.push({
@@ -84,8 +76,6 @@ Deno.serve(async (req) => {
 
       const htmlBody = buildHtml({
         customerName,
-        customMessage,
-        stageTitle,
         total,
         paid,
         balance,
@@ -95,7 +85,7 @@ Deno.serve(async (req) => {
       try {
         const sendResult = await base44.functions.invoke('sendEmailViaSMTP', {
           to,
-          subject,
+          subject: `Invoice #${number} from Ken's Auto & Diesel Repair`,
           body: htmlBody,
           from_name: "Ken's Auto & Diesel Repair",
           work_order_id: workOrder.id,

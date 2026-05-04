@@ -122,24 +122,35 @@ Deno.serve(async (req) => {
       mileage: vehicle.mileage || null
     });
 
-    const lineItemsSnapshot = workOrder.line_items || '[]';
+    const lineItemsSnapshot = typeof workOrder.line_items === 'string'
+      ? workOrder.line_items
+      : JSON.stringify(workOrder.line_items || []);
 
     let adjustedAmountPaid = 0;
-    try {
-      if (workOrder.payments) {
-        const paymentsList = JSON.parse(workOrder.payments);
-        if (Array.isArray(paymentsList)) {
-          adjustedAmountPaid = paymentsList.reduce((sum, p) => {
-            const method = p.payment_method || p.method;
-            if (method === 'on_account') {
-              return sum;
+    const paymentsList = Array.isArray(workOrder.payments)
+      ? workOrder.payments
+      : (() => {
+          if (!workOrder.payments) return [];
+          if (typeof workOrder.payments === 'string') {
+            try {
+              return JSON.parse(workOrder.payments);
+            } catch (error) {
+              console.error('Error parsing payments for snapshot balance calculation:', error);
+              return [];
             }
-            return sum + (Number(p.amount) || 0);
-          }, 0);
+          }
+          return [];
+        })();
+
+    if (Array.isArray(paymentsList)) {
+      adjustedAmountPaid = paymentsList.reduce((sum, p) => {
+        const method = p.payment_method || p.method;
+        if (method === 'on_account') {
+          return sum;
         }
-      }
-    } catch (error) {
-      console.error('Error parsing payments for snapshot balance calculation:', error);
+        return sum + (Number(p.amount) || 0);
+      }, 0);
+    } else {
       adjustedAmountPaid = workOrder.amount_paid || 0;
     }
 
@@ -179,7 +190,9 @@ Deno.serve(async (req) => {
       shop_supply_total: workOrder.shop_supply_total || 0,
       tax_amount: workOrder.tax_amount || 0,
       total_amount: workOrder.total_amount || 0,
-      payments: workOrder.payments || '[]',
+      payments: typeof workOrder.payments === 'string'
+        ? workOrder.payments
+        : JSON.stringify(workOrder.payments || []),
       amount_paid: adjustedAmountPaid,
       po_number: workOrder.po_number || '',
       stage,
