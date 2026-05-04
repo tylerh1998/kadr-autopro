@@ -143,6 +143,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
+  const [cashFlowEntry, setCashFlowEntry] = useState(null);
+  const [cashFlowLoading, setCashFlowLoading] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -179,6 +181,53 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       resetModal();
     }
   }, [open, supplier]);
+
+  useEffect(() => {
+    if (!showPaymentDetailsDialog || !supplier) {
+      setCashFlowEntry(null);
+      setCashFlowLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCashFlowEntry = async () => {
+      setCashFlowLoading(true);
+      try {
+        let entries = [];
+
+        if (supplier.id) {
+          entries = await base44.entities.CashFlowEntry.filter({ supplier_id: supplier.id }, '-updated_date', 20);
+        }
+
+        if ((!entries || entries.length === 0) && supplier.name) {
+          entries = await base44.entities.CashFlowEntry.filter({ supplier: supplier.name }, '-updated_date', 20);
+        }
+
+        if (!cancelled) {
+          const matchedEntry = (entries || []).find((entry) =>
+            entry.date_paid || entry.amount_paid || entry.comment
+          ) || (entries || [])[0] || null;
+          setCashFlowEntry(matchedEntry);
+        }
+      } catch (error) {
+        console.error('Error loading cash flow entry:', error);
+        if (!cancelled) {
+          setCashFlowEntry(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCashFlowLoading(false);
+        }
+      }
+    };
+
+    loadCashFlowEntry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showPaymentDetailsDialog, supplier]);
 
   const loadData = async () => {
     setLoading(true);
@@ -232,6 +281,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setDateRange({ from: undefined, to: undefined });
     setCalculationResult(null);
     setCalculating(false);
+    setCashFlowEntry(null);
+    setCashFlowLoading(false);
   };
 
   const handleInvoiceSelection = (invoiceKey, checked) => {
@@ -924,14 +975,28 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Textarea
-                placeholder="Add notes about this payment..."
-                value={paymentData.notes}
-                onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
-                rows={3}
-              />
+            <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
+              <Label className="text-sm font-semibold text-slate-700">Cash Flow Entry</Label>
+              {cashFlowLoading ? (
+                <p className="text-sm text-slate-500">Loading cash flow entry...</p>
+              ) : cashFlowEntry ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">Paid Date</span>
+                    <span className="font-medium text-slate-900">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">Amount</span>
+                    <span className="font-medium text-slate-900">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-slate-500">Comment</span>
+                    <p className="rounded border bg-white px-3 py-2 text-slate-900">{cashFlowEntry.comment || '—'}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No cash flow entry found for this supplier.</p>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t">
