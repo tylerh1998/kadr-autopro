@@ -205,9 +205,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         }
 
         if (!cancelled) {
-          const matchedEntry = (entries || []).find((entry) =>
-            entry.date_paid || entry.amount_paid || entry.comment
-          ) || (entries || [])[0] || null;
+          const matchedEntry = (entries || []).find((entry) => {
+            const hasAmountPaid = Number(entry.amount_paid || 0) !== 0;
+            const hasDatePaid = !!entry.date_paid;
+            return hasAmountPaid || hasDatePaid;
+          }) || null;
           setCashFlowEntry(matchedEntry);
         }
       } catch (error) {
@@ -975,29 +977,29 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               </div>
             )}
 
-            <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
-              <Label className="text-sm font-semibold text-slate-700">Cash Flow Entry</Label>
-              {cashFlowLoading ? (
-                <p className="text-sm text-slate-500">Loading cash flow entry...</p>
-              ) : cashFlowEntry ? (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500">Paid Date</span>
-                    <span className="font-medium text-slate-900">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
+            {(cashFlowLoading || cashFlowEntry) && (
+              <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
+                <Label className="text-sm font-semibold text-slate-700">Cash Flow Entry</Label>
+                {cashFlowLoading ? (
+                  <p className="text-sm text-slate-500">Loading cash flow entry...</p>
+                ) : cashFlowEntry ? (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500">Paid Date</span>
+                      <span className="font-medium text-slate-900">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-500">Amount</span>
+                      <span className="font-medium text-slate-900">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-slate-500">Comment</span>
+                      <p className="rounded border bg-white px-3 py-2 text-slate-900">{cashFlowEntry.comment || '—'}</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500">Amount</span>
-                    <span className="font-medium text-slate-900">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-slate-500">Comment</span>
-                    <p className="rounded border bg-white px-3 py-2 text-slate-900">{cashFlowEntry.comment || '—'}</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No cash flow entry found for this supplier.</p>
-              )}
-            </div>
+                ) : null}
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="outline" onClick={() => { setShowPaymentDetailsDialog(false); setActionLocked(false); }} disabled={loading || actionLocked}>
