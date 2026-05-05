@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, InventoryTxs, InventoryItem, GLTransaction, WorkOrder } from '@/entities/all';
+import { InventoryReturn, InventoryTxs, GLTransaction, WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import { searchSuppliers } from '@/functions/searchSuppliers';
+import { SupabaseProxy } from '@/functions/SupabaseProxy';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
   const [quantity, setQuantity] = useState('1');
@@ -45,8 +46,12 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
                       setSuppliers(suppliersResponse.data?.suppliers || []);
 
           if (lineItem.inventory_item_id) {
-            const item = await InventoryItem.get(lineItem.inventory_item_id);
-            setInventoryItem(item);
+            const itemResponse = await SupabaseProxy({
+              action: 'read',
+              table: 'InventoryItem',
+              match: { id: lineItem.inventory_item_id }
+            });
+            setInventoryItem(itemResponse.data?.data?.[0] || null);
           } else {
             setInventoryItem(null);
           }
