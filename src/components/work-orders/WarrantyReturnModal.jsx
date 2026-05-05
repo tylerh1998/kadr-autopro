@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, InventoryTxs, InventoryItem, Supplier, GLTransaction, WorkOrder } from '@/entities/all';
+import { InventoryReturn, InventoryTxs, InventoryItem, GLTransaction, WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { searchSuppliers } from '@/functions/searchSuppliers';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
   const [quantity, setQuantity] = useState('1');
@@ -38,10 +39,10 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // Fetch inventory item and suppliers
       const fetchData = async () => {
         try {
-          const [suppliersData] = await Promise.all([
-            Supplier.list()
-          ]);
-          setSuppliers(suppliersData);
+          const [suppliersResponse] = await Promise.all([
+                        searchSuppliers({ searchTerm: '' })
+                      ]);
+                      setSuppliers(suppliersResponse.data?.suppliers || []);
 
           if (lineItem.inventory_item_id) {
             const item = await InventoryItem.get(lineItem.inventory_item_id);
