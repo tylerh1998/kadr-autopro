@@ -18,6 +18,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [inventoryItem, setInventoryItem] = useState(null);
+  const [inventoryLookupComplete, setInventoryLookupComplete] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
   const [availableQty, setAvailableQty] = useState(0);
   const [alreadyReturnedQty, setAlreadyReturnedQty] = useState(0);
@@ -36,6 +37,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       setQuantity(available > 0 ? '1' : '0');
       setReturnScope('Parts Only');
       setNotes('');
+      setInventoryLookupComplete(false);
 
       // Fetch inventory item and suppliers
       const fetchData = async () => {
@@ -50,9 +52,12 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           } catch (error) {
             console.error('Error fetching inventory item:', error);
             setInventoryItem(null);
+          } finally {
+            setInventoryLookupComplete(true);
           }
         } else {
           setInventoryItem(null);
+          setInventoryLookupComplete(true);
         }
 
         try {
@@ -248,7 +253,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           )}
 
           {/* Warning if not linked to inventory */}
-          {!inventoryItem && (
+          {inventoryLookupComplete && !inventoryItem && (
             <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-yellow-800">
