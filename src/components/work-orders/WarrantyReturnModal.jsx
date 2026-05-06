@@ -39,24 +39,28 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
 
       // Fetch inventory item and suppliers
       const fetchData = async () => {
-        try {
-          const [suppliersResponse] = await Promise.all([
-                        searchSuppliers({ searchTerm: '' })
-                      ]);
-                      setSuppliers(suppliersResponse.data?.suppliers || []);
-
-          if (lineItem.inventory_item_id) {
+        if (lineItem.inventory_item_id) {
+          try {
             const itemResponse = await SupabaseProxy({
               action: 'read',
               table: 'InventoryItem',
               match: { id: lineItem.inventory_item_id }
             });
             setInventoryItem(itemResponse.data?.data?.[0] || null);
-          } else {
+          } catch (error) {
+            console.error('Error fetching inventory item:', error);
             setInventoryItem(null);
           }
+        } else {
+          setInventoryItem(null);
+        }
+
+        try {
+          const suppliersResponse = await searchSuppliers({ searchTerm: '' });
+          setSuppliers(suppliersResponse.data?.suppliers || []);
         } catch (error) {
-          console.error('Error fetching data:', error);
+          console.error('Error fetching suppliers:', error);
+          setSuppliers([]);
         }
       };
       fetchData();
