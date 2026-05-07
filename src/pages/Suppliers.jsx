@@ -237,11 +237,11 @@ export default function SuppliersPage() {
               ))
             ) : filteredSuppliers.length > 0 ? (
               filteredSuppliers.map((supplier) => (
-                <Link key={supplier.id} to={createPageUrl(`SupplierTx?id=${supplier.id}`)}>
-                  <Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer">
-                    <CardContent className="p-6">
+                <Link key={supplier.id} to={createPageUrl(`SupplierTx?id=${supplier.id}`)} className="h-full">
+                  <Card className="group h-full border border-slate-200 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-blue-300 hover:ring-2 hover:ring-blue-100">
+                    <CardContent className="p-6 h-full flex flex-col">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center transition-colors duration-200 group-hover:bg-blue-200">
                           <Truck className="w-6 h-6 text-blue-600" />
                         </div>
                         <div className="flex-1">
@@ -264,7 +264,7 @@ export default function SuppliersPage() {
                         </div>
                         </div>
                         </div>
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-2 text-sm mt-auto">
                         {supplier.phone && <p className="flex items-center gap-2 text-slate-700"><Phone className="w-4 h-4 text-slate-400" /> {supplier.phone}</p>}
                         {supplier.email && <p className="flex items-center gap-2 text-slate-700"><Mail className="w-4 h-4 text-slate-400" /> {supplier.email}</p>}
                         <div className="flex gap-2 flex-wrap">
