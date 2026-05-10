@@ -50,13 +50,25 @@ export default function JsonToTableDisplay({ data }) {
   return (
     <div className="space-y-6">
       {entries.map(([key, value]) => {
-        if (key === 'line_items' && Array.isArray(value)) {
-          return (
-            <div key={key} className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
-              <WorkOrderViewLineItemsTable lineItems={value} workOrder={{ stage: 'work_order' }} />
-            </div>
-          );
+        if (key === 'line_items') {
+          let parsedLineItems = value;
+
+          if (typeof parsedLineItems === 'string') {
+            try {
+              parsedLineItems = JSON.parse(parsedLineItems);
+            } catch {
+              parsedLineItems = null;
+            }
+          }
+
+          if (Array.isArray(parsedLineItems)) {
+            return (
+              <div key={key} className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
+                <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
+              </div>
+            );
+          }
         }
 
         return (
