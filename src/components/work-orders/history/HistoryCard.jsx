@@ -3,7 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronRight } from 'lucide-react';
 
+function formatCurrency(amount) {
+  const numericAmount = Number(amount);
+  if (Number.isNaN(numericAmount)) return null;
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency: 'CAD'
+  }).format(numericAmount);
+}
+
 export default function HistoryCard({ record, onClick, formatDateTime }) {
+  const formattedTotalAmount = record?.total_amount !== null && record?.total_amount !== undefined
+    ? formatCurrency(record.total_amount)
+    : null;
+
   return (
     <button type="button" onClick={onClick} className="w-full text-left">
       <Card className="hover:border-blue-300 hover:shadow-md transition-all">
@@ -15,6 +28,9 @@ export default function HistoryCard({ record, onClick, formatDateTime }) {
               <span className="text-sm text-slate-600">{formatDateTime(record.changed_at)}</span>
             </div>
             <p className="text-sm text-slate-600 truncate">{record.changed_by_display || 'System'}</p>
+            {formattedTotalAmount && (
+              <p className="text-sm text-slate-700">Total: {formattedTotalAmount}</p>
+            )}
           </div>
           <Button variant="ghost" size="icon" className="shrink-0 pointer-events-none">
             <ChevronRight className="w-4 h-4" />
