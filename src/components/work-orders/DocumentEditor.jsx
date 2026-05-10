@@ -71,6 +71,7 @@ import WONotesModal from './WONotesModal';
 import OdometerPromptModal from './OdometerPromptModal';
 import InvoiceDescriptionModal from './InvoiceDescriptionModal';
 import InvoicePaymentModal from './InvoicePaymentModal';
+import WorkOrderHistoryModal from './history/WorkOrderHistoryModal';
 
 // NEW: Import Card components for the lock message
 import { Card, CardContent } from '@/components/ui/card';
@@ -207,6 +208,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     workPROCommentsEdit: false,
     woNotes: false,
     pdf: false,
+    versionHistory: false,
   });
 
   // State for the specific appointment being edited
@@ -1577,6 +1579,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               onSelectedLineChange={setSelectedLineIndex}
               onOpenOdometerPrompt={handleOpenOdometerPrompt}
               onOpenApprovals={() => openModal('approvals')}
+              onOpenVersionHistory={() => openModal('versionHistory')}
               mode={mode} // Pass mode to WorkOrderForm
               shopSupplyRate={systemSettings.shop_supply_rate}
               onLineItemProcessed={handleLineItemProcessed}
@@ -1795,6 +1798,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             lineItems={lineItems}
             wipLegal={wipLegal}
             defaultMessage={defaultMessage}
+          />
+
+          <WorkOrderHistoryModal
+            open={modals.versionHistory}
+            onClose={() => closeModal('versionHistory')}
+            workOrderId={workOrder?.id}
+            employees={allEmployees || employees}
           />
         </>
       )}

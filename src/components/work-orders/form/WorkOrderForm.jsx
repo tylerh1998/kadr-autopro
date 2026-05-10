@@ -75,6 +75,7 @@ export default function WorkOrderForm({
   onOpenPaymentModal,
   onOpenOdometerPrompt,
   onOpenApprovals,
+  onOpenVersionHistory,
   mode = 'work_order', // Add mode prop with default
   shopSupplyRate = 0.07,
   onLineItemProcessed,
@@ -1033,6 +1034,7 @@ export default function WorkOrderForm({
         onEditWorkOrderDetails={onEditWorkOrderDetails}
         onOpenOdometerPrompt={onOpenOdometerPrompt}
         onOpenApprovals={onOpenApprovals}
+        onOpenVersionHistory={onOpenVersionHistory}
       />
       
       <LineItemsTable

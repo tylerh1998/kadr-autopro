@@ -24,6 +24,7 @@ import WONotesModal from '../components/work-orders/WONotesModal';
 import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
 import WorkOrderProfitability from '../components/work-orders/WorkOrderProfitability';
 import VehicleDetails from '../components/vehicles/VehicleDetails';
+import WorkOrderHistoryModal from '../components/work-orders/history/WorkOrderHistoryModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   ContextMenu,
@@ -68,6 +69,7 @@ export default function WorkOrderViewPage() {
   const [defaultMessage, setDefaultMessage] = useState('');
   const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
   const [showVehicleDetailsModal, setShowVehicleDetailsModal] = useState(false);
+  const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -414,6 +416,7 @@ export default function WorkOrderViewPage() {
                 onReturnForWarranty={handleReturnForWarranty}
                 shopSupplyRate={shopSupplyRate}
                 onViewVehicleDetails={() => setShowVehicleDetailsModal(true)}
+                onOpenVersionHistory={() => setShowVersionHistoryModal(true)}
               />
             </div>
           </div>
@@ -508,6 +511,13 @@ export default function WorkOrderViewPage() {
         lineItems={lineItems}
         wipLegal={wipLegal}
         defaultMessage={defaultMessage}
+      />
+
+      <WorkOrderHistoryModal
+        open={showVersionHistoryModal}
+        onClose={() => setShowVersionHistoryModal(false)}
+        workOrderId={workOrder?.id}
+        employees={allEmployees || employees}
       />
 
       {/* Vehicle Details Modal */}

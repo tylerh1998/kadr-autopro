@@ -25,6 +25,7 @@ export default function WorkOrderViewForm({
   onReturnForWarranty, // Pass down the handler
   shopSupplyRate = 0.07,
   onViewVehicleDetails,
+  onOpenVersionHistory,
 }) {
   return (
     <div className="space-y-6">
@@ -35,6 +36,7 @@ export default function WorkOrderViewForm({
         employees={employees} // Pass employees list
         onOpenWorkPRO={onOpenWorkPRO}
         onViewVehicleDetails={onViewVehicleDetails}
+        onOpenVersionHistory={onOpenVersionHistory}
       />
       
       <WorkOrderViewLineItemsTable

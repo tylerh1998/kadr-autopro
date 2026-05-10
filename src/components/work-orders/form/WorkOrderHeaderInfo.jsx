@@ -20,6 +20,7 @@ export default function WorkOrderHeaderInfo({
   onEditWorkOrderDetails,
   onOpenOdometerPrompt,
   onOpenApprovals,
+  onOpenVersionHistory,
 }) {
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
@@ -454,7 +455,11 @@ export default function WorkOrderHeaderInfo({
               </Button>
               
               {(workOrder?.created_by || workOrder?.created_date || workOrder?.last_updated_by || workOrder?.last_updated || workOrder?.completed_by || workOrder?.completed_date) && (
-                <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                <button
+                  type="button"
+                  onClick={onOpenVersionHistory}
+                  className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 w-full text-left hover:bg-slate-50 rounded-md px-1 py-2 transition-colors"
+                >
                   {workOrder.created_by && (
                     <div className="flex justify-between items-center">
                       <span>Created By:</span>
@@ -503,7 +508,7 @@ export default function WorkOrderHeaderInfo({
                       </span>
                     </div>
                   )}
-                </div>
+                </button>
               )}
             </div>
           </div>
