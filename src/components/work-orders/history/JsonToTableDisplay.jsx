@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent } from '@/components/ui/card';
 import WorkOrderViewLineItemsTable from '../form/WorkOrderViewLineItemsTable';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -68,10 +69,25 @@ function normalizeHistoryLineItem(line) {
   };
 }
 
+function formatCurrency(value) {
+  return `$${toNumber(value).toFixed(2)}`;
+}
+
+function HistoryFinancialItem({ label, value, className = '' }) {
+  return (
+    <div className={`text-center px-4 py-2 rounded-lg ${className}`}>
+      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
+      <p className="text-xl font-bold text-slate-800">{formatCurrency(value)}</p>
+    </div>
+  );
+}
+
 export default function JsonToTableDisplay({ data }) {
   const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
+  const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
   const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
-  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items');
+  const financialEntries = rawEntries.filter(([key]) => financialFieldKeys.includes(key));
+  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && !financialFieldKeys.includes(key));
 
   if (!rawEntries.length) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
@@ -114,9 +130,25 @@ export default function JsonToTableDisplay({ data }) {
       ))}
 
       {Array.isArray(parsedLineItems) && (
-        <div key="line_items" className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
-          <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
+        <div key="line_items" className="space-y-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
+            <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
+          </div>
+
+          {financialEntries.length > 0 && (
+            <Card>
+              <CardContent className="p-3 flex flex-wrap justify-around items-center gap-x-6 gap-y-2">
+                <HistoryFinancialItem label="Parts Total" value={data?.parts_total} />
+                <HistoryFinancialItem label="Labour Total" value={data?.labor_total} />
+                <HistoryFinancialItem label="Shop Supplies" value={data?.shop_supply_total} />
+                <HistoryFinancialItem label="GST (5%)" value={data?.tax_amount} />
+                <div className="w-px h-10 bg-slate-200 hidden md:block" />
+                <HistoryFinancialItem label="Total" value={data?.total_amount} className="bg-slate-100" />
+                <HistoryFinancialItem label="Payments" value={data?.amount_paid} className="text-green-700" />
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
