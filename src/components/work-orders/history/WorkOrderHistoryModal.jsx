@@ -76,7 +76,7 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
 
   const pagedRecords = useMemo(() => {
     const start = page * PAGE_SIZE;
-    return records.slice(start, start + PAGE_SIZE);
+    return [...records].reverse().slice(start, start + PAGE_SIZE).reverse();
   }, [records, page]);
 
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));

@@ -40,6 +40,34 @@ function formatValue(key, value) {
   return String(value);
 }
 
+function toNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[$,%\s,]/g, '');
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function normalizeHistoryLineItem(line) {
+  return {
+    ...line,
+    qty: toNumber(line?.qty),
+    hrs: toNumber(line?.hrs),
+    parts_ea: toNumber(line?.parts_ea),
+    tot_parts: toNumber(line?.tot_parts),
+    labour: toNumber(line?.labour),
+    total: toNumber(line?.total),
+    price: toNumber(line?.price),
+    quantity: toNumber(line?.quantity),
+    qty_on_order: toNumber(line?.qty_on_order),
+    Core_num: toNumber(line?.Core_num),
+    core_ret: toNumber(line?.core_ret),
+    core_cost: toNumber(line?.core_cost),
+  };
+}
+
 export default function JsonToTableDisplay({ data }) {
   const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
   const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
@@ -58,6 +86,9 @@ export default function JsonToTableDisplay({ data }) {
       } catch {
         parsedLineItems = null;
       }
+    }
+    if (Array.isArray(parsedLineItems)) {
+      parsedLineItems = parsedLineItems.map(normalizeHistoryLineItem);
     }
   }
 
@@ -85,9 +116,6 @@ export default function JsonToTableDisplay({ data }) {
       {Array.isArray(parsedLineItems) && (
         <div key="line_items" className="space-y-2">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
-          {console.log('History detail debug: parsedLineItems', parsedLineItems)}
-          {console.log('History detail debug: line item sample', parsedLineItems[0])}
-          {console.log('History detail debug: workOrder prop', { stage: 'work_order' })}
           <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
         </div>
       )}
