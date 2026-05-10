@@ -85,6 +85,9 @@ export default function JsonToTableDisplay({ data }) {
       {Array.isArray(parsedLineItems) && (
         <div key="line_items" className="space-y-2">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
+          {console.log('History detail debug: parsedLineItems', parsedLineItems)}
+          {console.log('History detail debug: line item sample', parsedLineItems[0])}
+          {console.log('History detail debug: workOrder prop', { stage: 'work_order' })}
           <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
         </div>
       )}
