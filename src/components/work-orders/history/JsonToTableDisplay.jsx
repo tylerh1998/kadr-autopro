@@ -41,55 +41,53 @@ function formatValue(key, value) {
 }
 
 export default function JsonToTableDisplay({ data }) {
-  const entries = Object.entries(data || {});
+  const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
+  const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
+  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items');
 
-  if (!entries.length) {
+  if (!rawEntries.length) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
+  }
+
+  let parsedLineItems = null;
+  if (lineItemsEntry) {
+    parsedLineItems = lineItemsEntry[1];
+    if (typeof parsedLineItems === 'string') {
+      try {
+        parsedLineItems = JSON.parse(parsedLineItems);
+      } catch {
+        parsedLineItems = null;
+      }
+    }
   }
 
   return (
     <div className="space-y-6">
-      {entries.map(([key, value]) => {
-        if (key === 'line_items') {
-          let parsedLineItems = value;
+      {otherEntries.map(([key, value]) => (
+        <div key={key} className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/3">Field</TableHead>
+                <TableHead>New Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium align-top">{key}</TableCell>
+                <TableCell className="align-top whitespace-pre-wrap break-words">{formatValue(key, value)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      ))}
 
-          if (typeof parsedLineItems === 'string') {
-            try {
-              parsedLineItems = JSON.parse(parsedLineItems);
-            } catch {
-              parsedLineItems = null;
-            }
-          }
-
-          if (Array.isArray(parsedLineItems)) {
-            return (
-              <div key={key} className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
-                <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
-              </div>
-            );
-          }
-        }
-
-        return (
-          <div key={key} className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-1/3">Field</TableHead>
-                  <TableHead>New Value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium align-top">{key}</TableCell>
-                  <TableCell className="align-top whitespace-pre-wrap break-words">{formatValue(key, value)}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        );
-      })}
+      {Array.isArray(parsedLineItems) && (
+        <div key="line_items" className="space-y-2">
+          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
+          <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
+        </div>
+      )}
     </div>
   );
 }
