@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const JSON_FIELDS = ['line_items', 'payments', 'accounting_details', 'tech_time'];
@@ -37,11 +37,65 @@ const getMountainTimeISOString = () => {
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}.${String(now.getMilliseconds()).padStart(3, '0')}${offsetSign}${offsetHours}:${offsetMinutes}`;
 };
 
+const deepEqual = (obj1, obj2) => {
+  if (obj1 === obj2) return true;
+
+  if (obj1 === null || typeof obj1 !== 'object' || obj2 === null || typeof obj2 !== 'object') {
+    return false;
+  }
+
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) return false;
+
+  for (const key of keys1) {
+    if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const hasPertinentChanges = (existingRow, incomingPayload) => {
-  return Object.entries(incomingPayload || {}).some(([key, value]) => {
-    if (NON_PERTINENT_FIELDS.has(key)) return false;
-    return JSON.stringify(value ?? null) !== JSON.stringify(existingRow?.[key] ?? null);
-  });
+  const fieldsToIgnore = new Set([...IMMUTABLE_FIELDS, ...Array.from(NON_PERTINENT_FIELDS)]);
+
+  for (const key in incomingPayload) {
+    if (!Object.prototype.hasOwnProperty.call(incomingPayload, key)) continue;
+    if (fieldsToIgnore.has(key)) continue;
+
+    let incomingValue = incomingPayload[key];
+    let existingValue = existingRow[key];
+
+    // Handle JSON fields: parse to object for deep comparison
+    if (JSON_FIELDS.includes(key)) {
+      try {
+        incomingValue = typeof incomingValue === 'string' ? JSON.parse(incomingValue) : incomingValue;
+      } catch (e) {
+        // If parsing fails, treat as a string comparison (e.g., invalid JSON string)
+        console.warn(`Failed to parse incoming JSON for key ${key}:`, e);
+      }
+      try {
+        existingValue = typeof existingValue === 'string' ? JSON.parse(existingValue) : existingValue;
+      } catch (e) {
+        // If parsing fails, treat as a string comparison
+        console.warn(`Failed to parse existing JSON for key ${key}:`, e);
+      }
+    }
+
+    // Special handling for date fields: normalize to ISO string for consistent comparison
+    if (DATE_FIELDS.has(key)) {
+        incomingValue = incomingValue ? new Date(incomingValue).toISOString() : null;
+        existingValue = existingValue ? new Date(existingValue).toISOString() : null;
+    }
+
+    // Compare values
+    if (!deepEqual(incomingValue, existingValue)) {
+      return true; // Pertinent change detected
+    }
+  }
+  return false; // No pertinent changes
 };
 
 const normalizeWorkOrder = (row) => {
@@ -127,28 +181,48 @@ Deno.serve(async (req) => {
     if (pertinentChangeDetected) {
       payload.last_updated = getMountainTimeISOString();
       payload.last_updated_by = user.email;
+      // Release lock as part of the save if pertinent changes are made
+      payload.LockedByUser = null;
+      payload.locked_timestamp = null;
+
+      const result = await supabase
+        .from('WorkOrder')
+        .update(payload)
+        .eq('ro_number', ro_number)
+        .select('id')
+        .maybeSingle();
+
+      if (result.error) {
+        console.error('saveworkorderdata supabase error:', result.error);
+        return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
+      }
+
+      return Response.json({ success: true, id: result.data?.id || existingResult.data.id, message: 'Work order updated.' });
     } else {
-      delete payload.last_updated;
-      delete payload.last_updated_by;
+      // No pertinent changes detected. Check if the current user held a lock and release it.
+      if (existingResult.data.LockedByUser === user.email) {
+          const lockReleasePayload = {
+              LockedByUser: null,
+              locked_timestamp: null,
+          };
+          const lockReleaseResult = await supabase
+              .from('WorkOrder')
+              .update(lockReleasePayload)
+              .eq('ro_number', ro_number)
+              .select('id')
+              .maybeSingle();
+
+          if (lockReleaseResult.error) {
+              console.error('saveworkorderdata lock release error:', lockReleaseResult.error);
+              // Log the error but still indicate success to the frontend for the "no pertinent changes" scenario.
+              return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save, but failed to release lock.', error: lockReleaseResult.error.message });
+          }
+          return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock released.' });
+      } else {
+          // No pertinent changes and no lock by current user to release.
+          return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save.' });
+      }
     }
-
-    const result = await supabase
-      .from('WorkOrder')
-      .update(payload)
-      .eq('ro_number', ro_number)
-      .select('id')
-      .maybeSingle();
-
-    if (result.error) {
-      console.error('saveworkorderdata supabase error:', result.error);
-      return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
-    }
-
-    if (!result.data?.id) {
-      return Response.json({ error: 'Work order not found in Supabase' }, { status: 404 });
-    }
-
-    return Response.json({ success: true, id: result.data.id });
   } catch (error) {
     console.error('saveworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });
