@@ -58,6 +58,30 @@ const deepEqual = (obj1, obj2) => {
   return true;
 };
 
+const normalizeComparableValue = (key, value) => {
+  let normalizedValue = value;
+
+  if (JSON_FIELDS.includes(key)) {
+    try {
+      normalizedValue = typeof normalizedValue === 'string' ? JSON.parse(normalizedValue) : normalizedValue;
+    } catch (_error) {
+      // leave as-is if parsing fails
+    }
+  }
+
+  if (DATE_FIELDS.has(key)) {
+    return normalizedValue ? new Date(normalizedValue).toISOString() : null;
+  }
+
+  if (typeof normalizedValue === 'string') {
+    const trimmedValue = normalizedValue.trim();
+    if (trimmedValue === '') return null;
+    return trimmedValue;
+  }
+
+  return normalizedValue ?? null;
+};
+
 const hasPertinentChanges = (existingRow, incomingPayload) => {
   const fieldsToIgnore = new Set([...IMMUTABLE_FIELDS, ...Array.from(NON_PERTINENT_FIELDS)]);
 
@@ -65,37 +89,14 @@ const hasPertinentChanges = (existingRow, incomingPayload) => {
     if (!Object.prototype.hasOwnProperty.call(incomingPayload, key)) continue;
     if (fieldsToIgnore.has(key)) continue;
 
-    let incomingValue = incomingPayload[key];
-    let existingValue = existingRow[key];
+    const incomingValue = normalizeComparableValue(key, incomingPayload[key]);
+    const existingValue = normalizeComparableValue(key, existingRow[key]);
 
-    // Handle JSON fields: parse to object for deep comparison
-    if (JSON_FIELDS.includes(key)) {
-      try {
-        incomingValue = typeof incomingValue === 'string' ? JSON.parse(incomingValue) : incomingValue;
-      } catch (e) {
-        // If parsing fails, treat as a string comparison (e.g., invalid JSON string)
-        console.warn(`Failed to parse incoming JSON for key ${key}:`, e);
-      }
-      try {
-        existingValue = typeof existingValue === 'string' ? JSON.parse(existingValue) : existingValue;
-      } catch (e) {
-        // If parsing fails, treat as a string comparison
-        console.warn(`Failed to parse existing JSON for key ${key}:`, e);
-      }
-    }
-
-    // Special handling for date fields: normalize to ISO string for consistent comparison
-    if (DATE_FIELDS.has(key)) {
-        incomingValue = incomingValue ? new Date(incomingValue).toISOString() : null;
-        existingValue = existingValue ? new Date(existingValue).toISOString() : null;
-    }
-
-    // Compare values
     if (!deepEqual(incomingValue, existingValue)) {
-      return true; // Pertinent change detected
+      return true;
     }
   }
-  return false; // No pertinent changes
+  return false;
 };
 
 const normalizeWorkOrder = (row) => {
@@ -119,11 +120,18 @@ const normalizePayload = (payload) => {
 
   Object.entries(payload || {}).forEach(([key, value]) => {
     if (!ALLOWED_FIELDS.has(key) || IMMUTABLE_FIELDS.includes(key) || value === undefined) return;
+
+    let processedValue = value;
+
     if (DATE_FIELDS.has(key) && value === '') {
-      normalized[key] = null;
-      return;
+      processedValue = null;
+    } else if (typeof value === 'string' && value.trim() === '' && !JSON_FIELDS.includes(key)) {
+      processedValue = null;
+    } else if (JSON_FIELDS.includes(key) && value && typeof value !== 'string') {
+      processedValue = JSON.stringify(value);
     }
-    normalized[key] = JSON_FIELDS.includes(key) && value && typeof value !== 'string' ? JSON.stringify(value) : value;
+
+    normalized[key] = processedValue;
   });
 
   return normalized;
@@ -176,12 +184,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Work order not found in Supabase' }, { status: 404 });
     }
 
-    const pertinentChangeDetected = hasPertinentChanges(existingResult.data, payload);
+    const existingWorkOrder = normalizeWorkOrder(existingResult.data);
+    const pertinentChangeDetected = hasPertinentChanges(existingWorkOrder, payload);
 
     if (pertinentChangeDetected) {
       payload.last_updated = getMountainTimeISOString();
       payload.last_updated_by = user.email;
-      // Release lock as part of the save if pertinent changes are made
       payload.LockedByUser = null;
       payload.locked_timestamp = null;
 
@@ -198,31 +206,28 @@ Deno.serve(async (req) => {
       }
 
       return Response.json({ success: true, id: result.data?.id || existingResult.data.id, message: 'Work order updated.' });
-    } else {
-      // No pertinent changes detected. Check if the current user held a lock and release it.
-      if (existingResult.data.LockedByUser === user.email) {
-          const lockReleasePayload = {
-              LockedByUser: null,
-              locked_timestamp: null,
-          };
-          const lockReleaseResult = await supabase
-              .from('WorkOrder')
-              .update(lockReleasePayload)
-              .eq('ro_number', ro_number)
-              .select('id')
-              .maybeSingle();
-
-          if (lockReleaseResult.error) {
-              console.error('saveworkorderdata lock release error:', lockReleaseResult.error);
-              // Log the error but still indicate success to the frontend for the "no pertinent changes" scenario.
-              return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save, but failed to release lock.', error: lockReleaseResult.error.message });
-          }
-          return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock released.' });
-      } else {
-          // No pertinent changes and no lock by current user to release.
-          return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save.' });
-      }
     }
+
+    if (existingResult.data.LockedByUser === user.email) {
+      const lockReleasePayload = {
+        LockedByUser: null,
+        locked_timestamp: null,
+      };
+      const lockReleaseResult = await supabase
+        .from('WorkOrder')
+        .update(lockReleasePayload)
+        .eq('ro_number', ro_number)
+        .select('id')
+        .maybeSingle();
+
+      if (lockReleaseResult.error) {
+        console.error('saveworkorderdata lock release error:', lockReleaseResult.error);
+        return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save, but failed to release lock.', error: lockReleaseResult.error.message });
+      }
+      return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock released.' });
+    }
+
+    return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save.' });
   } catch (error) {
     console.error('saveworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });
