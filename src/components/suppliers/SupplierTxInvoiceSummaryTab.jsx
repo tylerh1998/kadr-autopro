@@ -1,9 +1,46 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
-export default function SupplierTxInvoiceSummaryTab({ conceptualInvoices, expandedInvoices, toggleInvoiceExpansion, safeFormatDate }) {
+const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
+const getLineCharge = (line) => parseFloat(line.charge ?? line.purchase_amount ?? 0) || 0;
+const getLineGst = (line) => parseFloat(line.gst ?? line.gst_amount ?? 0) || 0;
+const getLineTotal = (line) => {
+  const explicit = parseFloat(line.line_total);
+  if (!Number.isNaN(explicit)) return explicit;
+  return getLineCharge(line) + getLineGst(line);
+};
+
+export default function SupplierTxInvoiceSummaryTab({
+  conceptualInvoices,
+  expandedInvoices,
+  toggleInvoiceExpansion,
+  safeFormatDate,
+  isLockedByOtherUser,
+  lockAcquired,
+  chartOfAccounts,
+  handleLineChange,
+  handleDateBlur,
+  formatDateForInput,
+  handleValueBlur,
+  handleGlAccountChange,
+  handleDeleteLine,
+  isLineLocked,
+}) {
+  const isReadOnly = isLockedByOtherUser || !lockAcquired;
+  const totals = conceptualInvoices.reduce((acc, inv) => {
+    acc.subtotal += inv.subtotal || 0;
+    acc.tax_amount += inv.tax_amount || 0;
+    acc.total_amount += inv.total_amount || 0;
+    acc.amount_paid += inv.amount_paid || 0;
+    acc.balance_due += inv.balance_due || 0;
+    return acc;
+  }, { subtotal: 0, tax_amount: 0, total_amount: 0, amount_paid: 0, balance_due: 0 });
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -15,7 +52,7 @@ export default function SupplierTxInvoiceSummaryTab({ conceptualInvoices, expand
           </thead>
           <tbody>
             {conceptualInvoices.map((invoice) => (
-              <tr key={`${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}_print`}>
+              <tr key={`${getInvoiceKey(invoice)}_print`}>
                 <td>{invoice.invoice_number}</td>
                 <td>{safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}</td>
                 <td>{invoice.line_count}</td>
@@ -30,18 +67,18 @@ export default function SupplierTxInvoiceSummaryTab({ conceptualInvoices, expand
           <tfoot>
             <tr>
               <th colSpan={3} className="text-right">Totals:</th>
-              <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0).toFixed(2)}</th>
-              <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.tax_amount || 0), 0).toFixed(2)}</th>
-              <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0).toFixed(2)}</th>
-              <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0).toFixed(2)}</th>
-              <th>${conceptualInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0).toFixed(2)}</th>
+              <th>${totals.subtotal.toFixed(2)}</th>
+              <th>${totals.tax_amount.toFixed(2)}</th>
+              <th>${totals.total_amount.toFixed(2)}</th>
+              <th>${totals.amount_paid.toFixed(2)}</th>
+              <th>${totals.balance_due.toFixed(2)}</th>
             </tr>
           </tfoot>
         </table>
 
         <div className="divide-y divide-slate-200 summary-screen-list">
           {conceptualInvoices.length > 0 ? conceptualInvoices.map((invoice, index) => {
-            const invoiceKey = `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
+            const invoiceKey = getInvoiceKey(invoice);
             const isExpanded = expandedInvoices[invoiceKey];
             return (
               <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -66,21 +103,107 @@ export default function SupplierTxInvoiceSummaryTab({ conceptualInvoices, expand
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-slate-100">
+                            <TableHead className="w-[160px]">Invoice #</TableHead>
+                            <TableHead className="w-[140px]">Date</TableHead>
                             <TableHead>Description</TableHead>
-                            <TableHead className="w-[150px] text-right">Charge</TableHead>
-                            <TableHead className="w-[150px] text-right">GST</TableHead>
-                            <TableHead className="w-[150px] text-right">Line Total</TableHead>
+                            <TableHead className="w-[180px]">GL</TableHead>
+                            <TableHead className="w-[130px] text-right">Charge</TableHead>
+                            <TableHead className="w-[130px] text-right">GST</TableHead>
+                            <TableHead className="w-[130px] text-right">Line Total</TableHead>
+                            <TableHead className="w-[72px] text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {invoice.lines.map((line, idx) => (
-                            <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                              <TableCell>{line.description || '-'}</TableCell>
-                              <TableCell className="text-right">${parseFloat(line.purchase_amount || 0).toFixed(2)}</TableCell>
-                              <TableCell className="text-right">${parseFloat(line.gst_amount || 0).toFixed(2)}</TableCell>
-                              <TableCell className="text-right font-semibold">${(parseFloat(line.purchase_amount || 0) + parseFloat(line.gst_amount || 0)).toFixed(2)}</TableCell>
-                            </TableRow>
-                          ))}
+                          {invoice.lines.map((line, idx) => {
+                            const locked = isLineLocked(line);
+                            const disabled = isReadOnly || locked || line.inventory;
+                            return (
+                              <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                <TableCell>
+                                  <Input
+                                    value={line.invoice_number || ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => handleLineChange(line.id, 'invoice_number', e.target.value)}
+                                    disabled={disabled}
+                                    className="bg-white"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={formatDateForInput(line.invoice_date)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => handleLineChange(line.id, 'invoice_date', e.target.value)}
+                                    onBlur={(e) => handleDateBlur(line.id, e.target.value)}
+                                    disabled={disabled}
+                                    className="bg-white"
+                                  />
+                                  {line.dateError ? <p className="mt-1 text-xs text-red-600">{line.dateError}</p> : null}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={line.description || ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => handleLineChange(line.id, 'description', e.target.value)}
+                                    disabled={disabled}
+                                    className="bg-white"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={line.gl_account ? String(line.gl_account) : ''}
+                                    onValueChange={(value) => handleGlAccountChange(line, value)}
+                                    disabled={isReadOnly || locked || line.inventory}
+                                  >
+                                    <SelectTrigger className="bg-white">
+                                      <SelectValue placeholder="Select GL" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {chartOfAccounts.map((account) => (
+                                        <SelectItem key={account.id || account.account_number} value={String(account.account_number)}>
+                                          {account.account_number} - {account.account_name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Input
+                                    value={line.charge ?? ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
+                                    onBlur={(e) => handleValueBlur(line.id, 'charge', e.target.value)}
+                                    disabled={isReadOnly || locked}
+                                    className="bg-white text-right"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Input
+                                    value={line.gst ?? ''}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={(e) => handleLineChange(line.id, 'gst', e.target.value)}
+                                    onBlur={(e) => handleValueBlur(line.id, 'gst', e.target.value)}
+                                    disabled={isReadOnly || locked || (line.inventory && !line.gst_override)}
+                                    className="bg-white text-right"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteLine(line.id);
+                                    }}
+                                    disabled={isReadOnly || locked || line.inventory}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -95,11 +218,11 @@ export default function SupplierTxInvoiceSummaryTab({ conceptualInvoices, expand
               <div className="flex items-center justify-between">
                 <div className="flex-1 grid grid-cols-8 gap-4">
                   <div className="col-span-3 text-right font-bold">Totals:</div>
-                  <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.subtotal || 0), 0).toFixed(2)}</div>
-                  <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.tax_amount || 0), 0).toFixed(2)}</div>
-                  <div className="text-right font-bold text-xs print:text-[10px]">${conceptualInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0).toFixed(2)}</div>
-                  <div className="text-right font-bold text-green-600 text-xs print:text-[10px] print:text-black">${conceptualInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0).toFixed(2)}</div>
-                  <div className="text-right font-bold text-red-600 text-xs print:text-[10px] print:text-black">${conceptualInvoices.reduce((sum, inv) => sum + (inv.balance_due || 0), 0).toFixed(2)}</div>
+                  <div className="text-right font-bold text-xs print:text-[10px]">${totals.subtotal.toFixed(2)}</div>
+                  <div className="text-right font-bold text-xs print:text-[10px]">${totals.tax_amount.toFixed(2)}</div>
+                  <div className="text-right font-bold text-xs print:text-[10px]">${totals.total_amount.toFixed(2)}</div>
+                  <div className="text-right font-bold text-green-600 text-xs print:text-[10px] print:text-black">${totals.amount_paid.toFixed(2)}</div>
+                  <div className="text-right font-bold text-red-600 text-xs print:text-[10px] print:text-black">${totals.balance_due.toFixed(2)}</div>
                 </div>
               </div>
             </div>
