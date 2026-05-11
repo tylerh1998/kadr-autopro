@@ -6,8 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { Check } from 'lucide-react';
 
 const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
+const getSortedAccounts = (chartOfAccounts, currentGlAccount) => [...chartOfAccounts]
+  .filter((account) => !account.controlled || String(account.account_number) === String(currentGlAccount))
+  .sort((a, b) => Number(a.account_number) - Number(b.account_number));
 const getLineCharge = (line) => parseFloat(line.charge ?? line.purchase_amount ?? 0) || 0;
 const getLineGst = (line) => parseFloat(line.gst ?? line.gst_amount ?? 0) || 0;
 const getLineTotal = (line) => {
@@ -122,7 +127,9 @@ export default function SupplierTxInvoiceSummaryTab({
                             const disabled = isReadOnly || isProtectedLine;
                             const gstReadOnly = isReadOnly || locked || (hasInventoryItem && !line.gst_override);
                             return (
-                              <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <ContextMenu key={line.id}>
+                                <ContextMenuTrigger asChild>
+                                  <TableRow className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                 <TableCell>
                                   <Input
                                     value={line.invoice_number || ''}
@@ -162,7 +169,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                       <SelectValue placeholder="Select GL" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {chartOfAccounts.map((account) => (
+                                      {getSortedAccounts(chartOfAccounts, line.gl_account).map((account) => (
                                         <SelectItem key={account.id || account.account_number} value={String(account.account_number)}>
                                           {account.account_number} - {account.account_name}
                                         </SelectItem>
@@ -218,7 +225,15 @@ export default function SupplierTxInvoiceSummaryTab({
                                     </Button>
                                   )}
                                 </TableCell>
-                              </TableRow>
+                                  </TableRow>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent>
+                                  <ContextMenuItem onClick={() => handleLineChange(line.id, 'gst_override', !line.gst_override)} disabled={isReadOnly || locked}>
+                                    <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
+                                  </ContextMenuItem>
+                                  {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
+                                </ContextMenuContent>
+                              </ContextMenu>
                             );
                           })}
                         </TableBody>
