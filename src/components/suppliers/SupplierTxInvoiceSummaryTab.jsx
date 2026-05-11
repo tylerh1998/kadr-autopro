@@ -128,13 +128,10 @@ export default function SupplierTxInvoiceSummaryTab({
                             const disabled = isReadOnly || isProtectedLine;
                             const gstEditable = !isReadOnly && !locked && !!line.gst_override;
                             return (
-                              <ContextMenu key={line.id}>
-                                <ContextMenuTrigger asChild>
-                                  <TableRow className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                 <TableCell>
                                   <Input
                                     value={line.invoice_number || ''}
-                                    onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_number', e.target.value)}
                                     readOnly={disabled}
                                     className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
@@ -143,7 +140,6 @@ export default function SupplierTxInvoiceSummaryTab({
                                 <TableCell>
                                   <Input
                                     value={formatDateForInput(line.invoice_date)}
-                                    onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_date', e.target.value)}
                                     onBlur={(e) => !disabled && handleDateBlur(line.id, e.target.value)}
                                     readOnly={disabled}
@@ -154,7 +150,6 @@ export default function SupplierTxInvoiceSummaryTab({
                                 <TableCell>
                                   <Input
                                     value={line.description || ''}
-                                    onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'description', e.target.value)}
                                     readOnly={disabled}
                                     className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
@@ -179,71 +174,53 @@ export default function SupplierTxInvoiceSummaryTab({
                                   </Select>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <div onContextMenu={(e) => e.stopPropagation()}>
-                                    <Input
-                                      value={line.charge ?? ''}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onDoubleClick={(e) => e.stopPropagation()}
-                                      onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
-                                      onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
-                                      readOnly={disabled}
-                                      className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
-                                    />
-                                  </div>
+                                  <Input
+                                    value={line.charge ?? ''}
+                                    onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
+                                    onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
+                                    readOnly={disabled}
+                                    className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
+                                  />
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <div onContextMenu={(e) => e.stopPropagation()}>
-                                    <Input
-                                      value={line.gst ?? ''}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => e.stopPropagation()}
-                                      onDoubleClick={(e) => e.stopPropagation()}
-                                      onFocus={(e) => e.stopPropagation()}
-                                      onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
-                                      onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
-                                      readOnly={!gstEditable}
-                                      className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
-                                    />
-                                  </div>
+                                  <Input
+                                    value={line.gst ?? ''}
+                                    onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
+                                    onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
+                                    readOnly={!gstEditable}
+                                    className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
+                                  />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
-                                  {isProtectedLine ? (
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md">
-                                            <Lock className="w-4 h-4 text-orange-600" />
-                                          </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent><span>This line is locked because it has a payment applied or is an inventory line.</span></TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  ) : (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteLine(line.id);
-                                      }}
-                                      disabled={isReadOnly}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-500" />
-                                    </Button>
-                                  )}
+                                  <ContextMenu>
+                                    <ContextMenuTrigger asChild>
+                                      {isProtectedLine ? (
+                                        <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md cursor-context-menu">
+                                          <Lock className="w-4 h-4 text-orange-600" />
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleDeleteLine(line.id)}
+                                          disabled={isReadOnly}
+                                          className="cursor-context-menu"
+                                        >
+                                          <Trash2 className="w-4 h-4 text-red-500" />
+                                        </Button>
+                                      )}
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent>
+                                      <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isReadOnly || locked}>
+                                        <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
+                                      </ContextMenuItem>
+                                      {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
+                                    </ContextMenuContent>
+                                  </ContextMenu>
                                 </TableCell>
-                                  </TableRow>
-                                </ContextMenuTrigger>
-                                <ContextMenuContent>
-                                  <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isReadOnly || locked}>
-                                    <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
-                                  </ContextMenuItem>
-                                  {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
-                                </ContextMenuContent>
-                              </ContextMenu>
+                              </TableRow>
                             );
                           })}
                         </TableBody>
