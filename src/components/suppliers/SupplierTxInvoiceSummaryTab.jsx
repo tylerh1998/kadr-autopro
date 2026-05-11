@@ -192,11 +192,11 @@ export default function SupplierTxInvoiceSummaryTab({
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
-                                <TableCell className="text-right">
-                                  <ContextMenu>
-                                    <ContextMenuTrigger asChild>
+                                <ContextMenu>
+                                  <ContextMenuTrigger asChild>
+                                    <TableCell className="text-right cursor-context-menu">
                                       {isProtectedLine ? (
-                                        <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md cursor-context-menu">
+                                        <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md">
                                           <Lock className="w-4 h-4 text-orange-600" />
                                         </div>
                                       ) : (
@@ -206,20 +206,19 @@ export default function SupplierTxInvoiceSummaryTab({
                                           size="icon"
                                           onClick={() => handleDeleteLine(line.id)}
                                           disabled={isReadOnly}
-                                          className="cursor-context-menu"
                                         >
                                           <Trash2 className="w-4 h-4 text-red-500" />
                                         </Button>
                                       )}
-                                    </ContextMenuTrigger>
-                                    <ContextMenuContent>
-                                      <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isReadOnly || locked}>
-                                        <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
-                                      </ContextMenuItem>
-                                      {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
-                                    </ContextMenuContent>
-                                  </ContextMenu>
-                                </TableCell>
+                                    </TableCell>
+                                  </ContextMenuTrigger>
+                                  <ContextMenuContent>
+                                    <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isReadOnly || locked}>
+                                      <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
+                                    </ContextMenuItem>
+                                    {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
+                                  </ContextMenuContent>
+                                </ContextMenu>
                               </TableRow>
                             );
                           })}
