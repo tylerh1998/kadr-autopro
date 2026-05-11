@@ -179,25 +179,33 @@ export default function SupplierTxInvoiceSummaryTab({
                                   </Select>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Input
-                                    value={line.charge ?? ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
-                                    onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
-                                    readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
-                                  />
+                                  <div onContextMenu={(e) => e.stopPropagation()}>
+                                    <Input
+                                      value={line.charge ?? ''}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onDoubleClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
+                                      onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
+                                      readOnly={disabled}
+                                      className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
+                                    />
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Input
-                                    value={line.gst ?? ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onFocus={(e) => e.stopPropagation()}
-                                    onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
-                                    onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
-                                    readOnly={!gstEditable}
-                                    className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
-                                  />
+                                  <div onContextMenu={(e) => e.stopPropagation()}>
+                                    <Input
+                                      value={line.gst ?? ''}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onDoubleClick={(e) => e.stopPropagation()}
+                                      onFocus={(e) => e.stopPropagation()}
+                                      onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
+                                      onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
+                                      readOnly={!gstEditable}
+                                      className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
+                                    />
+                                  </div>
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
