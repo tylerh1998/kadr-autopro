@@ -35,6 +35,7 @@ export default function SupplierTxInvoiceSummaryTab({
   handleValueBlur,
   handleGlAccountChange,
   handleDeleteLine,
+  handleToggleGstOverride,
   isLineLocked,
 }) {
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
@@ -228,7 +229,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                   </TableRow>
                                 </ContextMenuTrigger>
                                 <ContextMenuContent>
-                                  <ContextMenuItem onClick={() => handleLineChange(line.id, 'gst_override', !line.gst_override)} disabled={isReadOnly || locked}>
+                                  <ContextMenuItem onClick={() => handleToggleGstOverride(line.id)} disabled={isReadOnly || locked}>
                                     <div className="flex items-center justify-between w-full"><span>Adjust GST</span>{line.gst_override && <Check className="w-4 h-4 ml-2" />}</div>
                                   </ContextMenuItem>
                                   {!isProtectedLine && <ContextMenuItem onClick={() => handleDeleteLine(line.id)} disabled={isReadOnly} className="text-red-600">Delete Line</ContextMenuItem>}
