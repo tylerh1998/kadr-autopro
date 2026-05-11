@@ -125,7 +125,7 @@ export default function SupplierTxInvoiceSummaryTab({
                             const hasInventoryItem = !!line.inventory_item_id;
                             const isProtectedLine = locked || hasInventoryItem;
                             const disabled = isReadOnly || isProtectedLine;
-                            const gstReadOnly = isReadOnly || locked || (hasInventoryItem && !line.gst_override);
+                            const gstReadOnly = isReadOnly || locked || !line.gst_override;
                             return (
                               <ContextMenu key={line.id}>
                                 <ContextMenuTrigger asChild>
@@ -191,7 +191,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                   <Input
                                     value={line.gst ?? ''}
                                     onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => handleLineChange(line.id, 'gst', e.target.value)}
+                                    onChange={(e) => !gstReadOnly && handleLineChange(line.id, 'gst', e.target.value)}
                                     onBlur={(e) => !gstReadOnly && handleValueBlur(line.id, 'gst', e.target.value)}
                                     readOnly={gstReadOnly}
                                     className={gstReadOnly ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
