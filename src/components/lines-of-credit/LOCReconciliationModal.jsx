@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -151,9 +151,9 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
       
-      // Buffer date range by 30 days
+      // Buffer lookback by 30 days, but hard-stop at the CSV's last date
       const queryMin = format(subDays(minDate, 30), 'yyyy-MM-dd');
-      const queryMax = format(addDays(maxDate, 30), 'yyyy-MM-dd');
+      const queryMax = format(maxDate, 'yyyy-MM-dd');
 
       // 3. Fetch System Transactions
       const systemTxs = await LinesOfCreditTransaction.filter({
