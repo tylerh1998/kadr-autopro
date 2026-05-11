@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
 const getLineCharge = (line) => parseFloat(line.charge ?? line.purchase_amount ?? 0) || 0;
@@ -116,7 +117,10 @@ export default function SupplierTxInvoiceSummaryTab({
                         <TableBody>
                           {invoice.lines.map((line, idx) => {
                             const locked = isLineLocked(line);
-                            const disabled = isReadOnly || locked || line.inventory;
+                            const hasInventoryItem = !!line.inventory_item_id;
+                            const isProtectedLine = locked || hasInventoryItem;
+                            const disabled = isReadOnly || isProtectedLine;
+                            const gstReadOnly = isReadOnly || locked || (hasInventoryItem && !line.gst_override);
                             return (
                               <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                 <TableCell>
@@ -124,8 +128,8 @@ export default function SupplierTxInvoiceSummaryTab({
                                     value={line.invoice_number || ''}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_number', e.target.value)}
-                                    disabled={disabled}
-                                    className="bg-white"
+                                    readOnly={disabled}
+                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -133,9 +137,9 @@ export default function SupplierTxInvoiceSummaryTab({
                                     value={formatDateForInput(line.invoice_date)}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_date', e.target.value)}
-                                    onBlur={(e) => handleDateBlur(line.id, e.target.value)}
-                                    disabled={disabled}
-                                    className="bg-white"
+                                    onBlur={(e) => !disabled && handleDateBlur(line.id, e.target.value)}
+                                    readOnly={disabled}
+                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
                                   />
                                   {line.dateError ? <p className="mt-1 text-xs text-red-600">{line.dateError}</p> : null}
                                 </TableCell>
@@ -144,17 +148,17 @@ export default function SupplierTxInvoiceSummaryTab({
                                     value={line.description || ''}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'description', e.target.value)}
-                                    disabled={disabled}
-                                    className="bg-white"
+                                    readOnly={disabled}
+                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
                                   />
                                 </TableCell>
                                 <TableCell>
                                   <Select
                                     value={line.gl_account ? String(line.gl_account) : ''}
                                     onValueChange={(value) => handleGlAccountChange(line, value)}
-                                    disabled={isReadOnly || locked || line.inventory}
+                                    disabled={isReadOnly || hasInventoryItem}
                                   >
-                                    <SelectTrigger className="bg-white">
+                                    <SelectTrigger className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}>
                                       <SelectValue placeholder="Select GL" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -171,9 +175,9 @@ export default function SupplierTxInvoiceSummaryTab({
                                     value={line.charge ?? ''}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
-                                    onBlur={(e) => handleValueBlur(line.id, 'charge', e.target.value)}
-                                    disabled={isReadOnly || locked}
-                                    className="bg-white text-right"
+                                    onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
+                                    readOnly={disabled}
+                                    className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -181,25 +185,38 @@ export default function SupplierTxInvoiceSummaryTab({
                                     value={line.gst ?? ''}
                                     onClick={(e) => e.stopPropagation()}
                                     onChange={(e) => handleLineChange(line.id, 'gst', e.target.value)}
-                                    onBlur={(e) => handleValueBlur(line.id, 'gst', e.target.value)}
-                                    disabled={isReadOnly || locked || (line.inventory && !line.gst_override)}
-                                    className="bg-white text-right"
+                                    onBlur={(e) => !gstReadOnly && handleValueBlur(line.id, 'gst', e.target.value)}
+                                    readOnly={gstReadOnly}
+                                    className={gstReadOnly ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteLine(line.id);
-                                    }}
-                                    disabled={isReadOnly || locked || line.inventory}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  {isProtectedLine ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md">
+                                            <Lock className="w-4 h-4 text-orange-600" />
+                                          </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent><span>This line is locked because it has a payment applied or is an inventory line.</span></TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteLine(line.id);
+                                      }}
+                                      disabled={isReadOnly}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-500" />
+                                    </Button>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );
