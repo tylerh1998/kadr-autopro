@@ -126,7 +126,7 @@ export default function SupplierTxInvoiceSummaryTab({
                             const hasInventoryItem = !!line.inventory_item_id;
                             const isProtectedLine = locked || hasInventoryItem;
                             const disabled = isReadOnly || isProtectedLine;
-                            const gstReadOnly = isReadOnly || locked || !line.gst_override;
+                            const gstEditable = !isReadOnly && !locked && !!line.gst_override;
                             return (
                               <ContextMenu key={line.id}>
                                 <ContextMenuTrigger asChild>
@@ -192,10 +192,11 @@ export default function SupplierTxInvoiceSummaryTab({
                                   <Input
                                     value={line.gst ?? ''}
                                     onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => !gstReadOnly && handleLineChange(line.id, 'gst', e.target.value)}
-                                    onBlur={(e) => !gstReadOnly && handleValueBlur(line.id, 'gst', e.target.value)}
-                                    readOnly={gstReadOnly}
-                                    className={gstReadOnly ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
+                                    onFocus={(e) => e.stopPropagation()}
+                                    onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
+                                    onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
+                                    readOnly={!gstEditable}
+                                    className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
