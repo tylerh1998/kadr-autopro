@@ -455,10 +455,14 @@ export default function SupplierTxPage() {
   };
 
   const handleGlAccountChange = async (line, newValue) => {
-    if (line.inventory) return alert('Inventory items can only be posted to the inventory account');
+    if (line.inventory || line.inventory_item_id) return alert('Inventory items can only be posted to the inventory account');
     const fiscalCheck = await checkFiscalPeriodStatus(line.invoice_date);
     if (!fiscalCheck.isValid) return alert(fiscalCheck.message);
     handleLineChange(line.id, 'gl_account', newValue);
+    setConceptualInvoices(prev => prev.map(invoice => ({
+      ...invoice,
+      lines: invoice.lines.map(invoiceLine => invoiceLine.id === line.id ? { ...invoiceLine, gl_account: newValue } : invoiceLine),
+    })));
     setSelectedLineId(line.id);
   };
 

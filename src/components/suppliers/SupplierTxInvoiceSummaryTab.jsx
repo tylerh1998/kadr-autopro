@@ -163,7 +163,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                   <Select
                                     value={line.gl_account ? String(line.gl_account) : ''}
                                     onValueChange={(value) => handleGlAccountChange(line, value)}
-                                    disabled={isReadOnly || hasInventoryItem}
+                                    disabled={isReadOnly || hasInventoryItem || locked}
                                   >
                                     <SelectTrigger className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}>
                                       <SelectValue placeholder="Select GL" />
