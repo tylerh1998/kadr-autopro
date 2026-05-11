@@ -37,8 +37,14 @@ const getMountainTimeISOString = () => {
   return `${dateParts.year}-${dateParts.month}-${dateParts.day}T${dateParts.hour}:${dateParts.minute}:${dateParts.second}.${String(now.getMilliseconds()).padStart(3, '0')}${offsetSign}${offsetHours}:${offsetMinutes}`;
 };
 
+const EPSILON = 0.0001;
+
 const deepEqual = (obj1, obj2) => {
   if (obj1 === obj2) return true;
+
+  if (typeof obj1 === 'number' && typeof obj2 === 'number') {
+    return Math.abs(obj1 - obj2) < EPSILON;
+  }
 
   if (Array.isArray(obj1) || Array.isArray(obj2)) {
     if (!Array.isArray(obj1) || !Array.isArray(obj2) || obj1.length !== obj2.length) {
