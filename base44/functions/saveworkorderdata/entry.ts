@@ -151,7 +151,8 @@ const normalizeComparableValue = (key, value) => {
   return normalizedValue ?? null;
 };
 
-const hasPertinentChanges = (existingRow, incomingPayload) => {
+const hasPertinentChanges = (existingRow, incomingPayload, options = {}) => {
+  const { enableLogging = false, roNumber = null } = options;
   const fieldsToIgnore = new Set([...IMMUTABLE_FIELDS, ...Array.from(NON_PERTINENT_FIELDS)]);
 
   for (const key in incomingPayload) {
@@ -162,9 +163,25 @@ const hasPertinentChanges = (existingRow, incomingPayload) => {
     const existingValue = normalizeComparableValue(key, existingRow[key]);
 
     if (!deepEqual(incomingValue, existingValue)) {
+      if (enableLogging) {
+        console.log('saveworkorderdata pertinent change detected', {
+          ro_number: roNumber,
+          field: key,
+          existing_value: existingValue,
+          incoming_value: incomingValue,
+        });
+      }
       return true;
     }
   }
+
+  if (enableLogging) {
+    console.log('saveworkorderdata no pertinent changes detected', {
+      ro_number: roNumber,
+      checked_fields: Object.keys(incomingPayload || {}).filter((key) => !fieldsToIgnore.has(key)),
+    });
+  }
+
   return false;
 };
 
@@ -254,7 +271,10 @@ Deno.serve(async (req) => {
     }
 
     const existingWorkOrder = normalizeWorkOrder(existingResult.data);
-    const pertinentChangeDetected = hasPertinentChanges(existingWorkOrder, payload);
+    const pertinentChangeDetected = hasPertinentChanges(existingWorkOrder, payload, {
+      enableLogging: true,
+      roNumber: ro_number,
+    });
 
     if (pertinentChangeDetected) {
       payload.last_updated = getMountainTimeISOString();
