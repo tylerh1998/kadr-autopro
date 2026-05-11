@@ -40,17 +40,37 @@ const getMountainTimeISOString = () => {
 const deepEqual = (obj1, obj2) => {
   if (obj1 === obj2) return true;
 
+  if (Array.isArray(obj1) || Array.isArray(obj2)) {
+    if (!Array.isArray(obj1) || !Array.isArray(obj2) || obj1.length !== obj2.length) {
+      return false;
+    }
+
+    for (let i = 0; i < obj1.length; i += 1) {
+      if (!deepEqual(obj1[i], obj2[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   if (obj1 === null || typeof obj1 !== 'object' || obj2 === null || typeof obj2 !== 'object') {
     return false;
   }
 
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
+  const keys1 = Object.keys(obj1).sort();
+  const keys2 = Object.keys(obj2).sort();
 
   if (keys1.length !== keys2.length) return false;
 
+  for (let i = 0; i < keys1.length; i += 1) {
+    if (keys1[i] !== keys2[i]) {
+      return false;
+    }
+  }
+
   for (const key of keys1) {
-    if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) {
+    if (!deepEqual(obj1[key], obj2[key])) {
       return false;
     }
   }
@@ -58,19 +78,68 @@ const deepEqual = (obj1, obj2) => {
   return true;
 };
 
+const normalizeMountainDateTime = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+
+  const parsedDate = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Edmonton',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  }).formatToParts(parsedDate).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+};
+
+const normalizeJsonValue = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+
+  const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+
+  const sortRecursively = (input) => {
+    if (Array.isArray(input)) {
+      return input.map(sortRecursively);
+    }
+
+    if (input && typeof input === 'object') {
+      return Object.keys(input)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = sortRecursively(input[key]);
+          return acc;
+        }, {});
+    }
+
+    return input;
+  };
+
+  return sortRecursively(parsedValue);
+};
+
 const normalizeComparableValue = (key, value) => {
   let normalizedValue = value;
 
   if (JSON_FIELDS.includes(key)) {
     try {
-      normalizedValue = typeof normalizedValue === 'string' ? JSON.parse(normalizedValue) : normalizedValue;
+      return normalizeJsonValue(normalizedValue);
     } catch (_error) {
-      // leave as-is if parsing fails
+      return typeof normalizedValue === 'string' ? normalizedValue.trim() || null : normalizedValue ?? null;
     }
   }
 
   if (DATE_FIELDS.has(key)) {
-    return normalizedValue ? new Date(normalizedValue).toISOString() : null;
+    return normalizeMountainDateTime(normalizedValue);
   }
 
   if (typeof normalizedValue === 'string') {
