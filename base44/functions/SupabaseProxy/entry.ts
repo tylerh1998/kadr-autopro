@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
         const reqBody = await req.json().catch(() => ({}));
         console.log("DEBUG SupabaseProxy received payload:", JSON.stringify(reqBody));
-        const { action = 'read', id, data: payloadData, table = 'SalesClass', match, params } = reqBody;
+        const { action = 'read', id, ids, data: payloadData, table = 'SalesClass', match, params } = reqBody;
 
         let result;
         
@@ -57,7 +57,12 @@ Deno.serve(async (req) => {
             const updateData = {
                 ...payloadData
             };
-            result = await supabase.from(table).update(updateData).eq('id', id).select();
+
+            if (Array.isArray(ids) && ids.length > 0) {
+                result = await supabase.from(table).update(updateData).in('id', ids).select();
+            } else {
+                result = await supabase.from(table).update(updateData).eq('id', id).select();
+            }
         } else if (action === 'delete') {
             result = await supabase.from(table).delete().eq('id', id);
         }

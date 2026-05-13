@@ -19,10 +19,6 @@ export default function StockReorderReport() {
     if (newSelected.has(itemId)) {
       newSelected.delete(itemId);
     } else {
-      if (newSelected.size >= 50) {
-        alert("You can only select up to 50 items at a time to ensure optimal performance.");
-        return;
-      }
       newSelected.add(itemId);
     }
     setSelectedItems(newSelected);
@@ -35,18 +31,16 @@ export default function StockReorderReport() {
 
     setIsUpdating(true);
     try {
-      const updates = Array.from(selectedItems).map(itemId =>
-        base44.functions.invoke('inventoryUpdate', {
-          itemId,
-          updates: {
-            stocked_item: false,
-            minimum_quantity: 0,
-            maximum_quantity: 0
-          }
-        })
-      );
-
-      await Promise.all(updates);
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'InventoryItem',
+        ids: Array.from(selectedItems),
+        data: {
+          stocked_item: false,
+          minimum_quantity: 0,
+          maximum_quantity: 0
+        }
+      });
 
       setSelectedItems(new Set());
       loadReportData();
