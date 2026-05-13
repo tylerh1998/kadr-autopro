@@ -35,19 +35,21 @@ export default function StockReorderReport() {
 
     setIsUpdating(true);
     try {
-      const updates = Array.from(selectedItems).map(id => 
-        base44.entities.InventoryItem.update(id, {
-          stocked_item: false,
-          minimum_quantity: 0,
-          maximum_quantity: 0
+      const updates = Array.from(selectedItems).map(itemId =>
+        base44.functions.invoke('inventoryUpdate', {
+          itemId,
+          updates: {
+            stocked_item: false,
+            minimum_quantity: 0,
+            maximum_quantity: 0
+          }
         })
       );
 
       await Promise.all(updates);
-      
+
       setSelectedItems(new Set());
-      loadReportData(); // Reload to refresh the list
-      
+      loadReportData();
     } catch (error) {
       console.error('Error updating items:', error);
       alert('Failed to update some items. Please try again.');
@@ -130,10 +132,10 @@ export default function StockReorderReport() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading stock reorder report...</p>
+          <p className="text-muted-foreground">Loading stock reorder report...</p>
         </div>
       </div>
     );
@@ -159,7 +161,7 @@ export default function StockReorderReport() {
         }
       `}</style>
 
-      <div className="min-h-screen bg-slate-50 p-6">
+      <div className="min-h-screen bg-background text-foreground p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header - No Print */}
           <div className="flex items-center justify-between mb-6 no-print">
@@ -168,7 +170,7 @@ export default function StockReorderReport() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
               </Button>
-              <h1 className="text-3xl font-bold text-slate-900">Stock Reorder Report</h1>
+              <h1 className="text-3xl font-bold text-foreground">Stock Reorder Report</h1>
             </div>
             <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
               <Printer className="w-4 h-4 mr-2" />
@@ -181,26 +183,26 @@ export default function StockReorderReport() {
             {/* Print Header */}
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold mb-2">Stock Reorder Report</h1>
-              <p className="text-slate-600">Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+              <p className="text-muted-foreground">Generated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
             </div>
 
             {reportData.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <AlertTriangle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-xl font-semibold text-slate-900 mb-2">All Stock Levels Good</h2>
-                  <p className="text-slate-600">No items are currently below their minimum quantity threshold.</p>
+                  <h2 className="text-xl font-semibold text-foreground mb-2">All Stock Levels Good</h2>
+                  <p className="text-muted-foreground">No items are currently below their minimum quantity threshold.</p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-6">
                 {reportData.map((supplierGroup, index) => (
                   <Card key={supplierGroup.supplierId} className={index < reportData.length - 1 ? 'page-break' : ''}>
-                    <CardHeader className="bg-slate-100">
+                    <CardHeader className="bg-muted/40">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <AlertTriangle className="w-5 h-5 text-orange-600" />
                         {supplierGroup.supplierName}
-                        <span className="text-sm font-normal text-slate-600 ml-2">
+                        <span className="text-sm font-normal text-muted-foreground ml-2">
                           ({supplierGroup.items.length} {supplierGroup.items.length === 1 ? 'item' : 'items'})
                         </span>
                       </CardTitle>
@@ -208,7 +210,7 @@ export default function StockReorderReport() {
                     <CardContent className="p-0">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-slate-50">
+                          <TableRow className="bg-muted/30">
                             <TableHead className="w-[50px] no-print"></TableHead>
                             <TableHead className="font-semibold">Part Number</TableHead>
                             <TableHead className="font-semibold">Description</TableHead>
@@ -224,7 +226,7 @@ export default function StockReorderReport() {
                           {supplierGroup.items.map((item) => (
                             <TableRow 
                               key={item.id} 
-                              className="hover:bg-slate-50 cursor-pointer"
+                              className="hover:bg-muted/30 cursor-pointer"
                               onClick={() => handleToggleItem(item.id)}
                             >
                               <TableCell className="no-print">
@@ -252,7 +254,7 @@ export default function StockReorderReport() {
                               </TableCell>
                             </TableRow>
                           ))}
-                          <TableRow className="bg-slate-100 font-bold">
+                          <TableRow className="bg-muted/40 font-bold">
                             <TableCell colSpan={8} className="text-right">
                               Supplier Total:
                             </TableCell>
@@ -269,17 +271,17 @@ export default function StockReorderReport() {
                 ))}
 
                 {/* Grand Total */}
-                <Card className="bg-blue-50 border-blue-200">
+                <Card className="bg-card border-border">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-slate-600">Total Items Needing Reorder</p>
-                        <p className="text-2xl font-bold text-slate-900">
+                        <p className="text-sm text-muted-foreground">Total Items Needing Reorder</p>
+                        <p className="text-2xl font-bold text-foreground">
                           {reportData.reduce((sum, group) => sum + group.items.length, 0)} items
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-slate-600">Estimated Total Reorder Cost</p>
+                        <p className="text-sm text-muted-foreground">Estimated Total Reorder Cost</p>
                         <p className="text-2xl font-bold text-blue-700">
                           ${reportData.reduce((sum, group) => 
                             sum + group.items.reduce((itemSum, item) => 
@@ -298,9 +300,9 @@ export default function StockReorderReport() {
       </div>
 
       {selectedItems.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border border-slate-200 rounded-lg p-4 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5 no-print">
-          <span className="text-sm font-medium text-slate-600 whitespace-nowrap">{selectedItems.size} items selected</span>
-          <div className="h-6 w-px bg-slate-200" />
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-card text-foreground shadow-xl border border-border rounded-lg p-4 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5 no-print">
+          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">{selectedItems.size} items selected</span>
+          <div className="h-6 w-px bg-border" />
           <Button variant="outline" disabled title="Coming soon">
             Add to On Order
           </Button>
