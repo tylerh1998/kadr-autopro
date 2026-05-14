@@ -64,23 +64,27 @@ const parseAndValidateDateInput = (inputDate) => {
   const trimmed = inputDate.trim();
   let month, day, year;
   try {
-    const parts = trimmed.split('/');
-    if (parts.length === 2) {
-      month = parts[0];
-      day = parts[1];
-      year = new Date().getFullYear().toString();
-    } else if (parts.length === 3) {
-      month = parts[0];
-      day = parts[1];
-      year = parts[2];
-      if (year.length === 2) {
-        const currentYear = new Date().getFullYear();
-        const currentCentury = Math.floor(currentYear / 100) * 100;
-        const twoDigitYear = parseInt(year);
-        year = (currentCentury + twoDigitYear > currentYear + 10) ? (currentCentury - 100 + twoDigitYear).toString() : (currentCentury + twoDigitYear).toString();
-      }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      [year, month, day] = trimmed.split('-');
     } else {
-      return { valid: false, date: null, error: 'Invalid date format. Use MM/DD or MM/DD/YYYY' };
+      const parts = trimmed.split('/');
+      if (parts.length === 2) {
+        month = parts[0];
+        day = parts[1];
+        year = new Date().getFullYear().toString();
+      } else if (parts.length === 3) {
+        month = parts[0];
+        day = parts[1];
+        year = parts[2];
+        if (year.length === 2) {
+          const currentYear = new Date().getFullYear();
+          const currentCentury = Math.floor(currentYear / 100) * 100;
+          const twoDigitYear = parseInt(year);
+          year = (currentCentury + twoDigitYear > currentYear + 10) ? (currentCentury - 100 + twoDigitYear).toString() : (currentCentury + twoDigitYear).toString();
+        }
+      } else {
+        return { valid: false, date: null, error: 'Invalid date format. Use MM/DD or MM/DD/YYYY' };
+      }
     }
     month = month.padStart(2, '0');
     day = day.padStart(2, '0');
@@ -95,7 +99,7 @@ const parseAndValidateDateInput = (inputDate) => {
     const testDate = new Date(isoDate + 'T00:00:00');
     if (isNaN(testDate.getTime())) return { valid: false, date: null, error: 'Invalid date' };
     if (testDate.getFullYear() !== yearNum || testDate.getMonth() + 1 !== monthNum || testDate.getDate() !== dayNum) return { valid: false, date: null, error: 'Invalid date (e.g., Feb 30, April 31 do not exist)' };
-    return { valid: true, date: isoDate, error: null };
+    return { valid: true, date: trimmed.match(/^\d{4}-\d{2}-\d{2}$/) ? trimmed : isoDate, error: null };
   } catch (error) {
     console.error('Date parsing error:', error, inputDate);
     return { valid: false, date: null, error: 'Error parsing date' };
