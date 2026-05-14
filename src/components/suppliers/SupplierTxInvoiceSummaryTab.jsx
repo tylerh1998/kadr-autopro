@@ -23,6 +23,7 @@ const getLineTotal = (line) => {
 
 export default function SupplierTxInvoiceSummaryTab({
   conceptualInvoices,
+  invoiceLines,
   expandedInvoices,
   toggleInvoiceExpansion,
   safeFormatDate,
@@ -88,6 +89,7 @@ export default function SupplierTxInvoiceSummaryTab({
           {conceptualInvoices.length > 0 ? conceptualInvoices.map((invoice, index) => {
             const invoiceKey = getInvoiceKey(invoice);
             const isExpanded = expandedInvoices[invoiceKey];
+            const displayLines = invoiceLines.filter((line) => line.invoice_number === invoice.invoice_number && line.invoice_date === invoice.invoice_date);
             return (
               <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                 <div className="flex items-center justify-between p-4 hover:bg-slate-100 cursor-pointer transition-colors" onClick={() => toggleInvoiceExpansion(invoiceKey)}>
@@ -105,7 +107,7 @@ export default function SupplierTxInvoiceSummaryTab({
                     </div>
                   </div>
                 </div>
-                {isExpanded && invoice.lines && invoice.lines.length > 0 && (
+                {isExpanded && displayLines.length > 0 && (
                   <div className="border-t border-slate-200 bg-slate-50">
                     <div className="overflow-x-auto">
                       <Table>
@@ -122,7 +124,7 @@ export default function SupplierTxInvoiceSummaryTab({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {invoice.lines.map((line, idx) => {
+                          {displayLines.map((line, idx) => {
                             const locked = isLineLocked(line);
                             const hasInventoryItem = !!line.inventory_item_id;
                             const isProtectedLine = locked || hasInventoryItem;
@@ -250,7 +252,7 @@ export default function SupplierTxInvoiceSummaryTab({
                     </div>
                   </div>
                 )}
-                {isExpanded && (!invoice.lines || invoice.lines.length === 0) && <div className="p-4 border-t border-slate-200 bg-slate-50"><p className="text-sm text-slate-500 text-center">No invoice lines found.</p></div>}
+                {isExpanded && displayLines.length === 0 && <div className="p-4 border-t border-slate-200 bg-slate-50"><p className="text-sm text-slate-500 text-center">No invoice lines found.</p></div>}
               </div>
             );
           }) : <div className="p-12 text-center"><p className="text-slate-500">No invoices found in the selected date range</p></div>}
