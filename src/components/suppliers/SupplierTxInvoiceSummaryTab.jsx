@@ -150,7 +150,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                 </TableCell>
                                 <TableCell>
                                   <Input
-                                    value={formatDateForInput(line.invoice_date)}
+                                    value={line.invoice_date || ''}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_date', e.target.value)}
                                     onBlur={(e) => !disabled && handleDateBlur(line.id, e.target.value)}
                                     readOnly={disabled}
