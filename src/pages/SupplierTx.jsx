@@ -749,6 +749,39 @@ export default function SupplierTxPage() {
     setHasUnsavedChanges(true);
   };
 
+  const handleAddSummaryLineBelow = (line) => {
+    setInvoiceLines(prev => {
+      const exactIndex = prev.findIndex(existingLine => existingLine.id === line.id);
+      const fallbackIndex = prev.reduce((lastMatchIndex, existingLine, index) => {
+        return existingLine.invoice_number === line.invoice_number && existingLine.invoice_date === line.invoice_date
+          ? index
+          : lastMatchIndex;
+      }, -1);
+      const insertIndex = exactIndex !== -1 ? exactIndex : fallbackIndex;
+      if (insertIndex === -1) return prev;
+
+      const next = [...prev];
+      next.splice(insertIndex + 1, 0, {
+        id: `temp_${Date.now()}`,
+        supplier_id: supplierId,
+        invoice_number: line.invoice_number || '',
+        invoice_date: line.invoice_date,
+        description: '',
+        charge: 0,
+        gst: 0,
+        line_total: 0,
+        gl_account: supplier?.default_gl_account || '',
+        isNew: true,
+        inventory: false,
+        gst_override: !!supplier?.default_taxable,
+        paid_amount: 0,
+        dateError: null,
+      });
+      return next;
+    });
+    setHasUnsavedChanges(true);
+  };
+
   const handleBackNavigation = useCallback(async () => {
     if (isNavigatingBack) return;
     setIsNavigatingBack(true);
@@ -879,7 +912,7 @@ export default function SupplierTxPage() {
           <Tabs value={currentActiveTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList><TabsTrigger value="invoice-lines">Invoice Lines</TabsTrigger><TabsTrigger value="invoice-summary">Invoice Summary</TabsTrigger><TabsTrigger value="payment-history">Payment History</TabsTrigger></TabsList>
             <TabsContent value="invoice-lines"><Card><CardContent className="p-0"><SupplierTxInvoiceLinesTab filteredInvoiceLines={filteredInvoiceLines} sortConfig={sortConfig} requestSort={requestSort} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} setSelectedLineId={setSelectedLineId} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} safeParseDateForCalendar={safeParseDateForCalendar} handleCalendarDateSelect={handleCalendarDateSelect} handleValueBlur={handleValueBlur} chartOfAccounts={chartOfAccounts} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleEditLineClick={handleEditLineClick} handleAddLineAbove={handleAddLineAbove} handleAddLineBelow={handleAddLineBelow} isLineLocked={isLineLocked} /></CardContent></Card></TabsContent>
-            <TabsContent value="invoice-summary"><SupplierTxInvoiceSummaryTab conceptualInvoices={conceptualInvoices} expandedInvoices={expandedInvoices} toggleInvoiceExpansion={toggleInvoiceExpansion} safeFormatDate={safeFormatDate} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} chartOfAccounts={chartOfAccounts} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} handleValueBlur={handleValueBlur} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleAddLineBelow={handleAddLineBelow} isLineLocked={isLineLocked} /></TabsContent>
+            <TabsContent value="invoice-summary"><SupplierTxInvoiceSummaryTab conceptualInvoices={conceptualInvoices} expandedInvoices={expandedInvoices} toggleInvoiceExpansion={toggleInvoiceExpansion} safeFormatDate={safeFormatDate} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} chartOfAccounts={chartOfAccounts} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} handleValueBlur={handleValueBlur} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleAddSummaryLineBelow={handleAddSummaryLineBelow} isLineLocked={isLineLocked} /></TabsContent>
             <TabsContent value="payment-history"><SupplierTxPaymentHistoryTab loading={loading} payments={payments} expandedPayments={expandedPayments} togglePaymentExpansion={togglePaymentExpansion} safeFormatDate={safeFormatDate} handlePrintCheque={handlePrintCheque} handleCancelPayment={handleCancelPayment} sourceMap={sourceMap} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} /></TabsContent>
           </Tabs>
         </div>

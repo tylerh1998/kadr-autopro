@@ -36,7 +36,7 @@ export default function SupplierTxInvoiceSummaryTab({
   handleGlAccountChange,
   handleDeleteLine,
   handleToggleGstOverride,
-  handleAddLineBelow,
+  handleAddSummaryLineBelow,
   isLineLocked,
 }) {
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
@@ -227,7 +227,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     </div>
                                   </ContextMenuItem>
                                   <ContextMenuItem
-                                    onClick={() => handleAddLineBelow(line.id)}
+                                    onClick={() => handleAddSummaryLineBelow(line)}
                                     disabled={isLockedByOtherUser || !lockAcquired}
                                   >
                                     Add Line
