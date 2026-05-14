@@ -111,6 +111,67 @@ const isLineLocked = (line) => {
   return !isNaN(paidAmount) && paidAmount !== 0;
 };
 
+const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range) => {
+  const grouped = new Map();
+
+  lines.forEach((line) => {
+    const hasContent = line.invoice_number || line.description || (parseFloat(line.charge) || 0) !== 0 || (parseFloat(line.gst) || 0) !== 0 || (parseFloat(line.line_total) || 0) !== 0;
+    if (!hasContent) return;
+
+    const lineDate = line.invoice_date ? new Date(`${line.invoice_date}T00:00:00`) : null;
+    if (!lineDate || Number.isNaN(lineDate.getTime())) return;
+    if (lineDate < range.from || lineDate > range.to) return;
+
+    const supplierId = line.supplier_id || existingConceptualInvoices.find(inv => inv.invoice_number === line.invoice_number && inv.invoice_date === line.invoice_date)?.supplier_id || '';
+    const key = `${supplierId}_${line.invoice_number || ''}_${line.invoice_date || ''}`;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        supplier_id: supplierId,
+        invoice_number: line.invoice_number || '',
+        invoice_date: line.invoice_date || '',
+        line_count: 0,
+        subtotal: 0,
+        tax_amount: 0,
+        total_amount: 0,
+        amount_paid: 0,
+        balance_due: 0,
+      });
+    }
+
+    const invoice = grouped.get(key);
+    invoice.line_count += 1;
+    invoice.subtotal += parseFloat(line.charge) || 0;
+    invoice.tax_amount += parseFloat(line.gst) || 0;
+    invoice.total_amount += parseFloat(line.line_total) || 0;
+  });
+
+  return Array.from(grouped.values())
+    .map((invoice) => {
+      const existing = existingConceptualInvoices.find(
+        (item) => item.invoice_number === invoice.invoice_number && item.invoice_date === invoice.invoice_date
+      );
+      const amountPaid = Math.round((parseFloat(existing?.amount_paid) || 0) * 100) / 100;
+      const subtotal = Math.round(invoice.subtotal * 100) / 100;
+      const taxAmount = Math.round(invoice.tax_amount * 100) / 100;
+      const totalAmount = Math.round(invoice.total_amount * 100) / 100;
+      return {
+        ...invoice,
+        subtotal: subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        amount_paid: amountPaid,
+        balance_due: Math.round((totalAmount - amountPaid) * 100) / 100,
+      };
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.invoice_date);
+      const dateB = new Date(b.invoice_date);
+      if (dateA - dateB !== 0) return dateA - dateB;
+      return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
+    });
+};
+
 export default function SupplierTxPage() {
   const [supplier, setSupplier] = useState(null);
   const [invoiceLines, setInvoiceLines] = useState([]);
@@ -211,6 +272,14 @@ export default function SupplierTxPage() {
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
     setSortConfig({ key, direction });
   };
+
+  const refreshInvoiceSummaryFromLines = useCallback((nextLines) => {
+    setConceptualInvoices((prevConceptualInvoices) => {
+      const nextConceptualInvoices = recalculateConceptualInvoices(nextLines, prevConceptualInvoices, dateRange);
+      setCurrentBalance(Math.round(nextConceptualInvoices.reduce((sum, invoice) => sum + (parseFloat(invoice.balance_due) || 0), 0) * 100) / 100);
+      return nextConceptualInvoices;
+    });
+  }, [dateRange]);
 
   const ensureEmptyLine = useCallback((lines, defaultGlAccount, defaultTaxable) => {
     const lastLine = lines[lines.length - 1];
@@ -324,11 +393,13 @@ export default function SupplierTxPage() {
       setAllConceptualInvoices(allInvoicesData || []);
       const roundedLines = enrichedLines.sort((a, b) => {
         const dateA = new Date(a.invoice_date);
-        const dateB = new Date(b.invoice_date);
+        const dateB = new Date(a.invoice_date);
         if (dateA - dateB !== 0) return dateA - dateB;
         return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
       }).map(mapLine);
-      setInvoiceLines(ensureEmptyLine(roundedLines, supplierData?.default_gl_account, supplierData?.default_taxable));
+      const preparedLines = ensureEmptyLine(roundedLines, supplierData?.default_gl_account, supplierData?.default_taxable);
+      setInvoiceLines(preparedLines);
+      setConceptualInvoices(recalculateConceptualInvoices(preparedLines, formattedConceptualInvoices, dateRange));
       setAllInvoiceLines(allEnrichedLines.map(mapLine));
       setModifiedLineIds(new Set());
       setDeletedLineIds(new Set());
@@ -386,74 +457,79 @@ export default function SupplierTxPage() {
   };
 
   const handleLineChange = (lineId, field, value) => {
-    setInvoiceLines(prev => ensureEmptyLine(prev.map(line => {
-      if (line.id !== lineId) return line;
-      if (isLineLocked(line) && field !== 'gl_account') return line;
-      if (line.inventory) {
-        if (field !== 'gst' && field !== 'gst_override') return line;
-        if (field === 'gst' && !line.gst_override) return line;
-      }
-      const updatedLine = { ...line };
-      if (field === 'invoice_date') {
-        updatedLine[field] = value;
-        updatedLine.dateError = null;
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = ensureEmptyLine(prev.map(line => {
+        if (line.id !== lineId) return line;
+        if (isLineLocked(line) && field !== 'gl_account') return line;
+        if (line.inventory) {
+          if (field !== 'gst' && field !== 'gst_override') return line;
+          if (field === 'gst' && !line.gst_override) return line;
+        }
+        const updatedLine = { ...line };
+        if (field === 'invoice_date') {
+          updatedLine[field] = value;
+          updatedLine.dateError = null;
+          return updatedLine;
+        }
+        if (updatedLine.gst_override) {
+          if (field === 'line_total') {
+            updatedLine.line_total = value;
+            const numericTotal = parseFloat(value);
+            if (!isNaN(numericTotal)) updatedLine.charge = Math.round((numericTotal - (typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0))) * 100) / 100;
+            else if (value === '' || value === '-') updatedLine.charge = 0;
+            else updatedLine.charge = 'Error';
+          } else {
+            updatedLine[field] = value;
+            const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+            const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
+            if (!isNaN(numericCharge) && !isNaN(numericGst)) updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
+            else if (updatedLine.charge === '' || updatedLine.gst === '') updatedLine.line_total = 0;
+            else updatedLine.line_total = 'Error';
+          }
+        } else {
+          if (field === 'charge') {
+            updatedLine.charge = value;
+            const numericCharge = parseFloat(value);
+            if (!isNaN(numericCharge)) {
+              updatedLine.gst = Math.round(numericCharge * GST_RATE * 100) / 100;
+              updatedLine.line_total = Math.round((numericCharge + updatedLine.gst) * 100) / 100;
+            } else if (value === '' || value === '-') {
+              updatedLine.gst = 0;
+              updatedLine.line_total = 0;
+            } else {
+              updatedLine.gst = 'Error';
+              updatedLine.line_total = 'Error';
+            }
+          } else if (field === 'gst') {
+            updatedLine.gst = value;
+            const numericGst = parseFloat(value);
+            const currentNumericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+            if (!isNaN(numericGst) && !isNaN(currentNumericCharge)) updatedLine.line_total = Math.round((currentNumericCharge + numericGst) * 100) / 100;
+            else if (value === '' || value === '-') updatedLine.line_total = !isNaN(currentNumericCharge) ? Math.round(currentNumericCharge * 100) / 100 : 'Error';
+            else updatedLine.line_total = 'Error';
+          } else if (field === 'line_total') {
+            updatedLine.line_total = value;
+            const numericTotal = parseFloat(value);
+            if (!isNaN(numericTotal)) {
+              updatedLine.charge = Math.round((numericTotal / (1 + GST_RATE)) * 100) / 100;
+              updatedLine.gst = Math.round((numericTotal - updatedLine.charge) * 100) / 100;
+            } else if (value === '' || value === '-') {
+              updatedLine.charge = 0;
+              updatedLine.gst = 0;
+            } else {
+              updatedLine.charge = 'Error';
+              updatedLine.gst = 'Error';
+            }
+          } else {
+            updatedLine[field] = value;
+          }
+        }
         return updatedLine;
-      }
-      if (updatedLine.gst_override) {
-        if (field === 'line_total') {
-          updatedLine.line_total = value;
-          const numericTotal = parseFloat(value);
-          if (!isNaN(numericTotal)) updatedLine.charge = Math.round((numericTotal - (typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0))) * 100) / 100;
-          else if (value === '' || value === '-') updatedLine.charge = 0;
-          else updatedLine.charge = 'Error';
-        } else {
-          updatedLine[field] = value;
-          const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-          const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
-          if (!isNaN(numericCharge) && !isNaN(numericGst)) updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
-          else if (updatedLine.charge === '' || updatedLine.gst === '') updatedLine.line_total = 0;
-          else updatedLine.line_total = 'Error';
-        }
-      } else {
-        if (field === 'charge') {
-          updatedLine.charge = value;
-          const numericCharge = parseFloat(value);
-          if (!isNaN(numericCharge)) {
-            updatedLine.gst = Math.round(numericCharge * GST_RATE * 100) / 100;
-            updatedLine.line_total = Math.round((numericCharge + updatedLine.gst) * 100) / 100;
-          } else if (value === '' || value === '-') {
-            updatedLine.gst = 0;
-            updatedLine.line_total = 0;
-          } else {
-            updatedLine.gst = 'Error';
-            updatedLine.line_total = 'Error';
-          }
-        } else if (field === 'gst') {
-          updatedLine.gst = value;
-          const numericGst = parseFloat(value);
-          const currentNumericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-          if (!isNaN(numericGst) && !isNaN(currentNumericCharge)) updatedLine.line_total = Math.round((currentNumericCharge + numericGst) * 100) / 100;
-          else if (value === '' || value === '-') updatedLine.line_total = !isNaN(currentNumericCharge) ? Math.round(currentNumericCharge * 100) / 100 : 'Error';
-          else updatedLine.line_total = 'Error';
-        } else if (field === 'line_total') {
-          updatedLine.line_total = value;
-          const numericTotal = parseFloat(value);
-          if (!isNaN(numericTotal)) {
-            updatedLine.charge = Math.round((numericTotal / (1 + GST_RATE)) * 100) / 100;
-            updatedLine.gst = Math.round((numericTotal - updatedLine.charge) * 100) / 100;
-          } else if (value === '' || value === '-') {
-            updatedLine.charge = 0;
-            updatedLine.gst = 0;
-          } else {
-            updatedLine.charge = 'Error';
-            updatedLine.gst = 'Error';
-          }
-        } else {
-          updatedLine[field] = value;
-        }
-      }
-      return updatedLine;
-    }), supplier?.default_gl_account, supplier?.default_taxable));
+      }), supplier?.default_gl_account, supplier?.default_taxable);
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     if (!lineId.startsWith('temp_')) setModifiedLineIds(prev => new Set(prev).add(lineId));
     setHasUnsavedChanges(true);
   };
@@ -483,7 +559,12 @@ export default function SupplierTxPage() {
       setInvoiceLines(prev => prev.map(l => l.id !== lineId ? l : { ...l, dateError: fiscalCheck.message }));
       return alert(`Fiscal Period Error for invoice line "${line.description || line.invoice_number || 'New Line'}": ${fiscalCheck.message}`);
     }
-    setInvoiceLines(prev => prev.map(l => l.id !== lineId ? l : { ...l, invoice_date: parseResult.date, dateError: null }));
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = prev.map(l => l.id !== lineId ? l : { ...l, invoice_date: parseResult.date, dateError: null });
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     if (!lineId.startsWith('temp_')) setModifiedLineIds(prev => new Set(prev).add(lineId));
     setHasUnsavedChanges(true);
   };
@@ -500,7 +581,12 @@ export default function SupplierTxPage() {
       setInvoiceLines(prev => prev.map(l => l.id === line.id ? { ...l, dateError: fiscalCheck.message } : l));
       return;
     }
-    setInvoiceLines(prev => prev.map(l => l.id === line.id ? { ...l, invoice_date: isoDate, dateError: null } : l));
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = prev.map(l => l.id === line.id ? { ...l, invoice_date: isoDate, dateError: null } : l);
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     setHasUnsavedChanges(true);
   };
 
@@ -512,64 +598,74 @@ export default function SupplierTxPage() {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
     const roundedValue = Math.round(numValue * 100) / 100;
-    setInvoiceLines(prev => prev.map(line => {
-      if (line.id !== lineId) return line;
-      const updatedLine = { ...line };
-      if (updatedLine.gst_override) {
-        if (field === 'line_total') {
-          updatedLine.line_total = roundedValue;
-          updatedLine.charge = Math.round((roundedValue - (typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0))) * 100) / 100;
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = prev.map(line => {
+        if (line.id !== lineId) return line;
+        const updatedLine = { ...line };
+        if (updatedLine.gst_override) {
+          if (field === 'line_total') {
+            updatedLine.line_total = roundedValue;
+            updatedLine.charge = Math.round((roundedValue - (typeof updatedLine.gst === 'number' ? updatedLine.gst : (parseFloat(updatedLine.gst) || 0))) * 100) / 100;
+          } else {
+            if (field === 'charge') updatedLine.charge = roundedValue;
+            if (field === 'gst') updatedLine.gst = roundedValue;
+            const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+            const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
+            if (!isNaN(numericCharge) && !isNaN(numericGst)) updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
+            else if (updatedLine.charge === '' || updatedLine.gst === '') updatedLine.line_total = 0;
+            else updatedLine.line_total = 'Error';
+          }
         } else {
-          if (field === 'charge') updatedLine.charge = roundedValue;
-          if (field === 'gst') updatedLine.gst = roundedValue;
-          const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-          const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
-          if (!isNaN(numericCharge) && !isNaN(numericGst)) updatedLine.line_total = Math.round((numericCharge + numericGst) * 100) / 100;
-          else if (updatedLine.charge === '' || updatedLine.gst === '') updatedLine.line_total = 0;
-          else updatedLine.line_total = 'Error';
+          if (field === 'charge') {
+            updatedLine.charge = roundedValue;
+            updatedLine.gst = Math.round(roundedValue * GST_RATE * 100) / 100;
+            updatedLine.line_total = Math.round((roundedValue + updatedLine.gst) * 100) / 100;
+          } else if (field === 'gst') {
+            updatedLine.gst = roundedValue;
+            const currentNumericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+            updatedLine.line_total = !isNaN(currentNumericCharge) ? Math.round((currentNumericCharge + roundedValue) * 100) / 100 : 'Error';
+          } else if (field === 'line_total') {
+            updatedLine.line_total = roundedValue;
+            updatedLine.charge = Math.round((roundedValue / (1 + GST_RATE)) * 100) / 100;
+            updatedLine.gst = Math.round((roundedValue - updatedLine.charge) * 100) / 100;
+          }
         }
-      } else {
-        if (field === 'charge') {
-          updatedLine.charge = roundedValue;
-          updatedLine.gst = Math.round(roundedValue * GST_RATE * 100) / 100;
-          updatedLine.line_total = Math.round((roundedValue + updatedLine.gst) * 100) / 100;
-        } else if (field === 'gst') {
-          updatedLine.gst = roundedValue;
-          const currentNumericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-          updatedLine.line_total = !isNaN(currentNumericCharge) ? Math.round((currentNumericCharge + roundedValue) * 100) / 100 : 'Error';
-        } else if (field === 'line_total') {
-          updatedLine.line_total = roundedValue;
-          updatedLine.charge = Math.round((roundedValue / (1 + GST_RATE)) * 100) / 100;
-          updatedLine.gst = Math.round((roundedValue - updatedLine.charge) * 100) / 100;
-        }
-      }
-      return updatedLine;
-    }));
+        return updatedLine;
+      });
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     if (!lineId.startsWith('temp_')) setModifiedLineIds(prev => new Set(prev).add(lineId));
     setHasUnsavedChanges(true);
   };
 
   const handleToggleGstOverride = (lineId) => {
-    setInvoiceLines(prev => prev.map(line => {
-      if (line.id !== lineId) return line;
-      if (isLineLocked(line)) return line;
-      const updatedLine = { ...line, gst_override: !line.gst_override };
-      if (!updatedLine.gst_override) {
-        const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-        if (!isNaN(numericCharge)) {
-          updatedLine.gst = Math.round(numericCharge * GST_RATE * 100) / 100;
-          updatedLine.line_total = Math.round((numericCharge + updatedLine.gst) * 100) / 100;
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = prev.map(line => {
+        if (line.id !== lineId) return line;
+        if (isLineLocked(line)) return line;
+        const updatedLine = { ...line, gst_override: !line.gst_override };
+        if (!updatedLine.gst_override) {
+          const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+          if (!isNaN(numericCharge)) {
+            updatedLine.gst = Math.round(numericCharge * GST_RATE * 100) / 100;
+            updatedLine.line_total = Math.round((numericCharge + updatedLine.gst) * 100) / 100;
+          } else {
+            updatedLine.gst = 0;
+            updatedLine.line_total = 0;
+          }
         } else {
-          updatedLine.gst = 0;
-          updatedLine.line_total = 0;
+          const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
+          const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
+          updatedLine.line_total = !isNaN(numericCharge) && !isNaN(numericGst) ? Math.round((numericCharge + numericGst) * 100) / 100 : 'Error';
         }
-      } else {
-        const numericCharge = typeof updatedLine.charge === 'number' ? updatedLine.charge : parseFloat(updatedLine.charge);
-        const numericGst = typeof updatedLine.gst === 'number' ? updatedLine.gst : parseFloat(updatedLine.gst);
-        updatedLine.line_total = !isNaN(numericCharge) && !isNaN(numericGst) ? Math.round((numericCharge + numericGst) * 100) / 100 : 'Error';
-      }
-      return updatedLine;
-    }));
+        return updatedLine;
+      });
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     if (!lineId.startsWith('temp_')) setModifiedLineIds(prev => new Set(prev).add(lineId));
     setHasUnsavedChanges(true);
   };
@@ -697,7 +793,12 @@ export default function SupplierTxPage() {
     if (!parseResult.valid) return alert(`Invalid date in line editor: ${parseResult.error}`);
     const fiscalCheck = await checkFiscalPeriodStatus(parseResult.date);
     if (!fiscalCheck.isValid) return alert(`Fiscal Period Error in line editor: ${fiscalCheck.message}`);
-    setInvoiceLines(prev => prev.map(l => l.id !== updatedLineData.id ? l : { ...updatedLineData, invoice_date: parseResult.date, charge: parseFloat(updatedLineData.charge) || 0, gst: parseFloat(updatedLineData.gst) || 0, line_total: parseFloat(updatedLineData.line_total) || 0 }));
+    let nextLines = [];
+    setInvoiceLines(prev => {
+      nextLines = prev.map(l => l.id !== updatedLineData.id ? l : { ...updatedLineData, invoice_date: parseResult.date, charge: parseFloat(updatedLineData.charge) || 0, gst: parseFloat(updatedLineData.gst) || 0, line_total: parseFloat(updatedLineData.line_total) || 0 });
+      return nextLines;
+    });
+    refreshInvoiceSummaryFromLines(nextLines);
     if (!updatedLineData.id.startsWith('temp_')) setModifiedLineIds(prev => new Set(prev).add(updatedLineData.id));
     setHasUnsavedChanges(true);
     setShowLineEditModal(false);
@@ -720,11 +821,20 @@ export default function SupplierTxPage() {
     const locked = isLineLocked(line);
     if (locked || line.inventory) return alert('This line cannot be deleted because it has a payment applied or is an inventory line.');
     if (window.confirm('Are you sure you want to delete this line?')) {
-      if (line.isNew || line.id.startsWith('temp_')) setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable));
-      else {
+      let nextLines = [];
+      if (line.isNew || line.id.startsWith('temp_')) {
+        setInvoiceLines(prev => {
+          nextLines = ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
+          return nextLines;
+        });
+      } else {
         setDeletedLineIds(prev => new Set(prev).add(lineId));
-        setInvoiceLines(prev => ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable));
+        setInvoiceLines(prev => {
+          nextLines = ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
+          return nextLines;
+        });
       }
+      refreshInvoiceSummaryFromLines(nextLines);
       setHasUnsavedChanges(true);
     }
   };
@@ -732,28 +842,39 @@ export default function SupplierTxPage() {
   const createNewLine = () => ({ id: `temp_${Date.now()}`, supplier_id: supplierId, invoice_number: '', invoice_date: format(new Date(), 'yyyy-MM-dd'), description: '', charge: 0, gst: 0, line_total: 0, gl_account: supplier?.default_gl_account || '', isNew: true, inventory: false, gst_override: false, paid_amount: 0, dateError: null });
 
   const handleAddLineAbove = (lineId) => {
+    let nextLines = [];
     setInvoiceLines(prev => {
       const idx = prev.findIndex(l => l.id === lineId);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      next.splice(idx, 0, createNewLine());
-      return next;
+      if (idx === -1) {
+        nextLines = prev;
+        return prev;
+      }
+      nextLines = [...prev];
+      nextLines.splice(idx, 0, createNewLine());
+      return nextLines;
     });
+    refreshInvoiceSummaryFromLines(nextLines);
     setHasUnsavedChanges(true);
   };
 
   const handleAddLineBelow = (lineId) => {
+    let nextLines = [];
     setInvoiceLines(prev => {
       const idx = prev.findIndex(l => l.id === lineId);
-      if (idx === -1) return prev;
-      const next = [...prev];
-      next.splice(idx + 1, 0, createNewLine());
-      return next;
+      if (idx === -1) {
+        nextLines = prev;
+        return prev;
+      }
+      nextLines = [...prev];
+      nextLines.splice(idx + 1, 0, createNewLine());
+      return nextLines;
     });
+    refreshInvoiceSummaryFromLines(nextLines);
     setHasUnsavedChanges(true);
   };
 
   const handleAddSummaryLineBelow = (line) => {
+    let nextLines = [];
     setInvoiceLines(prev => {
       const exactIndex = prev.findIndex(existingLine => existingLine.id === line.id);
       const fallbackIndex = prev.reduce((lastMatchIndex, existingLine, index) => {
@@ -762,10 +883,13 @@ export default function SupplierTxPage() {
           : lastMatchIndex;
       }, -1);
       const insertIndex = exactIndex !== -1 ? exactIndex : fallbackIndex;
-      if (insertIndex === -1) return prev;
+      if (insertIndex === -1) {
+        nextLines = prev;
+        return prev;
+      }
 
-      const next = [...prev];
-      next.splice(insertIndex + 1, 0, {
+      nextLines = [...prev];
+      nextLines.splice(insertIndex + 1, 0, {
         id: `temp_${Date.now()}`,
         supplier_id: supplierId,
         invoice_number: line.invoice_number || '',
@@ -782,8 +906,9 @@ export default function SupplierTxPage() {
         paid_amount: 0,
         dateError: null,
       });
-      return next;
+      return nextLines;
     });
+    refreshInvoiceSummaryFromLines(nextLines);
     setHasUnsavedChanges(true);
   };
 
