@@ -89,7 +89,13 @@ export default function SupplierTxInvoiceSummaryTab({
           {conceptualInvoices.length > 0 ? conceptualInvoices.map((invoice, index) => {
             const invoiceKey = getInvoiceKey(invoice);
             const isExpanded = expandedInvoices[invoiceKey];
-            const displayLines = invoiceLines.filter((line) => line.invoice_number === invoice.invoice_number && line.invoice_date === invoice.invoice_date);
+            const displayLines = invoiceLines.filter((l) => {
+              const currentAccordionKey = getInvoiceKey(invoice);
+              if (l.isNew && l.conceptual_invoice_key === currentAccordionKey) {
+                return true;
+              }
+              return l.invoice_number === invoice.invoice_number && l.invoice_date === invoice.invoice_date;
+            });
             return (
               <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                 <div className="flex items-center justify-between p-4 hover:bg-slate-100 cursor-pointer transition-colors" onClick={() => toggleInvoiceExpansion(invoiceKey)}>

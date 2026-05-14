@@ -766,6 +766,7 @@ export default function SupplierTxPage() {
         supplier_id: supplierId,
         invoice_number: line.invoice_number || '',
         invoice_date: line.invoice_date,
+        conceptual_invoice_key: `${line.supplier_id}_${line.invoice_number}_${line.invoice_date}`,
         description: '',
         charge: 0,
         gst: 0,
