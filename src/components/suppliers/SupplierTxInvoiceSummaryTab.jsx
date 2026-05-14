@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Check } from 'lucide-react';
 
 const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
@@ -37,7 +38,6 @@ export default function SupplierTxInvoiceSummaryTab({
   handleToggleGstOverride,
   isLineLocked,
 }) {
-  const [menuState, setMenuState] = React.useState(null);
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
   const totals = conceptualInvoices.reduce((acc, inv) => {
     acc.subtotal += inv.subtotal || 0;
@@ -47,24 +47,6 @@ export default function SupplierTxInvoiceSummaryTab({
     acc.balance_due += inv.balance_due || 0;
     return acc;
   }, { subtotal: 0, tax_amount: 0, total_amount: 0, amount_paid: 0, balance_due: 0 });
-
-  React.useEffect(() => {
-    if (!menuState) return;
-
-    const handleCloseMenu = () => setMenuState(null);
-
-    window.addEventListener('click', handleCloseMenu);
-    window.addEventListener('scroll', handleCloseMenu, true);
-    window.addEventListener('resize', handleCloseMenu);
-    window.addEventListener('blur', handleCloseMenu);
-
-    return () => {
-      window.removeEventListener('click', handleCloseMenu);
-      window.removeEventListener('scroll', handleCloseMenu, true);
-      window.removeEventListener('resize', handleCloseMenu);
-      window.removeEventListener('blur', handleCloseMenu);
-    };
-  }, [menuState]);
 
   return (
     <Card>
@@ -146,8 +128,10 @@ export default function SupplierTxInvoiceSummaryTab({
                             const disabled = isReadOnly || isProtectedLine;
                             const gstEditable = !isReadOnly && !locked && !!line.gst_override;
                             return (
-                              <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                <TableCell>
+                              <ContextMenu key={line.id}>
+                                <ContextMenuTrigger asChild>
+                                  <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                    <TableCell>
                                   <Input
                                     value={line.invoice_number || ''}
                                     onChange={(e) => handleLineChange(line.id, 'invoice_number', e.target.value)}
@@ -210,13 +194,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
-                                <TableCell
-                                  className="text-right"
-                                  onContextMenu={(e) => {
-                                    e.preventDefault();
-                                    setMenuState({ x: e.clientX, y: e.clientY, lineId: line.id, locked, isProtectedLine, isReadOnly, gstOverride: !!line.gst_override });
-                                  }}
-                                >
+                                <TableCell className="text-right">
                                   <div className="inline-flex min-h-9 min-w-9 items-center justify-end cursor-context-menu">
                                     {isProtectedLine ? (
                                       <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md">
@@ -235,7 +213,29 @@ export default function SupplierTxInvoiceSummaryTab({
                                     )}
                                   </div>
                                 </TableCell>
-                              </TableRow>
+                                  </TableRow>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent>
+                                  <ContextMenuItem
+                                    onClick={() => handleToggleGstOverride(line.id)}
+                                    disabled={isReadOnly || locked}
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>Adjust GST</span>
+                                      {!!line.gst_override && <Check className="w-4 h-4 ml-2" />}
+                                    </div>
+                                  </ContextMenuItem>
+                                  {!isProtectedLine && (
+                                    <ContextMenuItem
+                                      onClick={() => handleDeleteLine(line.id)}
+                                      disabled={isReadOnly}
+                                      className="text-red-600"
+                                    >
+                                      Delete Line
+                                    </ContextMenuItem>
+                                  )}
+                                </ContextMenuContent>
+                              </ContextMenu>
                             );
                           })}
                         </TableBody>
@@ -259,39 +259,6 @@ export default function SupplierTxInvoiceSummaryTab({
                   <div className="text-right font-bold text-red-600 text-xs print:text-[10px] print:text-black">${totals.balance_due.toFixed(2)}</div>
                 </div>
               </div>
-            </div>
-          )}
-          {menuState && (
-            <div
-              className="fixed z-50 min-w-[10rem] overflow-hidden rounded-md border border-slate-200 bg-white p-1 text-slate-950 shadow-md"
-              style={{ left: menuState.x, top: menuState.y }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  handleToggleGstOverride(menuState.lineId);
-                  setMenuState(null);
-                }}
-                disabled={menuState.isReadOnly || menuState.locked}
-                className="relative flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm text-left outline-none hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-50"
-              >
-                <span>Adjust GST</span>
-                {menuState.gstOverride && <Check className="w-4 h-4 ml-2" />}
-              </button>
-              {!menuState.isProtectedLine && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDeleteLine(menuState.lineId);
-                    setMenuState(null);
-                  }}
-                  disabled={menuState.isReadOnly}
-                  className="relative flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-left text-red-600 outline-none hover:bg-slate-100 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  Delete Line
-                </button>
-              )}
             </div>
           )}
         </div>
