@@ -40,7 +40,19 @@ export default function SupplierTxInvoiceSummaryTab({
   handleAddSummaryLineBelow,
   isLineLocked,
 }) {
+  const [draftDates, setDraftDates] = React.useState({});
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
+
+  React.useEffect(() => {
+    setDraftDates((prev) => {
+      const next = { ...prev };
+      invoiceLines.forEach((line) => {
+        next[line.id] = formatDateForInput(line.invoice_date);
+      });
+      return next;
+    });
+  }, [invoiceLines, formatDateForInput]);
+
   const totals = conceptualInvoices.reduce((acc, inv) => {
     acc.subtotal += inv.subtotal || 0;
     acc.tax_amount += inv.tax_amount || 0;
@@ -150,9 +162,9 @@ export default function SupplierTxInvoiceSummaryTab({
                                 </TableCell>
                                 <TableCell>
                                   <Input
-                                    value={line.invoice_date || ''}
-                                    onChange={(e) => handleLineChange(line.id, 'invoice_date', e.target.value)}
-                                    onBlur={(e) => !disabled && handleDateBlur(line.id, e.target.value)}
+                                    value={draftDates[line.id] ?? formatDateForInput(line.invoice_date)}
+                                    onChange={(e) => setDraftDates((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                    onBlur={() => !disabled && handleDateBlur(line.id, draftDates[line.id] ?? formatDateForInput(line.invoice_date))}
                                     readOnly={disabled}
                                     className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
                                   />
