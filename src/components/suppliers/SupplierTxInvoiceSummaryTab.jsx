@@ -36,6 +36,7 @@ export default function SupplierTxInvoiceSummaryTab({
   handleGlAccountChange,
   handleDeleteLine,
   handleToggleGstOverride,
+  handleAddLineBelow,
   isLineLocked,
 }) {
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
@@ -224,6 +225,12 @@ export default function SupplierTxInvoiceSummaryTab({
                                       <span>Adjust GST</span>
                                       {!!line.gst_override && <Check className="w-4 h-4 ml-2" />}
                                     </div>
+                                  </ContextMenuItem>
+                                  <ContextMenuItem
+                                    onClick={() => handleAddLineBelow(line.id)}
+                                    disabled={isLockedByOtherUser || !lockAcquired}
+                                  >
+                                    Add Line
                                   </ContextMenuItem>
                                   {!isProtectedLine && (
                                     <ContextMenuItem
