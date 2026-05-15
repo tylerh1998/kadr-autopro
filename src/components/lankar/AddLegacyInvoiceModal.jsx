@@ -21,6 +21,8 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [activeSearchTerm, setActiveSearchTerm] = useState('');
     const [formData, setFormData] = useState({
         customer_id: '',
         invoice_date: format(new Date(), 'yyyy-MM-dd'),
@@ -32,7 +34,9 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
 
     useEffect(() => {
         if (open) {
-            loadCustomers();
+            setCustomers([]);
+            setSearchTerm('');
+            setActiveSearchTerm('');
             setFormData({
                 customer_id: '',
                 invoice_date: format(new Date(), 'yyyy-MM-dd'),
@@ -44,17 +48,21 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
         }
     }, [open]);
 
-    const loadCustomers = async () => {
+    useEffect(() => {
+        if (!open) return;
+        if (!activeSearchTerm.trim()) {
+            setCustomers([]);
+            return;
+        }
+        loadCustomers(activeSearchTerm);
+    }, [open, activeSearchTerm]);
+
+    const loadCustomers = async (term) => {
         setLoading(true);
         try {
-            const response = await searchCustomers({ page: 1, limit: 200, includeInactive: false });
+            const response = await searchCustomers({ searchTerm: term, page: 1, limit: 50, includeInactive: false });
             const data = response.data?.customers || [];
-            const sorted = data.sort((a, b) => {
-                const nameA = (a.org_name || `${a.first_name || ''} ${a.last_name || ''}`).toLowerCase();
-                const nameB = (b.org_name || `${b.first_name || ''} ${b.last_name || ''}`).toLowerCase();
-                return nameA.localeCompare(nameB);
-            });
-            setCustomers(sorted);
+            setCustomers(data);
         } catch (error) {
             console.error("Error loading customers:", error);
         } finally {
@@ -117,6 +125,13 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
         return `${c.first_name || ''} ${c.last_name || ''}`.trim();
     };
 
+    const handleCustomerSearchKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            setActiveSearchTerm(searchTerm);
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[500px]">
@@ -140,22 +155,26 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
                                 >
                                     {formData.customer_id
                                         ? getCustomerName(customers.find((c) => c.id === formData.customer_id) || {})
-                                        : (loading ? "Loading customers..." : "Select customer...")}
+                                        : (loading ? "Loading customers..." : "Search customer and press Enter...")}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[450px] p-0" align="start">
-                                <Command filter={(value, search) => {
-                                    if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-                                    return 0;
-                                }}>
-                                    <CommandInput placeholder="Search customer..." />
+                                <Command shouldFilter={false}>
+                                    <CommandInput
+                                        placeholder="Search customers by name, organization, phone, or email (Press Enter)..."
+                                        value={searchTerm}
+                                        onValueChange={setSearchTerm}
+                                        onKeyDown={handleCustomerSearchKeyDown}
+                                    />
                                     <CommandList>
-                                        <CommandEmpty>No customer found.</CommandEmpty>
+                                        <CommandEmpty>
+                                            {activeSearchTerm ? 'No customer found.' : 'Type a search and press Enter.'}
+                                        </CommandEmpty>
                                         <CommandGroup>
                                             {customers.map((customer) => (
                                                 <CommandItem
-                                                    value={getCustomerName(customer)}
+                                                    value={customer.id}
                                                     key={customer.id}
                                                     onSelect={() => {
                                                         setFormData({...formData, customer_id: customer.id});
