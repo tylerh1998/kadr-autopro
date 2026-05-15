@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Customer } from "@/entities/Customer";
 import { base44 } from "@/api/base44Client";
+import { searchCustomers } from "@/functions/searchCustomers";
+import { supabaseCustomerPayments } from "@/functions/supabaseCustomerPayments";
 import { Loader2, Upload, FileText, Check, ChevronsUpDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,11 +47,11 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
     const loadCustomers = async () => {
         setLoading(true);
         try {
-            const data = await Customer.list();
-            // Sort customers alphabetically
+            const response = await searchCustomers({ page: 1, limit: 200, includeInactive: false });
+            const data = response.data?.customers || [];
             const sorted = data.sort((a, b) => {
-                const nameA = (a.org_name || `${a.first_name} ${a.last_name}`).toLowerCase();
-                const nameB = (b.org_name || `${b.first_name} ${b.last_name}`).toLowerCase();
+                const nameA = (a.org_name || `${a.first_name || ''} ${a.last_name || ''}`).toLowerCase();
+                const nameB = (b.org_name || `${b.first_name || ''} ${b.last_name || ''}`).toLowerCase();
                 return nameA.localeCompare(nameB);
             });
             setCustomers(sorted);
@@ -80,17 +81,28 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
                 fileUrl = file_url;
             }
 
-            // Call backend function
-            const response = await base44.functions.invoke('addLegacyInvoiceToAR', {
-                ...formData,
-                lankar_invoice: fileUrl
+            const response = await supabaseCustomerPayments({
+                action: 'create',
+                data: {
+                    customer_id: formData.customer_id,
+                    payment_date: formData.invoice_date,
+                    invoice_number: formData.invoice_number,
+                    notes: formData.description,
+                    amount: parseFloat(formData.amount),
+                    lankar_invoice: fileUrl || null,
+                    payment_method: 'on_account',
+                    ar_pmt: false,
+                    deposited: false,
+                    advance_pmt: false,
+                    gl_posted: false
+                }
             });
 
-            if (response.data.success) {
+            if (response.data?.data) {
                 alert("Legacy invoice added successfully!");
                 onClose();
             } else {
-                alert("Error adding legacy invoice: " + (response.data.error || "Unknown error"));
+                alert("Error adding legacy invoice: " + (response.data?.error || "Unknown error"));
             }
         } catch (error) {
             console.error("Error submitting legacy invoice:", error);
