@@ -600,7 +600,7 @@ export default function SupplierTxPage() {
     const roundedValue = Math.round(numValue * 100) / 100;
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = prev.map(line => {
+      nextLines = (prev || []).map(line => {
         if (line.id !== lineId) return line;
         const updatedLine = { ...line };
         if (updatedLine.gst_override) {
@@ -643,7 +643,7 @@ export default function SupplierTxPage() {
   const handleToggleGstOverride = (lineId) => {
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = prev.map(line => {
+      nextLines = (prev || []).map(line => {
         if (line.id !== lineId) return line;
         if (isLineLocked(line)) return line;
         const updatedLine = { ...line, gst_override: !line.gst_override };
@@ -795,7 +795,7 @@ export default function SupplierTxPage() {
     if (!fiscalCheck.isValid) return alert(`Fiscal Period Error in line editor: ${fiscalCheck.message}`);
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = prev.map(l => l.id !== updatedLineData.id ? l : { ...updatedLineData, invoice_date: parseResult.date, charge: parseFloat(updatedLineData.charge) || 0, gst: parseFloat(updatedLineData.gst) || 0, line_total: parseFloat(updatedLineData.line_total) || 0 });
+      nextLines = (prev || []).map(l => l.id !== updatedLineData.id ? l : { ...updatedLineData, invoice_date: parseResult.date, charge: parseFloat(updatedLineData.charge) || 0, gst: parseFloat(updatedLineData.gst) || 0, line_total: parseFloat(updatedLineData.line_total) || 0 });
       return nextLines;
     });
     refreshInvoiceSummaryFromLines(nextLines);
