@@ -115,7 +115,7 @@ export default function SupplierTxInvoiceLinesTab({
                         })() : ''}
                       </div>
                       <div className="gl-select-trigger">
-                        <Select value={line.gl_account ? String(line.gl_account) : ''} onValueChange={(value) => { if (isLockedByOtherUser || !lockAcquired) return; handleGlAccountChange(line, value); }} disabled={isLockedByOtherUser || !lockAcquired}>
+                        <Select value={line.gl_account ? String(line.gl_account) : undefined} onValueChange={(value) => { if (isLockedByOtherUser || !lockAcquired) return; handleGlAccountChange(line, value); }} disabled={isLockedByOtherUser || !lockAcquired}>
                           <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
                             <SelectValue placeholder="Select GL Account *">
                               {line.gl_account ? (() => {

@@ -180,7 +180,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                 </TableCell>
                                 <TableCell>
                                   <Select
-                                    value={line.gl_account ? String(line.gl_account) : ''}
+                                    value={line.gl_account ? String(line.gl_account) : undefined}
                                     onValueChange={(value) => handleGlAccountChange(line, value)}
                                     disabled={isReadOnly || hasInventoryItem || locked}
                                   >
