@@ -551,17 +551,17 @@ export default function SupplierTxPage() {
     if (isLineLocked(line) || line.inventory) return;
     const parseResult = parseAndValidateDateInput(value);
     if (!parseResult.valid) {
-      setInvoiceLines(prev => prev.map(l => l.id !== lineId ? l : { ...l, dateError: parseResult.error }));
+      setInvoiceLines(prev => (prev || []).map(l => l.id !== lineId ? l : { ...l, dateError: parseResult.error }));
       return alert(`Invalid date for invoice line "${line.description || line.invoice_number || 'New Line'}": ${parseResult.error}`);
     }
     const fiscalCheck = await checkFiscalPeriodStatus(parseResult.date);
     if (!fiscalCheck.isValid) {
-      setInvoiceLines(prev => prev.map(l => l.id !== lineId ? l : { ...l, dateError: fiscalCheck.message }));
+      setInvoiceLines(prev => (prev || []).map(l => l.id !== lineId ? l : { ...l, dateError: fiscalCheck.message }));
       return alert(`Fiscal Period Error for invoice line "${line.description || line.invoice_number || 'New Line'}": ${fiscalCheck.message}`);
     }
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = prev.map(l => l.id !== lineId ? l : { ...l, invoice_date: parseResult.date, dateError: null });
+      nextLines = (prev || []).map(l => l.id !== lineId ? l : { ...l, invoice_date: parseResult.date, dateError: null });
       return nextLines;
     });
     refreshInvoiceSummaryFromLines(nextLines);
@@ -578,12 +578,12 @@ export default function SupplierTxPage() {
     const fiscalCheck = await checkFiscalPeriodStatus(isoDate);
     if (!fiscalCheck.isValid) {
       alert(fiscalCheck.message);
-      setInvoiceLines(prev => prev.map(l => l.id === line.id ? { ...l, dateError: fiscalCheck.message } : l));
+      setInvoiceLines(prev => (prev || []).map(l => l.id === line.id ? { ...l, dateError: fiscalCheck.message } : l));
       return;
     }
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = prev.map(l => l.id === line.id ? { ...l, invoice_date: isoDate, dateError: null } : l);
+      nextLines = (prev || []).map(l => l.id === line.id ? { ...l, invoice_date: isoDate, dateError: null } : l);
       return nextLines;
     });
     refreshInvoiceSummaryFromLines(nextLines);
