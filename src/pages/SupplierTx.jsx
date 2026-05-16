@@ -237,7 +237,7 @@ export default function SupplierTxPage() {
   }, []);
 
   const filteredInvoiceLines = useMemo(() => {
-    let lines = [...invoiceLines];
+    let lines = [...(invoiceLines || [])];
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
       lines = lines.filter(line => line.invoice_number?.toLowerCase().includes(search) || line.description?.toLowerCase().includes(search) || String(line.charge).toLowerCase().includes(search) || String(line.gst).toLowerCase().includes(search) || String(line.line_total).toLowerCase().includes(search));
@@ -459,7 +459,7 @@ export default function SupplierTxPage() {
   const handleLineChange = (lineId, field, value) => {
     let nextLines = [];
     setInvoiceLines(prev => {
-      nextLines = ensureEmptyLine(prev.map(line => {
+      nextLines = ensureEmptyLine((prev || []).map(line => {
         if (line.id !== lineId) return line;
         if (isLineLocked(line) && field !== 'gl_account') return line;
         if (line.inventory) {
@@ -539,15 +539,15 @@ export default function SupplierTxPage() {
     const fiscalCheck = await checkFiscalPeriodStatus(line.invoice_date);
     if (!fiscalCheck.isValid) return alert(fiscalCheck.message);
     handleLineChange(line.id, 'gl_account', newValue);
-    setConceptualInvoices(prev => prev.map(invoice => ({
+    setConceptualInvoices(prev => (prev || []).map(invoice => ({
       ...invoice,
-      lines: invoice.lines.map(invoiceLine => invoiceLine.id === line.id ? { ...invoiceLine, gl_account: newValue } : invoiceLine),
+      lines: (invoice.lines || []).map(invoiceLine => invoiceLine.id === line.id ? { ...invoiceLine, gl_account: newValue } : invoiceLine),
     })));
     setSelectedLineId(line.id);
   };
 
   const handleDateBlur = async (lineId, value) => {
-    const line = invoiceLines.find(l => l.id === lineId);
+    const line = (invoiceLines || []).find(l => l.id === lineId);
     if (isLineLocked(line) || line.inventory) return;
     const parseResult = parseAndValidateDateInput(value);
     if (!parseResult.valid) {
@@ -591,7 +591,7 @@ export default function SupplierTxPage() {
   };
 
   const handleValueBlur = (lineId, field, value) => {
-    const line = invoiceLines.find(l => l.id === lineId);
+    const line = (invoiceLines || []).find(l => l.id === lineId);
     if (isLineLocked(line)) return;
     if (line.inventory && field !== 'gst') return;
     if (field !== 'charge' && field !== 'gst' && field !== 'line_total') return;
@@ -672,11 +672,11 @@ export default function SupplierTxPage() {
 
   const handleSaveAll = useCallback(async () => {
     if (isLockedByOtherUser || !lockAcquired) return alert('Cannot save: Supplier is locked by another user or you do not have the lock.'), false;
-    const linesWithDateErrors = invoiceLines.filter(line => line.dateError);
+    const linesWithDateErrors = (invoiceLines || []).filter(line => line.dateError);
     if (linesWithDateErrors.length > 0) return alert(`Cannot save: Please correct all invalid dates before saving. Found ${linesWithDateErrors.length} errors.`), false;
     setIsSaving(true);
     try {
-      const linesToSave = invoiceLines.filter(line => !((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) && (line.id.startsWith('temp_') || modifiedLineIds.has(line.id)));
+      const linesToSave = (invoiceLines || []).filter(line => !((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) && (line.id.startsWith('temp_') || modifiedLineIds.has(line.id)));
       const invalidNumericFields = [];
       linesToSave.forEach((line, index) => {
         if (isLineLocked(line)) return;
@@ -745,7 +745,7 @@ export default function SupplierTxPage() {
       if (e.ctrlKey && e.key === 'x') {
         e.preventDefault();
         if (selectedLineId && !isLockedByOtherUser && lockAcquired) {
-          const line = invoiceLines.find(l => l.id === selectedLineId);
+          const line = (invoiceLines || []).find(l => l.id === selectedLineId);
           if (line && !isLineLocked(line)) handleToggleGstOverride(selectedLineId);
         }
       }
@@ -816,7 +816,7 @@ export default function SupplierTxPage() {
   };
 
   const handleDeleteLine = async (lineId) => {
-    const line = invoiceLines.find(l => l.id === lineId);
+    const line = (invoiceLines || []).find(l => l.id === lineId);
     if (!line) return;
     const locked = isLineLocked(line);
     if (locked || line.inventory) return alert('This line cannot be deleted because it has a payment applied or is an inventory line.');
@@ -824,13 +824,13 @@ export default function SupplierTxPage() {
       let nextLines = [];
       if (line.isNew || line.id.startsWith('temp_')) {
         setInvoiceLines(prev => {
-          nextLines = ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
+          nextLines = ensureEmptyLine((prev || []).filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
           return nextLines;
         });
       } else {
         setDeletedLineIds(prev => new Set(prev).add(lineId));
         setInvoiceLines(prev => {
-          nextLines = ensureEmptyLine(prev.filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
+          nextLines = ensureEmptyLine((prev || []).filter(l => l.id !== lineId), supplier?.default_gl_account, supplier?.default_taxable);
           return nextLines;
         });
       }
@@ -844,12 +844,12 @@ export default function SupplierTxPage() {
   const handleAddLineAbove = (lineId) => {
     let nextLines = [];
     setInvoiceLines(prev => {
-      const idx = prev.findIndex(l => l.id === lineId);
+      const idx = (prev || []).findIndex(l => l.id === lineId);
       if (idx === -1) {
-        nextLines = prev;
-        return prev;
+        nextLines = prev || [];
+        return prev || [];
       }
-      nextLines = [...prev];
+      nextLines = [...(prev || [])];
       nextLines.splice(idx, 0, createNewLine());
       return nextLines;
     });
@@ -860,12 +860,12 @@ export default function SupplierTxPage() {
   const handleAddLineBelow = (lineId) => {
     let nextLines = [];
     setInvoiceLines(prev => {
-      const idx = prev.findIndex(l => l.id === lineId);
+      const idx = (prev || []).findIndex(l => l.id === lineId);
       if (idx === -1) {
-        nextLines = prev;
-        return prev;
+        nextLines = prev || [];
+        return prev || [];
       }
-      nextLines = [...prev];
+      nextLines = [...(prev || [])];
       nextLines.splice(idx + 1, 0, createNewLine());
       return nextLines;
     });
@@ -876,19 +876,20 @@ export default function SupplierTxPage() {
   const handleAddSummaryLineBelow = (line) => {
     let nextLines = [];
     setInvoiceLines(prev => {
-      const exactIndex = prev.findIndex(existingLine => existingLine.id === line.id);
-      const fallbackIndex = prev.reduce((lastMatchIndex, existingLine, index) => {
+      const safePrev = prev || [];
+      const exactIndex = safePrev.findIndex(existingLine => existingLine.id === line.id);
+      const fallbackIndex = safePrev.reduce((lastMatchIndex, existingLine, index) => {
         return existingLine.invoice_number === line.invoice_number && existingLine.invoice_date === line.invoice_date
           ? index
           : lastMatchIndex;
       }, -1);
       const insertIndex = exactIndex !== -1 ? exactIndex : fallbackIndex;
       if (insertIndex === -1) {
-        nextLines = prev;
-        return prev;
+        nextLines = safePrev;
+        return safePrev;
       }
 
-      nextLines = [...prev];
+      nextLines = [...(prev || [])];
       nextLines.splice(insertIndex + 1, 0, {
         id: `temp_${Date.now()}`,
         supplier_id: supplierId,
@@ -953,7 +954,7 @@ export default function SupplierTxPage() {
     window.location.href = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeReference)}`;
   }, []);
 
-  const dateRangeTotal = useMemo(() => invoiceLines.filter(l => l.invoice_number && (typeof l.line_total === 'number' || !isNaN(parseFloat(l.line_total)))).reduce((sum, line) => sum + ((parseFloat(line.line_total) || 0) - (parseFloat(line.paid_amount) || 0)), 0), [invoiceLines]);
+  const dateRangeTotal = useMemo(() => (invoiceLines || []).filter(l => l.invoice_number && (typeof l.line_total === 'number' || !isNaN(parseFloat(l.line_total)))).reduce((sum, line) => sum + ((parseFloat(line.line_total) || 0) - (parseFloat(line.paid_amount) || 0)), 0), [invoiceLines]);
 
   if (isLockedByOtherUser) {
     return (
