@@ -396,8 +396,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         priority: formData.priority,
         task: formData.task,
         employees_assigned: formData.assigned_employees,
-        time_estimate: formData.time_estimate === '' ? null : parseFloat(formData.time_estimate),
-        promised_by: formData.promised_by || null,
+        time_estimate: formData.time_estimate === '' ? null : String(formData.time_estimate),
         status: formData.status,
         description: formData.description,
         default_category: formData.default_category,
@@ -412,7 +411,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         tpms_reset: formData.tpms_reset,
         oil_change_type: formData.oil_change_type,
         reset_oil_light: formData.reset_oil_light,
-        next_oil_change_odometer: formData.next_oil_change_odometer === '' ? null : parseFloat(formData.next_oil_change_odometer)
+        next_oil_change_odometer: formData.next_oil_change_odometer === '' ? null : String(formData.next_oil_change_odometer)
       };
 
       if (formData.status === 'archived') {

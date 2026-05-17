@@ -130,10 +130,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         work_order: formData.work_order,
         priority: formData.priority,
         task: formData.task,
-        employee_assigned: formData.assigned_employees.join(', '),
-        // time_estimate: parseFloat(formData.time_estimate) || 0,
+        employees_assigned: formData.assigned_employees,
         default_category: formData.default_category,
-        promised_by: formData.promised_by,
         status: formData.status,
         description: formData.description,
         project_type: formData.project_type
@@ -147,6 +145,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         projectData.oil_type = formData.oil_type;
         projectData.air = formData.air;
         projectData.cabin = formData.cabin;
+        projectData.wind_wash = formData.wind_wash;
         projectData.tire_rotation = formData.tire_rotation;
         projectData.tpms_reset = formData.tpms_reset;
         projectData.oil_change_type = formData.oil_change_type;
