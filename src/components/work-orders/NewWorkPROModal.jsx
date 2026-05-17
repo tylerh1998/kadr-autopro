@@ -9,10 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Save, Droplet } from 'lucide-react';
 import { Employee } from '@/entities/all';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { base44 } from '@/api/base44Client';
 
 export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
   const [employees, setEmployees] = useState([]);
@@ -155,15 +152,15 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         projectData.oil_change_type = formData.oil_change_type;
       }
 
-      const response = await fetch(`${API_BASE_URL}/Project`, {
-        method: 'POST',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectData)
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'create',
+        params: projectData
       });
 
-      if (!response.ok) throw new Error('Failed to create project');
+      if (!response.data?.success) throw new Error(response.data?.error || 'Failed to create project');
 
-      const newProject = await response.json();
+      const newProject = response.data.data;
       
       if (onProjectCreated) {
         onProjectCreated(newProject);

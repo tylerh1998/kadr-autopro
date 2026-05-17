@@ -36,10 +36,6 @@ import KanbanDisplaySettings from "../components/work-orders/KanbanDisplaySettin
 import KanbanBoard from "../components/work-orders/KanbanBoard";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
-
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -261,25 +257,20 @@ export default function WorkOrdersPage() {
   };
 
   const loadWorkPROProjects = async (isInitialLoad = false) => {
-    // Only show loading indicator on initial load
     if (isInitialLoad || workPROProjects.length === 0) {
       setWorkPROLoading(true);
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/Project`, {
-        method: 'GET',
-        headers: {
-          'api_key': WORKPRO_API_KEY,
-          'Content-Type': 'application/json'
-        }
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'list',
+        sort: '-created_date'
       });
 
-      if (response.ok) {
-        const projectsData = await response.json();
-        const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
-        const sortedProjects = projects.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-        
-        // Fine-grained update: only update if data has changed
+      if (response.data?.success) {
+        const projects = Array.isArray(response.data.data) ? response.data.data : [];
+        const sortedProjects = [...projects].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+
         setWorkPROProjects(prev => {
           const prevSignature = prev.map(p => p.id + (p.updated_date || '')).join(',');
           const newSignature = sortedProjects.map(p => p.id + (p.updated_date || '')).join(',');
@@ -290,7 +281,7 @@ export default function WorkOrdersPage() {
         });
         setWorkPROLoaded(true);
       } else {
-        console.error('Error fetching WorkPRO projects:', response.status, response.statusText);
+        console.error('Error fetching WorkPRO projects:', response.data?.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Error loading WorkPRO projects:', error);
@@ -325,35 +316,32 @@ export default function WorkOrdersPage() {
 
   const loadTechTimeForProjects = async () => {
     try {
-      // Fetch all time sessions from WorkPRO
-      const response = await fetch(`${API_BASE_URL}/ProjectTimeSession`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
+      const response = await base44.functions.invoke('workProProxy', {
+        entityName: 'ProjectTimeSession',
+        method: 'list'
       });
 
-      if (!response.ok) {
-        console.error('Error fetching tech time sessions:', response.status);
+      if (!response.data?.success) {
+        console.error('Error fetching tech time sessions:', response.data?.error || 'Unknown error');
         return;
       }
 
-      const data = await response.json();
-      const sessions = Array.isArray(data) ? data : (data?.records || []);
+      const sessions = Array.isArray(response.data.data) ? response.data.data : [];
 
-      // Group by project_id and calculate totals + clocked in techs
       const techTimeMap = {};
-      
+
       for (const session of sessions) {
         if (!session.project_id) continue;
-        
+
         if (!techTimeMap[session.project_id]) {
           techTimeMap[session.project_id] = {
             totalHours: 0,
             clockedInTechs: []
           };
         }
-        
+
         techTimeMap[session.project_id].totalHours += parseFloat(session.total_hours) || 0;
-        
-        // Check if this session is incomplete (clocked in but not out)
+
         if (session.start_time && !session.end_time) {
           const techName = session.user_name || session.employee_name || 'Unknown';
           if (!techTimeMap[session.project_id].clockedInTechs.includes(techName)) {
@@ -361,8 +349,7 @@ export default function WorkOrdersPage() {
           }
         }
       }
-      
-      // Fine-grained update: only update if data has changed
+
       setProjectTechTime(prev => {
         const prevSignature = JSON.stringify(prev);
         const newSignature = JSON.stringify(techTimeMap);
@@ -1649,8 +1636,6 @@ export default function WorkOrdersPage() {
         customers={customers} 
         vehicles={vehicles} 
         onProjectUpdate={handleProjectUpdate}
-        API_BASE_URL={API_BASE_URL}
-        WORKPRO_API_KEY={WORKPRO_API_KEY}
       />
 
       <WorkPROTaskModal
@@ -1659,8 +1644,6 @@ export default function WorkOrdersPage() {
         workOrder={selectedProjectWorkOrder}
         project={selectedProject}
         onUpdate={handleProjectUpdate}
-        API_BASE_URL={API_BASE_URL}
-        WORKPRO_API_KEY={WORKPRO_API_KEY}
       />
 
       <WorkPRODescriptionModal
@@ -1669,8 +1652,6 @@ export default function WorkOrdersPage() {
         workOrder={selectedProjectWorkOrder}
         project={selectedProject}
         onUpdate={handleProjectUpdate}
-        API_BASE_URL={API_BASE_URL}
-        WORKPRO_API_KEY={WORKPRO_API_KEY}
       />
 
       <WorkPROConnectorModal
