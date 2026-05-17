@@ -4,6 +4,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 const PAGE_SIZE = 1000;
 const ACTIVE_WORK_ORDER_SELECT = 'id, stage, status, wo_date, created_date, wo_number, ro_number, parts_total, labor_total, shop_supply_total, total_amount, tax_amount, line_items, tech_time';
 const RECENT_INVOICE_SELECT = 'id, total_amount, tax_amount, invoice_date';
+const EMPLOYEE_SELECT = 'full_name, email, pay_rate';
+const PROJECT_SELECT = 'id, work_order, name';
+const PROJECT_TIME_SESSION_SELECT = 'project_id, user_email, user_name, total_hours';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -63,8 +66,13 @@ Deno.serve(async (req) => {
         .range(from, to)
     );
 
-    // Fetch Employees (for pay rates)
-    const employees = await base44.entities.Employee.list();
+    const employees = await fetchAllRows((from, to) =>
+      supabase
+        .from('Employee')
+        .select(EMPLOYEE_SELECT)
+        .order('id', { ascending: true })
+        .range(from, to)
+    );
     const employeeMap = new Map(employees.map(e => [e.full_name?.toLowerCase(), e]));
     const employeeEmailMap = new Map(employees.map(e => [e.email?.toLowerCase(), e]));
 
@@ -72,75 +80,24 @@ Deno.serve(async (req) => {
     const statuses = await base44.entities.WorkOrderStatus.list();
     const statusMap = new Map(statuses.map(s => [s.id, s.name]));
 
-    // Fetch WorkPRO Data (Projects and Time Sessions) for Labor Cost
-    let projects = [];
-    let timeSessions = [];
+    const [projects, timeSessions] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('Project')
+          .select(PROJECT_SELECT)
+          .order('created_date', { ascending: false, nullsFirst: false })
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('ProjectTimeSession')
+          .select(PROJECT_TIME_SESSION_SELECT)
+          .order('created_date', { ascending: false, nullsFirst: false })
+          .range(from, to)
+      )
+    ]);
 
-    // Helper for normalizing RO/WO numbers
     const normalize = (str) => String(str || '').replace(/\D/g, '');
-
-    try {
-        console.log("WorkOrderSummary: Starting direct WorkPRO fetch...");
-        
-        const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
-        const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
-        const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
-
-        if (!WORKPRO_API_KEY) {
-            console.error("WORKPRO_API_KEY is not set");
-        } else {
-            const headers = { 
-                'api_key': WORKPRO_API_KEY,
-                'Content-Type': 'application/json'
-            };
-
-            // 1. Fetch ALL recent projects directly
-            const projectsUrl = `${API_BASE_URL}/Project?limit=5000&sort=-created_date`;
-            const pRes = await fetch(projectsUrl, { headers });
-            
-            if (pRes.ok) {
-                const pData = await pRes.json();
-                projects = Array.isArray(pData) ? pData : (pData?.records || []);
-                console.log(`WorkOrderSummary: Fetched ${projects.length} total projects direct.`);
-                
-                // DEBUG: Log sample project data
-                if (projects.length > 0) {
-                    console.log("DEBUG SAMPLE PROJECTS:", JSON.stringify(projects.slice(0, 3).map(p => ({
-                        id: p.id,
-                        name: p.name,
-                        work_order: p.work_order,
-                        created_date: p.created_date
-                    }))));
-                }
-            } else {
-                console.error(`Failed to fetch projects direct: ${pRes.status} ${await pRes.text()}`);
-            }
-
-            // 2. Fetch ALL recent time sessions directly
-            const sessionsUrl = `${API_BASE_URL}/ProjectTimeSession?limit=5000&sort=-created_date`;
-            const sRes = await fetch(sessionsUrl, { headers });
-            
-            if (sRes.ok) {
-                const sData = await sRes.json();
-                timeSessions = Array.isArray(sData) ? sData : (sData?.records || []);
-                console.log(`WorkOrderSummary: Fetched ${timeSessions.length} total sessions direct.`);
-                
-                // DEBUG: Log sample session data
-                if (timeSessions.length > 0) {
-                    console.log("DEBUG SAMPLE SESSIONS:", JSON.stringify(timeSessions.slice(0, 3).map(s => ({
-                        id: s.id,
-                        project_id: s.project_id,
-                        hours: s.total_hours
-                    }))));
-                }
-            } else {
-                console.error(`Failed to fetch sessions direct: ${sRes.status} ${await sRes.text()}`);
-            }
-        }
-
-    } catch (e) {
-        console.warn("Failed to fetch WorkPRO data for labor cost:", e);
-    }
 
     // Create lookup maps for WorkPRO data
     const woToProjectMap = new Map(); // Maps normalized RO/WO to array of Project IDs
@@ -367,9 +324,9 @@ Deno.serve(async (req) => {
                 const hours = parseFloat(session.total_hours) || 0;
                 woLaborHours += hours;
 
-                const empName = session.employee_name?.toLowerCase();
+                const empName = session.user_name?.toLowerCase();
                 let emp = employeeMap.get(empName);
-                
+
                 if (!emp && session.user_email) {
                     emp = employeeEmailMap.get(session.user_email.toLowerCase());
                 }
