@@ -3,6 +3,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const PAGE_SIZE = 1000;
 const TECHNICIAN_WORK_ORDER_SELECT = 'id, ro_number, wo_number, est_number, inv_number, crinv_number, wo_date, tech_time, line_items, labor_total';
+const EMPLOYEE_SELECT = 'full_name, position, employee_type, pay_rate';
+const TIME_RECORD_SELECT = 'employee_name, clock_in_time, total_hours';
+const PROJECT_TIME_SESSION_SELECT = 'project_id, project_name, user_name, user_email, start_time, total_hours';
+const PROJECT_SELECT = 'id, work_order, name';
+const UNASSIGNED_TIME_SELECT = 'user_name, start_time, total_hours';
 
 const createSupabaseClient = () => {
     const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -49,66 +54,44 @@ Deno.serve(async (req) => {
         }
 
         const { dateFrom, dateTo } = await req.json();
-        
-        // Helper to fetch directly from WorkPro (Base44 App) to avoid invoke/DNS issues
-        const workProApiKey = Deno.env.get("WORKPRO_API_KEY");
-        const workProAppId = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
+        const supabase = createSupabaseClient();
 
-        const fetchWorkPro = async (entity, params = {}, retries = 3) => {
-            const baseUrl = `https://app.base44.com/api/apps/${workProAppId}/entities/${entity}`;
-            const url = new URL(baseUrl);
-            
-            if (params._limit) url.searchParams.append('limit', params._limit);
-            if (params._sort) url.searchParams.append('sort', params._sort);
-
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(url.toString(), {
-                        headers: {
-                            'api_key': workProApiKey,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (!res.ok) {
-                        const txt = await res.text();
-                        console.error(`WorkPro ${entity} fetch failed: ${res.status} ${txt} for URL: ${url.toString()}`);
-                        if (res.status >= 400 && res.status < 500 && res.status !== 429) return [];
-                        throw new Error(`Status ${res.status}`);
-                    }
-                    
-                    const json = await res.json();
-                    return Array.isArray(json) ? json : (json.records || []);
-                } catch (err) {
-                    console.error(`WorkPro ${entity} fetch attempt ${i+1} failed: ${err.message}`);
-                    if (i === retries - 1) throw err;
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-                }
-            }
-            return [];
-        };
-
-        // 3. Fetch Data (Sequential)
-        console.log("Fetching TimeRecords...");
-        const timeRecords = await fetchWorkPro('TimeRecord', { _limit: 5000, _sort: '-clock_in_time' });
-        
-        console.log("Fetching ProjectTimeSessions...");
-        const projectSessions = await fetchWorkPro('ProjectTimeSession', { _limit: 5000, _sort: '-start_time' });
-
-        console.log("Fetching Projects...");
-        const projects = await fetchWorkPro('Project', { _limit: 5000, _sort: '-date' });
-        
-        console.log("Fetching UnassignedTime...");
-        let unassignedSessions = [];
-        try {
-            unassignedSessions = await fetchWorkPro('UnassignedTime', { _limit: 5000, _sort: '-start_time' });
-        } catch (e) {
-            console.warn("UnassignedTime fetch failed, ignoring:", e.message);
-        }
-
-        console.log("Fetching Base44 Entities...");
-        const [employees, cashFlowSummary] = await Promise.all([
-            base44.entities.Employee.list(),
+        const [timeRecords, projectSessions, projects, unassignedSessions, employees, cashFlowSummary] = await Promise.all([
+            fetchAllRows((from, to) =>
+                supabase
+                    .from('TimeRecord')
+                    .select(TIME_RECORD_SELECT)
+                    .order('clock_in_time', { ascending: false, nullsFirst: false })
+                    .range(from, to)
+            ),
+            fetchAllRows((from, to) =>
+                supabase
+                    .from('ProjectTimeSession')
+                    .select(PROJECT_TIME_SESSION_SELECT)
+                    .order('start_time', { ascending: false, nullsFirst: false })
+                    .range(from, to)
+            ),
+            fetchAllRows((from, to) =>
+                supabase
+                    .from('Project')
+                    .select(PROJECT_SELECT)
+                    .order('created_date', { ascending: false, nullsFirst: false })
+                    .range(from, to)
+            ),
+            fetchAllRows((from, to) =>
+                supabase
+                    .from('UnassignedTime')
+                    .select(UNASSIGNED_TIME_SELECT)
+                    .order('start_time', { ascending: false, nullsFirst: false })
+                    .range(from, to)
+            ),
+            fetchAllRows((from, to) =>
+                supabase
+                    .from('Employee')
+                    .select(EMPLOYEE_SELECT)
+                    .order('id', { ascending: true })
+                    .range(from, to)
+            ),
             base44.entities.CashFlowSummary.list()
         ]);
 
@@ -134,8 +117,7 @@ Deno.serve(async (req) => {
 
         // 5. Index WorkOrders for matching
         let workOrders = [];
-        const supabase = createSupabaseClient();
-        
+
         console.log("Fetching WorkOrders...");
         workOrders = await fetchAllRows((from, to) =>
             supabase
@@ -192,13 +174,13 @@ Deno.serve(async (req) => {
 
         filteredTimeRecords.forEach(r => {
             if (techUtilizationMap[r.employee_name]) {
-                techUtilizationMap[r.employee_name].clockedHours += (r.total_hours || 0);
+                techUtilizationMap[r.employee_name].clockedHours += parseFloat(r.total_hours) || 0;
             }
         });
 
         filteredSessions.forEach(s => {
             if (techUtilizationMap[s.user_name]) {
-                techUtilizationMap[s.user_name].projectHours += (s.total_hours || 0);
+                techUtilizationMap[s.user_name].projectHours += parseFloat(s.total_hours) || 0;
             }
         });
         
@@ -209,7 +191,7 @@ Deno.serve(async (req) => {
 
         filteredUnassigned.forEach(s => {
             if (techUtilizationMap[s.user_name]) {
-                techUtilizationMap[s.user_name].unassignedHours += (s.total_hours || 0);
+                techUtilizationMap[s.user_name].unassignedHours += parseFloat(s.total_hours) || 0;
             }
         });
 
@@ -313,12 +295,13 @@ Deno.serve(async (req) => {
             }
             
             const stats = woAggregats[wo.id];
-            stats.totalHours += (s.total_hours || 0);
+            const sessionHours = parseFloat(s.total_hours) || 0;
+            stats.totalHours += sessionHours;
             
             if (!stats.techHours[s.user_name]) {
                 stats.techHours[s.user_name] = 0;
             }
-            stats.techHours[s.user_name] += (s.total_hours || 0);
+            stats.techHours[s.user_name] += sessionHours;
         });
         
         // Process Manual Logs (from WorkOrders)
