@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
                 const payload = {
                     id: params.id || crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                     ...params,
+                    created_date: params.created_date || new Date().toISOString(),
                     created_by: params.created_by || user.email,
                     created_by_id: params.created_by_id || user.id
                 };
