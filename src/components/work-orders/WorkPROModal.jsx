@@ -395,14 +395,13 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       const updateData = {
         priority: formData.priority,
         task: formData.task,
+        employees_assigned: formData.assigned_employees,
         employee_assigned: formData.assigned_employees.join(', '),
-        time_estimate: parseFloat(formData.time_estimate) || 0,
-        promised_by: formData.promised_by,
+        time_estimate: formData.time_estimate === '' ? null : parseFloat(formData.time_estimate),
+        promised_by: formData.promised_by || null,
         status: formData.status,
-        date_archived: formData.status === 'archived' && project.status !== 'archived' ? new Date().toISOString() : undefined,
         description: formData.description,
         default_category: formData.default_category,
-        // Oil change fields
         filter: formData.filter,
         oil_qty: formData.oil_qty,
         oil: formData.oil,
@@ -414,8 +413,16 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         tpms_reset: formData.tpms_reset,
         oil_change_type: formData.oil_change_type,
         reset_oil_light: formData.reset_oil_light,
-        next_oil_change_odometer: formData.next_oil_change_odometer ? parseFloat(formData.next_oil_change_odometer) : null
+        next_oil_change_odometer: formData.next_oil_change_odometer === '' ? null : parseFloat(formData.next_oil_change_odometer)
       };
+
+      if (formData.status === 'archived') {
+        updateData.date_archived = project.status === 'archived'
+          ? project.date_archived || null
+          : new Date().toISOString();
+      } else {
+        updateData.date_archived = null;
+      }
 
       const response = await base44.functions.invoke('workProProxy', {
         entityName: 'Project',
@@ -426,16 +433,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
       if (!response.data.success) throw new Error(response.data.error || 'Failed to update project');
 
-      setProject(prev => ({
-        ...prev,
-        ...updateData
-      }));
-      
+      const savedProject = response.data.data;
+      setProject(savedProject);
+      await loadProjectIntoForm(savedProject);
       setHasChanges(false);
       onClose();
-      } catch (error) {
+    } catch (error) {
       console.error('Error updating project:', error);
-      alert('Failed to update project. Please try again.');
+      alert(`Failed to update project: ${error.message}`);
     } finally {
       setSaving(false);
     }
