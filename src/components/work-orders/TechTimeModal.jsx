@@ -240,7 +240,6 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       let targetWO = null;
 
       if (workOrder?.id) {
-        // Fetch latest WO to ensure we have latest tech_time
         try {
            const response = await base44.functions.invoke('SupabaseProxy', {
              action: 'read',
@@ -254,7 +253,6 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
            targetWO = workOrder;
         }
       } else {
-        // Try to find WO from project(s)
         const proj = projects.length > 0 ? projects[0] : project;
         if (proj?.work_order) {
           let response = await base44.functions.invoke('SupabaseProxy', {
@@ -264,7 +262,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
           });
           let wos = response.data?.data || [];
 
-          if (!wos || wos.length === 0) {
+          if ((!wos || wos.length === 0) && proj.work_order) {
              response = await base44.functions.invoke('SupabaseProxy', {
                action: 'read',
                table: 'WorkOrder',

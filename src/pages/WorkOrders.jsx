@@ -628,7 +628,12 @@ export default function WorkOrdersPage() {
   const handleSubmit = async (workOrderData) => {
     try {
       if (editingWorkOrder && editingWorkOrder.ro_number) {
-        await base44.entities.WorkOrder.update(editingWorkOrder.id, workOrderData);
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'WorkOrder',
+          id: editingWorkOrder.id,
+          data: workOrderData
+        });
       } else {
         console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
         return;
@@ -698,7 +703,12 @@ export default function WorkOrdersPage() {
       if (!targetWorkOrder?.ro_number) {
         throw new Error('Work order not found');
       }
-      await base44.entities.WorkOrder.update(targetWorkOrder.id, { status: newStatus });
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'WorkOrder',
+        id: targetWorkOrder.id,
+        data: { status: newStatus }
+      });
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -833,7 +843,12 @@ export default function WorkOrdersPage() {
     if (!voidTarget) return;
     
     try {
-      await base44.entities.WorkOrder.update(voidTarget.id, { stage: 'void' });
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'WorkOrder',
+        id: voidTarget.id,
+        data: { stage: 'void' }
+      });
       loadData();
     } catch (error) {
       console.error('Error voiding work order:', error);
