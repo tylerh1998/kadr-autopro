@@ -242,7 +242,12 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       if (workOrder?.id) {
         // Fetch latest WO to ensure we have latest tech_time
         try {
-           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
+           const response = await base44.functions.invoke('SupabaseProxy', {
+             action: 'read',
+             table: 'WorkOrder',
+             match: { id: workOrder.id }
+           });
+           const wos = response.data?.data || [];
            targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
         } catch (e) {
            console.error("Error fetching latest WO:", e);
@@ -252,10 +257,20 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         // Try to find WO from project(s)
         const proj = projects.length > 0 ? projects[0] : project;
         if (proj?.work_order) {
-          let wos = await base44.entities.WorkOrder.filter({ wo_number: proj.work_order });
-          
+          let response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'WorkOrder',
+            match: { wo_number: proj.work_order }
+          });
+          let wos = response.data?.data || [];
+
           if (!wos || wos.length === 0) {
-             wos = await base44.entities.WorkOrder.filter({ ro_number: proj.work_order });
+             response = await base44.functions.invoke('SupabaseProxy', {
+               action: 'read',
+               table: 'WorkOrder',
+               match: { ro_number: proj.work_order }
+             });
+             wos = response.data?.data || [];
           }
 
           if (wos && wos.length > 0) {
@@ -308,7 +323,12 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const wos = await base44.entities.WorkOrder.filter({ id: targetId });
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'WorkOrder',
+            match: { id: targetId }
+          });
+          const wos = response.data?.data || [];
           if (wos && wos.length > 0) {
              const freshWO = wos[0];
              if (freshWO.tech_time) {
@@ -332,8 +352,13 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
       
       // 2. Update DB
-      await base44.entities.WorkOrder.update(targetId, {
-        tech_time: jsonString
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'WorkOrder',
+        id: targetId,
+        data: {
+          tech_time: jsonString
+        }
       });
 
       // 3. Update local state
@@ -366,7 +391,12 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const wos = await base44.entities.WorkOrder.filter({ id: targetId });
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'WorkOrder',
+            match: { id: targetId }
+          });
+          const wos = response.data?.data || [];
           if (wos && wos.length > 0) {
              const freshWO = wos[0];
              if (freshWO.tech_time) {
@@ -386,8 +416,13 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
 
       // 2. Update DB
-      await base44.entities.WorkOrder.update(targetId, {
-        tech_time: jsonString
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'WorkOrder',
+        id: targetId,
+        data: {
+          tech_time: jsonString
+        }
       });
 
       // 3. Update local state
