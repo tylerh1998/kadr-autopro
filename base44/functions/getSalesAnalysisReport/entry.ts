@@ -1,8 +1,11 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const PAGE_SIZE = 1000;
 const SALES_ANALYSIS_SELECT = 'id, invoice_date, ro_number, wo_number, total_amount, parts_total, labor_total, shop_supply_total, line_items, tech_time';
+const EMPLOYEE_SELECT = 'full_name, email, pay_rate';
+const PROJECT_SELECT = 'id, work_order, name';
+const PROJECT_TIME_SESSION_SELECT = 'project_id, user_email, user_name, total_hours';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -66,68 +69,36 @@ Deno.serve(async (req) => {
         .range(from, to)
     );
 
-    // 2. Fetch Employees (for pay rates)
-    const employees = await base44.entities.Employee.list();
+    // 2. Fetch Employees, Projects, and Project Time Sessions from Supabase
+    const [employees, projects, timeSessions] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('Employee')
+          .select(EMPLOYEE_SELECT)
+          .order('id', { ascending: true })
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('Project')
+          .select(PROJECT_SELECT)
+          .order('created_date', { ascending: false, nullsFirst: false })
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('ProjectTimeSession')
+          .select(PROJECT_TIME_SESSION_SELECT)
+          .order('created_date', { ascending: false, nullsFirst: false })
+          .range(from, to)
+      )
+    ]);
+
     const employeeMap = new Map(employees.map(e => [e.full_name?.toLowerCase(), e]));
     const employeeEmailMap = new Map(employees.map(e => [e.email?.toLowerCase(), e]));
 
-    // 3. Fetch WorkPRO Data (Projects and Time Sessions)
-    // We try to fetch all to do in-memory matching as filtered queries might be too many
-    let projects = [];
-    let timeSessions = [];
-    
-    // Helper for normalizing RO/WO numbers
+    // 3. Build lookup maps
     const normalize = (str) => String(str || '').replace(/\D/g, '');
-
-    try {
-        console.log("SalesAnalysis: Starting direct WorkPRO fetch...");
-        
-        const WORKPRO_APP_ID = Deno.env.get("WORKPRO_APP_ID") || '68b3caadfc9d9a1ea34d2018';
-        const WORKPRO_API_KEY = Deno.env.get("WORKPRO_API_KEY");
-        const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
-
-        if (!WORKPRO_API_KEY) {
-            console.error("WORKPRO_API_KEY is not set");
-        } else {
-            const headers = { 
-                'api_key': WORKPRO_API_KEY,
-                'Content-Type': 'application/json'
-            };
-
-            // A. Fetch ALL recent projects directly
-            // Using a high limit to capture as much as possible for analysis period
-            // If the analysis period is very old, this might miss data if limit is hit. 
-            // But usually analysis is recent. 
-            // Ideally we could filter by date created > startDate but Projects created_date might differ from Invoice Date.
-            // Let's stick to grabbing recent 5000 for now.
-            const projectsUrl = `${API_BASE_URL}/Project?limit=5000&sort=-created_date`;
-            const pRes = await fetch(projectsUrl, { headers });
-            
-            if (pRes.ok) {
-                const pData = await pRes.json();
-                projects = Array.isArray(pData) ? pData : (pData?.records || []);
-                console.log(`SalesAnalysis: Fetched ${projects.length} total projects direct.`);
-            } else {
-                console.error(`Failed to fetch projects direct: ${pRes.status} ${await pRes.text()}`);
-            }
-
-            // B. Fetch ALL recent time sessions directly
-            const sessionsUrl = `${API_BASE_URL}/ProjectTimeSession?limit=5000&sort=-created_date`;
-            const sRes = await fetch(sessionsUrl, { headers });
-            
-            if (sRes.ok) {
-                const sData = await sRes.json();
-                timeSessions = Array.isArray(sData) ? sData : (sData?.records || []);
-                console.log(`SalesAnalysis: Fetched ${timeSessions.length} total sessions direct.`);
-            } else {
-                console.error(`Failed to fetch sessions direct: ${sRes.status} ${await sRes.text()}`);
-            }
-        }
-
-    } catch (e) {
-        console.warn("Failed to fetch WorkPRO data for labor cost:", e);
-    }
-
     // Create lookup maps for WorkPRO data
     // Map WO ID (or RO Number) to Project IDs using robust matching
     const woToProjectMap = new Map();
@@ -264,9 +235,9 @@ Deno.serve(async (req) => {
                 // `ProjectTimeSession` likely has `employee_name` or linked employee.
                 // Let's try `employee_name`.
                 
-                const empName = session.employee_name?.toLowerCase();
+                const empName = session.user_name?.toLowerCase();
                 let emp = employeeMap.get(empName);
-                
+
                 if (!emp && session.user_email) {
                     emp = employeeEmailMap.get(session.user_email.toLowerCase());
                 }
