@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
             line_of_credit_id: lineOfCreditId,
         });
 
-        // Use all transactions for balance calculation
-        const balanceTransactions = transactions;
+        // Count everything except transactions explicitly marked is_reversed === true
+        const balanceTransactions = transactions.filter((tx) => tx.is_reversed !== true);
 
         let cumulativeBalance = 0;
 

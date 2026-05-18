@@ -177,8 +177,15 @@ export default function LinesOfCreditPage() {
         { line_of_credit_id: selectedAccountId },
         'transaction_date'
       );
+      const visibleTransactionsData = allTransactionsData.filter(tx => tx.is_reversed !== true);
       
       // Sort all transactions by date (earliest first)
+      visibleTransactionsData.sort((a, b) => {
+        const dateA = new Date(a.transaction_date);
+        const dateB = new Date(b.transaction_date);
+        return dateA - dateB;
+      });
+
       allTransactionsData.sort((a, b) => {
         const dateA = new Date(a.transaction_date);
         const dateB = new Date(b.transaction_date);
@@ -191,7 +198,7 @@ export default function LinesOfCreditPage() {
       if (filterMode === 'all_unpaid') {
         const hundredDaysAgo = format(subDays(new Date(), 100), 'yyyy-MM-dd');
         
-        filteredTransactions = allTransactionsData.filter(tx => {
+        filteredTransactions = visibleTransactionsData.filter(tx => {
             if (tx.source_type === 'payment_made') {
                 return tx.transaction_date >= hundredDaysAgo;
             }
@@ -207,7 +214,7 @@ export default function LinesOfCreditPage() {
         // Custom Date mode (Original Logic)
         
         // Calculate starting balance from transactions before the date range
-        const transactionsBeforeRange = allTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
+        const transactionsBeforeRange = visibleTransactionsData.filter(tx => tx.transaction_date < appliedFromDate);
         for (const tx of transactionsBeforeRange) {
             startingBalance += (tx.charge_amount || 0);
             startingBalance -= (tx.credit_amount || 0);
@@ -218,7 +225,7 @@ export default function LinesOfCreditPage() {
         }
         
         // Filter transactions within the date range for display
-        filteredTransactions = allTransactionsData.filter(tx => {
+        filteredTransactions = visibleTransactionsData.filter(tx => {
             const txDate = tx.transaction_date;
             return txDate >= appliedFromDate && txDate <= appliedToDate;
         });
@@ -226,7 +233,7 @@ export default function LinesOfCreditPage() {
       
       // Attach starting balance to be used in the display calculation
       setTransactions({ data: filteredTransactions, startingBalance });
-      setAllTransactions(allTransactionsData); // Save full list for PaymentTransactionItem lookups
+      setAllTransactions(visibleTransactionsData); // Save visible list for PaymentTransactionItem lookups
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {

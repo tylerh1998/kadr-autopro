@@ -25,9 +25,11 @@ Deno.serve(async (req) => {
       'transaction_date'
     );
 
+    const balanceTransactions = transactions.filter((transaction) => transaction.is_reversed !== true);
+
     // Calculate the final running balance (sum of all credits minus debits)
     let runningBalance = 0;
-    for (const transaction of transactions) {
+    for (const transaction of balanceTransactions) {
       const credit = transaction.credit_amount || 0;
       const debit = transaction.debit_amount || 0;
       runningBalance += credit - debit;
@@ -47,7 +49,7 @@ Deno.serve(async (req) => {
       bankAccountId: bankAccountId,
       finalBalance: runningBalance,
       last_recalculated_date: now,
-      transactionCount: transactions.length
+      transactionCount: balanceTransactions.length
     });
 
   } catch (error) {

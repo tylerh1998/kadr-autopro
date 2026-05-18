@@ -1,0 +1,89 @@
+{
+  "name": "BankTransaction",
+  "type": "object",
+  "properties": {
+    "bank_account_id": {
+      "type": "string",
+      "description": "Reference to bank account"
+    },
+    "transaction_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Transaction date"
+    },
+    "description": {
+      "type": "string",
+      "description": "Transaction description"
+    },
+    "reference": {
+      "type": "string",
+      "description": "Check number, reference, etc."
+    },
+    "credit_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Credit/deposit amount"
+    },
+    "debit_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Debit/withdrawal amount"
+    },
+    "cleared": {
+      "type": "boolean",
+      "default": false,
+      "description": "Transaction has cleared bank"
+    },
+    "reconciled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Transaction has been reconciled"
+    },
+    "reconciliation_id": {
+      "type": "string",
+      "description": "Reference to reconciliation record"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "payment",
+        "deposit",
+        "fee",
+        "interest",
+        "transfer",
+        "payment_card_fee",
+        "registries",
+        "payment_made"
+      ],
+      "description": "Source of the transaction"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "ID of source record"
+    },
+    "banktx": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, transaction description is editable"
+    },
+    "gl_account": {
+      "type": "string",
+      "description": "GL account for the offsetting transaction"
+    },
+    "is_reversed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates if this transaction has been reversed"
+    },
+    "reversed_by_id": {
+      "type": "string",
+      "description": "ID of the transaction that reversed this one"
+    }
+  },
+  "required": [
+    "bank_account_id",
+    "transaction_date",
+    "description"
+  ]
+}
