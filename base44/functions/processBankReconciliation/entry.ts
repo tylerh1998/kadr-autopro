@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
         }, '-transaction_date', 2000);
 
         const filteredSystemTransactions = systemTransactions.filter((tx) => {
+            if (tx.is_reversed === true) return false;
             if (!tx.transaction_date) return false;
             return tx.transaction_date.substring(0, 10) <= periodEnd;
         });

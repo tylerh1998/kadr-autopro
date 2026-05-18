@@ -169,6 +169,7 @@ export default function BankPage() {
 
       // Filter by date range using string comparison to avoid timezone issues
       const filteredTransactions = transactionsData.filter(tx => {
+        if (tx.is_reversed) return false;
         const txDate = tx.transaction_date; // Keep as string 'yyyy-MM-dd'
         return txDate >= appliedFromDate && txDate <= appliedToDate;
       });

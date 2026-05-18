@@ -65,6 +65,7 @@ export default function ReconcilePage() {
     to.setHours(23, 59, 59, 999);
 
     return allTxs.filter(tx => {
+      if (tx.is_reversed) return false;
       const txDate = new Date(tx.transaction_date);
       return txDate >= oneYearAgo && txDate <= to;
     });
@@ -133,7 +134,8 @@ export default function ReconcilePage() {
         const allTransactions = await BankTransaction.list('transaction_date', 1000);
         
         const accountTransactions = allTransactions.filter(
-          tx => tx.bank_account_id === bankAccountId && 
+          tx => tx.bank_account_id === bankAccountId &&
+          tx.is_reversed !== true &&
           (tx.reconciled === false || tx.reconciled === null || tx.reconciled === undefined)
         );
 
