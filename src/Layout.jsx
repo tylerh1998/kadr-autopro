@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import moment from 'moment-timezone';
 import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
 import { 
@@ -88,10 +89,26 @@ function LayoutContent({ children, currentPageName }) {
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [lastTimeRecord, setLastTimeRecord] = useState(null);
+  const [currentTimeRecord, setCurrentTimeRecord] = useState(null);
   const [isEmployee, setIsEmployee] = useState(true);
-  const [workProName, setWorkProName] = useState(null);
+  const [workProEmployee, setWorkProEmployee] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
+
+  const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
+
+  const sbCall = async (method, entityName, params = {}) => {
+    const response = await base44.functions.invoke('workProProxy', {
+      entityName,
+      method,
+      ...params,
+    });
+
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || `Failed ${method} on ${entityName}`);
+    }
+
+    return response.data?.data;
+  };
 
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -173,75 +190,53 @@ function LayoutContent({ children, currentPageName }) {
       setClockLoading(true);
 
       try {
-        let empName = user?.full_name || null;
-        let isEmp = false;
+        let employee = null;
 
         if (user?.id) {
-          const empCheck = await base44.functions.invoke('workProProxy', {
-            entityName: 'Employee',
-            method: 'filter',
+          const byUserId = await sbCall('filter', 'Employee', {
             params: { autopro_user_id: user.id }
           });
-
-          if (empCheck.data.success && empCheck.data.data && empCheck.data.data.length > 0) {
-            isEmp = true;
-            empName = empCheck.data.data[0].full_name || empName;
-          }
+          employee = Array.isArray(byUserId) ? byUserId[0] : null;
         }
 
-        if (!isEmp && user?.email) {
-          const empCheck = await base44.functions.invoke('workProProxy', {
-            entityName: 'Employee',
-            method: 'filter',
+        if (!employee && user?.email) {
+          const byEmail = await sbCall('filter', 'Employee', {
             params: { email: user.email }
           });
-
-          if (empCheck.data.success && empCheck.data.data && empCheck.data.data.length > 0) {
-            isEmp = true;
-            empName = empCheck.data.data[0].full_name || empName;
-          }
+          employee = Array.isArray(byEmail) ? byEmail[0] : null;
         }
 
-        setIsEmployee(isEmp);
-        setWorkProName(empName);
+        const employeeName = employee?.full_name || null;
+        const employeeExists = !!employeeName;
 
-        if (!isEmp || !user?.id) {
-            setIsClockedIn(false);
-            setLastTimeRecord(null);
-            return;
+        setIsEmployee(employeeExists);
+        setWorkProEmployee(employee || null);
+
+        if (!employeeExists) {
+          setIsClockedIn(false);
+          setCurrentTimeRecord(null);
+          return;
         }
 
-        const response = await base44.functions.invoke('workProProxy', {
-          entityName: 'TimeRecord',
-          method: 'filter',
+        const records = await sbCall('filter', 'TimeRecord', {
           params: {
-            employee_name: empName,
-            clock_out_time: null
+            employee_name: employeeName,
+            status: 'clocked_in'
           }
         });
 
-        if (response.data.success) {
-          const data = response.data.data;
-          const records = Array.isArray(data) ? data : (data?.records || []);
-          
-          const activeRecord = records.find(record => !record.clock_out_time);
-          
-          if (activeRecord) {
-            setIsClockedIn(true);
-            setLastTimeRecord(activeRecord);
-          } else {
-            setIsClockedIn(false);
-            setLastTimeRecord(null);
-          }
-        } else {
-          console.warn(`Could not fetch clock status: ${response.status} ${response.statusText}`);
-          setIsClockedIn(false);
-          setLastTimeRecord(null);
-        }
+        const activeRecord = Array.isArray(records)
+          ? records.find((record) => record.status === 'clocked_in') || null
+          : null;
+
+        setCurrentTimeRecord(activeRecord);
+        setIsClockedIn(!!activeRecord);
       } catch (error) {
         console.warn('Clock status check unavailable:', error.message || 'Network error');
         setIsClockedIn(false);
-        setLastTimeRecord(null);
+        setCurrentTimeRecord(null);
+        setIsEmployee(false);
+        setWorkProEmployee(null);
       } finally {
         setClockLoading(false);
       }
@@ -282,99 +277,55 @@ function LayoutContent({ children, currentPageName }) {
   };
 
   const handleClockToggle = async () => {
-    if (!user || !isEmployee || clockLoading) return;
-    const empName = workProName || user?.full_name;
-    if (!empName || !user?.id) return;
+    if (!user || !isEmployee || clockLoading || !workProEmployee?.full_name) return;
 
     setClockLoading(true);
 
     try {
-      // Fetch latest status to prevent duplicates/race conditions
-      const statusResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'TimeRecord',
-        method: 'filter',
+      const latestRecords = await sbCall('filter', 'TimeRecord', {
         params: {
-          employee_name: empName,
-          clock_out_time: null
+          employee_name: workProEmployee.full_name,
+          status: 'clocked_in'
         }
       });
-      
-      let serverActiveRecord = null;
-      if (statusResponse.data.success) {
-          const data = statusResponse.data.data;
-          const records = Array.isArray(data) ? data : (data?.records || []);
-          serverActiveRecord = records.find(record => !record.clock_out_time);
-      }
 
-      const now = new Date();
+      const activeRecord = Array.isArray(latestRecords)
+        ? latestRecords.find((record) => record.status === 'clocked_in') || null
+        : null;
 
-      if (serverActiveRecord) {
-        // Server says we are CLOCKED IN
-        if (!isClockedIn) {
-             // UI out of sync - just update UI
-             setIsClockedIn(true);
-             setLastTimeRecord(serverActiveRecord);
-             return; 
-        }
+      if (activeRecord) {
+        const clockOutTime = getCurrentMountainTimeISO();
+        const totalHours = Math.round(((new Date(clockOutTime) - new Date(activeRecord.clock_in_time)) / 3600000) * 100) / 100;
 
-        // Proceed to Clock Out
-        const clockOutTime = now.toISOString();
-        const clockInTime = new Date(serverActiveRecord.clock_in_time);
-        const totalHours = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
-
-        const updateResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'TimeRecord',
-          method: 'update',
-          id: serverActiveRecord.id,
+        await sbCall('update', 'TimeRecord', {
+          id: activeRecord.id,
           params: {
             clock_out_time: clockOutTime,
-            total_hours: (Math.round(totalHours * 100) / 100).toString(),
+            total_hours: totalHours,
             status: 'clocked_out'
           }
         });
 
-        if (updateResponse.data.success) {
-          setIsClockedIn(false);
-          setLastTimeRecord(null);
-        } else {
-            console.error(`Error clocking out: ${updateResponse.data?.error || 'Unknown error'}`);
-            alert('Error clocking out. Please try again.');
-        }
-
+        setIsClockedIn(false);
+        setCurrentTimeRecord(null);
       } else {
-        // Server says we are NOT CLOCKED IN
-        if (isClockedIn) {
-            // UI out of sync - just update UI
-            setIsClockedIn(false);
-            setLastTimeRecord(null);
-            return;
-        }
+        const clockInTime = getCurrentMountainTimeISO();
 
-        // Proceed to Clock In
-        const clockInTime = now.toISOString();
-
-        const createResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'TimeRecord',
-          method: 'create',
+        const newRecord = await sbCall('create', 'TimeRecord', {
           params: {
             created_by_id: user.id,
-            employee_name: empName,
+            employee_name: workProEmployee.full_name,
             clock_in_time: clockInTime,
             status: 'clocked_in',
-            total_hours: '0',
+            total_hours: 0,
             pto_hours: 0,
             stat_hours: 0
           }
         });
 
-        if (createResponse.data.success) {
-          const newRecord = createResponse.data.data;
-          setIsClockedIn(true);
-          setLastTimeRecord(newRecord);
-        } else {
-            console.error(`Error clocking in: ${createResponse.data?.error || 'Unknown error'}`);
-            alert('Error clocking in. Please try again.');
-        }
+        const createdRecord = Array.isArray(newRecord) ? newRecord[0] : newRecord;
+        setIsClockedIn(true);
+        setCurrentTimeRecord(createdRecord || null);
       }
     } catch (error) {
       console.error('Error toggling clock:', error);
@@ -386,7 +337,7 @@ function LayoutContent({ children, currentPageName }) {
 
   const handleGlobalClockInSuccess = (newRecord) => {
     setIsClockedIn(true);
-    setLastTimeRecord(newRecord);
+    setCurrentTimeRecord(newRecord);
   };
 
   const handleMouseEnter = (itemTitle) => {
