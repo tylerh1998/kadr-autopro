@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ChartOfAccount } from '@/entities/all';
 import { Check, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
@@ -84,12 +85,28 @@ function HistoryFinancialItem({ label, value, className = '' }) {
 }
 
 export default function JsonToTableDisplay({ data }) {
+  const [chartOfAccounts, setChartOfAccounts] = useState([]);
+
+  useEffect(() => {
+    const loadChartOfAccounts = async () => {
+      const accounts = await ChartOfAccount.list();
+      setChartOfAccounts(accounts || []);
+    };
+
+    loadChartOfAccounts();
+  }, []);
+
+  const accountNameMap = useMemo(() => {
+    return new Map(chartOfAccounts.map((account) => [String(account.account_number), account.account_name]));
+  }, [chartOfAccounts]);
+
   const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
   const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
   const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
   const paymentsEntry = rawEntries.find(([key]) => key === 'payments');
+  const accountingDetailsEntry = rawEntries.find(([key]) => key === 'accounting_details');
   const financialEntries = rawEntries.filter(([key]) => financialFieldKeys.includes(key));
-  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && key !== 'payments' && !financialFieldKeys.includes(key));
+  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && key !== 'payments' && key !== 'accounting_details' && !financialFieldKeys.includes(key));
 
   if (!rawEntries.length) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
@@ -122,6 +139,21 @@ export default function JsonToTableDisplay({ data }) {
     }
     if (!Array.isArray(parsedPayments)) {
       parsedPayments = null;
+    }
+  }
+
+  let parsedAccountingDetails = null;
+  if (accountingDetailsEntry) {
+    parsedAccountingDetails = accountingDetailsEntry[1];
+    if (typeof parsedAccountingDetails === 'string') {
+      try {
+        parsedAccountingDetails = JSON.parse(parsedAccountingDetails);
+      } catch {
+        parsedAccountingDetails = null;
+      }
+    }
+    if (!Array.isArray(parsedAccountingDetails)) {
+      parsedAccountingDetails = null;
     }
   }
 
@@ -176,6 +208,45 @@ export default function JsonToTableDisplay({ data }) {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {Array.isArray(parsedAccountingDetails) && (
+        <div key="accounting_details" className="space-y-2">
+          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Accounting Details</h3>
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account Number</TableHead>
+                  <TableHead>Transaction Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Debit Amount</TableHead>
+                  <TableHead>Credit Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parsedAccountingDetails.map((entry, index) => {
+                  const accountNumber = entry?.account_number ? String(entry.account_number) : '—';
+                  const accountName = accountNameMap.get(accountNumber);
+
+                  return (
+                    <TableRow key={index}>
+                      <TableCell title={accountName || undefined} className="font-medium">
+                        {accountNumber}
+                      </TableCell>
+                      <TableCell>{formatValue('transaction_date', entry?.transaction_date)}</TableCell>
+                      <TableCell>{entry?.description || '—'}</TableCell>
+                      <TableCell>{entry?.reference || '—'}</TableCell>
+                      <TableCell>{entry?.debit_amount === null || entry?.debit_amount === undefined || entry?.debit_amount === '' ? '—' : formatCurrency(entry.debit_amount)}</TableCell>
+                      <TableCell>{entry?.credit_amount === null || entry?.credit_amount === undefined || entry?.credit_amount === '' ? '—' : formatCurrency(entry.credit_amount)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
