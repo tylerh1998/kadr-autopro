@@ -375,6 +375,11 @@ export default function LinesOfCreditPage() {
     loadTransactions(); // Reload transactions for the current account/date range
   };
 
+  const handlePaymentCancelled = async () => {
+    await loadData();
+    await loadTransactions();
+  };
+
   const handleAddTransaction = () => {
     if (!selectedAccount) {
       alert('Please select a line of credit account first.');
@@ -738,6 +743,7 @@ export default function LinesOfCreditPage() {
                           key={tx.id} 
                           payment={tx} 
                           allTransactions={allTransactions}
+                          onPaymentCancelled={handlePaymentCancelled}
                         />
                       ))
                     ) : (

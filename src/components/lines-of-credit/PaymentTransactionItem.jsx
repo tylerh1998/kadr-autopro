@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { base44 } from '@/api/base44Client';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -32,8 +45,9 @@ const formatDateSafe = (dateString) => {
   }
 };
 
-export default function PaymentTransactionItem({ payment, allTransactions }) {
+export default function PaymentTransactionItem({ payment, allTransactions, onPaymentCancelled }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const appliedData = payment.payment_applied_data 
     ? JSON.parse(payment.payment_applied_data) 
@@ -47,6 +61,18 @@ export default function PaymentTransactionItem({ payment, allTransactions }) {
       description: originalTx ? originalTx.description : 'Unknown Transaction',
     };
   });
+
+  const handleCancelPayment = async () => {
+    setIsCancelling(true);
+    try {
+      await base44.functions.invoke('cancelLineOfCreditPayment', {
+        transactionId: payment.id,
+      });
+      await onPaymentCancelled?.();
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <Card className={`mb-2 border transition-colors ${isExpanded ? 'border-blue-300 ring-1 ring-blue-300' : 'hover:border-slate-300'}`}>
@@ -67,6 +93,36 @@ export default function PaymentTransactionItem({ payment, allTransactions }) {
           <div className="font-bold text-green-600">
             ${(payment.payment_amount || 0).toFixed(2)}
           </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                onClick={(e) => e.stopPropagation()}
+                disabled={isCancelling}
+              >
+                {isCancelling ? 'Cancelling...' : 'Cancel Payment'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel payment?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will cancel this LOC payment and refresh the balances immediately.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep Payment</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 hover:bg-red-700"
+                  onClick={handleCancelPayment}
+                >
+                  Confirm Cancel
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
         </div>
       </div>
