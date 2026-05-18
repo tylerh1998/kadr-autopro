@@ -20,16 +20,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { ro_number } = await req.json();
+    const { wo_number } = await req.json();
 
-    if (!ro_number) {
-      return Response.json({ error: 'Missing ro_number' }, { status: 400 });
+    if (!wo_number) {
+      return Response.json({ error: 'Missing wo_number' }, { status: 400 });
     }
 
     const projectsResponse = await base44.functions.invoke('workProProxy', {
       entityName: 'Project',
       method: 'filter',
-      params: { work_order: ro_number }
+      params: { work_order: wo_number }
     });
 
     if (!projectsResponse?.data?.success) {

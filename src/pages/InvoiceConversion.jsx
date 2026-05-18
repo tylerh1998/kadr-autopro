@@ -207,7 +207,7 @@ export default function InvoiceConversion() {
         };
 
         base44.functions.invoke('archiveWorkOrderProjects', {
-          ro_number: wo.ro_number
+          wo_number: wo.wo_number
         }).catch((archiveError) => {
           console.error('Error archiving related projects:', archiveError);
         });
