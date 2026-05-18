@@ -173,42 +173,39 @@ function LayoutContent({ children, currentPageName }) {
       setClockLoading(true);
 
       try {
-        // Check if user is an employee in WorkPro
-        let empName = user?.full_name;
+        let empName = user?.full_name || null;
         let isEmp = false;
 
-        // Try by email first
-        if (user?.email) {
+        if (user?.id) {
           const empCheck = await base44.functions.invoke('workProProxy', {
             entityName: 'Employee',
             method: 'filter',
-            params: { user_email: user.email }
+            params: { autopro_user_id: user.id }
           });
-          
+
           if (empCheck.data.success && empCheck.data.data && empCheck.data.data.length > 0) {
             isEmp = true;
-            empName = empCheck.data.data[0].full_name;
+            empName = empCheck.data.data[0].full_name || empName;
           }
         }
 
-        // Fallback to name if not found by email
-        if (!isEmp && user?.full_name) {
-          const empCheckName = await base44.functions.invoke('workProProxy', {
+        if (!isEmp && user?.email) {
+          const empCheck = await base44.functions.invoke('workProProxy', {
             entityName: 'Employee',
             method: 'filter',
-            params: { full_name: user.full_name }
+            params: { email: user.email }
           });
 
-          if (empCheckName.data.success && empCheckName.data.data && empCheckName.data.data.length > 0) {
+          if (empCheck.data.success && empCheck.data.data && empCheck.data.data.length > 0) {
             isEmp = true;
-            empName = empCheckName.data.data[0].full_name;
+            empName = empCheck.data.data[0].full_name || empName;
           }
         }
 
         setIsEmployee(isEmp);
         setWorkProName(empName);
 
-        if (!isEmp) {
+        if (!isEmp || !user?.id) {
             setIsClockedIn(false);
             setLastTimeRecord(null);
             return;
@@ -218,7 +215,7 @@ function LayoutContent({ children, currentPageName }) {
           entityName: 'TimeRecord',
           method: 'filter',
           params: {
-            employee_name: empName,
+            created_by_id: user.id,
             status: 'clocked_in'
           }
         });
@@ -287,7 +284,7 @@ function LayoutContent({ children, currentPageName }) {
   const handleClockToggle = async () => {
     if (!user || !isEmployee || clockLoading) return;
     const empName = workProName || user?.full_name;
-    if (!empName) return;
+    if (!empName || !user?.id) return;
 
     setClockLoading(true);
 
@@ -297,7 +294,7 @@ function LayoutContent({ children, currentPageName }) {
         entityName: 'TimeRecord',
         method: 'filter',
         params: {
-          employee_name: empName,
+          created_by_id: user.id,
           status: 'clocked_in'
         }
       });
@@ -331,7 +328,7 @@ function LayoutContent({ children, currentPageName }) {
           id: serverActiveRecord.id,
           params: {
             clock_out_time: clockOutTime,
-            total_hours: Math.round(totalHours * 100) / 100,
+            total_hours: (Math.round(totalHours * 100) / 100).toString(),
             status: 'clocked_out'
           }
         });
@@ -360,10 +357,11 @@ function LayoutContent({ children, currentPageName }) {
           entityName: 'TimeRecord',
           method: 'create',
           params: {
+            created_by_id: user.id,
             employee_name: empName,
             clock_in_time: clockInTime,
             status: 'clocked_in',
-            total_hours: 0,
+            total_hours: '0',
             pto_hours: 0,
             stat_hours: 0
           }
