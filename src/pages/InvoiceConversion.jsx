@@ -206,6 +206,12 @@ export default function InvoiceConversion() {
           status: 'Completed' 
         };
 
+        base44.functions.invoke('archiveWorkOrderProjects', {
+          ro_number: wo.ro_number
+        }).catch((archiveError) => {
+          console.error('Error archiving related projects:', archiveError);
+        });
+
         // Call handleInvoiceConversionGL backend function
         console.log('=== Calling handleInvoiceConversionGL ===');
         try {
