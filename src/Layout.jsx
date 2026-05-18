@@ -293,6 +293,9 @@ function LayoutContent({ children, currentPageName }) {
         ? latestRecords.find((record) => record.status === 'clocked_in') || null
         : null;
 
+      setCurrentTimeRecord(activeRecord);
+      setIsClockedIn(!!activeRecord);
+
       if (activeRecord) {
         const clockOutTime = getCurrentMountainTimeISO();
         const totalHours = Math.round(((new Date(clockOutTime) - new Date(activeRecord.clock_in_time)) / 3600000) * 100) / 100;
