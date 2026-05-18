@@ -35,6 +35,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const [selectedCharges, setSelectedCharges] = useState({});
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  const [calculationResult, setCalculationResult] = useState(null);
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
@@ -235,6 +237,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           setActiveTab('pay_charges');
           setSelectedCharges({});
           setShowPaymentDetailsDialog(false);
+          setCalculating(false);
+          setCalculationResult(null);
 
           const [bankAccountsData, otherLOCData, transactionsData] = await Promise.all([
             BankAccount.list(),
@@ -341,11 +345,46 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     });
   };
 
+  const handleCalculatePayment = async () => {
+    const paymentAmount = parseFloat(amount);
+
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      alert('Please enter a valid payment amount.');
+      return;
+    }
+
+    setCalculating(true);
+    setCalculationResult(null);
+
+    try {
+      const response = await base44.functions.invoke('calculateLineOfCreditPaymentBreakdown', {
+        lineOfCreditId: lineOfCredit.id,
+        paymentAmount
+      });
+
+      if (response.data?.success) {
+        setCalculationResult(response.data.breakdown);
+      } else {
+        alert(response.data?.error || 'Failed to calculate payment breakdown.');
+      }
+    } catch (error) {
+      console.error('Error calculating payment breakdown:', error);
+      alert(error.message || 'Failed to calculate payment breakdown.');
+    } finally {
+      setCalculating(false);
+    }
+  };
+
   const handleProceedToPaymentDetails = () => {
     const paymentAmount = activeTab === 'pay_charges' ? totalSelectedAmount : parseFloat(amount);
 
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
       alert('Please enter or select a valid payment amount.');
+      return;
+    }
+
+    if (activeTab === 'pay_balance' && !calculationResult) {
+      alert('Please calculate the payment breakdown before continuing.');
       return;
     }
 
@@ -372,15 +411,17 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             if (charge.charge_amount > 0) {
               return {
                 id: charge.id,
-                amount: charge.charge_amount - (charge.payment_amount || 0) // Pay the remaining balance (Positive)
+                amount: charge.charge_amount - (charge.payment_amount || 0)
               };
             } else {
               return {
                 id: charge.id,
-                amount: -(charge.credit_amount + (charge.payment_amount || 0)) // Apply remaining credit (Negative)
+                amount: -(charge.credit_amount + (charge.payment_amount || 0))
               };
             }
           });
+      } else if (activeTab === 'pay_balance') {
+        appliedCharges = calculationResult?.appliedCharges || [];
       }
 
       const response = await base44.functions.invoke('processLineOfCreditPayment', {
@@ -500,17 +541,73 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             </TabsContent>
 
             <TabsContent value="pay_balance" className="py-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Payment Amount</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  placeholder={`Current balance: $${(lineOfCredit?.current_balance || 0).toFixed(2)}`}
-                  required
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Payment Amount</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={amount}
+                      onChange={e => {
+                        setAmount(e.target.value);
+                        if (calculationResult) setCalculationResult(null);
+                      }}
+                      placeholder={`Current balance: $${(lineOfCredit?.current_balance || 0).toFixed(2)}`}
+                      required
+                    />
+                    <Button type="button" onClick={handleCalculatePayment} disabled={calculating || !amount}>
+                      {calculating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Calculate'}
+                    </Button>
+                  </div>
+                </div>
+
+                {calculationResult && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                      <span>Proposed Application</span>
+                      <span>${(calculationResult.totalApplied || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Applied</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {calculationResult.appliedCharges.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={2} className="text-center text-muted-foreground">No transactions applied</TableCell>
+                            </TableRow>
+                          ) : (
+                            calculationResult.appliedCharges.map((item) => {
+                              const tx = outstandingCharges.find(charge => charge.id === item.id);
+                              return (
+                                <TableRow key={item.id}>
+                                  <TableCell>{tx?.description || item.id}</TableCell>
+                                  <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600' : ''}`}>
+                                    ${Math.abs(item.amount).toFixed(2)}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                          {(calculationResult.unappliedAmount || 0) > 0.00001 && (
+                            <TableRow className="bg-amber-50">
+                              <TableCell className="font-medium text-amber-800">Unapplied</TableCell>
+                              <TableCell className="text-right font-medium text-amber-800">
+                                ${calculationResult.unappliedAmount.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
