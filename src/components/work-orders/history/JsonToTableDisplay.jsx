@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import WorkOrderViewLineItemsTable from '../form/WorkOrderViewLineItemsTable';
@@ -86,8 +87,9 @@ export default function JsonToTableDisplay({ data }) {
   const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
   const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
   const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
+  const paymentsEntry = rawEntries.find(([key]) => key === 'payments');
   const financialEntries = rawEntries.filter(([key]) => financialFieldKeys.includes(key));
-  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && !financialFieldKeys.includes(key));
+  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && key !== 'payments' && !financialFieldKeys.includes(key));
 
   if (!rawEntries.length) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
@@ -105,6 +107,21 @@ export default function JsonToTableDisplay({ data }) {
     }
     if (Array.isArray(parsedLineItems)) {
       parsedLineItems = parsedLineItems.map(normalizeHistoryLineItem);
+    }
+  }
+
+  let parsedPayments = null;
+  if (paymentsEntry) {
+    parsedPayments = paymentsEntry[1];
+    if (typeof parsedPayments === 'string') {
+      try {
+        parsedPayments = JSON.parse(parsedPayments);
+      } catch {
+        parsedPayments = null;
+      }
+    }
+    if (!Array.isArray(parsedPayments)) {
+      parsedPayments = null;
     }
   }
 
@@ -128,6 +145,42 @@ export default function JsonToTableDisplay({ data }) {
           </Table>
         </div>
       ))}
+
+      {Array.isArray(parsedPayments) && (
+        <div key="payments" className="space-y-2">
+          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Payments</h3>
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Advance Payment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parsedPayments.map((payment, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{formatValue('payment_date', payment?.payment_date)}</TableCell>
+                    <TableCell>{payment?.amount === null || payment?.amount === undefined || payment?.amount === '' ? '—' : formatCurrency(payment.amount)}</TableCell>
+                    <TableCell>{payment?.payment_method || '—'}</TableCell>
+                    <TableCell>{payment?.reference || '—'}</TableCell>
+                    <TableCell>
+                      {payment?.advance_pmt ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <X className="w-4 h-4 text-slate-400" />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
 
       {Array.isArray(parsedLineItems) && (
         <div key="line_items" className="space-y-4">
