@@ -216,7 +216,7 @@ function LayoutContent({ children, currentPageName }) {
           method: 'filter',
           params: {
             created_by_id: user.id,
-            status: 'clocked_in'
+            clock_out_time: null
           }
         });
 
@@ -295,7 +295,7 @@ function LayoutContent({ children, currentPageName }) {
         method: 'filter',
         params: {
           created_by_id: user.id,
-          status: 'clocked_in'
+          clock_out_time: null
         }
       });
       
