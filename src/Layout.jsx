@@ -215,7 +215,7 @@ function LayoutContent({ children, currentPageName }) {
           entityName: 'TimeRecord',
           method: 'filter',
           params: {
-            created_by_id: user.id,
+            employee_name: empName,
             clock_out_time: null
           }
         });
@@ -294,7 +294,7 @@ function LayoutContent({ children, currentPageName }) {
         entityName: 'TimeRecord',
         method: 'filter',
         params: {
-          created_by_id: user.id,
+          employee_name: empName,
           clock_out_time: null
         }
       });
