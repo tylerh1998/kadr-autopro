@@ -470,7 +470,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Make Payment - {lineOfCredit?.name}</DialogTitle>
           <DialogDescription>
@@ -485,7 +485,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             <AlertDescription>{lockMessage}</AlertDescription>
           </Alert>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 min-w-0 overflow-hidden">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="pay_charges">Pay Specific Charges</TabsTrigger>
               <TabsTrigger value="pay_balance">Pay Amount</TabsTrigger>
@@ -630,7 +630,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                   Upload CSV
                 </Button>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto justify-end">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
                 <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
                 <Button 
                   type="button" 
