@@ -91,6 +91,12 @@ export default function SuppliersPage() {
               if (!a.pin_to_top && b.pin_to_top) return 1;
               return (a.name || '').localeCompare(b.name || '');
             });
+
+          if (scoredSuppliers.length === 1) {
+            navigate(createPageUrl(`SupplierTx?id=${scoredSuppliers[0].id}`));
+            return;
+          }
+
           setSuppliers(scoredSuppliers);
         }
       } else {
