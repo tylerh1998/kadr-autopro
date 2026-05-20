@@ -458,7 +458,7 @@ export default function InventoryReturnsPage() {
             </div>
             <div className="flex gap-3 flex-wrap">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[160px] bg-white">
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
