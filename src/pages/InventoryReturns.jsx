@@ -5,6 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
@@ -46,6 +53,7 @@ export default function InventoryReturnsPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState('all');
   const [showChangeSupplierModal, setShowChangeSupplierModal] = useState(false);
   const [showReceiveCreditModal, setShowReceiveCreditModal] = useState(false);
   const [showEditReturnInfoModal, setShowEditReturnInfoModal] = useState(false);
@@ -209,11 +217,14 @@ export default function InventoryReturnsPage() {
   const filteredReturns = returns.filter(returnItem => {
     const searchLower = searchTerm.toLowerCase();
     const supplierName = getSupplierName(returnItem.supplier);
-    return !searchTerm ||
+    const matchesSearch = !searchTerm ||
       returnItem.part_number?.toLowerCase().includes(searchLower) ||
       returnItem.description?.toLowerCase().includes(searchLower) ||
       supplierName.toLowerCase().includes(searchLower) ||
       returnItem.return_reason?.toLowerCase().includes(searchLower);
+    const matchesType = typeFilter === 'all' || returnItem.return_type === typeFilter;
+
+    return matchesSearch && matchesType;
   });
 
   const returnsBySupplier = filteredReturns.reduce((acc, returnItem) => {
@@ -445,7 +456,18 @@ export default function InventoryReturnsPage() {
               <h1 className="text-3xl font-bold text-slate-900">Inventory Returns</h1>
               <p className="text-slate-600 mt-1">Track parts returned to suppliers</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="return">Return</SelectItem>
+                  <SelectItem value="core">Core</SelectItem>
+                  <SelectItem value="warranty">Warranty</SelectItem>
+                </SelectContent>
+              </Select>
               <Button onClick={() => window.location.href = createPageUrl('InventoryList')} variant="outline">
                 <List className="w-4 h-4 mr-2" />
                 Inventory List
