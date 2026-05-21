@@ -646,7 +646,7 @@ export default function ActivityLog() {
             <DialogDescription>
               {unassignedRecordToAssign && (
                 <p className="text-sm text-gray-600 mt-2">
-                  {unassignedRecordToAssign.employee_name} • {unassignedRecordToAssign.hours?.toFixed(2)}h • {format(new Date(unassignedRecordToAssign.start_time), "MMM d, yyyy HH:mm")}
+                  {unassignedRecordToAssign.employee_name} • {Number(unassignedRecordToAssign.hours || 0).toFixed(2)}h • {format(new Date(unassignedRecordToAssign.start_time), "MMM d, yyyy HH:mm")}
                 </p>
               )}
               <p className="text-xs text-blue-600 mt-2">
@@ -735,7 +735,7 @@ export default function ActivityLog() {
                     <strong>Employee:</strong> {unassignedRecordToAssign.employee_name}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <strong>Hours:</strong> {unassignedRecordToAssign.hours?.toFixed(2)}h
+                    <strong>Hours:</strong> {Number(unassignedRecordToAssign.hours || 0).toFixed(2)}h
                   </p>
                   <p className="text-sm text-gray-600">
                     <strong>Date:</strong> {format(new Date(unassignedRecordToAssign.start_time), "MMM d, yyyy HH:mm")}
