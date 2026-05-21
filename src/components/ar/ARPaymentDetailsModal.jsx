@@ -218,7 +218,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                       {appliedToDetails.map((detail, index) => (
                         <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
                           <TableCell>{detail.reference}</TableCell>
-                          <TableCell>{format(parseISO(detail.date), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>{detail.date ? format(parseISO(detail.date), 'MMM d, yyyy') : '—'}</TableCell>
                           <TableCell>{detail.description}</TableCell>
                           <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700' : ''}`}>
                             ${detail.amountApplied.toFixed(2)}
