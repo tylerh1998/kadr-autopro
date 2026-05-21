@@ -315,8 +315,7 @@ Deno.serve(async (req) => {
         return new Response(pdfBytes, {
             status: 200,
             headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename=${filename}`
+                'Content-Type': 'application/pdf'
             }
         });
 
