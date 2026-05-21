@@ -37,74 +37,10 @@ Deno.serve(async (req) => {
 
         console.log('generateARReceiptPDF: Found customer:', customer.first_name, customer.last_name);
 
-        // Parse ar_applyto to get applied items
-        const arApplyTo = payment.ar_applyto || '';
-        const appliedDetails = [];
-
-        if (arApplyTo) {
-            const entries = arApplyTo.split(',').filter(e => e.trim());
-
-            for (const entry of entries) {
-                const [recordId, amountStr] = entry.split(':');
-                const amount = parseFloat(amountStr);
-
-                if (!recordId || isNaN(amount)) continue;
-
-                // Try to fetch as CustomerPayments (invoice)
-                try {
-                    const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
-                    const customerPayment = res?.data?.data;
-                    if (customerPayment) {
-                        let description = customerPayment.notes || 'Invoice';
-                        let reference = customerPayment.invoice_number || '';
-                        
-                        if (customerPayment.work_order_id) {
-                            try {
-                                const woRes = await base44.functions.invoke('supabaseWorkOrder', { action: 'get', id: customerPayment.work_order_id });
-                                const wo = woRes?.data?.data;
-                                if (wo) {
-                                    description = wo.description || description;
-                                    reference = wo.inv_number || customerPayment.invoice_number || wo.ro_number || '';
-                                }
-                            } catch (e) {
-                                console.warn('Could not fetch work order:', e);
-                            }
-                        }
-
-                        appliedDetails.push({
-                            type: 'Invoice',
-                            reference: reference,
-                            date: customerPayment.payment_date,
-                            description: description,
-                            amountApplied: amount
-                        });
-                        continue;
-                    }
-                } catch (e) {
-                    // Not a payment, try adjustment
-                }
-
-                // Try to fetch as CustomerARAdjustment
-                try {
-                    const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
-                    const adjustment = res?.data?.data;
-                    if (adjustment) {
-                        appliedDetails.push({
-                            type: adjustment.amount > 0 ? 'Charge' : 'Credit',
-                            reference: adjustment.reference || '',
-                            date: adjustment.adjustment_date,
-                            description: adjustment.description || '',
-                            amountApplied: amount
-                        });
-                    }
-                } catch (e) {
-                    console.warn('Could not fetch record:', recordId, e);
-                }
-            }
-        }
-
-        // Sort transactions by date, oldest at top
-        appliedDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
+        const appliedDetailsRes = await base44.functions.invoke('getAppliedPaymentDetails', {
+            paymentId: payment.id
+        });
+        const appliedDetails = appliedDetailsRes?.data?.appliedDetails || [];
 
         console.log('generateARReceiptPDF: Applied details:', appliedDetails);
 

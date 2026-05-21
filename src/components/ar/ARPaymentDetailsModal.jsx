@@ -33,87 +33,13 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           }
         }
 
-        const arApplyTo = paymentRecord.ar_applyto || '';
-        
         console.log('Loading details for payment:', paymentRecord);
-        console.log('ar_applyto string:', arApplyTo);
-        
-        if (!arApplyTo) {
-          setAppliedToDetails([]);
-          setLoading(false);
-          return;
-        }
 
-        // Parse ar_applyto string: "id1:amount1,id2:amount2,..."
-        const entries = arApplyTo.split(',').filter(e => e.trim());
-        const details = [];
+        const response = await base44.functions.invoke('getAppliedPaymentDetails', {
+          paymentId: paymentRecord.id
+        });
 
-        for (const entry of entries) {
-          const [recordId, amountStr] = entry.split(':');
-          const amount = parseFloat(amountStr);
-
-          if (!recordId || isNaN(amount)) continue;
-
-          // Try to fetch as CustomerPayments (invoice)
-          try {
-            const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
-            const payment = res?.data?.data;
-            if (payment) {
-              // Fetch work order for description and reference
-              let description = payment.notes || 'Invoice';
-              let reference = payment.invoice_number || '';
-              
-              if (payment.work_order_id) {
-                try {
-                  const woRes = await base44.functions.invoke('supabaseWorkOrder', { action: 'get', id: payment.work_order_id });
-                  const wo = woRes?.data?.data;
-                  if (wo) {
-                    description = wo.description || description;
-                    reference = wo.inv_number || payment.invoice_number || wo.ro_number || '';
-                  }
-                } catch (e) {
-                  console.warn('Could not fetch work order:', e);
-                }
-              }
-
-              details.push({
-                id: recordId,
-                type: 'Invoice',
-                reference: reference,
-                date: payment.payment_date,
-                description: description,
-                amountApplied: amount
-              });
-              continue;
-            }
-          } catch (e) {
-            // Not a payment, try adjustment
-          }
-
-          // Try to fetch as CustomerARAdjustment
-          try {
-            const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
-            const adjustment = res?.data?.data;
-            if (adjustment) {
-              const isOverpayment = adjustment.amount < 0 && adjustment.reference && adjustment.reference.startsWith('OVERPMT');
-              details.push({
-                id: recordId,
-                type: isOverpayment ? 'Overpayment Credit' : (adjustment.amount > 0 ? 'Charge' : 'Credit'),
-                reference: adjustment.reference || '',
-                date: adjustment.adjustment_date,
-                description: adjustment.description || '',
-                amountApplied: amount,
-                isOverpayment: isOverpayment
-              });
-            }
-          } catch (e) {
-            console.warn('Could not fetch record:', recordId, e);
-          }
-        }
-
-        // Sort details by date, oldest first
-        details.sort((a, b) => new Date(a.date) - new Date(b.date));
-
+        const details = response?.data?.appliedDetails || [];
         console.log('Loaded applied to details:', details);
         setAppliedToDetails(details);
       } catch (error) {
