@@ -30,9 +30,10 @@ Deno.serve(async (req) => {
           result = await supabase.from('CustomerPayments').select('*').match(match || {});
         }
         break;
-      case 'get':
-        result = await supabase.from('CustomerPayments').select('*').eq('id', id).single();
+      case 'get': {
+        result = await supabase.from('CustomerPayments').select('*').eq('id', id).maybeSingle();
         break;
+      }
       case 'create':
         if (!data.id) data.id = crypto.randomUUID();
         if (!data.created_date) data.created_date = new Date().toISOString();
