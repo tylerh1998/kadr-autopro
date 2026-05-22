@@ -218,11 +218,13 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           customerEmail={customerEmail || ''}
         />
       )}
-      <ARReceiptPDFViewerModal
-        open={showReceiptModal}
-        onClose={handleCloseReceiptModal}
-        pdfUrl={receiptPdfUrl}
-      />
+      {showReceiptModal && (
+        <ARReceiptPDFViewerModal
+          open={showReceiptModal}
+          onClose={handleCloseReceiptModal}
+          pdfUrl={receiptPdfUrl}
+        />
+      )}
     </Dialog>
   );
 }
