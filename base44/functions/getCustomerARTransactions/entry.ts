@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
         reference: adj.reference || '',
         amount: isCharge ? adjAmount : 0,
         payment: isCharge ? arPaid : Math.abs(adjAmount),
-        balance: adj.overpayment ? adjAmount : (isCharge ? (adjAmount - arPaid) : adjAmount),
+        balance: adj.overpayment ? adjAmount : (adjAmount - arPaid),
         source: 'adjustment',
         sourceId: adj.id || 'unknown',
         workOrderId: workOrder?.id || adj.work_order_id || null,
