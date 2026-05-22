@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { Loader2, FileText, Mail } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import ARPaymentEmailModal from './ARPaymentEmailModal';
+import ARReceiptPDFViewerModal from './ARReceiptPDFViewerModal';
 
 export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) {
   const [appliedToDetails, setAppliedToDetails] = useState([]);
@@ -14,6 +15,8 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [customerEmail, setCustomerEmail] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptPdfUrl, setReceiptPdfUrl] = useState(null);
 
   useEffect(() => {
     const loadAppliedToDetails = async () => {
@@ -65,7 +68,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
   const handleGenerateReceipt = async () => {
     if (!paymentRecord || !paymentRecord.id) return;
-    
+
     setGeneratingPDF(true);
     try {
       const response = await base44.functions.invoke('generateARReceiptPDF', {
@@ -73,16 +76,27 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
       });
 
       if (response.data) {
-        // Create blob and open in new tab
+        if (receiptPdfUrl) {
+          window.URL.revokeObjectURL(receiptPdfUrl);
+        }
         const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank', 'width=1400,height=900');
+        setReceiptPdfUrl(url);
+        setShowReceiptModal(true);
       }
     } catch (error) {
       console.error('Error generating receipt:', error);
       alert('Failed to generate receipt. Please try again.');
     } finally {
       setGeneratingPDF(false);
+    }
+  };
+
+  const handleCloseReceiptModal = () => {
+    setShowReceiptModal(false);
+    if (receiptPdfUrl) {
+      window.URL.revokeObjectURL(receiptPdfUrl);
+      setReceiptPdfUrl(null);
     }
   };
 
@@ -204,6 +218,11 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           customerEmail={customerEmail || ''}
         />
       )}
+      <ARReceiptPDFViewerModal
+        open={showReceiptModal}
+        onClose={handleCloseReceiptModal}
+        pdfUrl={receiptPdfUrl}
+      />
     </Dialog>
   );
 }
