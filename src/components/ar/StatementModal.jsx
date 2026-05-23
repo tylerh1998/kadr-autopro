@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { Statement } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import StatementEmailModal from './StatementEmailModal';
@@ -13,6 +13,16 @@ export default function StatementModal({ open, onClose, customer }) {
   const [agedBalances, setAgedBalances] = useState({ current: 0, '30': 0, '60': 0, '90+': 0, total: 0 });
   const [statementPortalId, setStatementPortalId] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+
+  const formatStatementDate = (value) => {
+    if (!value) return '';
+
+    const parsedDate = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? parseISO(`${value}T12:00:00`)
+      : new Date(value);
+
+    return isValid(parsedDate) ? format(parsedDate, 'MMM d, yyyy') : '';
+  };
 
   useEffect(() => {
     const createStatementRecord = async () => {
@@ -164,7 +174,7 @@ export default function StatementModal({ open, onClose, customer }) {
               </div>
               <div className="text-right">
                 <h3 className="text-3xl font-bold">STATEMENT</h3>
-                <p>Date: {format(new Date(), 'PPP')}</p>
+                <p>Date: {formatStatementDate(new Date())}</p>
               </div>
             </div>
 
@@ -210,7 +220,7 @@ export default function StatementModal({ open, onClose, customer }) {
               <tbody>
                 {displayTransactions.map((t, index) => (
                   <tr key={t.id || index} className="border-b">
-                    <td className="p-2">{t.date ? format(new Date(t.date), 'yyyy-MM-dd') : ''}</td>
+                    <td className="p-2">{formatStatementDate(t.date)}</td>
                     <td className="p-2">{t.reference || ''}</td>
                     <td className="p-2">{t.description || ''}</td>
                     <td className="text-right p-2">
