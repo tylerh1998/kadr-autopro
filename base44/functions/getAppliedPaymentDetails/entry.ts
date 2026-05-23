@@ -61,7 +61,7 @@ const resolveWorkOrdersMap = async (supabase, lookupValues, customerId) => {
 };
 
 const getWorkOrderLookupNumber = (workOrder) => {
-  return workOrder?.ro_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.crinv_number || null;
+  return workOrder?.inv_number || workOrder?.ro_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.crinv_number || null;
 };
 
 Deno.serve(async (req) => {
