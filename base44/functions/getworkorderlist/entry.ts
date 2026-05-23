@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { match, orMatch, limit, offset, sort } = body;
+    const { match, orMatch, limit, offset, sort, searchTerm } = body;
 
     let countQuery = supabase
       .from('WorkOrder')
@@ -44,33 +44,83 @@ Deno.serve(async (req) => {
       countQuery = countQuery.or(orMatch);
     }
 
+    if (searchTerm && typeof searchTerm === 'string' && searchTerm.trim()) {
+      const normalizedSearch = searchTerm.trim();
+
+      const { data: matchingCustomers, error: customerSearchError } = await supabase
+        .from('Customer')
+        .select('id')
+        .or([
+          `first_name.ilike.%${normalizedSearch}%`,
+          `last_name.ilike.%${normalizedSearch}%`,
+          `org_name.ilike.%${normalizedSearch}%`
+        ].join(','));
+
+      if (customerSearchError) {
+        console.error('getworkorderlist customer search error:', customerSearchError);
+        return Response.json({ error: 'Failed to search customers', details: customerSearchError.message }, { status: 500 });
+      }
+
+      const customerIds = (matchingCustomers || []).map((customer) => customer.id).filter(Boolean);
+      const searchClauses = [
+        `ro_number.ilike.%${normalizedSearch}%`,
+        `wo_number.ilike.%${normalizedSearch}%`,
+        `est_number.ilike.%${normalizedSearch}%`,
+        `inv_number.ilike.%${normalizedSearch}%`,
+        `crinv_number.ilike.%${normalizedSearch}%`,
+        `description.ilike.%${normalizedSearch}%`
+      ];
+
+      if (customerIds.length > 0) {
+        searchClauses.push(`customer_id.in.(${customerIds.join(',')})`);
+      }
+
+      const searchFilter = searchClauses.join(',');
+      query = query.or(searchFilter);
+      countQuery = countQuery.or(searchFilter);
+    }
+
     if (sort && typeof sort === 'string') {
       const sortMap = {
         number_desc: [
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
           { column: 'inv_number', ascending: false, nullsFirst: false },
-          { column: 'crinv_number', ascending: false, nullsFirst: false }
+          { column: 'crinv_number', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ],
         number_asc: [
+          { column: 'invoice_date', ascending: true, nullsFirst: false },
           { column: 'inv_number', ascending: true, nullsFirst: false },
-          { column: 'crinv_number', ascending: true, nullsFirst: false }
+          { column: 'crinv_number', ascending: true, nullsFirst: false },
+          { column: 'ro_number', ascending: true, nullsFirst: false }
         ],
         customer_az: [
-          { column: 'customer_id', ascending: true, nullsFirst: false }
+          { column: 'customer_id', ascending: true, nullsFirst: false },
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ],
         customer_za: [
-          { column: 'customer_id', ascending: false, nullsFirst: false }
+          { column: 'customer_id', ascending: false, nullsFirst: false },
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ],
         date_newest: [
-          { column: 'invoice_date', ascending: false, nullsFirst: false }
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ],
         date_oldest: [
-          { column: 'invoice_date', ascending: true, nullsFirst: false }
+          { column: 'invoice_date', ascending: true, nullsFirst: false },
+          { column: 'ro_number', ascending: true, nullsFirst: false }
         ],
         amount_highest: [
-          { column: 'total_amount', ascending: false, nullsFirst: false }
+          { column: 'total_amount', ascending: false, nullsFirst: false },
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ],
         amount_lowest: [
-          { column: 'total_amount', ascending: true, nullsFirst: false }
+          { column: 'total_amount', ascending: true, nullsFirst: false },
+          { column: 'invoice_date', ascending: false, nullsFirst: false },
+          { column: 'ro_number', ascending: false, nullsFirst: false }
         ]
       };
 

@@ -108,7 +108,7 @@ export default function WorkOrdersPage() {
     loadCurrentUser();
     loadWorkOrderStatuses();
     loadSystemSettings();
-  }, [invoicePage, invoicesSort]);
+  }, [invoicePage, invoicesSort, searchTerm]);
 
   const loadWorkOrderStatuses = async () => {
     try {
@@ -234,7 +234,8 @@ export default function WorkOrdersPage() {
           orMatch: 'stage.eq.invoice,stage.eq.credit_invoice',
           sort: invoicesSort,
           limit: INVOICES_PER_PAGE,
-          offset: invoiceOffset
+          offset: invoiceOffset,
+          searchTerm: searchTerm.trim()
         })
       ]);
 
