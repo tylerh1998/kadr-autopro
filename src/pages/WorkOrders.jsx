@@ -100,6 +100,7 @@ export default function WorkOrdersPage() {
   const [invoicesSort, setInvoicesSort] = useState("number_desc");
   const [invoicePage, setInvoicePage] = useState(1);
   const [invoiceTotalCount, setInvoiceTotalCount] = useState(0);
+  const [invoicePageData, setInvoicePageData] = useState([]);
 
   const INVOICES_PER_PAGE = 100;
 
@@ -109,6 +110,10 @@ export default function WorkOrdersPage() {
     loadWorkOrderStatuses();
     loadSystemSettings();
   }, [invoicePage, invoicesSort, searchTerm]);
+
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [searchTerm]);
 
   const loadWorkOrderStatuses = async () => {
     try {
@@ -245,6 +250,7 @@ export default function WorkOrdersPage() {
       const invoicePageData = invoicePageResponse?.data?.data || [];
       const mergedWorkOrders = [...generalWorkOrders, ...invoicePageData];
 
+      setInvoicePageData(invoicePageData);
       setInvoiceTotalCount(invoicePageResponse?.data?.totalCount || 0);
       setWorkOrders(mergedWorkOrders);
       
@@ -1351,7 +1357,7 @@ export default function WorkOrdersPage() {
             <TabsContent value="invoices">
               <div className="space-y-4">
                 <WorkOrderList
-                  workOrders={filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice')}
+                  workOrders={invoicePageData}
                   customers={customers}
                   vehicles={vehicles}
                   loading={!initialLoadComplete && loading}
@@ -1362,7 +1368,10 @@ export default function WorkOrdersPage() {
                   currentUser={currentUser}
                   workOrderStatuses={workOrderStatuses}
                   currentSort={invoicesSort}
-                  onSortChange={setInvoicesSort}
+                  onSortChange={(value) => {
+                    setInvoicesSort(value);
+                    setInvoicePage(1);
+                  }}
                 />
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border bg-white px-4 py-3">

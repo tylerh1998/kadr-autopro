@@ -26,6 +26,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { match, orMatch, limit, offset, sort, searchTerm } = body;
 
+    const escapeLikeValue = (value) => value.replace(/[% ,()]/g, (char) => {
+      if (char === ' ') return '%20';
+      return `\\${char}`;
+    });
+
     let countQuery = supabase
       .from('WorkOrder')
       .select('id', { count: 'exact', head: true });
@@ -46,14 +51,15 @@ Deno.serve(async (req) => {
 
     if (searchTerm && typeof searchTerm === 'string' && searchTerm.trim()) {
       const normalizedSearch = searchTerm.trim();
+      const escapedSearch = escapeLikeValue(normalizedSearch);
 
       const { data: matchingCustomers, error: customerSearchError } = await supabase
         .from('Customer')
         .select('id')
         .or([
-          `first_name.ilike.%${normalizedSearch}%`,
-          `last_name.ilike.%${normalizedSearch}%`,
-          `org_name.ilike.%${normalizedSearch}%`
+          `first_name.ilike.%${escapedSearch}%`,
+          `last_name.ilike.%${escapedSearch}%`,
+          `org_name.ilike.%${escapedSearch}%`
         ].join(','));
 
       if (customerSearchError) {
@@ -63,12 +69,12 @@ Deno.serve(async (req) => {
 
       const customerIds = (matchingCustomers || []).map((customer) => customer.id).filter(Boolean);
       const searchClauses = [
-        `ro_number.ilike.%${normalizedSearch}%`,
-        `wo_number.ilike.%${normalizedSearch}%`,
-        `est_number.ilike.%${normalizedSearch}%`,
-        `inv_number.ilike.%${normalizedSearch}%`,
-        `crinv_number.ilike.%${normalizedSearch}%`,
-        `description.ilike.%${normalizedSearch}%`
+        `ro_number.ilike.%${escapedSearch}%`,
+        `wo_number.ilike.%${escapedSearch}%`,
+        `est_number.ilike.%${escapedSearch}%`,
+        `inv_number.ilike.%${escapedSearch}%`,
+        `crinv_number.ilike.%${escapedSearch}%`,
+        `description.ilike.%${escapedSearch}%`
       ];
 
       if (customerIds.length > 0) {
