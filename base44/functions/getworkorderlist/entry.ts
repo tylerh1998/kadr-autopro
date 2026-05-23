@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { match, limit, offset } = body;
+    const { match, orMatch, limit, offset, sort } = body;
 
     let countQuery = supabase
       .from('WorkOrder')
@@ -37,6 +37,47 @@ Deno.serve(async (req) => {
     if (match && typeof match === 'object') {
       query = query.match(match);
       countQuery = countQuery.match(match);
+    }
+
+    if (orMatch && typeof orMatch === 'string') {
+      query = query.or(orMatch);
+      countQuery = countQuery.or(orMatch);
+    }
+
+    if (sort && typeof sort === 'string') {
+      const sortMap = {
+        number_desc: [
+          { column: 'inv_number', ascending: false, nullsFirst: false },
+          { column: 'crinv_number', ascending: false, nullsFirst: false }
+        ],
+        number_asc: [
+          { column: 'inv_number', ascending: true, nullsFirst: false },
+          { column: 'crinv_number', ascending: true, nullsFirst: false }
+        ],
+        customer_az: [
+          { column: 'customer_id', ascending: true, nullsFirst: false }
+        ],
+        customer_za: [
+          { column: 'customer_id', ascending: false, nullsFirst: false }
+        ],
+        date_newest: [
+          { column: 'invoice_date', ascending: false, nullsFirst: false }
+        ],
+        date_oldest: [
+          { column: 'invoice_date', ascending: true, nullsFirst: false }
+        ],
+        amount_highest: [
+          { column: 'total_amount', ascending: false, nullsFirst: false }
+        ],
+        amount_lowest: [
+          { column: 'total_amount', ascending: true, nullsFirst: false }
+        ]
+      };
+
+      const orderConfig = sortMap[sort] || sortMap.number_desc;
+      orderConfig.forEach(({ column, ascending, nullsFirst }) => {
+        query = query.order(column, { ascending, nullsFirst });
+      });
     }
 
     const { count: totalCount, error: countError } = await countQuery;

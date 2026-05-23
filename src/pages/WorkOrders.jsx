@@ -108,7 +108,7 @@ export default function WorkOrdersPage() {
     loadCurrentUser();
     loadWorkOrderStatuses();
     loadSystemSettings();
-  }, [invoicePage]);
+  }, [invoicePage, invoicesSort]);
 
   const loadWorkOrderStatuses = async () => {
     try {
@@ -228,29 +228,23 @@ export default function WorkOrdersPage() {
     try {
       const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
-      const [generalResponse, invoicesResponse] = await Promise.all([
+      const [generalResponse, invoicePageResponse] = await Promise.all([
+        getworkorderlist({}),
         getworkorderlist({
-          match: { stage: 'work_order' }
-        }),
-        getworkorderlist({
-          match: { stage: 'invoice' },
+          orMatch: 'stage.eq.invoice,stage.eq.credit_invoice',
+          sort: invoicesSort,
           limit: INVOICES_PER_PAGE,
           offset: invoiceOffset
         })
       ]);
 
-      const creditInvoicesResponse = await getworkorderlist({
-        match: { stage: 'credit_invoice' },
-        limit: INVOICES_PER_PAGE,
-        offset: invoiceOffset
-      });
+      const generalWorkOrders = (generalResponse?.data?.data || []).filter(
+        wo => wo.stage !== 'invoice' && wo.stage !== 'credit_invoice'
+      );
+      const invoicePageData = invoicePageResponse?.data?.data || [];
+      const mergedWorkOrders = [...generalWorkOrders, ...invoicePageData];
 
-      const generalWorkOrders = generalResponse?.data?.data || [];
-      const invoicesData = invoicesResponse?.data?.data || [];
-      const creditInvoicesData = creditInvoicesResponse?.data?.data || [];
-      const mergedWorkOrders = [...generalWorkOrders, ...invoicesData, ...creditInvoicesData];
-
-      setInvoiceTotalCount((invoicesResponse?.data?.totalCount || 0) + (creditInvoicesResponse?.data?.totalCount || 0));
+      setInvoiceTotalCount(invoicePageResponse?.data?.totalCount || 0);
       setWorkOrders(mergedWorkOrders);
       
       const extractedCustomers = [];
@@ -895,7 +889,10 @@ export default function WorkOrdersPage() {
     switch(activeTab) {
       case "estimates": setEstimatesSort(value); break;
       case "work_in_progress": setWipSort(value); break;
-      case "invoices": setInvoicesSort(value); break;
+      case "invoices":
+        setInvoicesSort(value);
+        setInvoicePage(1);
+        break;
       default: break;
     }
   };
@@ -1353,10 +1350,7 @@ export default function WorkOrdersPage() {
             <TabsContent value="invoices">
               <div className="space-y-4">
                 <WorkOrderList
-                  workOrders={sortWorkOrders(
-                    filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
-                    invoicesSort
-                  )}
+                  workOrders={filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice')}
                   customers={customers}
                   vehicles={vehicles}
                   loading={!initialLoadComplete && loading}
