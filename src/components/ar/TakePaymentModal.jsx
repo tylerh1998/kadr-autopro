@@ -14,6 +14,15 @@ import { format, differenceInDays } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { GLTransaction } from '@/entities/all';
 
+const getCustomerDisplayName = (customer) => {
+  if (!customer) return '';
+  return customer.org_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+};
+
+const getWorkOrderLookupNumber = (workOrder) => {
+  return workOrder?.inv_number || workOrder?.ro_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.crinv_number || '';
+};
+
 export default function TakePaymentModal({ open, onClose, customer, invoices = [], onTakePayment, onPaymentComplete }) {
   const [paymentDate, setPaymentDate] = useState(new Date());
   const [amount, setAmount] = useState('');
@@ -31,12 +40,26 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       if (!customer || !open) return;
 
       try {
-        const [paymentsRes, adjustmentsRes] = await Promise.all([
+        const [paymentsRes, adjustmentsRes, workOrdersRes] = await Promise.all([
           base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { customer_id: customer.id } }),
-          base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'filter', match: { customer_id: customer.id } })
+          base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'filter', match: { customer_id: customer.id } }),
+          base44.functions.invoke('supabaseWorkOrder', { action: 'filter', match: { customer_id: customer.id } })
         ]);
         const allPayments = paymentsRes?.data?.data || [];
         const allAdjustments = adjustmentsRes?.data?.data || [];
+        const allWorkOrders = workOrdersRes?.data?.data || [];
+        const workOrderMap = new Map();
+
+        allWorkOrders.forEach((workOrder) => {
+          if (!workOrder) return;
+          [workOrder.id, workOrder.inv_number, workOrder.ro_number, workOrder.wo_number, workOrder.est_number, workOrder.crinv_number]
+            .filter(Boolean)
+            .forEach((key) => {
+              if (!workOrderMap.has(key)) {
+                workOrderMap.set(key, workOrder);
+              }
+            });
+        });
 
         const charges = [];
 
@@ -46,10 +69,11 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
           .forEach(payment => {
             const balance = (payment.amount || 0) - (payment.ar_paid || 0);
             if (balance > 0.01) {
+              const workOrder = workOrderMap.get(payment.work_order_id) || workOrderMap.get(payment.invoice_number) || null;
               charges.push({
                 id: payment.id,
                 type: 'invoice',
-                reference: payment.invoice_number || '',
+                reference: workOrder?.inv_number || payment.invoice_number || getWorkOrderLookupNumber(workOrder) || '',
                 date: payment.payment_date,
                 amount: payment.amount || 0,
                 ar_paid: payment.ar_paid || 0,
@@ -150,7 +174,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
           account_number: '1100',
-          description: `Credit Card Fee - ${customer.first_name} ${customer.last_name}`,
+          description: `Credit Card Fee - ${getCustomerDisplayName(customer)}`,
           debit_amount: creditCardFeeAmount,
           credit_amount: 0,
           reference: '',
@@ -161,7 +185,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
           account_number: '4009',
-          description: `Credit Card Fee - ${customer.first_name} ${customer.last_name}`,
+          description: `Credit Card Fee - ${getCustomerDisplayName(customer)}`,
           debit_amount: 0,
           credit_amount: creditCardFeeAmount,
           reference: '',
@@ -182,7 +206,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         payment_method: paymentMethod,
         payment_date: format(paymentDate, 'yyyy-MM-dd'),
         reference: reference,
-        notes: `AR Payment for ${customer.first_name} ${customer.last_name}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`,
+        notes: `AR Payment for ${getCustomerDisplayName(customer)}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`,
         ar_pmt: true,
         ar_applyto: '' // Will be updated after applying to charges
       } });
@@ -197,7 +221,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       await GLTransaction.create({
         transaction_date: format(paymentDate, 'yyyy-MM-dd'),
         account_number: '1010',
-        description: `AR Payment - ${customer.first_name} ${customer.last_name}`,
+        description: `AR Payment - ${getCustomerDisplayName(customer)}`,
         debit_amount: totalAmountWithFee,
         credit_amount: 0,
         reference: paymentReference,
@@ -209,7 +233,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       await GLTransaction.create({
         transaction_date: format(paymentDate, 'yyyy-MM-dd'),
         account_number: '1100',
-        description: `AR Payment - ${customer.first_name} ${customer.last_name}`,
+        description: `AR Payment - ${getCustomerDisplayName(customer)}`,
         debit_amount: 0,
         credit_amount: totalAmountWithFee,
         reference: paymentReference,
@@ -279,7 +303,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
           account_number: '1100',
-          description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
+          description: `Overpayment Credit - ${getCustomerDisplayName(customer)}`,
           debit_amount: overpaymentAmount,
           credit_amount: 0,
           reference: '',
@@ -290,7 +314,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
         await GLTransaction.create({
           transaction_date: format(paymentDate, 'yyyy-MM-dd'),
           account_number: '2100',
-          description: `Overpayment Credit - ${customer.first_name} ${customer.last_name}`,
+          description: `Overpayment Credit - ${getCustomerDisplayName(customer)}`,
           debit_amount: 0,
           credit_amount: overpaymentAmount,
           reference: '',
@@ -349,7 +373,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Take Payment for {customer?.first_name} {customer?.last_name}</DialogTitle>
+          <DialogTitle>Take Payment for {getCustomerDisplayName(customer)}</DialogTitle>
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">

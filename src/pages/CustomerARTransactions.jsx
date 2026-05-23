@@ -503,11 +503,7 @@ export default function CustomerARTransactionsPage() {
   // Helper function to format customer name
   const formatCustomerName = (customer) => {
     if (!customer) return '';
-    if (customer.org_name) {
-      const contactName = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
-      return contactName ? `${customer.org_name} (${contactName})` : customer.org_name;
-    }
-    return [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+    return customer.org_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ');
   };
 
   const eligibleTransactions = useMemo(
