@@ -24,7 +24,11 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { match, limit } = body;
+    const { match, limit, offset } = body;
+
+    let countQuery = supabase
+      .from('WorkOrder')
+      .select('id', { count: 'exact', head: true });
 
     let query = supabase
       .from('WorkOrder')
@@ -32,9 +36,19 @@ Deno.serve(async (req) => {
 
     if (match && typeof match === 'object') {
       query = query.match(match);
+      countQuery = countQuery.match(match);
     }
 
-    if (limit && Number.isFinite(Number(limit))) {
+    const { count: totalCount, error: countError } = await countQuery;
+
+    if (countError) {
+      console.error('getworkorderlist count error:', countError);
+      return Response.json({ error: 'Failed to count work orders', details: countError.message }, { status: 500 });
+    }
+
+    if (Number.isFinite(Number(offset)) && Number.isFinite(Number(limit))) {
+      query = query.range(Number(offset), Number(offset) + Number(limit) - 1);
+    } else if (limit && Number.isFinite(Number(limit))) {
       query = query.limit(Number(limit));
     }
 
@@ -101,7 +115,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    return Response.json({ data: enrichedData });
+    return Response.json({ data: enrichedData, totalCount: totalCount || 0 });
   } catch (error) {
     console.error('getworkorderlist error:', error);
     return Response.json({ error: error.message }, { status: 500 });

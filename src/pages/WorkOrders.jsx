@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, Settings } from "lucide-react";
+import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -98,13 +98,17 @@ export default function WorkOrdersPage() {
   const [estimatesSort, setEstimatesSort] = useState("customer_az");
   const [wipSort, setWipSort] = useState("customer_az");
   const [invoicesSort, setInvoicesSort] = useState("number_desc");
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoiceTotalCount, setInvoiceTotalCount] = useState(0);
+
+  const INVOICES_PER_PAGE = 100;
 
   useEffect(() => {
     loadData(true);
     loadCurrentUser();
     loadWorkOrderStatuses();
     loadSystemSettings();
-  }, []);
+  }, [invoicePage]);
 
   const loadWorkOrderStatuses = async () => {
     try {
@@ -222,20 +226,39 @@ export default function WorkOrdersPage() {
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
-      const workOrdersResponse = await getworkorderlist({});
+      const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
-      const workOrdersData = workOrdersResponse?.data?.data || [];
+      const [generalResponse, invoicesResponse] = await Promise.all([
+        getworkorderlist({
+          match: { stage: 'work_order' }
+        }),
+        getworkorderlist({
+          match: { stage: 'invoice' },
+          limit: INVOICES_PER_PAGE,
+          offset: invoiceOffset
+        })
+      ]);
+
+      const creditInvoicesResponse = await getworkorderlist({
+        match: { stage: 'credit_invoice' },
+        limit: INVOICES_PER_PAGE,
+        offset: invoiceOffset
+      });
+
+      const generalWorkOrders = generalResponse?.data?.data || [];
+      const invoicesData = invoicesResponse?.data?.data || [];
+      const creditInvoicesData = creditInvoicesResponse?.data?.data || [];
+      const mergedWorkOrders = [...generalWorkOrders, ...invoicesData, ...creditInvoicesData];
+
+      setInvoiceTotalCount((invoicesResponse?.data?.totalCount || 0) + (creditInvoicesResponse?.data?.totalCount || 0));
+      setWorkOrders(mergedWorkOrders);
       
-      setWorkOrders(workOrdersData);
-      
-      // Extract unique customers and vehicles from the work orders to populate local state
-      // This ensures components like NewWorkOrderModal have at least the active options
       const extractedCustomers = [];
       const extractedVehicles = [];
       const customerIds = new Set();
       const vehicleIds = new Set();
       
-      workOrdersData.forEach(wo => {
+      mergedWorkOrders.forEach(wo => {
         if (wo.Customer && !customerIds.has(wo.Customer.id)) {
           extractedCustomers.push(wo.Customer);
           customerIds.add(wo.Customer.id);
@@ -1328,23 +1351,51 @@ export default function WorkOrdersPage() {
             </TabsContent>
 
             <TabsContent value="invoices">
-              <WorkOrderList
-                workOrders={sortWorkOrders(
-                  filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
-                  invoicesSort
-                )}
-                customers={customers}
-                vehicles={vehicles}
-                loading={!initialLoadComplete && loading}
-                onSelect={handleEdit}
-                onEdit={handleEdit}
-                onStatusUpdate={handleStatusUpdate}
-                onVoid={handleVoidClick}
-                currentUser={currentUser}
-                workOrderStatuses={workOrderStatuses}
-                currentSort={invoicesSort}
-                onSortChange={setInvoicesSort}
-              />
+              <div className="space-y-4">
+                <WorkOrderList
+                  workOrders={sortWorkOrders(
+                    filteredWorkOrders.filter(wo => wo.stage === 'invoice' || wo.stage === 'credit_invoice'),
+                    invoicesSort
+                  )}
+                  customers={customers}
+                  vehicles={vehicles}
+                  loading={!initialLoadComplete && loading}
+                  onSelect={handleEdit}
+                  onEdit={handleEdit}
+                  onStatusUpdate={handleStatusUpdate}
+                  onVoid={handleVoidClick}
+                  currentUser={currentUser}
+                  workOrderStatuses={workOrderStatuses}
+                  currentSort={invoicesSort}
+                  onSortChange={setInvoicesSort}
+                />
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border bg-white px-4 py-3">
+                  <div className="text-sm text-slate-600">
+                    Page {invoicePage} of {Math.max(1, Math.ceil(invoiceTotalCount / INVOICES_PER_PAGE))} · {invoiceTotalCount} invoices
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInvoicePage(prev => Math.max(1, prev - 1))}
+                      disabled={invoicePage === 1 || loading}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInvoicePage(prev => prev + 1)}
+                      disabled={invoicePage >= Math.ceil(invoiceTotalCount / INVOICES_PER_PAGE) || loading || invoiceTotalCount === 0}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="workpro">
