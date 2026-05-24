@@ -4,35 +4,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Send, Copy, AlertCircle, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { createPortalSnapshot } from "@/functions/createPortalSnapshot";
 // Email sent via Resend API through sendEmailViaSMTP function
 
 export default function SESEmailModal({ open, onClose, workOrder, customer, vehicle, lineItems }) {
+  const [sendMode, setSendMode] = useState('email');
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' });
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [creatingSnapshot, setCreatingSnapshot] = useState(false);
   const [portalUrl, setPortalUrl] = useState('');
   const [snapshotError, setSnapshotError] = useState('');
 
+  const stageTitle = workOrder?.stage === 'estimate' ? 'Estimate' :
+                     workOrder?.stage === 'work_order' ? 'Work Order' :
+                     workOrder?.stage === 'invoice' ? 'Invoice' :
+                     workOrder?.stage === 'credit_invoice' ? 'Credit Invoice' :
+                     workOrder?.stage === 'void' ? 'Void' :
+                     'Work Order';
+
+  const referenceNumber = workOrder?.crinv_number || workOrder?.inv_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.ro_number || '';
+
+  const customerDisplayName = customer?.org_name || customer?.first_name || '';
+
   useEffect(() => {
     if (open && workOrder && customer) {
-      const stageTitle = workOrder.stage === 'estimate' ? 'Estimate' :
-                         workOrder.stage === 'invoice' ? 'Invoice' :
-                         'Work Order';
-      const number = workOrder.inv_number || workOrder.wo_number || workOrder.est_number || workOrder.ro_number;
       const total = workOrder.total_amount || 0;
       
-      // Calculate paid amount excluding 'on_account' payments
       let paid = 0;
       try {
         if (workOrder.payments) {
           const paymentsList = JSON.parse(workOrder.payments);
           if (Array.isArray(paymentsList)) {
             paid = paymentsList.reduce((sum, p) => {
-              // Check both payment_method and method fields just in case
               const method = p.payment_method || p.method;
               if (method === 'on_account') {
                 return sum;
@@ -43,7 +51,6 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
         }
       } catch (e) {
         console.error("Error parsing payments for email balance calculation", e);
-        // Fallback to total amount_paid if parsing fails, but warn
         paid = workOrder.amount_paid || 0;
       }
       
@@ -51,16 +58,15 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
       
       setEmailData({
         to: customer.email || '',
-        subject: `${stageTitle} #${number} from Ken's Auto & Diesel Repair`,
-        body: JSON.stringify({ stageTitle, number, customerName: customer.first_name || '', total, paid, balance })
+        subject: `${stageTitle} #${referenceNumber} from Ken's Auto & Diesel Repair`,
+        body: JSON.stringify({ stageTitle, referenceNumber, customerName: customerDisplayName, total, paid, balance })
       });
-      
+      setPhoneNumber(customer.phone_number || customer.phone || customer.cell_phone || '');
       setCustomMessage('');
-
-      // Create portal snapshot when modal opens
+      setSendMode('email');
       createSnapshot();
     }
-  }, [open, workOrder, customer]);
+  }, [open, workOrder, customer, stageTitle, referenceNumber, customerDisplayName]);
 
   const createSnapshot = async () => {
     if (!workOrder?.id) return;
@@ -89,8 +95,25 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
     setLoading(true);
     try {
       const data = JSON.parse(emailData.body);
+
+      if (sendMode === 'text') {
+        const textMessage = `${data.stageTitle}# ${data.referenceNumber} from Ken's Auto.\n\nHello ${data.customerName},\n\n${customMessage || ''}${customMessage ? '\n\n' : ''}Please find your ${data.stageTitle} at https://${portalUrl}\n\nThank you.`;
+
+        const response = await base44.functions.invoke('sendSms', {
+          to: phoneNumber,
+          message: textMessage
+        });
+
+        if (response.data?.success) {
+          alert('Text message sent successfully!');
+          onClose();
+        } else {
+          throw new Error(response.data?.error || 'Failed to send text message');
+        }
+
+        return;
+      }
       
-      // Build formatted HTML email
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <p style="font-size: 16px; margin-bottom: 20px;">Hello ${data.customerName},</p>
@@ -144,8 +167,8 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
         throw new Error(response.data?.error || 'Failed to send email');
       }
     } catch (error) {
-      console.error("Email sending failed:", error);
-      alert(`Failed to send email: ${error.message}`);
+      console.error("Message sending failed:", error);
+      alert(`Failed to send message: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -162,31 +185,52 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Send Work Order</DialogTitle>
+          <div className="flex items-center justify-between gap-4 pr-8">
+            <DialogTitle>Send Work Order</DialogTitle>
+            <ToggleGroup type="single" value={sendMode} onValueChange={(value) => value && setSendMode(value)}>
+              <ToggleGroupItem value="email">Email</ToggleGroupItem>
+              <ToggleGroupItem value="text">Text</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
         </DialogHeader>
         
         <div className="py-4 space-y-6">
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={emailData.to}
-                onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
-                placeholder="customer@example.com"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                value={emailData.subject}
-                onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-                placeholder="Work Order Subject"
-              />
-            </div>
+            {sendMode === 'email' ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={emailData.to}
+                    onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    value={emailData.subject}
+                    onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
+                    placeholder="Work Order Subject"
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone #</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="Phone number"
+                />
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label htmlFor="message">Custom Message (Optional)</Label>
@@ -240,9 +284,9 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={loading || creatingSnapshot || !emailData.to || !emailData.subject || !portalUrl}>
+          <Button onClick={handleSend} disabled={loading || creatingSnapshot || !portalUrl || (sendMode === 'email' ? (!emailData.to || !emailData.subject) : !phoneNumber)}>
             <Send className="w-4 h-4 mr-2" />
-            {loading ? 'Sending...' : 'Send Email'}
+            {loading ? 'Sending...' : 'Send'}
           </Button>
         </DialogFooter>
       </DialogContent>
