@@ -206,7 +206,7 @@ export default function LinesOfCreditPage() {
                 return (tx.charge_amount || 0) - (tx.payment_amount || 0) > 0.005;
             }
             if ((tx.credit_amount || 0) > 0) {
-                return true;
+                return (tx.credit_amount || 0) - (tx.payment_amount || 0) > 0.005;
             }
             return false;
         });
