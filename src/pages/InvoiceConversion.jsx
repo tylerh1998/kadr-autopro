@@ -582,7 +582,7 @@ export default function InvoiceConversion() {
               disabled={!workOrder}
             >
               <Mail className="w-5 h-5" />
-              Send Email
+              Send Invoice
             </Button>
 
             <Button
