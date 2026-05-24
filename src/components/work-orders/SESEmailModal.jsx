@@ -97,7 +97,7 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
       const data = JSON.parse(emailData.body);
 
       if (sendMode === 'text') {
-        const textMessage = `${data.stageTitle}# ${data.referenceNumber} from Ken's Auto.\n\nHello ${data.customerName},\n\n${customMessage || ''}${customMessage ? '\n\n' : ''}Please find your ${data.stageTitle} at https://${portalUrl}\n\nThank you.`;
+        const textMessage = `Ken's Auto ${data.stageTitle}# ${data.referenceNumber}:\n\nHello ${data.customerName},\n\n${customMessage || ''}${customMessage ? '\n\n' : ''}Please find your ${data.stageTitle} at https://${portalUrl}\n\nCall or text us at 7808473002 if you have any questions or concerns.\n\nThank you.`;
 
         const response = await base44.functions.invoke('sendSms', {
           to: phoneNumber,
