@@ -101,7 +101,11 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
 
         const response = await base44.functions.invoke('sendSms', {
           to: phoneNumber,
-          message: textMessage
+          message: textMessage,
+          subject: `${data.stageTitle} #${data.referenceNumber} from Ken's Auto & Diesel Repair`,
+          customer_id: customer?.id || null,
+          work_order_id: workOrder?.id || null,
+          portal_url: portalUrl ? `https://${portalUrl}` : null
         });
 
         if (response.data?.success) {
