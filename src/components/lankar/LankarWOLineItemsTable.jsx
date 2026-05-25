@@ -37,7 +37,8 @@ export default function LankarWOLineItemsTable({ lineItems = [] }) {
             const rowBgClass = isEven ? 'bg-white' : 'bg-slate-50';
             const isBold = String(line.LBold || '').toLowerCase() === 'true' || String(line.LBold || '').toLowerCase() === 'y';
             const boldClass = isBold ? 'font-bold' : '';
-            const taxable = String(line.tx || '').toLowerCase() === 'y' || String(line.tx || '').toLowerCase() === 'true';
+            const txValue = String(line.tx || '').trim().toUpperCase();
+            const taxable = txValue === 'GST';
 
             return (
               <TableRow key={line.id || index} className={`${rowBgClass} hover:bg-slate-100 transition-colors`}>
