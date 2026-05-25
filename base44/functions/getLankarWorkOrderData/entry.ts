@@ -54,35 +54,27 @@ Deno.serve(async (req) => {
 
     let customer = null;
     if (infoResult.data.cusid) {
-      const customerTables = ['Customers', 'Customer'];
-      for (const tableName of customerTables) {
-        const customerResult = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('id', infoResult.data.cusid)
-          .maybeSingle();
+      const customerResult = await supabase
+        .from('Customer')
+        .select('*')
+        .eq('cusid', infoResult.data.cusid)
+        .maybeSingle();
 
-        if (!customerResult.error && customerResult.data) {
-          customer = customerResult.data;
-          break;
-        }
+      if (!customerResult.error) {
+        customer = customerResult.data || null;
       }
     }
 
     let vehicle = null;
     if (infoResult.data.vehid) {
-      const vehicleTables = ['Vehicles', 'Vehicle'];
-      for (const tableName of vehicleTables) {
-        const vehicleResult = await supabase
-          .from(tableName)
-          .select('*')
-          .eq('id', infoResult.data.vehid)
-          .maybeSingle();
+      const vehicleResult = await supabase
+        .from('Vehicle')
+        .select('*')
+        .eq('vehid', infoResult.data.vehid)
+        .maybeSingle();
 
-        if (!vehicleResult.error && vehicleResult.data) {
-          vehicle = vehicleResult.data;
-          break;
-        }
+      if (!vehicleResult.error) {
+        vehicle = vehicleResult.data || null;
       }
     }
 

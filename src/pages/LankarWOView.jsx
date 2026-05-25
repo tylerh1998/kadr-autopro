@@ -1,9 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LankarWOViewForm from '@/components/lankar/LankarWOViewForm';
 import { getLankarWorkOrderData } from '@/functions/getLankarWorkOrderData';
+
+const getStageMeta = (stage) => {
+  const normalized = String(stage || '').toUpperCase();
+
+  if (normalized === 'UINVOICE' || normalized === 'UPINVOICE') {
+    return {
+      label: 'Invoice',
+      badgeClass: 'bg-green-600',
+      documentNumber: 'invoiceid'
+    };
+  }
+
+  if (normalized === 'UWO' || normalized === 'UPWO') {
+    return {
+      label: 'Work Order',
+      badgeClass: 'bg-blue-600',
+      documentNumber: 'woid'
+    };
+  }
+
+  return {
+    label: stage || 'Document',
+    badgeClass: 'bg-slate-700',
+    documentNumber: 'woid'
+  };
+};
 
 export default function LankarWOView() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -13,6 +39,11 @@ export default function LankarWOView() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const stageMeta = useMemo(
+    () => getStageMeta(data?.info?.WOorPWOorEorINVorCRED),
+    [data?.info?.WOorPWOorEorINVorCRED]
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -64,11 +95,11 @@ export default function LankarWOView() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[200px]">
-            <div className="bg-slate-700 px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider">
-              {data.info?.WOorPWOorEorINVorCRED || 'Document'}
+            <div className={`${stageMeta.badgeClass} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
+              {stageMeta.label}
             </div>
             <div className="px-4 py-2">
-              <h1 className="text-xl font-bold text-slate-900">{data.info?.woid}</h1>
+              <h1 className="text-xl font-bold text-slate-900">{data.info?.[stageMeta.documentNumber] || data.info?.woid}</h1>
               <p className="text-slate-500 text-xs">Lankar View</p>
             </div>
           </div>

@@ -602,7 +602,8 @@ const navigationItems = [
     'InventoryValuation',
     'PLReport',
     'ChartOfAccounts',
-    'BalanceSheet'
+    'BalanceSheet',
+    'LankarWOView'
   ];
 
   if (pagesWithoutNavbar.includes(currentPageName)) {

@@ -3,6 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { User, Car, Calendar, Phone, Mail, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
+const getStageLabel = (stage) => {
+  const normalized = String(stage || '').toUpperCase();
+  if (normalized === 'UINVOICE' || normalized === 'UPINVOICE') return 'Invoice';
+  if (normalized === 'UWO' || normalized === 'UPWO') return 'Work Order';
+  return stage || 'N/A';
+};
+
 const parseLocalDate = (dateStr) => {
   if (!dateStr) return null;
   const normalized = String(dateStr).trim();
@@ -86,8 +93,9 @@ export default function LankarWOHeaderInfo({ info, customer, vehicle }) {
               Document Details
             </h3>
             <div className="space-y-2 text-sm">
-              {info?.WOorPWOorEorINVorCRED && <p className="text-slate-600"><span className="font-medium">Type:</span> {info.WOorPWOorEorINVorCRED}</p>}
+              {info?.WOorPWOorEorINVorCRED && <p className="text-slate-600"><span className="font-medium">Type:</span> {getStageLabel(info.WOorPWOorEorINVorCRED)}</p>}
               {info?.woid && <p className="text-slate-600"><span className="font-medium">Work Order #:</span> {info.woid}</p>}
+              {info?.invoiceid && <p className="text-slate-600"><span className="font-medium">Invoice #:</span> {info.invoiceid}</p>}
               {info?.wodate && <p className="text-slate-600"><span className="font-medium">Work Order Date:</span> {formatDate(info.wodate)}</p>}
               {info?.invoicedate && <p className="text-slate-600"><span className="font-medium">Invoice Date:</span> {formatDate(info.invoicedate)}</p>}
               {info?.ponum && <p className="text-slate-600"><span className="font-medium">PO #:</span> {info.ponum}</p>}
