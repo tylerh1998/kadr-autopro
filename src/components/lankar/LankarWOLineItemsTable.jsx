@@ -15,24 +15,14 @@ const toNumber = (value) => {
 };
 
 export default function LankarWOLineItemsTable({ lineItems = [] }) {
+  const sortedLineItems = [...lineItems].sort((a, b) => toNumber(a.linenum) - toNumber(b.linenum));
+
   return (
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <Table>
-        <TableHeader>
-          <TableRow className="bg-slate-100">
-            <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
-            <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
-            <TableHead className="min-w-0 text-left text-xs font-semibold p-2">Description</TableHead>
-            <TableHead className="w-28 text-center text-xs font-semibold p-2">Parts<br />Ea.</TableHead>
-            <TableHead className="w-24 text-right text-xs font-semibold p-2">Tot.<br />Parts</TableHead>
-            <TableHead className="w-24 text-right text-xs font-semibold p-2">Labour</TableHead>
-            <TableHead className="w-24 text-right text-xs font-semibold p-2">Other</TableHead>
-            <TableHead className="w-12 text-center text-xs font-semibold p-2">Tx</TableHead>
-            <TableHead className="w-24 text-right text-xs font-semibold p-2">Total</TableHead>
-          </TableRow>
-        </TableHeader>
+...
         <TableBody>
-          {lineItems.map((line, index) => {
+          {sortedLineItems.map((line, index) => {
             const isEven = index % 2 === 0;
             const rowBgClass = isEven ? 'bg-white' : 'bg-slate-50';
             const isBold = String(line.LBold || '').toLowerCase() === 'true' || String(line.LBold || '').toLowerCase() === 'y';
