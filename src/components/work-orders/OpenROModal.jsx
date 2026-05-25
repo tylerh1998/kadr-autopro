@@ -30,6 +30,16 @@ export default function OpenROModal({ open, onClose }) {
     
     try {
       const cleanNumber = searchNumber.trim();
+      const parsedNumber = Number(cleanNumber);
+      const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
+
+      if (activeTab === "work_order" && Number.isFinite(parsedNumber) && parsedNumber < 50000) {
+        window.open(`/LankarWOView?woid=${cleanNumber}`, '_blank', windowFeatures);
+        onClose();
+        setSearchNumber("");
+        return;
+      }
+
       let searchAttempts = [];
 
       // Determine search attempts based on tab
@@ -102,7 +112,6 @@ export default function OpenROModal({ open, onClose }) {
 
       // Open in new window using RO number for consistency
       const url = `/WorkOrderEdit?id=${workOrder.ro_number}`;
-      const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
       window.open(url, '_blank', windowFeatures);
       
       // Close modal and clear search
