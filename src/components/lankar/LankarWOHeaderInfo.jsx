@@ -13,9 +13,18 @@ const getStageLabel = (stage) => {
 const parseLocalDate = (dateStr) => {
   if (!dateStr) return null;
   const normalized = String(dateStr).trim();
-  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return null;
-  const [, year, month, day] = match;
+
+  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const slashMatch = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!slashMatch) return null;
+
+  const [, month, day, year] = slashMatch;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
   return Number.isNaN(date.getTime()) ? null : date;
 };
