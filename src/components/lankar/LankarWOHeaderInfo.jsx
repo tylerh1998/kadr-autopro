@@ -44,16 +44,16 @@ export default function LankarWOHeaderInfo({ info, customer, vehicle }) {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="grid lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
+        <div className="grid xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4 min-w-0">
                 <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                   <User className="w-5 h-5" />
                   Customer Information
                 </h3>
-                <div className="space-y-2 text-sm">
-                  <p className="font-medium text-slate-900">{getCustomerDisplayName(customer)}</p>
+                <div className="space-y-2 text-sm min-w-0 break-words">
+                  <p className="font-medium text-slate-900 break-words">{getCustomerDisplayName(customer)}</p>
                   {customer?.phone && (
                     <p className="flex items-center gap-2 text-slate-600"><Phone className="w-4 h-4" />{customer.phone}</p>
                   )}
@@ -66,12 +66,12 @@ export default function LankarWOHeaderInfo({ info, customer, vehicle }) {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0">
                 <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                   <Car className="w-5 h-5" />
                   Vehicle Information
                 </h3>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm min-w-0 break-words">
                   <p className="font-medium text-slate-900">{vehicle ? `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle Found' : 'No Vehicle Found'}</p>
                   {vehicle?.vin && <p className="text-slate-600"><span className="font-medium">VIN:</span> {vehicle.vin}</p>}
                   {vehicle?.license_plate && <p className="text-slate-600"><span className="font-medium">License:</span> {vehicle.license_plate}</p>}
