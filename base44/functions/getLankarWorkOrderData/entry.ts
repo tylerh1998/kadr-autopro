@@ -52,6 +52,38 @@ Deno.serve(async (req) => {
       return Response.json({ error: linesResult.error.message }, { status: 500 });
     }
 
+    const lines = linesResult.data || [];
+    const inventoryIds = [...new Set(
+      lines
+        .map((line) => {
+          const parsedId = Number(line.invinvid);
+          return Number.isFinite(parsedId) ? parsedId : null;
+        })
+        .filter((value) => value !== null)
+    )];
+
+    let inventoryPartMap = {};
+    if (inventoryIds.length > 0) {
+      const inventoryResult = await supabase
+        .from('LankarWOInventory')
+        .select('invid, partnum')
+        .in('invid', inventoryIds);
+
+      if (inventoryResult.error) {
+        return Response.json({ error: inventoryResult.error.message }, { status: 500 });
+      }
+
+      inventoryPartMap = (inventoryResult.data || []).reduce((acc, item) => {
+        acc[String(item.invid)] = item.partnum || null;
+        return acc;
+      }, {});
+    }
+
+    const enrichedLines = lines.map((line) => ({
+      ...line,
+      partnum: inventoryPartMap[String(Number(line.invinvid))] || null
+    }));
+
     let customer = null;
     if (infoResult.data.cusid) {
       const customerResult = await supabase
@@ -82,7 +114,7 @@ Deno.serve(async (req) => {
       success: true,
       data: {
         info: infoResult.data,
-        lines: linesResult.data || [],
+        lines: enrichedLines,
         customer,
         vehicle
       }
