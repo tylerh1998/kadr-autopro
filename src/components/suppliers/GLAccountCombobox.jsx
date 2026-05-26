@@ -1,0 +1,85 @@
+import React, { useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Check, Search } from 'lucide-react';
+
+const sortAccounts = (accounts) => [...accounts].sort((a, b) => String(a.account_number).localeCompare(String(b.account_number), undefined, { numeric: true, sensitivity: 'base' }));
+
+export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '' }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const availableAccounts = useMemo(() => {
+    return sortAccounts(
+      (chartOfAccounts || []).filter((account) => !account.controlled || String(account.account_number) === String(currentValue))
+    );
+  }, [chartOfAccounts, currentValue]);
+
+  const filteredAccounts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return availableAccounts;
+    return availableAccounts.filter((account) => {
+      const number = String(account.account_number || '').toLowerCase();
+      const name = String(account.account_name || '').toLowerCase();
+      return number.includes(query) || name.includes(query);
+    });
+  }, [availableAccounts, search]);
+
+  const selectedAccount = availableAccounts.find((account) => String(account.account_number) === String(currentValue));
+  const selectedLabel = selectedAccount ? `${selectedAccount.account_number} - ${selectedAccount.account_name}` : placeholder;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className={`w-full justify-between font-normal ${className}`}
+        >
+          <span className="truncate">{selectedLabel}</span>
+          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[360px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <div className="p-2 bg-white">
+          <Input
+            placeholder="Search by account # or name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="mb-2"
+            autoFocus
+          />
+          <div className="max-h-[260px] overflow-y-auto space-y-1">
+            {filteredAccounts.length === 0 ? (
+              <div className="py-6 text-center text-sm text-slate-500">No accounts found.</div>
+            ) : (
+              filteredAccounts.map((account) => {
+                const isSelected = String(currentValue) === String(account.account_number);
+                return (
+                  <div
+                    key={account.id || account.account_number}
+                    onClick={() => {
+                      onChange(String(account.account_number));
+                      setOpen(false);
+                      setSearch('');
+                    }}
+                    className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-medium text-slate-900">{account.account_number}</span>
+                      <span className="text-xs text-slate-500 truncate">{account.account_name}</span>
+                    </div>
+                    {isSelected && <Check className="h-4 w-4 text-green-600 shrink-0" />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

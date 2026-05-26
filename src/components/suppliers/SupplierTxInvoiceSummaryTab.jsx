@@ -1,18 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronDown, ChevronRight, Trash2, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import GLAccountCombobox from './GLAccountCombobox';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Check } from 'lucide-react';
 
 const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
-const getSortedAccounts = (chartOfAccounts, currentGlAccount) => [...chartOfAccounts]
-  .filter((account) => !account.controlled || String(account.account_number) === String(currentGlAccount))
-  .sort((a, b) => Number(a.account_number) - Number(b.account_number));
 const getLineCharge = (line) => parseFloat(line.charge ?? line.purchase_amount ?? 0) || 0;
 const getLineGst = (line) => parseFloat(line.gst ?? line.gst_amount ?? 0) || 0;
 const getLineTotal = (line) => {
@@ -179,23 +176,15 @@ export default function SupplierTxInvoiceSummaryTab({
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  <Select
-                                    value={line.gl_account ? String(line.gl_account) : undefined}
-                                    onValueChange={(value) => handleGlAccountChange(line, value)}
-                                    disabled={isReadOnly || hasInventoryItem || locked}
-                                  >
-                                    <SelectTrigger className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}>
-                                      <SelectValue placeholder="Select GL" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {getSortedAccounts(chartOfAccounts, line.gl_account).map((account) => (
-                                        <SelectItem key={account.id || account.account_number} value={String(account.account_number)}>
-                                          {account.account_number} - {account.account_name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
+                                   <GLAccountCombobox
+                                     chartOfAccounts={chartOfAccounts}
+                                     currentValue={line.gl_account ? String(line.gl_account) : ''}
+                                     onChange={(value) => handleGlAccountChange(line, value)}
+                                     disabled={isReadOnly || hasInventoryItem || locked}
+                                     placeholder="Select GL"
+                                     className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}
+                                   />
+                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Input
                                     value={line.charge ?? ''}

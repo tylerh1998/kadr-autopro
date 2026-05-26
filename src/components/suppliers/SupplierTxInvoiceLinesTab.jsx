@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import GLAccountCombobox from './GLAccountCombobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -115,22 +115,16 @@ export default function SupplierTxInvoiceLinesTab({
                         })() : ''}
                       </div>
                       <div className="gl-select-trigger">
-                        <Select value={line.gl_account ? String(line.gl_account) : undefined} onValueChange={(value) => { if (isLockedByOtherUser || !lockAcquired) return; handleGlAccountChange(line, value); }} disabled={isLockedByOtherUser || !lockAcquired}>
-                          <SelectTrigger className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}>
-                            <SelectValue placeholder="Select GL Account *">
-                              {line.gl_account ? (() => {
-                                const account = chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account));
-                                const fullText = account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
-                                return fullText.length > 25 ? fullText.substring(0, 25) + '...' : fullText;
-                              })() : 'Select GL Account *'}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {chartOfAccounts.filter(account => !account.controlled || String(account.account_number) === String(line.gl_account)).map(account => (
-                              <SelectItem key={account.id} value={String(account.account_number)}>{account.account_number} - {account.account_name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <GLAccountCombobox
+                          chartOfAccounts={chartOfAccounts}
+                          currentValue={line.gl_account ? String(line.gl_account) : ''}
+                          onChange={(value) => {
+                            if (isLockedByOtherUser || !lockAcquired) return;
+                            handleGlAccountChange(line, value);
+                          }}
+                          disabled={isLockedByOtherUser || !lockAcquired}
+                          className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}
+                        />
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
