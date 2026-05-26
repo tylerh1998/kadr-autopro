@@ -96,58 +96,18 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
 
   // Calculate Status Bar Metrics
   const calculateMetrics = () => {
-    // 1. Remaining Overhead (Dynamic Calculation)
-    let remainingOverhead = 0;
-    
-    // Helper to parse values
+    // 1. Remaining Overhead (matches summary sidebar)
     const val = (v) => {
         if (!v) return 0;
         return parseFloat(v.toString().replace(/[^0-9.-]+/g,"")) || 0;
     };
 
-    if (summaryData) {
-        // Group overhead rows by dateOption
-        const groupedOverhead = overheadRows.reduce((acc, row) => {
-            const date = row.dateOption || 'Unassigned';
-            const amount = val(row.amount);
-            if (amount > 0) {
-                if (!acc[date]) acc[date] = 0;
-                acc[date] += amount;
-            }
-            return acc;
-        }, {});
-
-        const today = moment();
-        const day = today.date();
-        
-        // Calculate First Business Day
-        const firstOfMonth = today.clone().startOf('month');
-        let firstBusinessDay = 1;
-        // 0 = Sun, 6 = Sat
-        while (firstOfMonth.day() === 0 || firstOfMonth.day() === 6) {
-            firstOfMonth.add(1, 'days');
-            firstBusinessDay = firstOfMonth.date();
-        }
-
-        // Bracket Definitions
-        const inBracketA = day >= 25 || day <= firstBusinessDay;
-        const inBracketB = day >= 1 && day <= 8;
-        const inBracketC = day >= 8 && day <= 15;
-
-        if (inBracketA) {
-            remainingOverhead += (groupedOverhead["Month Start"] || 0);
-            remainingOverhead += (groupedOverhead["Month End"] || 0);
-            remainingOverhead += val(summaryData.estFirstPayroll);
-        }
-        if (inBracketB) {
-            remainingOverhead += (groupedOverhead["8th"] || 0);
-        }
-        if (inBracketC) {
-            remainingOverhead += (groupedOverhead["12th to 15th"] || 0);
-            remainingOverhead += val(summaryData.estSecondPayroll);
-            remainingOverhead += val(summaryData.estPayrollRemit);
-        }
-    }
+    const remainingOverhead = (overheadRows || []).reduce((sum, row) => {
+      if (row?.included === true) {
+        return sum + val(row.amount);
+      }
+      return sum;
+    }, 0);
 
     // 2. Revenue (Bank Credits) - from backend
     const totalRevenue = bankStats.credits || 0;
