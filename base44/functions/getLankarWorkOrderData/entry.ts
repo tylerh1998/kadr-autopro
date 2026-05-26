@@ -56,7 +56,9 @@ Deno.serve(async (req) => {
     const inventoryIds = [...new Set(
       lines
         .map((line) => {
-          const parsedId = Number(line.invinvid);
+          const trimmedId = String(line.invinvid ?? '').trim();
+          if (!trimmedId) return null;
+          const parsedId = Number(trimmedId);
           return Number.isFinite(parsedId) ? parsedId : null;
         })
         .filter((value) => value !== null)
@@ -74,15 +76,18 @@ Deno.serve(async (req) => {
       }
 
       inventoryPartMap = (inventoryResult.data || []).reduce((acc, item) => {
-        acc[String(item.invid)] = item.partnum || null;
+        acc[String(item.invid ?? '').trim()] = item.partnum || null;
         return acc;
       }, {});
     }
 
-    const enrichedLines = lines.map((line) => ({
-      ...line,
-      partnum: inventoryPartMap[String(Number(line.invinvid))] || null
-    }));
+    const enrichedLines = lines.map((line) => {
+      const inventoryKey = String(line.invinvid ?? '').trim();
+      return {
+        ...line,
+        partnum: inventoryPartMap[inventoryKey] || null
+      };
+    });
 
     let customer = null;
     if (infoResult.data.cusid) {

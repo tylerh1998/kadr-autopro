@@ -37,9 +37,15 @@ export default function LankarWOLineItemsTable({ lineItems = [] }) {
                 <TableCell className="min-w-0 flex-1 pr-2 p-2 align-top">
                   <div className="space-y-1">
                     <p className={`text-sm ${boldClass}`}>{line.description || '-'}</p>
-                    <p className="text-xs text-slate-500"><span className="font-medium text-slate-600">Part #:</span> {line.partnum || '-'}</p>
-                    <p className="text-xs text-slate-500"><span className="font-medium text-slate-600">Cores:</span> {line.c || '-'}</p>
-                    <p className="text-xs text-slate-500 font-mono"><span className="font-medium text-slate-600 not-italic font-sans">Serial #:</span> {line.partserial || '-'}</p>
+                    {line.partnum && (
+                      <p className="text-xs text-slate-500"><span className="font-medium text-slate-600">Part #:</span> {line.partnum}</p>
+                    )}
+                    {line.c !== null && line.c !== undefined && String(line.c).trim() !== '' && Number(line.c) !== 0 && (
+                      <p className="text-xs text-slate-500"><span className="font-medium text-slate-600">Cores:</span> {line.c}</p>
+                    )}
+                    {line.partserial && (
+                      <p className="text-xs text-slate-500 font-mono"><span className="font-medium text-slate-600 not-italic font-sans">Serial #:</span> {line.partserial}</p>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className={`w-28 p-2 align-top text-right ${boldClass}`}>${toNumber(line.partsea).toFixed(2)}</TableCell>
