@@ -139,6 +139,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [chequeNumberInput, setChequeNumberInput] = useState('');
   const [nextChequeNumber, setNextChequeNumber] = useState(1);
   const [processingCheque, setProcessingCheque] = useState(false);
+  const [addChequeToCashFlow, setAddChequeToCashFlow] = useState(true);
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -278,6 +279,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setChequeNumberInput('');
     setShowChequeNumberPrompt(false);
     setProcessingCheque(false);
+    setAddChequeToCashFlow(true);
     setShowPaymentDetailsDialog(false);
     setShowAddToSheetModal(false);
     setDateRange({ from: undefined, to: undefined });
@@ -501,8 +503,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       await processPaymentLogic(chequeNumberInput);
     } catch (error) {
       setProcessingCheque(false);
-      // Error already handled in processPaymentLogic
     }
+  };
+
+  const handleChequeNumberCancel = () => {
+    setShowChequeNumberPrompt(false);
+    setShowPaymentDetailsDialog(true);
+    setLoading(false);
+    setActionLocked(true);
   };
 
   const processPaymentLogic = async (chequeNumber = null) => {
@@ -555,6 +563,21 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       
       if (result.success) {
         const paymentId = result.payment_id;
+
+        if (chequeNumber && addChequeToCashFlow) {
+          const existingRows = await base44.entities.CashFlowEntry.list('-sort_order', 1);
+          const nextSortOrder = (existingRows?.[0]?.sort_order || 0) + 1;
+          await base44.entities.CashFlowEntry.create({
+            supplier_id: supplier.id,
+            supplier: supplier.name,
+            amount: paymentAmount,
+            amount_paid: paymentAmount,
+            date_paid: paymentData.payment_date,
+            chq_number: chequeNumber,
+            method: 'Cheque',
+            sort_order: nextSortOrder
+          });
+        }
         
         // Start polling for status
         const pollInterval = setInterval(async () => {
@@ -1037,8 +1060,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                 disabled={loading}
               />
             </div>
+            <div className="flex items-center space-x-2 rounded-md border p-3">
+              <Checkbox
+                id="add-cheque-to-cashflow"
+                checked={addChequeToCashFlow}
+                onCheckedChange={(checked) => setAddChequeToCashFlow(checked === true)}
+                disabled={loading}
+              />
+              <Label htmlFor="add-cheque-to-cashflow" className="cursor-pointer">Add to Cash Flow Sheet</Label>
+            </div>
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowChequeNumberPrompt(false)} disabled={loading}>
+              <Button variant="outline" onClick={handleChequeNumberCancel} disabled={loading}>
                 Cancel
               </Button>
               <Button onClick={handleChequeNumberConfirm} disabled={loading}>
