@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ArrowUpDown } from 'lucide-react';
 
@@ -39,13 +40,20 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
     }
   };
 
+  const handleToggleIncluded = (index) => {
+    const newRows = [...rows];
+    newRows[index] = { ...newRows[index], included: !(newRows[index]?.included === true) };
+    onRowChange(newRows);
+  };
+
   return (
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-100 border-b">
             <tr>
-              <th className="p-2 w-10 text-center text-slate-500 font-medium">#</th>
+              <th className="p-2 w-12 text-center text-slate-500 font-medium">#</th>
+              <th className="p-2 w-12 text-center text-slate-500 font-medium">Use</th>
               {headers.map(header => (
                 <th 
                   key={header.id} 
@@ -67,8 +75,23 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
           <tbody>
             {rows.map((row, index) => (
               <tr key={index} className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
-                <td className="p-2 text-center text-xs text-slate-400 select-none">
-                  {index + 1}
+                <td className="p-1 text-center text-xs select-none">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleIncluded(index)}
+                    className={cn(
+                      "w-full h-8 rounded-md font-semibold transition-colors",
+                      row?.included === true ? "bg-blue-600 text-white" : "bg-white text-slate-500 border border-slate-200"
+                    )}
+                  >
+                    {index + 1}
+                  </button>
+                </td>
+                <td className="p-2 text-center">
+                  <Checkbox
+                    checked={row?.included === true}
+                    onCheckedChange={() => handleToggleIncluded(index)}
+                  />
                 </td>
 
                 {/* Description */}

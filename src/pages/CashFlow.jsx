@@ -39,7 +39,8 @@ export default function CashFlow() {
     description: '',
     amount: '',
     dateOption: '',
-    method: ''
+    method: '',
+    included: false
   }));
 
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
@@ -121,7 +122,7 @@ export default function CashFlow() {
               current_bank_balance: 0,
               fiscal_cushion: 1000,
               pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
-              overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }))
+              overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false }))
           });
       }
       setSummaryId(summary.id);
@@ -144,12 +145,12 @@ export default function CashFlow() {
 
       let overheadItems = [];
       try {
-          overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '' });
+          overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false });
           // Format amounts in overheadItems
-          overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount) }));
-      } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '' }); }
+          overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount), included: item?.included === true }));
+      } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false }); }
 
-      while (overheadItems.length < 35) overheadItems.push({ description: '', amount: '', dateOption: '', method: '' });
+      while (overheadItems.length < 35) overheadItems.push({ description: '', amount: '', dateOption: '', method: '', included: false });
 
       setSummaryData({
           bankBalance: formatCurrency(summary.current_bank_balance),
@@ -314,7 +315,8 @@ export default function CashFlow() {
         }))),
         overhead_items: JSON.stringify(overhead.map(item => ({
             ...item,
-            amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : ''
+            amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : '',
+            included: item?.included === true
         }))),
         
         last_updated: header.lastUpdated ? moment(header.lastUpdated, ["MMM D, YYYY", "MMM D"]).toISOString() : null,

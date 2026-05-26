@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import moment from 'moment';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import DepositHistoryModal from '@/components/cash-drawer/DepositHistoryModal';
 
 export default function CashFlowTotals({ rows, overheadRows, summaryData, onSummaryChange }) {
-  const [isPadDialogOpen, setIsPadDialogOpen] = useState(false);
   const [isDepositHistoryOpen, setIsDepositHistoryOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
+
   const formatCurrencyInput = (value) => {
     if (!value) return '';
     const numericVal = parseFloat(value.toString().replace(/[^0-9.]/g, ''));
@@ -27,53 +25,25 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
   const handleBlur = (field, value) => {
     const formatted = formatCurrencyInput(value);
     if (formatted !== value) {
-        handleChange(field, formatted);
+      handleChange(field, formatted);
     }
   };
 
-  const handlePadDetailChange = (index, field, value) => {
-    const newDetails = [...(summaryData.padRegistriesDetails || Array(10).fill({ name: '', amount: '' }))];
-    newDetails[index] = { ...newDetails[index], [field]: value };
-    
-    // Calculate new total
-    const total = newDetails.reduce((sum, item) => sum + val(item.amount), 0);
-    
-    onSummaryChange({ 
-        ...summaryData, 
-        padRegistriesDetails: newDetails,
-        padRegistries: total // Update the total directly
-    });
-  };
-
-  const handlePadDetailBlur = (index, value) => {
-      const formatted = formatCurrencyInput(value);
-      if (formatted !== value) {
-          handlePadDetailChange(index, 'amount', formatted);
-      }
-  };
-
-  // Helper to parse float safe from potential currency string
   const val = (v) => {
     if (typeof v === 'string') {
-        return parseFloat(v.replace(/[^0-9.]/g, '')) || 0;
+      return parseFloat(v.replace(/[^0-9.]/g, '')) || 0;
     }
     return parseFloat(v) || 0;
   };
 
-  // 1. Outstanding Cheques Calculation
-  // "total of all amount paid with method cheque"
   const outstandingCheques = rows.reduce((sum, row) => {
     const method = (row.method || '').toLowerCase();
-    const isCheque = method === 'cheque';
-    
-    if (isCheque) {
-      const amount = val(row.amountPaid);
-      return sum + amount;
+    if (method === 'cheque') {
+      return sum + val(row.amountPaid);
     }
     return sum;
   }, 0);
 
-  // 2. Current Cash Position Calculation
   const currentBankBalance = val(summaryData.bankBalance);
   const padRegistries = val(summaryData.padRegistries);
   const upcomingPayroll = val(summaryData.upcomingPayroll);
@@ -85,33 +55,21 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
   const liabilities = outstandingCheques + padRegistries + upcomingPayroll + payrollRemit + gstRemit + fiscalCushion;
   const currentCashPosition = currentBankBalance + expectedDeposits - liabilities;
 
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(val);
-  };
+  const formatCurrency = (amount) => new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
 
   const renderEditableRow = (label, field) => (
     <div className="flex justify-between items-center gap-2">
       <span className="text-sm font-medium text-slate-500">{label}</span>
       <div className="w-32">
-        <Input 
-          type="text" 
-          value={summaryData[field]} 
+        <Input
+          type="text"
+          value={summaryData[field]}
           onChange={(e) => handleChange(field, e.target.value)}
           onBlur={(e) => handleBlur(field, e.target.value)}
           className="h-8 text-right font-mono"
           placeholder="$0.00"
         />
       </div>
-    </div>
-  );
-
-  const renderClickableRow = (label, amount, onClick) => (
-    <div 
-        className="flex justify-between items-center cursor-pointer hover:bg-slate-50 p-1 -mx-1 rounded transition-colors"
-        onClick={onClick}
-    >
-      <span className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4">{label}</span>
-      <span className="font-bold font-mono text-slate-900">{formatCurrency(amount)}</span>
     </div>
   );
 
@@ -135,51 +93,35 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-4 space-y-3">
-            
-            {/* Current Bank Balance */}
             {renderEditableRow("Current Bank Balance", "bankBalance")}
-
-            {/* Outstanding Cheques (Calculated) */}
             {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
-
-            {/* PAD & Registries (Clickable) */}
-            {renderClickableRow("PAD & Registries", padRegistries, () => setIsPadDialogOpen(true))}
-
-            {/* Upcoming Payroll */}
+            {renderEditableRow("PAD & Registries", "padRegistries")}
             {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
-
-            {/* Upcoming Payroll Remit */}
             {renderEditableRow("Upcoming Payroll Remit", "payrollRemit")}
-
-            {/* Upcoming GST Remit */}
             {renderEditableRow("Upcoming GST Remit", "gstRemit")}
-
-            {/* Fiscal Cushion */}
             {renderEditableRow("Fiscal Cushion", "fiscalCushion")}
 
-            {/* Expected Deposits */}
             <div className="flex justify-between items-center gap-2">
-                <span 
-                    className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
-                    onClick={() => setIsDepositHistoryOpen(true)}
-                >
-                    Expected Deposits
-                </span>
-                <div className="w-32">
-                    <Input 
-                        type="text" 
-                        value={summaryData.expectedDeposits} 
-                        onChange={(e) => handleChange("expectedDeposits", e.target.value)}
-                        onBlur={(e) => handleBlur("expectedDeposits", e.target.value)}
-                        className="h-8 text-right font-mono"
-                        placeholder="$0.00"
-                    />
-                </div>
+              <span
+                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                onClick={() => setIsDepositHistoryOpen(true)}
+              >
+                Expected Deposits
+              </span>
+              <div className="w-32">
+                <Input
+                  type="text"
+                  value={summaryData.expectedDeposits}
+                  onChange={(e) => handleChange("expectedDeposits", e.target.value)}
+                  onBlur={(e) => handleBlur("expectedDeposits", e.target.value)}
+                  className="h-8 text-right font-mono"
+                  placeholder="$0.00"
+                />
+              </div>
             </div>
 
             <Separator className="my-2" />
 
-            {/* Current Cash Position */}
             <div className="flex justify-between items-center pt-2">
               <span className="text-base font-bold text-slate-700">Current Cash Position</span>
               <span className={`text-xl font-bold font-mono ${currentCashPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -191,11 +133,11 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
       </Collapsible>
 
       <RemainingPaymentsSection rows={rows} val={val} formatCurrency={formatCurrency} />
-      <MonthlyEstimatesSection 
-        overheadRows={overheadRows || []} 
-        summaryData={summaryData} 
+      <MonthlyEstimatesSection
+        overheadRows={overheadRows || []}
+        summaryData={summaryData}
         onSummaryChange={onSummaryChange}
-        val={val} 
+        val={val}
         formatCurrency={formatCurrency}
         renderEditableRow={renderEditableRow}
       />
@@ -205,58 +147,10 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
         renderEditableRow={renderEditableRow}
       />
 
-      <Dialog open={isPadDialogOpen} onOpenChange={setIsPadDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>PAD & Registries Details</DialogTitle>
-            </DialogHeader>
-            <div className="py-2">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr>
-                            <th className="text-left font-medium text-slate-500 pb-2">Name</th>
-                            <th className="text-right font-medium text-slate-500 pb-2">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {(summaryData.padRegistriesDetails || Array(10).fill({ name: '', amount: '' })).map((item, index) => (
-                            <tr key={index}>
-                                <td className="py-1 pr-2">
-                                    <Input 
-                                        value={item.name} 
-                                        onChange={(e) => handlePadDetailChange(index, 'name', e.target.value)}
-                                        className="h-8"
-                                        placeholder={`Item ${index + 1}`}
-                                    />
-                                </td>
-                                <td className="py-1">
-                                    <Input 
-                                        value={item.amount} 
-                                        onChange={(e) => handlePadDetailChange(index, 'amount', e.target.value)}
-                                        onBlur={(e) => handlePadDetailBlur(index, e.target.value)}
-                                        className="h-8 text-right font-mono"
-                                        placeholder="$0.00"
-                                    />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <DialogFooter className="sm:justify-between">
-                <div className="flex items-center gap-2 font-bold">
-                    <span>Total:</span>
-                    <span>{formatCurrency(padRegistries)}</span>
-                </div>
-                <Button onClick={() => setIsPadDialogOpen(false)}>Close</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <DepositHistoryModal
         open={isDepositHistoryOpen}
         onClose={() => setIsDepositHistoryOpen(false)}
-        onDepositReversed={() => {}} 
+        onDepositReversed={() => {}}
         onReprintSlip={() => {}}
       />
     </Card>
@@ -266,8 +160,6 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
 function RemainingPaymentsSection({ rows, val, formatCurrency }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Calculate remaining amounts by method
-  // Remaining = Amount - AmountPaid
   const breakdown = rows.reduce((acc, row) => {
     const method = row.method || 'Unassigned';
     const amount = val(row.amount);
@@ -275,8 +167,8 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
     const remaining = amount - amountPaid;
 
     if (remaining > 0.01) {
-        if (!acc[method]) acc[method] = 0;
-        acc[method] += remaining;
+      if (!acc[method]) acc[method] = 0;
+      acc[method] += remaining;
     }
     return acc;
   }, {});
@@ -299,7 +191,7 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
 
         <CollapsibleContent className="space-y-3 pt-3">
           <div className="space-y-2">
-            {Object.entries(breakdown).sort((a,b) => b[1] - a[1]).map(([method, amount]) => (
+            {Object.entries(breakdown).sort((a, b) => b[1] - a[1]).map(([method, amount]) => (
               <div key={method} className="flex justify-between items-center text-sm">
                 <span className="text-slate-500">{method === 'Unassigned' ? 'No Method' : method}</span>
                 <span className="font-medium font-mono text-slate-700">{formatCurrency(amount)}</span>
@@ -318,155 +210,94 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
 }
 
 function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, val, formatCurrency, renderEditableRow }) {
-    const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-    // Group overhead rows by dateOption
-    const groupedOverhead = overheadRows.reduce((acc, row) => {
-        const date = row.dateOption || 'Unassigned';
-        const amount = val(row.amount);
-        if (amount > 0) {
-            if (!acc[date]) acc[date] = 0;
-            acc[date] += amount;
-        }
-        return acc;
-    }, {});
+  const includedRows = (overheadRows || []).filter((row) => row?.included === true && val(row.amount) > 0);
+  const groupedOverhead = includedRows.reduce((acc, row) => {
+    const date = row.dateOption || 'Unassigned';
+    const amount = val(row.amount);
+    if (!acc[date]) acc[date] = 0;
+    acc[date] += amount;
+    return acc;
+  }, {});
+  const includedTotal = includedRows.reduce((sum, row) => sum + val(row.amount), 0);
+  const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End"];
 
-    // Dynamic Calculation Logic
-    const today = moment();
-    const day = today.date();
-    
-    // Calculate First Business Day
-    const firstOfMonth = today.clone().startOf('month');
-    let firstBusinessDay = 1;
-    // 0 = Sun, 6 = Sat
-    while (firstOfMonth.day() === 0 || firstOfMonth.day() === 6) {
-        firstOfMonth.add(1, 'days');
-        firstBusinessDay = firstOfMonth.date();
-    }
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Separator />
+      <CardContent className="pt-4 pb-2 bg-white">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between cursor-pointer group">
+            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Overhead</h3>
+            <div className="flex items-center gap-2">
+              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(includedTotal)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+        </CollapsibleTrigger>
 
-    // Bracket Definitions
-    // 25th through to first business day
-    const inBracketA = day >= 25 || day <= firstBusinessDay;
-    // 1st to the 8th
-    const inBracketB = day >= 1 && day <= 8;
-    // 8th to the 15th
-    const inBracketC = day >= 8 && day <= 15;
+        <CollapsibleContent className="space-y-3 pt-3">
+          <div className="space-y-2 mb-4">
+            {dateOrder.filter((date) => groupedOverhead[date] > 0).map((date) => (
+              <div key={date} className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">{date}</span>
+                <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+              </div>
+            ))}
+            {Object.keys(groupedOverhead)
+              .filter((date) => !dateOrder.includes(date) && groupedOverhead[date] > 0)
+              .map((date) => (
+                <div key={date} className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">{date}</span>
+                  <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                </div>
+              ))}
+            {includedRows.length === 0 && (
+              <div className="text-sm text-slate-400">No overhead rows selected.</div>
+            )}
+          </div>
 
-    let dynamicTotal = 0;
-    const activeCategories = new Set();
+          <div className="space-y-2">
+            {renderEditableRow("First Payroll", "estFirstPayroll")}
+            {renderEditableRow("Second Payroll", "estSecondPayroll")}
+            {renderEditableRow("Payroll Remit", "estPayrollRemit")}
+          </div>
 
-    if (inBracketA) {
-        dynamicTotal += (groupedOverhead["Month Start"] || 0);
-        dynamicTotal += (groupedOverhead["Month End"] || 0);
-        dynamicTotal += val(summaryData.estFirstPayroll);
-        activeCategories.add("Month Start");
-        activeCategories.add("Month End");
-        activeCategories.add("estFirstPayroll");
-    }
-    if (inBracketB) {
-        dynamicTotal += (groupedOverhead["8th"] || 0);
-        activeCategories.add("8th");
-    }
-    if (inBracketC) {
-        dynamicTotal += (groupedOverhead["12th to 15th"] || 0);
-        dynamicTotal += val(summaryData.estSecondPayroll);
-        dynamicTotal += val(summaryData.estPayrollRemit);
-        activeCategories.add("12th to 15th");
-        activeCategories.add("estSecondPayroll");
-        activeCategories.add("estPayrollRemit");
-    }
-
-    // Sort order for date options
-    const dateOrder = ["Month Start", "8th", "12th to 15th", "Month End"];
-
-    return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <Separator />
-            <CardContent className="pt-4 pb-2 bg-white">
-                <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between cursor-pointer group">
-                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Overhead</h3>
-                        <div className="flex items-center gap-2">
-                             {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(dynamicTotal)}</span>}
-                             <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                        </div>
-                    </div>
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="space-y-3 pt-3">
-                    {/* Overhead Totals */}
-                    <div className="space-y-2 mb-4">
-                        {dateOrder.filter(date => groupedOverhead[date] > 0).map(date => {
-                            const isActive = activeCategories.has(date);
-                            return (
-                                <div key={date} className={`flex justify-between items-center text-sm ${isActive ? '' : 'opacity-40'}`}>
-                                    <span className="text-slate-500">{date} {isActive ? '' : '(Inactive)'}</span>
-                                    <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
-                                </div>
-                            );
-                        })}
-                        {/* Handle any dates not in the order list (excluding Unassigned) */}
-                        {Object.keys(groupedOverhead)
-                            .filter(date => !dateOrder.includes(date) && date !== 'Unassigned' && groupedOverhead[date] > 0)
-                            .map(date => {
-                                const isActive = activeCategories.has(date);
-                                return (
-                                    <div key={date} className={`flex justify-between items-center text-sm ${isActive ? '' : 'opacity-40'}`}>
-                                        <span className="text-slate-500">{date} {isActive ? '' : '(Inactive)'}</span>
-                                        <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
-                                    </div>
-                                )
-                            })
-                        }
-                    </div>
-
-                    {/* Editable Fields */}
-                    <div className="space-y-2">
-                        <div className={activeCategories.has("estFirstPayroll") ? "" : "opacity-40"}>
-                            {renderEditableRow(activeCategories.has("estFirstPayroll") ? "First Payroll" : "First Payroll (Inactive)", "estFirstPayroll")}
-                        </div>
-                        <div className={activeCategories.has("estSecondPayroll") ? "" : "opacity-40"}>
-                            {renderEditableRow(activeCategories.has("estSecondPayroll") ? "Second Payroll" : "Second Payroll (Inactive)", "estSecondPayroll")}
-                        </div>
-                        <div className={activeCategories.has("estPayrollRemit") ? "" : "opacity-40"}>
-                            {renderEditableRow(activeCategories.has("estPayrollRemit") ? "Payroll Remit" : "Payroll Remit (Inactive)", "estPayrollRemit")}
-                        </div>
-                    </div>
-
-                    <Separator className="my-2" />
-                    <div className="flex justify-between items-center font-bold">
-                        <span className="text-slate-700">Total Remaining Overhead</span>
-                        <span className="font-mono text-red-600">{formatCurrency(dynamicTotal)}</span>
-                    </div>
-                </CollapsibleContent>
-            </CardContent>
-        </Collapsible>
-    );
+          <Separator className="my-2" />
+          <div className="flex justify-between items-center font-bold">
+            <span className="text-slate-700">Total Remaining Overhead</span>
+            <span className="font-mono text-red-600">{formatCurrency(includedTotal)}</span>
+          </div>
+        </CollapsibleContent>
+      </CardContent>
+    </Collapsible>
+  );
 }
 
 function EtransferLimitsSection({ summaryData, onSummaryChange, renderEditableRow }) {
-    const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-    return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <Separator />
-            <CardContent className="pt-4 pb-2">
-                <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between cursor-pointer group">
-                        <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Etransfer Limits</h3>
-                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                    </div>
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="space-y-3 pt-3">
-                    <div className="space-y-2">
-                        {renderEditableRow("Per Tx", "etransferPerTx")}
-                        {renderEditableRow("Daily", "etransferDaily")}
-                        {renderEditableRow("Weekly", "etransferWeekly")}
-                        {renderEditableRow("Monthly", "etransferMonthly")}
-                    </div>
-                </CollapsibleContent>
-            </CardContent>
-        </Collapsible>
-    );
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Separator />
+      <CardContent className="pt-4 pb-2">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between cursor-pointer group">
+            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Etransfer Limits</h3>
+            <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="space-y-3 pt-3">
+          <div className="space-y-2">
+            {renderEditableRow("Per Tx", "etransferPerTx")}
+            {renderEditableRow("Daily", "etransferDaily")}
+            {renderEditableRow("Weekly", "etransferWeekly")}
+            {renderEditableRow("Monthly", "etransferMonthly")}
+          </div>
+        </CollapsibleContent>
+      </CardContent>
+    </Collapsible>
+  );
 }
