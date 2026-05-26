@@ -263,7 +263,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           const charges = transactionsData
             .filter(tx => {
               if (tx.source_type === 'payment_made') return false;
-              
+              if (tx.is_reversed) return false;
+
               if (tx.charge_amount > 0) {
                 // Outstanding Charge: payment_amount (paid so far) < charge_amount
                 return (tx.payment_amount || 0) < tx.charge_amount;
