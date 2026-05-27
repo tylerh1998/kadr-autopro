@@ -1,0 +1,21 @@
+{
+  "name": "InventoryCategory",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the category"
+    },
+    "lankar_categories": {
+      "type": "string",
+      "description": "Comma-separated list of legacy Lankar categories that map to this category"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

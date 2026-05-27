@@ -1,0 +1,87 @@
+{
+  "name": "Appointment",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the appointment"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Detailed notes for the appointment"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Appointment start time"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Appointment end time"
+    },
+    "bay": {
+      "type": "string",
+      "description": "Assigned workshop bay (e.g., 'Bay 1', 'Bay 2')"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "ID of the assigned technician (Employee)"
+    },
+    "work_order_id": {
+      "type": "string",
+      "description": "ID of the linked Work Order"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "ID of the customer"
+    },
+    "vehicle_id": {
+      "type": "string",
+      "description": "ID of the vehicle"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Scheduled",
+        "Confirmed",
+        "In Progress",
+        "Completed",
+        "Cancelled",
+        "No Show"
+      ],
+      "default": "Scheduled",
+      "description": "The current status of the appointment"
+    },
+    "reminders_email": {
+      "type": "boolean",
+      "default": false,
+      "description": "Send email reminder to customer"
+    },
+    "reminders_text": {
+      "type": "boolean",
+      "default": false,
+      "description": "Send text reminder to customer"
+    },
+    "reminder_email_address": {
+      "type": "string",
+      "description": "The email address to send the reminder to."
+    },
+    "reminders_phone": {
+      "type": "string",
+      "description": "The phone number to send the text reminder to."
+    },
+    "reminder_days_before": {
+      "type": "number",
+      "default": 1,
+      "description": "How many days before the appointment to send the reminder."
+    }
+  },
+  "required": [
+    "title",
+    "start_time",
+    "end_time",
+    "bay",
+    "employee_id"
+  ]
+}

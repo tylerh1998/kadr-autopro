@@ -1,0 +1,37 @@
+{
+  "name": "Statement",
+  "type": "object",
+  "properties": {
+    "cp_id": {
+      "type": "string",
+      "description": "Unique ID for Customer Portal access"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "Reference to the customer"
+    },
+    "statement_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the statement was generated"
+    },
+    "transactions": {
+      "type": "string",
+      "description": "JSON string of the transactions included on the statement"
+    },
+    "aged_balances": {
+      "type": "string",
+      "description": "JSON string of the aged balances summary"
+    },
+    "total_balance_due": {
+      "type": "number",
+      "description": "The total balance due at the time of statement generation"
+    }
+  },
+  "required": [
+    "cp_id",
+    "customer_id",
+    "statement_date",
+    "total_balance_due"
+  ]
+}

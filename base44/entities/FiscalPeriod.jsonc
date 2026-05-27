@@ -1,0 +1,25 @@
+{
+  "name": "FiscalPeriod",
+  "type": "object",
+  "properties": {
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The start date of the fiscal period"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The end date of the fiscal period"
+    },
+    "is_closed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates if the period is closed to new transactions"
+    }
+  },
+  "required": [
+    "start_date",
+    "end_date"
+  ]
+}

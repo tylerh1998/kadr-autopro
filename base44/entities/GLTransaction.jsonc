@@ -1,0 +1,53 @@
+{
+  "name": "GLTransaction",
+  "type": "object",
+  "properties": {
+    "account_number": {
+      "type": "string",
+      "description": "Account number this transaction affects"
+    },
+    "transaction_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of transaction"
+    },
+    "description": {
+      "type": "string",
+      "description": "Transaction description"
+    },
+    "reference": {
+      "type": "string",
+      "description": "Reference number (invoice, WO, etc.)"
+    },
+    "debit_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Debit amount"
+    },
+    "credit_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Credit amount"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "supplier_invoice",
+        "work_order",
+        "payment",
+        "adjustment",
+        "manual"
+      ],
+      "description": "Source of the transaction"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "ID of source record"
+    }
+  },
+  "required": [
+    "account_number",
+    "transaction_date",
+    "description"
+  ]
+}

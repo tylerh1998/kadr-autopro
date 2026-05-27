@@ -1,0 +1,22 @@
+{
+  "name": "InventoryLocation",
+  "type": "object",
+  "properties": {
+    "location_name": {
+      "type": "string",
+      "description": "Location name/identifier"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the location"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the location is active"
+    }
+  },
+  "required": [
+    "location_name"
+  ]
+}

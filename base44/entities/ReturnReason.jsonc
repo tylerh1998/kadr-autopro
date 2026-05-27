@@ -1,0 +1,23 @@
+{
+  "name": "ReturnReason",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "Return reason text"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether reason is active"
+    },
+    "hide": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, reason will not appear in the return modal dropdown"
+    }
+  },
+  "required": [
+    "reason"
+  ]
+}

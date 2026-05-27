@@ -1,0 +1,106 @@
+{
+  "name": "DepositSlipBreakdown",
+  "type": "object",
+  "properties": {
+    "deposit_batch_id": {
+      "type": "string",
+      "description": "Links to CustomerPayments/CashDrawerAdjustment deposit_batch_id"
+    },
+    "bank_transaction_id": {
+      "type": "string",
+      "description": "Links to the BankTransaction record"
+    },
+    "deposit_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of deposit"
+    },
+    "bills_5": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $5 bills"
+    },
+    "bills_10": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $10 bills"
+    },
+    "bills_20": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $20 bills"
+    },
+    "bills_50": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $50 bills"
+    },
+    "bills_100": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $100 bills"
+    },
+    "coins_5": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of 5c coins"
+    },
+    "coins_10": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of 10c coins"
+    },
+    "coins_25": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of 25c coins"
+    },
+    "coins_100": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $1 coins"
+    },
+    "coins_200": {
+      "type": "number",
+      "default": 0,
+      "description": "Quantity of $2 coins"
+    },
+    "rolled_coin": {
+      "type": "number",
+      "default": 0,
+      "description": "Rolled coin amount"
+    },
+    "total_cash": {
+      "type": "number",
+      "default": 0,
+      "description": "Total cash amount"
+    },
+    "total_cheques": {
+      "type": "number",
+      "default": 0,
+      "description": "Total cheques amount"
+    },
+    "deposit_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Grand total deposit amount"
+    },
+    "cheques_data": {
+      "type": "string",
+      "description": "JSON string of cheque details array"
+    },
+    "bank_account_number": {
+      "type": "string",
+      "description": "Bank account number"
+    },
+    "bank_account_name": {
+      "type": "string",
+      "description": "Bank account name"
+    }
+  },
+  "required": [
+    "deposit_batch_id",
+    "deposit_date",
+    "deposit_amount"
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "LinesOfCredit",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Account name/Description"
+    },
+    "institution_name": {
+      "type": "string",
+      "description": "Financial institution name"
+    },
+    "account_number": {
+      "type": "string",
+      "description": "Account number (last 4 digits usually)"
+    },
+    "credit_limit": {
+      "type": "number",
+      "description": "Total credit limit"
+    },
+    "current_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Current balance owing"
+    },
+    "available_credit": {
+      "type": "number",
+      "default": 0,
+      "description": "Available credit remaining"
+    },
+    "interest_rate": {
+      "type": "number",
+      "default": 0,
+      "description": "Interest rate percentage"
+    },
+    "gl_account": {
+      "type": "string",
+      "description": "Associated GL account"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Is account active"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes"
+    },
+    "last_recalculated_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last balance recalculation"
+    },
+    "locked_by_user": {
+      "type": "string",
+      "description": "Email of the user currently editing this account"
+    },
+    "locked_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the account was locked (stored in UTC)"
+    }
+  },
+  "required": [
+    "name",
+    "institution_name",
+    "credit_limit"
+  ]
+}

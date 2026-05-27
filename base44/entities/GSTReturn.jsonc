@@ -1,0 +1,77 @@
+{
+  "name": "GSTReturn",
+  "type": "object",
+  "properties": {
+    "period_start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Start date of the GST reporting period"
+    },
+    "period_end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "End date of the GST reporting period"
+    },
+    "total_sales": {
+      "type": "number",
+      "default": 0,
+      "description": "Total sales for the period"
+    },
+    "total_purchases": {
+      "type": "number",
+      "default": 0,
+      "description": "Total purchases for the period"
+    },
+    "gst_collected": {
+      "type": "number",
+      "default": 0,
+      "description": "Total GST collected from customers"
+    },
+    "gst_paid": {
+      "type": "number",
+      "default": 0,
+      "description": "Total GST paid to suppliers"
+    },
+    "net_gst_due": {
+      "type": "number",
+      "default": 0,
+      "description": "Net GST amount (collected minus paid). Positive = owe, Negative = refund"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "posted",
+        "paid"
+      ],
+      "default": "draft",
+      "description": "Current status of the GST return"
+    },
+    "posted_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the return was posted"
+    },
+    "posted_by": {
+      "type": "string",
+      "description": "User who posted the return"
+    },
+    "paid_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the GST payment/refund was processed"
+    },
+    "paid_by": {
+      "type": "string",
+      "description": "User who marked the return as paid"
+    },
+    "bank_account_id": {
+      "type": "string",
+      "description": "Bank account used for the GST payment/refund"
+    }
+  },
+  "required": [
+    "period_start_date",
+    "period_end_date"
+  ]
+}

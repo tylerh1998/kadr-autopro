@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import DepositHistoryModal from '@/components/cash-drawer/DepositHistoryModal';
+import PadRegistriesModal from '@/components/cash-flow/PadRegistriesModal';
 
 export default function CashFlowTotals({ rows, overheadRows, summaryData, onSummaryChange }) {
   const [isDepositHistoryOpen, setIsDepositHistoryOpen] = useState(false);
+  const [isPadRegistriesOpen, setIsPadRegistriesOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
 
   const formatCurrencyInput = (value) => {
@@ -80,6 +82,21 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
     </div>
   );
 
+  const handlePadRegistriesSave = (details) => {
+    const total = (details || []).reduce((sum, item) => {
+      const amount = typeof item?.amount === 'string'
+        ? parseFloat(item.amount.replace(/[^0-9.-]+/g, '')) || 0
+        : parseFloat(item?.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    onSummaryChange({
+      ...summaryData,
+      padRegistries: formatCurrency(total),
+      padRegistriesDetails: details
+    });
+  };
+
   return (
     <Card className="bg-white shadow-sm border">
       <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
@@ -95,7 +112,15 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
           <CardContent className="pt-4 space-y-3">
             {renderEditableRow("Current Bank Balance", "bankBalance")}
             {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
-            {renderEditableRow("PAD & Registries", "padRegistries")}
+            <div className="flex justify-between items-center gap-2">
+              <span
+                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                onClick={() => setIsPadRegistriesOpen(true)}
+              >
+                PAD &amp; Registries
+              </span>
+              <span className="font-bold font-mono text-slate-900">{formatCurrency(padRegistries)}</span>
+            </div>
             {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
             {renderEditableRow("Upcoming Payroll Remit", "payrollRemit")}
             {renderEditableRow("Upcoming GST Remit", "gstRemit")}
@@ -152,6 +177,13 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
         onClose={() => setIsDepositHistoryOpen(false)}
         onDepositReversed={() => {}}
         onReprintSlip={() => {}}
+      />
+
+      <PadRegistriesModal
+        open={isPadRegistriesOpen}
+        onClose={() => setIsPadRegistriesOpen(false)}
+        details={summaryData.padRegistriesDetails}
+        onSave={handlePadRegistriesSave}
       />
     </Card>
   );

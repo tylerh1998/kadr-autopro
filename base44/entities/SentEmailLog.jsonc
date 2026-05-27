@@ -1,0 +1,77 @@
+{
+  "name": "SentEmailLog",
+  "type": "object",
+  "properties": {
+    "to_email": {
+      "type": "string",
+      "description": "Recipient's email address"
+    },
+    "from_email": {
+      "type": "string",
+      "description": "Sender's email address"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "body_preview": {
+      "type": "string",
+      "description": "A short preview of the email body"
+    },
+    "body": {
+      "type": "string",
+      "description": "The full HTML or text content of the email"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "sent",
+        "delivered",
+        "opened",
+        "clicked",
+        "bounced",
+        "complained",
+        "delivery_delayed",
+        "failed"
+      ],
+      "default": "pending",
+      "description": "Email delivery and engagement status from Resend webhooks"
+    },
+    "status_message": {
+      "type": "string",
+      "description": "Error message if sending failed"
+    },
+    "sent_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the email was sent"
+    },
+    "customer_id": {
+      "type": "string",
+      "description": "Reference to the Customer entity"
+    },
+    "work_order_id": {
+      "type": "string",
+      "description": "Reference to the WorkOrder entity (using ro_number)"
+    },
+    "appointment_id": {
+      "type": "string",
+      "description": "Reference to the Appointment entity"
+    },
+    "tracking_id": {
+      "type": "string",
+      "description": "Resend message ID for webhook tracking"
+    },
+    "portal_url": {
+      "type": "string",
+      "description": "The customer portal URL sent in the email, if any"
+    }
+  },
+  "required": [
+    "to_email",
+    "from_email",
+    "subject",
+    "sent_date"
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "name": "CustomerPortalWorkOrder",
+  "type": "object",
+  "properties": {
+    "original_work_order_id": {
+      "type": "string",
+      "description": "Reference to the original WorkOrder entity"
+    },
+    "cp_id": {
+      "type": "string",
+      "description": "Unique 10-character alphanumeric ID for customer portal access"
+    },
+    "ref_number": {
+      "type": "string",
+      "description": "Display reference number (est_number, wo_number, inv_number, or crinv_number based on stage)"
+    },
+    "ref_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Reference date from snapshot (est_date, wo_date, or inv_date based on stage)"
+    },
+    "snapshot_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the snapshot was created"
+    },
+    "notes_to_customer": {
+      "type": "string",
+      "description": "Notes specifically for the customer"
+    },
+    "customer_snapshot": {
+      "type": "string",
+      "description": "JSON string of customer's name and phone number"
+    },
+    "vehicle_snapshot": {
+      "type": "string",
+      "description": "JSON string of vehicle details at time of snapshot"
+    },
+    "line_items_snapshot": {
+      "type": "string",
+      "description": "JSON string of all line items on the work order at time of snapshot"
+    },
+    "parts_total": {
+      "type": "number",
+      "description": "Total parts cost from snapshot"
+    },
+    "labor_total": {
+      "type": "number",
+      "description": "Total labor cost from snapshot"
+    },
+    "shop_supply_total": {
+      "type": "number",
+      "description": "Total shop supply charges from snapshot"
+    },
+    "tax_amount": {
+      "type": "number",
+      "description": "Tax amount from snapshot"
+    },
+    "total_amount": {
+      "type": "number",
+      "description": "Total work order amount from snapshot"
+    },
+    "payments": {
+      "type": "string",
+      "description": "JSON string of all payments from snapshot"
+    },
+    "amount_paid": {
+      "type": "number",
+      "description": "Total amount paid from snapshot"
+    },
+    "po_number": {
+      "type": "string",
+      "description": "Purchase order number from snapshot"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "estimate",
+        "work_order",
+        "invoice",
+        "credit_invoice"
+      ],
+      "description": "The stage of the document at snapshot"
+    },
+    "approval": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "skip_deny",
+        "pending"
+      ],
+      "default": "pending",
+      "description": "Approval status from customer portal"
+    }
+  },
+  "required": [
+    "original_work_order_id",
+    "cp_id",
+    "snapshot_date",
+    "customer_snapshot",
+    "vehicle_snapshot",
+    "line_items_snapshot",
+    "total_amount",
+    "stage"
+  ]
+}

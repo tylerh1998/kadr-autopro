@@ -1,0 +1,27 @@
+{
+  "name": "TagAlong",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the tag along (e.g., Enviro Fee, Tire Levy)"
+    },
+    "description": {
+      "type": "string",
+      "description": "The description that will appear on the work order line item"
+    },
+    "other_charge_id": {
+      "type": "string",
+      "description": "Reference to the linked OtherChargeList entity"
+    },
+    "tagalongid": {
+      "type": "string",
+      "description": "Optional identifier for the tag along"
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "other_charge_id"
+  ]
+}

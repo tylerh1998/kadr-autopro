@@ -1,0 +1,78 @@
+{
+  "name": "CashDrawerAdjustment",
+  "type": "object",
+  "properties": {
+    "adjustment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "The date the adjustment occurred"
+    },
+    "amount": {
+      "type": "number",
+      "description": "The amount of the adjustment (positive for overage, negative for shortage)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "overage",
+        "shortage"
+      ],
+      "description": "Clearly indicates if it's an overage or shortage"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "debit",
+        "credit_card",
+        "cheque",
+        "e_transfer",
+        "other"
+      ],
+      "description": "The payment method this adjustment is associated with (e.g., 'cash' for physical cash over/short)"
+    },
+    "description": {
+      "type": "string",
+      "description": "A clear explanation for the adjustment"
+    },
+    "reference": {
+      "type": "string",
+      "description": "Any external reference number"
+    },
+    "gl_transactions": {
+      "type": "string",
+      "description": "JSON string array of GLTransaction IDs created for this adjustment"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "recorded",
+        "posted_to_gl",
+        "deposited"
+      ],
+      "default": "recorded",
+      "description": "Current status of the adjustment"
+    },
+    "deposited": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates if this adjustment has been included in a bank deposit"
+    },
+    "deposit_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when this adjustment was deposited"
+    },
+    "deposit_batch_id": {
+      "type": "string",
+      "description": "Identifier for the deposit batch this adjustment was part of"
+    }
+  },
+  "required": [
+    "adjustment_date",
+    "amount",
+    "type",
+    "payment_method",
+    "description"
+  ]
+}

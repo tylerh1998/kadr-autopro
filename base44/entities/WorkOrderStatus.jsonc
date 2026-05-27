@@ -1,0 +1,28 @@
+{
+  "name": "WorkOrderStatus",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Status name"
+    },
+    "display_order": {
+      "type": "number",
+      "description": "Order in which status appears in UI"
+    },
+    "color": {
+      "type": "string",
+      "description": "Color for status badges (e.g., 'blue', 'green', 'red')"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this status is active"
+    }
+  },
+  "required": [
+    "name",
+    "display_order",
+    "color"
+  ]
+}
