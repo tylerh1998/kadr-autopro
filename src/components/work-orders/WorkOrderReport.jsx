@@ -197,7 +197,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
                   <td className="border border-slate-300 px-1 py-0.5">{item.description || ''}</td>
                   <td className="border border-slate-300 px-1 py-0.5 text-[9px]">{item.part_number || ''}</td>
                   <td className="border border-slate-300 px-1 py-0.5 text-right">
-                    {item.tot_parts ? `$${parseFloat(item.tot_parts).toFixed(2)}` : ''}
+                    {item.part_number ? `$${Number(item.parts_ea || 0).toFixed(2)}/${item.unit || 'ea'}` : ''}
                   </td>
                   <td className="border border-slate-300 px-1 py-0.5 text-right">
                     {item.labour ? `$${parseFloat(item.labour).toFixed(2)}` : ''}
