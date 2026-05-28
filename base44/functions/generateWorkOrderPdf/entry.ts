@@ -605,7 +605,7 @@ Deno.serve(async (req) => {
             x += colWidths.description;
 
             // Parts
-            doc.text(item.tot_parts ? `$${roundToTwo(item.tot_parts).toFixed(2)}` : '', x + colWidths.parts - 5, textY, { align: 'right' });
+            doc.text(item.part_number ? `$${roundToTwo(Number(item.parts_ea || 0)).toFixed(2)}/${(item.unit && String(item.unit).trim()) || 'ea'}` : '', x + colWidths.parts - 5, textY, { align: 'right' });
             x += colWidths.parts;
             // Labour
             doc.text(item.labour ? `$${roundToTwo(item.labour).toFixed(2)}` : '', x + colWidths.labour - 5, textY, { align: 'right' });
