@@ -767,6 +767,7 @@ export default function SupplierTxPage() {
     if (!window.confirm('Are you sure you want to cancel this payment? This action cannot be undone and will reverse all associated transactions.')) return;
     setLoading(true);
     try {
+      console.log('Cancel supplier payment payload:', payment, 'payment.id:', payment?.id);
       const response = await base44.functions.invoke('cancelSupplierPayment', { paymentId: payment.id });
       if (response.data.success) {
         alert('Payment cancelled successfully.');
