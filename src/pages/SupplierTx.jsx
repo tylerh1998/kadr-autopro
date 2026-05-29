@@ -772,10 +772,12 @@ export default function SupplierTxPage() {
       if (response.data.success) {
         alert('Payment cancelled successfully.');
         loadData();
-      } else alert(`Failed to cancel payment: ${response.data.error}`);
+      } else {
+        alert(response?.data?.error || 'An error occurred while cancelling the payment.');
+      }
     } catch (error) {
       console.error('Error cancelling payment:', error);
-      alert('An error occurred while cancelling the payment.');
+      alert(error?.response?.data?.error || error?.response?.data?.message || 'An error occurred while cancelling the payment.');
     } finally {
       setLoading(false);
     }
