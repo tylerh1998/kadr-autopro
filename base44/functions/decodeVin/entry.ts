@@ -23,13 +23,28 @@ Deno.serve(async (req) => {
         
         const getValue = (variableName) => {
             const item = results.find(r => r.Variable === variableName && r.Value && r.Value.trim() !== 'Not Applicable');
-            return item ? item.Value : null;
+            return item ? item.Value.trim() : null;
         };
 
         const year = getValue('Model Year');
         const make = getValue('Make');
         const model = getValue('Model');
-        const trim = getValue('Trim') || getValue('Series') || '';
+        
+        // 1. Fetch both Trim and Series independently
+        const trimVal = getValue('Trim');
+        const seriesVal = getValue('Series');
+        
+        // 2. Combine them cleanly, filtering out nulls, empties, and duplicate entries
+        const uniqueTrimParts = [];
+        if (trimVal) uniqueTrimParts.push(trimVal);
+        
+        // Only append Series if it doesn't exactly match or contain the Trim text already
+        if (seriesVal && !uniqueTrimParts.includes(seriesVal)) {
+            uniqueTrimParts.push(seriesVal);
+        }
+        
+        // Join with a space (e.g., "Long Range Standard Range / Long Range / Performance")
+        const combinedTrim = uniqueTrimParts.join(' ');
         
         // Construct a descriptive engine string
         const engineCylinders = getValue('Engine Number of Cylinders');
@@ -45,7 +60,7 @@ Deno.serve(async (req) => {
             year: year || '',
             make: make || '',
             model: model || '',
-            trim: trim,
+            trim: combinedTrim,
             engine: engineString.trim() || '',
         };
 
