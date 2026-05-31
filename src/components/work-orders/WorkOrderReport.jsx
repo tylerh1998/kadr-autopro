@@ -250,6 +250,12 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
         {/* Financial Summary - Right Column */}
         <div className="border border-slate-300 p-2">
           <div className="space-y-0.5 text-[9px]">
+            {workOrder?.ro_number && (
+              <div className="flex justify-between font-semibold">
+                <span>{workOrder.ro_number}</span>
+                <span></span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Parts Subtotal:</span>
               <span className="font-semibold">${(partsTotal || 0).toFixed(2)}</span>
