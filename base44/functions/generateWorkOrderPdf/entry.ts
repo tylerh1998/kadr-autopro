@@ -324,6 +324,13 @@ Deno.serve(async (req) => {
           doc.setDrawColor(200);
           doc.setLineWidth(1);
           doc.rect(margin, barY, contentWidth, finBarHeight, 'S');
+
+          if (workOrder?.ro_number) {
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0);
+            doc.text(String(workOrder.ro_number), margin + 6, barY + 11);
+          }
           
           const cols = [
             { label: "PARTS TOTAL", val: partsTotal },
