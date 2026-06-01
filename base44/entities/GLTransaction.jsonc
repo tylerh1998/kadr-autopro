@@ -35,6 +35,7 @@
         "supplier_invoice",
         "work_order",
         "payment",
+        "transfer",
         "adjustment",
         "manual"
       ],
