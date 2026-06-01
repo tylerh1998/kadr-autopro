@@ -477,11 +477,9 @@ export default function BankPage() {
         }
       }
 
-      // Determine GL source type based on transaction source_type
+      // Determine GL source type based on valid GLTransaction source_type values
       let glSourceType = 'manual';
-      if (transactionData.source_type === 'deposit') {
-        glSourceType = 'deposit';
-      } else if (transactionData.source_type === 'payment') {
+      if (transactionData.source_type === 'payment') {
         glSourceType = 'payment';
       }
 
