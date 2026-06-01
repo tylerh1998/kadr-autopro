@@ -88,6 +88,15 @@ export default function BankPage() {
     fetchUser();
   }, []);
 
+  const fetchBankAccountsFromSupabase = useCallback(async () => {
+    const response = await base44.functions.invoke('SupabaseProxy', {
+      action: 'list',
+      table: 'BankAccount'
+    });
+
+    return (response.data?.data || []).filter(acc => acc.is_active !== false);
+  }, []);
+
   // New function to load all initial data, including balance recalculation
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -131,15 +140,6 @@ export default function BankPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const fetchBankAccountsFromSupabase = useCallback(async () => {
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'list',
-      table: 'BankAccount'
-    });
-
-    return (response.data?.data || []).filter(acc => acc.is_active !== false);
-  }, []);
 
   // Existing `loadBankAccounts` for refreshing after account edits/saves
   const loadBankAccounts = useCallback(async () => {
