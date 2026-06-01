@@ -365,12 +365,15 @@ export default function BankPage() {
         oldTransactionData = { ...editingTransaction };
         
         // Update existing transaction
-        await base44.functions.invoke('SupabaseProxy', {
+        const updateResponse = await base44.functions.invoke('SupabaseProxy', {
           action: 'update',
           table: 'BankTransaction',
           id: editingTransaction.id,
           data: transactionData
         });
+        if (updateResponse.data?.error) {
+          throw new Error(updateResponse.data.error);
+        }
         savedTransaction = { ...transactionData, id: editingTransaction.id };
       } else {
         // Create new transaction with banktx flag
@@ -383,6 +386,9 @@ export default function BankPage() {
             banktx: true
           }
         });
+        if (createResponse.data?.error) {
+          throw new Error(createResponse.data.error);
+        }
         savedTransaction = createResponse.data?.data?.[0] || {
           ...transactionData,
           bank_account_id: selectedAccountId,
@@ -605,11 +611,14 @@ export default function BankPage() {
         }
       }
 
-      await base44.functions.invoke('SupabaseProxy', {
+      const deleteResponse = await base44.functions.invoke('SupabaseProxy', {
         action: 'delete',
         table: 'BankTransaction',
         id: transaction.id
       });
+      if (deleteResponse.data?.error) {
+        throw new Error(deleteResponse.data.error);
+      }
 
       // Trigger balance recalculation
       await base44.functions.invoke('calculateBankBalances', {
