@@ -48,15 +48,35 @@ Deno.serve(async (req) => {
             result = await query;
         } else if (action === 'create') {
             const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
-            const insertData = {
+            let insertData = {
                 id: newId,
                 ...payloadData
             };
+
+            if (table === 'BankTransaction') {
+                const nowIso = new Date().toISOString();
+                insertData = {
+                    ...insertData,
+                    created_date: payloadData?.created_date || nowIso,
+                    updated_date: payloadData?.updated_date || nowIso,
+                    created_by: payloadData?.created_by || user.email
+                };
+            }
+
             result = await supabase.from(table).insert([insertData]).select();
         } else if (action === 'update') {
-            const updateData = {
+            let updateData = {
                 ...payloadData
             };
+
+            if (table === 'BankTransaction') {
+                updateData = {
+                    ...updateData,
+                    updated_date: payloadData?.updated_date || new Date().toISOString()
+                };
+                delete updateData.created_by;
+                delete updateData.created_date;
+            }
 
             if (Array.isArray(ids) && ids.length > 0) {
                 result = await supabase.from(table).update(updateData).in('id', ids).select();
