@@ -36,9 +36,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch both bank accounts
-    const fromAccount = await base44.asServiceRole.entities.BankAccount.get(fromAccountId);
-    const toAccount = await base44.asServiceRole.entities.BankAccount.get(toAccountId);
+    // Fetch both bank accounts from Supabase
+    const [fromAccountResponse, toAccountResponse] = await Promise.all([
+      base44.asServiceRole.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankAccount',
+        params: { id: fromAccountId }
+      }),
+      base44.asServiceRole.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankAccount',
+        params: { id: toAccountId }
+      })
+    ]);
+
+    const fromAccount = fromAccountResponse?.data?.data?.[0] || fromAccountResponse?.data?.[0] || null;
+    const toAccount = toAccountResponse?.data?.data?.[0] || toAccountResponse?.data?.[0] || null;
 
     if (!fromAccount || !toAccount) {
       return Response.json(
@@ -67,39 +80,49 @@ Deno.serve(async (req) => {
     const transferRef = `TRANSFER-${Date.now()}`;
     const transferDescription = description || `Transfer from ${fromAccount.name} to ${toAccount.name}`;
 
-    // Create Bank Transactions
-    // 1. Debit transaction for source account (withdrawal)
-    const fromBankTx = await base44.asServiceRole.entities.BankTransaction.create({
-      bank_account_id: fromAccountId,
-      transaction_date: transferDate,
-      description: transferDescription,
-      reference: toAccount.name,
-      debit_amount: transferAmount,
-      credit_amount: 0,
-      cleared: false,
-      reconciled: false,
-      source_type: 'transfer',
-      source_id: toAccountId // Link to destination account
-    });
+    // Create Bank Transactions in Supabase
+    const [fromBankTxResponse, toBankTxResponse] = await Promise.all([
+      base44.asServiceRole.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'BankTransaction',
+        data: {
+          bank_account_id: fromAccountId,
+          transaction_date: transferDate,
+          description: transferDescription,
+          reference: toAccount.name,
+          debit_amount: transferAmount,
+          credit_amount: 0,
+          cleared: false,
+          reconciled: false,
+          source_type: 'transfer',
+          source_id: toAccountId
+        }
+      }),
+      base44.asServiceRole.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'BankTransaction',
+        data: {
+          bank_account_id: toAccountId,
+          transaction_date: transferDate,
+          description: transferDescription,
+          reference: fromAccount.name,
+          credit_amount: transferAmount,
+          debit_amount: 0,
+          cleared: false,
+          reconciled: false,
+          source_type: 'transfer',
+          source_id: fromAccountId
+        }
+      })
+    ]);
 
-    // 2. Credit transaction for destination account (deposit)
-    const toBankTx = await base44.asServiceRole.entities.BankTransaction.create({
-      bank_account_id: toAccountId,
-      transaction_date: transferDate,
-      description: transferDescription,
-      reference: fromAccount.name,
-      credit_amount: transferAmount,
-      debit_amount: 0,
-      cleared: false,
-      reconciled: false,
-      source_type: 'transfer',
-      source_id: fromAccountId // Link to source account
-    });
+    const fromBankTx = fromBankTxResponse?.data?.data?.[0] || fromBankTxResponse?.data?.[0] || null;
+    const toBankTx = toBankTxResponse?.data?.data?.[0] || toBankTxResponse?.data?.[0] || null;
 
     // Create GL Transactions
     // 1. Credit the source account's GL (decreases asset)
     const fromGLTx = await base44.asServiceRole.entities.GLTransaction.create({
-      account_number: fromAccount.gl_account,
+      account_number: String(fromAccount.gl_account),
       transaction_date: transferDate,
       description: transferDescription,
       debit_amount: 0,
@@ -110,7 +133,7 @@ Deno.serve(async (req) => {
 
     // 2. Debit the destination account's GL (increases asset)
     const toGLTx = await base44.asServiceRole.entities.GLTransaction.create({
-      account_number: toAccount.gl_account,
+      account_number: String(toAccount.gl_account),
       transaction_date: transferDate,
       description: transferDescription,
       debit_amount: transferAmount,
