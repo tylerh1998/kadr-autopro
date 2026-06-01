@@ -196,6 +196,8 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
       debit_amount: parseFloat(formData.debit_amount) || 0
     };
 
+    delete submitData.balance;
+
     setIsSubmitting(true);
     try {
       await onSubmit(submitData);
