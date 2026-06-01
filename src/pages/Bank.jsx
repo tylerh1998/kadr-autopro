@@ -365,15 +365,29 @@ export default function BankPage() {
         oldTransactionData = { ...editingTransaction };
         
         // Update existing transaction
-        await BankTransaction.update(editingTransaction.id, transactionData);
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'BankTransaction',
+          id: editingTransaction.id,
+          data: transactionData
+        });
         savedTransaction = { ...transactionData, id: editingTransaction.id };
       } else {
         // Create new transaction with banktx flag
-        savedTransaction = await BankTransaction.create({ 
-          ...transactionData, 
-          bank_account_id: selectedAccountId,
-          banktx: true 
+        const createResponse = await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'BankTransaction',
+          data: {
+            ...transactionData,
+            bank_account_id: selectedAccountId,
+            banktx: true
+          }
         });
+        savedTransaction = createResponse.data?.data?.[0] || {
+          ...transactionData,
+          bank_account_id: selectedAccountId,
+          banktx: true
+        };
       }
 
       // Get bank account details for GL posting
@@ -591,7 +605,11 @@ export default function BankPage() {
         }
       }
 
-      await BankTransaction.delete(transaction.id);
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'delete',
+        table: 'BankTransaction',
+        id: transaction.id
+      });
 
       // Trigger balance recalculation
       await base44.functions.invoke('calculateBankBalances', {
