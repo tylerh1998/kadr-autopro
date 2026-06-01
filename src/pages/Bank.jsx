@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BankAccount, BankTransaction, ChartOfAccount, GLTransaction } from '@/entities/all';
+import { BankTransaction, ChartOfAccount, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,40 +92,32 @@ export default function BankPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Load all bank accounts to find active ones
-      const allAccountsData = await BankAccount.list();
+      const allAccountsData = await fetchBankAccountsFromSupabase();
       const activeAccounts = allAccountsData.filter(acc => acc.is_active !== false);
 
-      // 2. Recalculate balances for each active bank account
       console.log('Recalculating balances for all bank accounts...');
       const recalculationPromises = activeAccounts.map(account =>
         base44.functions.invoke('calculateBankBalances', {
           bankAccountId: account.id
         }).catch(error => {
           console.error(`Failed to recalculate balances for account ${account.name}:`, error);
-          return null; // Continue even if one fails
+          return null;
         })
       );
       await Promise.all(recalculationPromises);
       console.log('Balance recalculation complete');
 
-      // 3. Reload accounts to get updated current_balance values
-      const updatedAccountsData = await BankAccount.list();
+      const updatedAccountsData = await fetchBankAccountsFromSupabase();
       const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
       setBankAccounts(updatedActiveAccounts);
 
-      // Auto-select primary account
       const primaryAccount = updatedActiveAccounts.find(acc => acc.primary === true);
       if (primaryAccount) {
         setSelectedAccountId(primaryAccount.id);
       }
       
-      // 4. Load chart of accounts
       const chartData = await ChartOfAccount.list();
       setChartOfAccounts(chartData);
-
-      // Transactions will be loaded by the useEffect watching selectedAccountId
-      // once selectedAccountId is set by user selection.
 
     } catch (error) {
       console.error('Error loading bank data:', error);
@@ -133,24 +125,34 @@ export default function BankPage() {
     } finally {
       setLoading(false);
     }
-  }, []); // `loadData` is a useCallback, so it's stable.
+  }, [fetchBankAccountsFromSupabase]); // `loadData` is a useCallback, so it's stable.
 
   // This useEffect will now call `loadData` once on component mount
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  const fetchBankAccountsFromSupabase = useCallback(async () => {
+    const response = await base44.functions.invoke('SupabaseProxy', {
+      action: 'list',
+      table: 'BankAccount'
+    });
+
+    return (response.data?.data || []).filter(acc => acc.is_active !== false);
+  }, []);
+
   // Existing `loadBankAccounts` for refreshing after account edits/saves
   const loadBankAccounts = useCallback(async () => {
     try {
-      const accountsData = await BankAccount.filter({ is_active: true }, 'name');
-      setBankAccounts(accountsData);
+      const accountsData = await fetchBankAccountsFromSupabase();
+      const sortedAccounts = [...accountsData].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      setBankAccounts(sortedAccounts);
 
       // Do NOT auto-select first account - let user choose
     } catch (error) {
       console.error('Error loading bank accounts:', error);
     }
-  }, []);
+  }, [fetchBankAccountsFromSupabase]);
 
 
   const loadTransactions = useCallback(async () => {
@@ -162,19 +164,27 @@ export default function BankPage() {
         return;
       }
 
-      const transactionsData = await BankTransaction.filter(
-        { bank_account_id: selectedAccountId },
-        'transaction_date'
-      );
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankTransaction',
+        params: { bank_account_id: selectedAccountId }
+      });
 
-      // Filter by date range using string comparison to avoid timezone issues
+      const transactionsData = (response.data?.data || []).map(tx => ({
+        ...tx,
+        debit_amount: parseFloat(tx.debit_amount) || 0,
+        credit_amount: parseFloat(tx.credit_amount) || 0,
+        cleared: tx.cleared === true,
+        reconciled: tx.reconciled === true,
+        is_reversed: tx.is_reversed === true
+      }));
+
       const filteredTransactions = transactionsData.filter(tx => {
         if (tx.is_reversed) return false;
-        const txDate = tx.transaction_date; // Keep as string 'yyyy-MM-dd'
+        const txDate = tx.transaction_date;
         return txDate >= appliedFromDate && txDate <= appliedToDate;
       });
 
-      // Sort by configured key and direction
       filteredTransactions.sort((a, b) => {
         let valA, valB;
         if (sortConfig.key === 'transaction_date') {
@@ -268,9 +278,18 @@ export default function BankPage() {
   const handleSaveAccount = async (accountData) => {
     try {
       if (editingAccount && editingAccount.id) {
-        await BankAccount.update(editingAccount.id, accountData);
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'BankAccount',
+          id: editingAccount.id,
+          data: accountData
+        });
       } else {
-        await BankAccount.create(accountData);
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'BankAccount',
+          data: accountData
+        });
       }
       setShowEditModal(false);
       setEditingAccount(null);
@@ -291,7 +310,7 @@ export default function BankPage() {
       });
       
       // Reload accounts to get updated current_balance and last_recalculated_date
-      const updatedAccountsData = await BankAccount.list();
+      const updatedAccountsData = await fetchBankAccountsFromSupabase();
       const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
       setBankAccounts(updatedActiveAccounts);
       
@@ -358,7 +377,8 @@ export default function BankPage() {
       }
 
       // Get bank account details for GL posting
-      const bankAccount = await BankAccount.get(selectedAccountId);
+      const latestAccounts = await fetchBankAccountsFromSupabase();
+      const bankAccount = latestAccounts.find(acc => acc.id === selectedAccountId);
       
       if (!bankAccount.gl_account) {
         alert('Warning: Bank account does not have a GL account assigned. GL transactions were not posted.');
@@ -517,7 +537,8 @@ export default function BankPage() {
   const handleDeleteTransaction = async (transaction) => {
     try {
       // Get bank account details for GL posting
-      const bankAccount = await BankAccount.get(selectedAccountId);
+      const latestAccounts = await fetchBankAccountsFromSupabase();
+      const bankAccount = latestAccounts.find(acc => acc.id === selectedAccountId);
 
       if (bankAccount.gl_account && transaction.gl_account) {
         // Reverse GL entries
@@ -601,7 +622,8 @@ export default function BankPage() {
 
     try {
       // Fetch the latest account data
-      const account = await BankAccount.get(selectedAccountId);
+      const latestAccounts = await fetchBankAccountsFromSupabase();
+      const account = latestAccounts.find(acc => acc.id === selectedAccountId);
       const lockStatus = checkBankAccountLock(account, currentUser.email);
 
       if (lockStatus.isLocked) {
@@ -610,9 +632,14 @@ export default function BankPage() {
       }
 
       // Acquire lock
-      await BankAccount.update(selectedAccountId, {
-        locked_by_user: currentUser.email,
-        locked_timestamp: new Date().toISOString()
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'BankAccount',
+        id: selectedAccountId,
+        data: {
+          locked_by_user: currentUser.email,
+          locked_timestamp: new Date().toISOString()
+        }
       });
 
       // Navigate to reconcile page
