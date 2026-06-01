@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { PayrollTransaction, BankAccount, GLTransaction, BankTransaction } from '@/entities/all';
+import { BankAccount, GLTransaction, BankTransaction } from '@/entities/all';
 import {
   Dialog,
   DialogContent,
@@ -143,8 +143,13 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
       
       for (const transaction of transactions) {
         // Update transaction as paid
-        await PayrollTransaction.update(transaction.id, {
-          is_paid: true
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'PayrollTransaction',
+          id: transaction.id,
+          data: {
+            is_paid: true
+          }
         });
 
         // Create GL transactions based on transaction type

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PayrollTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -49,10 +49,25 @@ export default function PayrollPage() {
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      // Fetch all transactions
-      const allTransactions = await PayrollTransaction.list('-pay_date');
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'list',
+        table: 'PayrollTransaction'
+      });
+
+      const allTransactions = (response.data?.data || []).map((transaction) => ({
+        ...transaction,
+        amount: transaction.amount === null || transaction.amount === undefined || transaction.amount === '' ? 0 : parseFloat(transaction.amount) || 0,
+        gross_pay: transaction.gross_pay || 0,
+        income_tax: transaction.income_tax || 0,
+        cpp_contribution: transaction.cpp_contribution || 0,
+        cpp2_contribution: transaction.cpp2_contribution || 0,
+        ei_premium: transaction.ei_premium || 0,
+        cpp_employer: transaction.cpp_employer || 0,
+        cpp2_employer: transaction.cpp2_employer || 0,
+        ei_employer: transaction.ei_employer || 0,
+        is_paid: transaction.is_paid === true
+      }));
       
-      // Filter by date range
       let filtered = allTransactions.filter(transaction => {
         const transactionDate = new Date(transaction.pay_date);
         const fromDate = dateRange.from ? new Date(dateRange.from) : null;
@@ -67,13 +82,13 @@ export default function PayrollPage() {
         return true;
       });
       
-      // Filter by transaction type
       if (transactionTypeFilter !== 'all') {
         filtered = filtered.filter(t => t.transaction_type === transactionTypeFilter);
       }
       
+      filtered.sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
       setTransactions(filtered);
-      setSelectedTransactions([]); // Clear selections on load
+      setSelectedTransactions([]);
     } catch (error) {
       console.error('Error loading payroll transactions:', error);
     } finally {
@@ -108,13 +123,17 @@ export default function PayrollPage() {
         }
 
         // Create reversal adjustment
-        await PayrollTransaction.create({
-          transaction_type: 'Adjustment',
-          pay_date: format(new Date(), 'yyyy-MM-dd'), // Today's date
-          amount: reversalAmount,
-          adjustment_reason: reversalDescription,
-          notes: `Original transaction ID: ${transaction.id}`,
-          is_paid: false
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'PayrollTransaction',
+          data: {
+            transaction_type: 'Adjustment',
+            pay_date: format(new Date(), 'yyyy-MM-dd'),
+            amount: String(reversalAmount),
+            adjustment_reason: reversalDescription,
+            notes: `Original transaction ID: ${transaction.id}`,
+            is_paid: false
+          }
         });
 
         alert('Reversal adjustment created successfully. The original transaction remains for audit purposes.');

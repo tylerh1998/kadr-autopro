@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { PayrollTransaction } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import {
   Dialog,
   DialogContent,
@@ -42,13 +41,17 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
       }
 
       // Create the transaction
-      await PayrollTransaction.create({
-        transaction_type: 'Adjustment',
-        pay_date: formData.pay_date,
-        amount: parseFloat(formData.amount), // Can be negative
-        adjustment_reason: formData.adjustment_reason,
-        notes: formData.notes || null,
-        is_paid: false // Default to unpaid for manual entries
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'PayrollTransaction',
+        data: {
+          transaction_type: 'Adjustment',
+          pay_date: formData.pay_date,
+          amount: String(parseFloat(formData.amount) || 0),
+          adjustment_reason: formData.adjustment_reason,
+          notes: formData.notes || null,
+          is_paid: false
+        }
       });
 
       // Reset form

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { PayrollTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
   Dialog,
@@ -123,25 +122,29 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     setError(null);
 
     try {
-      await PayrollTransaction.create({
-        transaction_type: 'Paycheque',
-        paycheque_number: formData.paycheque_number || null,
-        pay_date: formData.pay_date,
-        gross_pay: parseFloat(formData.gross_pay),
-        income_tax: parseFloat(formData.income_tax) || 0,
-        cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
-        cpp2_contribution: parseFloat(formData.cpp2_contribution) || 0,
-        ei_premium: parseFloat(formData.ei_premium) || 0,
-        cpp_employer: parseFloat(formData.cpp_employer) || 0,
-        cpp2_employer: parseFloat(formData.cpp2_employer) || 0,
-        ei_employer: parseFloat(formData.ei_employer) || 0,
-        notes: formData.notes || null,
-        employee_reference: formData.employee_reference || null,
-        import_file_name: formData.import_file_name || null,
-        import_date: formData.import_file_name ? new Date().toISOString() : null,
-        is_paid: false,
-        is_bus_driver_wages: formData.is_bus_driver_wages === 'yes',
-        additional_deductions: JSON.stringify(formData.additional_deductions || [])
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'PayrollTransaction',
+        data: {
+          transaction_type: 'Paycheque',
+          paycheque_number: formData.paycheque_number || null,
+          pay_date: formData.pay_date,
+          gross_pay: parseFloat(formData.gross_pay),
+          income_tax: parseFloat(formData.income_tax) || 0,
+          cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
+          cpp2_contribution: parseFloat(formData.cpp2_contribution) || 0,
+          ei_premium: parseFloat(formData.ei_premium) || 0,
+          cpp_employer: parseFloat(formData.cpp_employer) || 0,
+          cpp2_employer: parseFloat(formData.cpp2_employer) || 0,
+          ei_employer: parseFloat(formData.ei_employer) || 0,
+          notes: formData.notes || null,
+          employee_reference: formData.employee_reference || null,
+          import_file_name: formData.import_file_name || null,
+          import_date: formData.import_file_name ? new Date().toISOString() : null,
+          is_paid: false,
+          is_bus_driver_wages: formData.is_bus_driver_wages === 'yes',
+          additional_deductions: JSON.stringify(formData.additional_deductions || [])
+        }
       });
 
       setFormData({

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { PayrollTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import {
   Dialog,
@@ -124,22 +123,26 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
       }
 
       // Create the transaction
-      await PayrollTransaction.create({
-        transaction_type: 'Remittance',
-        pay_date: formData.pay_date,
-        remittance_period_start: formData.remittance_period_start || null,
-        remittance_period_end: formData.remittance_period_end || null,
-        income_tax: parseFloat(formData.income_tax) || 0,
-        cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
-        cpp_employer: parseFloat(formData.cpp_employer) || 0,
-        ei_premium: parseFloat(formData.ei_premium) || 0,
-        ei_employer: parseFloat(formData.ei_employer) || 0,
-        amount: parseFloat(formData.amount),
-        paycheque_numbers_included: formData.paycheque_numbers_included || null,
-        notes: formData.notes || null,
-        import_file_name: formData.import_file_name || null,
-        import_date: formData.import_file_name ? new Date().toISOString() : null,
-        is_paid: false
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'PayrollTransaction',
+        data: {
+          transaction_type: 'Remittance',
+          pay_date: formData.pay_date,
+          remittance_period_start: formData.remittance_period_start || null,
+          remittance_period_end: formData.remittance_period_end || null,
+          income_tax: parseFloat(formData.income_tax) || 0,
+          cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
+          cpp_employer: parseFloat(formData.cpp_employer) || 0,
+          ei_premium: parseFloat(formData.ei_premium) || 0,
+          ei_employer: parseFloat(formData.ei_employer) || 0,
+          amount: String(parseFloat(formData.amount) || 0),
+          paycheque_numbers_included: formData.paycheque_numbers_included || null,
+          notes: formData.notes || null,
+          import_file_name: formData.import_file_name || null,
+          import_date: formData.import_file_name ? new Date().toISOString() : null,
+          is_paid: false
+        }
       });
 
       // Reset form
