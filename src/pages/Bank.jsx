@@ -296,7 +296,9 @@ export default function BankPage() {
       loadBankAccounts(); // Reload accounts after save
     } catch (error) {
       console.error('Error saving account:', error);
-      alert('Failed to save account.');
+      const message = error?.response?.data?.error || error.message || 'Failed to save account.';
+      const details = error?.response?.data?.details;
+      alert(details ? `${message}\n\n${JSON.stringify(details, null, 2)}` : message);
     }
   };
 

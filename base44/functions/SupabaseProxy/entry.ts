@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
         const { action = 'read', id, ids, data: payloadData, table = 'SalesClass', match, params } = reqBody;
 
         let result;
+        let operationMeta = { action, table, id: id || null, ids: ids || null };
         
         if (action === 'read' || action === 'list') {
             let query = supabase.from(table).select('*');
@@ -88,13 +89,26 @@ Deno.serve(async (req) => {
         }
 
         if (result.error) {
-            console.error("Supabase error:", result.error);
-            return Response.json({ error: 'Failed to perform Supabase operation', details: result.error }, { status: 500 });
+            console.error("Supabase error:", { ...operationMeta, error: result.error });
+            return Response.json({
+                error: result.error.message || 'Failed to perform Supabase operation',
+                details: {
+                    ...operationMeta,
+                    code: result.error.code || null,
+                    details: result.error.details || null,
+                    hint: result.error.hint || null
+                }
+            }, { status: 500 });
         }
         
         return Response.json({ data: result.data });
     } catch (error) {
         console.error("SupabaseProxy error:", error);
-        return Response.json({ error: error.message }, { status: 500 });
+        return Response.json({
+            error: error.message,
+            details: {
+                stack: error.stack || null
+            }
+        }, { status: 500 });
     }
 });
