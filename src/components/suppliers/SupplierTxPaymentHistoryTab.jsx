@@ -43,7 +43,7 @@ export default function SupplierTxPaymentHistoryTab({ loading, payments, expande
                           ) : <span className="capitalize">{payment.payment_method?.replace(/_/g, ' ') || 'N/A'}</span>}
                         </TableCell>
                         <TableCell className="text-slate-600">{payment.cheque_number || payment.bank_transaction_id || '-'}</TableCell>
-                        <TableCell className="text-slate-600">{sourceMap[payment.source] || '-'}</TableCell>
+                        <TableCell className="text-slate-600">{payment.payment_method === 'Bank Account' || payment.payment_method === 'Cheque' ? (payment.bank_account_name || '-') : (sourceMap[payment.source] || '-')}</TableCell>
                         <TableCell className="text-right font-semibold text-slate-900">${payment.amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleCancelPayment(payment); }} disabled={isLockedByOtherUser || !lockAcquired} title="Cancel Payment"><Trash2 className="w-4 h-4" /></Button>

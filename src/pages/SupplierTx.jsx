@@ -224,10 +224,9 @@ export default function SupplierTxPage() {
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        const [locs, banks] = await Promise.all([base44.entities.LinesOfCredit.list(), base44.entities.BankAccount.list()]);
+        const locs = await base44.entities.LinesOfCredit.list();
         const map = {};
         locs.forEach(loc => map[loc.id] = loc.name);
-        banks.forEach(bank => map[bank.id] = bank.name);
         setSourceMap(map);
       } catch (err) {
         console.error('Error fetching sources', err);

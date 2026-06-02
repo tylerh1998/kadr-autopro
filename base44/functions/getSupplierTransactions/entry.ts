@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Supplier not found' }, { status: 404 });
         }
 
-        const [chartOfAccountsData, paymentsResponse, rpcResponse] = await Promise.all([
+        const [chartOfAccountsData, paymentsResponse, rpcResponse, bankAccountsResponse] = await Promise.all([
             base44.asServiceRole.entities.ChartOfAccount.list('', 1000),
             supabase
                 .from('SupplierPayment')
@@ -75,7 +75,10 @@ Deno.serve(async (req) => {
                 p_supplier_id: supplierId,
                 p_from_date: fromDate,
                 p_to_date: toDate
-            })
+            }),
+            supabase
+                .from('BankAccount')
+                .select('id, name')
         ]);
 
         if (paymentsResponse.error) {
@@ -93,12 +96,31 @@ Deno.serve(async (req) => {
             }, { status: 500 });
         }
 
+        if (bankAccountsResponse.error) {
+            return Response.json({
+                success: false,
+                error: bankAccountsResponse.error.message || 'Failed to fetch bank accounts'
+            }, { status: 500 });
+        }
+
+        const bankAccountMap = new Map((bankAccountsResponse.data || []).map((account) => [account.id, account.name]));
+        const paymentsWithBankNames = (paymentsResponse.data || []).map((payment) => {
+            if (payment.payment_method === 'Bank Account' || payment.payment_method === 'Cheque') {
+                return {
+                    ...payment,
+                    bank_account_name: bankAccountMap.get(payment.source) || '-'
+                };
+            }
+
+            return payment;
+        });
+
         return Response.json({
             success: true,
             data: {
                 supplier: supplierData,
                 chartOfAccounts: chartOfAccountsData,
-                payments: paymentsResponse.data || [],
+                payments: paymentsWithBankNames,
                 conceptualInvoices: rpcResponse.data?.conceptualInvoices || [],
                 allConceptualInvoices: rpcResponse.data?.allConceptualInvoices || [],
                 invoiceLines: rpcResponse.data?.invoiceLines || [],
