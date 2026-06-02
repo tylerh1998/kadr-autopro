@@ -17,7 +17,7 @@ import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
-import { BankAccount, LinesOfCredit } from '@/entities/all';
+import { LinesOfCredit } from '@/entities/all';
 import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
@@ -235,12 +235,16 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const loadData = async () => {
     setLoading(true);
     try {
-      const [banks, locs] = await Promise.all([
-        base44.entities.BankAccount.filter({ is_active: true }),
+      const [banksResponse, locs] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'list',
+          table: 'BankAccount'
+        }),
         base44.entities.LinesOfCredit.filter({ is_active: true })
       ]);
 
-      setBankAccounts(banks || []);
+      const banks = (banksResponse.data?.data || []).filter(acc => acc.is_active !== false);
+      setBankAccounts(banks);
       setLinesOfCredit(locs || []);
 
       if (invoiceLines && Array.isArray(invoiceLines)) {
@@ -455,7 +459,18 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           }
         } else {
           // For Bank Account or Cheque, check the bank account lock
-          accountToCheck = await BankAccount.get(paymentData.from_account_id);
+          const bankAccountResponse = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'BankAccount',
+            match: { id: paymentData.from_account_id }
+          });
+          accountToCheck = bankAccountResponse.data?.data?.[0];
+
+          if (!accountToCheck) {
+            setLoading(false);
+            alert('Selected bank account could not be found. Please try again.');
+            return;
+          }
           
           if (accountToCheck.locked_by_user && accountToCheck.locked_timestamp) {
             const lockStatus = checkBankAccountLock(accountToCheck, currentUser?.email || '');
