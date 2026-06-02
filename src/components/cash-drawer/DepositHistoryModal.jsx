@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { BankTransaction, BankAccount, FiscalPeriod } from '@/entities/all';
+import { BankAccount, FiscalPeriod } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
@@ -23,11 +23,18 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const [recentDeposits, allBankAccounts, fiscalPeriods] = await Promise.all([
-        BankTransaction.filter({ source_type: 'deposit' }, '-created_date'),
+      const [bankTransactionsResponse, allBankAccounts, fiscalPeriods] = await Promise.all([
+        base44.functions.invoke('getBankTransactions', {
+          sourceType: 'deposit',
+          fromDate: '1900-01-01',
+          sortField: 'created_date',
+          sortDirection: 'desc'
+        }),
         BankAccount.list(),
         FiscalPeriod.list()
       ]);
+
+      const recentDeposits = bankTransactionsResponse?.data?.transactions || [];
 
       const accountsMap = allBankAccounts.reduce((acc, account) => {
         acc[account.id] = account.name;

@@ -66,15 +66,14 @@ Deno.serve(async (req) => {
     }
 
     const payload = await req.json().catch(() => ({}));
-    const { bankAccountId, fromDate, toDate, isReconciled, searchText } = payload;
-
-    if (!bankAccountId) {
-      return Response.json({ error: 'Missing bankAccountId' }, { status: 400 });
-    }
+    const { bankAccountId, fromDate, toDate, isReconciled, searchText, sourceType, sourceId, sortField, sortDirection } = payload;
 
     const effectiveFromDate = normalizeDateInput(fromDate) || getDefaultFromDateMountain();
     const effectiveToDate = normalizeDateInput(toDate) || getMountainDateString();
     const isReconciledProvided = Object.prototype.hasOwnProperty.call(payload, 'isReconciled') && isReconciled !== null;
+    const allowedSortFields = new Set(['transaction_date', 'created_date', 'updated_date', 'reference', 'description', 'source_id', 'source_type']);
+    const effectiveSortField = allowedSortFields.has(sortField) ? sortField : 'transaction_date';
+    const effectiveSortDirection = sortDirection === 'desc' ? 'desc' : 'asc';
 
     const supabaseUrl = Deno.env.get('Supabase_project_url');
     const supabaseKey = Deno.env.get('Supabase_Secret_Key');
@@ -84,9 +83,21 @@ Deno.serve(async (req) => {
     }
 
     const queryUrl = new URL(`${supabaseUrl}/rest/v1/BankTransaction`);
-    queryUrl.searchParams.set('bank_account_id', `eq.${bankAccountId}`);
     queryUrl.searchParams.set('select', '*');
     queryUrl.searchParams.set('limit', '2000');
+    queryUrl.searchParams.set('order', `${effectiveSortField}.${effectiveSortDirection}`);
+
+    if (bankAccountId) {
+      queryUrl.searchParams.set('bank_account_id', `eq.${bankAccountId}`);
+    }
+
+    if (sourceType) {
+      queryUrl.searchParams.set('source_type', `eq.${sourceType}`);
+    }
+
+    if (sourceId) {
+      queryUrl.searchParams.set('source_id', `eq.${sourceId}`);
+    }
 
     const supabaseResponse = await fetch(queryUrl.toString(), {
       headers: {
@@ -113,19 +124,28 @@ Deno.serve(async (req) => {
       .filter((tx) => matchesReconciledFilter(tx, isReconciledProvided, isReconciled))
       .filter((tx) => matchesSearch(tx, searchText))
       .sort((a, b) => {
-        const aDate = normalizeDateInput(a.transaction_date) || '';
-        const bDate = normalizeDateInput(b.transaction_date) || '';
-        return aDate.localeCompare(bDate);
+        const aValue = effectiveSortField === 'transaction_date'
+          ? (normalizeDateInput(a.transaction_date) || '')
+          : String(a[effectiveSortField] || '');
+        const bValue = effectiveSortField === 'transaction_date'
+          ? (normalizeDateInput(b.transaction_date) || '')
+          : String(b[effectiveSortField] || '');
+        const comparison = aValue.localeCompare(bValue);
+        return effectiveSortDirection === 'desc' ? -comparison : comparison;
       });
 
     return Response.json({
       transactions: filteredTransactions,
       meta: {
-        bankAccountId,
+        bankAccountId: bankAccountId || null,
         fromDate: effectiveFromDate,
         toDate: effectiveToDate,
         isReconciled: isReconciledProvided ? isReconciled : null,
         searchText: searchText || '',
+        sourceType: sourceType || null,
+        sourceId: sourceId || null,
+        sortField: effectiveSortField,
+        sortDirection: effectiveSortDirection,
         count: filteredTransactions.length
       }
     });
