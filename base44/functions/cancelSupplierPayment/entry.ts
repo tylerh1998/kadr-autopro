@@ -60,10 +60,13 @@ Deno.serve(async (req) => {
     let linkedAccountType = null;
 
     if (payment.payment_method === 'Bank Account' || payment.payment_method === 'Cheque') {
-      const bankTx = await base44.asServiceRole.entities.BankTransaction.filter({
-        source_id: payment.id,
-        source_type: 'payment'
-      });
+      const { data: bankTxArr } = await supabase
+        .from('BankTransaction')
+        .select('*')
+        .eq('source_id', payment.id)
+        .eq('source_type', 'payment');
+
+      const bankTx = bankTxArr || [];
 
       if (bankTx && bankTx.length > 0) {
         const tx = bankTx[0];
@@ -74,7 +77,14 @@ Deno.serve(async (req) => {
           }, { status: 400 });
         }
 
-        await base44.asServiceRole.entities.BankTransaction.delete(tx.id);
+        const { error: bankDeleteError } = await supabase
+          .from('BankTransaction')
+          .delete()
+          .eq('id', tx.id);
+
+        if (bankDeleteError) {
+          throw new Error(bankDeleteError.message || 'Failed to delete bank transaction');
+        }
         linkedAccountId = tx.bank_account_id;
         linkedAccountType = 'bank';
       }
@@ -242,8 +252,12 @@ Deno.serve(async (req) => {
     const paymentAmount = parseFloat(payment.amount) || 0;
 
     if (linkedAccountType === 'bank' && linkedAccountId) {
-      const bank = await base44.asServiceRole.entities.BankAccount.get(linkedAccountId);
-      creditAccountId = bank.gl_account;
+      const { data: bank } = await supabase
+        .from('BankAccount')
+        .select('gl_account')
+        .eq('id', linkedAccountId)
+        .single();
+      creditAccountId = bank?.gl_account;
     } else if (linkedAccountType === 'loc' && linkedAccountId) {
       const loc = await base44.asServiceRole.entities.LinesOfCredit.get(linkedAccountId);
       creditAccountId = loc.gl_account;
