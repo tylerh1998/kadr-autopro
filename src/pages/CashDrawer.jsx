@@ -523,3 +523,369 @@ export default function CashDrawerPage() {
         try {
           savedCheques = JSON.parse(savedBreakdown.cheques_data || '[]');
         } catch (e) {
+          console.error('Error parsing saved cheques data:', e);
+        }
+
+        const reconstructedForDeposit = {};
+        paymentMethods.forEach(method => {
+          reconstructedForDeposit[method] = [];
+        });
+
+        savedCheques.forEach((cheque, index) => {
+          reconstructedForDeposit.cheque.push({
+            id: `saved-cheque-${index}`,
+            customerName: cheque.customerName,
+            amount: cheque.amount
+          });
+        });
+
+        if (savedBreakdown.total_cash > 0) {
+          reconstructedForDeposit.cash.push({
+            id: 'saved-cash',
+            amount: savedBreakdown.total_cash
+          });
+        }
+
+        setDepositSlipData({
+          forDepositItems: reconstructedForDeposit,
+          selectedBankAccount,
+          depositDate: savedBreakdown.deposit_date,
+          totalAmount: savedBreakdown.deposit_amount
+        });
+        setExistingBreakdown(savedBreakdown);
+        setCurrentDepositBatchId(null); 
+        setCurrentBankTransactionId(null);
+        setShowDepositHistoryModal(false);
+        setShowDepositSlipModal(true);
+        return;
+      }
+
+      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
+          action: 'filter', 
+          match: { deposit_batch_id: batchId } 
+      });
+      const batchPayments = allPaymentsRes?.data?.data || [];
+      const batchAdjustments = await CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
+
+      const reconstructedForDeposit = {};
+      paymentMethods.forEach(method => {
+        reconstructedForDeposit[method] = [];
+      });
+
+      batchPayments.forEach(payment => {
+        let customerName = 'Unknown Customer';
+        if (payment.customer) {
+          if (payment.customer.org_name && payment.customer.org_name.trim() !== '') {
+            customerName = payment.customer.org_name;
+          } else if (payment.customer.first_name || payment.customer.last_name) {
+            customerName = `${payment.customer.first_name || ''} ${payment.customer.last_name || ''}`.trim();
+          }
+        }
+
+        const method = payment.payment_method;
+        if (reconstructedForDeposit[method]) {
+          reconstructedForDeposit[method].push({
+            id: `payment-${payment.id}`,
+            source_type: 'payment',
+            customerPaymentId: payment.id,
+            amount: payment.amount || 0,
+            method: method,
+            date: payment.payment_date,
+            workOrderNumber: payment.invoice_number || 'N/A',
+            customerName: customerName,
+            reference: payment.reference || '',
+            notes: payment.notes || '',
+            cheque_name: payment.cheque_name || '',
+            cheque_number: payment.cheque_number || ''
+          });
+        }
+      });
+
+      batchAdjustments.forEach(adjustment => {
+        const method = adjustment.payment_method;
+        if (reconstructedForDeposit[method]) {
+          reconstructedForDeposit[method].push({
+            id: `adjustment-${adjustment.id}`,
+            source_type: 'adjustment',
+            adjustmentId: adjustment.id,
+            amount: adjustment.amount || 0,
+            method: method,
+            date: adjustment.adjustment_date,
+            workOrderNumber: adjustment.reference || 'ADJ',
+            customerName: adjustment.type === 'shortage' ? 'Cash Shortage' : 'Cash Overage',
+            reference: adjustment.reference || '',
+            notes: adjustment.description || ''
+          });
+        }
+      });
+
+      setDepositSlipData({
+        forDepositItems: reconstructedForDeposit,
+        selectedBankAccount,
+        depositDate: deposit.transaction_date,
+        totalAmount: deposit.credit_amount
+      });
+      setExistingBreakdown(null);
+      setCurrentDepositBatchId(null);
+      setCurrentBankTransactionId(null);
+      setShowDepositHistoryModal(false);
+      setShowDepositSlipModal(true);
+
+    } catch (error) {
+      console.error('Error loading deposit data for reprint:', error);
+      alert('Failed to load deposit data for reprinting.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenChangeMethod = (item) => {
+    setPaymentToChange(item);
+    setShowChangeMethodModal(true);
+  };
+
+  const handleSavePaymentMethod = async (item, newMethod) => {
+    try {
+      setLoading(true);
+      await base44.functions.invoke('supabaseCustomerPayments', {
+        action: 'update',
+        id: item.customerPaymentId,
+        data: {
+          payment_method: newMethod
+        }
+      });
+      
+      setShowChangeMethodModal(false);
+      setPaymentToChange(null);
+      setShowPaymentModal(false); 
+      
+      await loadData();
+      alert('Payment method updated successfully.');
+    } catch (error) {
+      console.error('Error updating payment method:', error);
+      alert('Failed to update payment method.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateDepositSlip = async (slipData) => {
+    try {
+      const response = await base44.functions.invoke('generateDepositSlipPDF', {
+        cashBreakdown: slipData.cashBreakdown,
+        cheques: slipData.cheques,
+        bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
+        bankAccountName: slipData.selectedBankAccount?.name || '',
+        depositDate: slipData.depositDate,
+        totalCash: slipData.totalCash,
+        totalCheques: slipData.totalCheques,
+        depositAmount: slipData.depositAmount
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      setShowDepositSlipModal(false);
+      setDepositSlipData(null);
+    } catch (error) {
+      console.error('Error generating deposit slip:', error);
+      alert('Failed to generate deposit slip. The deposit was processed successfully.');
+      setShowDepositSlipModal(false);
+      setDepositSlipData(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="p-6 min-h-screen">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Cash Drawer</h1>
+              <p className="text-slate-600 mt-1">Daily cash management and deposits</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button onClick={loadData} variant="outline" size="icon" disabled={loading}>
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button
+                onClick={() => setShowAdjustmentModal(true)}
+                variant="outline"
+                className="bg-white border-orange-300 hover:bg-orange-50"
+              >
+                <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />
+                Record Adjustment
+              </Button>
+              <Button
+                onClick={() => setShowDepositHistoryModal(true)}
+                variant="outline"
+                className="bg-white border-blue-300 hover:bg-blue-50"
+              >
+                <History className="w-4 h-4 mr-2 text-blue-600" />
+                History
+              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  onClick={() => setShowDepositModal(true)}
+                  className="bg-green-600 hover:bg-green-700 h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
+                  disabled={!depositBatchStatus.valid}
+                >
+                  <Upload className="w-6 h-6 mr-2" />
+                  Make Deposit (${getTotalForDeposit().toFixed(2)})
+                </Button>
+                {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
+                  <p className="text-xs text-red-600 max-w-xs text-right">
+                    {depositBatchStatus.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Methods Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Management</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b">
+                    <tr>
+                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50">Payment Method</th>
+                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100">Cash Drawer</th>
+                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100">For Deposit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayMethods.map((displayGroup) => {
+                      const cdTotal = getDisplayGroupCashDrawerTotal(displayGroup);
+                      const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
+                      const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
+                      const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
+
+                      return (
+                        <tr key={displayGroup.id} className="border-b hover:bg-slate-50">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              {getPaymentIcon(displayGroup.id)}
+                              <span className="font-medium capitalize">{displayGroup.label}</span>
+                            </div>
+                          </td>
+                          <td 
+                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors border-r border-blue-100"
+                            onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
+                          >
+                            <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
+                              ${cdTotal.toFixed(2)}
+                              <div className="text-xs text-gray-500">
+                                ({cdCount} items)
+                              </div>
+                            </div>
+                          </td>
+                          <td 
+                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 transition-colors"
+                            onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
+                          >
+                            <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
+                              ${fdTotal.toFixed(2)}
+                              <div className="text-xs text-gray-500">
+                                ({fdCount} items)
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t-2 font-semibold">
+                      <td className="p-4 bg-gray-50">Total</td>
+                      <td className="p-4 text-center text-lg bg-blue-100">
+                        ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
+                      </td>
+                      <td className="p-4 text-center text-lg text-green-700 bg-green-100">
+                        ${getTotalForDeposit().toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {loading && (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-gray-600">Loading payments...</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <PaymentSelectionModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        paymentMethod={selectedPaymentMethod}
+        payments={modalPaymentMethods.reduce((acc, method) => {
+          const list = modalType === 'cash_drawer' ? (cashDrawerItems[method] || []) : (forDepositItems[method] || []);
+          return [...acc, ...list];
+        }, [])}
+        title={modalType === 'cash_drawer' ? 'Move to For Deposit' : 'Move to Cash Drawer'}
+        onMove={handleMovePayments}
+        onChangeMethod={handleOpenChangeMethod}
+      />
+
+      <DepositModal
+        open={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        bankAccounts={bankAccounts}
+        totalAmount={getTotalForDeposit()}
+        forDepositItems={forDepositItems}
+        onSubmit={handleMakeDeposit}
+      />
+
+      <CashDrawerAdjustmentModal
+        open={showAdjustmentModal}
+        onClose={() => setShowAdjustmentModal(false)}
+        onSubmit={handleRecordAdjustment}
+        adjustments={adjustments}
+      />
+
+      <DepositHistoryModal
+        open={showDepositHistoryModal}
+        onClose={() => setShowDepositHistoryModal(false)}
+        onDepositReversed={loadData}
+        onReprintSlip={handleReprintDepositSlip}
+      />
+
+      <DepositSlipBreakdownModal
+        open={showDepositSlipModal}
+        onClose={() => {
+          setShowDepositSlipModal(false);
+          setDepositSlipData(null);
+          setCurrentDepositBatchId(null);
+          setCurrentBankTransactionId(null);
+          setExistingBreakdown(null);
+        }}
+        forDepositItems={depositSlipData?.forDepositItems || {}}
+        selectedBankAccount={depositSlipData?.selectedBankAccount}
+        depositDate={depositSlipData?.depositDate}
+        depositBatchId={currentDepositBatchId}
+        bankTransactionId={currentBankTransactionId}
+        existingBreakdown={existingBreakdown}
+        onGenerateSlip={handleGenerateDepositSlip}
+      />
+
+      <ChangePaymentMethodModal
+        open={showChangeMethodModal}
+        onClose={() => {
+          setShowChangeMethodModal(false);
+          setPaymentToChange(null);
+        }}
+        payment={paymentToChange}
+        onSave={handleSavePaymentMethod}
+      />
+    </>
+  );
+}
