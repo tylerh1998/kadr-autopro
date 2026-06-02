@@ -16,7 +16,7 @@ import {
   History
 } from "lucide-react";
 import { format } from "date-fns";
-import { CustomerPayments, Customer, BankAccount, GLTransaction, BankTransaction, CashDrawerAdjustment, DepositSlipBreakdown } from '@/entities/all';
+import { CustomerPayments, Customer, GLTransaction, CashDrawerAdjustment, DepositSlipBreakdown } from '@/entities/all';
 import PaymentSelectionModal from '../components/cash-drawer/PaymentSelectionModal';
 import DepositModal from '../components/cash-drawer/DepositModal';
 import CashDrawerAdjustmentModal from '../components/cash-drawer/CashDrawerAdjustmentModal';
@@ -25,6 +25,14 @@ import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBrea
 import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
+
+// 1. Import and initialize the Supabase client
+import { createClient } from '@supabase/supabase-js';
+
+// Using your exact specified environment variable names
+const supabaseUrl = process.env.Supabase_project_url || '';
+const supabaseKey = process.env.Supabase_Publishable_key || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
 
@@ -62,7 +70,7 @@ export default function CashDrawerPage() {
     try {
         console.log('Loading cash drawer data');
 
-        // Load non-deposited payments directly from Supabase
+        // Load non-deposited payments directly from Supabase via base44 edge function
         const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
             action: 'filter', 
             match: { deposited: false } 
@@ -74,12 +82,20 @@ export default function CashDrawerPage() {
         const adjustmentsData = await CashDrawerAdjustment.filter({ deposited: false });
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
-        const bankAccountsData = await BankAccount.filter({ is_active: true });
+        // 2. Fetch Bank Accounts using the exact case-sensitive table name
+        const { data: bankAccountsData, error: bankAccountsError } = await supabase
+          .from('BankAccount')
+          .select('*')
+          .eq('is_active', true);
+
+        if (bankAccountsError) {
+          console.error("Error fetching bank accounts from Supabase:", bankAccountsError);
+        }
         
         // Load recent adjustments (last 10 for the modal history)
         const recentAdjustments = await CashDrawerAdjustment.list('-created_date', 10);
 
-        setBankAccounts(bankAccountsData);
+        setBankAccounts(bankAccountsData || []);
         setAdjustments(recentAdjustments);
 
         // Initialize cash drawer with both payments and adjustments
@@ -102,7 +118,7 @@ export default function CashDrawerPage() {
           const method = payment.payment_method;
           if (initialCashDrawer[method]) {
             initialCashDrawer[method].push({
-              id: `payment-${payment.id}`, // Unique ID with prefix
+              id: `payment-${payment.id}`,
               source_type: 'payment',
               customerPaymentId: payment.id,
               amount: payment.amount || 0,
@@ -113,7 +129,6 @@ export default function CashDrawerPage() {
               customerName: customerName,
               reference: payment.reference || '',
               notes: payment.notes || '',
-              // Cheque-specific fields
               cheque_name: payment.cheque_name || '',
               cheque_number: payment.cheque_number || ''
             });
@@ -125,10 +140,10 @@ export default function CashDrawerPage() {
           const method = adjustment.payment_method;
           if (initialCashDrawer[method]) {
             initialCashDrawer[method].push({
-              id: `adjustment-${adjustment.id}`, // Unique ID with prefix
+              id: `adjustment-${adjustment.id}`,
               source_type: 'adjustment',
               adjustmentId: adjustment.id,
-              amount: adjustment.amount || 0, // Already signed (negative for shortage, positive for overage)
+              amount: adjustment.amount || 0,
               method: method,
               date: adjustment.adjustment_date,
               workOrderNumber: adjustment.reference || 'ADJ',
@@ -139,7 +154,6 @@ export default function CashDrawerPage() {
           }
         });
 
-        console.log('Combined cash drawer items:', initialCashDrawer);
         setCashDrawerItems(initialCashDrawer);
 
         // Initialize for deposit as empty
@@ -176,7 +190,6 @@ export default function CashDrawerPage() {
   const isDepositBatchValid = () => {
     const methodsInBatch = new Set();
     
-    // Identify all unique payment methods that have items in the 'For Deposit' column
     paymentMethods.forEach(method => {
       if (forDepositItems[method] && forDepositItems[method].length > 0) {
         methodsInBatch.add(method);
@@ -188,21 +201,17 @@ export default function CashDrawerPage() {
     }
 
     if (methodsInBatch.size === 1) {
-      // Any single payment method type is always valid for deposit
       return { valid: true, message: '' };
     }
 
-    // Special case: Cash and Cheque can be combined
     if (methodsInBatch.size === 2 && methodsInBatch.has('cash') && methodsInBatch.has('cheque')) {
       return { valid: true, message: '' };
     }
 
-    // Special case: Credit Card and Debit can be combined
     if (methodsInBatch.size === 2 && methodsInBatch.has('credit_card') && methodsInBatch.has('debit')) {
       return { valid: true, message: '' };
     }
 
-    // Any other combination is invalid
     const methodList = Array.from(methodsInBatch).map(m => m.replace('_', ' ')).join(', ');
     return { 
       valid: false, 
@@ -210,11 +219,10 @@ export default function CashDrawerPage() {
     };
   };
 
-  // Stores the list of payment methods currently being viewed in the modal (e.g., ['credit_card', 'debit'] for Cards)
   const [modalPaymentMethods, setModalPaymentMethods] = useState([]);
 
   const handleOpenPaymentModal = (displayMethodId, type, methods) => {
-    setSelectedPaymentMethod(displayMethodId); // e.g., 'cards' or 'cash'
+    setSelectedPaymentMethod(displayMethodId);
     setModalPaymentMethods(methods);
     setModalType(type);
     setShowPaymentModal(true);
@@ -222,8 +230,6 @@ export default function CashDrawerPage() {
 
   const handleMovePayments = (selectedPaymentIds) => {
     const sourceItems = modalType === 'cash_drawer' ? cashDrawerItems : forDepositItems;
-    
-    // We need to iterate over all involved methods (e.g. credit_card and debit)
     const newCashDrawerItems = { ...cashDrawerItems };
     const newForDepositItems = { ...forDepositItems };
 
@@ -252,7 +258,6 @@ export default function CashDrawerPage() {
 
   const handleMakeDeposit = async (depositData) => {
     try {
-      // Validate deposit batch one more time before processing
       const batchValidation = isDepositBatchValid();
       if (!batchValidation.valid) {
         alert(batchValidation.message);
@@ -273,20 +278,13 @@ export default function CashDrawerPage() {
         return;
       }
 
-      // Generate a unique deposit batch ID
       const depositBatchId = `DEP-${Date.now()}`;
-
-      // Get all items that need to be marked as deposited
       const allItemsForDeposit = Object.values(forDepositItems).flat();
 
-      // Separate payments and adjustments
       const paymentsToDeposit = allItemsForDeposit.filter(item => item.source_type === 'payment');
       const adjustmentsToDeposit = allItemsForDeposit.filter(item => item.source_type === 'adjustment');
 
-      console.log('Depositing payments:', paymentsToDeposit);
-      console.log('Depositing adjustments:', adjustmentsToDeposit);
-
-      // Update each CustomerPayment to mark as deposited
+      // Update each CustomerPayment
       for (const item of paymentsToDeposit) {
         await base44.functions.invoke('supabaseCustomerPayments', {
           action: 'update',
@@ -299,7 +297,7 @@ export default function CashDrawerPage() {
         });
       }
 
-      // Update each CashDrawerAdjustment to mark as deposited
+      // Update each CashDrawerAdjustment
       for (const item of adjustmentsToDeposit) {
         await CashDrawerAdjustment.update(item.adjustmentId, {
           deposited: true,
@@ -309,7 +307,7 @@ export default function CashDrawerPage() {
         });
       }
 
-      // Create GL Transaction - Credit Cash Drawer Account
+      // GL Transactions
       await GLTransaction.create({
         account_number: CASH_DRAWER_GL_ACCOUNT,
         transaction_date: depositData.depositDate,
@@ -321,7 +319,6 @@ export default function CashDrawerPage() {
         source_id: null
       });
 
-      // Create GL Transaction - Debit Bank Account
       await GLTransaction.create({
         account_number: selectedBankAccount.gl_account || '1000',
         transaction_date: depositData.depositDate,
@@ -333,7 +330,6 @@ export default function CashDrawerPage() {
         source_id: selectedBankAccount.id
       });
 
-      // Determine description based on payment methods
       const activeMethods = paymentMethods.filter(method => 
         forDepositItems[method] && forDepositItems[method].length > 0
       );
@@ -353,23 +349,36 @@ export default function CashDrawerPage() {
         ? `Deposit - ${descriptionParts.join(' & ')}`
         : `Deposit`;
 
-      // Create Bank Transaction
-      const bankTransaction = await BankTransaction.create({
-        bank_account_id: selectedBankAccount.id,
-        transaction_date: depositData.depositDate,
-        description: depositDescription,
-        reference: '',
-        credit_amount: totalAmount,
-        debit_amount: 0,
-        source_type: 'deposit',
-        source_id: depositBatchId
-      });
+      // 3. Create Bank Transaction directly in Supabase using correct casing
+      // We must generate a text ID because the schema marks it 'text not null' without a default
+      const newTransactionId = `btx-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
 
-      // Check if deposit contains cash or cheques - if so, trigger deposit slip modal
+      const { data: bankTransaction, error: bankTransactionError } = await supabase
+        .from('BankTransaction')
+        .insert([{
+          id: newTransactionId, 
+          bank_account_id: selectedBankAccount.id,
+          transaction_date: depositData.depositDate, // Defined as text in your schema
+          description: depositDescription,
+          reference: '',
+          credit_amount: totalAmount,
+          debit_amount: 0,
+          source_type: 'deposit',
+          source_id: depositBatchId,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (bankTransactionError) {
+        console.error("Error creating bank transaction in Supabase:", bankTransactionError);
+        throw new Error(bankTransactionError.message);
+      }
+
       const hasCashOrCheques = (forDepositItems.cash?.length > 0) || (forDepositItems.cheque?.length > 0);
 
       if (hasCashOrCheques) {
-        // Store data for deposit slip modal
         setDepositSlipData({
           forDepositItems: { ...forDepositItems },
           selectedBankAccount,
@@ -378,23 +387,20 @@ export default function CashDrawerPage() {
         });
         setCurrentDepositBatchId(depositBatchId);
         setCurrentBankTransactionId(bankTransaction.id);
-        setExistingBreakdown(null); // New deposit, no existing breakdown
+        setExistingBreakdown(null);
         setShowDepositModal(false);
         setShowDepositSlipModal(true);
       } else {
-        // No cash or cheques - complete normally
         alert('Deposit processed successfully!');
         setShowDepositModal(false);
       }
 
-      // Clear for deposit items
       const emptyForDeposit = {};
       paymentMethods.forEach(method => {
         emptyForDeposit[method] = [];
       });
       setForDepositItems(emptyForDeposit);
 
-      // Reload data to reflect the deposited payments and adjustments
       loadData();
 
     } catch (error) {
@@ -405,7 +411,6 @@ export default function CashDrawerPage() {
 
   const handleRecordAdjustment = async (adjustmentData) => {
     try {
-      // Check fiscal period status
       const periodStatus = await checkFiscalPeriodStatus(adjustmentData.adjustmentDate);
       if (periodStatus === 'closed') {
         alert('Cannot record adjustment. The fiscal period for this date is closed.');
@@ -416,23 +421,16 @@ export default function CashDrawerPage() {
         return;
       }
 
-      // Parse and validate amount
       const amount = parseFloat(adjustmentData.amount);
       if (isNaN(amount) || amount === 0) {
         alert('Invalid adjustment amount.');
         return;
       }
 
-      // Adjust amount sign based on type
       const adjustedAmount = adjustmentData.type === 'shortage' ? -Math.abs(amount) : Math.abs(amount);
-
-      // Generate reference if not provided
       const reference = adjustmentData.reference || `ADJ-${Date.now()}`;
-
-      // Create GL Transaction IDs array
       const glTransactionIds = [];
 
-      // Create GL Transaction 1: Cash Drawer Account
       const cashDrawerGL = await GLTransaction.create({
         account_number: CASH_DRAWER_GL_ACCOUNT,
         transaction_date: adjustmentData.adjustmentDate,
@@ -445,7 +443,6 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(cashDrawerGL.id);
 
-      // Create GL Transaction 2: Adjustment Account (contra-entry)
       const adjustmentGL = await GLTransaction.create({
         account_number: adjustmentData.glAccount,
         transaction_date: adjustmentData.adjustmentDate,
@@ -458,7 +455,6 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(adjustmentGL.id);
 
-      // Create CashDrawerAdjustment record with payment_method
       const adjustmentRecord = await CashDrawerAdjustment.create({
         adjustment_date: adjustmentData.adjustmentDate,
         amount: adjustedAmount,
@@ -471,7 +467,6 @@ export default function CashDrawerPage() {
         deposited: false
       });
 
-      // Update GL Transactions with source_id now that we have the adjustment record
       await GLTransaction.update(cashDrawerGL.id, { source_id: adjustmentRecord.id });
       await GLTransaction.update(adjustmentGL.id, { source_id: adjustmentRecord.id });
 
@@ -488,26 +483,17 @@ export default function CashDrawerPage() {
 
   const getPaymentIcon = (method) => {
     switch (method) {
-      case 'cash':
-        return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'credit_card':
-        return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'debit':
-        return <CreditCard className="w-5 h-5 text-purple-600" />;
-      case 'cards':
-        return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'cheque':
-        return <Banknote className="w-5 h-5 text-orange-600" />;
-      case 'e_transfer':
-        return <ArrowLeftRight className="w-5 h-5 text-indigo-600" />;
-      case 'other':
-        return <DollarSign className="w-5 h-5 text-gray-600" />;
-      default:
-        return <DollarSign className="w-5 h-5 text-gray-600" />;
+      case 'cash': return <DollarSign className="w-5 h-5 text-green-600" />;
+      case 'credit_card': return <CreditCard className="w-5 h-5 text-blue-600" />;
+      case 'debit': return <CreditCard className="w-5 h-5 text-purple-600" />;
+      case 'cards': return <CreditCard className="w-5 h-5 text-blue-600" />;
+      case 'cheque': return <Banknote className="w-5 h-5 text-orange-600" />;
+      case 'e_transfer': return <ArrowLeftRight className="w-5 h-5 text-indigo-600" />;
+      case 'other': return <DollarSign className="w-5 h-5 text-gray-600" />;
+      default: return <DollarSign className="w-5 h-5 text-gray-600" />;
     }
   };
 
-  // Helper to get total for a display group (which might contain multiple payment methods)
   const getDisplayGroupCashDrawerTotal = (displayGroup) => {
     return displayGroup.methods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0);
   };
@@ -526,397 +512,14 @@ export default function CashDrawerPage() {
   const handleReprintDepositSlip = async (deposit) => {
     try {
       setLoading(true);
-
-      // Find the bank account
       const selectedBankAccount = bankAccounts.find(acc => acc.id === deposit.bank_account_id);
-
-      // Try to fetch existing breakdown
       const batchId = deposit.source_id || deposit.reference;
+      
       const existingBreakdowns = await DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
       const savedBreakdown = existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
 
-      // If we have a saved breakdown, use it
       if (savedBreakdown) {
-        // Parse cheques from saved data
         let savedCheques = [];
         try {
           savedCheques = JSON.parse(savedBreakdown.cheques_data || '[]');
         } catch (e) {
-          console.error('Error parsing saved cheques data:', e);
-        }
-
-        // Reconstruct forDepositItems from saved breakdown
-        const reconstructedForDeposit = {};
-        paymentMethods.forEach(method => {
-          reconstructedForDeposit[method] = [];
-        });
-
-        // Add cheques from saved data
-        savedCheques.forEach((cheque, index) => {
-          reconstructedForDeposit.cheque.push({
-            id: `saved-cheque-${index}`,
-            customerName: cheque.customerName,
-            amount: cheque.amount
-          });
-        });
-
-        // Add cash placeholder if there was cash
-        if (savedBreakdown.total_cash > 0) {
-          reconstructedForDeposit.cash.push({
-            id: 'saved-cash',
-            amount: savedBreakdown.total_cash
-          });
-        }
-
-        setDepositSlipData({
-          forDepositItems: reconstructedForDeposit,
-          selectedBankAccount,
-          depositDate: savedBreakdown.deposit_date,
-          totalAmount: savedBreakdown.deposit_amount
-        });
-        setExistingBreakdown(savedBreakdown);
-        setCurrentDepositBatchId(null); // No need to save again on reprint
-        setCurrentBankTransactionId(null);
-        setShowDepositHistoryModal(false);
-        setShowDepositSlipModal(true);
-        return;
-      }
-
-      // Fallback: Fetch from CustomerPayments and CashDrawerAdjustments
-      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
-          action: 'filter', 
-          match: { deposit_batch_id: batchId } 
-      });
-      const batchPayments = allPaymentsRes?.data?.data || [];
-
-      const batchAdjustments = await CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
-
-      // Reconstruct forDepositItems structure
-      const reconstructedForDeposit = {};
-      paymentMethods.forEach(method => {
-        reconstructedForDeposit[method] = [];
-      });
-
-      // Add payments
-      batchPayments.forEach(payment => {
-        let customerName = 'Unknown Customer';
-        if (payment.customer) {
-          if (payment.customer.org_name && payment.customer.org_name.trim() !== '') {
-            customerName = payment.customer.org_name;
-          } else if (payment.customer.first_name || payment.customer.last_name) {
-            customerName = `${payment.customer.first_name || ''} ${payment.customer.last_name || ''}`.trim();
-          }
-        }
-
-        const method = payment.payment_method;
-        if (reconstructedForDeposit[method]) {
-          reconstructedForDeposit[method].push({
-            id: `payment-${payment.id}`,
-            source_type: 'payment',
-            customerPaymentId: payment.id,
-            amount: payment.amount || 0,
-            method: method,
-            date: payment.payment_date,
-            workOrderNumber: payment.invoice_number || 'N/A',
-            customerName: customerName,
-            reference: payment.reference || '',
-            notes: payment.notes || '',
-            // Cheque-specific fields
-            cheque_name: payment.cheque_name || '',
-            cheque_number: payment.cheque_number || ''
-          });
-        }
-      });
-
-      // Add adjustments
-      batchAdjustments.forEach(adjustment => {
-        const method = adjustment.payment_method;
-        if (reconstructedForDeposit[method]) {
-          reconstructedForDeposit[method].push({
-            id: `adjustment-${adjustment.id}`,
-            source_type: 'adjustment',
-            adjustmentId: adjustment.id,
-            amount: adjustment.amount || 0,
-            method: method,
-            date: adjustment.adjustment_date,
-            workOrderNumber: adjustment.reference || 'ADJ',
-            customerName: adjustment.type === 'shortage' ? 'Cash Shortage' : 'Cash Overage',
-            reference: adjustment.reference || '',
-            notes: adjustment.description || ''
-          });
-        }
-      });
-
-      // Set deposit slip data and open modal
-      setDepositSlipData({
-        forDepositItems: reconstructedForDeposit,
-        selectedBankAccount,
-        depositDate: deposit.transaction_date,
-        totalAmount: deposit.credit_amount
-      });
-      setExistingBreakdown(null); // No saved breakdown found
-      setCurrentDepositBatchId(null);
-      setCurrentBankTransactionId(null);
-      setShowDepositHistoryModal(false);
-      setShowDepositSlipModal(true);
-
-    } catch (error) {
-      console.error('Error loading deposit data for reprint:', error);
-      alert('Failed to load deposit data for reprinting.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOpenChangeMethod = (item) => {
-    setPaymentToChange(item);
-    setShowChangeMethodModal(true);
-  };
-
-  const handleSavePaymentMethod = async (item, newMethod) => {
-    try {
-      setLoading(true);
-      await base44.functions.invoke('supabaseCustomerPayments', {
-        action: 'update',
-        id: item.customerPaymentId,
-        data: {
-          payment_method: newMethod
-        }
-      });
-      
-      setShowChangeMethodModal(false);
-      setPaymentToChange(null);
-      // Close the selection modal as the item might move to a different category
-      setShowPaymentModal(false); 
-      
-      await loadData();
-      alert('Payment method updated successfully.');
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-      alert('Failed to update payment method.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateDepositSlip = async (slipData) => {
-    try {
-      const response = await base44.functions.invoke('generateDepositSlipPDF', {
-        cashBreakdown: slipData.cashBreakdown,
-        cheques: slipData.cheques,
-        bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
-        bankAccountName: slipData.selectedBankAccount?.name || '',
-        depositDate: slipData.depositDate,
-        totalCash: slipData.totalCash,
-        totalCheques: slipData.totalCheques,
-        depositAmount: slipData.depositAmount
-      });
-
-      // Open PDF in new tab
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      
-      setShowDepositSlipModal(false);
-      setDepositSlipData(null);
-    } catch (error) {
-      console.error('Error generating deposit slip:', error);
-      alert('Failed to generate deposit slip. The deposit was processed successfully.');
-      setShowDepositSlipModal(false);
-      setDepositSlipData(null);
-    }
-  };
-
-  return (
-    <>
-      <div className="p-6 min-h-screen">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Cash Drawer</h1>
-              <p className="text-slate-600 mt-1">Daily cash management and deposits</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={loadData} variant="outline" size="icon" disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button
-                onClick={() => setShowAdjustmentModal(true)}
-                variant="outline"
-                className="bg-white border-orange-300 hover:bg-orange-50"
-              >
-                <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />
-                Record Adjustment
-              </Button>
-              <Button
-                onClick={() => setShowDepositHistoryModal(true)}
-                variant="outline"
-                className="bg-white border-blue-300 hover:bg-blue-50"
-              >
-                <History className="w-4 h-4 mr-2 text-blue-600" />
-                History
-              </Button>
-              <div className="flex flex-col items-end gap-1">
-                <Button
-                  onClick={() => setShowDepositModal(true)}
-                  className="bg-green-600 hover:bg-green-700 h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
-                  disabled={!depositBatchStatus.valid}
-                >
-                  <Upload className="w-6 h-6 mr-2" />
-                  Make Deposit (${getTotalForDeposit().toFixed(2)})
-                </Button>
-                {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
-                  <p className="text-xs text-red-600 max-w-xs text-right">
-                    {depositBatchStatus.message}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Methods Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment Management</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b">
-                    <tr>
-                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50">Payment Method</th>
-                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100">Cash Drawer</th>
-                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100">For Deposit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayMethods.map((displayGroup) => {
-                      const cdTotal = getDisplayGroupCashDrawerTotal(displayGroup);
-                      const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
-                      const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
-                      const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
-
-                      return (
-                        <tr key={displayGroup.id} className="border-b hover:bg-slate-50">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              {getPaymentIcon(displayGroup.id)}
-                              <span className="font-medium capitalize">{displayGroup.label}</span>
-                            </div>
-                          </td>
-                          <td 
-                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors border-r border-blue-100"
-                            onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
-                          >
-                            <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
-                              ${cdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
-                                ({cdCount} items)
-                              </div>
-                            </div>
-                          </td>
-                          <td 
-                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 transition-colors"
-                            onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
-                          >
-                            <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
-                              ${fdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
-                                ({fdCount} items)
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="border-t-2 font-semibold">
-                      <td className="p-4 bg-gray-50">Total</td>
-                      <td className="p-4 text-center text-lg bg-blue-100">
-                        ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
-                      </td>
-                      <td className="p-4 text-center text-lg text-green-700 bg-green-100">
-                        ${getTotalForDeposit().toFixed(2)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {loading && (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading payments...</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <PaymentSelectionModal
-        open={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        paymentMethod={selectedPaymentMethod}
-        payments={modalPaymentMethods.reduce((acc, method) => {
-          const list = modalType === 'cash_drawer' ? (cashDrawerItems[method] || []) : (forDepositItems[method] || []);
-          return [...acc, ...list];
-        }, [])}
-        title={modalType === 'cash_drawer' ? 'Move to For Deposit' : 'Move to Cash Drawer'}
-        onMove={handleMovePayments}
-        onChangeMethod={handleOpenChangeMethod}
-      />
-
-      <DepositModal
-        open={showDepositModal}
-        onClose={() => setShowDepositModal(false)}
-        bankAccounts={bankAccounts}
-        totalAmount={getTotalForDeposit()}
-        forDepositItems={forDepositItems}
-        onSubmit={handleMakeDeposit}
-      />
-
-      <CashDrawerAdjustmentModal
-        open={showAdjustmentModal}
-        onClose={() => setShowAdjustmentModal(false)}
-        onSubmit={handleRecordAdjustment}
-        adjustments={adjustments}
-      />
-
-      <DepositHistoryModal
-        open={showDepositHistoryModal}
-        onClose={() => setShowDepositHistoryModal(false)}
-        onDepositReversed={loadData}
-        onReprintSlip={handleReprintDepositSlip}
-      />
-
-      <DepositSlipBreakdownModal
-        open={showDepositSlipModal}
-        onClose={() => {
-          setShowDepositSlipModal(false);
-          setDepositSlipData(null);
-          setCurrentDepositBatchId(null);
-          setCurrentBankTransactionId(null);
-          setExistingBreakdown(null);
-        }}
-        forDepositItems={depositSlipData?.forDepositItems || {}}
-        selectedBankAccount={depositSlipData?.selectedBankAccount}
-        depositDate={depositSlipData?.depositDate}
-        depositBatchId={currentDepositBatchId}
-        bankTransactionId={currentBankTransactionId}
-        existingBreakdown={existingBreakdown}
-        onGenerateSlip={handleGenerateDepositSlip}
-      />
-
-      <ChangePaymentMethodModal
-        open={showChangeMethodModal}
-        onClose={() => {
-          setShowChangeMethodModal(false);
-          setPaymentToChange(null);
-        }}
-        payment={paymentToChange}
-        onSave={handleSavePaymentMethod}
-      />
-    </>
-  );
-}
