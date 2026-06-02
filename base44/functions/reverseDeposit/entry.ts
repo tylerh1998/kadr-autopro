@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 async function checkFiscalPeriodStatusForDeno(base44Client, dateString) {
   const dateToCheck = new Date(dateString);
@@ -14,7 +15,7 @@ async function checkFiscalPeriodStatusForDeno(base44Client, dateString) {
     return 'none';
   }
 
-  return period.status;
+  return period.is_closed ? 'closed' : 'open';
 }
 
 Deno.serve(async (req) => {
@@ -26,7 +27,27 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'bankTransactionId is required' }, { status: 400 });
         }
 
-        const bankTransaction = await base44.entities.BankTransaction.get(bankTransactionId);
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseKey) {
+            return Response.json({ error: 'Supabase configuration is missing' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+            auth: { persistSession: false }
+        });
+
+        const { data: bankTransactionRows, error: bankTransactionError } = await supabase
+            .from('BankTransaction')
+            .select('*')
+            .eq('id', bankTransactionId);
+
+        if (bankTransactionError) {
+            throw new Error(bankTransactionError.message);
+        }
+
+        const bankTransaction = Array.isArray(bankTransactionRows) ? bankTransactionRows[0] : null;
 
         if (!bankTransaction) {
             return Response.json({ error: 'Bank transaction not found' }, { status: 404 });
@@ -55,7 +76,17 @@ Deno.serve(async (req) => {
         const transactionDate = bankTransaction.transaction_date;
         const bankAccountId = bankTransaction.bank_account_id;
 
-        const bankAccount = await base44.entities.BankAccount.get(bankAccountId);
+        const { data: bankAccountRows, error: bankAccountError } = await supabase
+            .from('BankAccount')
+            .select('*')
+            .eq('id', bankAccountId);
+
+        if (bankAccountError) {
+            throw new Error(bankAccountError.message);
+        }
+
+        const bankAccount = Array.isArray(bankAccountRows) ? bankAccountRows[0] : null;
+
         if (!bankAccount) {
             return Response.json({ error: 'Associated bank account not found' }, { status: 404 });
         }
@@ -104,7 +135,14 @@ Deno.serve(async (req) => {
             });
         }
 
-        await base44.entities.BankTransaction.delete(bankTransactionId);
+        const { error: deleteBankTransactionError } = await supabase
+            .from('BankTransaction')
+            .delete()
+            .eq('id', bankTransactionId);
+
+        if (deleteBankTransactionError) {
+            throw new Error(deleteBankTransactionError.message);
+        }
 
         await base44.functions.invoke('calculateBankBalances', {
             bankAccountId: bankAccountId
