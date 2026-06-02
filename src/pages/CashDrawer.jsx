@@ -297,7 +297,7 @@ export default function CashDrawerPage() {
 
       // GL Transactions
       await base44.entities.GLTransaction.create({
-        account_number: CASH_DRAWER_GL_ACCOUNT,
+        account_number: String(CASH_DRAWER_GL_ACCOUNT),
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
         reference: depositBatchId,
@@ -308,7 +308,7 @@ export default function CashDrawerPage() {
       });
 
       await base44.entities.GLTransaction.create({
-        account_number: selectedBankAccount.gl_account || '1000',
+        account_number: String(selectedBankAccount.gl_account || '1000'),
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
         reference: depositBatchId,
