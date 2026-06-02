@@ -16,7 +16,6 @@ import {
   History
 } from "lucide-react";
 import { format } from "date-fns";
-import { CustomerPayments, Customer, GLTransaction, CashDrawerAdjustment, DepositSlipBreakdown } from '@/entities/all';
 import PaymentSelectionModal from '../components/cash-drawer/PaymentSelectionModal';
 import DepositModal from '../components/cash-drawer/DepositModal';
 import CashDrawerAdjustmentModal from '../components/cash-drawer/CashDrawerAdjustmentModal';
@@ -71,7 +70,7 @@ export default function CashDrawerPage() {
         console.log('Filtered payments for cash drawer:', paymentsData);
 
         // Load non-deposited adjustments directly
-        const adjustmentsData = await CashDrawerAdjustment.filter({ deposited: false });
+        const adjustmentsData = await base44.entities.CashDrawerAdjustment.filter({ deposited: false });
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
         // Fetch Bank Accounts via existing backend proxy
@@ -82,7 +81,7 @@ export default function CashDrawerPage() {
         const bankAccountsData = (bankAccountsResponse?.data?.data || []).filter(acc => acc.is_active !== false);
         
         // Load recent adjustments (last 10 for the modal history)
-        const recentAdjustments = await CashDrawerAdjustment.list('-created_date', 10);
+        const recentAdjustments = await base44.entities.CashDrawerAdjustment.list('-created_date', 10);
 
         setBankAccounts(bankAccountsData || []);
         setAdjustments(recentAdjustments);
@@ -288,7 +287,7 @@ export default function CashDrawerPage() {
 
       // Update each CashDrawerAdjustment
       for (const item of adjustmentsToDeposit) {
-        await CashDrawerAdjustment.update(item.adjustmentId, {
+        await base44.entities.CashDrawerAdjustment.update(item.adjustmentId, {
           deposited: true,
           deposit_date: depositData.depositDate,
           deposit_batch_id: depositBatchId,
@@ -297,7 +296,7 @@ export default function CashDrawerPage() {
       }
 
       // GL Transactions
-      await GLTransaction.create({
+      await base44.entities.GLTransaction.create({
         account_number: CASH_DRAWER_GL_ACCOUNT,
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
@@ -308,7 +307,7 @@ export default function CashDrawerPage() {
         source_id: null
       });
 
-      await GLTransaction.create({
+      await base44.entities.GLTransaction.create({
         account_number: selectedBankAccount.gl_account || '1000',
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
@@ -422,7 +421,7 @@ export default function CashDrawerPage() {
       const reference = adjustmentData.reference || `ADJ-${Date.now()}`;
       const glTransactionIds = [];
 
-      const cashDrawerGL = await GLTransaction.create({
+      const cashDrawerGL = await base44.entities.GLTransaction.create({
         account_number: CASH_DRAWER_GL_ACCOUNT,
         transaction_date: adjustmentData.adjustmentDate,
         description: `Cash Drawer Adjustment - ${adjustmentData.description}`,
@@ -434,7 +433,7 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(cashDrawerGL.id);
 
-      const adjustmentGL = await GLTransaction.create({
+      const adjustmentGL = await base44.entities.GLTransaction.create({
         account_number: adjustmentData.glAccount,
         transaction_date: adjustmentData.adjustmentDate,
         description: `Cash Drawer Adjustment - ${adjustmentData.description}`,
@@ -446,7 +445,7 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(adjustmentGL.id);
 
-      const adjustmentRecord = await CashDrawerAdjustment.create({
+      const adjustmentRecord = await base44.entities.CashDrawerAdjustment.create({
         adjustment_date: adjustmentData.adjustmentDate,
         amount: adjustedAmount,
         type: adjustmentData.type,
@@ -458,8 +457,8 @@ export default function CashDrawerPage() {
         deposited: false
       });
 
-      await GLTransaction.update(cashDrawerGL.id, { source_id: adjustmentRecord.id });
-      await GLTransaction.update(adjustmentGL.id, { source_id: adjustmentRecord.id });
+      await base44.entities.GLTransaction.update(cashDrawerGL.id, { source_id: adjustmentRecord.id });
+      await base44.entities.GLTransaction.update(adjustmentGL.id, { source_id: adjustmentRecord.id });
 
       alert(`Cash drawer adjustment recorded successfully!\nReference: ${reference}`);
       
@@ -506,7 +505,7 @@ export default function CashDrawerPage() {
       const selectedBankAccount = bankAccounts.find(acc => acc.id === deposit.bank_account_id);
       const batchId = deposit.source_id || deposit.reference;
       
-      const existingBreakdowns = await DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
+      const existingBreakdowns = await base44.entities.DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
       const savedBreakdown = existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
 
       if (savedBreakdown) {
@@ -556,7 +555,7 @@ export default function CashDrawerPage() {
           match: { deposit_batch_id: batchId } 
       });
       const batchPayments = allPaymentsRes?.data?.data || [];
-      const batchAdjustments = await CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
+      const batchAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
 
       const reconstructedForDeposit = {};
       paymentMethods.forEach(method => {

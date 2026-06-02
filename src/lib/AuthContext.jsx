@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
-import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 
 const AuthContext = createContext();
 
@@ -24,17 +23,22 @@ export const AuthProvider = ({ children }) => {
       
       // First, check app public settings (with token if available)
       // This will tell us if auth is required, user not registered, etc.
-      const appClient = createAxiosClient({
-        baseURL: `${appParams.serverUrl}/api/apps/public`,
-        headers: {
-          'X-App-Id': appParams.appId
-        },
-        token: appParams.token, // Include token if available
-        interceptResponses: true
-      });
-      
       try {
-        const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
+        const response = await fetch(`${appParams.serverUrl}/api/apps/public/prod/public-settings/by-id/${appParams.appId}`, {
+          headers: {
+            'X-App-Id': appParams.appId,
+            ...(appParams.token ? { Authorization: `Bearer ${appParams.token}` } : {})
+          }
+        });
+        const publicSettings = await response.json();
+
+        if (!response.ok) {
+          const appError = new Error(publicSettings?.message || 'Failed to load app');
+          appError.status = response.status;
+          appError.data = publicSettings;
+          throw appError;
+        }
+
         setAppPublicSettings(publicSettings);
         
         // If we got the app public settings successfully, check if user is authenticated
