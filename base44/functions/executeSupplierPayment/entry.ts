@@ -73,27 +73,49 @@ Deno.serve(async (req) => {
     const bankGlStartedAt = Date.now();
 
     if (paymentMethod === 'Bank Account' || paymentMethod === 'Cheque') {
-      const selectedBank = await base44.asServiceRole.entities.BankAccount.get(fromAccountId);
+      const { data: selectedBankRows, error: selectedBankError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', fromAccountId);
+
+      if (selectedBankError) {
+        throw new Error(`Failed to load bank account: ${selectedBankError.message}`);
+      }
+
+      const selectedBank = Array.isArray(selectedBankRows) ? selectedBankRows[0] : null;
 
       if (selectedBank) {
-        await base44.asServiceRole.entities.BankTransaction.create({
-          bank_account_id: selectedBank.id,
-          transaction_date: paymentDate,
-          description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
-          debit_amount: paymentAmount > 0 ? paymentAmount : 0,
-          credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
-          source_type: 'payment',
-          source_id: paymentId
-        });
+        const { error: bankTransactionError } = await supabase
+          .from('BankTransaction')
+          .insert([{
+            bank_account_id: selectedBank.id,
+            transaction_date: paymentDate,
+            description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
+            debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+            credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+            source_type: 'payment',
+            source_id: paymentId
+          }]);
+
+        if (bankTransactionError) {
+          throw new Error(`Failed to create bank transaction: ${bankTransactionError.message}`);
+        }
 
         await base44.asServiceRole.functions.invoke('calculateBankBalances', {
           bankAccountId: selectedBank.id
         });
 
         if (chequeNumber) {
-          await base44.asServiceRole.entities.BankAccount.update(selectedBank.id, {
-            next_cheque_number: parseInt(chequeNumber, 10) + 1
-          });
+          const { error: updateBankError } = await supabase
+            .from('BankAccount')
+            .update({
+              next_cheque_number: parseInt(chequeNumber, 10) + 1
+            })
+            .eq('id', selectedBank.id);
+
+          if (updateBankError) {
+            throw new Error(`Failed to update next cheque number: ${updateBankError.message}`);
+          }
         }
 
         await base44.asServiceRole.entities.GLTransaction.create({
