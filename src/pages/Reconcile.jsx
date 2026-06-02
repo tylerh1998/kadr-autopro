@@ -110,7 +110,13 @@ export default function ReconcilePage() {
 
       setLoading(true);
       try {
-        const account = await BankAccount.get(bankAccountId);
+        const accountResponse = await base44.functions.invoke('SupabaseProxy', {
+          action: 'filter',
+          table: 'BankAccount',
+          params: { id: bankAccountId }
+        });
+
+        const account = accountResponse.data?.data?.[0] || null;
         setBankAccount(account);
 
         const transactionsResponse = await getBankTransactions({
