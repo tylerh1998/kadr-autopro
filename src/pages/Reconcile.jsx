@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BankAccount, BankTransaction, BankReconciliation } from '@/entities/all';
+import { BankAccount, BankReconciliation } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,11 +44,6 @@ export default function ReconcilePage() {
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
-  
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const fromDate = format(oneYearAgo, 'yyyy-MM-dd');
-  const toDate = format(new Date(), 'yyyy-MM-dd');
   const [statementBalance, setStatementBalance] = useState('');
   const [selectedTransactions, setSelectedTransactions] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -57,19 +53,6 @@ export default function ReconcilePage() {
   
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
-
-  const applyDateFilter = useCallback((allTxs) => {
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const to = new Date();
-    to.setHours(23, 59, 59, 999);
-
-    return allTxs.filter(tx => {
-      if (tx.is_reversed) return false;
-      const txDate = new Date(tx.transaction_date);
-      return txDate >= oneYearAgo && txDate <= to;
-    });
-  }, []);
 
   // Fetch current user on mount
   useEffect(() => {
@@ -130,18 +113,22 @@ export default function ReconcilePage() {
         const account = await BankAccount.get(bankAccountId);
         setBankAccount(account);
 
-        // Fetch up to 1000 transactions to ensure we get all of them (default is 100)
-        const allTransactions = await BankTransaction.list('transaction_date', 1000);
-        
-        const accountTransactions = allTransactions.filter(
-          tx => tx.bank_account_id === bankAccountId &&
-          tx.is_reversed !== true &&
-          (tx.reconciled === false || tx.reconciled === null || tx.reconciled === undefined)
-        );
+        const transactionsResponse = await getBankTransactions({
+          bankAccountId,
+          isReconciled: false
+        });
+
+        const accountTransactions = (transactionsResponse.data?.transactions || []).map((tx) => ({
+          ...tx,
+          debit_amount: parseFloat(tx.debit_amount) || 0,
+          credit_amount: parseFloat(tx.credit_amount) || 0,
+          reconciled: tx.reconciled === true,
+          cleared: tx.cleared === true,
+          is_reversed: tx.is_reversed === true || tx.is_reversed === 'true'
+        }));
 
         setTransactions(accountTransactions);
-        const filtered = applyDateFilter(accountTransactions);
-        setFilteredTransactions(filtered);
+        setFilteredTransactions(accountTransactions);
       } catch (error) {
         console.error('Error loading data:', error);
         alert('Failed to load bank account data');
@@ -151,7 +138,7 @@ export default function ReconcilePage() {
     };
 
     loadData();
-    }, [bankAccountId, navigate, applyDateFilter]);
+    }, [bankAccountId, navigate]);
 
   // Release lock when navigating away or closing page
   useEffect(() => {
