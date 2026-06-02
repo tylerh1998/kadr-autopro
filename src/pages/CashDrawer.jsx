@@ -26,14 +26,6 @@ import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMet
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 
-// 1. Import and initialize the Supabase client
-import { createClient } from '@supabase/supabase-js';
-
-// Using your exact specified environment variable names
-const supabaseUrl = process.env.Supabase_project_url || '';
-const supabaseKey = process.env.Supabase_Publishable_key || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
 
 const displayMethods = [
@@ -82,15 +74,12 @@ export default function CashDrawerPage() {
         const adjustmentsData = await CashDrawerAdjustment.filter({ deposited: false });
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
-        // 2. Fetch Bank Accounts using the exact case-sensitive table name
-        const { data: bankAccountsData, error: bankAccountsError } = await supabase
-          .from('BankAccount')
-          .select('*')
-          .eq('is_active', true);
-
-        if (bankAccountsError) {
-          console.error("Error fetching bank accounts from Supabase:", bankAccountsError);
-        }
+        // Fetch Bank Accounts via existing backend proxy
+        const bankAccountsResponse = await base44.functions.invoke('SupabaseProxy', {
+          action: 'list',
+          table: 'BankAccount'
+        });
+        const bankAccountsData = (bankAccountsResponse?.data?.data || []).filter(acc => acc.is_active !== false);
         
         // Load recent adjustments (last 10 for the modal history)
         const recentAdjustments = await CashDrawerAdjustment.list('-created_date', 10);
@@ -349,16 +338,15 @@ export default function CashDrawerPage() {
         ? `Deposit - ${descriptionParts.join(' & ')}`
         : `Deposit`;
 
-      // 3. Create Bank Transaction directly in Supabase using correct casing
-      // We must generate a text ID because the schema marks it 'text not null' without a default
       const newTransactionId = `btx-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
 
-      const { data: bankTransaction, error: bankTransactionError } = await supabase
-        .from('BankTransaction')
-        .insert([{
-          id: newTransactionId, 
+      const bankTransactionResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'BankTransaction',
+        data: {
+          id: newTransactionId,
           bank_account_id: selectedBankAccount.id,
-          transaction_date: depositData.depositDate, // Defined as text in your schema
+          transaction_date: depositData.depositDate,
           description: depositDescription,
           reference: '',
           credit_amount: totalAmount,
@@ -367,14 +355,17 @@ export default function CashDrawerPage() {
           source_id: depositBatchId,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString()
-        }])
-        .select()
-        .single();
+        }
+      });
 
+      const bankTransactionError = bankTransactionResponse?.data?.error;
       if (bankTransactionError) {
-        console.error("Error creating bank transaction in Supabase:", bankTransactionError);
-        throw new Error(bankTransactionError.message);
+        throw new Error(bankTransactionError);
       }
+
+      const bankTransaction = Array.isArray(bankTransactionResponse?.data?.data)
+        ? bankTransactionResponse.data.data[0]
+        : bankTransactionResponse?.data?.data;
 
       const hasCashOrCheques = (forDepositItems.cash?.length > 0) || (forDepositItems.cheque?.length > 0);
 
@@ -386,7 +377,7 @@ export default function CashDrawerPage() {
           totalAmount
         });
         setCurrentDepositBatchId(depositBatchId);
-        setCurrentBankTransactionId(bankTransaction.id);
+        setCurrentBankTransactionId(bankTransaction?.id || newTransactionId);
         setExistingBreakdown(null);
         setShowDepositModal(false);
         setShowDepositSlipModal(true);
