@@ -54,6 +54,8 @@ const matchesSearch = (tx, searchText) => {
   return description.includes(needle) || reference.includes(needle);
 };
 
+const isReversedTransaction = (value) => value === true || value === 'true';
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -74,14 +76,35 @@ Deno.serve(async (req) => {
     const effectiveToDate = normalizeDateInput(toDate) || getMountainDateString();
     const isReconciledProvided = Object.prototype.hasOwnProperty.call(payload, 'isReconciled') && isReconciled !== null;
 
-    const transactions = await base44.entities.BankTransaction.filter(
-      { bank_account_id: bankAccountId },
-      'transaction_date',
-      2000
-    );
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials');
+    }
+
+    const queryUrl = new URL(`${supabaseUrl}/rest/v1/BankTransaction`);
+    queryUrl.searchParams.set('bank_account_id', `eq.${bankAccountId}`);
+    queryUrl.searchParams.set('select', '*');
+    queryUrl.searchParams.set('limit', '2000');
+
+    const supabaseResponse = await fetch(queryUrl.toString(), {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`
+      }
+    });
+
+    if (!supabaseResponse.ok) {
+      const errorText = await supabaseResponse.text();
+      throw new Error(`Supabase query failed: ${supabaseResponse.status} ${errorText}`);
+    }
+
+    const transactions = await supabaseResponse.json();
+    console.log('getBankTransactions raw count:', Array.isArray(transactions) ? transactions.length : 0);
 
     const filteredTransactions = transactions
-      .filter((tx) => tx.is_reversed !== true)
+      .filter((tx) => !isReversedTransaction(tx.is_reversed))
       .filter((tx) => {
         const txDate = normalizeDateInput(tx.transaction_date);
         if (!txDate) return false;
