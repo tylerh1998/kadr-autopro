@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BankTransaction, ChartOfAccount, GLTransaction } from '@/entities/all';
+import { ChartOfAccount, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -164,13 +165,13 @@ export default function BankPage() {
         return;
       }
 
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankTransaction',
-        params: { bank_account_id: selectedAccountId }
+      const response = await getBankTransactions({
+        bankAccountId: selectedAccountId,
+        fromDate: appliedFromDate,
+        toDate: appliedToDate
       });
 
-      const transactionsData = (response.data?.data || []).map(tx => ({
+      const transactionsData = (response.data?.transactions || []).map(tx => ({
         ...tx,
         debit_amount: parseFloat(tx.debit_amount) || 0,
         credit_amount: parseFloat(tx.credit_amount) || 0,
@@ -179,13 +180,7 @@ export default function BankPage() {
         is_reversed: tx.is_reversed === true
       }));
 
-      const filteredTransactions = transactionsData.filter(tx => {
-        if (tx.is_reversed) return false;
-        const txDate = tx.transaction_date;
-        return txDate >= appliedFromDate && txDate <= appliedToDate;
-      });
-
-      filteredTransactions.sort((a, b) => {
+      transactionsData.sort((a, b) => {
         let valA, valB;
         if (sortConfig.key === 'transaction_date') {
           valA = new Date(a.transaction_date).getTime();
@@ -203,7 +198,7 @@ export default function BankPage() {
         return 0;
       });
 
-      setTransactions(filteredTransactions);
+      setTransactions(transactionsData);
     } catch (error) {
       console.error('Error loading transactions:', error);
     } finally {
