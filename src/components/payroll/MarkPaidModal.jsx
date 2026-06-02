@@ -1,6 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { BankAccount, GLTransaction, BankTransaction } from '@/entities/all';
+import { GLTransaction } from '@/entities/all';
+
+const getCurrentMountainTimestamp = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Edmonton',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'longOffset'
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  const hour = parts.find((part) => part.type === 'hour')?.value;
+  const minute = parts.find((part) => part.type === 'minute')?.value;
+  const second = parts.find((part) => part.type === 'second')?.value;
+  const offsetLabel = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT-00:00';
+  const offset = offsetLabel.replace('GMT', '');
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
+};
 import {
   Dialog,
   DialogContent,
@@ -29,7 +54,12 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
   const loadBankAccounts = async () => {
     try {
-      const accounts = await BankAccount.filter({ is_active: true });
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'list',
+        table: 'BankAccount'
+      });
+
+      const accounts = (response.data?.data || []).filter((account) => account.is_active !== false);
       setBankAccounts(accounts);
       setSelectedBankAccount('');
     } catch (err) {
@@ -160,47 +190,68 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         // Create Bank Transaction
         if (transaction.transaction_type === 'Paycheque') {
           const netPay = getNetPay(transaction);
-          await BankTransaction.create({
-            bank_account_id: selectedAccount.id,
-            transaction_date: paymentDate,
-            description: `Paycheque ${transaction.paycheque_number || ''}`,
-            reference: reference,
-            debit_amount: netPay,
-            credit_amount: 0,
-            cleared: false,
-            source_type: 'payment',
-            source_id: transaction.id,
-            gl_account: 'Split' 
+          const mountainTimestamp = getCurrentMountainTimestamp();
+          await base44.functions.invoke('SupabaseProxy', {
+            action: 'create',
+            table: 'BankTransaction',
+            data: {
+              bank_account_id: selectedAccount.id,
+              transaction_date: paymentDate,
+              description: `Paycheque ${transaction.paycheque_number || ''}`,
+              reference: reference,
+              debit_amount: netPay,
+              credit_amount: 0,
+              cleared: false,
+              source_type: 'payment',
+              source_id: transaction.id,
+              gl_account: 'Split',
+              created_date: mountainTimestamp,
+              updated_date: mountainTimestamp
+            }
           });
         } else if (transaction.transaction_type === 'Remittance') {
-          await BankTransaction.create({
-            bank_account_id: selectedAccount.id,
-            transaction_date: paymentDate,
-            description: `Remittance ${reference}`,
-            reference: reference,
-            debit_amount: transaction.amount || 0,
-            credit_amount: 0,
-            cleared: false,
-            source_type: 'payment',
-            source_id: transaction.id,
-            gl_account: '2050' // Payroll Liabilities
+          const mountainTimestamp = getCurrentMountainTimestamp();
+          await base44.functions.invoke('SupabaseProxy', {
+            action: 'create',
+            table: 'BankTransaction',
+            data: {
+              bank_account_id: selectedAccount.id,
+              transaction_date: paymentDate,
+              description: `Remittance ${reference}`,
+              reference: reference,
+              debit_amount: transaction.amount || 0,
+              credit_amount: 0,
+              cleared: false,
+              source_type: 'payment',
+              source_id: transaction.id,
+              gl_account: '2050',
+              created_date: mountainTimestamp,
+              updated_date: mountainTimestamp
+            }
           });
         } else if (transaction.transaction_type === 'Adjustment') {
           const amount = Math.abs(transaction.amount || 0);
           const isPositive = (transaction.amount || 0) >= 0;
+          const mountainTimestamp = getCurrentMountainTimestamp();
           // If positive (cost to company/payment out): Debit BankTransaction (Withdrawal)
           // If negative (refund/money in): Credit BankTransaction (Deposit)
-          await BankTransaction.create({
-            bank_account_id: selectedAccount.id,
-            transaction_date: paymentDate,
-            description: `Payroll Adjustment - ${transaction.adjustment_reason || ''}`,
-            reference: reference,
-            debit_amount: isPositive ? amount : 0,
-            credit_amount: isPositive ? 0 : amount,
-            cleared: false,
-            source_type: isPositive ? 'payment' : 'deposit',
-            source_id: transaction.id,
-            gl_account: '5000'
+          await base44.functions.invoke('SupabaseProxy', {
+            action: 'create',
+            table: 'BankTransaction',
+            data: {
+              bank_account_id: selectedAccount.id,
+              transaction_date: paymentDate,
+              description: `Payroll Adjustment - ${transaction.adjustment_reason || ''}`,
+              reference: reference,
+              debit_amount: isPositive ? amount : 0,
+              credit_amount: isPositive ? 0 : amount,
+              cleared: false,
+              source_type: isPositive ? 'payment' : 'deposit',
+              source_id: transaction.id,
+              gl_account: '5000',
+              created_date: mountainTimestamp,
+              updated_date: mountainTimestamp
+            }
           });
         }
 
