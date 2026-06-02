@@ -18,6 +18,18 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Missing fileUrl, bankAccountId, or periodEnd' }, { status: 400 });
         }
 
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
+        }
+
+        const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+        const supabase = createClient(supabaseUrl, supabaseSecret, {
+            auth: { persistSession: false }
+        });
+
         // 1. Fetch CSV Content
         const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) {
@@ -38,14 +50,28 @@ Deno.serve(async (req) => {
 
         const csvRows = parseResult.data;
 
-        // 3. Fetch Unreconciled Bank Transactions
-        // Using filter() instead of list() which doesn't support object params for filtering
-        const systemTransactions = await base44.entities.BankTransaction.filter({
-             bank_account_id: bankAccountId,
-             reconciled: false
-        }, '-transaction_date', 2000);
+        // 3. Fetch Bank Transactions directly from Supabase
+        const { data: systemTransactionsRaw, error: systemTransactionsError } = await supabase
+            .from('BankTransaction')
+            .select('*')
+            .eq('bank_account_id', bankAccountId)
+            .order('transaction_date', { ascending: false })
+            .limit(2000);
+
+        if (systemTransactionsError) {
+            return Response.json({ error: systemTransactionsError.message }, { status: 500 });
+        }
+
+        const systemTransactions = (systemTransactionsRaw || []).map((tx) => ({
+            ...tx,
+            debit_amount: parseFloat(tx.debit_amount) || 0,
+            credit_amount: parseFloat(tx.credit_amount) || 0,
+            reconciled: tx.reconciled === true || tx.reconciled === 'true',
+            is_reversed: tx.is_reversed === true || tx.is_reversed === 'true'
+        }));
 
         const filteredSystemTransactions = systemTransactions.filter((tx) => {
+            if (tx.reconciled === true) return false;
             if (tx.is_reversed === true) return false;
             if (!tx.transaction_date) return false;
             return tx.transaction_date.substring(0, 10) <= periodEnd;
