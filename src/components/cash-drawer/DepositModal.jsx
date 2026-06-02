@@ -82,7 +82,7 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
     if (!forDepositItems) return [];
     
     const breakdown = [];
-    const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer'];
+    const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
     
     paymentMethods.forEach(method => {
       const items = forDepositItems[method] || [];
