@@ -1,6 +1,31 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
+const getMountainTimestamp = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Edmonton',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+    timeZoneName: 'longOffset'
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  const hour = parts.find((part) => part.type === 'hour')?.value;
+  const minute = parts.find((part) => part.type === 'minute')?.value;
+  const second = parts.find((part) => part.type === 'second')?.value;
+  const offsetLabel = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT-00:00';
+  const offset = offsetLabel.replace('GMT', '');
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
+};
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   let paymentId = null;
@@ -85,25 +110,75 @@ Deno.serve(async (req) => {
       const selectedBank = Array.isArray(selectedBankRows) ? selectedBankRows[0] : null;
 
       if (selectedBank) {
-        const { error: bankTransactionError } = await supabase
+        const { data: existingBankTransactionRows, error: existingBankTransactionError } = await supabase
           .from('BankTransaction')
-          .insert([{
-            bank_account_id: selectedBank.id,
-            transaction_date: paymentDate,
-            description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
-            debit_amount: paymentAmount > 0 ? paymentAmount : 0,
-            credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
-            source_type: 'payment',
-            source_id: paymentId
-          }]);
+          .select('id')
+          .eq('bank_account_id', selectedBank.id)
+          .eq('source_type', 'payment')
+          .eq('source_id', paymentId)
+          .limit(1);
 
-        if (bankTransactionError) {
-          throw new Error(`Failed to create bank transaction: ${bankTransactionError.message}`);
+        if (existingBankTransactionError) {
+          throw new Error(`Failed to check existing bank transaction: ${existingBankTransactionError.message}`);
         }
 
-        await base44.asServiceRole.functions.invoke('calculateBankBalances', {
-          bankAccountId: selectedBank.id
-        });
+        const existingBankTransaction = Array.isArray(existingBankTransactionRows) ? existingBankTransactionRows[0] : null;
+
+        if (!existingBankTransaction) {
+          const bankTransactionId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+          const bankTransactionTimestamp = getMountainTimestamp();
+
+          const { error: bankTransactionError } = await supabase
+            .from('BankTransaction')
+            .insert([{
+              id: bankTransactionId,
+              created_date: bankTransactionTimestamp,
+              updated_date: bankTransactionTimestamp,
+              created_by: user.email,
+              bank_account_id: selectedBank.id,
+              transaction_date: paymentDate,
+              description: `Payment to ${supplier.name}${chequeNumber ? ` - Cheque #${chequeNumber}` : ''}`,
+              debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+              credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+              source_type: 'payment',
+              source_id: paymentId
+            }]);
+
+          if (bankTransactionError) {
+            throw new Error(`Failed to create bank transaction: ${bankTransactionError.message}`);
+          }
+        }
+
+        const { data: balanceTransactions, error: balanceTransactionsError } = await supabase
+          .from('BankTransaction')
+          .select('credit_amount, debit_amount, is_reversed')
+          .eq('bank_account_id', selectedBank.id)
+          .order('transaction_date', { ascending: true });
+
+        if (balanceTransactionsError) {
+          throw new Error(`Failed to recalculate bank balance: ${balanceTransactionsError.message}`);
+        }
+
+        let runningBalance = 0;
+        for (const transaction of balanceTransactions || []) {
+          if (transaction.is_reversed === true) continue;
+          const credit = Number(transaction.credit_amount) || 0;
+          const debit = Number(transaction.debit_amount) || 0;
+          runningBalance += credit - debit;
+        }
+
+        const lastRecalculatedAt = getMountainTimestamp();
+        const { error: recalculateBankError } = await supabase
+          .from('BankAccount')
+          .update({
+            current_balance: runningBalance,
+            last_recalculated_date: lastRecalculatedAt
+          })
+          .eq('id', selectedBank.id);
+
+        if (recalculateBankError) {
+          throw new Error(`Failed to update bank balance: ${recalculateBankError.message}`);
+        }
 
         if (chequeNumber) {
           const { error: updateBankError } = await supabase
