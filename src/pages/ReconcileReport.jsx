@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BankAccount, BankTransaction, BankReconciliation } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -46,8 +46,49 @@ export default function ReconcileReportPage() {
   const loadReconciliationData = async () => {
     setLoading(true);
     try {
-      const allTransactions = await BankTransaction.list('transaction_date');
-      const reconTransactions = allTransactions.filter(tx => tx.reconciliation_id === reconciliationId);
+      const reconciliationResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankReconciliation',
+        params: { reconciliation_id: reconciliationId }
+      });
+
+      const reconRecord = reconciliationResponse.data?.data?.[0] || null;
+
+      if (!reconRecord) {
+        alert('No reconciliation record found for this reconciliation');
+        navigate(createPageUrl('Bank'));
+        return;
+      }
+
+      setReconciliationRecord(reconRecord);
+      setStartingBalance(parseFloat(reconRecord.starting_balance) || 0);
+
+      const [accountResponse, transactionsResponse] = await Promise.all([
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'filter',
+          table: 'BankAccount',
+          params: { id: reconRecord.bank_account_id }
+        }),
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'filter',
+          table: 'BankTransaction',
+          params: { reconciliation_id: reconciliationId }
+        })
+      ]);
+
+      const account = accountResponse.data?.data?.[0] || null;
+      setBankAccount(account);
+
+      const reconTransactions = (transactionsResponse.data?.data || [])
+        .map((tx) => ({
+          ...tx,
+          debit_amount: parseFloat(tx.debit_amount) || 0,
+          credit_amount: parseFloat(tx.credit_amount) || 0,
+          cleared: tx.cleared === true,
+          reconciled: tx.reconciled === true,
+          is_reversed: tx.is_reversed === true || tx.is_reversed === 'true'
+        }))
+        .sort((a, b) => parseLocalDate(a.transaction_date) - parseLocalDate(b.transaction_date));
 
       if (reconTransactions.length === 0) {
         alert('No transactions found for this reconciliation');
@@ -56,27 +97,6 @@ export default function ReconcileReportPage() {
       }
 
       setTransactions(reconTransactions);
-
-      // Fetch Reconciliation Record
-      const reconRecords = await BankReconciliation.list();
-      const reconRecord = reconRecords.find(r => r.reconciliation_id === reconciliationId);
-      setReconciliationRecord(reconRecord);
-
-      const firstTx = reconTransactions[0];
-      const account = await BankAccount.get(firstTx.bank_account_id);
-      setBankAccount(account);
-
-      const allAccountTxs = allTransactions.filter(tx => tx.bank_account_id === firstTx.bank_account_id);
-      const txsBeforeFirst = allAccountTxs.filter(tx => 
-        new Date(tx.transaction_date) < new Date(reconTransactions[0].transaction_date)
-      );
-      
-      const calculatedStartingBalance = txsBeforeFirst.reduce(
-        (sum, tx) => sum + (tx.credit_amount || 0) - (tx.debit_amount || 0),
-        0
-      );
-      setStartingBalance(calculatedStartingBalance);
-
     } catch (error) {
       console.error('Error loading reconciliation data:', error);
       alert('Failed to load reconciliation data');
