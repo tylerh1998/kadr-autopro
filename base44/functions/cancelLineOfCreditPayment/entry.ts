@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 Deno.serve(async (req) => {
   try {
@@ -8,6 +9,15 @@ Deno.serve(async (req) => {
     if (!user) {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
 
     const { transactionId } = await req.json();
 
@@ -49,14 +59,29 @@ Deno.serve(async (req) => {
     let sourceGLAccount = null;
     let sourceType = null;
 
-    const relatedBankTransactions = await base44.asServiceRole.entities.BankTransaction.filter({
-      source_id: originalPayment.id,
-      source_type: 'payment_made'
-    });
+    const { data: relatedBankTransactions, error: relatedBankTransactionsError } = await supabase
+      .from('BankTransaction')
+      .select('*')
+      .eq('source_id', originalPayment.id)
+      .eq('source_type', 'payment_made');
 
-    if (relatedBankTransactions.length > 0) {
+    if (relatedBankTransactionsError) {
+      throw new Error(relatedBankTransactionsError.message);
+    }
+
+    if ((relatedBankTransactions || []).length > 0) {
       sourceType = 'bank_account';
-      sourceAccount = await base44.asServiceRole.entities.BankAccount.get(relatedBankTransactions[0].bank_account_id);
+      const { data: sourceBankAccount, error: sourceBankAccountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', relatedBankTransactions[0].bank_account_id)
+        .single();
+
+      if (sourceBankAccountError || !sourceBankAccount) {
+        throw new Error('Source bank account not found');
+      }
+
+      sourceAccount = sourceBankAccount;
       sourceGLAccount = sourceAccount?.gl_account || null;
     } else {
       const relatedLocTransactions = await base44.asServiceRole.entities.LinesOfCreditTransaction.filter({
@@ -114,25 +139,45 @@ Deno.serve(async (req) => {
 
     if (sourceType === 'bank_account') {
       const bankTx = relatedBankTransactions[0];
-      await base44.asServiceRole.entities.BankTransaction.create({
-        bank_account_id: bankTx.bank_account_id,
-        transaction_date: paymentDate,
-        description: reversalDescription,
-        reference: originalPayment.id,
-        debit_amount: 0,
-        credit_amount: paymentAmount,
-        source_type: 'payment_made',
-        source_id: originalPayment.id,
-        gl_account: targetLoc.gl_account,
-        banktx: false,
-        is_reversed: true,
-        reversed_by_id: bankTx.id
-      });
+      const bankTransactionTimestamp = new Date().toISOString();
 
-      await base44.asServiceRole.entities.BankTransaction.update(bankTx.id, {
-        is_reversed: true,
-        reversed_by_id: reversalLocTransaction.id
-      });
+      const { error: reversalBankTransactionError } = await supabase
+        .from('BankTransaction')
+        .insert({
+          id: createSupabaseRecordId(),
+          bank_account_id: bankTx.bank_account_id,
+          transaction_date: paymentDate,
+          description: reversalDescription,
+          reference: originalPayment.id,
+          debit_amount: 0,
+          credit_amount: paymentAmount,
+          source_type: 'payment_made',
+          source_id: originalPayment.id,
+          gl_account: targetLoc.gl_account,
+          banktx: false,
+          is_reversed: true,
+          reversed_by_id: bankTx.id,
+          created_date: bankTransactionTimestamp,
+          updated_date: bankTransactionTimestamp,
+          created_by: user.email
+        });
+
+      if (reversalBankTransactionError) {
+        throw new Error(reversalBankTransactionError.message);
+      }
+
+      const { error: updateBankTransactionError } = await supabase
+        .from('BankTransaction')
+        .update({
+          is_reversed: true,
+          reversed_by_id: reversalLocTransaction.id,
+          updated_date: bankTransactionTimestamp
+        })
+        .eq('id', bankTx.id);
+
+      if (updateBankTransactionError) {
+        throw new Error(updateBankTransactionError.message);
+      }
 
       await base44.asServiceRole.functions.invoke('calculateBankBalances', {
         bankAccountId: bankTx.bank_account_id
@@ -230,6 +275,10 @@ Deno.serve(async (req) => {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 });
+
+function createSupabaseRecordId() {
+  return crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+}
 
 function safeParseJsonArray(value) {
   if (!value) return [];

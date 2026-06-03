@@ -1,4 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 /**
  * Backend function to process line of credit payments
@@ -22,6 +23,15 @@ Deno.serve(async (req) => {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
 
     // Parse request body
     const payload = await req.json();
@@ -132,13 +142,20 @@ Deno.serve(async (req) => {
       }
     } else {
       // bank_account or cheque
-      sourceAccount = await base44.asServiceRole.entities.BankAccount.get(from_account_id);
-      if (!sourceAccount) {
+      const { data: sourceBankAccount, error: sourceBankAccountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', from_account_id)
+        .single();
+
+      if (sourceBankAccountError || !sourceBankAccount) {
         return Response.json({ 
           success: false, 
           error: 'Source bank account not found' 
         }, { status: 404 });
       }
+
+      sourceAccount = sourceBankAccount;
       sourceGLAccount = sourceAccount.gl_account;
       sourceDescription = sourceAccount.name;
       
@@ -217,18 +234,29 @@ Deno.serve(async (req) => {
       });
     } else {
       // Create a debit transaction in the bank account
-      await base44.asServiceRole.entities.BankTransaction.create({
-        bank_account_id: from_account_id,
-        transaction_date: payment_date,
-        description: paymentDescription,
-        reference: locTransaction.id,
-        debit_amount: amountValue,
-        credit_amount: 0,
-        source_type: 'payment_made',
-        source_id: locTransaction.id,
-        gl_account: locAccount.gl_account,
-        banktx: false
-      });
+      const bankTransactionTimestamp = new Date().toISOString();
+      const { error: bankTransactionCreateError } = await supabase
+        .from('BankTransaction')
+        .insert({
+          id: createSupabaseRecordId(),
+          bank_account_id: from_account_id,
+          transaction_date: payment_date,
+          description: paymentDescription,
+          reference: locTransaction.id,
+          debit_amount: amountValue,
+          credit_amount: 0,
+          source_type: 'payment_made',
+          source_id: locTransaction.id,
+          gl_account: locAccount.gl_account,
+          banktx: false,
+          created_date: bankTransactionTimestamp,
+          updated_date: bankTransactionTimestamp,
+          created_by: user.email
+        });
+
+      if (bankTransactionCreateError) {
+        throw new Error(bankTransactionCreateError.message);
+      }
 
       // Trigger bank balance recalculation
       await base44.asServiceRole.functions.invoke('calculateBankBalances', {
@@ -302,6 +330,10 @@ Deno.serve(async (req) => {
  * @param {string} dateString - Date in YYYY-MM-DD format
  * @returns {Promise<{isValid: boolean, message: string}>}
  */
+function createSupabaseRecordId() {
+  return crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+}
+
 async function checkFiscalPeriodStatus(base44, dateString) {
   try {
     if (!dateString) {

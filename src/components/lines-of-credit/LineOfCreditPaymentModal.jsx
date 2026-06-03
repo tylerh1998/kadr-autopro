@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LinesOfCreditTransaction, BankAccount, LinesOfCredit } from '@/entities/all';
+import { LinesOfCreditTransaction, LinesOfCredit } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -240,12 +240,16 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           setCalculating(false);
           setCalculationResult(null);
 
-          const [bankAccountsData, otherLOCData, transactionsData] = await Promise.all([
-            BankAccount.list(),
+          const [bankAccountsResponse, otherLOCData, transactionsData] = await Promise.all([
+            base44.functions.invoke('SupabaseProxy', {
+              action: 'list',
+              table: 'BankAccount'
+            }),
             LinesOfCredit.filter({ is_active: true }),
             LinesOfCreditTransaction.filter({ line_of_credit_id: lineOfCredit.id })
           ]);
 
+          const bankAccountsData = (bankAccountsResponse.data?.data || []).filter(account => account.is_active !== false);
           setBankAccounts(bankAccountsData);
           
           // Set primary account as default if available
