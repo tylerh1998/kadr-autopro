@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BankAccount, BankReconciliation } from '@/entities/all';
+import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
@@ -22,18 +22,20 @@ import {
   Upload,
   RotateCcw
 } from 'lucide-react';
-import { format, addDays, endOfMonth, parseISO } from 'date-fns';
+import { format, addDays, endOfMonth } from 'date-fns';
 import { createPageUrl } from '../utils';
 import AutoReconcileModal from '../components/bank/AutoReconcileModal';
 
 // Helper function to parse YYYY-MM-DD date strings as local date
 const parseLocalDate = (dateString) => {
   if (!dateString) return new Date();
-  // Ensure we only look at the YYYY-MM-DD part if it's an ISO string
   const datePart = dateString.substring(0, 10);
   const [year, month, day] = datePart.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
+
+const generateEntityId = () => crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').format();
 
 export default function ReconcilePage() {
   const navigate = useNavigate();
@@ -72,30 +74,30 @@ export default function ReconcilePage() {
     const fetchLastRecon = async () => {
       if (!bankAccountId) return;
       try {
-        // Use base44 SDK to filter, sort by period_end_date desc, limit 1
-        const lastRecons = await base44.entities.BankReconciliation.filter(
-          { bank_account_id: bankAccountId }, 
-          '-period_end_date', 
-          1
+        const response = await base44.functions.invoke('SupabaseProxy', {
+          action: 'filter',
+          table: 'BankReconciliation',
+          params: { bank_account_id: bankAccountId }
+        });
+
+        const lastRecons = (response.data?.data || []).sort((a, b) =>
+          String(b.period_end_date || '').localeCompare(String(a.period_end_date || ''))
         );
-        
-        if (lastRecons && lastRecons.length > 0) {
-          // Found a previous reconciliation
+
+        if (lastRecons.length > 0) {
           const lastEndDateStr = lastRecons[0].period_end_date;
           if (lastEndDateStr) {
-            // Parse as local date to avoid timezone shifts
             const lastEnd = parseLocalDate(lastEndDateStr);
             const nextStart = addDays(lastEnd, 1);
             setPeriodStart(format(nextStart, 'yyyy-MM-dd'));
             setPeriodEnd(format(endOfMonth(nextStart), 'yyyy-MM-dd'));
           }
         } else {
-          // No previous reconciliation - leave blank
           setPeriodStart('');
           setPeriodEnd('');
         }
       } catch (err) {
-        console.error("Error fetching last reconciliation", err);
+        console.error('Error fetching last reconciliation', err);
       }
     };
     fetchLastRecon();
@@ -146,33 +148,36 @@ export default function ReconcilePage() {
     loadData();
     }, [bankAccountId, navigate]);
 
-  // Release lock when navigating away or closing page
-  useEffect(() => {
-    const releaseLock = async () => {
-      if (bankAccountId && currentUser) {
-        try {
-          await BankAccount.update(bankAccountId, {
-            locked_by_user: null,
-            locked_timestamp: null
-          });
-        } catch (error) {
-          console.error('Error releasing lock:', error);
-        }
-      }
-    };
+  const releaseBankAccountLock = useCallback(async () => {
+    if (!bankAccountId || !currentUser) return;
 
-    // Release lock on page unload/navigation
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'BankAccount',
+        id: bankAccountId,
+        data: {
+          locked_by_user: null,
+          locked_timestamp: null
+        }
+      });
+    } catch (error) {
+      console.error('Error releasing lock:', error);
+    }
+  }, [bankAccountId, currentUser]);
+
+  useEffect(() => {
     const handleBeforeUnload = () => {
-      releaseLock();
+      releaseBankAccountLock();
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      releaseLock();
+      releaseBankAccountLock();
     };
-  }, [bankAccountId, currentUser]);
+  }, [releaseBankAccountLock]);
 
   const toggleTransaction = (txId) => {
     setSelectedTransactions(prev => {
@@ -253,23 +258,27 @@ export default function ReconcilePage() {
 
     setSaving(true);
     try {
-      const reconciliationId = `RECON-${Date.now()}`;
-      const reconciliationDate = new Date().toISOString();
+      const activeUser = currentUser || await base44.auth.me();
+      if (!activeUser) {
+        throw new Error('User not found');
+      }
 
-      // Use backend function for bulk updates to prevent 429 errors
+      const reconciliationId = `RECON-${Date.now()}`;
+      const reconciliationRecordId = generateEntityId();
+      const reconciliationDate = getCurrentMountainTimestamp();
+      const metadataTimestamp = getCurrentMountainTimestamp();
+
       const updateResponse = await base44.functions.invoke('batchReconcileTransactions', {
         transactionIds: Array.from(selectedTransactions),
-        reconciliationId: reconciliationId
+        reconciliationId
       });
 
       if (!updateResponse.data.success) {
         throw new Error(updateResponse.data.message || 'Failed to update some transactions');
       }
 
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
       const reconciliationRecord = {
+        id: reconciliationRecordId,
         bank_account_id: bankAccountId,
         reconciliation_id: reconciliationId,
         reconciliation_date: reconciliationDate,
@@ -277,19 +286,27 @@ export default function ReconcilePage() {
         period_end_date: periodEnd,
         statement_ending_balance: parsedBalance,
         cleared_balance_at_reconciliation: totals.clearedBalance,
-        difference: difference,
+        difference,
         starting_balance: totals.startingBalance,
         total_credits: totals.totalCredits,
-        total_debits: totals.totalDebits
+        total_debits: totals.totalDebits,
+        created_date: metadataTimestamp,
+        updated_date: metadataTimestamp,
+        created_by_id: activeUser.id,
+        created_by: activeUser.email || null,
+        reconciled_by: activeUser.email || null,
+        is_sample: false
       };
 
-      await BankReconciliation.create(reconciliationRecord);
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'BankReconciliation',
+        data: reconciliationRecord
+      });
 
-      // Note: Lock will be released automatically by the useEffect cleanup when we navigate away
-      
       alert('Reconciliation saved successfully!');
       navigate(`${createPageUrl('ReconcileReport')}?id=${reconciliationId}`);
-      
+
     } catch (error) {
       console.error('Error saving reconciliation:', error);
       alert('Failed to save reconciliation. Please try again.');
@@ -363,13 +380,7 @@ export default function ReconcilePage() {
             <Button
               variant="outline"
               onClick={async () => {
-                // Release lock before navigating back
-                if (bankAccountId && currentUser) {
-                  await BankAccount.update(bankAccountId, {
-                    locked_by_user: null,
-                    locked_timestamp: null
-                  });
-                }
+                await releaseBankAccountLock();
                 navigate(createPageUrl('Bank'));
               }}
               className="flex items-center gap-2"
