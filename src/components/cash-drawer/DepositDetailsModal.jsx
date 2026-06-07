@@ -11,7 +11,7 @@ import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
-export default function DepositDetailsModal({ open, onClose, deposit, bankAccountName, onReverseSuccess }) {
+export default function DepositDetailsModal({ open, onClose, deposit, onReverseSuccess }) {
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState([]);
   const [adjustments, setAdjustments] = useState([]);
@@ -266,7 +266,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, bankAccoun
                     <Building className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
                       <p className="text-xs text-slate-500">Bank Account</p>
-                      <p className="font-medium">{bankAccountName || 'N/A'}</p>
+                      <p className="font-medium">{deposit?.bank_account_name || deposit?.bank_name || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">

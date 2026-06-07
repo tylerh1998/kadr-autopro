@@ -15,7 +15,6 @@ const ITEMS_PER_PAGE = 5;
 export default function DepositHistoryModal({ open, onClose, onDepositReversed, onReprintSlip }) {
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [bankAccountsMap, setBankAccountsMap] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -23,24 +22,17 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const [bankTransactionsResponse, allBankAccounts, fiscalPeriods] = await Promise.all([
+      const [bankTransactionsResponse, fiscalPeriods] = await Promise.all([
         base44.functions.invoke('getBankTransactions', {
           sourceType: 'deposit',
           fromDate: '1900-01-01',
           sortField: 'created_date',
           sortDirection: 'desc'
         }),
-        BankAccount.list(),
         FiscalPeriod.list()
       ]);
 
       const recentDeposits = bankTransactionsResponse?.data?.transactions || [];
-
-      const accountsMap = allBankAccounts.reduce((acc, account) => {
-        acc[account.id] = account.name;
-        return acc;
-      }, {});
-      setBankAccountsMap(accountsMap);
 
       const depositsWithStatus = recentDeposits.map((dep) => {
         let canReverse = true;
@@ -184,7 +176,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                           {format(new Date(deposit.transaction_date + 'T00:00:00'), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell>{deposit.description}</TableCell>
-                        <TableCell>{bankAccountsMap[deposit.bank_account_id] || 'N/A'}</TableCell>
+                        <TableCell>{deposit.bank_account_name || deposit.bank_name || 'N/A'}</TableCell>
                         <TableCell className="text-right">${deposit.credit_amount.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
                           {deposit.reconciled && <span className="text-green-600">Reconciled</span>}
@@ -289,7 +281,6 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
           setSelectedDeposit(null);
         }}
         deposit={selectedDeposit}
-        bankAccountName={selectedDeposit ? bankAccountsMap[selectedDeposit.bank_account_id] : ''}
         onReverseSuccess={() => {
           setShowDetailsModal(false);
           setSelectedDeposit(null);

@@ -114,6 +114,33 @@ Deno.serve(async (req) => {
     const transactions = await supabaseResponse.json();
     console.log('getBankTransactions raw count:', Array.isArray(transactions) ? transactions.length : 0);
 
+    const bankAccountIds = [...new Set((transactions || []).map((tx) => tx.bank_account_id).filter(Boolean))];
+    let bankAccountMap = {};
+
+    if (bankAccountIds.length > 0) {
+      const bankAccountUrl = new URL(`${supabaseUrl}/rest/v1/BankAccount`);
+      bankAccountUrl.searchParams.set('select', 'id,name,bank_name');
+      bankAccountUrl.searchParams.set('id', `in.(${bankAccountIds.join(',')})`);
+
+      const bankAccountResponse = await fetch(bankAccountUrl.toString(), {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`
+        }
+      });
+
+      if (!bankAccountResponse.ok) {
+        const errorText = await bankAccountResponse.text();
+        throw new Error(`Supabase bank account query failed: ${bankAccountResponse.status} ${errorText}`);
+      }
+
+      const bankAccounts = await bankAccountResponse.json();
+      bankAccountMap = (bankAccounts || []).reduce((acc, account) => {
+        acc[account.id] = account;
+        return acc;
+      }, {});
+    }
+
     const filteredTransactions = transactions
       .filter((tx) => !isReversedTransaction(tx.is_reversed))
       .filter((tx) => {
@@ -132,7 +159,12 @@ Deno.serve(async (req) => {
           : String(b[effectiveSortField] || '');
         const comparison = aValue.localeCompare(bValue);
         return effectiveSortDirection === 'desc' ? -comparison : comparison;
-      });
+      })
+      .map((tx) => ({
+        ...tx,
+        bank_account_name: bankAccountMap[tx.bank_account_id]?.name || null,
+        bank_name: bankAccountMap[tx.bank_account_id]?.bank_name || null
+      }));
 
     return Response.json({
       transactions: filteredTransactions,
