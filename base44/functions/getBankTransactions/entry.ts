@@ -118,11 +118,25 @@ Deno.serve(async (req) => {
     let bankAccountMap = {};
 
     if (bankAccountIds.length > 0) {
-      const bankAccounts = await base44.asServiceRole.entities.BankAccount.list('', 1000);
-      bankAccountMap = (bankAccounts || []).reduce((acc, account) => {
-        if (bankAccountIds.includes(account.id)) {
-          acc[account.id] = account;
+      const bankAccountUrl = new URL(`${supabaseUrl}/rest/v1/BankAccount`);
+      bankAccountUrl.searchParams.set('select', 'id,name,bank_name');
+      bankAccountUrl.searchParams.set('id', `in.(${bankAccountIds.join(',')})`);
+
+      const bankAccountResponse = await fetch(bankAccountUrl.toString(), {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`
         }
+      });
+
+      if (!bankAccountResponse.ok) {
+        const errorText = await bankAccountResponse.text();
+        throw new Error(`Supabase bank account query failed: ${bankAccountResponse.status} ${errorText}`);
+      }
+
+      const bankAccounts = await bankAccountResponse.json();
+      bankAccountMap = (bankAccounts || []).reduce((acc, account) => {
+        acc[account.id] = account;
         return acc;
       }, {});
     }
