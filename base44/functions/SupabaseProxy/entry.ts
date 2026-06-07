@@ -31,6 +31,10 @@ Deno.serve(async (req) => {
         const reqBody = await req.json().catch(() => ({}));
         console.log("DEBUG SupabaseProxy received payload:", JSON.stringify(reqBody));
         const { action = 'read', id, ids, data: payloadData, table = 'SalesClass', match, params } = reqBody;
+        const getCurrentMountainTimeISO = () => {
+            const mountainNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' }));
+            return mountainNow.toISOString();
+        };
 
         let result;
         let operationMeta = { action, table, id: id || null, ids: ids || null };
@@ -54,8 +58,8 @@ Deno.serve(async (req) => {
                 ...payloadData
             };
 
-            if (table === 'BankTransaction') {
-                const nowIso = new Date().toISOString();
+            if (table === 'BankTransaction' || table === 'SupplierInvoiceLine') {
+                const nowIso = getCurrentMountainTimeISO();
                 insertData = {
                     ...insertData,
                     created_date: payloadData?.created_date || nowIso,
@@ -70,10 +74,10 @@ Deno.serve(async (req) => {
                 ...payloadData
             };
 
-            if (table === 'BankTransaction') {
+            if (table === 'BankTransaction' || table === 'SupplierInvoiceLine') {
                 updateData = {
                     ...updateData,
-                    updated_date: payloadData?.updated_date || new Date().toISOString()
+                    updated_date: payloadData?.updated_date || getCurrentMountainTimeISO()
                 };
                 delete updateData.created_by;
                 delete updateData.created_date;

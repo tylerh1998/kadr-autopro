@@ -29,6 +29,10 @@ Deno.serve(async (req) => {
 
         let anyAmountChanged = false;
         const skippedDeletions = [];
+        const getCurrentMountainTimeISO = () => {
+            const mountainNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' }));
+            return mountainNow.toISOString();
+        };
 
         // Helper to create GL transactions
         const createGLTransactions = async (linesToProcess, action, oldValues) => {
@@ -200,6 +204,7 @@ Deno.serve(async (req) => {
         let createdLinesForGL = [];
         if (addedLines.length > 0) {
             const linesToInsert = addedLines.map(line => {
+                const nowIso = getCurrentMountainTimeISO();
                 return {
                     id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                     supplier_id: supplierId,
@@ -210,7 +215,10 @@ Deno.serve(async (req) => {
                     gst_amount: line.gst_amount,
                     gl_account: line.gl_account,
                     gst_override: line.gst_override,
-                    paid_amount: 0
+                    paid_amount: 0,
+                    created_date: nowIso,
+                    updated_date: nowIso,
+                    created_by: user.email
                 };
             });
             
@@ -259,7 +267,8 @@ Deno.serve(async (req) => {
                     purchase_amount: line.purchase_amount,
                     gst_amount: line.gst_amount,
                     gl_account: line.gl_account,
-                    gst_override: line.gst_override
+                    gst_override: line.gst_override,
+                    updated_date: getCurrentMountainTimeISO()
                 };
 
                 const { data: updatedLine, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select().single();
@@ -337,7 +346,7 @@ Deno.serve(async (req) => {
 
                                 await supabase.from('SupplierInvoiceLine')
                                     .update({
-                                        updated_date: new Date().toISOString(),
+                                        updated_date: getCurrentMountainTimeISO(),
                                         paid_amount: Math.round(newPaidAmount * 100) / 100
                                     })
                                     .eq('id', l.id);
