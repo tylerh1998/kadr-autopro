@@ -273,7 +273,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                     <FileText className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
                       <p className="text-xs text-slate-500">Reference</p>
-                      <p className="font-medium text-sm">{deposit?.reference || 'N/A'}</p>
+                      <p className="font-medium text-sm">{deposit?.reference || deposit?.source_id || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
