@@ -862,43 +862,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         }
         setInvoiceConversionPhase(3);
       } else if (invoiceConversionPhase === 3) {
-        console.log('DEBUG: currentUser email at Phase 3 save:', currentUser?.email);
-        console.log('DEBUG: Completed date being sent:', format(toMountainTime(new Date()), 'yyyy-MM-dd'));
-        console.log('DEBUG workOrder.accounting_details before GL call:', workOrder.accounting_details);
+        await handleSave({
+          invoice_date: data.invoice_date,
+        }, false);
 
-        try {
-          const glResponse = await base44.functions.invoke('handleInvoiceConversionGL', {
-            workOrder,
-            lineItems,
-            payments: existingPayments,
-            systemSettings,
-            action: 'convert'
-          });
-
-          let accountingDetails = workOrder.accounting_details;
-          if (glResponse.data?.success) {
-            accountingDetails = glResponse.data.accounting_details;
-          } else {
-            console.error("Failed to generate GL transactions:", glResponse.data?.error);
-            alert("Failed to generate accounting records: " + (glResponse.data?.error || "Unknown error"));
-            return;
-          }
-
-          await handleSave({
-            invoice_date: data.invoice_date,
-            stage: 'invoice',
-            converted: true,
-            completed_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
-            completed_by: currentUser?.email,
-            accounting_details: accountingDetails,
-            forceConversion: true
-          }, false);
-          setInvoiceConversionPhase(0);
-        } catch (glError) {
-          console.error("Error invoking GL conversion function:", glError);
-          alert("Failed to generate accounting records. Please try again.");
-          return;
-        }
+        isClosingAfterSaveRef.current = true;
+        setInvoiceConversionPhase(0);
+        navigate(createPageUrl(`InvoiceConversion?id=${workOrder.ro_number}`));
       }
     } catch (error) {
       console.error('Error during conversion step submission:', error);
