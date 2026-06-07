@@ -68,6 +68,7 @@ export default function WorkOrderForm({
   onCancel,
   setParentLineItems,
   onEditCustomer,
+  onChangeCustomer,
   onEditVehicle,
   onShowVehicleHistory,
   onEditWorkOrderDetails,
@@ -1029,6 +1030,7 @@ export default function WorkOrderForm({
         onStatusChange={handleStatusChange}
         isLocked={isLocked}
         onEditCustomer={onEditCustomer}
+        onChangeCustomer={onChangeCustomer}
         onEditVehicle={onEditVehicle}
         onShowVehicleHistory={onShowVehicleHistory}
         onEditWorkOrderDetails={onEditWorkOrderDetails}

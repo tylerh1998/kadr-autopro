@@ -1035,6 +1035,37 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     }
   };
 
+  const handleAssignedCustomerChange = useCallback(async (nextCustomer) => {
+    if (!workOrder?.id || !nextCustomer?.id) {
+      throw new Error('Missing work order or customer.');
+    }
+
+    await handleSave({}, false);
+
+    let parsedPayments = [];
+    try {
+      parsedPayments = workOrder?.payments ? JSON.parse(workOrder.payments) : [];
+    } catch (error) {
+      parsedPayments = [];
+    }
+
+    const paymentIds = parsedPayments
+      .map((payment) => payment?.id)
+      .filter(Boolean);
+
+    const response = await base44.functions.invoke('changeWorkOrderCustomer', {
+      workOrderId: workOrder.id,
+      newCustomerId: nextCustomer.id,
+      paymentIds,
+    });
+
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || 'Failed to change customer.');
+    }
+
+    await refetchWorkOrder();
+  }, [workOrder, handleSave, refetchWorkOrder]);
+
   const handleStatusChange = (newStatus) => {
     if (workOrder && workOrder.status !== newStatus) {
       setWorkOrder(prev => ({ ...prev, status: newStatus }));
@@ -1573,6 +1604,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               onSave={handleSave}
               onCancel={() => window.close()}
               onEditCustomer={() => openModal('editCustomer')}
+              onChangeCustomer={handleAssignedCustomerChange}
               onEditVehicle={() => openModal('editVehicle')}
               onShowVehicleHistory={() => openModal('vehicleHistory')}
               onEditWorkOrderDetails={() => openModal('editWorkOrderDetails')}

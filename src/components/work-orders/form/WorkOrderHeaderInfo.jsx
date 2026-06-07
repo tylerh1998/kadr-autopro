@@ -5,6 +5,7 @@ import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCh
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import { base44 } from '@/api/base44Client';
+import ChangeCustomerModal from '../ChangeCustomerModal';
 
 export default function WorkOrderHeaderInfo({
   workOrder,
@@ -15,6 +16,7 @@ export default function WorkOrderHeaderInfo({
   onStatusChange,
   isLocked,
   onEditCustomer,
+  onChangeCustomer,
   onEditVehicle,
   onShowVehicleHistory,
   onEditWorkOrderDetails,
@@ -25,6 +27,7 @@ export default function WorkOrderHeaderInfo({
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
   const [completedByName, setCompletedByName] = useState('');
+  const [showChangeCustomerModal, setShowChangeCustomerModal] = useState(false);
 
   const getUserDisplayName = async (email) => {
     if (!email) return '';
@@ -257,6 +260,16 @@ export default function WorkOrderHeaderInfo({
                 <Pencil className="w-4 h-4 mr-2" />
                 Edit
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowChangeCustomerModal(true)}
+                disabled={isLocked}
+                className="w-full justify-start"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Change
+              </Button>
               {customer?.phone && (
                 <Button
                   variant="outline"
@@ -368,6 +381,13 @@ export default function WorkOrderHeaderInfo({
           </div>
         </CardContent>
       </Card>
+
+      <ChangeCustomerModal
+        open={showChangeCustomerModal}
+        onClose={() => setShowChangeCustomerModal(false)}
+        currentCustomer={customer}
+        onSubmit={onChangeCustomer}
+      />
 
       {/* Document Card */}
       <Card>
