@@ -134,12 +134,12 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         onCoreProcessed(qtyProcessed, 'returned_to_supplier', lineItem.core_cost || 0);
       }
 
-      onClose();
     } catch (error) {
       console.error('Error processing core:', error);
       alert('Failed to process core. Please try again.');
     } finally {
       setLoading(false);
+      onClose();
     }
   };
 
