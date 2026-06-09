@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { searchInventory } from '@/functions/searchInventory';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
 
@@ -123,10 +124,22 @@ const safeParseDateForCalendar = (dateString) => {
     }
 };
 
+const useDebouncedValue = (value, delay = 250) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+
+    return debouncedValue;
+};
+
 export default function InventoryAddPage() {
     const [suppliers, setSuppliers] = useState([]);
     const [salesClasses, setSalesClasses] = useState([]);
-    const [inventoryItems, setInventoryItems] = useState([]);
+    const [inventorySearchResults, setInventorySearchResults] = useState([]);
+    const [inventorySearchLoading, setInventorySearchLoading] = useState(false);
     const [tagAlongs, setTagAlongs] = useState([]);
     const [inventoryLocations, setInventoryLocations] = useState([]);
     const [inventoryCategories, setInventoryCategories] = useState([]);
@@ -157,6 +170,7 @@ export default function InventoryAddPage() {
         location: '',
         category: '',
     });
+    const debouncedPartNumber = useDebouncedValue(currentItem.part_number, 250);
     const navigate = useNavigate();
     const supplierTriggerRef = React.useRef(null);
     const invoiceNumberRef = React.useRef(null);
@@ -165,6 +179,7 @@ export default function InventoryAddPage() {
     const descriptionRef = React.useRef(null);
     const saveInProgressRef = React.useRef(false);
     const bypassUnsavedWarningRef = React.useRef(false);
+    const inventorySearchRequestRef = useRef(0);
     const [partSearchOpen, setPartSearchOpen] = useState(false);
     const [locationSearchOpen, setLocationSearchOpen] = useState(false);
     const [suggestingCategory, setSuggestingCategory] = useState(false);
@@ -182,54 +197,24 @@ export default function InventoryAddPage() {
         );
     }, [currentItem.location, inventoryLocations]);
 
-    const filteredInventory = useMemo(() => {
-        if (!currentItem.part_number || currentItem.part_number.trim() === '') return [];
-        const searchLower = currentItem.part_number.toLowerCase();
-        
-        return inventoryItems
-            .map(item => {
-                const partNumber = (item.part_number || '').toLowerCase();
-                const description = (item.description || '').toLowerCase();
-                const manufacturer = (item.manufacturer || '').toLowerCase();
-                
-                let score = 0;
-                if (partNumber === searchLower) score = 100;
-                else if (partNumber.startsWith(searchLower)) score = 80;
-                else if (partNumber.includes(searchLower)) score = 60;
-                else if (description.startsWith(searchLower)) score = 40;
-                else if (description.includes(searchLower)) score = 20;
-                else if (manufacturer.includes(searchLower)) score = 10;
-                
-                return { ...item, _score: score };
-            })
-            .filter(item => item._score > 0)
-            .sort((a, b) => b._score - a._score)
-            .slice(0, 50);
-    }, [currentItem.part_number, inventoryItems]);
+    const filteredInventory = inventorySearchResults || [];
 
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [suppliersData, salesClassesData, inventoryData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
+                const [suppliersData, salesClassesData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
                     base44.functions.invoke('SupabaseProxy', {
                         action: 'read',
                         table: 'Supplier',
                         match: { inventory_supplier: true }
                     }).then(res => res.data.data || []),
                     base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
-                    base44.functions.invoke('SupabaseProxy', {
-                        action: 'read',
-                        table: 'InventoryItem'
-                    }).then(res => res.data.data || []),
                     TagAlong.list(),
                     InventoryLocation.list(),
                     InventoryCategory.list()
                 ]);
                 setSuppliers(suppliersData);
                 setSalesClasses(salesClassesData);
-                setInventoryItems(inventoryData);
-                console.log('DEBUG InventoryAdd inventory count:', inventoryData.length);
-                console.log('DEBUG InventoryAdd TESTPART2 present:', inventoryData.some(item => item.part_number === 'TESTPART2'));
                 setTagAlongs(tagAlongsData);
                 setInventoryLocations(locationsData);
                 setInventoryCategories(categoriesData);
@@ -243,6 +228,41 @@ export default function InventoryAddPage() {
         };
         loadData();
     }, []);
+
+    useEffect(() => {
+        const normalizedSearch = debouncedPartNumber.trim();
+
+        if (!normalizedSearch) {
+            inventorySearchRequestRef.current += 1;
+            setInventorySearchResults([]);
+            setInventorySearchLoading(false);
+            return;
+        }
+
+        const requestId = ++inventorySearchRequestRef.current;
+        setInventorySearchLoading(true);
+
+        searchInventory({
+            searchTerm: normalizedSearch,
+            limit: 50,
+            sortBy: 'part_number',
+            sortDirection: 'asc'
+        })
+            .then((response) => {
+                if (requestId !== inventorySearchRequestRef.current) return;
+                setInventorySearchResults(response.data?.records || []);
+            })
+            .catch((error) => {
+                if (requestId !== inventorySearchRequestRef.current) return;
+                console.error('Error searching inventory:', error);
+                setInventorySearchResults([]);
+            })
+            .finally(() => {
+                if (requestId === inventorySearchRequestRef.current) {
+                    setInventorySearchLoading(false);
+                }
+            });
+    }, [debouncedPartNumber]);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
@@ -725,7 +745,7 @@ export default function InventoryAddPage() {
             // 1. We have a part number and description
             // 2. No category is currently selected
             // 3. This is a NEW item (not found in existing inventory)
-            const existingItem = inventoryItems.find(item => item.part_number === currentItem.part_number);
+            const existingItem = inventorySearchResults.find(item => item.part_number === currentItem.part_number);
             
             if (currentItem.part_number && 
                 currentItem.description && 
@@ -762,7 +782,7 @@ export default function InventoryAddPage() {
 
         const timer = setTimeout(fetchSuggestion, 1000); // Debounce
         return () => clearTimeout(timer);
-    }, [currentItem.part_number, currentItem.description, currentItem.category, selectedSupplier, inventoryItems]);
+    }, [currentItem.part_number, currentItem.description, currentItem.category, selectedSupplier, inventorySearchResults]);
 
     const getTotalItemsCount = () => {
         return batchItems.reduce((total, group) => total + group.partItems.length, 0);
@@ -983,7 +1003,12 @@ export default function InventoryAddPage() {
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                                         <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
-                                            {filteredInventory.length === 0 ? (
+                                            {inventorySearchLoading ? (
+                                                <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                    Searching parts...
+                                                </div>
+                                            ) : filteredInventory.length === 0 ? (
                                                 <div className="py-6 text-center text-sm text-slate-500">
                                                     No existing parts found.
                                                     <br />
