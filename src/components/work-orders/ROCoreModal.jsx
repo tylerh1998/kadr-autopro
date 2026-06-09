@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +12,15 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
   const [qty, setQty] = useState('');
   const [coreAction, setCoreAction] = useState('received');
   const [loading, setLoading] = useState(false);
+  const qtyInputRef = useRef(null);
 
   useEffect(() => {
     if (open && lineItem) {
       setQty('');
       setCoreAction('received');
+      requestAnimationFrame(() => {
+        qtyInputRef.current?.focus();
+      });
     }
   }, [open, lineItem]);
 
@@ -34,109 +38,47 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
     try {
       const qtyProcessed = parseFloat(qty);
       
-      if (coreAction === 'received') {
-        // Customer Core Returned (for eventual Supplier Return)
-        // DO NOT change inventory quantity_on_hand
-        // DO NOT create InventoryTxs
-        
-        // Get supplier info from inventory item
-        let supplierId = 'Unknown Supplier';
-        if (lineItem.inventory_item_id) {
-          try {
-            const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
-            if (inventoryItem && inventoryItem.supplier_id) {
-              supplierId = inventoryItem.supplier_id;
-            }
-          } catch (error) {
-            console.error('Error fetching supplier info:', error);
+      // Customer Core Returned (for eventual Supplier Return)
+      // DO NOT change inventory quantity_on_hand
+      // DO NOT create InventoryTxs
+      
+      // Get supplier info from inventory item
+      let supplierId = 'Unknown Supplier';
+      if (lineItem.inventory_item_id) {
+        try {
+          const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
+          if (inventoryItem && inventoryItem.supplier_id) {
+            supplierId = inventoryItem.supplier_id;
           }
+        } catch (error) {
+          console.error('Error fetching supplier info:', error);
         }
-
-        // Create InventoryReturn record
-        const returnRecord = {
-          inventory_item_id: lineItem.inventory_item_id || null,
-          part_number: lineItem.part_number || 'N/A',
-          description: `${lineItem.description || 'Core'} (Core Return)`,
-          supplier: supplierId,
-          quantity_returned: qtyProcessed,
-          return_type: 'core',
-          return_reason: 'Customer Core Received',
-          cost_per_unit: coreCost,
-          total_cost: qtyProcessed * coreCost,
-          return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
-          work_order_id: workOrder?.id || null,
-          status: 'On-site',
-          notes: 'Core received from customer, awaiting return to supplier.'
-        };
-
-        await InventoryReturn.create(returnRecord);
-        
-        // Update core_ret on the line item (this will be handled by parent)
-        const newCoreRet = coreRet + qtyProcessed;
-        onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);
-        
-        alert(`Core received from customer and logged for supplier return. Quantity: ${qtyProcessed}`);
-        
-      } else if (coreAction === 'returned_to_supplier') {
-        // Return to Supplier
-        // This action updates an existing InventoryReturn record status from 'On-site' to 'Returned'
-        // DO NOT change inventory quantity_on_hand
-        
-        // Get supplier info from inventory item
-        let supplierId = 'Unknown Supplier';
-        if (lineItem.inventory_item_id) {
-          try {
-            const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
-            if (inventoryItem && inventoryItem.supplier_id) {
-              supplierId = inventoryItem.supplier_id;
-            }
-          } catch (error) {
-            console.error('Error fetching supplier info:', error);
-          }
-        }
-
-        // Find existing on-site inventory return records for this part
-        const existingReturns = await InventoryReturn.filter({
-          part_number: lineItem.part_number,
-          status: 'On-site',
-          return_type: 'core'
-        });
-
-        if (existingReturns && existingReturns.length > 0) {
-          // Update the first matching record to 'Returned'
-          const returnToUpdate = existingReturns[0];
-          await InventoryReturn.update(returnToUpdate.id, {
-            status: 'Returned',
-            date_returned: new Date().toISOString(),
-            notes: `${returnToUpdate.notes || ''}\nReturned to supplier on ${format(toMountainTime(new Date()), 'yyyy-MM-dd')}`
-          });
-          
-          alert(`Core marked as returned to supplier. Quantity: ${returnToUpdate.quantity_returned}`);
-        } else {
-          // No on-site return found, create a new return record directly as 'Returned'
-          const returnRecord = {
-            inventory_item_id: lineItem.inventory_item_id || null,
-            part_number: lineItem.part_number || 'N/A',
-            description: `${lineItem.description || 'Core'} (Core Return)`,
-            supplier: supplierId,
-            quantity_returned: qtyProcessed,
-            return_type: 'core',
-            return_reason: 'Direct Return to Supplier',
-            cost_per_unit: coreCost,
-            total_cost: qtyProcessed * coreCost,
-            return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
-            work_order_id: workOrder?.id || null,
-            status: 'Returned',
-            date_returned: new Date().toISOString(),
-            notes: 'Core returned directly to supplier.'
-          };
-
-          await InventoryReturn.create(returnRecord);
-          alert(`Core return created and marked as returned to supplier. Quantity: ${qtyProcessed}`);
-        }
-        
-        onCoreProcessed(qtyProcessed, 'returned_to_supplier', coreCost);
       }
+
+      // Create InventoryReturn record
+      const returnRecord = {
+        inventory_item_id: lineItem.inventory_item_id || null,
+        part_number: lineItem.part_number || 'N/A',
+        description: `${lineItem.description || 'Core'} (Core Return)`,
+        supplier: supplierId,
+        quantity_returned: qtyProcessed,
+        return_type: 'core',
+        return_reason: 'Customer Core Received',
+        cost_per_unit: coreCost,
+        total_cost: qtyProcessed * coreCost,
+        return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
+        work_order_id: workOrder?.id || null,
+        status: 'On-site',
+        notes: 'Core received from customer, awaiting return to supplier.'
+      };
+
+      await InventoryReturn.create(returnRecord);
+      
+      // Update core_ret on the line item (this will be handled by parent)
+      const newCoreRet = coreRet + qtyProcessed;
+      onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);
+      
+      alert(`Core received from customer and logged for supplier return. Quantity: ${qtyProcessed}`);
 
     } catch (error) {
       console.error('Error processing core:', error);
@@ -180,19 +122,17 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="received">Customer Core Returned</SelectItem>
-                <SelectItem value="returned_to_supplier">Return to Supplier</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-slate-500">
-              {coreAction === 'received' 
-                ? 'Log that customer has returned the core. Creates return record for eventual supplier return.'
-                : 'Mark core as returned to supplier. Updates existing return record status.'}
+              Log that customer has returned the core. Creates an on-site inventory return record for later processing.
             </p>
           </div>
 
           <div className="space-y-2">
             <Label>Quantity</Label>
             <Input
+              ref={qtyInputRef}
               type="number"
               step="1"
               min="0"
