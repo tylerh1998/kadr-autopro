@@ -228,6 +228,8 @@ export default function InventoryAddPage() {
                 setSuppliers(suppliersData);
                 setSalesClasses(salesClassesData);
                 setInventoryItems(inventoryData);
+                console.log('DEBUG InventoryAdd inventory count:', inventoryData.length);
+                console.log('DEBUG InventoryAdd TESTPART2 present:', inventoryData.some(item => item.part_number === 'TESTPART2'));
                 setTagAlongs(tagAlongsData);
                 setInventoryLocations(locationsData);
                 setInventoryCategories(categoriesData);
