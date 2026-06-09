@@ -20,6 +20,10 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
     }
   }, [open, lineItem]);
 
+  const coreCost = parseFloat(lineItem?.core_cost) || 0;
+  const coreRet = parseFloat(lineItem?.core_ret) || 0;
+  const coreNum = parseFloat(lineItem?.Core_num) || 0;
+
   const handleSubmit = async () => {
     if (!lineItem || !qty || parseFloat(qty) <= 0) {
       alert('Please enter a valid quantity');
@@ -57,8 +61,8 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
           quantity_returned: qtyProcessed,
           return_type: 'core',
           return_reason: 'Customer Core Received',
-          cost_per_unit: lineItem.core_cost || 0,
-          total_cost: qtyProcessed * (lineItem.core_cost || 0),
+          cost_per_unit: coreCost,
+          total_cost: qtyProcessed * coreCost,
           return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
           work_order_id: workOrder?.id || null,
           status: 'On-site',
@@ -68,8 +72,8 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         await InventoryReturn.create(returnRecord);
         
         // Update core_ret on the line item (this will be handled by parent)
-        const newCoreRet = (lineItem.core_ret || 0) + qtyProcessed;
-        onCoreProcessed(qtyProcessed, 'received', lineItem.core_cost || 0, newCoreRet);
+        const newCoreRet = coreRet + qtyProcessed;
+        onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);
         
         alert(`Core received from customer and logged for supplier return. Quantity: ${qtyProcessed}`);
         
@@ -118,8 +122,8 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
             quantity_returned: qtyProcessed,
             return_type: 'core',
             return_reason: 'Direct Return to Supplier',
-            cost_per_unit: lineItem.core_cost || 0,
-            total_cost: qtyProcessed * (lineItem.core_cost || 0),
+            cost_per_unit: coreCost,
+            total_cost: qtyProcessed * coreCost,
             return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
             work_order_id: workOrder?.id || null,
             status: 'Returned',
@@ -131,7 +135,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
           alert(`Core return created and marked as returned to supplier. Quantity: ${qtyProcessed}`);
         }
         
-        onCoreProcessed(qtyProcessed, 'returned_to_supplier', lineItem.core_cost || 0);
+        onCoreProcessed(qtyProcessed, 'returned_to_supplier', coreCost);
       }
 
     } catch (error) {
@@ -158,13 +162,13 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               <strong>Part:</strong> {lineItem.part_number} - {lineItem.description}
             </p>
             <p className="text-sm text-slate-600 mb-2">
-              <strong>Total Cores:</strong> {lineItem.Core_num || 0}
+              <strong>Total Cores:</strong> {coreNum}
             </p>
             <p className="text-sm text-slate-600 mb-2">
-              <strong>Cores Returned by Customer:</strong> {lineItem.core_ret || 0}
+              <strong>Cores Returned by Customer:</strong> {coreRet}
             </p>
             <p className="text-sm text-slate-600 mb-4">
-              <strong>Core Cost Each:</strong> ${(lineItem.core_cost || 0).toFixed(2)}
+              <strong>Core Cost Each:</strong> ${coreCost.toFixed(2)}
             </p>
           </div>
 
