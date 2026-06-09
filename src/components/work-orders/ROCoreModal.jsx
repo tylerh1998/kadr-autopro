@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryItem, InventoryReturn } from '@/entities/all';
+import { InventoryReturn } from '@/entities/all';
+import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
@@ -46,12 +47,17 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       let supplierId = 'Unknown Supplier';
       if (lineItem.inventory_item_id) {
         try {
-          const inventoryItem = await InventoryItem.get(lineItem.inventory_item_id);
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            entityName: 'InventoryItem',
+            method: 'get',
+            params: { id: lineItem.inventory_item_id }
+          });
+          const inventoryItem = response.data?.data;
           if (inventoryItem && inventoryItem.supplier_id) {
             supplierId = inventoryItem.supplier_id;
           }
         } catch (error) {
-          console.error('Error fetching supplier info:', error);
+          console.error('Error fetching supplier info from Supabase:', error);
         }
       }
 
