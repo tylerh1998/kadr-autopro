@@ -70,6 +70,7 @@ export default function InventoryListPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearchTerm, setActiveSearchTerm] = useState("");
+  const [showInactiveInventory, setShowInactiveInventory] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: "part_number", direction: "ascending" });
   const [filter, setFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -172,6 +173,7 @@ export default function InventoryListPage() {
         response = await base44.functions.invoke('searchInventory', {
           searchTerm: activeSearchTerm,
           filter: filter,
+          includeInactive: showInactiveInventory,
           sortBy: isInventoryCount ? 'location' : sortConfig.key,
           sortDirection: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
           limit: isUnlimitedView ? 999999 : itemsPerPage,
@@ -195,7 +197,7 @@ export default function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeSearchTerm, filter, sortConfig, currentPage, itemsPerPage, filterLocationFrom, filterLocationTo]);
+  }, [activeSearchTerm, filter, showInactiveInventory, sortConfig, currentPage, itemsPerPage, filterLocationFrom, filterLocationTo]);
 
   // Search triggered on Enter key
   const handleSearchKeyDown = (e) => {
@@ -734,16 +736,30 @@ export default function InventoryListPage() {
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6 no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
-                <div className="relative w-full md:w-80 lg:w-96 shrink-0">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <Input
-                    placeholder="Search by Part # or Description (Press Enter)"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleSearchKeyDown}
-                    className="pl-10"
-                    autoFocus
-                  />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
+                  <div className="relative w-full md:w-80 lg:w-96 shrink-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Input
+                      placeholder="Search by Part # or Description (Press Enter)"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleSearchKeyDown}
+                      className="pl-10"
+                      autoFocus
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={showInactiveInventory}
+                      onChange={(e) => {
+                        setShowInactiveInventory(e.target.checked);
+                        setCurrentPage(1);
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
+                    />
+                    Show Inactive Inventory
+                  </label>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                    <Filter className="h-5 w-5 text-gray-400 shrink-0" />

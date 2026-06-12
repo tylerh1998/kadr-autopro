@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
         let filter = 'all';
         let sortBy = 'part_number';
         let sortDirection = 'asc';
+        let includeInactive = false;
         let limit = 50;
         let offset = 0;
         let locationFrom = '';
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
             filter = body.filter || 'all';
             sortBy = body.sortBy || 'part_number';
             sortDirection = body.sortDirection || 'asc';
+            includeInactive = body.includeInactive === true;
             limit = Number(body.limit || 50);
             offset = Number(body.offset || 0);
             locationFrom = body.locationFrom || '';
@@ -91,44 +93,78 @@ Deno.serve(async (req) => {
         const safeOffset = Math.max(0, offset);
 
         if (normalizedSearchTerm || locationFrom || locationTo) {
-            const rpcPayload = {
-                p_search_term: normalizedSearchTerm,
-                p_filter: filter,
-                p_sort_by: safeSortBy,
-                p_sort_direction: ascending ? 'asc' : 'desc',
-                p_limit: safeLimit,
-                p_offset: safeOffset,
-                p_location_from: locationFrom,
-                p_location_to: locationTo,
-            };
+            if (!includeInactive) {
+                const rpcPayload = {
+                    p_search_term: normalizedSearchTerm,
+                    p_filter: filter,
+                    p_sort_by: safeSortBy,
+                    p_sort_direction: ascending ? 'asc' : 'desc',
+                    p_limit: safeLimit,
+                    p_offset: safeOffset,
+                    p_location_from: locationFrom,
+                    p_location_to: locationTo,
+                };
 
-            const { data, error } = await supabase.rpc('search_inventory_ranked', rpcPayload);
+                const { data, error } = await supabase.rpc('search_inventory_ranked', rpcPayload);
 
-            console.log('searchInventory rpc payload:', rpcPayload);
+                console.log('searchInventory rpc payload:', rpcPayload);
 
-            if (error) {
-                console.error('Supabase search_inventory_ranked rpc error:', error);
+                if (error) {
+                    console.error('Supabase search_inventory_ranked rpc error:', error);
+                    return Response.json({
+                        error: 'Failed to fetch inventory',
+                        details: error.message,
+                        rpc_name: 'search_inventory_ranked'
+                    }, { status: 500 });
+                }
+
+                const records = data || [];
+                const totalCount = records.length > 0 ? Number(records[0].total_count || 0) : 0;
+                const cleanedRecords = records.map(({ total_count, match_rank, ...item }) => item);
+
                 return Response.json({
-                    error: 'Failed to fetch inventory',
-                    details: error.message,
-                    rpc_name: 'search_inventory_ranked'
-                }, { status: 500 });
+                    records: cleanedRecords,
+                    totalCount,
+                });
             }
 
-            const records = data || [];
-            const totalCount = records.length > 0 ? Number(records[0].total_count || 0) : 0;
-            const cleanedRecords = records.map(({ total_count, match_rank, ...item }) => item);
+            let searchQuery = supabase
+                .from('InventoryItem')
+                .select('*', { count: 'exact' })
+                .or(`part_number.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%,manufacturer.ilike.%${normalizedSearchTerm}%`);
+
+            searchQuery = applyInventoryFilter(searchQuery, filter);
+
+            if (locationFrom) {
+                searchQuery = searchQuery.gte('location', locationFrom);
+            }
+            if (locationTo) {
+                searchQuery = searchQuery.lte('location', locationTo);
+            }
+
+            searchQuery = searchQuery.order(safeSortBy, { ascending, nullsFirst: false });
+            searchQuery = searchQuery.range(safeOffset, safeOffset + safeLimit - 1);
+
+            const { data, error, count } = await searchQuery;
+
+            if (error) {
+                console.error('Supabase InventoryItem search query error:', error);
+                return Response.json({ error: 'Failed to fetch inventory', details: error.message }, { status: 500 });
+            }
 
             return Response.json({
-                records: cleanedRecords,
-                totalCount,
+                records: data || [],
+                totalCount: count || 0,
             });
         }
 
         let query = supabase
             .from('InventoryItem')
-            .select('*', { count: 'exact' })
-            .eq('is_active', true);
+            .select('*', { count: 'exact' });
+
+        if (!includeInactive) {
+            query = query.eq('is_active', true);
+        }
 
         query = applyInventoryFilter(query, filter);
         
