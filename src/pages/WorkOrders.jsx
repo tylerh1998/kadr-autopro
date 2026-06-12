@@ -46,6 +46,7 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showFlushConfirm, setShowFlushConfirm] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
@@ -105,11 +106,19 @@ export default function WorkOrdersPage() {
   const INVOICES_PER_PAGE = 100;
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
     loadData(true);
     loadCurrentUser();
     loadWorkOrderStatuses();
     loadSystemSettings();
-  }, [invoicePage, invoicesSort, searchTerm]);
+  }, [invoicePage, invoicesSort, debouncedSearchTerm]);
 
   useEffect(() => {
     setInvoicePage(1);
@@ -197,7 +206,7 @@ export default function WorkOrdersPage() {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [activeTab, workPROLoaded]);
+  }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
 
   useEffect(() => {
     if (activeTab === 'workpro' && !workPROLoaded) {
@@ -240,7 +249,7 @@ export default function WorkOrdersPage() {
           sort: invoicesSort,
           limit: INVOICES_PER_PAGE,
           offset: invoiceOffset,
-          searchTerm: searchTerm.trim()
+          searchTerm: debouncedSearchTerm.trim()
         })
       ]);
 
