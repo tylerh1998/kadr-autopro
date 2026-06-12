@@ -735,8 +735,8 @@ export default function InventoryListPage() {
 
           <div className="bg-white p-4 rounded-lg shadow-sm mb-6 no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-              <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
-                <div className="flex flex-col gap-2 w-full">
+              <div className="flex flex-col md:flex-row md:items-start gap-4 flex-1">
+                <div className="flex flex-col gap-2 w-full md:w-auto shrink-0">
                   <div className="relative w-full md:w-80 lg:w-96 shrink-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <Input
