@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
 Deno.serve(async (req) => {
   try {
@@ -12,35 +12,69 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const { dateRange } = await req.json();
-    const fromDate = dateRange?.from ? new Date(dateRange.from) : new Date(new Date().getFullYear(), 0, 1);
-    const toDate = dateRange?.to ? new Date(dateRange.to) : new Date();
 
-    // Format dates as YYYY-MM-DD
-    const formatDate = (date) => date.toISOString().split('T')[0];
-    const fromDateStr = formatDate(fromDate);
-    const toDateStr = formatDate(toDate);
+    const isValidDateString = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    const getMountainDateString = (date = new Date()) => {
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'America/Edmonton',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(date);
+    };
+    const parseDateOnly = (dateStr) => {
+      const [year, month, day] = String(dateStr).split('-').map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    };
+    const formatDateOnly = (date) => date.toISOString().split('T')[0];
+
+    const todayMountain = getMountainDateString();
+    const fromDateStr = isValidDateString(dateRange?.from) ? dateRange.from : `${todayMountain.slice(0, 4)}-01-01`;
+    const toDateStr = isValidDateString(dateRange?.to) ? dateRange.to : todayMountain;
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
 
     // Fetch all necessary data using service role for comprehensive access
     const [
       glTransactions,
-      bankAccounts,
-      bankTransactions,
+      bankAccountsResponse,
+      bankTransactionsResponse,
       chartOfAccounts
     ] = await Promise.all([
       // Fetch GL Transactions in range
       base44.asServiceRole.entities.GLTransaction.filter({
           transaction_date: { "$gte": fromDateStr, "$lte": toDateStr }
       }, '-transaction_date', 5000),
-      
-      base44.asServiceRole.entities.BankAccount.list(),
-      
-      // Fetch all transactions from fromDate to Now to reconstruct balances accurately
-      base44.asServiceRole.entities.BankTransaction.filter({
-         transaction_date: { "$gte": fromDateStr }
-      }, '-transaction_date', 5000),
-      
+      supabase
+        .from('BankAccount')
+        .select('*'),
+      supabase
+        .from('BankTransaction')
+        .select('*')
+        .gte('transaction_date', fromDateStr)
+        .order('transaction_date', { ascending: false }),
       base44.asServiceRole.entities.ChartOfAccount.list()
     ]);
+
+    if (bankAccountsResponse.error) {
+      throw new Error(bankAccountsResponse.error.message || 'Failed to fetch BankAccount from Supabase');
+    }
+
+    if (bankTransactionsResponse.error) {
+      throw new Error(bankTransactionsResponse.error.message || 'Failed to fetch BankTransaction from Supabase');
+    }
+
+    const bankAccounts = bankAccountsResponse.data || [];
+    const bankTransactions = bankTransactionsResponse.data || [];
 
     // Filter GL transactions by date range
     const filteredGLTransactions = glTransactions.filter(tx => {
@@ -53,8 +87,8 @@ Deno.serve(async (req) => {
     // For balance calculation, we need everything > toDateStr to rewind from Current Balance
     
     // Sort transactions descending (newest first)
-    const sortedBankTransactions = bankTransactions.sort((a, b) => 
-        new Date(b.transaction_date) - new Date(a.transaction_date)
+    const sortedBankTransactions = bankTransactions.sort((a, b) =>
+        String(b.transaction_date || '').localeCompare(String(a.transaction_date || ''))
     );
 
     // Calculate Revenue (4000-4999 accounts)
@@ -96,9 +130,10 @@ Deno.serve(async (req) => {
     // Calculate Monthly Revenue vs Expenses for chart
     const monthlyData = {};
     filteredGLTransactions.forEach(tx => {
-      const txDate = new Date(tx.transaction_date);
-      const monthKey = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
-      
+      const txDate = String(tx.transaction_date || '').split('T')[0];
+      const monthKey = txDate.slice(0, 7);
+      if (!monthKey) return;
+
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = { revenue: 0, expenses: 0 };
       }
@@ -128,17 +163,16 @@ Deno.serve(async (req) => {
     // Helper to generate date range array
     const getDatesInRange = (startDate, endDate) => {
         const dates = [];
-        let curr = new Date(startDate);
-        const last = new Date(endDate);
+        let curr = parseDateOnly(startDate);
+        const last = parseDateOnly(endDate);
         while (curr <= last) {
-            dates.push(curr.toISOString().split('T')[0]);
-            curr.setDate(curr.getDate() + 1);
+            dates.push(formatDateOnly(curr));
+            curr = new Date(curr.getTime() + 86400000);
         }
         return dates;
     };
 
     const dateRangeDates = getDatesInRange(fromDateStr, toDateStr);
-    const todayStr = new Date().toISOString().split('T')[0];
 
     // Initialize data structure for each account
     const accountsData = {};
@@ -312,9 +346,7 @@ Deno.serve(async (req) => {
     // --- Special Bank Stats for Cash Flow Trend Tab (Current Month) ---
     // Target Bank: 68b95ed97223c7b3d2882f5d
     // Period: Current Month (based on toDate)
-    const currentMonthStart = new Date(toDate);
-    currentMonthStart.setDate(1); // 1st of the month
-    const currentMonthStartStr = formatDate(currentMonthStart);
+    const currentMonthStartStr = `${toDateStr.slice(0, 7)}-01`;
     
     const targetBankId = '68b95ed97223c7b3d2882f5d';
     const targetBankStats = {
