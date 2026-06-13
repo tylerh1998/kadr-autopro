@@ -266,6 +266,21 @@ export default function SupplierTxPage() {
     return lines;
   }, [invoiceLines, searchTerm, sortConfig]);
 
+  const filteredConceptualInvoices = useMemo(() => {
+    if (!searchTerm.trim()) return conceptualInvoices || [];
+    const search = searchTerm.toLowerCase();
+    return (conceptualInvoices || []).filter(invoice =>
+      invoice.invoice_number?.toLowerCase().includes(search) ||
+      invoice.invoice_date?.toLowerCase().includes(search) ||
+      String(invoice.line_count ?? '').toLowerCase().includes(search) ||
+      String(invoice.subtotal ?? '').toLowerCase().includes(search) ||
+      String(invoice.tax_amount ?? '').toLowerCase().includes(search) ||
+      String(invoice.total_amount ?? '').toLowerCase().includes(search) ||
+      String(invoice.amount_paid ?? '').toLowerCase().includes(search) ||
+      String(invoice.balance_due ?? '').toLowerCase().includes(search)
+    );
+  }, [conceptualInvoices, searchTerm]);
+
   const requestSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
@@ -1045,7 +1060,7 @@ export default function SupplierTxPage() {
           <Tabs value={currentActiveTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList><TabsTrigger value="invoice-lines">Invoice Lines</TabsTrigger><TabsTrigger value="invoice-summary">Invoice Summary</TabsTrigger><TabsTrigger value="payment-history">Payment History</TabsTrigger></TabsList>
             <TabsContent value="invoice-lines"><Card><CardContent className="p-0"><SupplierTxInvoiceLinesTab filteredInvoiceLines={filteredInvoiceLines} sortConfig={sortConfig} requestSort={requestSort} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} setSelectedLineId={setSelectedLineId} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} safeParseDateForCalendar={safeParseDateForCalendar} handleCalendarDateSelect={handleCalendarDateSelect} handleValueBlur={handleValueBlur} chartOfAccounts={chartOfAccounts} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleEditLineClick={handleEditLineClick} handleAddLineAbove={handleAddLineAbove} handleAddLineBelow={handleAddLineBelow} isLineLocked={isLineLocked} /></CardContent></Card></TabsContent>
-            <TabsContent value="invoice-summary"><SupplierTxInvoiceSummaryTab conceptualInvoices={conceptualInvoices} invoiceLines={invoiceLines} expandedInvoices={expandedInvoices} toggleInvoiceExpansion={toggleInvoiceExpansion} safeFormatDate={safeFormatDate} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} chartOfAccounts={chartOfAccounts} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} handleValueBlur={handleValueBlur} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleAddSummaryLineBelow={handleAddSummaryLineBelow} isLineLocked={isLineLocked} /></TabsContent>
+            <TabsContent value="invoice-summary"><SupplierTxInvoiceSummaryTab conceptualInvoices={filteredConceptualInvoices} invoiceLines={invoiceLines} expandedInvoices={expandedInvoices} toggleInvoiceExpansion={toggleInvoiceExpansion} safeFormatDate={safeFormatDate} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} chartOfAccounts={chartOfAccounts} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} handleValueBlur={handleValueBlur} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleAddSummaryLineBelow={handleAddSummaryLineBelow} isLineLocked={isLineLocked} /></TabsContent>
             <TabsContent value="payment-history"><SupplierTxPaymentHistoryTab loading={loading} payments={payments} expandedPayments={expandedPayments} togglePaymentExpansion={togglePaymentExpansion} safeFormatDate={safeFormatDate} handlePrintCheque={handlePrintCheque} handleCancelPayment={handleCancelPayment} sourceMap={sourceMap} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} /></TabsContent>
           </Tabs>
         </div>
