@@ -29,13 +29,25 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   }, [availableAccounts, search]);
 
   React.useEffect(() => {
-    if (!open || !listRef.current || !selectedItemRef.current) return;
-    requestAnimationFrame(() => {
-      const listEl = listRef.current;
-      const selectedEl = selectedItemRef.current;
-      const targetTop = selectedEl.offsetTop - (listEl.clientHeight / 2) + (selectedEl.offsetHeight / 2);
-      listEl.scrollTop = Math.max(0, targetTop);
-    });
+    if (!open) return;
+
+    const timeoutId = window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const listEl = listRef.current;
+          const selectedEl = selectedItemRef.current;
+          if (!listEl || !selectedEl) return;
+
+          const listRect = listEl.getBoundingClientRect();
+          const selectedRect = selectedEl.getBoundingClientRect();
+          const targetTop = selectedRect.top - listRect.top + listEl.scrollTop - (listEl.clientHeight / 2) + (selectedEl.offsetHeight / 2);
+
+          listEl.scrollTop = Math.max(0, targetTop);
+        });
+      });
+    }, 30);
+
+    return () => window.clearTimeout(timeoutId);
   }, [open, filteredAccounts, currentValue]);
 
   const selectedAccount = availableAccounts.find((account) => String(account.account_number) === String(currentValue));
