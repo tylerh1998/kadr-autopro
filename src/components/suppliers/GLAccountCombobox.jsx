@@ -11,13 +11,6 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   const [search, setSearch] = useState('');
   const selectedItemRef = React.useRef(null);
 
-  React.useEffect(() => {
-    if (!open || !selectedItemRef.current) return;
-    requestAnimationFrame(() => {
-      selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
-    });
-  }, [open, filteredAccounts, currentValue]);
-
   const availableAccounts = useMemo(() => {
     return sortAccounts(
       (chartOfAccounts || []).filter((account) => !account.controlled || String(account.account_number) === String(currentValue))
@@ -33,6 +26,13 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
       return number.includes(query) || name.includes(query);
     });
   }, [availableAccounts, search]);
+
+  React.useEffect(() => {
+    if (!open || !selectedItemRef.current) return;
+    requestAnimationFrame(() => {
+      selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [open, filteredAccounts, currentValue]);
 
   const selectedAccount = availableAccounts.find((account) => String(account.account_number) === String(currentValue));
   const defaultSelectedLabel = selectedAccount ? `${selectedAccount.account_number} - ${selectedAccount.account_name}` : placeholder;
