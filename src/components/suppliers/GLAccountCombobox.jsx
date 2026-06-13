@@ -6,7 +6,7 @@ import { Check, Search } from 'lucide-react';
 
 const sortAccounts = (accounts) => [...accounts].sort((a, b) => String(a.account_number).localeCompare(String(b.account_number), undefined, { numeric: true, sensitivity: 'base' }));
 
-export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '' }) {
+export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -27,7 +27,8 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   }, [availableAccounts, search]);
 
   const selectedAccount = availableAccounts.find((account) => String(account.account_number) === String(currentValue));
-  const selectedLabel = selectedAccount ? `${selectedAccount.account_number} - ${selectedAccount.account_name}` : placeholder;
+  const defaultSelectedLabel = selectedAccount ? `${selectedAccount.account_number} - ${selectedAccount.account_name}` : placeholder;
+  const displayLabel = selectedLabel || defaultSelectedLabel;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -39,7 +40,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
           disabled={disabled}
           className={`w-full justify-between font-normal ${className}`}
         >
-          <span className="truncate">{selectedLabel}</span>
+          <span className="truncate">{displayLabel}</span>
           <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

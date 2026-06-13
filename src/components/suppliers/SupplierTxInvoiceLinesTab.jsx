@@ -10,6 +10,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { ArrowUp, ArrowDown, Calendar as CalendarIcon, Trash2, Lock, Calculator, Edit, Check } from 'lucide-react';
 
+const truncateText = (value, max = 25) => {
+  const text = String(value || '');
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
+
 export default function SupplierTxInvoiceLinesTab({
   filteredInvoiceLines,
   sortConfig,
@@ -108,24 +113,32 @@ export default function SupplierTxInvoiceLinesTab({
                       <Input type="text" value={typeof line.line_total === 'number' ? line.line_total.toFixed(2) : line.line_total || ''} onChange={(e) => !isDisabled && handleLineChange(line.id, 'line_total', e.target.value)} onBlur={(e) => !isDisabled && handleValueBlur(line.id, 'line_total', e.target.value)} onFocus={() => setSelectedLineId(line.id)} className={`text-right ${line.line_total === 'Error' ? 'text-red-600 border-red-300' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`} readOnly={isDisabled || line.inventory} />
                     </TableCell>
                     <TableCell>
-                      <div className="gl-print-text">
-                        {line.gl_account ? (() => {
-                          const account = chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account));
-                          return account ? `${account.account_number} - ${account.account_name}` : line.gl_account;
-                        })() : ''}
-                      </div>
-                      <div className="gl-select-trigger">
-                        <GLAccountCombobox
-                          chartOfAccounts={chartOfAccounts}
-                          currentValue={line.gl_account ? String(line.gl_account) : ''}
-                          onChange={(value) => {
-                            if (isLockedByOtherUser || !lockAcquired) return;
-                            handleGlAccountChange(line, value);
-                          }}
-                          disabled={isLockedByOtherUser || !lockAcquired}
-                          className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}
-                        />
-                      </div>
+                      {(() => {
+                        const account = line.gl_account
+                          ? chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account))
+                          : null;
+                        const fullGlLabel = account ? `${account.account_number} - ${account.account_name}` : (line.gl_account || '');
+                        const truncatedGlLabel = truncateText(fullGlLabel, 25);
+
+                        return (
+                          <>
+                            <div className="gl-print-text">{fullGlLabel}</div>
+                            <div className="gl-select-trigger">
+                              <GLAccountCombobox
+                                chartOfAccounts={chartOfAccounts}
+                                currentValue={line.gl_account ? String(line.gl_account) : ''}
+                                selectedLabel={truncatedGlLabel}
+                                onChange={(value) => {
+                                  if (isLockedByOtherUser || !lockAcquired) return;
+                                  handleGlAccountChange(line, value);
+                                }}
+                                disabled={isLockedByOtherUser || !lockAcquired}
+                                className={`${!line.gl_account && (line.invoice_number || line.description || (typeof line.charge === 'number' && line.charge !== 0) || (typeof line.gst === 'number' && line.gst !== 0)) ? 'border-red-300' : ''} ${isLockedByOtherUser || !lockAcquired ? 'cursor-not-allowed' : ''}`}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2">
