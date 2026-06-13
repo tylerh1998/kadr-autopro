@@ -10,6 +10,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedItemRef = React.useRef(null);
+  const listRef = React.useRef(null);
 
   const availableAccounts = useMemo(() => {
     return sortAccounts(
@@ -28,9 +29,12 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   }, [availableAccounts, search]);
 
   React.useEffect(() => {
-    if (!open || !selectedItemRef.current) return;
+    if (!open || !listRef.current || !selectedItemRef.current) return;
     requestAnimationFrame(() => {
-      selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
+      const listEl = listRef.current;
+      const selectedEl = selectedItemRef.current;
+      const targetTop = selectedEl.offsetTop - (listEl.clientHeight / 2) + (selectedEl.offsetHeight / 2);
+      listEl.scrollTop = Math.max(0, targetTop);
     });
   }, [open, filteredAccounts, currentValue]);
 
@@ -67,7 +71,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
             className="mb-2"
             autoFocus
           />
-          <div className="max-h-[260px] overflow-y-auto space-y-1">
+          <div ref={listRef} className="max-h-[260px] overflow-y-auto space-y-1">
             {filteredAccounts.length === 0 ? (
               <div className="py-6 text-center text-sm text-slate-500">No accounts found.</div>
             ) : (
