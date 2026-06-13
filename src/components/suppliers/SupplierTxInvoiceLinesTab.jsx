@@ -89,7 +89,7 @@ export default function SupplierTxInvoiceLinesTab({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Input type="text" value={line.invoice_date && line.invoice_date.length === 10 && line.invoice_date.includes('-') ? formatDateForInput(line.invoice_date) : line.invoice_date || ''} onChange={(e) => !isDisabled && handleLineChange(line.id, 'invoice_date', e.target.value)} onBlur={(e) => !isDisabled && handleDateBlur(line.id, e.target.value)} onFocus={() => setSelectedLineId(line.id)} placeholder="MM/DD/YYYY" className={`w-28 bg-white ${line.dateError ? 'text-red-600 border-red-500' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`} readOnly={isDisabled || line.inventory} title={line.dateError || ''} />
+                        <Input type="text" value={line.invoice_date && line.invoice_date.length === 10 && line.invoice_date.includes('-') ? formatDateForInput(line.invoice_date) : line.invoice_date || ''} onChange={(e) => !isDisabled && handleLineChange(line.id, 'invoice_date', e.target.value)} onBlur={(e) => !isDisabled && handleDateBlur(line.id, e.target.value)} onFocus={() => setSelectedLineId(line.id)} placeholder="MM/DD/YYYY" className={`w-20 bg-white ${line.dateError ? 'text-red-600 border-red-500' : ''} ${isDisabled || line.inventory ? 'cursor-not-allowed' : ''}`} readOnly={isDisabled || line.inventory} title={line.dateError || ''} />
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button variant="outline" size="icon" disabled={isDisabled || line.inventory} className="h-10 w-10"><CalendarIcon className="h-4 w-4" /></Button>
