@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,14 @@ const sortAccounts = (accounts) => [...accounts].sort((a, b) => String(a.account
 export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const selectedItemRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open || !selectedItemRef.current) return;
+    requestAnimationFrame(() => {
+      selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
+    });
+  }, [open, filteredAccounts, currentValue]);
 
   const availableAccounts = useMemo(() => {
     return sortAccounts(
@@ -31,7 +39,13 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   const displayLabel = selectedLabel || defaultSelectedLabel;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) setSearch('');
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -62,6 +76,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
                 return (
                   <div
                     key={account.id || account.account_number}
+                    ref={isSelected ? selectedItemRef : null}
                     onClick={() => {
                       onChange(String(account.account_number));
                       setOpen(false);
