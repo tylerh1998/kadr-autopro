@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ChevronDown, ChevronRight, Trash2, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import GLAccountCombobox from './GLAccountCombobox';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -168,11 +169,11 @@ export default function SupplierTxInvoiceSummaryTab({
                                   {line.dateError ? <p className="mt-1 text-xs text-red-600">{line.dateError}</p> : null}
                                 </TableCell>
                                 <TableCell>
-                                  <Input
+                                  <Textarea
                                     value={line.description || ''}
                                     onChange={(e) => handleLineChange(line.id, 'description', e.target.value)}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
+                                    className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white leading-snug' : 'min-h-[60px] resize-y bg-white leading-snug'}
                                   />
                                 </TableCell>
                                 <TableCell>
