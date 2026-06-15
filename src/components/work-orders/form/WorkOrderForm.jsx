@@ -762,7 +762,7 @@ export default function WorkOrderForm({
     console.log('=== DEBUG: handleCoreProcessed called ===');
     console.log('quantity:', quantity, 'action:', action, 'cost:', cost, 'newCoreRet:', newCoreRet);
     
-    if (action === 'received' && currentLineIndex !== null && newCoreRet !== undefined) {
+    if (currentLineIndex !== null && newCoreRet !== undefined) {
       // Update the core_ret value for the line item and recalculate totals immediately
       tracedSetLineItems(prev => {
         const updated = [...prev];

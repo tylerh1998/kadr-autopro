@@ -8,6 +8,7 @@ import { InventoryReturn } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { ReturnCoretoWO } from '@/functions/ReturnCoretoWO';
 
 export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCoreProcessed }) {
   const [qty, setQty] = useState('');
@@ -28,22 +29,55 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
   const coreCost = parseFloat(lineItem?.core_cost) || 0;
   const coreRet = parseFloat(lineItem?.core_ret) || 0;
   const coreNum = parseFloat(lineItem?.Core_num) || 0;
+  const outstandingCoreQty = Math.max(0, coreNum - coreRet);
 
   const handleSubmit = async () => {
-    if (!lineItem || !qty || parseFloat(qty) <= 0) {
+    const qtyProcessed = parseFloat(qty);
+
+    if (!lineItem || !qty || !Number.isFinite(qtyProcessed) || qtyProcessed <= 0) {
       alert('Please enter a valid quantity');
+      return;
+    }
+
+    if (coreAction === 'received' && qtyProcessed > outstandingCoreQty) {
+      alert(`Quantity cannot exceed outstanding cores on this line (${outstandingCoreQty}).`);
+      return;
+    }
+
+    if (coreAction === 'return_to_work_order' && qtyProcessed > coreRet) {
+      alert(`Quantity cannot exceed customer-returned cores on this line (${coreRet}).`);
+      return;
+    }
+
+    if (coreAction === 'return_to_work_order' && !workOrder?.id) {
+      alert('Work order is missing. Please reload and try again.');
       return;
     }
 
     setLoading(true);
     try {
-      const qtyProcessed = parseFloat(qty);
-      
+      if (coreAction === 'return_to_work_order') {
+        const response = await ReturnCoretoWO({
+          part_number: lineItem.part_number || 'N/A',
+          work_order_id: workOrder.id,
+          quantity: qtyProcessed
+        });
+
+        if (!response.data?.success) {
+          alert(response.data?.error || 'Failed to return core to work order.');
+          return;
+        }
+
+        const newCoreRet = coreRet - qtyProcessed;
+        onCoreProcessed(qtyProcessed, 'return_to_work_order', coreCost, newCoreRet);
+        alert(`Core returned to work order. Quantity: ${qtyProcessed}`);
+        return;
+      }
+
       // Customer Core Returned (for eventual Supplier Return)
       // DO NOT change inventory quantity_on_hand
       // DO NOT create InventoryTxs
-      
-      // Get supplier info from inventory item
+
       let supplierId = 'Unknown Supplier';
       if (lineItem.inventory_item_id) {
         try {
@@ -61,7 +95,6 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         }
       }
 
-      // Create InventoryReturn record
       const returnRecord = {
         inventory_item_id: lineItem.inventory_item_id || null,
         part_number: lineItem.part_number || 'N/A',
@@ -79,16 +112,14 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       };
 
       await InventoryReturn.create(returnRecord);
-      
-      // Update core_ret on the line item (this will be handled by parent)
+
       const newCoreRet = coreRet + qtyProcessed;
       onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);
-      
-      alert(`Core received from customer and logged for supplier return. Quantity: ${qtyProcessed}`);
 
+      alert(`Core received from customer and logged for supplier return. Quantity: ${qtyProcessed}`);
     } catch (error) {
       console.error('Error processing core:', error);
-      alert('Failed to process core. Please try again.');
+      alert(error?.response?.data?.error || 'Failed to process core. Please try again.');
     } finally {
       setLoading(false);
       onClose();
@@ -128,10 +159,13 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="received">Customer Core Returned</SelectItem>
+                <SelectItem value="return_to_work_order">Return Core to Work Order</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-slate-500">
-              Log that customer has returned the core. Creates an on-site inventory return record for later processing.
+              {coreAction === 'return_to_work_order'
+                ? 'Move an on-site core return back onto this work order. Only matching part #, same work order, and On-site inventory return records will be used.'
+                : 'Log that customer has returned the core. Creates an on-site inventory return record for later processing.'}
             </p>
           </div>
 
@@ -146,6 +180,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               onChange={(e) => setQty(e.target.value)}
               placeholder="Enter quantity"
             />
+            <p className="text-xs text-slate-500">
+              {coreAction === 'return_to_work_order'
+                ? `Max available on this line: ${coreRet}`
+                : `Max outstanding on this line: ${outstandingCoreQty}`}
+            </p>
           </div>
         </div>
 

@@ -338,6 +338,7 @@ export default function LineItemsTable({
   const renderContextMenu = (line, index) => {
     const inventorySellingPrice = inventoryPrices[line.inventory_item_id];
     const isPriceDifferent = line.part_number && line.inventory_item_id && inventorySellingPrice !== undefined && parseFloat(line.parts_ea) !== inventorySellingPrice;
+    const coreCount = parseFloat(line.Core_num) || 0;
 
     return (
       <ContextMenuContent>
@@ -372,12 +373,6 @@ export default function LineItemsTable({
               <span>Receive Part</span>
             </ContextMenuItem>
           )}
-          {mode !== 'estimate' && (
-            <ContextMenuItem onClick={() => onCores(index)} disabled={!line.Core_num || line.Core_num === 0}>
-              <Wrench className="mr-2 h-4 w-4" />
-              <span>Cores</span>
-            </ContextMenuItem>
-          )}
           {line.inventory_item_id && (
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
               <Hash className="mr-2 h-4 w-4" />
@@ -390,6 +385,15 @@ export default function LineItemsTable({
               <span>Part Details</span>
             </ContextMenuItem>
           )}
+          <ContextMenuSeparator />
+        </>
+      )}
+      {mode !== 'estimate' && coreCount !== 0 && (
+        <>
+          <ContextMenuItem onClick={() => onCores(index)}>
+            <Wrench className="mr-2 h-4 w-4" />
+            <span>Cores</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
         </>
       )}
