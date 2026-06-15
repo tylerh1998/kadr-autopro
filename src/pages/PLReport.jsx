@@ -116,9 +116,17 @@ export default function PLReportPage() {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const handleAccountClick = (accountNumber) => {
+    const url = createPageUrl(`GLAcct?account=${accountNumber}&startDate=${startDate}&endDate=${endDate}`);
+    window.open(url, '_blank', 'width=1400,height=900');
+  };
+
   const AccountRow = ({ account, level = 0 }) => (
     <>
-      <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
+      <div
+        className="flex justify-between items-center p-4 border-b hover:bg-slate-50 cursor-pointer print-line-item"
+        onClick={() => handleAccountClick(account.account_number)}
+      >
         <div style={{ paddingLeft: `${level * 24}px` }}>
           <span className={`text-slate-900 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
             {account.account_number}
