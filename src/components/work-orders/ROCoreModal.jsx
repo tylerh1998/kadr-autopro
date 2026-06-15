@@ -82,11 +82,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       if (lineItem.inventory_item_id) {
         try {
           const response = await base44.functions.invoke('SupabaseProxy', {
-            entityName: 'InventoryItem',
-            method: 'get',
-            params: { id: lineItem.inventory_item_id }
+            action: 'read',
+            table: 'InventoryItem',
+            match: { id: lineItem.inventory_item_id }
           });
-          const inventoryItem = response.data?.data;
+          const inventoryItem = response.data?.data?.[0];
           if (inventoryItem && inventoryItem.supplier_id) {
             supplierId = inventoryItem.supplier_id;
           }
