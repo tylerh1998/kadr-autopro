@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import GLAccountCombobox from '@/components/suppliers/GLAccountCombobox';
+import PayrollGLAccountCombobox from '@/components/payroll/PayrollGLAccountCombobox';
 
 export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -149,7 +149,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
 
           <div className="space-y-2">
             <Label>GL Account <span className="text-red-500">*</span></Label>
-            <GLAccountCombobox
+            <PayrollGLAccountCombobox
               chartOfAccounts={chartOfAccounts}
               currentValue={formData.gl_account}
               onChange={(value) => handleChange('gl_account', value)}
