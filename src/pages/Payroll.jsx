@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,8 @@ export default function PayrollPage() {
   const [showAddAdjustmentModal, setShowAddAdjustmentModal] = useState(false);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+
+  const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').toISOString();
 
   // Load PayrollTransaction data
   useEffect(() => {
@@ -122,6 +125,9 @@ export default function PayrollPage() {
           reversalDescription = `Reversal of Adjustment: ${transaction.adjustment_reason || ''} dated ${format(new Date(transaction.pay_date), 'MMM d, yyyy')}`;
         }
 
+        const currentUser = await base44.auth.me();
+        const currentTimestamp = getCurrentMountainTimestamp();
+
         // Create reversal adjustment
         await base44.functions.invoke('SupabaseProxy', {
           action: 'create',
@@ -133,7 +139,11 @@ export default function PayrollPage() {
             adjustment_reason: reversalDescription,
             gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
             notes: `Original transaction ID: ${transaction.id}`,
-            is_paid: false
+            is_paid: false,
+            created_date: currentTimestamp,
+            updated_date: currentTimestamp,
+            created_by_id: currentUser?.id || null,
+            created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
           }
         });
 

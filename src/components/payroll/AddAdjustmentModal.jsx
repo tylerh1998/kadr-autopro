@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import { ChartOfAccount } from '@/entities/all';
 import {
@@ -28,6 +29,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').toISOString();
 
   useEffect(() => {
     if (open) {
@@ -60,6 +63,9 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
         throw new Error('Date, amount, reason, and GL account are required');
       }
 
+      const currentUser = await base44.auth.me();
+      const currentTimestamp = getCurrentMountainTimestamp();
+
       // Create the transaction
       await base44.functions.invoke('SupabaseProxy', {
         action: 'create',
@@ -71,7 +77,11 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
           adjustment_reason: formData.adjustment_reason,
           gl_account: formData.gl_account,
           notes: formData.notes || null,
-          is_paid: false
+          is_paid: false,
+          created_date: currentTimestamp,
+          updated_date: currentTimestamp,
+          created_by_id: currentUser?.id || null,
+          created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
         }
       });
 
