@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { ChartOfAccount } from '@/entities/all';
 import {
   Dialog,
   DialogContent,
@@ -13,20 +14,39 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert'; // Added Alert and AlertDescription import
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import GLAccountCombobox from '@/components/suppliers/GLAccountCombobox';
 
 export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     pay_date: '',
     amount: '',
     adjustment_reason: '',
+    gl_account: '5005',
     notes: ''
   });
+  const [chartOfAccounts, setChartOfAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (open) {
+      loadChartOfAccounts();
+    }
+  }, [open]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const loadChartOfAccounts = async () => {
+    try {
+      const accountsData = await ChartOfAccount.list('account_number');
+      setChartOfAccounts((accountsData || []).filter((account) => account.is_active !== false));
+    } catch (err) {
+      console.error('Error loading GL accounts:', err);
+      setError('Failed to load GL accounts');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -36,8 +56,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
 
     try {
       // Validate required fields
-      if (!formData.pay_date || !formData.amount || !formData.adjustment_reason) {
-        throw new Error('Date, amount, and reason are required');
+      if (!formData.pay_date || !formData.amount || !formData.adjustment_reason || !formData.gl_account) {
+        throw new Error('Date, amount, reason, and GL account are required');
       }
 
       // Create the transaction
@@ -49,6 +69,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
           pay_date: formData.pay_date,
           amount: String(parseFloat(formData.amount) || 0),
           adjustment_reason: formData.adjustment_reason,
+          gl_account: formData.gl_account,
           notes: formData.notes || null,
           is_paid: false
         }
@@ -59,6 +80,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
         pay_date: '',
         amount: '',
         adjustment_reason: '',
+        gl_account: '5005',
         notes: ''
       });
 
@@ -122,6 +144,17 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
               value={formData.adjustment_reason}
               onChange={(e) => handleChange('adjustment_reason', e.target.value)}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>GL Account <span className="text-red-500">*</span></Label>
+            <GLAccountCombobox
+              chartOfAccounts={chartOfAccounts}
+              currentValue={formData.gl_account}
+              onChange={(value) => handleChange('gl_account', value)}
+              disabled={loading}
+              placeholder="Select GL Account *"
             />
           </div>
 

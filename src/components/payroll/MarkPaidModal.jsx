@@ -232,6 +232,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         } else if (transaction.transaction_type === 'Adjustment') {
           const amount = Math.abs(transaction.amount || 0);
           const isPositive = (transaction.amount || 0) >= 0;
+          const postingAccount = String(transaction.gl_account || '5005');
           const mountainTimestamp = getCurrentMountainTimestamp();
           // If positive (cost to company/payment out): Debit BankTransaction (Withdrawal)
           // If negative (refund/money in): Credit BankTransaction (Deposit)
@@ -248,7 +249,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
               cleared: false,
               source_type: isPositive ? 'payment' : 'deposit',
               source_id: transaction.id,
-              gl_account: '5000',
+              gl_account: postingAccount,
               created_date: mountainTimestamp,
               updated_date: mountainTimestamp
             }
@@ -477,6 +478,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           // Handle adjustments - credit or debit based on positive/negative amount
           const amount = Math.abs(transaction.amount || 0);
           const isPositive = (transaction.amount || 0) >= 0;
+          const postingAccount = String(transaction.gl_account || '5005');
 
           await GLTransaction.create({
             account_number: selectedAccount.gl_account || '1000',
@@ -490,7 +492,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           });
 
           await GLTransaction.create({
-            account_number: '5000', // Payroll expense account
+            account_number: postingAccount,
             transaction_date: paymentDate,
             description: `Payroll adjustment - ${transaction.adjustment_reason || ''}`,
             reference: reference,

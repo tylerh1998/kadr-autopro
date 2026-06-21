@@ -131,6 +131,7 @@ export default function PayrollPage() {
             pay_date: format(new Date(), 'yyyy-MM-dd'),
             amount: String(reversalAmount),
             adjustment_reason: reversalDescription,
+            gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
             notes: `Original transaction ID: ${transaction.id}`,
             is_paid: false
           }
