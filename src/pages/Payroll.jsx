@@ -43,6 +43,8 @@ export default function PayrollPage() {
   const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
 
   const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').toISOString();
+  const formatMountainDate = (value) => moment.tz(value, 'America/Edmonton').format('MMM D, YYYY');
+  const getMountainDateKey = (value) => moment.tz(value, 'America/Edmonton').format('YYYY-MM-DD');
 
   // Load PayrollTransaction data
   useEffect(() => {
@@ -72,16 +74,12 @@ export default function PayrollPage() {
       }));
       
       let filtered = allTransactions.filter(transaction => {
-        const transactionDate = new Date(transaction.pay_date);
-        const fromDate = dateRange.from ? new Date(dateRange.from) : null;
-        const toDate = dateRange.to ? new Date(dateRange.to) : null;
-        
-        if (fromDate && transactionDate < fromDate) return false;
-        if (toDate) {
-          const endOfDay = new Date(toDate);
-          endOfDay.setHours(23, 59, 59, 999);
-          if (transactionDate > endOfDay) return false;
-        }
+        const transactionDateKey = getMountainDateKey(transaction.pay_date);
+        const fromDateKey = dateRange.from ? moment(dateRange.from).format('YYYY-MM-DD') : null;
+        const toDateKey = dateRange.to ? moment(dateRange.to).format('YYYY-MM-DD') : null;
+
+        if (fromDateKey && transactionDateKey < fromDateKey) return false;
+        if (toDateKey && transactionDateKey > toDateKey) return false;
         return true;
       });
       
@@ -89,7 +87,7 @@ export default function PayrollPage() {
         filtered = filtered.filter(t => t.transaction_type === transactionTypeFilter);
       }
       
-      filtered.sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date));
+      filtered.sort((a, b) => moment.tz(b.pay_date, 'America/Edmonton').valueOf() - moment.tz(a.pay_date, 'America/Edmonton').valueOf());
       setTransactions(filtered);
       setSelectedTransactions([]);
     } catch (error) {
@@ -112,17 +110,17 @@ export default function PayrollPage() {
 
         if (transaction.transaction_type === 'Paycheque') {
           reversalAmount = -calculateNetPay(transaction);
-          reversalDescription = `Reversal of Paycheque ${transaction.paycheque_number || ''} dated ${format(new Date(transaction.pay_date), 'MMM d, yyyy')}`;
+          reversalDescription = `Reversal of Paycheque ${transaction.paycheque_number || ''} dated ${formatMountainDate(transaction.pay_date)}`;
         } else if (transaction.transaction_type === 'Remittance') {
           // Sum up all deduction amounts for remittance reversal
           const totalRemittanceAmount = (transaction.income_tax || 0) + 
                                         (transaction.cpp_contribution || 0) + (transaction.cpp_employer || 0) +
                                         (transaction.ei_premium || 0) + (transaction.ei_employer || 0);
           reversalAmount = -totalRemittanceAmount;
-          reversalDescription = `Reversal of Remittance dated ${format(new Date(transaction.pay_date), 'MMM d, yyyy')}`;
+          reversalDescription = `Reversal of Remittance dated ${formatMountainDate(transaction.pay_date)}`;
         } else if (transaction.transaction_type === 'Adjustment') {
           reversalAmount = -(transaction.amount || 0);
-          reversalDescription = `Reversal of Adjustment: ${transaction.adjustment_reason || ''} dated ${format(new Date(transaction.pay_date), 'MMM d, yyyy')}`;
+          reversalDescription = `Reversal of Adjustment: ${transaction.adjustment_reason || ''} dated ${formatMountainDate(transaction.pay_date)}`;
         }
 
         const currentUser = await base44.auth.me();
@@ -505,7 +503,7 @@ export default function PayrollPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="font-medium">
-                              {format(new Date(transaction.pay_date), 'MMM d, yyyy')}
+                              {formatMountainDate(transaction.pay_date)}
                             </TableCell>
                             <TableCell className="text-right">
                               {transaction.transaction_type === 'Paycheque' && transaction.gross_pay ? (

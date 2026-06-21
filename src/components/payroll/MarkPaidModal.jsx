@@ -1,31 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import { GLTransaction } from '@/entities/all';
 
-const getCurrentMountainTimestamp = () => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Edmonton',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-    timeZoneName: 'longOffset'
-  }).formatToParts(new Date());
-
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-  const hour = parts.find((part) => part.type === 'hour')?.value;
-  const minute = parts.find((part) => part.type === 'minute')?.value;
-  const second = parts.find((part) => part.type === 'second')?.value;
-  const offsetLabel = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT-00:00';
-  const offset = offsetLabel.replace('GMT', '');
-
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
-};
+const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').format();
+const formatMountainDate = (value) => moment.tz(value, 'America/Edmonton').format('MMM D, YYYY');
 import {
   Dialog,
   DialogContent,
@@ -542,7 +521,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
               {transactions.map((t) => (
                 <li key={t.id} className="flex justify-between items-center">
                   <span className="text-sm">
-                    {t.transaction_type} - {t.paycheque_number || format(new Date(t.pay_date), 'MMM d, yyyy')}
+                    {t.transaction_type} - {t.paycheque_number || formatMountainDate(t.pay_date)}
                   </span>
                   <span className="text-sm font-semibold">
                     ${(t.transaction_type === 'Paycheque' ? getNetPay(t) : (t.amount || 0)).toFixed(2)}
