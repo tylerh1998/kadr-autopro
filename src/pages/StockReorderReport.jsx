@@ -67,10 +67,11 @@ export default function StockReorderReport() {
       });
       const inventoryItems = inventoryResponse.data?.data || [];
       
-      // Filter items that need reordering (QOH < Min Qty)
-      const itemsNeedingReorder = inventoryItems.filter(item => 
-        (item.quantity_on_hand || 0) < (item.minimum_quantity || 0)
-      );
+      // Filter items that truly need reordering
+      const itemsNeedingReorder = inventoryItems.filter(item => {
+        const reorderQty = Math.max(0, (item.maximum_quantity || 0) - (item.quantity_on_hand || 0));
+        return (item.quantity_on_hand || 0) < (item.minimum_quantity || 0) && reorderQty > 0;
+      });
 
       // Fetch all suppliers via SupabaseProxy
       const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
@@ -126,7 +127,7 @@ export default function StockReorderReport() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+      <div className="min-h-screen text-foreground flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-muted-foreground">Loading stock reorder report...</p>
@@ -155,7 +156,7 @@ export default function StockReorderReport() {
         }
       `}</style>
 
-      <div className="min-h-screen bg-background text-foreground p-6">
+      <div className="min-h-screen text-foreground p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header - No Print */}
           <div className="flex items-center justify-between mb-6 no-print">
