@@ -513,6 +513,12 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                   ) : (
                     inventoryResults.map(item => {
                       const selectedCount = selectedParts.filter(p => p.inventoryItemId === item.id).length;
+                      const selectedQtyTotal = selectedParts
+                        .filter(p => p.inventoryItemId === item.id)
+                        .reduce((sum, p) => sum + (parseFloat(p.selectedQuantity) || 0), 0);
+                      const selectedQtyDisplay = Number.isInteger(selectedQtyTotal)
+                        ? selectedQtyTotal
+                        : selectedQtyTotal.toFixed(2).replace(/\.0+$|(?<=\.[0-9]*[1-9])0+$/, '');
                       const tagAlong = item.tag_along_id ? tagAlongs.find(ta => ta.id === item.tag_along_id) : null;
                       
                       return (
@@ -537,7 +543,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                 </Badge>
                                 {selectedCount > 0 && (
                                   <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] px-2 py-0">
-                                    Selected {selectedCount}
+                                    Selected {selectedQtyDisplay}
                                   </Badge>
                                 )}
                               </div>
