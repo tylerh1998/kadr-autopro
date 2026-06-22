@@ -26,6 +26,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   const [showQuantityPrompt, setShowQuantityPrompt] = useState(false);
   const [partForQuantityPrompt, setPartForQuantityPrompt] = useState(null);
   const [quantityInput, setQuantityInput] = useState('1');
+  const [contextPromptHandled, setContextPromptHandled] = useState(false);
 
   // Fetch initial data and default inventory on modal open
   useEffect(() => {
@@ -53,6 +54,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     };
 
     if (open) {
+      setContextPromptHandled(false);
       fetchData();
     } else {
       // Clear state when modal closes
@@ -60,13 +62,14 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       setSearchTerm('');
       setSelectedParts([]);
       setSearchError('');
+      setContextPromptHandled(false);
     }
   }, [open]);
 
   // Handle contextLineItem auto-selection
   useEffect(() => {
     const handleContextItem = async () => {
-      if (open && contextLineItem && contextLineItem.part_number && !showQuantityPrompt) {
+      if (open && contextLineItem && contextLineItem.part_number && !showQuantityPrompt && !contextPromptHandled) {
         try {
           setSearching(true);
           const response = await base44.functions.invoke('searchInventory', {
@@ -79,10 +82,11 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
               item => item.part_number === contextLineItem.part_number
             );
             
-            if (matchingItem && !selectedParts.find(p => p.id === matchingItem.id)) {
+            if (matchingItem) {
               setPartForQuantityPrompt(matchingItem);
               setQuantityInput(contextLineItem.qty ? String(contextLineItem.qty) : '1');
               setShowQuantityPrompt(true);
+              setContextPromptHandled(true);
             }
           }
         } catch (error) {
@@ -94,7 +98,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     };
     
     handleContextItem();
-  }, [open, contextLineItem, selectedParts, showQuantityPrompt]);
+  }, [open, contextLineItem, showQuantityPrompt, contextPromptHandled]);
 
   // Handle search when activeSearchTerm changes
   useEffect(() => {
@@ -192,11 +196,6 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   }, [salesClasses]);
 
   const handleSelectPart = (item) => {
-    const existingPart = selectedParts.find(p => p.id === item.id);
-    if (existingPart) {
-      return;
-    }
-
     // Show quantity prompt dialog
     setPartForQuantityPrompt(item);
     setQuantityInput('1');
@@ -216,6 +215,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     
     setSelectedParts(prev => [...prev, {
       ...partForQuantityPrompt,
+      selectionId: crypto.randomUUID(),
+      inventoryItemId: partForQuantityPrompt.id,
       selectedQuantity: qty,
       calculatedPrice: pricePerUnit
     }]);
@@ -232,10 +233,10 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     setQuantityInput('1');
   };
 
-  const handleQuantityChange = (itemId, newQuantity) => {
+  const handleQuantityChange = (selectionId, newQuantity) => {
     const qty = Math.max(0, parseFloat(newQuantity) || 0);
     setSelectedParts(prev => prev.map(part => {
-      if (part.id === itemId) {
+      if (part.selectionId === selectionId) {
         const newPrice = calculatePrice(part, qty);
         return { ...part, selectedQuantity: qty, calculatedPrice: newPrice };
       }
@@ -243,8 +244,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     }));
   };
 
-  const handleRemovePart = (itemId) => {
-    setSelectedParts(prev => prev.filter(p => p.id !== itemId));
+  const handleRemovePart = (selectionId) => {
+    setSelectedParts(prev => prev.filter(p => p.selectionId !== selectionId));
   };
 
   const handleAddSelectedParts = async () => {
@@ -266,7 +267,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       // Do NOT look up in inventoryResults because that array changes with subsequent searches
       
       itemsPayload.push({
-        inventoryItemId: selectedPart.id,
+        inventoryItemId: selectedPart.inventoryItemId,
         requestedQuantity: selectedPart.selectedQuantity,
         lineDescription: selectedPart.description,
         linePartNumber: selectedPart.part_number,
@@ -455,8 +456,8 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     sum + (part.calculatedPrice * part.selectedQuantity), 0
   );
 
-  const handleKeyDown = (e, item, isSelected) => {
-    if ((e.key === 'Enter' || e.key === ' ') && !isSelected) {
+  const handleKeyDown = (e, item) => {
+    if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleSelectPart(item);
     }
@@ -511,18 +512,18 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                     </div>
                   ) : (
                     inventoryResults.map(item => {
-                      const isSelected = selectedParts.some(p => p.id === item.id);
+                      const selectedCount = selectedParts.filter(p => p.inventoryItemId === item.id).length;
                       const tagAlong = item.tag_along_id ? tagAlongs.find(ta => ta.id === item.tag_along_id) : null;
                       
                       return (
                         <Card
                           key={item.id}
                           className={`cursor-pointer transition-all hover:shadow-md ${
-                            isSelected ? 'border-blue-500 bg-blue-50' : ''
+                            selectedCount > 0 ? 'border-blue-500 bg-blue-50' : ''
                           }`}
-                          onClick={() => !isSelected && handleSelectPart(item)}
+                          onClick={() => handleSelectPart(item)}
                           tabIndex={0}
-                          onKeyDown={(e) => handleKeyDown(e, item, isSelected)}
+                          onKeyDown={(e) => handleKeyDown(e, item)}
                         >
                           <CardContent className="p-3">
                             <div className="flex justify-between items-start mb-1">
@@ -536,11 +537,18 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                             </div>
                             <div className="flex justify-between items-center text-xs text-slate-500">
                               <span>${(item.selling_price || 0).toFixed(2)}</span>
-                              {tagAlong && (
-                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                  + {tagAlong.name}
-                                </Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {selectedCount > 0 && (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                    Selected {selectedCount}
+                                  </Badge>
+                                )}
+                                {tagAlong && (
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                    + {tagAlong.name}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -563,13 +571,13 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                     </div>
                   ) : (
                     selectedParts.map(part => {
-                      const originalInvItem = inventoryResults.find(item => item.id === part.id);
+                      const originalInvItem = inventoryResults.find(item => item.id === part.inventoryItemId);
                       const tagAlong = originalInvItem?.tag_along_id ? tagAlongs.find(ta => ta.id === originalInvItem.tag_along_id) : null;
                       const otherCharge = tagAlong?.other_charge_id ? otherCharges.find(oc => oc.id === tagAlong.other_charge_id) : null;
                       const tagAlongTotal = otherCharge ? (otherCharge.base_amount || 0) * part.selectedQuantity : 0;
                       
                       return (
-                        <Card key={part.id} className="border-blue-200">
+                        <Card key={part.selectionId} className="border-blue-200">
                           <CardContent className="p-3">
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex-1">
@@ -579,7 +587,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleRemovePart(part.id)}
+                                onClick={() => handleRemovePart(part.selectionId)}
                                 className="h-6 w-6 p-0"
                               >
                                 <Minus className="w-4 h-4" />
@@ -593,7 +601,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                 min="0"
                                 step="any"
                                 value={part.selectedQuantity}
-                                onChange={(e) => handleQuantityChange(part.id, e.target.value)}
+                                onChange={(e) => handleQuantityChange(part.selectionId, e.target.value)}
                                 className="w-20 h-7 text-sm"
                               />
                               <span className="text-xs text-slate-500">
