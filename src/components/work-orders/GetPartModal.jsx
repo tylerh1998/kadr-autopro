@@ -531,18 +531,20 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                 <p className="font-semibold text-sm">{item.part_number}</p>
                                 <p className="text-xs text-slate-600">{item.description}</p>
                               </div>
-                              <Badge variant={item.quantity_on_hand > 0 ? 'default' : 'destructive'} className="ml-2">
-                                {item.quantity_on_hand || 0} {item.unit || 'ea'}
-                              </Badge>
+                              <div className="ml-2 flex flex-col items-end gap-1">
+                                <Badge variant={item.quantity_on_hand > 0 ? 'default' : 'destructive'}>
+                                  {item.quantity_on_hand || 0} {item.unit || 'ea'}
+                                </Badge>
+                                {selectedCount > 0 && (
+                                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] px-2 py-0">
+                                    Selected {selectedCount}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <div className="flex justify-between items-center text-xs text-slate-500">
                               <span>${(item.selling_price || 0).toFixed(2)}</span>
                               <div className="flex items-center gap-2">
-                                {selectedCount > 0 && (
-                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    Selected {selectedCount}
-                                  </Badge>
-                                )}
                                 {tagAlong && (
                                   <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                     + {tagAlong.name}
