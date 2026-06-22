@@ -542,7 +542,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                   {item.quantity_on_hand || 0} {item.unit || 'ea'}
                                 </Badge>
                                 {selectedCount > 0 && (
-                                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] px-2 py-0">
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                     Selected {selectedQtyDisplay}
                                   </Badge>
                                 )}
