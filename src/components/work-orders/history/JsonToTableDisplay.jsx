@@ -1,14 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChartOfAccount } from '@/entities/all';
-import { Check, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
-import WorkOrderViewLineItemsTable from '../form/WorkOrderViewLineItemsTable';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import HistoryComparisonTable from './HistoryComparisonTable';
+
+const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
+const excludedKeys = new Set(['last_updated', 'line_items', 'payments', 'accounting_details', ...financialFieldKeys]);
 
 function isDateLikeKey(key) {
   return key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key.toLowerCase().includes('updated_at') || key.toLowerCase().includes('changed_at');
+}
+
+function normalizeCompareValue(value) {
+  if (Array.isArray(value)) return value.map(normalizeCompareValue);
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = normalizeCompareValue(value[key]);
+        return acc;
+      }, {});
+  }
+  return value ?? null;
+}
+
+function valuesEqual(left, right) {
+  return JSON.stringify(normalizeCompareValue(left)) === JSON.stringify(normalizeCompareValue(right));
 }
 
 function formatMountainDateTimeSafe(value) {
@@ -43,6 +62,31 @@ function formatValue(key, value) {
   return String(value);
 }
 
+function parseHistoryObject(value) {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === 'object' ? value : {};
+}
+
+function parseHistoryArray(value) {
+  if (!value) return [];
+  if (typeof value === 'string') {
+    try {
+      const parsedValue = JSON.parse(value);
+      return Array.isArray(parsedValue) ? parsedValue : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(value) ? value : [];
+}
+
 function toNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -72,19 +116,24 @@ function normalizeHistoryLineItem(line) {
 }
 
 function formatCurrency(value) {
+  if (value === null || value === undefined || value === '') return '—';
   return `$${toNumber(value).toFixed(2)}`;
 }
 
-function HistoryFinancialItem({ label, value, className = '' }) {
+function HistoryFinancialItem({ label, currentValue, previousValue }) {
+  const isChanged = !valuesEqual(previousValue, currentValue);
+
   return (
-    <div className={`text-center px-4 py-2 rounded-lg ${className}`}>
-      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-      <p className="text-xl font-bold text-slate-800">{formatCurrency(value)}</p>
+    <div className={`text-center px-4 py-3 rounded-lg min-w-[160px] ${isChanged ? 'bg-black text-white' : 'bg-slate-50'}`}>
+      <p className={`text-xs font-medium uppercase tracking-wider ${isChanged ? 'text-slate-300' : 'text-slate-500'}`}>{label}</p>
+      <p className={`text-sm md:text-base font-bold whitespace-pre-wrap break-words ${isChanged ? 'text-white' : 'text-slate-800'}`}>
+        {isChanged ? `${formatCurrency(previousValue)} --> ${formatCurrency(currentValue)}` : formatCurrency(currentValue)}
+      </p>
     </div>
   );
 }
 
-export default function JsonToTableDisplay({ data }) {
+export default function JsonToTableDisplay({ data, compareData }) {
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
 
   useEffect(() => {
@@ -100,180 +149,126 @@ export default function JsonToTableDisplay({ data }) {
     return new Map(chartOfAccounts.map((account) => [String(account.account_number), account.account_name]));
   }, [chartOfAccounts]);
 
-  const rawEntries = Object.entries(data || {}).filter(([key]) => key !== 'last_updated');
-  const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
-  const lineItemsEntry = rawEntries.find(([key]) => key === 'line_items');
-  const paymentsEntry = rawEntries.find(([key]) => key === 'payments');
-  const accountingDetailsEntry = rawEntries.find(([key]) => key === 'accounting_details');
-  const financialEntries = rawEntries.filter(([key]) => financialFieldKeys.includes(key));
-  const otherEntries = rawEntries.filter(([key]) => key !== 'line_items' && key !== 'payments' && key !== 'accounting_details' && !financialFieldKeys.includes(key));
+  const currentData = useMemo(() => parseHistoryObject(data), [data]);
+  const previousData = useMemo(() => parseHistoryObject(compareData), [compareData]);
 
-  if (!rawEntries.length) {
+  const otherFieldKeys = useMemo(() => {
+    return Array.from(new Set([...Object.keys(previousData), ...Object.keys(currentData)]))
+      .filter((key) => !excludedKeys.has(key))
+      .sort();
+  }, [currentData, previousData]);
+
+  const parsedLineItems = useMemo(() => parseHistoryArray(currentData.line_items).map(normalizeHistoryLineItem), [currentData]);
+  const previousLineItems = useMemo(() => parseHistoryArray(previousData.line_items).map(normalizeHistoryLineItem), [previousData]);
+  const parsedPayments = useMemo(() => parseHistoryArray(currentData.payments), [currentData]);
+  const previousPayments = useMemo(() => parseHistoryArray(previousData.payments), [previousData]);
+  const parsedAccountingDetails = useMemo(() => parseHistoryArray(currentData.accounting_details), [currentData]);
+  const previousAccountingDetails = useMemo(() => parseHistoryArray(previousData.accounting_details), [previousData]);
+
+  const hasFinancialData = financialFieldKeys.some((key) => currentData[key] !== undefined || previousData[key] !== undefined);
+  const hasAnyDetails = otherFieldKeys.length || parsedPayments.length || previousPayments.length || parsedAccountingDetails.length || previousAccountingDetails.length || parsedLineItems.length || previousLineItems.length || hasFinancialData;
+
+  if (!hasAnyDetails) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
-  }
-
-  let parsedLineItems = null;
-  if (lineItemsEntry) {
-    parsedLineItems = lineItemsEntry[1];
-    if (typeof parsedLineItems === 'string') {
-      try {
-        parsedLineItems = JSON.parse(parsedLineItems);
-      } catch {
-        parsedLineItems = null;
-      }
-    }
-    if (Array.isArray(parsedLineItems)) {
-      parsedLineItems = parsedLineItems.map(normalizeHistoryLineItem);
-    }
-  }
-
-  let parsedPayments = null;
-  if (paymentsEntry) {
-    parsedPayments = paymentsEntry[1];
-    if (typeof parsedPayments === 'string') {
-      try {
-        parsedPayments = JSON.parse(parsedPayments);
-      } catch {
-        parsedPayments = null;
-      }
-    }
-    if (!Array.isArray(parsedPayments)) {
-      parsedPayments = null;
-    }
-  }
-
-  let parsedAccountingDetails = null;
-  if (accountingDetailsEntry) {
-    parsedAccountingDetails = accountingDetailsEntry[1];
-    if (typeof parsedAccountingDetails === 'string') {
-      try {
-        parsedAccountingDetails = JSON.parse(parsedAccountingDetails);
-      } catch {
-        parsedAccountingDetails = null;
-      }
-    }
-    if (!Array.isArray(parsedAccountingDetails)) {
-      parsedAccountingDetails = null;
-    }
   }
 
   return (
     <div className="space-y-6">
-      {otherEntries.map(([key, value]) => (
-        <div key={key} className="border rounded-lg overflow-hidden">
+      {otherFieldKeys.length > 0 && (
+        <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-1/3">Field</TableHead>
-                <TableHead>New Value</TableHead>
+                <TableHead>Value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell className="font-medium align-top">{key}</TableCell>
-                <TableCell className="align-top whitespace-pre-wrap break-words">{formatValue(key, value)}</TableCell>
-              </TableRow>
+              {otherFieldKeys.map((key) => {
+                const previousValue = previousData[key];
+                const currentValue = currentData[key];
+                const isChanged = !valuesEqual(previousValue, currentValue);
+
+                return (
+                  <TableRow key={key} className={isChanged ? 'bg-black text-white hover:bg-black' : ''}>
+                    <TableCell className={`font-medium align-top ${isChanged ? 'text-white font-semibold' : ''}`}>{key}</TableCell>
+                    <TableCell className={`align-top whitespace-pre-wrap break-words ${isChanged ? 'text-white font-semibold' : ''}`}>
+                      {isChanged ? `${formatValue(key, previousValue)} --> ${formatValue(key, currentValue)}` : formatValue(key, currentValue)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
-      ))}
-
-      {Array.isArray(parsedPayments) && (
-        <div key="payments" className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Payments</h3>
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Advance Payment</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {parsedPayments.map((payment, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{formatValue('payment_date', payment?.payment_date)}</TableCell>
-                    <TableCell>{payment?.amount === null || payment?.amount === undefined || payment?.amount === '' ? '—' : formatCurrency(payment.amount)}</TableCell>
-                    <TableCell>{payment?.payment_method || '—'}</TableCell>
-                    <TableCell>{payment?.reference || '—'}</TableCell>
-                    <TableCell>
-                      {payment?.advance_pmt ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <X className="w-4 h-4 text-slate-400" />
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
       )}
 
-      {Array.isArray(parsedAccountingDetails) && (
-        <div key="accounting_details" className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Accounting Details</h3>
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Account Number</TableHead>
-                  <TableHead>Transaction Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Debit Amount</TableHead>
-                  <TableHead>Credit Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {parsedAccountingDetails.map((entry, index) => {
-                  const accountNumber = entry?.account_number ? String(entry.account_number) : '—';
-                  const accountName = accountNameMap.get(accountNumber);
+      <HistoryComparisonTable
+        title="Payments"
+        currentRows={parsedPayments}
+        previousRows={previousPayments}
+        getRowKey={(payment, index) => String(payment?.id || payment?.payment_id || payment?.reference || `payment-${index}`)}
+        columns={[
+          { key: 'payment_date', label: 'Payment Date', formatValue: (value) => formatValue('payment_date', value) },
+          { key: 'amount', label: 'Amount', formatValue: (value) => formatCurrency(value) },
+          { key: 'payment_method', label: 'Payment Method', formatValue: (value) => formatValue('payment_method', value) },
+          { key: 'reference', label: 'Reference', formatValue: (value) => formatValue('reference', value) },
+          { key: 'advance_pmt', label: 'Advance Payment', formatValue: (value) => formatValue('advance_pmt', value) },
+        ]}
+      />
 
-                  return (
-                    <TableRow key={index}>
-                      <TableCell title={accountName || undefined} className="font-medium">
-                        {accountNumber}
-                      </TableCell>
-                      <TableCell>{formatValue('transaction_date', entry?.transaction_date)}</TableCell>
-                      <TableCell>{entry?.description || '—'}</TableCell>
-                      <TableCell>{entry?.reference || '—'}</TableCell>
-                      <TableCell>{entry?.debit_amount === null || entry?.debit_amount === undefined || entry?.debit_amount === '' ? '—' : formatCurrency(entry.debit_amount)}</TableCell>
-                      <TableCell>{entry?.credit_amount === null || entry?.credit_amount === undefined || entry?.credit_amount === '' ? '—' : formatCurrency(entry.credit_amount)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
+      <HistoryComparisonTable
+        title="Accounting Details"
+        currentRows={parsedAccountingDetails}
+        previousRows={previousAccountingDetails}
+        getRowKey={(entry, index) => String(entry?.id || `${entry?.account_number || 'acct'}-${entry?.reference || 'ref'}-${index}`)}
+        columns={[
+          {
+            key: 'account_number',
+            label: 'Account Number',
+            formatValue: (value) => {
+              if (value === null || value === undefined || value === '') return '—';
+              const accountNumber = String(value);
+              const accountName = accountNameMap.get(accountNumber);
+              return accountName ? `${accountNumber} - ${accountName}` : accountNumber;
+            },
+          },
+          { key: 'transaction_date', label: 'Transaction Date', formatValue: (value) => formatValue('transaction_date', value) },
+          { key: 'description', label: 'Description', formatValue: (value) => formatValue('description', value) },
+          { key: 'reference', label: 'Reference', formatValue: (value) => formatValue('reference', value) },
+          { key: 'debit_amount', label: 'Debit Amount', formatValue: (value) => formatCurrency(value), cellClassName: 'text-right' },
+          { key: 'credit_amount', label: 'Credit Amount', formatValue: (value) => formatCurrency(value), cellClassName: 'text-right' },
+        ]}
+      />
 
-      {Array.isArray(parsedLineItems) && (
-        <div key="line_items" className="space-y-4">
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Line Items</h3>
-            <WorkOrderViewLineItemsTable lineItems={parsedLineItems} workOrder={{ stage: 'work_order' }} />
-          </div>
+      <HistoryComparisonTable
+        title="Line Items"
+        currentRows={parsedLineItems}
+        previousRows={previousLineItems}
+        getRowKey={(line, index) => String(line?.line_uuid || line?.uuid || line?.id || line?.line_id || line?.selection_id || `line-${index}`)}
+        columns={[
+          { key: 'line_type', label: 'Type', formatValue: (value) => formatValue('line_type', value) },
+          { key: 'description', label: 'Description', formatValue: (value) => formatValue('description', value) },
+          { key: 'part_number', label: 'Part #', formatValue: (value) => formatValue('part_number', value) },
+          { key: 'qty', label: 'Qty', formatValue: (value) => formatValue('qty', value), cellClassName: 'text-center' },
+          { key: 'hrs', label: 'Hrs', formatValue: (value) => formatValue('hrs', value), cellClassName: 'text-center' },
+          { key: 'parts_ea', label: 'Part Price', formatValue: (value) => formatCurrency(value), cellClassName: 'text-right' },
+          { key: 'labour', label: 'Labour', formatValue: (value) => formatCurrency(value), cellClassName: 'text-right' },
+          { key: 'total', label: 'Total', formatValue: (value) => formatCurrency(value), cellClassName: 'text-right' },
+        ]}
+      />
 
-          {financialEntries.length > 0 && (
-            <Card>
-              <CardContent className="p-3 flex flex-wrap justify-around items-center gap-x-6 gap-y-2">
-                <HistoryFinancialItem label="Parts Total" value={data?.parts_total} />
-                <HistoryFinancialItem label="Labour Total" value={data?.labor_total} />
-                <HistoryFinancialItem label="Shop Supplies" value={data?.shop_supply_total} />
-                <HistoryFinancialItem label="GST (5%)" value={data?.tax_amount} />
-                <div className="w-px h-10 bg-slate-200 hidden md:block" />
-                <HistoryFinancialItem label="Total" value={data?.total_amount} className="bg-slate-100" />
-                <HistoryFinancialItem label="Payments" value={data?.amount_paid} className="text-green-700" />
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      {hasFinancialData && (
+        <Card>
+          <CardContent className="p-3 flex flex-wrap justify-around items-center gap-x-4 gap-y-3">
+            <HistoryFinancialItem label="Parts Total" currentValue={currentData.parts_total} previousValue={previousData.parts_total} />
+            <HistoryFinancialItem label="Labour Total" currentValue={currentData.labor_total} previousValue={previousData.labor_total} />
+            <HistoryFinancialItem label="Shop Supplies" currentValue={currentData.shop_supply_total} previousValue={previousData.shop_supply_total} />
+            <HistoryFinancialItem label="GST (5%)" currentValue={currentData.tax_amount} previousValue={previousData.tax_amount} />
+            <HistoryFinancialItem label="Total" currentValue={currentData.total_amount} previousValue={previousData.total_amount} />
+            <HistoryFinancialItem label="Payments" currentValue={currentData.amount_paid} previousValue={previousData.amount_paid} />
+          </CardContent>
+        </Card>
       )}
     </div>
   );

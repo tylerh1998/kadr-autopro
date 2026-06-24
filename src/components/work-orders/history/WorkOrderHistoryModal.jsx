@@ -74,15 +74,18 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
     loadHistory();
   }, [open, workOrderId, employees]);
 
-  const pagedRecords = useMemo(() => {
-    const sortedRecords = [...records].sort((a, b) => {
+  const sortedRecords = useMemo(() => {
+    return [...records].sort((a, b) => {
       const timeA = new Date(a?.changed_at || 0).getTime();
       const timeB = new Date(b?.changed_at || 0).getTime();
       return timeB - timeA;
     });
+  }, [records]);
+
+  const pagedRecords = useMemo(() => {
     const start = page * PAGE_SIZE;
     return sortedRecords.slice(start, start + PAGE_SIZE);
-  }, [records, page]);
+  }, [sortedRecords, page]);
 
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
 
@@ -130,6 +133,8 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
         open={!!selectedRecord}
         onClose={() => setSelectedRecord(null)}
         record={selectedRecord}
+        allRecords={sortedRecords}
+        formatDateTime={formatMountainDateTimeSafe}
       />
     </>
   );
