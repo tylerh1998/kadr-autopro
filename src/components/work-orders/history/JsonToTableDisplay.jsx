@@ -190,9 +190,9 @@ export default function JsonToTableDisplay({ data, compareData }) {
                 const isChanged = !valuesEqual(previousValue, currentValue);
 
                 return (
-                  <TableRow key={key} className={isChanged ? 'bg-black text-white hover:bg-black' : ''}>
-                    <TableCell className={`font-medium align-top ${isChanged ? 'text-white font-semibold' : ''}`}>{key}</TableCell>
-                    <TableCell className={`align-top whitespace-pre-wrap break-words ${isChanged ? 'text-white font-semibold' : ''}`}>
+                  <TableRow key={key}>
+                    <TableCell className="font-medium align-top">{key}</TableCell>
+                    <TableCell className="align-top whitespace-pre-wrap break-words">
                       {isChanged ? `${formatValue(key, previousValue)} --> ${formatValue(key, currentValue)}` : formatValue(key, currentValue)}
                     </TableCell>
                   </TableRow>
