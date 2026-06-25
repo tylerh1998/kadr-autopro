@@ -617,7 +617,7 @@ const navigationItems = [
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <header className="no-print bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         {isTraining && (
           <div className="bg-orange-500 text-white text-center py-1 text-sm font-bold shadow-inner">
             Training Version of AutoPRO. No changes in this application will affect the live database.
@@ -883,7 +883,7 @@ const navigationItems = [
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed top-16 left-0 w-full bg-white shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200">
+        <div className="no-print lg:hidden fixed top-16 left-0 w-full bg-white shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200">
           <nav className="py-4">
             {navigationItems.map((item) => (
               <div key={item.title} className="border-b border-slate-100">
