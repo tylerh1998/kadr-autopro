@@ -581,161 +581,193 @@ export default function CustomerARTransactionsPage() {
     );
   }
 
-  const TransactionTable = ({ data, showPaymentDetails = false }) => (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3 no-print"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
-            {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
-            <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-            {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Payment Method</th>}
-            {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Charges</th>}
-            <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
-            {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Owing</th>}
-            {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {!showPaymentDetails && Math.abs(openingBalance) > 0.005 && (
-            <tr className="bg-slate-50/80 border-b border-slate-200 font-medium italic">
-              <td className="p-3 text-slate-500">
-                {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'Prior'}
-              </td>
-              <td className="p-3 text-slate-500"></td>
-              <td className="p-3 text-slate-900">Previous Balance</td>
-              <td className="p-3 text-right"></td>
-              <td className="p-3 text-right"></td>
-              <td className="p-3 text-right">
-                <span className={`${openingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  ${Math.abs(openingBalance).toFixed(2)}
-                  {openingBalance < 0 && ' CR'}
-                </span>
-              </td>
+  const TransactionTable = ({ data, showPaymentDetails = false }) => {
+    const totalCharges = data.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
+    const totalPayments = data.reduce((sum, transaction) => sum + (Number(transaction.payment) || 0), 0);
+    const closingOwing = data.length > 0
+      ? Number(data[data.length - 1]?.balance || 0)
+      : Number(openingBalance || 0);
+    const showTotalsRow = showPaymentDetails
+      ? data.length > 0
+      : data.length > 0 || Math.abs(openingBalance) > 0.005;
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3 no-print"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
+              {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
+              <th className="text-left p-3 font-semibold text-slate-700">Description</th>
+              {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Payment Method</th>}
+              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Charges</th>}
+              <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
+              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Owing</th>}
+              {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>}
             </tr>
-          )}
-          {data.length === 0 && (!showPaymentDetails && Math.abs(openingBalance) < 0.005) ? (
-            <tr>
-              <td colSpan={showPaymentDetails ? 5 : 6} className="text-center py-12"> {/* Adjusted colSpan */}
-                <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                <p className="text-slate-600">No transactions found for the selected date range.</p>
-              </td>
-            </tr>
-          ) : (
-            data.map((transaction, index) => (
-              <ContextMenu key={`${transaction.sourceId}-${index}`}>
-                <ContextMenuTrigger asChild>
-                  <tr 
-                    className={`border-b border-slate-100 ${showPaymentDetails && transaction.source === 'payment' ? 'cursor-pointer hover:bg-slate-50' : ''} ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-                    onClick={(e) => {
-                      if (showPaymentDetails && transaction.source === 'payment') {
-                        e.stopPropagation();
-                        handlePaymentClick(transaction);
-                      }
-                    }}
-                  >
-                    {!showPaymentDetails && (
-                      <td className="p-3 no-print" onClick={(e) => e.stopPropagation()}>
-                        {transaction.work_order_id && (
-                          <input
-                            type="checkbox"
-                            checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
-                            onChange={() => handleToggleWorkOrderSelection(transaction)}
-                            className="h-4 w-4 rounded border-slate-300"
-                          />
-                        )}
-                      </td>
-                    )}
-                    <td className="p-3">
-                      {format(parseISO(transaction.date), 'MMM d, yyyy')}
-                    </td>
-                    {!showPaymentDetails && (
-                      <td className="p-3 text-slate-600">
-                        {transaction.reference}
-                      </td>
-                    )}
-                    <td className="p-3 text-slate-900">
-                      {transaction.description}
-                    </td>
-                    {showPaymentDetails && (
-                      <td className="p-3 text-slate-600">
-                        {formatPaymentMethod(transaction.payment_method)}
-                      </td>
-                    )}
-                    {!showPaymentDetails && (
-                      <td className="p-3 text-right">
-                        {(transaction.amount || 0) > 0 && (
-                          <span className="font-semibold text-red-600">
-                            ${(transaction.amount || 0).toFixed(2)}
-                          </span>
-                        )}
-                      </td>
-                    )}
-                    <td 
-                      className={`p-3 text-right ${!showPaymentDetails && (transaction.payment || 0) > 0 && transaction.source === 'payment' ? 'cursor-pointer hover:underline' : ''}`}
+          </thead>
+          <tbody>
+            {!showPaymentDetails && Math.abs(openingBalance) > 0.005 && (
+              <tr className="bg-slate-50/80 border-b border-slate-200 font-medium italic">
+                <td className="p-3 text-slate-500">
+                  {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'Prior'}
+                </td>
+                <td className="p-3 text-slate-500"></td>
+                <td className="p-3 text-slate-900">Previous Balance</td>
+                <td className="p-3 text-right"></td>
+                <td className="p-3 text-right"></td>
+                <td className="p-3 text-right">
+                  <span className={`${openingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    ${Math.abs(openingBalance).toFixed(2)}
+                    {openingBalance < 0 && ' CR'}
+                  </span>
+                </td>
+              </tr>
+            )}
+            {data.length === 0 && (!showPaymentDetails && Math.abs(openingBalance) < 0.005) ? (
+              <tr>
+                <td colSpan={showPaymentDetails ? 5 : 6} className="text-center py-12">
+                  <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
+                  <p className="text-slate-600">No transactions found for the selected date range.</p>
+                </td>
+              </tr>
+            ) : (
+              data.map((transaction, index) => (
+                <ContextMenu key={`${transaction.sourceId}-${index}`}>
+                  <ContextMenuTrigger asChild>
+                    <tr 
+                      className={`border-b border-slate-100 ${showPaymentDetails && transaction.source === 'payment' ? 'cursor-pointer hover:bg-slate-50' : ''} ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                       onClick={(e) => {
-                        if (!showPaymentDetails && (transaction.payment || 0) > 0 && transaction.source === 'payment') {
+                        if (showPaymentDetails && transaction.source === 'payment') {
                           e.stopPropagation();
                           handlePaymentClick(transaction);
                         }
                       }}
                     >
-                      {(transaction.payment || 0) > 0 && (
-                        <span className="font-semibold text-green-600">
-                          ${(transaction.payment || 0).toFixed(2)}
-                        </span>
+                      {!showPaymentDetails && (
+                        <td className="p-3 no-print" onClick={(e) => e.stopPropagation()}>
+                          {transaction.work_order_id && (
+                            <input
+                              type="checkbox"
+                              checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
+                              onChange={() => handleToggleWorkOrderSelection(transaction)}
+                              className="h-4 w-4 rounded border-slate-300"
+                            />
+                          )}
+                        </td>
                       )}
-                    </td>
-                    {!showPaymentDetails && (
-                      <td className="p-3 text-right">
-                        <span className={`font-semibold ${
-                          (transaction.balance || 0) > 0 ? 'text-red-600' : 
-                          (transaction.balance || 0) < 0 ? 'text-green-600' : 
-                          'text-slate-900'
-                        }`}>
-                          ${Math.abs(transaction.balance || 0).toFixed(2)}
-                          {(transaction.balance || 0) < 0 && ' CR'}
-                        </span>
+                      <td className="p-3">
+                        {format(parseISO(transaction.date), 'MMM d, yyyy')}
                       </td>
-                    )}
-                    {showPaymentDetails && (
-                      <td className="p-3 text-center no-print">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
+                      {!showPaymentDetails && (
+                        <td className="p-3 text-slate-600">
+                          {transaction.reference}
+                        </td>
+                      )}
+                      <td className="p-3 text-slate-900">
+                        {transaction.description}
+                      </td>
+                      {showPaymentDetails && (
+                        <td className="p-3 text-slate-600">
+                          {formatPaymentMethod(transaction.payment_method)}
+                        </td>
+                      )}
+                      {!showPaymentDetails && (
+                        <td className="p-3 text-right">
+                          {(transaction.amount || 0) > 0 && (
+                            <span className="font-semibold text-red-600">
+                              ${(transaction.amount || 0).toFixed(2)}
+                            </span>
+                          )}
+                        </td>
+                      )}
+                      <td 
+                        className={`p-3 text-right ${!showPaymentDetails && (transaction.payment || 0) > 0 && transaction.source === 'payment' ? 'cursor-pointer hover:underline' : ''}`}
+                        onClick={(e) => {
+                          if (!showPaymentDetails && (transaction.payment || 0) > 0 && transaction.source === 'payment') {
                             e.stopPropagation();
-                            handleDeletePayment(transaction);
-                          }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                            handlePaymentClick(transaction);
+                          }
+                        }}
+                      >
+                        {(transaction.payment || 0) > 0 && (
+                          <span className="font-semibold text-green-600">
+                            ${(transaction.payment || 0).toFixed(2)}
+                          </span>
+                        )}
                       </td>
+                      {!showPaymentDetails && (
+                        <td className="p-3 text-right">
+                          <span className={`font-semibold ${
+                            (transaction.balance || 0) > 0 ? 'text-red-600' : 
+                            (transaction.balance || 0) < 0 ? 'text-green-600' : 
+                            'text-slate-900'
+                          }`}>
+                            ${Math.abs(transaction.balance || 0).toFixed(2)}
+                            {(transaction.balance || 0) < 0 && ' CR'}
+                          </span>
+                        </td>
+                      )}
+                      {showPaymentDetails && (
+                        <td className="p-3 text-center no-print">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePayment(transaction);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    {transaction.reference && transaction.source !== 'adjustment' && (
+                      <ContextMenuItem onClick={() => handleViewInvoice(transaction)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        View {transaction.reference}
+                      </ContextMenuItem>
                     )}
-                  </tr>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  {transaction.reference && transaction.source !== 'adjustment' && (
-                    <ContextMenuItem onClick={() => handleViewInvoice(transaction)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      View {transaction.reference}
-                    </ContextMenuItem>
-                  )}
-                  {transaction.source === 'adjustment' && (
-                    <ContextMenuItem onClick={() => handleDeleteAdjustment(transaction)} className="text-red-600">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete Adjustment
-                    </ContextMenuItem>
-                  )}
-                </ContextMenuContent>
-              </ContextMenu>
-            ))
+                    {transaction.source === 'adjustment' && (
+                      <ContextMenuItem onClick={() => handleDeleteAdjustment(transaction)} className="text-red-600">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Adjustment
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))
+            )}
+          </tbody>
+          {showTotalsRow && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-slate-100 font-semibold">
+                {!showPaymentDetails && <td className="p-3 no-print"></td>}
+                <td className="p-3 text-slate-900" colSpan={showPaymentDetails ? 3 : 3}>Total</td>
+                {!showPaymentDetails && (
+                  <td className="p-3 text-right text-red-600">${totalCharges.toFixed(2)}</td>
+                )}
+                <td className="p-3 text-right text-green-600">${totalPayments.toFixed(2)}</td>
+                {!showPaymentDetails && (
+                  <td className="p-3 text-right">
+                    <span className={closingOwing > 0 ? 'text-red-600' : closingOwing < 0 ? 'text-green-600' : 'text-slate-900'}>
+                      ${Math.abs(closingOwing).toFixed(2)}
+                      {closingOwing < 0 && ' CR'}
+                    </span>
+                  </td>
+                )}
+                {showPaymentDetails && <td className="p-3 no-print"></td>}
+              </tr>
+            </tfoot>
           )}
-        </tbody>
-      </table>
-    </div>
-  );
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="p-6 min-h-screen">
