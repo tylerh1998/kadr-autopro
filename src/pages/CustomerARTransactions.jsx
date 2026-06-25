@@ -584,9 +584,9 @@ export default function CustomerARTransactionsPage() {
   const TransactionTable = ({ data, showPaymentDetails = false }) => {
     const totalCharges = data.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
     const totalPayments = data.reduce((sum, transaction) => sum + (Number(transaction.payment) || 0), 0);
-    const closingOwing = data.length > 0
-      ? Number(data[data.length - 1]?.balance || 0)
-      : Number(openingBalance || 0);
+    const closingOwing = showPaymentDetails
+      ? totalPayments
+      : Number(openingBalance || 0) + totalCharges - totalPayments;
     const showTotalsRow = showPaymentDetails
       ? data.length > 0
       : data.length > 0 || Math.abs(openingBalance) > 0.005;
@@ -608,6 +608,7 @@ export default function CustomerARTransactionsPage() {
           <tbody>
             {!showPaymentDetails && Math.abs(openingBalance) > 0.005 && (
               <tr className="bg-slate-50/80 border-b border-slate-200 font-medium italic">
+                <td className="p-3 no-print"></td>
                 <td className="p-3 text-slate-500">
                   {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'Prior'}
                 </td>
