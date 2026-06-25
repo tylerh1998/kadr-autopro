@@ -73,6 +73,7 @@ export default function CustomerARTransactionsPage() {
   const [selectedWorkOrderIds, setSelectedWorkOrderIds] = useState([]);
   const [showBatchSendModal, setShowBatchSendModal] = useState(false);
   const [batchSendResults, setBatchSendResults] = useState([]);
+  const [activeTab, setActiveTab] = useState('transactions');
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -536,6 +537,20 @@ export default function CustomerARTransactionsPage() {
     setSelectedWorkOrderIds([]);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const appliedDateRangeLabel = useMemo(() => {
+    if (dateRange.from && dateRange.to) {
+      return `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`;
+    }
+    if (dateRange.from) {
+      return format(dateRange.from, 'MMM d, yyyy');
+    }
+    return 'All Dates';
+  }, [dateRange]);
+
   if (loading) {
     return (
       <div className="p-6">
@@ -570,14 +585,14 @@ export default function CustomerARTransactionsPage() {
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
-          <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
+          <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3 no-print"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
             {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
             <th className="text-left p-3 font-semibold text-slate-700">Description</th>
             {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Payment Method</th>}
             {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Charges</th>}
             <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
             {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Owing</th>}
-            {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700">Actions</th>} {/* New column header */}
+            {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -620,7 +635,7 @@ export default function CustomerARTransactionsPage() {
                     }}
                   >
                     {!showPaymentDetails && (
-                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-3 no-print" onClick={(e) => e.stopPropagation()}>
                         {transaction.work_order_id && (
                           <input
                             type="checkbox"
@@ -684,7 +699,7 @@ export default function CustomerARTransactionsPage() {
                       </td>
                     )}
                     {showPaymentDetails && (
-                      <td className="p-3 text-center">
+                      <td className="p-3 text-center no-print">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -771,7 +786,7 @@ export default function CustomerARTransactionsPage() {
           </div>
         </div>
 
-        <Card>
+        <Card className="no-print">
           <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
             <div className="flex items-center gap-2">
               <Label htmlFor="days-back">Days Back</Label>
@@ -834,20 +849,35 @@ export default function CustomerARTransactionsPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="no-print">
             <div className="flex items-center justify-between gap-4">
               <CardTitle>Transaction History</CardTitle>
-              {selectedWorkOrderIds.length > 0 && (
-                <Button onClick={() => setShowBatchSendModal(true)}>
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Selected
+              <div className="flex items-center gap-2 no-print">
+                {selectedWorkOrderIds.length > 0 && (
+                  <Button onClick={() => setShowBatchSendModal(true)}>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Selected
+                  </Button>
+                )}
+                <Button variant="outline" onClick={handlePrint}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
                 </Button>
-              )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="transactions" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <div className="print-only mb-4 border-b border-slate-300 pb-3">
+              <h2 className="text-xl font-bold text-slate-900">A/R Transaction History</h2>
+              <p className="text-slate-700">{formatCustomerName(customer)}</p>
+              <div className="mt-2 space-y-1 text-sm text-slate-600">
+                <p><span className="font-semibold text-slate-900">Tab:</span> {activeTab === 'payments' ? 'Payments' : 'Transactions'}</p>
+                <p><span className="font-semibold text-slate-900">Date Range:</span> {appliedDateRangeLabel}</p>
+                {searchTerm && <p><span className="font-semibold text-slate-900">Search:</span> {searchTerm}</p>}
+              </div>
+            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 no-print">
                 <TabsTrigger value="transactions">Transactions</TabsTrigger>
                 <TabsTrigger value="payments">Payments</TabsTrigger>
               </TabsList>
@@ -893,7 +923,7 @@ export default function CustomerARTransactionsPage() {
       )}
 
       {batchSendResults.length > 0 && (
-       <Card className="mt-6">
+       <Card className="mt-6 no-print">
          <CardHeader>
            <CardTitle>Last Batch Send Status</CardTitle>
          </CardHeader>
