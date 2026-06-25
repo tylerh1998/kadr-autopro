@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from '@/api/base44Client';
 import { getVehicleWorkOrderHistory } from '@/functions/getVehicleWorkOrderHistory';
 import { format } from 'date-fns';
-import { FileText, Calendar, DollarSign, Gauge, Edit } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
 import VehicleForm from './VehicleForm';
+import VehicleHistorySummaryCards from './VehicleHistorySummaryCards';
+import { printVehicleHistory } from './vehicleHistoryUtils';
 
 export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleUpdated }) {
   const [history, setHistory] = useState([]);
@@ -113,18 +114,17 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <div className="flex justify-between items-center pr-8">
-              <div>
-                <DialogTitle>Work Order History for {currentVehicle?.year} {currentVehicle?.make} {currentVehicle?.model}</DialogTitle>
-                <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleEditClick}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Vehicle
-              </Button>
+            <div className="pr-8">
+              <DialogTitle>Work Order History for {currentVehicle?.year} {currentVehicle?.make} {currentVehicle?.model}</DialogTitle>
+              <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
             </div>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1">
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1 vehicle-history-scroll">
+            <VehicleHistorySummaryCards
+              workOrders={history}
+              onEdit={handleEditClick}
+              onPrint={printVehicleHistory}
+            />
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
           ) : history.length > 0 ? (

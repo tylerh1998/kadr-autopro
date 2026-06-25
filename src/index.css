@@ -170,6 +170,11 @@ button:focus-visible {
     display: block !important;
   }
 
+  .vehicle-history-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   body {
     background: white !important;
   }

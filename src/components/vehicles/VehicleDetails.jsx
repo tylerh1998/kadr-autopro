@@ -5,11 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getVehicleWorkOrderHistory } from "@/functions/getVehicleWorkOrderHistory";
-import { 
-  X, 
-  Edit3, 
-  User, 
-  Car, 
+import {
+  X,
+  User,
+  Car,
   Gauge,
   Palette,
   Phone,
@@ -19,6 +18,8 @@ import {
   FileText
 } from "lucide-react";
 import { format } from "date-fns";
+import VehicleHistorySummaryCards from "./VehicleHistorySummaryCards";
+import { printVehicleHistory } from "./vehicleHistoryUtils";
 
 export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   const [workOrders, setWorkOrders] = useState([]);
@@ -51,6 +52,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   const getDisplayNumber = (workOrder) => {
     if (workOrder.stage === 'estimate') return workOrder.est_number;
     if (workOrder.stage === 'invoice') return workOrder.inv_number;
+    if (workOrder.stage === 'credit_invoice') return workOrder.crinv_number;
     return workOrder.wo_number;
   };
 
@@ -110,11 +112,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={onEdit}>
-              <Edit3 className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="no-print">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -187,6 +185,16 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                 </div>
               </>
             )}
+
+            <>
+              <Separator />
+              <VehicleHistorySummaryCards
+                workOrders={workOrders}
+                onEdit={onEdit}
+                onPrint={printVehicleHistory}
+                gridClassName="xl:grid-cols-2"
+              />
+            </>
 
             {vehicle.notes && (
               <>
@@ -303,7 +311,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                   ))}
                 </div>
               ) : workOrders.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-3 max-h-96 overflow-y-auto vehicle-history-scroll">
                   {workOrders.map((wo) => (
                     <a
                       key={wo.id}
