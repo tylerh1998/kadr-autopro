@@ -8,9 +8,9 @@ const currencyFormatter = new Intl.NumberFormat('en-CA', {
   currency: 'CAD'
 });
 
-const ActionCard = ({ icon: Icon, label, onClick }) => (
+const ActionCard = ({ icon: Icon, label, onClick, compact = false }) => (
   <Card className="bg-slate-900 text-white border-slate-900 cursor-pointer transition-colors hover:bg-slate-800 no-print" onClick={onClick}>
-    <CardContent className="p-4 flex items-center gap-3">
+    <CardContent className={compact ? "p-3 flex items-center gap-3" : "p-4 flex items-center gap-3"}>
       <Icon className="w-5 h-5" />
       <span className="font-semibold">{label}</span>
     </CardContent>
@@ -21,9 +21,43 @@ export default function VehicleHistorySummaryCards({
   workOrders = [],
   onEdit,
   onPrint,
-  gridClassName = 'md:grid-cols-4'
+  gridClassName = 'md:grid-cols-4',
+  layout = 'default'
 }) {
   const { activeRoCount, voidCount, totalWork } = getVehicleHistoryStats(workOrders);
+
+  if (layout === 'modal') {
+    return (
+      <div className="space-y-3 md:space-y-0 md:flex md:items-stretch md:gap-3">
+        <Card className="md:w-44 md:flex-shrink-0">
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Number of ROs
+            </p>
+            <p className="mt-2 text-3xl font-bold text-blue-600">{activeRoCount}</p>
+            <p className="text-xs text-slate-500">{voidCount} void</p>
+          </CardContent>
+        </Card>
+
+        <Card className="md:flex-1">
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Total Work
+            </p>
+            <p className="mt-2 text-3xl font-bold text-green-600">{currencyFormatter.format(totalWork)}</p>
+            <p className="text-xs text-slate-500">Excludes estimates and void</p>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-3 md:w-44 md:flex-shrink-0">
+          <ActionCard icon={Edit3} label="Edit Vehicle" onClick={onEdit} compact />
+          <ActionCard icon={Printer} label="Print History" onClick={onPrint} compact />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridClassName}`}>

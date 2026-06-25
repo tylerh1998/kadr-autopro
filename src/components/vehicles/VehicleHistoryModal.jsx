@@ -124,6 +124,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
               workOrders={history}
               onEdit={handleEditClick}
               onPrint={printVehicleHistory}
+              layout="modal"
             />
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
