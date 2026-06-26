@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn, GLTransaction, BankAccount } from '@/entities/all';
+import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 
@@ -339,11 +339,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         });
 
         // Update BankAccount for Cash Drawer
-        const cashDrawerAccounts = await BankAccount.filter({ gl_account: '1010' });
-        if (cashDrawerAccounts && cashDrawerAccounts.length > 0) {
+        const cashDrawerResponse = await base44.functions.invoke('SupabaseProxy', {
+          action: 'filter',
+          table: 'BankAccount',
+          params: { gl_account: '1010' }
+        });
+        const cashDrawerAccounts = cashDrawerResponse.data?.data || [];
+        if (cashDrawerAccounts.length > 0) {
           const cashDrawer = cashDrawerAccounts[0];
-          await BankAccount.update(cashDrawer.id, {
-            current_balance: (cashDrawer.current_balance || 0) + grandTotal
+          await base44.functions.invoke('SupabaseProxy', {
+            action: 'update',
+            table: 'BankAccount',
+            id: cashDrawer.id,
+            data: {
+              current_balance: (parseFloat(cashDrawer.current_balance) || 0) + grandTotal
+            }
           });
         }
 

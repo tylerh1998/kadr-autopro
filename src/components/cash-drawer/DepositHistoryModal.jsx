@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { BankAccount, FiscalPeriod } from '@/entities/all';
+import { FiscalPeriod } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
@@ -91,10 +91,15 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const handleReverseDeposit = useCallback(async (depositId, bankAccountId) => {
     // Check if bank account is locked before confirming
     try {
-      const account = await BankAccount.get(bankAccountId);
+      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankAccount',
+        params: { id: bankAccountId }
+      });
+      const account = accountResponse.data?.data?.[0];
       
       // Check if any lock exists that is not expired
-      if (account.locked_by_user && account.locked_timestamp) {
+      if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');
         
         // If lock is not expired, show error

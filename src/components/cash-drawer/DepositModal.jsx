@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
-import { BankAccount } from '@/entities/all';
+
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import { base44 } from '@/api/base44Client';
 
@@ -52,10 +52,15 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
     setLoading(true);
     try {
       // Check if bank account is locked
-      const account = await BankAccount.get(formData.bankAccountId);
+      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankAccount',
+        params: { id: formData.bankAccountId }
+      });
+      const account = accountResponse.data?.data?.[0];
       
       // Check if any lock exists (even for current user) that is not expired
-      if (account.locked_by_user && account.locked_timestamp) {
+      if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, currentUser?.email || '');
         
         // If lock is not expired, show error (regardless of who owns it)

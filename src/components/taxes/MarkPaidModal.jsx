@@ -31,7 +31,11 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
   const loadBankAccounts = async () => {
     setLoadingAccounts(true);
     try {
-      const accounts = await base44.entities.BankAccount.list();
+      const accountsResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'list',
+        table: 'BankAccount'
+      });
+      const accounts = accountsResponse.data?.data || [];
       const activeAccounts = accounts.filter(acc => acc.is_active);
       setBankAccounts(activeAccounts);
     } catch (error) {

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder, BankAccount } from '@/entities/all';
+import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
@@ -158,10 +158,15 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
     // Check if bank account is locked before confirming
     try {
-      const account = await BankAccount.get(deposit.bank_account_id);
+      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'BankAccount',
+        params: { id: deposit.bank_account_id }
+      });
+      const account = accountResponse.data?.data?.[0];
       
       // Check if any lock exists that is not expired
-      if (account.locked_by_user && account.locked_timestamp) {
+      if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');
         
         // If lock is not expired, show error

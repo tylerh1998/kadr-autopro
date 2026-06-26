@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { base44 } from '@/api/base44Client';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { BankTransaction, BankAccount, ChartOfAccount } from '@/entities/all';
+import { ChartOfAccount } from '@/entities/all';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
 export default function BankTransactionModal({ open, onClose, bankAccountId, bankAccount, transaction, onSubmit, onDelete, currentUser }) {
