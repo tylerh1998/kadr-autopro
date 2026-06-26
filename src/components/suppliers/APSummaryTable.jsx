@@ -426,7 +426,8 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                                     const amount = parseFloat(entry.amount?.toString().replace(/[^0-9.-]+/g,"")) || 0;
                                     
                                     let bgColor = '#ffffff';
-                                    
+                                    let textColor = '#000000';
+
                                     const days = entry.due_date ? differenceInDays(parseISO(entry.due_date), new Date()) : null;
 
                                     if (entry.row_status === 'follow_up') {
@@ -440,14 +441,17 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                                     } else if (days !== null) {
                                       if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
                                       else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
-                                      else if (days <= 30) bgColor = '#0000ff'; // Blue (11-30 days)
+                                      else if (days <= 30) {
+                                        bgColor = '#0000ff'; // Blue (11-30 days)
+                                        textColor = '#ffffff';
+                                      }
                                     }
 
                                     return (
                                         <div 
                                             key={idx}
                                             className="py-2 px-3 w-full border-b last:border-b-0 flex items-center justify-center text-sm font-medium"
-                                            style={{ backgroundColor: bgColor }}
+                                            style={{ backgroundColor: bgColor, color: textColor }}
                                             title={`Due: ${entry.due_date ? moment(entry.due_date).format('MMM D, YYYY') : 'No Date'}`}
                                         >
                                             ${amount.toFixed(2)}
