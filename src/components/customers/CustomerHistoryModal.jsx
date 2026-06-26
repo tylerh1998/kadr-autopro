@@ -57,7 +57,7 @@ export default function CustomerHistoryModal({ open, onClose, customer, onOpenCu
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl no-print">
           <DialogHeader>
             <div className="flex justify-between items-center pr-8">
               <div>
