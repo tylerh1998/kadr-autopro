@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Minus, Package, DollarSign, ShoppingCart, Loader2 } from 'lucide-react';
+import { Search, Plus, Trash2, Package, DollarSign, ShoppingCart, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TagAlong, OtherChargeList } from '@/entities/all';
@@ -593,12 +593,13 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                 <p className="text-xs text-slate-600">{part.description}</p>
                               </div>
                               <Button
+                                type="button"
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handleRemovePart(part.selectionId)}
-                                className="h-6 w-6 p-0"
+                                className="h-10 w-10 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
                               >
-                                <Minus className="w-4 h-4" />
+                                <Trash2 className="w-5 h-5" />
                               </Button>
                             </div>
                             
