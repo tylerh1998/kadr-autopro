@@ -36,6 +36,7 @@ export default function SupplierTxInvoiceSummaryTab({
   handleDeleteLine,
   handleToggleGstOverride,
   handleAddSummaryLineBelow,
+  handleEditLineClick,
   isLineLocked,
 }) {
   const [draftDates, setDraftDates] = React.useState({});
@@ -227,6 +228,12 @@ export default function SupplierTxInvoiceSummaryTab({
                                   </TableRow>
                                 </ContextMenuTrigger>
                                 <ContextMenuContent>
+                                  <ContextMenuItem
+                                    onClick={() => handleEditLineClick(line)}
+                                    disabled={isReadOnly}
+                                  >
+                                    Edit Line
+                                  </ContextMenuItem>
                                   <ContextMenuItem
                                     onClick={() => handleToggleGstOverride(line.id)}
                                     disabled={isReadOnly || locked}
