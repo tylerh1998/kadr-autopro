@@ -22,7 +22,9 @@ export default function VehicleHistorySummaryCards({
   onEdit,
   onPrint,
   gridClassName = 'md:grid-cols-4',
-  layout = 'default'
+  layout = 'default',
+  primaryActionLabel = 'Edit Vehicle',
+  secondaryActionLabel = 'Print History'
 }) {
   const { activeRoCount, voidCount, totalWork } = getVehicleHistoryStats(workOrders);
 
@@ -52,8 +54,8 @@ export default function VehicleHistorySummaryCards({
         </Card>
 
         <div className="no-print grid gap-3 md:w-44 md:flex-shrink-0">
-          <ActionCard icon={Edit3} label="Edit Vehicle" onClick={onEdit} compact />
-          <ActionCard icon={Printer} label="Print History" onClick={onPrint} compact />
+          <ActionCard icon={Edit3} label={primaryActionLabel} onClick={onEdit} compact />
+          <ActionCard icon={Printer} label={secondaryActionLabel} onClick={onPrint} compact />
         </div>
       </div>
     );
@@ -83,8 +85,8 @@ export default function VehicleHistorySummaryCards({
         </CardContent>
       </Card>
 
-      <ActionCard icon={Edit3} label="Edit Vehicle" onClick={onEdit} />
-      <ActionCard icon={Printer} label="Print History" onClick={onPrint} />
+      <ActionCard icon={Edit3} label={primaryActionLabel} onClick={onEdit} />
+      <ActionCard icon={Printer} label={secondaryActionLabel} onClick={onPrint} />
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge, Car } from 'lucide-react';
+import VehicleHistorySummaryCards from '../vehicles/VehicleHistorySummaryCards';
+import CustomerHistoryPrintHeader from './CustomerHistoryPrintHeader';
+import { printVehicleHistory } from '../vehicles/vehicleHistoryUtils';
 
 export default function CustomerWorkOrderHistoryModal({ open, onClose, customer, onOpenVehicleHistory }) {
   const [history, setHistory] = useState([]);
@@ -87,20 +89,22 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <div className="flex justify-between items-center pr-8">
-            <div>
-              <DialogTitle>Customer History for {customer?.org_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</DialogTitle>
-              <DialogDescription>A list of all previous work orders for this customer.</DialogDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={onOpenVehicleHistory}>
-              <Car className="w-4 h-4 mr-2" />
-              Vehicle History
-            </Button>
+      <DialogContent className="max-w-2xl vehicle-history-dialog">
+        <DialogHeader className="no-print">
+          <div className="pr-8">
+            <DialogTitle>Customer History for {customer?.org_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</DialogTitle>
+            <DialogDescription>A list of all previous work orders for this customer.</DialogDescription>
           </div>
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1">
+        <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1 vehicle-history-scroll vehicle-history-content">
+          <CustomerHistoryPrintHeader customer={customer} />
+          <VehicleHistorySummaryCards
+            workOrders={history}
+            onEdit={onOpenVehicleHistory}
+            onPrint={printVehicleHistory}
+            layout="modal"
+            primaryActionLabel="Vehicle History"
+          />
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
           ) : history.length > 0 ? (
@@ -110,7 +114,7 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
                 href={`/WorkOrderEdit?id=${wo.ro_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+                className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
