@@ -440,7 +440,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                                     } else if (days !== null) {
                                       if (days <= 0) bgColor = '#fca5a5'; // Red-300 (Overdue)
                                       else if (days <= 10) bgColor = '#fde047'; // Yellow-300 (1-10 days)
-                                      else if (days <= 30) bgColor = '#93c5fd'; // Blue-300 (11-30 days)
+                                      else if (days <= 30) bgColor = '#0000ff'; // Blue (11-30 days)
                                     }
 
                                     return (
