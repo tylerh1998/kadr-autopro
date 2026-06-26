@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { BankAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -84,11 +83,15 @@ export default function IssuedChequesTable() {
           action: 'read',
           table: 'Supplier'
         }),
-        BankAccount.list()
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'list',
+          table: 'BankAccount'
+        })
       ]);
 
       const paymentsData = paymentsResponse.data?.data || [];
       const suppliersData = suppliersResponse.data?.data || [];
+      const bankAccountsList = bankAccountsData.data?.data || [];
 
       // Sort by cheque number (numeric if possible, otherwise alphabetic)
       const sortedPayments = paymentsData.sort((a, b) => {
@@ -106,7 +109,7 @@ export default function IssuedChequesTable() {
 
       setCheques(sortedPayments);
       setSuppliers(suppliersData);
-      setBankAccounts(bankAccountsData);
+      setBankAccounts(bankAccountsList);
     } catch (error) {
       console.error('Error loading cheque register:', error);
     } finally {
