@@ -12,6 +12,7 @@ export default function SupplierTxModals({
   setEditingLine,
   handleLineUpdate,
   chartOfAccounts,
+  supplierOptions,
   loadData,
   showPaymentModal,
   setShowPaymentModal,
@@ -30,6 +31,7 @@ export default function SupplierTxModals({
         line={editingLine}
         onSave={handleLineUpdate}
         chartOfAccounts={chartOfAccounts}
+        suppliers={supplierOptions}
       />
 
       <EditInventoryTransactionModal

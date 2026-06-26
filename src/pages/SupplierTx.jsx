@@ -180,6 +180,7 @@ export default function SupplierTxPage() {
   const [allConceptualInvoices, setAllConceptualInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [chartOfAccounts, setChartOfAccounts] = useState([]);
+  const [supplierOptions, setSupplierOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
@@ -372,9 +373,10 @@ export default function SupplierTxPage() {
     if (!supplierId) return;
     setLoading(true);
     try {
-      const [user, response] = await Promise.all([
+      const [user, response, suppliersResponse] = await Promise.all([
         base44.auth.me(),
-        base44.functions.invoke('getSupplierTransactions', { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } })
+        base44.functions.invoke('getSupplierTransactions', { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } }),
+        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' })
       ]);
       setCurrentUser(user);
       if (!response.data.success) throw new Error(response.data.error || 'Failed to fetch supplier transactions');
@@ -390,6 +392,7 @@ export default function SupplierTxPage() {
       setLockedByUserName('');
       setSupplier(supplierData);
       setChartOfAccounts(chartOfAccountsData);
+      setSupplierOptions((suppliersResponse.data?.data || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })));
       setPayments(paymentsData.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date)));
       setCurrentBalance(totalBalance);
       const mapLine = (line) => {
@@ -714,7 +717,7 @@ export default function SupplierTxPage() {
         return false;
       }
       const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
-      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
+      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
       const response = await base44.functions.invoke('saveSupplierInvoiceTransactions', { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) });
       if (response.data.success) {
         await loadData();
@@ -1067,7 +1070,7 @@ export default function SupplierTxPage() {
       </div>
       <div className="fixed right-8 bottom-8 flex flex-col gap-2 z-50"><Button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} size="icon" className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700" title="Scroll to top"><ArrowUp className="w-5 h-5" /></Button><Button onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })} size="icon" className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700" title="Scroll to bottom"><ArrowDown className="w-5 h-5" /></Button></div>
       <Dialog open={showEditSupplierModal} onOpenChange={setShowEditSupplierModal}><DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Edit Supplier</DialogTitle></DialogHeader>{supplier && <SupplierForm supplier={supplier} onSubmit={handleSupplierUpdate} onCancel={() => setShowEditSupplierModal(false)} />}</DialogContent></Dialog>
-      <SupplierTxModals showLineEditModal={showLineEditModal} setShowLineEditModal={setShowLineEditModal} showInventoryEditModal={showInventoryEditModal} setShowInventoryEditModal={setShowInventoryEditModal} editingLine={editingLine} setEditingLine={setEditingLine} handleLineUpdate={handleLineUpdate} chartOfAccounts={chartOfAccounts} loadData={loadData} showPaymentModal={showPaymentModal} setShowPaymentModal={setShowPaymentModal} supplier={supplier} allConceptualInvoices={allConceptualInvoices} handlePaymentComplete={handlePaymentComplete} />
+      <SupplierTxModals showLineEditModal={showLineEditModal} setShowLineEditModal={setShowLineEditModal} showInventoryEditModal={showInventoryEditModal} setShowInventoryEditModal={setShowInventoryEditModal} editingLine={editingLine} setEditingLine={setEditingLine} handleLineUpdate={handleLineUpdate} chartOfAccounts={chartOfAccounts} supplierOptions={supplierOptions} loadData={loadData} showPaymentModal={showPaymentModal} setShowPaymentModal={setShowPaymentModal} supplier={supplier} allConceptualInvoices={allConceptualInvoices} handlePaymentComplete={handlePaymentComplete} />
     </>
   );
 }

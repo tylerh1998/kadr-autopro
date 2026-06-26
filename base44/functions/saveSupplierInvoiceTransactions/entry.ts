@@ -250,17 +250,27 @@ Deno.serve(async (req) => {
                 const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
                 if (!existingLine) continue;
 
-                // Check if amounts changed
                 const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
                 const currentGstAmount = parseFloat(line.gst_amount) || 0;
-                const oldPurchaseAmount = existingLine.purchase_amount || 0;
-                const oldGstAmount = existingLine.gst_amount || 0;
+                const oldPurchaseAmount = parseFloat(existingLine.purchase_amount) || 0;
+                const oldGstAmount = parseFloat(existingLine.gst_amount) || 0;
+                const nextSupplierId = line.supplier_id || existingLine.supplier_id || supplierId;
 
                 if (currentPurchaseAmount !== oldPurchaseAmount || currentGstAmount !== oldGstAmount) {
                     anyAmountChanged = true;
                 }
 
+                const glRelevantChanged = (
+                    String(line.invoice_number || '') !== String(existingLine.invoice_number || '') ||
+                    String(line.invoice_date || '') !== String(existingLine.invoice_date || '') ||
+                    String(line.description || '') !== String(existingLine.description || '') ||
+                    String(line.gl_account || '') !== String(existingLine.gl_account || '') ||
+                    currentPurchaseAmount !== oldPurchaseAmount ||
+                    currentGstAmount !== oldGstAmount
+                );
+
                 const updateData = {
+                    supplier_id: nextSupplierId,
                     invoice_number: line.invoice_number,
                     invoice_date: line.invoice_date,
                     description: line.description,
@@ -274,7 +284,7 @@ Deno.serve(async (req) => {
                 const { data: updatedLine, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select().single();
                 if (updateError) throw updateError;
                 
-                if (updatedLine) {
+                if (updatedLine && glRelevantChanged) {
                     updatedLinesForGL.push(updatedLine);
                     oldValuesForGL.push(existingLine);
                 }

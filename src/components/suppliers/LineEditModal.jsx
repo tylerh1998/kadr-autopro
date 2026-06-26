@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import GLAccountCombobox from './GLAccountCombobox';
+import SupplierCombobox from './SupplierCombobox';
 
-export default function LineEditModal({ open, onClose, line, onSave, chartOfAccounts }) {
+export default function LineEditModal({ open, onClose, line, onSave, chartOfAccounts, suppliers }) {
   const [formData, setFormData] = useState({
     invoice_number: '',
     invoice_date: '',
@@ -23,6 +24,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
     line_total: '', // Store as string to allow 'Error' display
     gl_account: '',
     gst_override: false,
+    supplier_id: '',
   });
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
         line_total: line.line_total !== undefined && line.line_total !== null ? String(line.line_total) : '',
         gl_account: line.gl_account || '',
         gst_override: line.gst_override || false,
+        supplier_id: line.supplier_id || '',
       });
     } else {
       // Reset form data if no line is provided (e.g., for adding a new line)
@@ -48,6 +51,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
         line_total: '',
         gl_account: '',
         gst_override: false,
+        supplier_id: '',
       });
     }
   }, [line]);
@@ -126,6 +130,36 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
     });
   };
 
+  const normalizeString = (value) => String(value ?? '');
+  const originalFormValues = {
+    invoice_number: normalizeString(line?.invoice_number),
+    invoice_date: normalizeString(line?.invoice_date),
+    description: normalizeString(line?.description),
+    charge: line?.charge !== undefined && line?.charge !== null ? String(line.charge) : '',
+    gst: line?.gst !== undefined && line?.gst !== null ? String(line.gst) : '',
+    line_total: line?.line_total !== undefined && line?.line_total !== null ? String(line.line_total) : '',
+    gl_account: normalizeString(line?.gl_account),
+    gst_override: !!line?.gst_override,
+    supplier_id: normalizeString(line?.supplier_id),
+  };
+
+  const supplierChangeActive = normalizeString(formData.supplier_id) !== originalFormValues.supplier_id;
+  const otherFieldsDirty = (
+    normalizeString(formData.invoice_number) !== originalFormValues.invoice_number ||
+    normalizeString(formData.invoice_date) !== originalFormValues.invoice_date ||
+    normalizeString(formData.description) !== originalFormValues.description ||
+    normalizeString(formData.charge) !== originalFormValues.charge ||
+    normalizeString(formData.gst) !== originalFormValues.gst ||
+    normalizeString(formData.line_total) !== originalFormValues.line_total ||
+    normalizeString(formData.gl_account) !== originalFormValues.gl_account ||
+    !!formData.gst_override !== originalFormValues.gst_override
+  );
+
+  const supplierLocked = otherFieldsDirty;
+  const standardFieldsLocked = supplierChangeActive;
+  const descriptionLocked = standardFieldsLocked || line?.inventory_credit === true;
+  const glAccountLocked = standardFieldsLocked || line?.inventory_credit === true;
+
   const handleSave = () => {
     // Validate GL Account
     if (!formData.gl_account || String(formData.gl_account).trim() === '') {
@@ -175,6 +209,19 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
+              <Label>Supplier</Label>
+              <SupplierCombobox
+                suppliers={suppliers}
+                currentValue={formData.supplier_id || ''}
+                onChange={(value) => handleFieldChange('supplier_id', value)}
+                disabled={supplierLocked}
+                placeholder="Select supplier"
+                className={supplierLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+              />
+              <p className="text-xs text-slate-500 mt-1">Supplier reassignment is saved by itself. If you change supplier, the other fields lock; if you change any other field, supplier locks.</p>
+            </div>
+
+            <div className="col-span-2">
               <Label htmlFor="description">Description (max 100 characters)</Label>
               <Textarea
                 id="description"
@@ -182,6 +229,8 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 onChange={(e) => handleFieldChange('description', e.target.value)}
                 rows={3}
                 maxLength={100}
+                readOnly={descriptionLocked}
+                className={descriptionLocked ? 'cursor-not-allowed bg-slate-100' : ''}
               />
               <p className="text-xs text-slate-500 mt-1">
                 {(formData.description || '').length}/100 characters
@@ -194,6 +243,8 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 id="invoice_number"
                 value={formData.invoice_number || ''}
                 onChange={(e) => handleFieldChange('invoice_number', e.target.value)}
+                readOnly={standardFieldsLocked}
+                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}
               />
             </div>
 
@@ -204,6 +255,8 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 type="date"
                 value={formData.invoice_date || ''}
                 onChange={(e) => handleFieldChange('invoice_date', e.target.value)}
+                readOnly={standardFieldsLocked}
+                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}
               />
             </div>
 
@@ -215,7 +268,8 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 value={formData.charge}
                 onChange={(e) => handleFieldChange('charge', e.target.value)}
                 placeholder="0.00"
-                className={isNaN(parseFloat(formData.charge)) && formData.charge !== '' ? 'border-red-300 text-red-600' : ''}
+                readOnly={standardFieldsLocked}
+                className={`${isNaN(parseFloat(formData.charge)) && formData.charge !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}`}
               />
             </div>
 
@@ -227,8 +281,8 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 value={formData.gst}
                 onChange={(e) => handleFieldChange('gst', e.target.value)}
                 placeholder="0.00"
-                disabled={!formData.gst_override} // Disable if not in override mode
-                className={isNaN(parseFloat(formData.gst)) && formData.gst !== '' ? 'border-red-300 text-red-600' : ''}
+                disabled={standardFieldsLocked || !formData.gst_override}
+                className={`${isNaN(parseFloat(formData.gst)) && formData.gst !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked || !formData.gst_override ? 'cursor-not-allowed bg-slate-100' : ''}`}
               />
             </div>
 
@@ -239,33 +293,27 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 type="text"
                 value={typeof formData.line_total === 'number' ? formData.line_total.toFixed(2) : formData.line_total}
                 readOnly
-                className={`bg-slate-100 ${formData.line_total === 'Error' ? 'text-red-600' : ''}`}
+                className={`bg-slate-100 ${formData.line_total === 'Error' ? 'text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed' : ''}`}
               />
             </div>
 
             <div>
               <Label htmlFor="gl_account">GL Account</Label>
-              <Select
-                value={formData.gl_account || ''}
-                onValueChange={(value) => handleFieldChange('gl_account', value)}
-              >
-                <SelectTrigger id="gl_account">
-                  <SelectValue placeholder="Select GL account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chartOfAccounts && chartOfAccounts.map(account => (
-                    <SelectItem key={account.id} value={String(account.account_number)}>
-                      {account.account_number} - {account.account_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <GLAccountCombobox
+                chartOfAccounts={chartOfAccounts}
+                currentValue={formData.gl_account || ''}
+                onChange={(value) => handleFieldChange('gl_account', value)}
+                disabled={glAccountLocked}
+                placeholder="Select GL account"
+                className={glAccountLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+              />
             </div>
 
             <div className="flex items-center space-x-2 pt-6">
               <Checkbox
                 id="gst_override"
                 checked={formData.gst_override}
+                disabled={standardFieldsLocked}
                 onCheckedChange={(checked) => {
                   setFormData(prev => {
                     const updated = { ...prev, gst_override: checked };
