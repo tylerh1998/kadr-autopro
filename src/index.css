@@ -162,6 +162,10 @@ button:focus-visible {
 }
 
 @media print {
+  #root {
+    display: none !important;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -171,6 +175,7 @@ button:focus-visible {
   }
 
   .vehicle-history-dialog {
+    display: grid !important;
     position: static !important;
     inset: auto !important;
     transform: none !important;
