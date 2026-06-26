@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import VehicleHistorySummaryCards from "./VehicleHistorySummaryCards";
+import VehicleHistoryPrintHeader from "./VehicleHistoryPrintHeader";
 import { printVehicleHistory } from "./vehicleHistoryUtils";
 
 export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
@@ -93,8 +94,8 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   };
 
   return (
-    <Card className="shadow-xl border-0">
-      <CardHeader className="border-b bg-slate-50">
+    <Card className="shadow-xl border-0 vehicle-history-card">
+      <CardHeader className="border-b bg-slate-50 no-print">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -120,6 +121,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
       </CardHeader>
 
       <CardContent className="p-6 space-y-6">
+        <VehicleHistoryPrintHeader vehicle={vehicle} customer={customer} />
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Vehicle Information */}
           <div className="space-y-6">
@@ -311,14 +313,14 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                   ))}
                 </div>
               ) : workOrders.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto vehicle-history-scroll">
+                <div className="space-y-3 max-h-96 overflow-y-auto vehicle-history-scroll vehicle-history-list">
                   {workOrders.map((wo) => (
                     <a
                       key={wo.id}
                       href={`/WorkOrderEdit?id=${wo.ro_number}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+                      className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">

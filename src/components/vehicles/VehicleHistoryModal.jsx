@@ -8,9 +8,10 @@ import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
 import VehicleForm from './VehicleForm';
 import VehicleHistorySummaryCards from './VehicleHistorySummaryCards';
+import VehicleHistoryPrintHeader from './VehicleHistoryPrintHeader';
 import { printVehicleHistory } from './vehicleHistoryUtils';
 
-export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleUpdated }) {
+export default function VehicleHistoryModal({ open, onClose, vehicle, customer, onVehicleUpdated }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState(false);
@@ -112,14 +113,15 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl vehicle-history-dialog">
+          <DialogHeader className="no-print">
             <div className="pr-8">
               <DialogTitle>Work Order History for {currentVehicle?.year} {currentVehicle?.make} {currentVehicle?.model}</DialogTitle>
               <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
             </div>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1 vehicle-history-scroll">
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 p-1 vehicle-history-scroll vehicle-history-content">
+            <VehicleHistoryPrintHeader vehicle={currentVehicle} customer={customer} />
             <VehicleHistorySummaryCards
               workOrders={history}
               onEdit={handleEditClick}
@@ -135,7 +137,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, onVehicleU
                 href={`/WorkOrderEdit?id=${wo.ro_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+                className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">

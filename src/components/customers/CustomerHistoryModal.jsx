@@ -115,6 +115,7 @@ export default function CustomerHistoryModal({ open, onClose, customer, onOpenCu
           open={isHistoryModalOpen}
           onClose={handleCloseHistoryModal}
           vehicle={selectedVehicle}
+          customer={customer}
           onVehicleUpdated={handleVehicleUpdated}
         />
       )}

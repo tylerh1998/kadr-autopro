@@ -170,9 +170,40 @@ button:focus-visible {
     display: block !important;
   }
 
-  .vehicle-history-scroll {
+  .vehicle-history-dialog {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .vehicle-history-content,
+  .vehicle-history-scroll,
+  .vehicle-history-list {
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  .vehicle-history-card {
+    box-shadow: none !important;
+  }
+
+  .vehicle-history-summary-grid,
+  .vehicle-history-summary-modal {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .vehicle-history-entry {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   body {

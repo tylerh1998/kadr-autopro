@@ -28,7 +28,7 @@ export default function VehicleHistorySummaryCards({
 
   if (layout === 'modal') {
     return (
-      <div className="space-y-3 md:space-y-0 md:flex md:items-stretch md:gap-3">
+      <div className="vehicle-history-summary-modal space-y-3 md:space-y-0 md:flex md:items-stretch md:gap-3">
         <Card className="md:w-44 md:flex-shrink-0">
           <CardContent className="p-4">
             <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
@@ -51,7 +51,7 @@ export default function VehicleHistorySummaryCards({
           </CardContent>
         </Card>
 
-        <div className="grid gap-3 md:w-44 md:flex-shrink-0">
+        <div className="no-print grid gap-3 md:w-44 md:flex-shrink-0">
           <ActionCard icon={Edit3} label="Edit Vehicle" onClick={onEdit} compact />
           <ActionCard icon={Printer} label="Print History" onClick={onPrint} compact />
         </div>
@@ -60,7 +60,7 @@ export default function VehicleHistorySummaryCards({
   }
 
   return (
-    <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridClassName}`}>
+    <div className={`vehicle-history-summary-grid grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridClassName}`}>
       <Card>
         <CardContent className="p-4">
           <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
