@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
 import { getworkorderlist } from "@/functions/getworkorderlist";
+import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
@@ -39,6 +40,7 @@ export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [noteCards, setNoteCards] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showNewWorkOrderModal, setShowNewWorkOrderModal] = useState(false);
   const [editingWorkOrder, setEditingWorkOrder] = useState(null);
@@ -215,13 +217,16 @@ export default function WorkOrdersPage() {
     try {
       const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
-      const [generalResponse, invoicePageResponse] = await Promise.all([
+      const [generalResponse, invoicePageResponse, notesResponse] = await Promise.all([
         getworkorderlist({}),
         getworkorderlist({
           orMatch: 'stage.eq.invoice,stage.eq.credit_invoice',
           sort: invoicesSort,
           limit: INVOICES_PER_PAGE,
           offset: invoiceOffset,
+          searchTerm: debouncedSearchTerm.trim()
+        }),
+        getNotesBoardData({
           searchTerm: debouncedSearchTerm.trim()
         })
       ]);
@@ -235,6 +240,7 @@ export default function WorkOrdersPage() {
       setInvoicePageData(invoicePageData);
       setInvoiceTotalCount(invoicePageResponse?.data?.totalCount || 0);
       setWorkOrders(mergedWorkOrders);
+      setNoteCards(notesResponse?.data?.data || []);
       
       const extractedCustomers = [];
       const extractedVehicles = [];
@@ -1650,9 +1656,7 @@ export default function WorkOrdersPage() {
             <TabsContent value="board">
               <div className="space-y-6">
                 <NoteBoard
-                  workOrders={filteredWorkOrders}
-                  customers={customers}
-                  vehicles={vehicles}
+                  cards={noteCards}
                   onSelect={handleEdit}
                 />
               </div>

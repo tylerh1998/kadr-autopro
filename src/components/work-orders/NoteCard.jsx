@@ -2,10 +2,16 @@ import React from 'react';
 import { Car, FileText, User } from 'lucide-react';
 
 export default function NoteCard({ card, onSelect }) {
+  const isLinkedToWorkOrder = !!card.workOrder;
+
   return (
     <button
       type="button"
-      onClick={() => onSelect?.(card.workOrder)}
+      onClick={() => {
+        if (isLinkedToWorkOrder) {
+          onSelect?.(card.workOrder);
+        }
+      }}
       className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow transition-colors hover:bg-slate-50"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
