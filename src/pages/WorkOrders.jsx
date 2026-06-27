@@ -492,6 +492,28 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleNoteColourChange = async (noteId, colour) => {
+    const previousCards = noteCards;
+    const nextCards = noteCards.map((card) => (
+      card.noteId === noteId ? { ...card, colour } : card
+    ));
+
+    setNoteCards(nextCards);
+
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Note',
+        id: noteId,
+        data: { colour }
+      });
+    } catch (error) {
+      console.error('Error updating note colour:', error);
+      setNoteCards(previousCards);
+      alert('Failed to update note colour. Please try again.');
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1658,6 +1680,7 @@ export default function WorkOrdersPage() {
                 <NoteBoard
                   cards={noteCards}
                   onSelect={handleEdit}
+                  onColourChange={handleNoteColourChange}
                 />
               </div>
             </TabsContent>

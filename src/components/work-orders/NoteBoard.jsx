@@ -7,7 +7,7 @@ const columns = [
   { key: 'column_3' }
 ];
 
-export default function NoteBoard({ cards = [], onSelect }) {
+export default function NoteBoard({ cards = [], onSelect, onColourChange }) {
   const distributedColumns = columns.map((column, index) => ({
     ...column,
     cards: cards.filter((_, cardIndex) => cardIndex % columns.length === index)
@@ -20,6 +20,7 @@ export default function NoteBoard({ cards = [], onSelect }) {
           key={column.key}
           cards={column.cards}
           onSelect={onSelect}
+          onColourChange={onColourChange}
         />
       ))}
     </div>

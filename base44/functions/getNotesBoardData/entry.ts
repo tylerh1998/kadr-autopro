@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
     const { data: notes, error: notesError } = await supabase
       .from('Note')
-      .select('id, title, comment, customer_id, vehicle_id, work_order_id, updated_at, created_at')
+      .select('id, title, comment, customer_id, vehicle_id, work_order_id, colour, updated_at, created_at')
       .order('updated_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false, nullsFirst: false });
 
@@ -121,7 +121,8 @@ Deno.serve(async (req) => {
         comment: note.comment?.trim() || 'No comment added yet.',
         customer: getCustomerName(customer),
         vehicle: getVehicleName(vehicle),
-        woNumber
+        woNumber,
+        colour: note.colour || 'white'
       };
     }).filter((card) => {
       if (!searchTerm) return true;
