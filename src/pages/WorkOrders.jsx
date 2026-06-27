@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,8 +32,7 @@ import EditApptViaWoModal from "../components/work-orders/EditApptViaWoModal";
 import SchedulerViaWoModal from "../components/work-orders/SchedulerViaWoModal";
 import NewWorkPROModal from "../components/work-orders/NewWorkPROModal";
 import TechTimeModal from "../components/work-orders/TechTimeModal";
-import KanbanDisplaySettings from "../components/work-orders/KanbanDisplaySettings";
-import KanbanBoard from "../components/work-orders/KanbanBoard";
+import NoteBoard from "../components/work-orders/NoteBoard";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 export default function WorkOrdersPage() {
@@ -75,17 +74,12 @@ export default function WorkOrdersPage() {
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const [showNewWorkPROModal, setShowNewWorkPROModal] = useState(false);
   const [showTechTimeModal, setShowTechTimeModal] = useState(false);
-  const [showKanbanSettings, setShowKanbanSettings] = useState(false);
   const { openTechClockStatusModal } = useTechClockStatus();
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedProjectWorkOrder, setSelectedProjectWorkOrder] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   
-  // Kanban column sizes (persisted in SystemSettings)
-  const [kanbanColumnSizes, setKanbanColumnSizes] = useState({});
-  const [systemSettings, setSystemSettings] = useState(null);
-  
-  // Track active tab (estimates, wip, invoices, workpro, board)
+  // Track active tab (estimates, wip, invoices, workpro, notes)
   const [activeTab, setActiveTab] = useState("work_in_progress");
 
   // Work order statuses from setup
@@ -117,7 +111,6 @@ export default function WorkOrdersPage() {
     loadData(true);
     loadCurrentUser();
     loadWorkOrderStatuses();
-    loadSystemSettings();
   }, [invoicePage, invoicesSort, debouncedSearchTerm]);
 
   useEffect(() => {
@@ -139,26 +132,6 @@ export default function WorkOrdersPage() {
         { name: 'On Hold', display_order: 4, color: 'slate' },
         { name: 'Completed', display_order: 5, color: 'slate' }
       ]);
-    }
-  };
-
-  const loadSystemSettings = async () => {
-    try {
-      const settings = await SystemSettings.list();
-      const systemSetting = settings && settings.length > 0 ? settings[0] : null;
-      setSystemSettings(systemSetting);
-      
-      // Load kanban settings if they exist
-      if (systemSetting?.kanban_view_1) {
-        try {
-          const savedSettings = JSON.parse(systemSetting.kanban_view_1);
-          setKanbanColumnSizes(savedSettings);
-        } catch (error) {
-          console.error('Error parsing kanban settings:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading system settings:', error);
     }
   };
 
@@ -1040,17 +1013,6 @@ export default function WorkOrdersPage() {
               Refresh
             </Button>
             
-            {activeTab === 'board' && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowKanbanSettings(true)}
-                className="shrink-0 bg-white"
-                title="Kanban Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-            )}
 
               <Button
                 variant="destructive"
@@ -1177,7 +1139,7 @@ export default function WorkOrdersPage() {
                   value="board"
                   className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-200"
                 >
-                  Kanban Board
+                  Notes
                 </TabsTrigger>
                 <TabsTrigger 
                   value="invoices"
@@ -1687,15 +1649,11 @@ export default function WorkOrdersPage() {
 
             <TabsContent value="board">
               <div className="space-y-6">
-                <KanbanBoard
+                <NoteBoard
                   workOrders={filteredWorkOrders}
                   customers={customers}
                   vehicles={vehicles}
-                  workOrderStatuses={workOrderStatuses}
-                  kanbanColumnSizes={kanbanColumnSizes}
-                  handleEdit={handleEdit}
-                  refreshData={loadData}
-                  onVoid={handleVoidClick}
+                  onSelect={handleEdit}
                 />
               </div>
             </TabsContent>
@@ -1792,31 +1750,6 @@ export default function WorkOrdersPage() {
         project={selectedProject}
       />
 
-      <KanbanDisplaySettings
-        open={showKanbanSettings}
-        onClose={() => setShowKanbanSettings(false)}
-        workOrderStatuses={workOrderStatuses}
-        columnSizes={kanbanColumnSizes}
-        onSave={async (newSettings) => {
-          setKanbanColumnSizes(newSettings);
-          // Save to SystemSettings
-          try {
-            if (systemSettings) {
-              await SystemSettings.update(systemSettings.id, {
-                kanban_view_1: JSON.stringify(newSettings)
-              });
-            } else {
-              const created = await SystemSettings.create({
-                kanban_view_1: JSON.stringify(newSettings)
-              });
-              setSystemSettings(created);
-            }
-          } catch (error) {
-            console.error('Error saving kanban settings:', error);
-            alert('Failed to save settings. Please try again.');
-          }
-        }}
-      />
 
     </div>
   );
