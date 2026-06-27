@@ -17,11 +17,13 @@ import { useNavigate } from 'react-router-dom';
 import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendReport';
 import AccountBalancesByTypeReport from '@/components/financial-dashboard/AccountBalancesByTypeReport';
 import TopExpenseCategoriesReport from '@/components/financial-dashboard/TopExpenseCategoriesReport';
+import ThreeMonthPLReport from '@/components/financial-dashboard/ThreeMonthPLReport';
 
 const REPORT_OPTIONS = [
   { value: 'cashFlow', label: 'Cash Flow Trend' },
   { value: 'accountBalances', label: 'Account Balances by Type' },
-  { value: 'topExpenses', label: 'Top Expense Categories' }
+  { value: 'topExpenses', label: 'Top Expense Categories' },
+  { value: 'threeMonthPL', label: 'Three Month P&L Report' }
 ];
 
 export default function FinancialDashboard() {
@@ -37,6 +39,9 @@ export default function FinancialDashboard() {
   const [draftFromDate, setDraftFromDate] = useState(initialFromDate);
   const [draftToDate, setDraftToDate] = useState(initialToDate);
   const [reportType, setReportType] = useState('cashFlow');
+  const [threeMonthPLData, setThreeMonthPLData] = useState(null);
+  const [threeMonthPLLoading, setThreeMonthPLLoading] = useState(false);
+  const [threeMonthPLLoadedForEndDate, setThreeMonthPLLoadedForEndDate] = useState('');
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +70,37 @@ export default function FinancialDashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
+  const loadThreeMonthPLReport = useCallback(async (forceReload = false) => {
+    if (!forceReload && threeMonthPLLoadedForEndDate === appliedToDate && threeMonthPLData) {
+      return;
+    }
+
+    setThreeMonthPLLoading(true);
+    try {
+      const response = await base44.functions.invoke('getThreeMonthPLReport', {
+        endDate: appliedToDate
+      });
+
+      if (response.data.success) {
+        setThreeMonthPLData(response.data.data);
+        setThreeMonthPLLoadedForEndDate(appliedToDate);
+      } else {
+        throw new Error(response.data.error || 'Failed to load three month P&L report');
+      }
+    } catch (error) {
+      console.error('Error loading three month P&L report:', error);
+      alert('Failed to load Three Month P&L report. Please try again.');
+    } finally {
+      setThreeMonthPLLoading(false);
+    }
+  }, [appliedToDate, threeMonthPLData, threeMonthPLLoadedForEndDate]);
+
+  useEffect(() => {
+    if (reportType === 'threeMonthPL') {
+      loadThreeMonthPLReport();
+    }
+  }, [reportType, loadThreeMonthPLReport]);
+
   const handleDaysBackChange = (value) => {
     setDraftDaysBack(value);
     const calculatedFromDate = format(subDays(new Date(draftToDate), parseInt(value) || 0), 'yyyy-MM-dd');
@@ -91,6 +127,15 @@ export default function FinancialDashboard() {
     window.print();
   };
 
+  const handleRefresh = () => {
+    if (reportType === 'threeMonthPL') {
+      loadThreeMonthPLReport(true);
+      return;
+    }
+
+    loadDashboardData();
+  };
+
   const getReportLabel = () => {
     return REPORT_OPTIONS.find((option) => option.value === reportType)?.label || 'Financial Dashboard';
   };
@@ -105,6 +150,18 @@ export default function FinancialDashboard() {
         return charts.accountBalancesByType.length > 0 ? <AccountBalancesByTypeReport data={charts.accountBalancesByType} /> : null;
       case 'topExpenses':
         return charts.topExpenseCategories.length > 0 ? <TopExpenseCategoriesReport data={charts.topExpenseCategories} /> : null;
+      case 'threeMonthPL':
+        if (threeMonthPLLoading) {
+          return (
+            <Card>
+              <CardContent className="p-10 text-center text-slate-600">
+                <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                Loading Three Month P&L report...
+              </CardContent>
+            </Card>
+          );
+        }
+        return threeMonthPLData ? <ThreeMonthPLReport data={threeMonthPLData} /> : null;
       case 'cashFlow':
       default:
         return charts.cashFlow.length > 0 ? <CashFlowTrendReport data={charts.cashFlow} /> : null;
@@ -176,8 +233,8 @@ export default function FinancialDashboard() {
               </div>
             </div>
             <div className="flex gap-3">
-              <Button onClick={loadDashboardData} variant="outline" disabled={loading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <Button onClick={handleRefresh} variant="outline" disabled={loading || threeMonthPLLoading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${(loading || threeMonthPLLoading) ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
               <Button onClick={handlePrint} variant="outline">
