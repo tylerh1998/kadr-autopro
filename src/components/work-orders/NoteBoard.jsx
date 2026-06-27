@@ -2,21 +2,11 @@ import React from 'react';
 import NoteColumn from './NoteColumn';
 
 const columns = [
-  { key: 'inbox', title: 'Inbox' },
-  { key: 'active', title: 'Active' },
-  { key: 'waiting', title: 'Waiting' },
-  { key: 'scheduled', title: 'Scheduled' },
-  { key: 'done', title: 'Done' }
+  { key: 'column_1', title: 'Column 1' },
+  { key: 'column_2', title: 'Column 2' },
+  { key: 'column_3', title: 'Column 3' },
+  { key: 'column_4', title: 'Column 4' }
 ];
-
-const getColumnKey = (workOrder) => {
-  const status = (workOrder.status || '').toLowerCase();
-  if (status.includes('completed')) return 'done';
-  if (status.includes('scheduled')) return 'scheduled';
-  if (status.includes('hold') || status.includes('parts')) return 'waiting';
-  if (status.includes('open')) return 'inbox';
-  return 'active';
-};
 
 const getCustomerName = (workOrder, customers) => {
   const customer = workOrder.Customer || customers.find((item) => item.id === workOrder.customer_id);
@@ -36,7 +26,6 @@ export default function NoteBoard({ workOrders, customers, vehicles, onSelect })
     .map((workOrder) => ({
       id: workOrder.id,
       workOrder,
-      columnKey: getColumnKey(workOrder),
       title: workOrder.description || workOrder.customer_complaint || `Work Order ${workOrder.wo_number || workOrder.ro_number || ''}`,
       comment: workOrder.notes_to_customer || workOrder.customer_complaint || 'No comment added yet.',
       customer: getCustomerName(workOrder, customers),
@@ -44,13 +33,18 @@ export default function NoteBoard({ workOrders, customers, vehicles, onSelect })
       woNumber: workOrder.wo_number || workOrder.ro_number || 'Unassigned'
     }));
 
+  const distributedColumns = columns.map((column, index) => ({
+    ...column,
+    cards: cards.filter((_, cardIndex) => cardIndex % columns.length === index)
+  }));
+
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
-      {columns.map((column) => (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-4">
+      {distributedColumns.map((column) => (
         <NoteColumn
           key={column.key}
           column={column}
-          cards={cards.filter((card) => card.columnKey === column.key)}
+          cards={column.cards}
           onSelect={onSelect}
         />
       ))}
