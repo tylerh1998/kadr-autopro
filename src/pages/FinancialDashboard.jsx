@@ -200,7 +200,7 @@ export default function FinancialDashboard() {
                   <Calendar className="w-4 h-4 mr-2" />
                   Apply
                 </Button>
-                <div className="space-y-2 w-[230px] ml-auto">
+                <div className="space-y-2 flex-1 min-w-[260px] ml-auto">
                   <Label>Report</Label>
                   <Select value={reportType} onValueChange={setReportType}>
                     <SelectTrigger className="w-full">
@@ -241,6 +241,61 @@ export default function FinancialDashboard() {
                   }}
                 >
                   Last Month
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const now = new Date();
+                    setFromDate(format(subMonths(now, 3), 'yyyy-MM-dd'));
+                    setToDate(format(now, 'yyyy-MM-dd'));
+                  }}
+                >
+                  Last 3 Months
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const year = new Date().getFullYear();
+                    setFromDate(`${year}-01-01`);
+                    setToDate(`${year}-03-31`);
+                  }}
+                >
+                  Q1
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const year = new Date().getFullYear();
+                    setFromDate(`${year}-04-01`);
+                    setToDate(`${year}-06-30`);
+                  }}
+                >
+                  Q2
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const year = new Date().getFullYear();
+                    setFromDate(`${year}-07-01`);
+                    setToDate(`${year}-09-30`);
+                  }}
+                >
+                  Q3
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const year = new Date().getFullYear();
+                    setFromDate(`${year}-10-01`);
+                    setToDate(`${year}-12-31`);
+                  }}
+                >
+                  Q4
                 </Button>
                 <Button
                   variant="outline"
