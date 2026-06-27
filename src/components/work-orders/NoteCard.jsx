@@ -6,39 +6,71 @@ import NoteWorkOrderButton from './note-card/NoteWorkOrderButton';
 
 const actionsDisabled = true;
 
+const cardTheme = {
+  wrapper: 'overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
+  icon: 'text-slate-400',
+  entityButton: 'border-slate-200 bg-slate-50',
+  entityLabel: 'text-slate-500',
+  entityValue: 'font-semibold text-slate-900',
+  entityPlaceholder: 'text-slate-400',
+  title: 'mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700',
+  body: 'mb-5 rounded-2xl border border-slate-200 bg-white p-4',
+  bodyLabel: 'text-slate-600',
+  bodyText: 'text-slate-700',
+  divider: 'border-slate-200',
+  utilityButton: 'border-slate-200 bg-white text-slate-500',
+  utilityIcon: 'text-slate-500',
+  workOrderLinked: 'border-blue-200 bg-blue-500 text-white',
+  workOrderUnlinked: 'border-slate-300 bg-slate-50 text-slate-700'
+};
+
 export default function NoteCard({ card, onSelect }) {
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-slate-800 bg-[#171717] p-4 text-left text-white shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
-      <div className="mb-4 h-1.5 w-full rounded-full bg-gradient-to-r from-violet-500 via-sky-500 to-emerald-400" />
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Note Card</span>
-        <Pin className="h-4 w-4 text-slate-500" />
+    <article className={cardTheme.wrapper}>
+      <div className="mb-4 flex items-center justify-end gap-3">
+        <Pin className={`h-4 w-4 ${cardTheme.icon}`} />
       </div>
 
       <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <NoteEntityButton icon={User} label="Customer" value={card.customer} placeholder="+ Add Customer" disabled={actionsDisabled} />
-        <NoteEntityButton icon={Car} label="Vehicle" value={card.vehicle} placeholder="+ Add Vehicle" disabled={actionsDisabled} />
+        <NoteEntityButton
+          icon={User}
+          label="Customer"
+          value={card.customer}
+          placeholder="+ Add Customer"
+          disabled={actionsDisabled}
+          className={cardTheme.entityButton}
+          labelClassName={cardTheme.entityLabel}
+          valueClassName={cardTheme.entityValue}
+          placeholderClassName={cardTheme.entityPlaceholder}
+        />
+        <NoteEntityButton
+          icon={Car}
+          label="Vehicle"
+          value={card.vehicle}
+          placeholder="+ Add Vehicle"
+          disabled={actionsDisabled}
+          className={cardTheme.entityButton}
+          labelClassName={cardTheme.entityLabel}
+          valueClassName={cardTheme.entityValue}
+          placeholderClassName={cardTheme.entityPlaceholder}
+        />
       </div>
 
-      {card.title && (
-        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-200">
-          {card.title}
-        </div>
-      )}
+      {card.title && <div className={cardTheme.title}>{card.title}</div>}
 
-      <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300">
-          <FileText className="h-4 w-4 text-slate-500" />
+      <div className={cardTheme.body}>
+        <div className={`mb-2 flex items-center gap-2 text-sm font-medium ${cardTheme.bodyLabel}`}>
+          <FileText className={`h-4 w-4 ${cardTheme.icon}`} />
           <span>Comments / Text Body</span>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-200">{card.comment}</p>
+        <p className={`whitespace-pre-wrap text-sm leading-6 ${cardTheme.bodyText}`}>{card.comment}</p>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-slate-800 pt-4">
+      <div className={`flex items-center justify-between gap-3 border-t pt-4 ${cardTheme.divider}`}>
         <div className="flex items-center gap-2">
-          <NoteUtilityButton icon={Share2} label="Share" disabled={actionsDisabled} />
-          <NoteUtilityButton icon={Palette} label="Colour" disabled={actionsDisabled} />
-          <NoteUtilityButton icon={MoreHorizontal} label="More" disabled={actionsDisabled} />
+          <NoteUtilityButton icon={Share2} label="Share" disabled={actionsDisabled} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
+          <NoteUtilityButton icon={Palette} label="Colour" disabled={actionsDisabled} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
+          <NoteUtilityButton icon={MoreHorizontal} label="More" disabled={actionsDisabled} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
         </div>
 
         <NoteWorkOrderButton
@@ -46,6 +78,8 @@ export default function NoteCard({ card, onSelect }) {
           hasWorkOrder={card.hasWorkOrder}
           disabled={actionsDisabled}
           onClick={() => onSelect?.(card.workOrder)}
+          linkedClassName={cardTheme.workOrderLinked}
+          unlinkedClassName={cardTheme.workOrderUnlinked}
         />
       </div>
     </article>
