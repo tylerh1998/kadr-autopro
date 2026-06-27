@@ -14,9 +14,11 @@ export default function PLReportPage() {
   const [warnings, setWarnings] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  // Date range state
+  // Applied date range state
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [draftStartDate, setDraftStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [draftEndDate, setDraftEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
   const loadReport = useCallback(async () => {
     setLoading(true);
@@ -63,28 +65,43 @@ export default function PLReportPage() {
   // Quick date range buttons
   const setDateRange = (range) => {
     const today = new Date();
+    let nextStartDate = startDate;
+    let nextEndDate = endDate;
+
     switch (range) {
       case 'thisMonth':
-        setStartDate(format(startOfMonth(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfMonth(today), 'yyyy-MM-dd'));
+        nextStartDate = format(startOfMonth(today), 'yyyy-MM-dd');
+        nextEndDate = format(endOfMonth(today), 'yyyy-MM-dd');
         break;
-      case 'lastMonth':
+      case 'lastMonth': {
         const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        setStartDate(format(startOfMonth(lastMonth), 'yyyy-MM-dd'));
-        setEndDate(format(endOfMonth(lastMonth), 'yyyy-MM-dd'));
+        nextStartDate = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
+        nextEndDate = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
         break;
+      }
       case 'thisYear':
-        setStartDate(format(startOfYear(today), 'yyyy-MM-dd'));
-        setEndDate(format(endOfYear(today), 'yyyy-MM-dd'));
+        nextStartDate = format(startOfYear(today), 'yyyy-MM-dd');
+        nextEndDate = format(endOfYear(today), 'yyyy-MM-dd');
         break;
-      case 'lastYear':
+      case 'lastYear': {
         const lastYear = new Date(today.getFullYear() - 1, 0, 1);
-        setStartDate(format(startOfYear(lastYear), 'yyyy-MM-dd'));
-        setEndDate(format(endOfYear(lastYear), 'yyyy-MM-dd'));
+        nextStartDate = format(startOfYear(lastYear), 'yyyy-MM-dd');
+        nextEndDate = format(endOfYear(lastYear), 'yyyy-MM-dd');
         break;
+      }
       default:
         break;
     }
+
+    setDraftStartDate(nextStartDate);
+    setDraftEndDate(nextEndDate);
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
+  };
+
+  const handleApplyDates = () => {
+    setStartDate(draftStartDate);
+    setEndDate(draftEndDate);
   };
 
   // Print handler
@@ -339,26 +356,29 @@ export default function PLReportPage() {
           <Card className="no-print">
             <CardContent className="p-6">
               <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-1 flex-1 min-w-[140px]">
+                <div className="space-y-1 w-[170px]">
                   <Label htmlFor="start-date" className="text-xs text-slate-600">Start Date</Label>
                   <Input
                     id="start-date"
                     type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    value={draftStartDate}
+                    onChange={(e) => setDraftStartDate(e.target.value)}
                     className="w-full"
                   />
                 </div>
-                <div className="space-y-1 flex-1 min-w-[140px]">
+                <div className="space-y-1 w-[170px]">
                   <Label htmlFor="end-date" className="text-xs text-slate-600">End Date</Label>
                   <Input
                     id="end-date"
                     type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    value={draftEndDate}
+                    onChange={(e) => setDraftEndDate(e.target.value)}
                     className="w-full"
                   />
                 </div>
+                <Button onClick={handleApplyDates} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Apply
+                </Button>
                 <div className="flex gap-2 flex-wrap">
                   <Button onClick={() => setDateRange('thisMonth')} variant="outline" size="sm">
                     This Month
