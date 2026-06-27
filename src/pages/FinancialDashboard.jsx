@@ -14,20 +14,14 @@ import {
 import { ArrowLeft, Calendar, RefreshCw, Printer } from 'lucide-react';
 import { format, subMonths, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import FinancialDashboardOverview from '@/components/financial-dashboard/FinancialDashboardOverview';
-import RevenueVsExpensesReport from '@/components/financial-dashboard/RevenueVsExpensesReport';
 import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendReport';
 import AccountBalancesByTypeReport from '@/components/financial-dashboard/AccountBalancesByTypeReport';
 import TopExpenseCategoriesReport from '@/components/financial-dashboard/TopExpenseCategoriesReport';
-import BankAccountsSummaryReport from '@/components/financial-dashboard/BankAccountsSummaryReport';
 
 const REPORT_OPTIONS = [
-  { value: 'overview', label: 'Overview' },
-  { value: 'revenueVsExpenses', label: 'Revenue vs Expenses' },
   { value: 'cashFlow', label: 'Cash Flow Trend' },
   { value: 'accountBalances', label: 'Account Balances by Type' },
-  { value: 'topExpenses', label: 'Top Expense Categories' },
-  { value: 'bankAccounts', label: 'Bank Account Summary' }
+  { value: 'topExpenses', label: 'Top Expense Categories' }
 ];
 
 export default function FinancialDashboard() {
@@ -37,7 +31,7 @@ export default function FinancialDashboard() {
   const [daysBack, setDaysBack] = useState(365);
   const [fromDate, setFromDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [reportType, setReportType] = useState('overview');
+  const [reportType, setReportType] = useState('cashFlow');
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
@@ -83,22 +77,16 @@ export default function FinancialDashboard() {
   const renderReport = () => {
     if (!dashboardData) return null;
 
-    const { keyMetrics, charts, bankAccountsSummary } = dashboardData;
+    const { charts } = dashboardData;
 
     switch (reportType) {
-      case 'revenueVsExpenses':
-        return <RevenueVsExpensesReport data={charts.revenueVsExpenses} />;
-      case 'cashFlow':
-        return charts.cashFlow.length > 0 ? <CashFlowTrendReport data={charts.cashFlow} /> : null;
       case 'accountBalances':
         return charts.accountBalancesByType.length > 0 ? <AccountBalancesByTypeReport data={charts.accountBalancesByType} /> : null;
       case 'topExpenses':
         return charts.topExpenseCategories.length > 0 ? <TopExpenseCategoriesReport data={charts.topExpenseCategories} /> : null;
-      case 'bankAccounts':
-        return bankAccountsSummary.length > 0 ? <BankAccountsSummaryReport data={bankAccountsSummary} cashPosition={keyMetrics.cashPosition} /> : null;
-      case 'overview':
+      case 'cashFlow':
       default:
-        return <FinancialDashboardOverview keyMetrics={keyMetrics} />;
+        return charts.cashFlow.length > 0 ? <CashFlowTrendReport data={charts.cashFlow} /> : null;
     }
   };
 
@@ -212,7 +200,7 @@ export default function FinancialDashboard() {
                   <Calendar className="w-4 h-4 mr-2" />
                   Apply
                 </Button>
-                <div className="space-y-2 w-[230px]">
+                <div className="space-y-2 w-[230px] ml-auto">
                   <Label>Report</Label>
                   <Select value={reportType} onValueChange={setReportType}>
                     <SelectTrigger className="w-full">
