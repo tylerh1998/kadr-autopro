@@ -70,17 +70,24 @@ Deno.serve(async (req) => {
       return months.find((month) => dateStr >= month.start && dateStr <= month.end)?.key || null;
     };
 
-    const accountRows = {};
+    const accountMap = {};
 
     plAccounts.forEach((account) => {
-      accountRows[account.account_number] = {
-        account_number: account.account_number,
-        account_name: account.account_name,
-        account_type: account.account_type,
+      accountMap[account.account_number] = {
+        ...account,
+        children: [],
+        month1_own: 0,
+        month2_own: 0,
+        month3_own: 0,
+        month1_total: 0,
+        month2_total: 0,
+        month3_total: 0,
         month1: 0,
         month2: 0,
         month3: 0,
-        variance_pct: null
+        variance_pct: null,
+        transactionCount: 0,
+        amount: 0
       };
     });
 
@@ -88,40 +95,102 @@ Deno.serve(async (req) => {
       const txDate = String(tx.transaction_date || '').split('T')[0];
       if (!txDate || txDate < overallStart || txDate > overallEnd) return;
 
-      const row = accountRows[tx.account_number];
+      const node = accountMap[tx.account_number];
       const monthKey = monthForDate(txDate);
-      if (!row || !monthKey) return;
+      if (!node || !monthKey) return;
 
       const creditAmount = Number(tx.credit_amount) || 0;
       const debitAmount = Number(tx.debit_amount) || 0;
-      const signedAmount = row.account_type === 'Revenue'
+      const signedAmount = node.account_type === 'Revenue'
         ? creditAmount - debitAmount
         : debitAmount - creditAmount;
 
-      row[monthKey] += signedAmount;
+      node[`${monthKey}_own`] += signedAmount;
+      node.transactionCount += 1;
     });
 
-    const buildRows = (accountType) => {
-      return Object.values(accountRows)
-        .filter((row) => row.account_type === accountType)
-        .map((row) => {
-          const month1 = roundAmount(row.month1);
-          const month2 = roundAmount(row.month2);
-          const month3 = roundAmount(row.month3);
-          return {
-            ...row,
-            month1,
-            month2,
-            month3,
-            variance_pct: getVariancePercent(month1, month3)
-          };
-        })
-        .filter((row) => Math.abs(row.month1) > 0.005 || Math.abs(row.month2) > 0.005 || Math.abs(row.month3) > 0.005)
-        .sort((a, b) => a.account_number.localeCompare(b.account_number));
+    const roots = [];
+
+    Object.values(accountMap).forEach((node) => {
+      if (node.parent_account && accountMap[node.parent_account]) {
+        accountMap[node.parent_account].children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const calculateTotals = (node) => {
+      let month1Children = 0;
+      let month2Children = 0;
+      let month3Children = 0;
+
+      node.children.forEach((child) => {
+        calculateTotals(child);
+        month1Children += child.month1_total;
+        month2Children += child.month2_total;
+        month3Children += child.month3_total;
+      });
+
+      node.month1_total = node.month1_own + month1Children;
+      node.month2_total = node.month2_own + month2Children;
+      node.month3_total = node.month3_own + month3Children;
+      return node;
     };
 
-    const revenueRows = buildRows('Revenue');
-    const expenseRows = buildRows('Expense');
+    roots.forEach(calculateTotals);
+
+    const transformNode = (node) => {
+      node.children.sort((a, b) => a.account_number.localeCompare(b.account_number));
+      node.children.forEach(transformNode);
+
+      const hasOwnBalance = [node.month1_own, node.month2_own, node.month3_own].some((value) => Math.abs(value) > 0.005);
+
+      if (node.children.length > 0 && hasOwnBalance) {
+        node.children.unshift({
+          ...node,
+          account_name: `${node.account_name} (Direct)`,
+          children: [],
+          is_synthetic: true,
+          parent_account: node.account_number,
+          month1: roundAmount(node.month1_own),
+          month2: roundAmount(node.month2_own),
+          month3: roundAmount(node.month3_own),
+          amount: roundAmount(node.month3_own),
+          variance_pct: getVariancePercent(roundAmount(node.month1_own), roundAmount(node.month3_own))
+        });
+      }
+
+      node.month1 = roundAmount(node.month1_total);
+      node.month2 = roundAmount(node.month2_total);
+      node.month3 = roundAmount(node.month3_total);
+      node.amount = node.month3;
+      node.variance_pct = getVariancePercent(node.month1, node.month3);
+    };
+
+    roots.forEach(transformNode);
+
+    const filterHierarchy = (nodes) => {
+      return nodes.reduce((acc, node) => {
+        if (node.children && node.children.length > 0) {
+          node.children = filterHierarchy(node.children);
+        }
+
+        const hasBalance = Math.abs(node.month1) > 0.005 || Math.abs(node.month2) > 0.005 || Math.abs(node.month3) > 0.005;
+        const hasActivity = node.transactionCount > 0;
+        const hasChildren = node.children && node.children.length > 0;
+
+        if (hasBalance || hasActivity || hasChildren) {
+          acc.push(node);
+        }
+
+        return acc;
+      }, []);
+    };
+
+    const revenueRows = filterHierarchy(roots.filter((root) => root.account_type === 'Revenue'))
+      .sort((a, b) => a.account_number.localeCompare(b.account_number));
+    const expenseRows = filterHierarchy(roots.filter((root) => root.account_type === 'Expense'))
+      .sort((a, b) => a.account_number.localeCompare(b.account_number));
 
     const summarizeRows = (rows) => {
       const month1 = roundAmount(rows.reduce((sum, row) => sum + row.month1, 0));

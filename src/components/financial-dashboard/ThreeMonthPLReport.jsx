@@ -15,24 +15,46 @@ const varianceClassName = (value) => {
   return 'text-slate-700';
 };
 
-const ReportRows = ({ rows }) => rows.map((row) => (
-  <TableRow key={row.account_number}>
-    <TableCell className="font-medium text-slate-800">{row.account_number} - {row.account_name}</TableCell>
-    <TableCell className="text-right tabular-nums">{formatCurrency(row.month1)}</TableCell>
-    <TableCell className="text-right tabular-nums">{formatCurrency(row.month2)}</TableCell>
-    <TableCell className="text-right tabular-nums">{formatCurrency(row.month3)}</TableCell>
-    <TableCell className={`text-right font-semibold tabular-nums ${varianceClassName(row.variance_pct)}`}>{formatVariance(row.variance_pct)}</TableCell>
-  </TableRow>
-));
+const AccountRow = ({ row, level = 0 }) => (
+  <>
+    <TableRow>
+      <TableCell className="text-slate-800">
+        <div style={{ paddingLeft: `${level * 24}px` }}>
+          <span className={level === 0 ? 'font-semibold' : 'font-medium'}>{row.account_number}</span>
+          <span className={`ml-2 ${row.is_synthetic ? 'italic text-slate-500' : 'text-slate-600'}`}>{row.account_name}</span>
+        </div>
+      </TableCell>
+      <TableCell className={`text-right tabular-nums ${level === 0 ? 'font-semibold' : ''}`}>{formatCurrency(row.month1)}</TableCell>
+      <TableCell className={`text-right tabular-nums ${level === 0 ? 'font-semibold' : ''}`}>{formatCurrency(row.month2)}</TableCell>
+      <TableCell className={`text-right tabular-nums ${level === 0 ? 'font-semibold' : ''}`}>{formatCurrency(row.month3)}</TableCell>
+      <TableCell className={`text-right font-semibold tabular-nums ${varianceClassName(row.variance_pct)}`}>{formatVariance(row.variance_pct)}</TableCell>
+    </TableRow>
+    {row.children?.map((child) => (
+      <AccountRow
+        key={child.is_synthetic ? `${child.account_number}-synthetic-${level}` : `${child.account_number}-${level}`}
+        row={child}
+        level={level + 1}
+      />
+    ))}
+  </>
+);
 
-const SummaryRow = ({ label, values, emphasized = false }) => (
-  <TableRow className={emphasized ? 'bg-slate-100' : 'bg-slate-50'}>
-    <TableCell className="font-semibold text-slate-900">{label}</TableCell>
-    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(values.month1)}</TableCell>
-    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(values.month2)}</TableCell>
-    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(values.month3)}</TableCell>
-    <TableCell className={`text-right font-semibold tabular-nums ${varianceClassName(values.variance_pct)}`}>{formatVariance(values.variance_pct)}</TableCell>
-  </TableRow>
+const ReportSection = ({ title, rows, summaryRow, summaryLabel }) => (
+  <>
+    <TableRow className="bg-slate-100 hover:bg-slate-100">
+      <TableCell colSpan={5} className="font-semibold uppercase tracking-wide text-slate-700">{title}</TableCell>
+    </TableRow>
+    {rows.map((row) => (
+      <AccountRow key={row.account_number} row={row} />
+    ))}
+    <TableRow className="bg-slate-50">
+      <TableCell className="font-semibold text-slate-900">{summaryLabel}</TableCell>
+      <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month1)}</TableCell>
+      <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month2)}</TableCell>
+      <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month3)}</TableCell>
+      <TableCell className={`text-right font-semibold tabular-nums ${varianceClassName(summaryRow.variance_pct)}`}>{formatVariance(summaryRow.variance_pct)}</TableCell>
+    </TableRow>
+  </>
 );
 
 export default function ThreeMonthPLReport({ data }) {
@@ -55,17 +77,25 @@ export default function ThreeMonthPLReport({ data }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow className="bg-slate-100 hover:bg-slate-100">
-              <TableCell colSpan={5} className="font-semibold uppercase tracking-wide text-slate-700">Revenue</TableCell>
+            <ReportSection
+              title="Revenue"
+              rows={revenueRows}
+              summaryRow={summary.totalRevenue}
+              summaryLabel="Total Revenue"
+            />
+            <ReportSection
+              title="Expenses"
+              rows={expenseRows}
+              summaryRow={summary.totalExpenses}
+              summaryLabel="Total Expenses"
+            />
+            <TableRow className="bg-slate-100">
+              <TableCell className="font-semibold text-slate-900">Net Income</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month1)}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month2)}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month3)}</TableCell>
+              <TableCell className={`text-right font-semibold tabular-nums ${varianceClassName(summary.netIncome.variance_pct)}`}>{formatVariance(summary.netIncome.variance_pct)}</TableCell>
             </TableRow>
-            <ReportRows rows={revenueRows} />
-            <SummaryRow label="Total Revenue" values={summary.totalRevenue} />
-            <TableRow className="bg-slate-100 hover:bg-slate-100">
-              <TableCell colSpan={5} className="font-semibold uppercase tracking-wide text-slate-700">Expenses</TableCell>
-            </TableRow>
-            <ReportRows rows={expenseRows} />
-            <SummaryRow label="Total Expenses" values={summary.totalExpenses} />
-            <SummaryRow label="Net Income" values={summary.netIncome} emphasized />
           </TableBody>
         </Table>
       </CardContent>
