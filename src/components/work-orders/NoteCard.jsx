@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, FileText, MoreHorizontal, Palette, Pin, Share2, User } from 'lucide-react';
+import { Car, MoreHorizontal, Palette, Pin, Share2, User } from 'lucide-react';
 import NoteEntityButton from './note-card/NoteEntityButton';
 import NoteUtilityButton from './note-card/NoteUtilityButton';
 import NoteWorkOrderButton from './note-card/NoteWorkOrderButton';
@@ -15,9 +15,9 @@ const cardThemes = {
     entityLabel: 'text-slate-500',
     entityValue: 'font-semibold text-slate-900',
     entityPlaceholder: 'text-slate-400',
-    title: 'mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-700',
+    entitySecondary: 'text-slate-500',
+    titleLine: 'mb-2 min-h-[20px] text-sm font-medium text-slate-700',
     body: 'mb-5 rounded-2xl border border-slate-200 bg-white p-4',
-    bodyLabel: 'text-slate-600',
     bodyText: 'text-slate-700',
     divider: 'border-slate-200',
     utilityButton: 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
@@ -32,9 +32,9 @@ const cardThemes = {
     entityLabel: 'text-blue-600',
     entityValue: 'font-semibold text-slate-900',
     entityPlaceholder: 'text-blue-300',
-    title: 'mb-4 rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-blue-700',
+    entitySecondary: 'text-blue-600',
+    titleLine: 'mb-2 min-h-[20px] text-sm font-medium text-blue-700',
     body: 'mb-5 rounded-2xl border border-blue-200 bg-white p-4',
-    bodyLabel: 'text-blue-700',
     bodyText: 'text-slate-700',
     divider: 'border-blue-200',
     utilityButton: 'border-blue-200 bg-white text-blue-600 hover:bg-blue-100',
@@ -49,9 +49,9 @@ const cardThemes = {
     entityLabel: 'text-green-700',
     entityValue: 'font-semibold text-slate-900',
     entityPlaceholder: 'text-green-300',
-    title: 'mb-4 rounded-2xl border border-green-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-green-700',
+    entitySecondary: 'text-green-700',
+    titleLine: 'mb-2 min-h-[20px] text-sm font-medium text-green-700',
     body: 'mb-5 rounded-2xl border border-green-200 bg-white p-4',
-    bodyLabel: 'text-green-700',
     bodyText: 'text-slate-700',
     divider: 'border-green-200',
     utilityButton: 'border-green-200 bg-white text-green-700 hover:bg-green-100',
@@ -66,9 +66,9 @@ const cardThemes = {
     entityLabel: 'text-yellow-700',
     entityValue: 'font-semibold text-slate-900',
     entityPlaceholder: 'text-yellow-400',
-    title: 'mb-4 rounded-2xl border border-yellow-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-yellow-700',
+    entitySecondary: 'text-yellow-700',
+    titleLine: 'mb-2 min-h-[20px] text-sm font-medium text-yellow-700',
     body: 'mb-5 rounded-2xl border border-yellow-200 bg-white p-4',
-    bodyLabel: 'text-yellow-700',
     bodyText: 'text-slate-700',
     divider: 'border-yellow-200',
     utilityButton: 'border-yellow-200 bg-white text-yellow-700 hover:bg-yellow-100',
@@ -83,9 +83,9 @@ const cardThemes = {
     entityLabel: 'text-pink-700',
     entityValue: 'font-semibold text-slate-900',
     entityPlaceholder: 'text-pink-300',
-    title: 'mb-4 rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-pink-700',
+    entitySecondary: 'text-pink-700',
+    titleLine: 'mb-2 min-h-[20px] text-sm font-medium text-pink-700',
     body: 'mb-5 rounded-2xl border border-pink-200 bg-white p-4',
-    bodyLabel: 'text-pink-700',
     bodyText: 'text-slate-700',
     divider: 'border-pink-200',
     utilityButton: 'border-pink-200 bg-white text-pink-700 hover:bg-pink-100',
@@ -97,6 +97,7 @@ const cardThemes = {
 
 export default function NoteCard({ card, onSelect, onColourChange }) {
   const cardTheme = cardThemes[card.colour] || cardThemes.white;
+  const vehicleUnitText = card.vehicleUnitNumber ? `Unit # ${card.vehicleUnitNumber}` : '';
 
   return (
     <article className={cardTheme.wrapper}>
@@ -110,32 +111,33 @@ export default function NoteCard({ card, onSelect, onColourChange }) {
           label="Customer"
           value={card.customer}
           placeholder="+ Add Customer"
+          secondaryValue={card.customerPhone}
           disabled={actionsDisabled}
           className={cardTheme.entityButton}
           labelClassName={cardTheme.entityLabel}
           valueClassName={cardTheme.entityValue}
           placeholderClassName={cardTheme.entityPlaceholder}
+          secondaryClassName={cardTheme.entitySecondary}
+          hideLabel={true}
         />
         <NoteEntityButton
           icon={Car}
           label="Vehicle"
           value={card.vehicle}
           placeholder="+ Add Vehicle"
+          secondaryValue={vehicleUnitText}
           disabled={actionsDisabled}
           className={cardTheme.entityButton}
           labelClassName={cardTheme.entityLabel}
           valueClassName={cardTheme.entityValue}
           placeholderClassName={cardTheme.entityPlaceholder}
+          secondaryClassName={cardTheme.entitySecondary}
+          hideLabel={true}
         />
       </div>
 
-      {card.title && <div className={cardTheme.title}>{card.title}</div>}
-
       <div className={cardTheme.body}>
-        <div className={`mb-2 flex items-center gap-2 text-sm font-medium ${cardTheme.bodyLabel}`}>
-          <FileText className={`h-4 w-4 ${cardTheme.icon}`} />
-          <span>Comments / Text Body</span>
-        </div>
+        <div className={cardTheme.titleLine}>{card.title || ''}</div>
         <p className={`whitespace-pre-wrap text-sm leading-6 ${cardTheme.bodyText}`}>{card.comment}</p>
       </div>
 

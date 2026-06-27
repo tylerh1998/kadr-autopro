@@ -11,6 +11,14 @@ const getVehicleName = (vehicle) => {
   return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.vin || '';
 };
 
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -72,7 +80,7 @@ Deno.serve(async (req) => {
     if (customerIds.length > 0) {
       const { data, error } = await supabase
         .from('Customer')
-        .select('id, first_name, last_name, org_name')
+        .select('id, first_name, last_name, org_name, phone')
         .in('id', customerIds);
 
       if (error) {
@@ -86,7 +94,7 @@ Deno.serve(async (req) => {
     if (vehicleIds.length > 0) {
       const { data, error } = await supabase
         .from('Vehicle')
-        .select('id, year, make, model, vin')
+        .select('id, year, make, model, vin, unit_number')
         .in('id', vehicleIds);
 
       if (error) {
@@ -120,7 +128,9 @@ Deno.serve(async (req) => {
         title: note.title?.trim() || '',
         comment: note.comment?.trim() || 'No comment added yet.',
         customer: getCustomerName(customer),
+        customerPhone: formatPhone(customer?.phone || ''),
         vehicle: getVehicleName(vehicle),
+        vehicleUnitNumber: vehicle?.unit_number ? String(vehicle.unit_number).trim() : '',
         woNumber,
         colour: note.colour || 'white'
       };
