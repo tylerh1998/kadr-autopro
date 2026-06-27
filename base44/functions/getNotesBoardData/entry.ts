@@ -2,13 +2,13 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 const getCustomerName = (customer) => {
-  if (!customer) return 'No customer linked';
-  return customer.org_name?.trim() || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'No customer linked';
+  if (!customer) return '';
+  return customer.org_name?.trim() || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || '';
 };
 
 const getVehicleName = (vehicle) => {
-  if (!vehicle) return 'No vehicle linked';
-  return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.vin || 'Vehicle linked';
+  if (!vehicle) return '';
+  return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || vehicle.vin || '';
 };
 
 Deno.serve(async (req) => {
@@ -99,17 +99,25 @@ Deno.serve(async (req) => {
     const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
     const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
 
-    const cards = (notes || []).map((note, index) => {
+    const cards = (notes || []).map((note) => {
       const workOrder = note.work_order_id ? workOrderMap.get(note.work_order_id) || null : null;
-      const customer = customerMap.get(note.customer_id || workOrder?.customer_id) || null;
-      const vehicle = vehicleMap.get(note.vehicle_id || workOrder?.vehicle_id) || null;
-      const woNumber = workOrder?.wo_number || workOrder?.ro_number || 'Unassigned';
+      const customerId = note.customer_id || workOrder?.customer_id || '';
+      const vehicleId = note.vehicle_id || workOrder?.vehicle_id || '';
+      const customer = customerMap.get(customerId) || null;
+      const vehicle = vehicleMap.get(vehicleId) || null;
+      const woNumber = workOrder?.wo_number || workOrder?.ro_number || '';
 
       return {
         id: note.id,
         noteId: note.id,
         workOrder,
-        title: note.title?.trim() || workOrder?.description || `Untitled Note ${index + 1}`,
+        workOrderId: workOrder?.id || '',
+        customerId,
+        vehicleId,
+        hasCustomer: !!customerId,
+        hasVehicle: !!vehicleId,
+        hasWorkOrder: !!workOrder,
+        title: note.title?.trim() || '',
         comment: note.comment?.trim() || 'No comment added yet.',
         customer: getCustomerName(customer),
         vehicle: getVehicleName(vehicle),
