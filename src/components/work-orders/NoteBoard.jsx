@@ -2,10 +2,9 @@ import React from 'react';
 import NoteColumn from './NoteColumn';
 
 const columns = [
-  { key: 'column_1', title: 'Column 1' },
-  { key: 'column_2', title: 'Column 2' },
-  { key: 'column_3', title: 'Column 3' },
-  { key: 'column_4', title: 'Column 4' }
+  { key: 'column_1' },
+  { key: 'column_2' },
+  { key: 'column_3' }
 ];
 
 const getCustomerName = (workOrder, customers) => {
@@ -39,11 +38,10 @@ export default function NoteBoard({ workOrders, customers, vehicles, onSelect })
   }));
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
       {distributedColumns.map((column) => (
         <NoteColumn
           key={column.key}
-          column={column}
           cards={column.cards}
           onSelect={onSelect}
         />
