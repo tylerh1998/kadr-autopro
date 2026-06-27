@@ -28,9 +28,14 @@ export default function FinancialDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
-  const [daysBack, setDaysBack] = useState(365);
-  const [fromDate, setFromDate] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
-  const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const initialToDate = format(new Date(), 'yyyy-MM-dd');
+  const initialFromDate = format(subMonths(new Date(), 12), 'yyyy-MM-dd');
+  const [appliedDaysBack, setAppliedDaysBack] = useState(365);
+  const [appliedFromDate, setAppliedFromDate] = useState(initialFromDate);
+  const [appliedToDate, setAppliedToDate] = useState(initialToDate);
+  const [draftDaysBack, setDraftDaysBack] = useState(365);
+  const [draftFromDate, setDraftFromDate] = useState(initialFromDate);
+  const [draftToDate, setDraftToDate] = useState(initialToDate);
   const [reportType, setReportType] = useState('cashFlow');
 
   const loadDashboardData = useCallback(async () => {
@@ -38,8 +43,8 @@ export default function FinancialDashboard() {
     try {
       const response = await base44.functions.invoke('getFinancialDashboardData', {
         dateRange: {
-          from: fromDate,
-          to: toDate
+          from: appliedFromDate,
+          to: appliedToDate
         }
       });
 
@@ -54,16 +59,32 @@ export default function FinancialDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate]);
+  }, [appliedFromDate, appliedToDate]);
 
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
 
   const handleDaysBackChange = (value) => {
-    setDaysBack(value);
-    const calculatedFromDate = format(subDays(new Date(toDate), parseInt(value) || 0), 'yyyy-MM-dd');
-    setFromDate(calculatedFromDate);
+    setDraftDaysBack(value);
+    const calculatedFromDate = format(subDays(new Date(draftToDate), parseInt(value) || 0), 'yyyy-MM-dd');
+    setDraftFromDate(calculatedFromDate);
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedDaysBack(draftDaysBack);
+    setAppliedFromDate(draftFromDate);
+    setAppliedToDate(draftToDate);
+  };
+
+  const applyQuickRange = (from, to) => {
+    const calculatedDaysBack = Math.max(0, Math.round((new Date(to) - new Date(from)) / 86400000));
+    setDraftDaysBack(calculatedDaysBack);
+    setDraftFromDate(from);
+    setDraftToDate(to);
+    setAppliedDaysBack(calculatedDaysBack);
+    setAppliedFromDate(from);
+    setAppliedToDate(to);
   };
 
   const handlePrint = () => {
@@ -173,7 +194,7 @@ export default function FinancialDashboard() {
                   <Label>Days Back</Label>
                   <Input
                     type="number"
-                    value={daysBack}
+                    value={draftDaysBack}
                     onChange={(e) => handleDaysBackChange(e.target.value)}
                     className="w-28"
                   />
@@ -182,8 +203,8 @@ export default function FinancialDashboard() {
                   <Label>From Date</Label>
                   <Input
                     type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    value={draftFromDate}
+                    onChange={(e) => setDraftFromDate(e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -191,12 +212,12 @@ export default function FinancialDashboard() {
                   <Label>To Date</Label>
                   <Input
                     type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    value={draftToDate}
+                    onChange={(e) => setDraftToDate(e.target.value)}
                     className="w-full"
                   />
                 </div>
-                <Button onClick={loadDashboardData} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={handleApplyFilters} className="bg-blue-600 hover:bg-blue-700">
                   <Calendar className="w-4 h-4 mr-2" />
                   Apply
                 </Button>
@@ -223,8 +244,10 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const now = new Date();
-                    setFromDate(format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'));
-                    setToDate(format(now, 'yyyy-MM-dd'));
+                    applyQuickRange(
+                      format(new Date(now.getFullYear(), now.getMonth(), 1), 'yyyy-MM-dd'),
+                      format(now, 'yyyy-MM-dd')
+                    );
                   }}
                 >
                   This Month
@@ -236,8 +259,7 @@ export default function FinancialDashboard() {
                     const now = new Date();
                     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
                     const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
-                    setFromDate(format(lastMonth, 'yyyy-MM-dd'));
-                    setToDate(format(lastDay, 'yyyy-MM-dd'));
+                    applyQuickRange(format(lastMonth, 'yyyy-MM-dd'), format(lastDay, 'yyyy-MM-dd'));
                   }}
                 >
                   Last Month
@@ -247,8 +269,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const now = new Date();
-                    setFromDate(format(subMonths(now, 3), 'yyyy-MM-dd'));
-                    setToDate(format(now, 'yyyy-MM-dd'));
+                    applyQuickRange(format(subMonths(now, 3), 'yyyy-MM-dd'), format(now, 'yyyy-MM-dd'));
                   }}
                 >
                   Last 3 Months
@@ -258,8 +279,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear();
-                    setFromDate(`${year}-01-01`);
-                    setToDate(`${year}-03-31`);
+                    applyQuickRange(`${year}-01-01`, `${year}-03-31`);
                   }}
                 >
                   Q1
@@ -269,8 +289,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear();
-                    setFromDate(`${year}-04-01`);
-                    setToDate(`${year}-06-30`);
+                    applyQuickRange(`${year}-04-01`, `${year}-06-30`);
                   }}
                 >
                   Q2
@@ -280,8 +299,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear();
-                    setFromDate(`${year}-07-01`);
-                    setToDate(`${year}-09-30`);
+                    applyQuickRange(`${year}-07-01`, `${year}-09-30`);
                   }}
                 >
                   Q3
@@ -291,8 +309,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear();
-                    setFromDate(`${year}-10-01`);
-                    setToDate(`${year}-12-31`);
+                    applyQuickRange(`${year}-10-01`, `${year}-12-31`);
                   }}
                 >
                   Q4
@@ -302,8 +319,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear();
-                    setFromDate(`${year}-01-01`);
-                    setToDate(format(new Date(), 'yyyy-MM-dd'));
+                    applyQuickRange(`${year}-01-01`, format(new Date(), 'yyyy-MM-dd'));
                   }}
                 >
                   This Year
@@ -313,8 +329,7 @@ export default function FinancialDashboard() {
                   size="sm"
                   onClick={() => {
                     const year = new Date().getFullYear() - 1;
-                    setFromDate(`${year}-01-01`);
-                    setToDate(`${year}-12-31`);
+                    applyQuickRange(`${year}-01-01`, `${year}-12-31`);
                   }}
                 >
                   Last Year
@@ -325,7 +340,7 @@ export default function FinancialDashboard() {
 
           <div className="print-area">
             <div className="print-title" style={{ display: 'none' }}>
-              {getReportLabel()} - {format(new Date(fromDate), 'MMM d, yyyy')} to {format(new Date(toDate), 'MMM d, yyyy')}
+              {getReportLabel()} - {format(new Date(appliedFromDate), 'MMM d, yyyy')} to {format(new Date(appliedToDate), 'MMM d, yyyy')}
             </div>
             {renderReport()}
           </div>
