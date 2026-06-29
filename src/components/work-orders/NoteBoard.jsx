@@ -1,29 +1,38 @@
 import React from 'react';
+import { DragDropContext } from '@hello-pangea/dnd';
 import NoteColumn from './NoteColumn';
+import { buildNoteBoardColumns, reorderNoteBoardColumns } from '@/components/work-orders/note-board/noteBoardUtils';
 
-const columns = [
-  { key: 'column_1' },
-  { key: 'column_2' },
-  { key: 'column_3' }
-];
+export default function NoteBoard({ cards = [], onSelect, onColourChange, onCommentSave, onReorder, isReorderEnabled = true }) {
+  const columns = buildNoteBoardColumns(cards);
 
-export default function NoteBoard({ cards = [], onSelect, onColourChange, onCommentSave }) {
-  const distributedColumns = columns.map((column, index) => ({
-    ...column,
-    cards: cards.filter((_, cardIndex) => cardIndex % columns.length === index)
-  }));
+  const handleDragEnd = (result) => {
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const reorderedCards = reorderNoteBoardColumns(columns, source, destination);
+    if (!reorderedCards) return;
+
+    onReorder?.(reorderedCards);
+  };
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-      {distributedColumns.map((column) => (
-        <NoteColumn
-          key={column.key}
-          cards={column.cards}
-          onSelect={onSelect}
-          onColourChange={onColourChange}
-          onCommentSave={onCommentSave}
-        />
-      ))}
-    </div>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {columns.map((column) => (
+          <NoteColumn
+            key={column.key}
+            columnKey={column.key}
+            cards={column.cards}
+            onSelect={onSelect}
+            onColourChange={onColourChange}
+            onCommentSave={onCommentSave}
+            isDragDisabled={!isReorderEnabled}
+            isDropDisabled={!isReorderEnabled}
+          />
+        ))}
+      </div>
+    </DragDropContext>
   );
 }

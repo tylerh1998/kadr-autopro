@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     const { data: notes, error: notesError } = await supabase
       .from('Note')
-      .select('id, title, comment, customer_id, vehicle_id, work_order_id, colour, updated_at, created_at')
+      .select('id, title, comment, customer_id, vehicle_id, work_order_id, colour, board_column, board_order, updated_at, created_at')
       .order('updated_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false, nullsFirst: false });
 
@@ -106,14 +106,24 @@ Deno.serve(async (req) => {
 
     const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
     const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+    const fallbackColumnCounts = {
+      column_1: 0,
+      column_2: 0,
+      column_3: 0
+    };
 
-    const cards = (notes || []).map((note) => {
+    const cards = (notes || []).map((note, index) => {
       const workOrder = note.work_order_id ? workOrderMap.get(note.work_order_id) || null : null;
       const customerId = note.customer_id || workOrder?.customer_id || '';
       const vehicleId = note.vehicle_id || workOrder?.vehicle_id || '';
       const customer = customerMap.get(customerId) || null;
       const vehicle = vehicleMap.get(vehicleId) || null;
       const woNumber = workOrder?.wo_number || workOrder?.ro_number || '';
+      const fallbackColumn = `column_${(index % 3) + 1}`;
+      const boardColumn = ['column_1', 'column_2', 'column_3'].includes(note.board_column) ? note.board_column : fallbackColumn;
+      const fallbackOrder = fallbackColumnCounts[boardColumn]++;
+      const parsedBoardOrder = Number(note.board_order);
+      const boardOrder = Number.isFinite(parsedBoardOrder) ? parsedBoardOrder : fallbackOrder;
 
       return {
         id: note.id,
@@ -132,7 +142,9 @@ Deno.serve(async (req) => {
         vehicle: getVehicleName(vehicle),
         vehicleUnitNumber: vehicle?.unit_number ? String(vehicle.unit_number).trim() : '',
         woNumber,
-        colour: note.colour || 'white'
+        colour: note.colour || 'white',
+        boardColumn,
+        boardOrder
       };
     }).filter((card) => {
       if (!searchTerm) return true;

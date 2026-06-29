@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, MoreHorizontal, Palette, Pin, Share2, User } from 'lucide-react';
+import { Car, GripVertical, MoreHorizontal, Palette, Pin, Share2, User } from 'lucide-react';
 import NoteEntityButton from './note-card/NoteEntityButton';
 import NoteUtilityButton from './note-card/NoteUtilityButton';
 import NoteWorkOrderButton from './note-card/NoteWorkOrderButton';
@@ -96,13 +96,20 @@ const cardThemes = {
   }
 };
 
-export default function NoteCard({ card, onSelect, onColourChange, onCommentSave }) {
+export default function NoteCard({ card, onSelect, onColourChange, onCommentSave, dragHandleProps, isDragging = false }) {
   const cardTheme = cardThemes[card.colour] || cardThemes.white;
   const vehicleUnitText = card.vehicleUnitNumber ? `Unit # ${card.vehicleUnitNumber}` : '';
 
   return (
-    <article className={cardTheme.wrapper}>
-      <div className="mb-4 flex items-center justify-end gap-3">
+    <article className={`${cardTheme.wrapper} ${isDragging ? 'shadow-[0_18px_36px_rgba(15,23,42,0.16)]' : ''}`}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div
+          {...dragHandleProps}
+          className={`rounded-full p-1 ${dragHandleProps ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          aria-label="Drag note"
+        >
+          <GripVertical className={`h-4 w-4 ${cardTheme.icon}`} />
+        </div>
         <Pin className={`h-4 w-4 ${cardTheme.icon}`} />
       </div>
 

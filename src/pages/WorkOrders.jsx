@@ -536,6 +536,36 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleNoteBoardReorder = async (reorderedCards) => {
+    const previousCards = noteCards;
+    setNoteCards(reorderedCards);
+
+    const changedCards = reorderedCards.filter((card) => {
+      const previousCard = previousCards.find((item) => item.noteId === card.noteId);
+      return !previousCard || previousCard.boardColumn !== card.boardColumn || Number(previousCard.boardOrder) !== Number(card.boardOrder);
+    });
+
+    if (changedCards.length === 0) return;
+
+    try {
+      await Promise.all(changedCards.map((card) =>
+        base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'Note',
+          id: card.noteId,
+          data: {
+            board_column: card.boardColumn,
+            board_order: String(card.boardOrder)
+          }
+        })
+      ));
+    } catch (error) {
+      console.error('Error updating note board order:', error);
+      setNoteCards(previousCards);
+      alert('Failed to save note order. Please try again.');
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1704,6 +1734,8 @@ export default function WorkOrdersPage() {
                   onSelect={handleEdit}
                   onColourChange={handleNoteColourChange}
                   onCommentSave={handleNoteCommentSave}
+                  onReorder={handleNoteBoardReorder}
+                  isReorderEnabled={!debouncedSearchTerm.trim()}
                 />
               </div>
             </TabsContent>
