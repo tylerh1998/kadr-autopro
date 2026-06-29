@@ -584,9 +584,10 @@ export default function CustomerARTransactionsPage() {
   const TransactionTable = ({ data, showPaymentDetails = false }) => {
     const totalCharges = data.reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0);
     const totalPayments = data.reduce((sum, transaction) => sum + (Number(transaction.payment) || 0), 0);
+    const visibleBalanceTotal = data.reduce((sum, transaction) => sum + (Number(transaction.balance) || 0), 0);
     const closingOwing = showPaymentDetails
       ? totalPayments
-      : Number(openingBalance || 0) + totalCharges - totalPayments;
+      : Number(openingBalance || 0) + visibleBalanceTotal;
     const showTotalsRow = showPaymentDetails
       ? data.length > 0
       : data.length > 0 || Math.abs(openingBalance) > 0.005;
