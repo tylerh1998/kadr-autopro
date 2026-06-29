@@ -3,11 +3,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
 const toolbarOptions = [
-  [{ header: [1, 2, 3, false] }],
-  ['bold', 'italic', 'underline', 'strike'],
-  [{ list: 'ordered' }, { list: 'bullet' }],
-  ['blockquote', 'link'],
-  ['clean']
+  ['bold', 'italic', 'underline', 'strike', { list: 'ordered' }, { list: 'bullet' }]
 ];
 
 const escapeHtml = (value = '') => value
@@ -159,7 +155,7 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
             value={draftValue}
             onChange={setDraftValue}
             modules={{ toolbar: toolbarOptions }}
-            className="rounded-xl bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200"
+            className="rounded-xl bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:flex [&_.ql-toolbar]:flex-nowrap [&_.ql-toolbar]:items-center [&_.ql-toolbar]:gap-1 [&_.ql-toolbar]:overflow-x-auto [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200 [&_.ql-toolbar]:px-2 [&_.ql-toolbar_.ql-formats]:mr-0 [&_.ql-toolbar_.ql-formats]:flex [&_.ql-toolbar_.ql-toolbar_.ql-formats]:items-center"
           />
           <div className="text-xs text-slate-500">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
         </div>
