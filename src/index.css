@@ -157,6 +157,50 @@ button:focus-visible {
   }
 }
 
+.note-editor {
+  --note-editor-accent: #64748b;
+  --note-editor-accent-soft: rgba(100, 116, 139, 0.14);
+}
+
+.note-editor .ql-snow.ql-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  overflow: hidden;
+}
+
+.note-editor .ql-snow.ql-toolbar .ql-formats {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-right: 0;
+}
+
+.note-editor .ql-snow.ql-toolbar button {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0.1875rem;
+  border-radius: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.note-editor .ql-snow.ql-toolbar button:hover,
+.note-editor .ql-snow.ql-toolbar button:focus-visible,
+.note-editor .ql-snow.ql-toolbar button.ql-active {
+  background: var(--note-editor-accent-soft);
+}
+
+.note-editor .ql-snow.ql-toolbar button .ql-stroke,
+.note-editor .ql-snow.ql-toolbar button .ql-stroke-miter {
+  stroke: var(--note-editor-accent);
+}
+
+.note-editor .ql-snow.ql-toolbar button .ql-fill,
+.note-editor .ql-snow.ql-toolbar button .ql-stroke.ql-fill {
+  fill: var(--note-editor-accent);
+}
+
 .print-only {
   display: none;
 }

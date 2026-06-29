@@ -19,7 +19,15 @@ const normalizeContent = (value = '') => {
   return `<p>${escapeHtml(value).replace(/\n/g, '<br />')}</p>`;
 };
 
-export default function NoteEditableContent({ title = '', comment = '', onSave, containerClassName = '', titleClassName = '', contentClassName = '' }) {
+const editorThemeVars = {
+  white: { accent: '#64748b', soft: 'rgba(100, 116, 139, 0.14)' },
+  blue: { accent: '#2563eb', soft: 'rgba(59, 130, 246, 0.16)' },
+  green: { accent: '#15803d', soft: 'rgba(34, 197, 94, 0.16)' },
+  yellow: { accent: '#a16207', soft: 'rgba(234, 179, 8, 0.18)' },
+  pink: { accent: '#be185d', soft: 'rgba(236, 72, 153, 0.16)' }
+};
+
+export default function NoteEditableContent({ title = '', comment = '', onSave, editorTheme = 'white', containerClassName = '', titleClassName = '', contentClassName = '' }) {
   const wrapperRef = useRef(null);
   const quillRef = useRef(null);
   const titleInputRef = useRef(null);
@@ -137,8 +145,17 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
     }
   };
 
+  const activeEditorTheme = editorThemeVars[editorTheme] || editorThemeVars.white;
+
   return (
-    <div ref={wrapperRef} className={containerClassName}>
+    <div
+      ref={wrapperRef}
+      className={`note-editor ${containerClassName}`}
+      style={{
+        '--note-editor-accent': activeEditorTheme.accent,
+        '--note-editor-accent-soft': activeEditorTheme.soft
+      }}
+    >
       {isEditing ? (
         <div className="space-y-2">
           <input
@@ -155,7 +172,7 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
             value={draftValue}
             onChange={setDraftValue}
             modules={{ toolbar: toolbarOptions }}
-            className="rounded-xl bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:flex [&_.ql-toolbar]:flex-nowrap [&_.ql-toolbar]:items-center [&_.ql-toolbar]:gap-1 [&_.ql-toolbar]:overflow-x-auto [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200 [&_.ql-toolbar]:px-2 [&_.ql-toolbar_.ql-formats]:mr-0 [&_.ql-toolbar_.ql-formats]:flex [&_.ql-toolbar_.ql-toolbar_.ql-formats]:items-center"
+            className="note-editor-quill rounded-xl bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200 [&_.ql-toolbar]:px-2"
           />
           <div className="text-xs text-slate-500">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
         </div>
