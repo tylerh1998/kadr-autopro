@@ -167,14 +167,7 @@ export default function ReconcilePage() {
   }, [bankAccountId, currentUser]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      releaseBankAccountLock();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       releaseBankAccountLock();
     };
   }, [releaseBankAccountLock]);
