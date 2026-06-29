@@ -177,12 +177,16 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
           <div className="text-xs text-slate-500">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
             <div className={`${titleClassName} ${savedTitle ? '' : 'min-h-[18px]'}`}>{savedTitle || ' '}</div>
           </button>
-          <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
-            <div className={`ql-editor min-h-[96px] cursor-text rounded-xl p-0 [&_ol]:pl-6 [&_p]:my-0 [&_ul]:pl-6 ${contentClassName}`} dangerouslySetInnerHTML={{ __html: savedValue }} />
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="block w-full rounded-xl border border-slate-200 bg-white text-left transition-colors hover:border-slate-300"
+          >
+            <div className={`ql-editor min-h-[120px] cursor-text rounded-xl px-3 py-2 [&_ol]:pl-6 [&_p]:my-0 [&_ul]:pl-6 ${contentClassName}`} dangerouslySetInnerHTML={{ __html: savedValue }} />
           </button>
         </div>
       )}
