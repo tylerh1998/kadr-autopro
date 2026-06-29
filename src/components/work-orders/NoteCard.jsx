@@ -104,9 +104,9 @@ export default function NoteCard({ card, onSelect, onColourChange, onCommentSave
       <NoteEditableContent
         title={card.title || ''}
         comment={card.comment || ''}
-        onSave={(comment) => onCommentSave?.(card.noteId, comment)}
+        onSave={(payload) => onCommentSave?.(card.noteId, payload)}
         containerClassName={cardTheme.body}
-        titleClassName="mb-1 min-h-[20px] text-sm font-medium text-slate-700"
+        titleClassName="text-sm font-medium text-slate-700"
         contentClassName={`text-sm leading-6 ${cardTheme.bodyText}`}
       />
 

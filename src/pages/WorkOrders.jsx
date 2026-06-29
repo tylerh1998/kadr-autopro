@@ -518,10 +518,12 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleNoteCommentSave = async (noteId, comment) => {
+  const handleNoteCommentSave = async (noteId, payload) => {
+    const nextTitle = typeof payload === 'object' && payload !== null ? (payload.title || '') : '';
+    const nextComment = typeof payload === 'object' && payload !== null ? payload.comment : payload;
     const previousCards = noteCards;
     const nextCards = noteCards.map((card) => (
-      card.noteId === noteId ? { ...card, comment } : card
+      card.noteId === noteId ? { ...card, title: nextTitle, comment: nextComment } : card
     ));
 
     setNoteCards(nextCards);
@@ -531,10 +533,13 @@ export default function WorkOrdersPage() {
         action: 'update',
         table: 'Note',
         id: noteId,
-        data: { comment }
+        data: {
+          title: nextTitle,
+          comment: nextComment
+        }
       });
     } catch (error) {
-      console.error('Error updating note comment:', error);
+      console.error('Error updating note content:', error);
       setNoteCards(previousCards);
       throw error;
     }

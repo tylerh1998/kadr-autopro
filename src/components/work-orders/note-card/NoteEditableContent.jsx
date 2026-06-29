@@ -26,11 +26,19 @@ const normalizeContent = (value = '') => {
 export default function NoteEditableContent({ title = '', comment = '', onSave, containerClassName = '', titleClassName = '', contentClassName = '' }) {
   const wrapperRef = useRef(null);
   const quillRef = useRef(null);
+  const titleInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [savedTitle, setSavedTitle] = useState(title || '');
+  const [draftTitle, setDraftTitle] = useState(title || '');
   const [savedValue, setSavedValue] = useState(normalizeContent(comment));
   const [draftValue, setDraftValue] = useState(normalizeContent(comment));
+
+  useEffect(() => {
+    setSavedTitle(title || '');
+    setDraftTitle(title || '');
+  }, [title]);
 
   useEffect(() => {
     const normalized = normalizeContent(comment);
@@ -42,6 +50,10 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
     if (!isEditing) return;
 
     const focusTimer = window.setTimeout(() => {
+      if (!savedTitle && !draftTitle) {
+        titleInputRef.current?.focus();
+        return;
+      }
       quillRef.current?.getEditor?.().focus();
     }, 0);
 
@@ -56,11 +68,11 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
       window.clearTimeout(focusTimer);
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [isEditing, draftValue, savedValue]);
+  }, [isEditing, draftTitle, draftValue, savedTitle, savedValue]);
 
   const handleSave = async () => {
     if (isSaving) return;
-    if (draftValue === savedValue) {
+    if (draftValue === savedValue && draftTitle === savedTitle) {
       setError('');
       setIsEditing(false);
       return;
@@ -70,10 +82,15 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
     setError('');
 
     try {
-      await onSave?.(draftValue);
+      await onSave?.({
+        title: draftTitle.trim(),
+        comment: draftValue
+      });
+      setSavedTitle(draftTitle.trim());
       setSavedValue(draftValue);
       setIsEditing(false);
     } catch (saveError) {
+      setDraftTitle(savedTitle);
       setDraftValue(savedValue);
       setError(saveError?.message || 'Failed to save note.');
       setIsEditing(false);
@@ -84,9 +101,16 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
 
   return (
     <div ref={wrapperRef} className={containerClassName}>
-      {title ? <div className={titleClassName}>{title}</div> : null}
       {isEditing ? (
         <div className="space-y-2">
+          <input
+            ref={titleInputRef}
+            type="text"
+            value={draftTitle}
+            onChange={(event) => setDraftTitle(event.target.value)}
+            placeholder=""
+            className={`w-full rounded-none border-0 bg-transparent p-0 shadow-none outline-none focus-visible:ring-0 ${titleClassName}`}
+          />
           <ReactQuill
             ref={quillRef}
             theme="snow"
@@ -98,9 +122,14 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
           <div className="text-xs text-slate-500">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
         </div>
       ) : (
-        <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
-          <div className={`ql-editor min-h-[96px] cursor-text rounded-xl p-0 [&_ol]:pl-6 [&_p]:my-0 [&_ul]:pl-6 ${contentClassName}`} dangerouslySetInnerHTML={{ __html: savedValue }} />
-        </button>
+        <div className="space-y-1">
+          <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
+            <div className={`${titleClassName} ${savedTitle ? '' : 'min-h-[18px]'}`}>{savedTitle || ' '}</div>
+          </button>
+          <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
+            <div className={`ql-editor min-h-[96px] cursor-text rounded-xl p-0 [&_ol]:pl-6 [&_p]:my-0 [&_ul]:pl-6 ${contentClassName}`} dangerouslySetInnerHTML={{ __html: savedValue }} />
+          </button>
+        </div>
       )}
       {error ? <div className="mt-2 text-xs text-red-600">{error}</div> : null}
     </div>
