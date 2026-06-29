@@ -49,8 +49,9 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
   useEffect(() => {
     if (!isEditing) return;
 
+    const focusTitleFirst = !savedTitle;
     const focusTimer = window.setTimeout(() => {
-      if (!savedTitle && !draftTitle) {
+      if (focusTitleFirst) {
         titleInputRef.current?.focus();
         return;
       }
@@ -68,7 +69,7 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
       window.clearTimeout(focusTimer);
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [isEditing, draftTitle, draftValue, savedTitle, savedValue]);
+  }, [isEditing, savedTitle]);
 
   const handleSave = async () => {
     if (isSaving) return;
