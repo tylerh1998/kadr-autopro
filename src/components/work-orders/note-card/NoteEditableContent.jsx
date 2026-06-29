@@ -27,6 +27,11 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
   const wrapperRef = useRef(null);
   const quillRef = useRef(null);
   const titleInputRef = useRef(null);
+  const draftTitleRef = useRef(title || '');
+  const savedTitleRef = useRef(title || '');
+  const draftValueRef = useRef(normalizeContent(comment));
+  const savedValueRef = useRef(normalizeContent(comment));
+  const isSavingRef = useRef(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -36,15 +41,40 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
   const [draftValue, setDraftValue] = useState(normalizeContent(comment));
 
   useEffect(() => {
-    setSavedTitle(title || '');
-    setDraftTitle(title || '');
+    const nextTitle = title || '';
+    setSavedTitle(nextTitle);
+    setDraftTitle(nextTitle);
+    savedTitleRef.current = nextTitle;
+    draftTitleRef.current = nextTitle;
   }, [title]);
 
   useEffect(() => {
     const normalized = normalizeContent(comment);
     setSavedValue(normalized);
     setDraftValue(normalized);
+    savedValueRef.current = normalized;
+    draftValueRef.current = normalized;
   }, [comment]);
+
+  useEffect(() => {
+    draftTitleRef.current = draftTitle;
+  }, [draftTitle]);
+
+  useEffect(() => {
+    savedTitleRef.current = savedTitle;
+  }, [savedTitle]);
+
+  useEffect(() => {
+    draftValueRef.current = draftValue;
+  }, [draftValue]);
+
+  useEffect(() => {
+    savedValueRef.current = savedValue;
+  }, [savedValue]);
+
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+  }, [isSaving]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -72,30 +102,41 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
   }, [isEditing, savedTitle]);
 
   const handleSave = async () => {
-    if (isSaving) return;
-    if (draftValue === savedValue && draftTitle === savedTitle) {
+    if (isSavingRef.current) return;
+
+    const nextDraftTitle = draftTitleRef.current;
+    const nextSavedTitle = savedTitleRef.current;
+    const nextDraftValue = draftValueRef.current;
+    const nextSavedValue = savedValueRef.current;
+
+    if (nextDraftValue === nextSavedValue && nextDraftTitle === nextSavedTitle) {
       setError('');
       setIsEditing(false);
       return;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     setError('');
 
     try {
+      const trimmedTitle = nextDraftTitle.trim();
       await onSave?.({
-        title: draftTitle.trim(),
-        comment: draftValue
+        title: trimmedTitle,
+        comment: nextDraftValue
       });
-      setSavedTitle(draftTitle.trim());
-      setSavedValue(draftValue);
+      savedTitleRef.current = trimmedTitle;
+      savedValueRef.current = nextDraftValue;
+      setSavedTitle(trimmedTitle);
+      setSavedValue(nextDraftValue);
       setIsEditing(false);
     } catch (saveError) {
-      setDraftTitle(savedTitle);
-      setDraftValue(savedValue);
+      setDraftTitle(savedTitleRef.current);
+      setDraftValue(savedValueRef.current);
       setError(saveError?.message || 'Failed to save note.');
       setIsEditing(false);
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   };
