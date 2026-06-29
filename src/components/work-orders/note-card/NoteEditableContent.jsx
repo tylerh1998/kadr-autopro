@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const toolbarOptions = [
   [{ header: [1, 2, 3, false] }],
