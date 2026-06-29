@@ -28,6 +28,7 @@ import WorkPROTaskModal from "../components/work-orders/WorkPROTaskModal";
 import WorkPRODescriptionModal from "../components/work-orders/WorkPRODescriptionModal";
 import WorkPROConnectorModal from "../components/work-orders/WorkPROConnectorModal";
 import WorkPROModal from "../components/work-orders/WorkPROModal";
+import NoteWorkOrderLinkModal from "../components/work-orders/NoteWorkOrderLinkModal";
 import AppointmentsListModal from "../components/work-orders/AppointmentsListModal";
 import EditApptViaWoModal from "../components/work-orders/EditApptViaWoModal";
 import SchedulerViaWoModal from "../components/work-orders/SchedulerViaWoModal";
@@ -76,6 +77,9 @@ export default function WorkOrdersPage() {
   const [showSchedulerModal, setShowSchedulerModal] = useState(false);
   const [showNewWorkPROModal, setShowNewWorkPROModal] = useState(false);
   const [showTechTimeModal, setShowTechTimeModal] = useState(false);
+  const [showNoteLinkModal, setShowNoteLinkModal] = useState(false);
+  const [selectedNoteForLink, setSelectedNoteForLink] = useState(null);
+  const [isSavingNoteLink, setIsSavingNoteLink] = useState(false);
   const { openTechClockStatusModal } = useTechClockStatus();
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedProjectWorkOrder, setSelectedProjectWorkOrder] = useState(null);
@@ -563,6 +567,40 @@ export default function WorkOrdersPage() {
       console.error('Error updating note board order:', error);
       setNoteCards(previousCards);
       alert('Failed to save note order. Please try again.');
+    }
+  };
+
+  const handleNoteCardSelect = (card) => {
+    if (card?.hasWorkOrder && card?.workOrder?.ro_number) {
+      handleEdit(card.workOrder);
+      return;
+    }
+
+    setSelectedNoteForLink(card || null);
+    setShowNoteLinkModal(true);
+  };
+
+  const handleConnectNoteToWorkOrder = async (workOrder) => {
+    if (!selectedNoteForLink?.noteId || !workOrder?.id) return;
+
+    setIsSavingNoteLink(true);
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Note',
+        id: selectedNoteForLink.noteId,
+        data: {
+          work_order_id: workOrder.id
+        }
+      });
+      setShowNoteLinkModal(false);
+      setSelectedNoteForLink(null);
+      await loadData();
+    } catch (error) {
+      console.error('Error connecting note to work order:', error);
+      alert('Failed to connect work order. Please try again.');
+    } finally {
+      setIsSavingNoteLink(false);
     }
   };
 
@@ -1731,7 +1769,7 @@ export default function WorkOrdersPage() {
               <div className="space-y-6">
                 <NoteBoard
                   cards={noteCards}
-                  onSelect={handleEdit}
+                  onSelect={handleNoteCardSelect}
                   onColourChange={handleNoteColourChange}
                   onCommentSave={handleNoteCommentSave}
                   onReorder={handleNoteBoardReorder}
@@ -1832,6 +1870,18 @@ export default function WorkOrdersPage() {
         project={selectedProject}
       />
 
+      <NoteWorkOrderLinkModal
+        open={showNoteLinkModal}
+        onOpenChange={(open) => {
+          setShowNoteLinkModal(open);
+          if (!open) setSelectedNoteForLink(null);
+        }}
+        workOrders={workOrders}
+        customers={customers}
+        vehicles={vehicles}
+        onSelectWorkOrder={handleConnectNoteToWorkOrder}
+        isSaving={isSavingNoteLink}
+      />
 
     </div>
   );
