@@ -514,6 +514,28 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleNoteCommentSave = async (noteId, comment) => {
+    const previousCards = noteCards;
+    const nextCards = noteCards.map((card) => (
+      card.noteId === noteId ? { ...card, comment } : card
+    ));
+
+    setNoteCards(nextCards);
+
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Note',
+        id: noteId,
+        data: { comment }
+      });
+    } catch (error) {
+      console.error('Error updating note comment:', error);
+      setNoteCards(previousCards);
+      throw error;
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1681,6 +1703,7 @@ export default function WorkOrdersPage() {
                   cards={noteCards}
                   onSelect={handleEdit}
                   onColourChange={handleNoteColourChange}
+                  onCommentSave={handleNoteCommentSave}
                 />
               </div>
             </TabsContent>

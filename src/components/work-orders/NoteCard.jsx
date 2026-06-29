@@ -4,6 +4,7 @@ import NoteEntityButton from './note-card/NoteEntityButton';
 import NoteUtilityButton from './note-card/NoteUtilityButton';
 import NoteWorkOrderButton from './note-card/NoteWorkOrderButton';
 import NoteColorPicker from './note-card/NoteColorPicker';
+import NoteEditableContent from './note-card/NoteEditableContent';
 
 const actionsDisabled = true;
 
@@ -95,7 +96,7 @@ const cardThemes = {
   }
 };
 
-export default function NoteCard({ card, onSelect, onColourChange }) {
+export default function NoteCard({ card, onSelect, onColourChange, onCommentSave }) {
   const cardTheme = cardThemes[card.colour] || cardThemes.white;
   const vehicleUnitText = card.vehicleUnitNumber ? `Unit # ${card.vehicleUnitNumber}` : '';
 
@@ -136,10 +137,14 @@ export default function NoteCard({ card, onSelect, onColourChange }) {
         />
       </div>
 
-      <div className={cardTheme.body}>
-        <div className={cardTheme.titleLine}>{card.title || ''}</div>
-        <p className={`whitespace-pre-wrap text-sm leading-6 ${cardTheme.bodyText}`}>{card.comment}</p>
-      </div>
+      <NoteEditableContent
+        title={card.title || ''}
+        comment={card.comment || ''}
+        onSave={(comment) => onCommentSave?.(card.noteId, comment)}
+        containerClassName={cardTheme.body}
+        titleClassName={cardTheme.titleLine}
+        contentClassName={`text-sm leading-6 ${cardTheme.bodyText}`}
+      />
 
       <div className={`flex items-center justify-between gap-3 border-t pt-4 ${cardTheme.divider}`}>
         <div className="flex items-center gap-2">
