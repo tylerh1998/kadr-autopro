@@ -642,6 +642,27 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleNoteShareToggle = async (note) => {
+    if (!note?.noteId) return;
+
+    const nextStatus = String(note.status || '').toLowerCase() === 'shared' ? 'Private' : 'Shared';
+
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Note',
+        id: note.noteId,
+        data: {
+          status: nextStatus
+        }
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating note status:', error);
+      alert('Failed to update note status. Please try again.');
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1846,6 +1867,7 @@ export default function WorkOrdersPage() {
                   onSelect={handleNoteCardSelect}
                   onColourChange={handleNoteColourChange}
                   onCommentSave={handleNoteCommentSave}
+                  onShareToggle={handleNoteShareToggle}
                   onReorder={handleNoteBoardReorder}
                   isReorderEnabled={!debouncedSearchTerm.trim()}
                 />

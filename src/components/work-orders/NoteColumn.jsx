@@ -2,7 +2,7 @@ import React from 'react';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 import NoteCard from './NoteCard';
 
-export default function NoteColumn({ columnKey, cards, onSelect, onColourChange, onCommentSave, isDragDisabled, isDropDisabled }) {
+export default function NoteColumn({ columnKey, cards, onSelect, onColourChange, onCommentSave, onShareToggle, isDragDisabled, isDropDisabled }) {
   return (
     <Droppable droppableId={columnKey} isDropDisabled={isDropDisabled}>
       {(dropProvided, dropSnapshot) => (
@@ -21,6 +21,7 @@ export default function NoteColumn({ columnKey, cards, onSelect, onColourChange,
                       onSelect={onSelect}
                       onColourChange={onColourChange}
                       onCommentSave={onCommentSave}
+                      onShareToggle={onShareToggle}
                       dragHandleProps={dragProvided.dragHandleProps}
                       isDragging={dragSnapshot.isDragging}
                     />

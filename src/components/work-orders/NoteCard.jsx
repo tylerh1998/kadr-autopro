@@ -4,8 +4,6 @@ import NoteUtilityButton from './note-card/NoteUtilityButton';
 import NoteColorPicker from './note-card/NoteColorPicker';
 import NoteEditableContent from './note-card/NoteEditableContent';
 
-const actionsDisabled = true;
-
 const cardThemes = {
   white: {
     wrapper: 'overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
@@ -14,6 +12,7 @@ const cardThemes = {
     bodyText: 'text-slate-700',
     divider: 'border-slate-200',
     utilityButton: 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+    shareActiveButton: 'border-slate-200 bg-slate-100 text-slate-600',
     utilityIcon: 'text-slate-500',
     headerTitle: 'text-sm font-semibold text-slate-900',
     headerSubtitle: 'text-sm text-slate-600',
@@ -26,6 +25,7 @@ const cardThemes = {
     bodyText: 'text-slate-700',
     divider: 'border-blue-200',
     utilityButton: 'border-blue-200 bg-white text-blue-600 hover:bg-blue-100',
+    shareActiveButton: 'border-blue-200 bg-blue-100 text-blue-700',
     utilityIcon: 'text-blue-600',
     headerTitle: 'text-sm font-semibold text-slate-900',
     headerSubtitle: 'text-sm text-slate-700',
@@ -38,6 +38,7 @@ const cardThemes = {
     bodyText: 'text-slate-700',
     divider: 'border-green-200',
     utilityButton: 'border-green-200 bg-white text-green-700 hover:bg-green-100',
+    shareActiveButton: 'border-green-200 bg-green-100 text-green-800',
     utilityIcon: 'text-green-700',
     headerTitle: 'text-sm font-semibold text-slate-900',
     headerSubtitle: 'text-sm text-green-800',
@@ -50,6 +51,7 @@ const cardThemes = {
     bodyText: 'text-slate-700',
     divider: 'border-yellow-200',
     utilityButton: 'border-yellow-200 bg-white text-yellow-700 hover:bg-yellow-100',
+    shareActiveButton: 'border-yellow-200 bg-yellow-100 text-yellow-800',
     utilityIcon: 'text-yellow-700',
     headerTitle: 'text-sm font-semibold text-slate-900',
     headerSubtitle: 'text-sm text-yellow-800',
@@ -62,6 +64,7 @@ const cardThemes = {
     bodyText: 'text-slate-700',
     divider: 'border-pink-200',
     utilityButton: 'border-pink-200 bg-white text-pink-700 hover:bg-pink-100',
+    shareActiveButton: 'border-pink-200 bg-pink-100 text-pink-800',
     utilityIcon: 'text-pink-700',
     headerTitle: 'text-sm font-semibold text-slate-900',
     headerSubtitle: 'text-sm text-pink-800',
@@ -69,10 +72,14 @@ const cardThemes = {
   }
 };
 
-export default function NoteCard({ card, onSelect, onColourChange, onCommentSave, dragHandleProps, isDragging = false }) {
+export default function NoteCard({ card, onSelect, onColourChange, onCommentSave, onShareToggle, dragHandleProps, isDragging = false }) {
   const cardTheme = cardThemes[card.colour] || cardThemes.white;
   const workOrderTitle = [card.woNumber, card.customer].filter(Boolean).join(' - ');
   const vehicleLabel = card.vehicle || '';
+  const isShared = String(card.status || '').toLowerCase() === 'shared';
+  const shareButtonClass = isShared
+    ? cardTheme.shareActiveButton || cardTheme.utilityButton
+    : cardTheme.utilityButton;
 
   return (
     <article className={`${cardTheme.wrapper} ${isDragging ? 'shadow-[0_18px_36px_rgba(15,23,42,0.16)]' : ''}`}>
@@ -112,7 +119,14 @@ export default function NoteCard({ card, onSelect, onColourChange, onCommentSave
       />
 
       <div className={`flex items-center justify-start gap-2 border-t pt-4 ${cardTheme.divider}`}>
-        <NoteUtilityButton icon={Share2} label="Share" disabled={actionsDisabled} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
+        <NoteUtilityButton
+          icon={Share2}
+          label={isShared ? 'Make Private' : 'Make Shared'}
+          disabled={false}
+          onClick={() => onShareToggle?.(card)}
+          className={shareButtonClass}
+          iconClassName={cardTheme.utilityIcon}
+        />
         <NoteColorPicker
           icon={Palette}
           currentColour={card.colour}
@@ -120,7 +134,7 @@ export default function NoteCard({ card, onSelect, onColourChange, onCommentSave
           buttonClassName={cardTheme.utilityButton}
           buttonIconClassName={cardTheme.utilityIcon}
         />
-        <NoteUtilityButton icon={MoreHorizontal} label="More" disabled={actionsDisabled} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
+        <NoteUtilityButton icon={MoreHorizontal} label="More" disabled={true} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
       </div>
     </article>
   );
