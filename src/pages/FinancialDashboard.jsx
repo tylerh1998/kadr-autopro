@@ -18,11 +18,13 @@ import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendR
 import AccountBalancesByTypeReport from '@/components/financial-dashboard/AccountBalancesByTypeReport';
 import TopExpenseCategoriesReport from '@/components/financial-dashboard/TopExpenseCategoriesReport';
 import ThreeMonthPLReport from '@/components/financial-dashboard/ThreeMonthPLReport';
+import CustomerPaymentsBreakdownReport from '@/components/financial-dashboard/CustomerPaymentsBreakdownReport';
 
 const REPORT_OPTIONS = [
   { value: 'cashFlow', label: 'Cash Flow Trend' },
   { value: 'accountBalances', label: 'Account Balances by Type' },
   { value: 'topExpenses', label: 'Top Expense Categories' },
+  { value: 'customerPayments', label: 'Customer Payments Breakdown Report' },
   { value: 'threeMonthPL', label: 'Three Month P&L Report' }
 ];
 
@@ -150,6 +152,8 @@ export default function FinancialDashboard() {
         return charts.accountBalancesByType.length > 0 ? <AccountBalancesByTypeReport data={charts.accountBalancesByType} /> : null;
       case 'topExpenses':
         return charts.topExpenseCategories.length > 0 ? <TopExpenseCategoriesReport data={charts.topExpenseCategories} /> : null;
+      case 'customerPayments':
+        return <CustomerPaymentsBreakdownReport data={charts.customerPaymentsBreakdown} />;
       case 'threeMonthPL':
         if (threeMonthPLLoading) {
           return (

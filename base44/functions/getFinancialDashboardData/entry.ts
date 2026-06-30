@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
       glTransactions,
       bankAccountsResponse,
       bankTransactionsResponse,
-      chartOfAccounts
+      chartOfAccounts,
+      customerPaymentsResponse
     ] = await Promise.all([
       // Fetch GL Transactions in range
       base44.asServiceRole.entities.GLTransaction.filter({
@@ -62,7 +63,12 @@ Deno.serve(async (req) => {
         .select('*')
         .gte('transaction_date', fromDateStr)
         .order('transaction_date', { ascending: false }),
-      base44.asServiceRole.entities.ChartOfAccount.list()
+      base44.asServiceRole.entities.ChartOfAccount.list(),
+      supabase
+        .from('CustomerPayments')
+        .select('amount, payment_method, payment_date')
+        .gte('payment_date', fromDateStr)
+        .lte('payment_date', toDateStr)
     ]);
 
     if (bankAccountsResponse.error) {
@@ -73,8 +79,13 @@ Deno.serve(async (req) => {
       throw new Error(bankTransactionsResponse.error.message || 'Failed to fetch BankTransaction from Supabase');
     }
 
+    if (customerPaymentsResponse.error) {
+      throw new Error(customerPaymentsResponse.error.message || 'Failed to fetch CustomerPayments from Supabase');
+    }
+
     const bankAccounts = bankAccountsResponse.data || [];
     const bankTransactions = bankTransactionsResponse.data || [];
+    const customerPayments = customerPaymentsResponse.data || [];
 
     // Filter GL transactions by date range
     const filteredGLTransactions = glTransactions.filter(tx => {
@@ -343,6 +354,42 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 10);
 
+    const normalizeDateText = (value) => {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+      return match ? match[1] : raw;
+    };
+
+    const customerPaymentsByMethod = {};
+    const customerPaymentCountsByMethod = {};
+    let customerPaymentsTotalAmount = 0;
+    let customerPaymentsTotalCount = 0;
+
+    customerPayments.forEach((payment) => {
+      const paymentDate = normalizeDateText(payment.payment_date);
+      if (!paymentDate || paymentDate < fromDateStr || paymentDate > toDateStr) {
+        return;
+      }
+
+      const amount = Number(payment.amount) || 0;
+      const paymentMethod = String(payment.payment_method || '').trim() || 'Unspecified';
+
+      customerPaymentsTotalAmount += amount;
+      customerPaymentsTotalCount += 1;
+      customerPaymentsByMethod[paymentMethod] = (customerPaymentsByMethod[paymentMethod] || 0) + amount;
+      customerPaymentCountsByMethod[paymentMethod] = (customerPaymentCountsByMethod[paymentMethod] || 0) + 1;
+    });
+
+    const customerPaymentsBreakdownItems = Object.entries(customerPaymentsByMethod)
+      .map(([paymentMethod, amount]) => ({
+        paymentMethod,
+        amount: Math.round(amount * 100) / 100,
+        percentage: customerPaymentsTotalAmount === 0 ? 0 : (amount / customerPaymentsTotalAmount) * 100,
+        count: customerPaymentCountsByMethod[paymentMethod] || 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
     // --- Special Bank Stats for Cash Flow Trend Tab (Current Month) ---
     // Target Bank: 68b95ed97223c7b3d2882f5d
     // Period: Current Month (based on toDate)
@@ -410,7 +457,15 @@ Deno.serve(async (req) => {
           accountBalancesByType: Object.entries(accountBalancesByType)
             .filter(([type, amount]) => amount !== 0)
             .map(([type, amount]) => ({ type, amount })),
-          topExpenseCategories
+          topExpenseCategories,
+          customerPaymentsBreakdown: {
+            totalAmount: Math.round(customerPaymentsTotalAmount * 100) / 100,
+            totalCount: customerPaymentsTotalCount,
+            items: customerPaymentsBreakdownItems.map((item) => ({
+              ...item,
+              percentage: Math.round(item.percentage * 10) / 10
+            }))
+          }
         },
         bankAccountsSummary,
         targetBankStats
