@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
@@ -35,6 +35,7 @@ import SchedulerViaWoModal from "../components/work-orders/SchedulerViaWoModal";
 import NewWorkPROModal from "../components/work-orders/NewWorkPROModal";
 import TechTimeModal from "../components/work-orders/TechTimeModal";
 import NoteBoard from "../components/work-orders/NoteBoard";
+import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 export default function WorkOrdersPage() {
@@ -80,6 +81,8 @@ export default function WorkOrdersPage() {
   const [showNoteLinkModal, setShowNoteLinkModal] = useState(false);
   const [selectedNoteForLink, setSelectedNoteForLink] = useState(null);
   const [isSavingNoteLink, setIsSavingNoteLink] = useState(false);
+  const [notesStatusFilter, setNotesStatusFilter] = useState('shared');
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
   const { openTechClockStatusModal } = useTechClockStatus();
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedProjectWorkOrder, setSelectedProjectWorkOrder] = useState(null);
@@ -609,6 +612,36 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleCreateNote = async () => {
+    if (!currentUser?.id) {
+      alert('Unable to determine the current user. Please refresh and try again.');
+      return;
+    }
+
+    setIsCreatingNote(true);
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'Note',
+        data: {
+          title: '',
+          comment: '',
+          colour: 'white',
+          status: 'Private',
+          is_archived: false,
+          created_by: currentUser.id
+        }
+      });
+      setNotesStatusFilter('private');
+      await loadData();
+    } catch (error) {
+      console.error('Error creating note:', error);
+      alert('Failed to create note. Please try again.');
+    } finally {
+      setIsCreatingNote(false);
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1081,6 +1114,32 @@ export default function WorkOrdersPage() {
     return 0;
   });
 
+  const noteViewData = useMemo(() => {
+    const currentUserId = String(currentUser?.id || '');
+    const matchesShared = (note) => String(note?.status || '').toLowerCase() === 'shared' && note?.isArchived !== true;
+    const matchesPrivate = (note) => String(note?.status || '').toLowerCase() === 'private' && String(note?.createdBy || '') === currentUserId && note?.isArchived !== true;
+    const matchesArchived = (note) => {
+      const status = String(note?.status || '').toLowerCase();
+      if (status === 'shared') return note?.isArchived === true;
+      if (status === 'private') return String(note?.createdBy || '') === currentUserId && note?.isArchived === true;
+      return false;
+    };
+
+    const counts = {
+      shared: noteCards.filter(matchesShared).length,
+      private: noteCards.filter(matchesPrivate).length,
+      archived: noteCards.filter(matchesArchived).length
+    };
+
+    const filteredCards = noteCards.filter((note) => {
+      if (notesStatusFilter === 'private') return matchesPrivate(note);
+      if (notesStatusFilter === 'archived') return matchesArchived(note);
+      return matchesShared(note);
+    });
+
+    return { counts, filteredCards };
+  }, [noteCards, currentUser?.id, notesStatusFilter]);
+
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -1274,7 +1333,7 @@ export default function WorkOrdersPage() {
             </div>
 
             {/* Section 3: Status Filters - Conditional */}
-            {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro') && (
+            {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro' || activeTab === 'board') && (
               <Card className="mb-6">
                 <CardContent className="p-1">
                   {/* Estimates Statuses */}
@@ -1395,6 +1454,16 @@ export default function WorkOrdersPage() {
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
+                  )}
+
+                  {activeTab === 'board' && (
+                    <NotesStatusBar
+                      currentFilter={notesStatusFilter}
+                      onFilterChange={setNotesStatusFilter}
+                      counts={noteViewData.counts}
+                      onAddNote={handleCreateNote}
+                      isCreating={isCreatingNote}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -1773,7 +1842,7 @@ export default function WorkOrdersPage() {
             <TabsContent value="board">
               <div className="space-y-6">
                 <NoteBoard
-                  cards={noteCards}
+                  cards={noteViewData.filteredCards}
                   onSelect={handleNoteCardSelect}
                   onColourChange={handleNoteColourChange}
                   onCommentSave={handleNoteCommentSave}

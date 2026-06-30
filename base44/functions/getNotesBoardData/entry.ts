@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
     const { data: notes, error: notesError } = await supabase
       .from('Note')
-      .select('id, title, comment, customer_id, vehicle_id, work_order_id, colour, board_column, board_order, updated_at, created_at')
+      .select('id, title, comment, customer_id, vehicle_id, work_order_id, colour, board_column, board_order, status, is_archived, created_by, updated_at, created_at')
       .order('updated_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false, nullsFirst: false });
 
@@ -143,6 +143,9 @@ Deno.serve(async (req) => {
         vehicleUnitNumber: vehicle?.unit_number ? String(vehicle.unit_number).trim() : '',
         woNumber,
         colour: note.colour || 'white',
+        status: note.status || '',
+        isArchived: note.is_archived === true || note.is_archived === 'true',
+        createdBy: note.created_by || '',
         boardColumn,
         boardOrder
       };
