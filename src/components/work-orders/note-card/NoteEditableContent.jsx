@@ -178,9 +178,11 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
         </div>
       ) : (
         <div className="space-y-2">
-          <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
-            <div className={`${titleClassName} ${savedTitle ? '' : 'min-h-[18px]'}`}>{savedTitle || ' '}</div>
-          </button>
+          {savedTitle && (
+            <button type="button" onClick={() => setIsEditing(true)} className="block w-full text-left">
+              <div className={titleClassName}>{savedTitle}</div>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsEditing(true)}
