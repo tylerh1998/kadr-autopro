@@ -66,6 +66,22 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
                 <div>
                   <div className="text-sm font-medium text-slate-900">{item.paymentMethod}</div>
                   <div className="text-xs text-slate-500">{item.count} payment{item.count === 1 ? '' : 's'} · {item.percentage.toFixed(1)}% of total</div>
+                  {item.receivedOnAccounts !== null && (
+                    <div className="mt-2 space-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Method Total</span>
+                        <span className="font-medium text-slate-900">{formatCurrency(item.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                        <span>Received On Accounts</span>
+                        <span className="font-medium text-slate-900">{formatCurrency(item.receivedOnAccounts)}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-1">
+                        <span>Net</span>
+                        <span className="font-semibold text-slate-900">{formatCurrency(item.net)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="text-sm font-semibold text-slate-900">{formatCurrency(item.amount)}</div>

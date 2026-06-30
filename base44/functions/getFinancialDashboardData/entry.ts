@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.ChartOfAccount.list(),
       supabase
         .from('CustomerPayments')
-        .select('amount, payment_method, payment_date')
+        .select('amount, payment_method, payment_date, ar_pmt')
         .gte('payment_date', fromDateStr)
         .lte('payment_date', toDateStr)
     ]);
@@ -365,6 +365,7 @@ Deno.serve(async (req) => {
     const customerPaymentCountsByMethod = {};
     let customerPaymentsTotalAmount = 0;
     let customerPaymentsTotalCount = 0;
+    let receivedOnAccountsTotal = 0;
 
     customerPayments.forEach((payment) => {
       const paymentDate = normalizeDateText(payment.payment_date);
@@ -379,15 +380,26 @@ Deno.serve(async (req) => {
       customerPaymentsTotalCount += 1;
       customerPaymentsByMethod[paymentMethod] = (customerPaymentsByMethod[paymentMethod] || 0) + amount;
       customerPaymentCountsByMethod[paymentMethod] = (customerPaymentCountsByMethod[paymentMethod] || 0) + 1;
+
+      if (payment.ar_pmt === true) {
+        receivedOnAccountsTotal += amount;
+      }
     });
 
     const customerPaymentsBreakdownItems = Object.entries(customerPaymentsByMethod)
-      .map(([paymentMethod, amount]) => ({
-        paymentMethod,
-        amount: Math.round(amount * 100) / 100,
-        percentage: customerPaymentsTotalAmount === 0 ? 0 : (amount / customerPaymentsTotalAmount) * 100,
-        count: customerPaymentCountsByMethod[paymentMethod] || 0
-      }))
+      .map(([paymentMethod, amount]) => {
+        const isOnAccount = paymentMethod.trim().toLowerCase() === 'on_account';
+        const roundedAmount = Math.round(amount * 100) / 100;
+        const roundedReceivedOnAccounts = Math.round(receivedOnAccountsTotal * 100) / 100;
+        return {
+          paymentMethod,
+          amount: roundedAmount,
+          percentage: customerPaymentsTotalAmount === 0 ? 0 : (amount / customerPaymentsTotalAmount) * 100,
+          count: customerPaymentCountsByMethod[paymentMethod] || 0,
+          receivedOnAccounts: isOnAccount ? roundedReceivedOnAccounts : null,
+          net: isOnAccount ? Math.round((roundedAmount - roundedReceivedOnAccounts) * 100) / 100 : null
+        };
+      })
       .sort((a, b) => b.amount - a.amount);
 
     // --- Special Bank Stats for Cash Flow Trend Tab (Current Month) ---
@@ -461,6 +473,7 @@ Deno.serve(async (req) => {
           customerPaymentsBreakdown: {
             totalAmount: Math.round(customerPaymentsTotalAmount * 100) / 100,
             totalCount: customerPaymentsTotalCount,
+            receivedOnAccountsTotal: Math.round(receivedOnAccountsTotal * 100) / 100,
             items: customerPaymentsBreakdownItems.map((item) => ({
               ...item,
               percentage: Math.round(item.percentage * 10) / 10
