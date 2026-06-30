@@ -5,6 +5,7 @@ import { COLORS, formatCurrency } from './financialDashboardUtils';
 
 export default function CustomerPaymentsBreakdownReport({ data }) {
   const items = data?.items || [];
+  const chartItems = items.filter((item) => !item.excludeFromTotals);
   const totalAmount = data?.totalAmount || 0;
   const totalCount = data?.totalCount || 0;
 
@@ -38,25 +39,31 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
           </div>
         </div>
 
-        <ResponsiveContainer width="100%" height={340}>
-          <PieChart>
-            <Pie
-              data={items}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-              outerRadius={110}
-              fill="#8884d8"
-              dataKey="amount"
-            >
-              {items.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value) => formatCurrency(value)} />
-          </PieChart>
-        </ResponsiveContainer>
+        {chartItems.length > 0 ? (
+          <ResponsiveContainer width="100%" height={340}>
+            <PieChart>
+              <Pie
+                data={chartItems}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                outerRadius={110}
+                fill="#8884d8"
+                dataKey="amount"
+              >
+                {chartItems.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-[340px] items-center justify-center rounded-lg border border-dashed text-sm text-slate-500">
+            No received payment methods found for the selected period.
+          </div>
+        )}
 
         <div className="space-y-2">
           {items.map((item, index) => (
@@ -65,7 +72,11 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
                 <div className="mt-1 h-4 w-4 rounded" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <div>
                   <div className="text-sm font-medium text-slate-900">{item.paymentMethod}</div>
-                  <div className="text-xs text-slate-500">{item.count} payment{item.count === 1 ? '' : 's'} · {item.percentage.toFixed(1)}% of total</div>
+                  <div className="text-xs text-slate-500">
+                    {item.excludeFromTotals
+                      ? `${item.count} AR charge${item.count === 1 ? '' : 's'} · excluded from totals and chart`
+                      : `${item.count} payment${item.count === 1 ? '' : 's'} · ${item.percentage.toFixed(1)}% of total`}
+                  </div>
                   {item.receivedOnAccounts !== null && (
                     <div className="mt-2 space-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
                       <div className="flex items-center justify-between gap-4">

@@ -375,11 +375,15 @@ Deno.serve(async (req) => {
 
       const amount = Number(payment.amount) || 0;
       const paymentMethod = String(payment.payment_method || '').trim() || 'Unspecified';
+      const isOnAccount = paymentMethod.toLowerCase() === 'on_account';
 
-      customerPaymentsTotalAmount += amount;
-      customerPaymentsTotalCount += 1;
       customerPaymentsByMethod[paymentMethod] = (customerPaymentsByMethod[paymentMethod] || 0) + amount;
       customerPaymentCountsByMethod[paymentMethod] = (customerPaymentCountsByMethod[paymentMethod] || 0) + 1;
+
+      if (!isOnAccount) {
+        customerPaymentsTotalAmount += amount;
+        customerPaymentsTotalCount += 1;
+      }
 
       if (payment.ar_pmt === true) {
         receivedOnAccountsTotal += amount;
@@ -394,10 +398,11 @@ Deno.serve(async (req) => {
         return {
           paymentMethod,
           amount: roundedAmount,
-          percentage: customerPaymentsTotalAmount === 0 ? 0 : (amount / customerPaymentsTotalAmount) * 100,
+          percentage: isOnAccount || customerPaymentsTotalAmount === 0 ? 0 : (amount / customerPaymentsTotalAmount) * 100,
           count: customerPaymentCountsByMethod[paymentMethod] || 0,
           receivedOnAccounts: isOnAccount ? roundedReceivedOnAccounts : null,
-          net: isOnAccount ? Math.round((roundedAmount - roundedReceivedOnAccounts) * 100) / 100 : null
+          net: isOnAccount ? Math.round((roundedAmount - roundedReceivedOnAccounts) * 100) / 100 : null,
+          excludeFromTotals: isOnAccount
         };
       })
       .sort((a, b) => b.amount - a.amount);
