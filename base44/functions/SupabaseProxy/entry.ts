@@ -52,11 +52,21 @@ Deno.serve(async (req) => {
             }
             result = await query;
         } else if (action === 'create') {
-            const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
-            let insertData = {
-                id: newId,
-                ...payloadData
-            };
+            let insertData;
+
+            if (table === 'Note') {
+                insertData = {
+                    ...payloadData,
+                    created_by: payloadData?.created_by || user.id,
+                    status: payloadData?.status || 'Private'
+                };
+            } else {
+                const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+                insertData = {
+                    id: newId,
+                    ...payloadData
+                };
+            }
 
             if (table === 'BankTransaction' || table === 'SupplierInvoiceLine') {
                 const nowIso = getCurrentMountainTimeISO();
