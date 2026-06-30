@@ -164,6 +164,7 @@ export default function ReconcileReportPage() {
     <>
       <style>{`
         @media print {
+          #root { display: block !important; }
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
           .print-area { 
