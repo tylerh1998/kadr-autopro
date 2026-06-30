@@ -663,6 +663,25 @@ export default function WorkOrdersPage() {
     }
   };
 
+  const handleNoteArchiveToggle = async (note) => {
+    if (!note?.noteId) return;
+
+    try {
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'update',
+        table: 'Note',
+        id: note.noteId,
+        data: {
+          is_archived: note.isArchived !== true
+        }
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Error updating note archive state:', error);
+      alert('Failed to update note archive state. Please try again.');
+    }
+  };
+
   const handleOpenTaskModal = (e, project, workOrder) => {
     e.stopPropagation();
     setSelectedProject(project);
@@ -1868,6 +1887,7 @@ export default function WorkOrdersPage() {
                   onColourChange={handleNoteColourChange}
                   onCommentSave={handleNoteCommentSave}
                   onShareToggle={handleNoteShareToggle}
+                  onArchiveToggle={handleNoteArchiveToggle}
                   onReorder={handleNoteBoardReorder}
                   isReorderEnabled={!debouncedSearchTerm.trim()}
                 />

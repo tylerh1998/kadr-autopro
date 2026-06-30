@@ -1,5 +1,5 @@
 import React from 'react';
-import { GripVertical, MoreHorizontal, Palette, Share2 } from 'lucide-react';
+import { Archive, GripVertical, MoreHorizontal, Palette, Share2 } from 'lucide-react';
 import NoteUtilityButton from './note-card/NoteUtilityButton';
 import NoteColorPicker from './note-card/NoteColorPicker';
 import NoteEditableContent from './note-card/NoteEditableContent';
@@ -72,12 +72,16 @@ const cardThemes = {
   }
 };
 
-export default function NoteCard({ card, onSelect, onColourChange, onCommentSave, onShareToggle, dragHandleProps, isDragging = false }) {
+export default function NoteCard({ card, onSelect, onColourChange, onCommentSave, onShareToggle, onArchiveToggle, dragHandleProps, isDragging = false }) {
   const cardTheme = cardThemes[card.colour] || cardThemes.white;
   const workOrderTitle = [card.woNumber, card.customer].filter(Boolean).join(' - ');
   const vehicleLabel = card.vehicle || '';
   const isShared = String(card.status || '').toLowerCase() === 'shared';
+  const isArchived = card.isArchived === true;
   const shareButtonClass = isShared
+    ? cardTheme.shareActiveButton || cardTheme.utilityButton
+    : cardTheme.utilityButton;
+  const archiveButtonClass = isArchived
     ? cardTheme.shareActiveButton || cardTheme.utilityButton
     : cardTheme.utilityButton;
 
@@ -133,6 +137,14 @@ export default function NoteCard({ card, onSelect, onColourChange, onCommentSave
           onSelect={(colour) => onColourChange?.(card.noteId, colour)}
           buttonClassName={cardTheme.utilityButton}
           buttonIconClassName={cardTheme.utilityIcon}
+        />
+        <NoteUtilityButton
+          icon={Archive}
+          label={isArchived ? 'Unarchive' : 'Archive'}
+          disabled={false}
+          onClick={() => onArchiveToggle?.(card)}
+          className={archiveButtonClass}
+          iconClassName={cardTheme.utilityIcon}
         />
         <NoteUtilityButton icon={MoreHorizontal} label="More" disabled={true} className={cardTheme.utilityButton} iconClassName={cardTheme.utilityIcon} />
       </div>

@@ -3,7 +3,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import NoteColumn from './NoteColumn';
 import { buildNoteBoardColumns, reorderNoteBoardColumns } from '@/components/work-orders/note-board/noteBoardUtils';
 
-export default function NoteBoard({ cards = [], onSelect, onColourChange, onCommentSave, onShareToggle, onReorder, isReorderEnabled = true }) {
+export default function NoteBoard({ cards = [], onSelect, onColourChange, onCommentSave, onShareToggle, onArchiveToggle, onReorder, isReorderEnabled = true }) {
   const columns = buildNoteBoardColumns(cards);
 
   const handleDragEnd = (result) => {
@@ -29,6 +29,7 @@ export default function NoteBoard({ cards = [], onSelect, onColourChange, onComm
             onColourChange={onColourChange}
             onCommentSave={onCommentSave}
             onShareToggle={onShareToggle}
+            onArchiveToggle={onArchiveToggle}
             isDragDisabled={!isReorderEnabled}
             isDropDisabled={!isReorderEnabled}
           />
