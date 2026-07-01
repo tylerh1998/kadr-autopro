@@ -132,13 +132,6 @@ export default function SupplierTxInvoiceSummaryTab({
     handleValueBlur(line.id, 'gst', nextGst);
   };
 
-  const handleGlAccountBlur = (line) => {
-    const nextGlAccount = draftGlAccounts[line.id] ?? '';
-    if (String(nextGlAccount) !== String(line.gl_account || '')) {
-      handleGlAccountChange(line, nextGlAccount);
-    }
-  };
-
   return (
     <Card>
       <CardContent className="p-0">
@@ -253,22 +246,21 @@ export default function SupplierTxInvoiceSummaryTab({
                                 </TableCell>
                                 <TableCell>
                                   {(() => {
-                                    const account = line.gl_account
-                                      ? chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account))
+                                    const currentGlValue = draftGlAccounts[line.id] ?? (line.gl_account ? String(line.gl_account) : '');
+                                    const account = currentGlValue
+                                      ? chartOfAccounts.find(acc => String(acc.account_number) === String(currentGlValue))
                                       : null;
-                                    const fullGlLabel = account ? `${account.account_number} - ${account.account_name}` : (line.gl_account || '');
+                                    const fullGlLabel = account ? `${account.account_number} - ${account.account_name}` : currentGlValue;
                                     const truncatedGlLabel = truncateText(fullGlLabel, 25);
 
                                     return (
                                       <GLAccountCombobox
                                         chartOfAccounts={chartOfAccounts}
-                                        currentValue={draftGlAccounts[line.id] ?? (line.gl_account ? String(line.gl_account) : '')}
+                                        currentValue={currentGlValue}
                                         selectedLabel={truncatedGlLabel}
-                                        onChange={(value) => setDraftGlAccounts((prev) => ({ ...prev, [line.id]: value }))}
-                                        onPopoverOpenChange={(open) => {
-                                          if (!open && !(isReadOnly || hasInventoryItem || locked)) {
-                                            handleGlAccountBlur(line);
-                                          }
+                                        onChange={(value) => {
+                                          setDraftGlAccounts((prev) => ({ ...prev, [line.id]: value }));
+                                          handleGlAccountChange(line, value);
                                         }}
                                         disabled={isReadOnly || hasInventoryItem || locked}
                                         placeholder="Select GL"
