@@ -114,9 +114,11 @@ Deno.serve(async (req) => {
                 if (gstAmount !== 0) {
                     glTransactions.push({
                         id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-                        created_date: new Date().toISOString(),
-                        updated_date: new Date().toISOString(),
-                        created_by: user.email,
+                        created_date: nowIso,
+                        updated_date: nowIso,
+                        created_by: userDisplay,
+                        created_by_id: user.id,
+                        updated_by: userDisplay,
                         account_number: '2003',
                         transaction_date: line.invoice_date,
                         description: `${reversalPrefix}${baseDescription} - GST Paid`,
@@ -131,9 +133,11 @@ Deno.serve(async (req) => {
                 if (lineTotal !== 0) {
                     glTransactions.push({
                         id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-                        created_date: new Date().toISOString(),
-                        updated_date: new Date().toISOString(),
-                        created_by: user.email,
+                        created_date: nowIso,
+                        updated_date: nowIso,
+                        created_by: userDisplay,
+                        created_by_id: user.id,
+                        updated_by: userDisplay,
                         account_number: '2000',
                         transaction_date: line.invoice_date,
                         description: `${reversalPrefix}${baseDescription} - Accounts Payable`,
