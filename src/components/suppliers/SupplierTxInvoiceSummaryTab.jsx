@@ -40,6 +40,7 @@ export default function SupplierTxInvoiceSummaryTab({
   isLineLocked,
 }) {
   const [draftDates, setDraftDates] = React.useState({});
+  const [draftDescriptions, setDraftDescriptions] = React.useState({});
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
 
   React.useEffect(() => {
@@ -52,14 +53,48 @@ export default function SupplierTxInvoiceSummaryTab({
     });
   }, [invoiceLines, formatDateForInput]);
 
-  const totals = conceptualInvoices.reduce((acc, inv) => {
+  React.useEffect(() => {
+    setDraftDescriptions((prev) => {
+      const next = { ...prev };
+      const activeIds = new Set(invoiceLines.map((line) => line.id));
+      invoiceLines.forEach((line) => {
+        next[line.id] = line.description || '';
+      });
+      Object.keys(next).forEach((id) => {
+        if (!activeIds.has(id)) delete next[id];
+      });
+      return next;
+    });
+  }, [invoiceLines]);
+
+  const displayLinesByInvoice = React.useMemo(() => {
+    return conceptualInvoices.reduce((acc, invoice) => {
+      const currentAccordionKey = getInvoiceKey(invoice);
+      acc[currentAccordionKey] = invoiceLines.filter((line) => {
+        if (line.isNew && line.conceptual_invoice_key === currentAccordionKey) {
+          return true;
+        }
+        return line.invoice_number === invoice.invoice_number && line.invoice_date === invoice.invoice_date;
+      });
+      return acc;
+    }, {});
+  }, [conceptualInvoices, invoiceLines]);
+
+  const totals = React.useMemo(() => conceptualInvoices.reduce((acc, inv) => {
     acc.subtotal += inv.subtotal || 0;
     acc.tax_amount += inv.tax_amount || 0;
     acc.total_amount += inv.total_amount || 0;
     acc.amount_paid += inv.amount_paid || 0;
     acc.balance_due += inv.balance_due || 0;
     return acc;
-  }, { subtotal: 0, tax_amount: 0, total_amount: 0, amount_paid: 0, balance_due: 0 });
+  }, { subtotal: 0, tax_amount: 0, total_amount: 0, amount_paid: 0, balance_due: 0 }), [conceptualInvoices]);
+
+  const handleDescriptionBlur = (line) => {
+    const nextDescription = draftDescriptions[line.id] ?? '';
+    if (nextDescription !== (line.description || '')) {
+      handleLineChange(line.id, 'description', nextDescription);
+    }
+  };
 
   return (
     <Card>
@@ -100,13 +135,7 @@ export default function SupplierTxInvoiceSummaryTab({
           {conceptualInvoices.length > 0 ? conceptualInvoices.map((invoice, index) => {
             const invoiceKey = getInvoiceKey(invoice);
             const isExpanded = expandedInvoices[invoiceKey];
-            const displayLines = invoiceLines.filter((l) => {
-              const currentAccordionKey = getInvoiceKey(invoice);
-              if (l.isNew && l.conceptual_invoice_key === currentAccordionKey) {
-                return true;
-              }
-              return l.invoice_number === invoice.invoice_number && l.invoice_date === invoice.invoice_date;
-            });
+            const displayLines = displayLinesByInvoice[invoiceKey] || [];
             return (
               <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                 <div className="flex items-center justify-between p-4 hover:bg-slate-100 cursor-pointer transition-colors" onClick={() => toggleInvoiceExpansion(invoiceKey)}>
@@ -171,8 +200,9 @@ export default function SupplierTxInvoiceSummaryTab({
                                 </TableCell>
                                 <TableCell>
                                   <Textarea
-                                    value={line.description || ''}
-                                    onChange={(e) => handleLineChange(line.id, 'description', e.target.value)}
+                                    value={draftDescriptions[line.id] ?? line.description ?? ''}
+                                    onChange={(e) => setDraftDescriptions((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                    onBlur={() => !disabled && handleDescriptionBlur(line)}
                                     readOnly={disabled}
                                     className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white leading-snug' : 'min-h-[60px] resize-y bg-white leading-snug'}
                                   />
