@@ -252,6 +252,12 @@ export default function CashDrawerPage() {
         return;
       }
 
+      const currentUser = await base44.auth.me();
+      if (!currentUser) {
+        alert('You must be logged in to make a deposit.');
+        return;
+      }
+
       const totalAmount = getTotalForDeposit();
 
       if (totalAmount === 0) {
@@ -265,6 +271,33 @@ export default function CashDrawerPage() {
         alert('Selected bank account not found.');
         return;
       }
+
+      const creatorName = currentUser.User_name || currentUser.full_name || currentUser.email || currentUser.id;
+      const createGLTransaction = async (transactionData) => {
+        const response = await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'GLTransaction',
+          data: {
+            ...transactionData,
+            created_by: creatorName,
+            created_by_id: currentUser.id
+          }
+        });
+
+        if (response?.data?.error) {
+          throw new Error(response.data.error);
+        }
+
+        const record = Array.isArray(response?.data?.data)
+          ? response.data.data[0]
+          : response?.data?.data;
+
+        if (!record?.id) {
+          throw new Error('Failed to create GL transaction.');
+        }
+
+        return record;
+      };
 
       const depositBatchId = `DEP-${Date.now()}`;
       const allItemsForDeposit = Object.values(forDepositItems).flat();
@@ -296,7 +329,7 @@ export default function CashDrawerPage() {
       }
 
       // GL Transactions
-      await base44.entities.GLTransaction.create({
+      await createGLTransaction({
         account_number: String(CASH_DRAWER_GL_ACCOUNT),
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
@@ -307,7 +340,7 @@ export default function CashDrawerPage() {
         source_id: null
       });
 
-      await base44.entities.GLTransaction.create({
+      await createGLTransaction({
         account_number: String(selectedBankAccount.gl_account || '1000'),
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
