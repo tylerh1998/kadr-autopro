@@ -1,16 +1,15 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    
-    // Authenticate user
+
     const user = await base44.auth.me();
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Parse request body
     const { dateRange } = await req.json();
 
     const isValidDateString = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
@@ -38,23 +37,16 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
     }
 
-    const { createClient } = await import('npm:@supabase/supabase-js@2.39.3');
     const supabase = createClient(supabaseUrl, supabaseSecret, {
       auth: { persistSession: false }
     });
 
-    // Fetch all necessary data using service role for comprehensive access
-    const [
-      glTransactions,
-      bankAccountsResponse,
-      bankTransactionsResponse,
-      chartOfAccounts,
-      customerPaymentsResponse
-    ] = await Promise.all([
-      // Fetch GL Transactions in range
-      base44.asServiceRole.entities.GLTransaction.filter({
-          transaction_date: { "$gte": fromDateStr, "$lte": toDateStr }
-      }, '-transaction_date', 5000),
+    const [glTransactionsResponse, bankAccountsResponse, bankTransactionsResponse, chartOfAccounts, customerPaymentsResponse] = await Promise.all([
+      supabase
+        .from('GLTransaction')
+        .select('account_number, transaction_date, debit_amount, credit_amount')
+        .gte('transaction_date', fromDateStr)
+        .lte('transaction_date', toDateStr),
       supabase
         .from('BankAccount')
         .select('*'),
@@ -71,76 +63,62 @@ Deno.serve(async (req) => {
         .lte('payment_date', toDateStr)
     ]);
 
+    if (glTransactionsResponse.error) {
+      throw new Error(glTransactionsResponse.error.message || 'Failed to fetch GLTransaction from Supabase');
+    }
     if (bankAccountsResponse.error) {
       throw new Error(bankAccountsResponse.error.message || 'Failed to fetch BankAccount from Supabase');
     }
-
     if (bankTransactionsResponse.error) {
       throw new Error(bankTransactionsResponse.error.message || 'Failed to fetch BankTransaction from Supabase');
     }
-
     if (customerPaymentsResponse.error) {
       throw new Error(customerPaymentsResponse.error.message || 'Failed to fetch CustomerPayments from Supabase');
     }
 
+    const glTransactions = glTransactionsResponse.data || [];
     const bankAccounts = bankAccountsResponse.data || [];
     const bankTransactions = bankTransactionsResponse.data || [];
     const customerPayments = customerPaymentsResponse.data || [];
 
-    // Filter GL transactions by date range
-    const filteredGLTransactions = glTransactions.filter(tx => {
-      const txDate = tx.transaction_date;
+    const filteredGLTransactions = glTransactions.filter((tx) => {
+      const txDate = String(tx.transaction_date || '').split('T')[0];
       return txDate >= fromDateStr && txDate <= toDateStr;
     });
 
-    // Bank Transactions are already filtered >= fromDateStr
-    // But for the graph display (bars), we only want up to toDateStr
-    // For balance calculation, we need everything > toDateStr to rewind from Current Balance
-    
-    // Sort transactions descending (newest first)
-    const sortedBankTransactions = bankTransactions.sort((a, b) =>
-        String(b.transaction_date || '').localeCompare(String(a.transaction_date || ''))
-    );
+    const sortedBankTransactions = bankTransactions.sort((a, b) => String(b.transaction_date || '').localeCompare(String(a.transaction_date || '')));
 
-    // Calculate Revenue (4000-4999 accounts)
     let totalRevenue = 0;
-    filteredGLTransactions.forEach(tx => {
-      const accountNum = parseInt(tx.account_number);
+    filteredGLTransactions.forEach((tx) => {
+      const accountNum = parseInt(tx.account_number, 10);
       if (accountNum >= 4000 && accountNum <= 4999) {
-        totalRevenue += (tx.credit_amount || 0) - (tx.debit_amount || 0);
+        totalRevenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
       }
     });
 
-    // Calculate Expenses (5000+ accounts)
     let totalExpenses = 0;
     const expensesByCategory = {};
-    filteredGLTransactions.forEach(tx => {
-      const accountNum = parseInt(tx.account_number);
+    filteredGLTransactions.forEach((tx) => {
+      const accountNum = parseInt(tx.account_number, 10);
       if (accountNum >= 5000) {
-        const expenseAmount = (tx.debit_amount || 0) - (tx.credit_amount || 0);
+        const expenseAmount = (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
         totalExpenses += expenseAmount;
-        
-        // Group by account for expense breakdown
-        const account = chartOfAccounts.find(acc => acc.account_number === tx.account_number);
+
+        const account = chartOfAccounts.find((acc) => acc.account_number === tx.account_number);
         const categoryName = account ? `${account.account_number} - ${account.account_name}` : tx.account_number;
         expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + expenseAmount;
       }
     });
 
-    // Calculate Net Income
     const netIncome = totalRevenue - totalExpenses;
 
-    // Calculate Current Cash Position (sum of all active bank accounts)
     let cashPosition = 0;
-    bankAccounts
-      .filter(acc => acc.is_active !== false)
-      .forEach(acc => {
-        cashPosition += (acc.current_balance || 0);
-      });
+    bankAccounts.filter((acc) => acc.is_active !== false).forEach((acc) => {
+      cashPosition += Number(acc.current_balance) || 0;
+    });
 
-    // Calculate Monthly Revenue vs Expenses for chart
     const monthlyData = {};
-    filteredGLTransactions.forEach(tx => {
+    filteredGLTransactions.forEach((tx) => {
       const txDate = String(tx.transaction_date || '').split('T')[0];
       const monthKey = txDate.slice(0, 7);
       if (!monthKey) return;
@@ -149,17 +127,14 @@ Deno.serve(async (req) => {
         monthlyData[monthKey] = { revenue: 0, expenses: 0 };
       }
 
-      const accountNum = parseInt(tx.account_number);
+      const accountNum = parseInt(tx.account_number, 10);
       if (accountNum >= 4000 && accountNum <= 4999) {
-        // Revenue account
-        monthlyData[monthKey].revenue += (tx.credit_amount || 0) - (tx.debit_amount || 0);
+        monthlyData[monthKey].revenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
       } else if (accountNum >= 5000) {
-        // Expense account
-        monthlyData[monthKey].expenses += (tx.debit_amount || 0) - (tx.credit_amount || 0);
+        monthlyData[monthKey].expenses += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
       }
     });
 
-    // Convert monthly data to array and sort by date
     const revenueVsExpensesChart = Object.entries(monthlyData)
       .map(([month, data]) => ({
         month,
@@ -169,158 +144,101 @@ Deno.serve(async (req) => {
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
-    // --- Calculate Cash Flow & Balances Per Account ---
-
-    // Helper to generate date range array
     const getDatesInRange = (startDate, endDate) => {
-        const dates = [];
-        let curr = parseDateOnly(startDate);
-        const last = parseDateOnly(endDate);
-        while (curr <= last) {
-            dates.push(formatDateOnly(curr));
-            curr = new Date(curr.getTime() + 86400000);
-        }
-        return dates;
+      const dates = [];
+      let curr = parseDateOnly(startDate);
+      const last = parseDateOnly(endDate);
+      while (curr <= last) {
+        dates.push(formatDateOnly(curr));
+        curr = new Date(curr.getTime() + 86400000);
+      }
+      return dates;
     };
 
     const dateRangeDates = getDatesInRange(fromDateStr, toDateStr);
-
-    // Initialize data structure for each account
     const accountsData = {};
-    const allAccountsData = {}; // For "All Accounts" aggregation
+    const allAccountsData = {};
 
-    // Initialize with all dates in range
-    dateRangeDates.forEach(date => {
-        allAccountsData[date] = { date, inflow: 0, outflow: 0, netCashFlow: 0, balance: 0 };
+    dateRangeDates.forEach((date) => {
+      allAccountsData[date] = { date, inflow: 0, outflow: 0, netCashFlow: 0, balance: 0 };
     });
 
-    bankAccounts.filter(acc => acc.is_active !== false).forEach(acc => {
-        accountsData[acc.id] = {
-            id: acc.id,
-            name: acc.name,
-            currentBalance: acc.current_balance || 0,
-            dailyData: {}
-        };
-        // Init daily data
-        dateRangeDates.forEach(date => {
-            accountsData[acc.id].dailyData[date] = { date, inflow: 0, outflow: 0, netCashFlow: 0, balance: 0 };
-        });
-    });
-
-    // Process transactions to fill inflow/outflow
-    // We only care about transactions within the display range for inflow/outflow bars
-    sortedBankTransactions.forEach(tx => {
-        const date = tx.transaction_date;
-        if (date >= fromDateStr && date <= toDateStr) {
-            if (accountsData[tx.bank_account_id]) {
-                const credit = tx.credit_amount || 0;
-                const debit = tx.debit_amount || 0;
-                const net = credit - debit;
-
-                accountsData[tx.bank_account_id].dailyData[date].inflow += credit;
-                accountsData[tx.bank_account_id].dailyData[date].outflow += debit;
-                accountsData[tx.bank_account_id].dailyData[date].netCashFlow += net;
-
-                allAccountsData[date].inflow += credit;
-                allAccountsData[date].outflow += debit;
-                allAccountsData[date].netCashFlow += net;
-            }
-        }
-    });
-
-    // Calculate Daily Balances by rewinding from Current Balance
-    // 1. "All Accounts" Balance
-    let currentTotalBalance = bankAccounts.filter(a => a.is_active !== false).reduce((sum, a) => sum + (a.current_balance || 0), 0);
-    let runningTotalBalance = currentTotalBalance;
-
-    // We walk backwards from TODAY (or latest tx date) down to fromDateStr
-    // Transactions > toDateStr are just used to adjust balance
-    // Transactions <= toDateStr are used to set the daily balance
-    
-    // We need to process ALL fetched transactions (>= fromDate) to rewind correctly
-    // Since sortedBankTransactions is sorted DESC (newest first)
-    
-    // Pointer for iterating dates backwards from today
-    // Actually, simpler: 
-    // 1. Start with runningBalance = currentBalance
-    // 2. Iterate transactions desc. 
-    //    If tx.date > toDateStr: runningBalance -= net (rewind)
-    //    If tx.date <= toDateStr: 
-    //       This tx happened on tx.date. 
-    //       So the balance at END of tx.date was runningBalance (before this rewind).
-    //       Wait, if multiple txs on same day?
-    //       Ideally:
-    //       Balance(End of Day D) = Balance(End of Day D+1) - NetFlow(Day D+1)
-    //       ...
-    //       Balance(End of Day toDate) = CurrentBalance - Sum(NetFlow of tx > toDate)
-    
-    // Let's do it account by account
-    Object.values(accountsData).forEach(acc => {
-        let bal = acc.currentBalance;
-        
-        // Filter txs for this account
-        const accTxs = sortedBankTransactions.filter(t => t.bank_account_id === acc.id);
-        
-        // 1. Rewind to End of toDateStr (exclude future txs)
-        const futureTxs = accTxs.filter(t => t.transaction_date > toDateStr);
-        futureTxs.forEach(t => {
-            bal -= ((t.credit_amount || 0) - (t.debit_amount || 0));
-        });
-
-        // 2. Now bal is the balance at end of toDateStr
-        // We need balance for each day in dateRangeDates (descending)
-        const reversedDates = [...dateRangeDates].reverse();
-        
-        reversedDates.forEach(date => {
-            // Set the balance for this day (End of Day)
-            acc.dailyData[date].balance = bal;
-            
-            // Now rewind past this day to get ready for previous day
-            const daysTxs = accTxs.filter(t => t.transaction_date === date);
-            const daysNet = daysTxs.reduce((sum, t) => sum + ((t.credit_amount || 0) - (t.debit_amount || 0)), 0);
-            
-            bal -= daysNet;
-        });
-    });
-
-    // Aggregate Balances for "All Accounts"
-    dateRangeDates.forEach(date => {
-        allAccountsData[date].balance = Object.values(accountsData).reduce((sum, acc) => sum + acc.dailyData[date].balance, 0);
-    });
-
-    // Convert to Arrays
-    const cashFlowByAccount = Object.values(accountsData).map(acc => ({
+    bankAccounts.filter((acc) => acc.is_active !== false).forEach((acc) => {
+      accountsData[acc.id] = {
         id: acc.id,
         name: acc.name,
-        data: Object.values(acc.dailyData).sort((a, b) => a.date.localeCompare(b.date)).map(d => ({
-            ...d,
-            inflow: Math.round(d.inflow * 100) / 100,
-            outflow: Math.round(d.outflow * 100) / 100,
-            netCashFlow: Math.round(d.netCashFlow * 100) / 100,
-            balance: Math.round(d.balance * 100) / 100
-        }))
+        currentBalance: Number(acc.current_balance) || 0,
+        dailyData: {}
+      };
+      dateRangeDates.forEach((date) => {
+        accountsData[acc.id].dailyData[date] = { date, inflow: 0, outflow: 0, netCashFlow: 0, balance: 0 };
+      });
+    });
+
+    sortedBankTransactions.forEach((tx) => {
+      const date = tx.transaction_date;
+      if (date >= fromDateStr && date <= toDateStr && accountsData[tx.bank_account_id]) {
+        const credit = Number(tx.credit_amount) || 0;
+        const debit = Number(tx.debit_amount) || 0;
+        const net = credit - debit;
+
+        accountsData[tx.bank_account_id].dailyData[date].inflow += credit;
+        accountsData[tx.bank_account_id].dailyData[date].outflow += debit;
+        accountsData[tx.bank_account_id].dailyData[date].netCashFlow += net;
+
+        allAccountsData[date].inflow += credit;
+        allAccountsData[date].outflow += debit;
+        allAccountsData[date].netCashFlow += net;
+      }
+    });
+
+    Object.values(accountsData).forEach((acc) => {
+      let bal = acc.currentBalance;
+      const accTxs = sortedBankTransactions.filter((t) => t.bank_account_id === acc.id);
+      const futureTxs = accTxs.filter((t) => t.transaction_date > toDateStr);
+      futureTxs.forEach((t) => {
+        bal -= (Number(t.credit_amount) || 0) - (Number(t.debit_amount) || 0);
+      });
+
+      const reversedDates = [...dateRangeDates].reverse();
+      reversedDates.forEach((date) => {
+        acc.dailyData[date].balance = bal;
+        const daysTxs = accTxs.filter((t) => t.transaction_date === date);
+        const daysNet = daysTxs.reduce((sum, t) => sum + ((Number(t.credit_amount) || 0) - (Number(t.debit_amount) || 0)), 0);
+        bal -= daysNet;
+      });
+    });
+
+    dateRangeDates.forEach((date) => {
+      allAccountsData[date].balance = Object.values(accountsData).reduce((sum, acc) => sum + acc.dailyData[date].balance, 0);
+    });
+
+    const cashFlowByAccount = Object.values(accountsData).map((acc) => ({
+      id: acc.id,
+      name: acc.name,
+      data: Object.values(acc.dailyData).sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({
+        ...d,
+        inflow: Math.round(d.inflow * 100) / 100,
+        outflow: Math.round(d.outflow * 100) / 100,
+        netCashFlow: Math.round(d.netCashFlow * 100) / 100,
+        balance: Math.round(d.balance * 100) / 100
+      }))
     }));
 
-    // Add "All Accounts"
     cashFlowByAccount.unshift({
-        id: 'all',
-        name: 'All Accounts',
-        data: Object.values(allAccountsData).sort((a, b) => a.date.localeCompare(b.date)).map(d => ({
-            ...d,
-            inflow: Math.round(d.inflow * 100) / 100,
-            outflow: Math.round(d.outflow * 100) / 100,
-            netCashFlow: Math.round(d.netCashFlow * 100) / 100,
-            balance: Math.round(d.balance * 100) / 100
-        }))
+      id: 'all',
+      name: 'All Accounts',
+      data: Object.values(allAccountsData).sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({
+        ...d,
+        inflow: Math.round(d.inflow * 100) / 100,
+        outflow: Math.round(d.outflow * 100) / 100,
+        netCashFlow: Math.round(d.netCashFlow * 100) / 100,
+        balance: Math.round(d.balance * 100) / 100
+      }))
     });
-    
-    // For backward compatibility (or default view), use 'All Accounts' as the main chart?
-    // User wants Primary-Servus default, but the main 'cashFlow' prop usually expects one array.
-    // We'll return 'cashFlowByAccount' and let frontend choose.
-    // We'll also return the 'All' data as 'cashFlow' to not break existing if they revert.
+
     const cashFlowChart = cashFlowByAccount[0].data;
 
-    // Calculate Account Balances by Type (Assets, Liabilities, Equity)
     const accountBalancesByType = {
       Asset: 0,
       Liability: 0,
@@ -329,23 +247,17 @@ Deno.serve(async (req) => {
       Expense: 0
     };
 
-    // Get all GL transactions (not just filtered) to calculate current balances
-    glTransactions.forEach(tx => {
-      const account = chartOfAccounts.find(acc => acc.account_number === tx.account_number);
-      if (account) {
-        const amount = (tx.debit_amount || 0) - (tx.credit_amount || 0);
-        if (accountBalancesByType[account.account_type] !== undefined) {
-          accountBalancesByType[account.account_type] += amount;
-        }
+    glTransactions.forEach((tx) => {
+      const account = chartOfAccounts.find((acc) => acc.account_number === tx.account_number);
+      if (account && accountBalancesByType[account.account_type] !== undefined) {
+        accountBalancesByType[account.account_type] += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
       }
     });
 
-    // Round account balances
-    Object.keys(accountBalancesByType).forEach(type => {
+    Object.keys(accountBalancesByType).forEach((type) => {
       accountBalancesByType[type] = Math.round(accountBalancesByType[type] * 100) / 100;
     });
 
-    // Top Expense Categories (top 10)
     const topExpenseCategories = Object.entries(expensesByCategory)
       .map(([category, amount]) => ({
         category,
@@ -407,53 +319,39 @@ Deno.serve(async (req) => {
       })
       .sort((a, b) => b.amount - a.amount);
 
-    // --- Special Bank Stats for Cash Flow Trend Tab (Current Month) ---
-    // Target Bank: 68b95ed97223c7b3d2882f5d
-    // Period: Current Month (based on toDate)
     const currentMonthStartStr = `${toDateStr.slice(0, 7)}-01`;
-    
     const targetBankId = '68b95ed97223c7b3d2882f5d';
     const targetBankStats = {
-        credits: 0,
-        debits: 0
+      credits: 0,
+      debits: 0
     };
 
-    // Filter transactions for target bank and current month
-    // Note: sortedBankTransactions contains all txs >= fromDate (which usually covers current month if fromDate is 12 months ago)
-    // We should double check we have the txs. If fromDate is in the future relative to current month (unlikely), we might miss.
-    // Assuming standard usage where range includes current month.
-    
-    sortedBankTransactions.forEach(tx => {
-        if (tx.bank_account_id === targetBankId && tx.transaction_date >= currentMonthStartStr && tx.transaction_date <= toDateStr) {
-            // Revenue (Credits): source_type in deposit, manual, registries
-            const validCreditSources = ['deposit', 'manual', 'registries'];
-            if (validCreditSources.includes(tx.source_type) && tx.credit_amount) {
-                targetBankStats.credits += tx.credit_amount;
-            }
-
-            // Paid (Debits): source_type != transfer
-            if (tx.source_type !== 'transfer' && tx.debit_amount) {
-                targetBankStats.debits += tx.debit_amount;
-            }
+    sortedBankTransactions.forEach((tx) => {
+      if (tx.bank_account_id === targetBankId && tx.transaction_date >= currentMonthStartStr && tx.transaction_date <= toDateStr) {
+        const validCreditSources = ['deposit', 'manual', 'registries'];
+        if (validCreditSources.includes(tx.source_type) && tx.credit_amount) {
+          targetBankStats.credits += Number(tx.credit_amount) || 0;
         }
+        if (tx.source_type !== 'transfer' && tx.debit_amount) {
+          targetBankStats.debits += Number(tx.debit_amount) || 0;
+        }
+      }
     });
 
     targetBankStats.credits = Math.round(targetBankStats.credits * 100) / 100;
     targetBankStats.debits = Math.round(targetBankStats.debits * 100) / 100;
 
-    // Bank Accounts Summary
     const bankAccountsSummary = bankAccounts
-      .filter(acc => acc.is_active !== false)
-      .map(acc => ({
+      .filter((acc) => acc.is_active !== false)
+      .map((acc) => ({
         id: acc.id,
         name: acc.name,
         bank_name: acc.bank_name,
         account_type: acc.account_type,
-        current_balance: Math.round((acc.current_balance || 0) * 100) / 100
+        current_balance: Math.round((Number(acc.current_balance) || 0) * 100) / 100
       }))
       .sort((a, b) => b.current_balance - a.current_balance);
 
-    // Return consolidated dashboard data
     return Response.json({
       success: true,
       data: {
@@ -470,9 +368,9 @@ Deno.serve(async (req) => {
         charts: {
           revenueVsExpenses: revenueVsExpensesChart,
           cashFlow: cashFlowChart,
-          cashFlowByAccount, // New field
+          cashFlowByAccount,
           accountBalancesByType: Object.entries(accountBalancesByType)
-            .filter(([type, amount]) => amount !== 0)
+            .filter(([, amount]) => amount !== 0)
             .map(([type, amount]) => ({ type, amount })),
           topExpenseCategories,
           customerPaymentsBreakdown: {
@@ -489,15 +387,11 @@ Deno.serve(async (req) => {
         targetBankStats
       }
     });
-
   } catch (error) {
     console.error('Error generating financial dashboard data:', error);
-    return Response.json(
-      { 
-        success: false, 
-        error: error.message || 'Failed to generate financial dashboard data' 
-      },
-      { status: 500 }
-    );
+    return Response.json({
+      success: false,
+      error: error.message || 'Failed to generate financial dashboard data'
+    }, { status: 500 });
   }
 });

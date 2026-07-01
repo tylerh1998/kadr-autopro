@@ -1,22 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    
-    // Authenticate user
+
     const user = await base44.auth.me();
     if (!user) {
-      return Response.json({ 
-        success: false, 
-        error: 'Unauthorized' 
+      return Response.json({
+        success: false,
+        error: 'Unauthorized'
       }, { status: 401 });
     }
 
-    // Get parameters from request
     const { accountNumber, appliedStartDate, appliedEndDate } = await req.json();
 
-    // Validate required parameters
     if (!accountNumber || !appliedStartDate || !appliedEndDate) {
       return Response.json({
         success: false,
@@ -26,7 +24,16 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching transactions for account ${accountNumber}, range: ${appliedStartDate} to ${appliedEndDate}`);
 
-    // Fetch account details to determine account type
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ success: false, error: 'Supabase credentials not configured' }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
+
     const accounts = await base44.asServiceRole.entities.ChartOfAccount.filter({ account_number: accountNumber });
     if (!accounts || accounts.length === 0) {
       return Response.json({ success: false, error: 'Account not found' }, { status: 404 });
@@ -34,51 +41,44 @@ Deno.serve(async (req) => {
     const accountType = accounts[0].account_type;
     const isDebitNormal = ['Asset', 'Expense'].includes(accountType);
 
-    // Fetch ALL transactions for this account
-    const allTransactions = await base44.asServiceRole.entities.GLTransaction.filter(
-      { account_number: accountNumber },
-      'transaction_date', // Primary sort by date
-      10000
-    );
+    const { data: allTransactions, error: transactionsError } = await supabase
+      .from('GLTransaction')
+      .select('*')
+      .eq('account_number', accountNumber)
+      .lte('transaction_date', appliedEndDate)
+      .order('transaction_date', { ascending: true })
+      .order('created_date', { ascending: true });
 
-    // Secondary sort by created_date for same-date transactions
-    allTransactions.sort((a, b) => {
-      const dateCompare = (a.transaction_date || '').localeCompare(b.transaction_date || '');
-      if (dateCompare !== 0) return dateCompare;
-      return (a.created_date || '').localeCompare(b.created_date || '');
-    });
+    if (transactionsError) {
+      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
+    }
 
-    console.log(`Total transactions fetched: ${allTransactions.length}`);
+    console.log(`Total transactions fetched: ${(allTransactions || []).length}`);
 
-    // Calculate opening balance and collect transactions in range
     let openingBalance = 0;
     const transactionsInRange = [];
 
-    for (const tx of allTransactions) {
-      if (!tx.transaction_date) continue; // Skip transactions without dates
+    (allTransactions || []).forEach((tx) => {
+      if (!tx.transaction_date) return;
 
-      const txDateStr = tx.transaction_date.split('T')[0];
+      const txDateStr = String(tx.transaction_date).split('T')[0];
+      const dr = Number(tx.debit_amount) || 0;
+      const cr = Number(tx.credit_amount) || 0;
 
       if (txDateStr < appliedStartDate) {
-        // Transaction is before our filter range - add to opening balance
-        const dr = tx.debit_amount || 0;
-        const cr = tx.credit_amount || 0;
         openingBalance += isDebitNormal ? (dr - cr) : (cr - dr);
       } else if (txDateStr >= appliedStartDate && txDateStr <= appliedEndDate) {
-        // Transaction is in our filter range - collect for processing
         transactionsInRange.push(tx);
       }
-      // Transactions after appliedEndDate are ignored
-    }
+    });
 
     console.log(`Opening balance: ${openingBalance}`);
     console.log(`Transactions in range: ${transactionsInRange.length}`);
 
-    // Calculate running balance for transactions in range, starting from opening balance
     let runningBalance = openingBalance;
-    const processedTransactions = transactionsInRange.map(tx => {
-      const dr = tx.debit_amount || 0;
-      const cr = tx.credit_amount || 0;
+    const processedTransactions = transactionsInRange.map((tx) => {
+      const dr = Number(tx.debit_amount) || 0;
+      const cr = Number(tx.credit_amount) || 0;
       runningBalance += isDebitNormal ? (dr - cr) : (cr - dr);
       return {
         ...tx,
@@ -86,7 +86,6 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Reverse to display newest first (frontend expects this order)
     processedTransactions.reverse();
 
     console.log(`Processed ${processedTransactions.length} transactions`);
@@ -94,10 +93,9 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       transactions: processedTransactions,
-      openingBalance: openingBalance,
+      openingBalance,
       totalCount: processedTransactions.length
     });
-
   } catch (error) {
     console.error('Error in getGLAccountTransactions:', error);
     return Response.json({

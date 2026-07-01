@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 Deno.serve(async (req) => {
   try {
@@ -46,30 +47,30 @@ Deno.serve(async (req) => {
     const overallStart = months[0].start;
     const overallEnd = months[2].end;
 
-    const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list(null, 10000);
-    const plAccounts = allAccounts.filter((account) => (
-      ['Revenue', 'Expense'].includes(account.account_type) && account.is_active !== false
-    ));
-
-    let allTransactions = [];
-    let skip = 0;
-    const limit = 5000;
-    let hasMore = true;
-
-    while (hasMore) {
-      const batch = await base44.asServiceRole.entities.GLTransaction.list('-transaction_date', limit, skip);
-      allTransactions = allTransactions.concat(batch);
-      if (batch.length < limit) {
-        hasMore = false;
-      } else {
-        skip += limit;
-      }
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json({ error: 'Supabase credentials not configured' }, { status: 500 });
     }
 
-    const monthForDate = (dateStr) => {
-      return months.find((month) => dateStr >= month.start && dateStr <= month.end)?.key || null;
-    };
+    const supabase = createClient(supabaseUrl, supabaseSecret, {
+      auth: { persistSession: false }
+    });
 
+    const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list(null, 10000);
+    const plAccounts = allAccounts.filter((account) => ['Revenue', 'Expense'].includes(account.account_type) && account.is_active !== false);
+
+    const { data: allTransactions, error: transactionsError } = await supabase
+      .from('GLTransaction')
+      .select('account_number, transaction_date, debit_amount, credit_amount')
+      .gte('transaction_date', overallStart)
+      .lte('transaction_date', overallEnd);
+
+    if (transactionsError) {
+      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
+    }
+
+    const monthForDate = (dateStr) => months.find((month) => dateStr >= month.start && dateStr <= month.end)?.key || null;
     const accountMap = {};
 
     plAccounts.forEach((account) => {
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
       };
     });
 
-    allTransactions.forEach((tx) => {
+    (allTransactions || []).forEach((tx) => {
       const txDate = String(tx.transaction_date || '').split('T')[0];
       if (!txDate || txDate < overallStart || txDate > overallEnd) return;
 
@@ -101,16 +102,13 @@ Deno.serve(async (req) => {
 
       const creditAmount = Number(tx.credit_amount) || 0;
       const debitAmount = Number(tx.debit_amount) || 0;
-      const signedAmount = node.account_type === 'Revenue'
-        ? creditAmount - debitAmount
-        : debitAmount - creditAmount;
+      const signedAmount = node.account_type === 'Revenue' ? creditAmount - debitAmount : debitAmount - creditAmount;
 
       node[`${monthKey}_own`] += signedAmount;
       node.transactionCount += 1;
     });
 
     const roots = [];
-
     Object.values(accountMap).forEach((node) => {
       if (node.parent_account && accountMap[node.parent_account]) {
         accountMap[node.parent_account].children.push(node);
@@ -187,10 +185,8 @@ Deno.serve(async (req) => {
       }, []);
     };
 
-    const revenueRows = filterHierarchy(roots.filter((root) => root.account_type === 'Revenue'))
-      .sort((a, b) => a.account_number.localeCompare(b.account_number));
-    const expenseRows = filterHierarchy(roots.filter((root) => root.account_type === 'Expense'))
-      .sort((a, b) => a.account_number.localeCompare(b.account_number));
+    const revenueRows = filterHierarchy(roots.filter((root) => root.account_type === 'Revenue')).sort((a, b) => a.account_number.localeCompare(b.account_number));
+    const expenseRows = filterHierarchy(roots.filter((root) => root.account_type === 'Expense')).sort((a, b) => a.account_number.localeCompare(b.account_number));
 
     const summarizeRows = (rows) => {
       const month1 = roundAmount(rows.reduce((sum, row) => sum + row.month1, 0));
