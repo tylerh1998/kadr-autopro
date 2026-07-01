@@ -52,6 +52,41 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
     const startedAt = Date.now();
+    const userDisplay = user.full_name || user.email || user.id;
+
+    const createGlTransaction = async ({
+      account_number,
+      transaction_date,
+      description,
+      debit_amount,
+      credit_amount,
+      source_type,
+      source_id
+    }) => {
+      const nowIso = getMountainTimestamp();
+      const glTransactionId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+      const { error } = await supabase
+        .from('GLTransaction')
+        .insert([{
+          id: glTransactionId,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: userDisplay,
+          created_by_id: user.id,
+          updated_by: userDisplay,
+          account_number,
+          transaction_date,
+          description,
+          debit_amount,
+          credit_amount,
+          source_type,
+          source_id
+        }]);
+
+      if (error) {
+        throw new Error(`Failed to create GL transaction: ${error.message}`);
+      }
+    };
 
     const { data: payment, error: paymentError } = await supabase
       .from('SupplierPayment')
@@ -193,7 +228,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await createGlTransaction({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -203,7 +238,7 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await createGlTransaction({
           account_number: selectedBank.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -232,7 +267,7 @@ Deno.serve(async (req) => {
           lineOfCreditId: selectedLOC.id
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await createGlTransaction({
           account_number: '2000',
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
@@ -242,7 +277,7 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await base44.asServiceRole.entities.GLTransaction.create({
+        await createGlTransaction({
           account_number: selectedLOC.gl_account,
           transaction_date: paymentDate,
           description: `Payment to ${supplier.name}`,
