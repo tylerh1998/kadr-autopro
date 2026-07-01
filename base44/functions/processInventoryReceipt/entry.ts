@@ -1042,7 +1042,7 @@ async function processInventoryReceiptEdit(base44, supabase, user, supplierInvoi
       console.log(`Step 4: Updating InventoryTxs ${inventoryTxId} metadata`);
       await base44.asServiceRole.entities.InventoryTxs.update(inventoryTxId, {
         supplier_inv: newInvoiceNumber,
-        tx_date: new Date(newInvoiceDate).toISOString(),
+        tx_date: new Date().toISOString(),
       });
       results.updated_inventory_tx_id = inventoryTxId;
     } else {
