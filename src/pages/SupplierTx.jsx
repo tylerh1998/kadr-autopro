@@ -113,6 +113,10 @@ const isLineLocked = (line) => {
 
 const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range) => {
   const grouped = new Map();
+  const fromDate = new Date(range.from);
+  fromDate.setHours(0, 0, 0, 0);
+  const toDate = new Date(range.to);
+  toDate.setHours(23, 59, 59, 999);
 
   lines.forEach((line) => {
     const hasContent = line.invoice_number || line.description || (parseFloat(line.charge) || 0) !== 0 || (parseFloat(line.gst) || 0) !== 0 || (parseFloat(line.line_total) || 0) !== 0;
@@ -120,7 +124,7 @@ const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range)
 
     const lineDate = line.invoice_date ? new Date(`${line.invoice_date}T00:00:00`) : null;
     if (!lineDate || Number.isNaN(lineDate.getTime())) return;
-    if (lineDate < range.from || lineDate > range.to) return;
+    if (lineDate < fromDate || lineDate > toDate) return;
 
     const supplierId = line.supplier_id || existingConceptualInvoices.find(inv => inv.invoice_number === line.invoice_number && inv.invoice_date === line.invoice_date)?.supplier_id || '';
     const key = `${supplierId}_${line.invoice_number || ''}_${line.invoice_date || ''}`;
