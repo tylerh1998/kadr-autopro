@@ -62,7 +62,15 @@ Deno.serve(async (req) => {
             }
 
             if (uniqueGLAccounts.length > 0) {
-                const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list('', 1000);
+                const { data: allAccounts, error: accountsError } = await supabase
+                    .from('ChartOfAccount')
+                    .select('account_number, account_name')
+                    .in('account_number', uniqueGLAccounts);
+
+                if (accountsError) {
+                    console.error('Error fetching ChartOfAccount records:', accountsError);
+                }
+
                 (allAccounts || []).forEach(acc => {
                     glAccountMap[acc.account_number] = `${acc.account_number} - ${acc.account_name}`;
                 });
@@ -158,7 +166,10 @@ Deno.serve(async (req) => {
                     credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
                 }));
                 try {
-                    await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
+                    const { error } = await supabase.from('GLTransaction').insert(sanitizedTxs);
+                    if (error) {
+                        throw error;
+                    }
                 } catch (error) {
                     console.error('Error creating GL transactions:', error);
                 }
