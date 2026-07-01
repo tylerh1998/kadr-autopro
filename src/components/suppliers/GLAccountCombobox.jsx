@@ -6,11 +6,17 @@ import { Check, Search } from 'lucide-react';
 
 const sortAccounts = (accounts) => [...accounts].sort((a, b) => String(a.account_number).localeCompare(String(b.account_number), undefined, { numeric: true, sensitivity: 'base' }));
 
-export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel }) {
+export default function GLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel, onPopoverOpenChange }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const selectedItemRef = React.useRef(null);
   const listRef = React.useRef(null);
+
+  const handleOpenChange = (nextOpen) => {
+    setOpen(nextOpen);
+    if (nextOpen) setSearch('');
+    onPopoverOpenChange?.(nextOpen);
+  };
 
   const availableAccounts = useMemo(() => {
     return sortAccounts(
@@ -57,10 +63,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
   return (
     <Popover
       open={open}
-      onOpenChange={(nextOpen) => {
-        setOpen(nextOpen);
-        if (nextOpen) setSearch('');
-      }}
+      onOpenChange={handleOpenChange}
     >
       <PopoverTrigger asChild>
         <Button
@@ -95,7 +98,7 @@ export default function GLAccountCombobox({ chartOfAccounts, currentValue, onCha
                     ref={isSelected ? selectedItemRef : null}
                     onClick={() => {
                       onChange(String(account.account_number));
-                      setOpen(false);
+                      handleOpenChange(false);
                       setSearch('');
                     }}
                     className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"

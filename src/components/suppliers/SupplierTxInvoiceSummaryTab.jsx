@@ -41,6 +41,10 @@ export default function SupplierTxInvoiceSummaryTab({
 }) {
   const [draftDates, setDraftDates] = React.useState({});
   const [draftDescriptions, setDraftDescriptions] = React.useState({});
+  const [draftInvoiceNumbers, setDraftInvoiceNumbers] = React.useState({});
+  const [draftCharges, setDraftCharges] = React.useState({});
+  const [draftGsts, setDraftGsts] = React.useState({});
+  const [draftGlAccounts, setDraftGlAccounts] = React.useState({});
   const isReadOnly = isLockedByOtherUser || !lockAcquired;
 
   React.useEffect(() => {
@@ -54,17 +58,24 @@ export default function SupplierTxInvoiceSummaryTab({
   }, [invoiceLines, formatDateForInput]);
 
   React.useEffect(() => {
-    setDraftDescriptions((prev) => {
+    const activeIds = new Set(invoiceLines.map((line) => line.id));
+
+    const syncDraftMap = (prev, getValue) => {
       const next = { ...prev };
-      const activeIds = new Set(invoiceLines.map((line) => line.id));
       invoiceLines.forEach((line) => {
-        next[line.id] = line.description || '';
+        next[line.id] = getValue(line);
       });
       Object.keys(next).forEach((id) => {
         if (!activeIds.has(id)) delete next[id];
       });
       return next;
-    });
+    };
+
+    setDraftDescriptions((prev) => syncDraftMap(prev, (line) => line.description || ''));
+    setDraftInvoiceNumbers((prev) => syncDraftMap(prev, (line) => line.invoice_number || ''));
+    setDraftCharges((prev) => syncDraftMap(prev, (line) => line.charge ?? ''));
+    setDraftGsts((prev) => syncDraftMap(prev, (line) => line.gst ?? ''));
+    setDraftGlAccounts((prev) => syncDraftMap(prev, (line) => line.gl_account ? String(line.gl_account) : ''));
   }, [invoiceLines]);
 
   const displayLinesByInvoice = React.useMemo(() => {
@@ -93,6 +104,36 @@ export default function SupplierTxInvoiceSummaryTab({
     const nextDescription = draftDescriptions[line.id] ?? '';
     if (nextDescription !== (line.description || '')) {
       handleLineChange(line.id, 'description', nextDescription);
+    }
+  };
+
+  const handleInvoiceNumberBlur = (line) => {
+    const nextInvoiceNumber = draftInvoiceNumbers[line.id] ?? '';
+    if (nextInvoiceNumber !== (line.invoice_number || '')) {
+      handleLineChange(line.id, 'invoice_number', nextInvoiceNumber);
+    }
+  };
+
+  const handleChargeBlur = (line) => {
+    const nextCharge = draftCharges[line.id] ?? '';
+    const hasChanged = String(nextCharge) !== String(line.charge ?? '');
+    if (!hasChanged) return;
+    handleLineChange(line.id, 'charge', nextCharge);
+    handleValueBlur(line.id, 'charge', nextCharge);
+  };
+
+  const handleGstBlur = (line) => {
+    const nextGst = draftGsts[line.id] ?? '';
+    const hasChanged = String(nextGst) !== String(line.gst ?? '');
+    if (!hasChanged) return;
+    handleLineChange(line.id, 'gst', nextGst);
+    handleValueBlur(line.id, 'gst', nextGst);
+  };
+
+  const handleGlAccountBlur = (line) => {
+    const nextGlAccount = draftGlAccounts[line.id] ?? '';
+    if (String(nextGlAccount) !== String(line.gl_account || '')) {
+      handleGlAccountChange(line, nextGlAccount);
     }
   };
 
@@ -182,8 +223,9 @@ export default function SupplierTxInvoiceSummaryTab({
                                   <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                     <TableCell>
                                   <Input
-                                    value={line.invoice_number || ''}
-                                    onChange={(e) => handleLineChange(line.id, 'invoice_number', e.target.value)}
+                                    value={draftInvoiceNumbers[line.id] ?? line.invoice_number ?? ''}
+                                    onChange={(e) => setDraftInvoiceNumbers((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                    onBlur={() => !disabled && handleInvoiceNumberBlur(line)}
                                     readOnly={disabled}
                                     className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
                                   />
@@ -210,8 +252,13 @@ export default function SupplierTxInvoiceSummaryTab({
                                 <TableCell>
                                    <GLAccountCombobox
                                      chartOfAccounts={chartOfAccounts}
-                                     currentValue={line.gl_account ? String(line.gl_account) : ''}
-                                     onChange={(value) => handleGlAccountChange(line, value)}
+                                     currentValue={draftGlAccounts[line.id] ?? (line.gl_account ? String(line.gl_account) : '')}
+                                     onChange={(value) => setDraftGlAccounts((prev) => ({ ...prev, [line.id]: value }))}
+                                     onPopoverOpenChange={(open) => {
+                                       if (!open && !(isReadOnly || hasInventoryItem || locked)) {
+                                         handleGlAccountBlur(line);
+                                       }
+                                     }}
                                      disabled={isReadOnly || hasInventoryItem || locked}
                                      placeholder="Select GL"
                                      className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}
@@ -219,18 +266,18 @@ export default function SupplierTxInvoiceSummaryTab({
                                  </TableCell>
                                 <TableCell className="text-right">
                                   <Input
-                                    value={line.charge ?? ''}
-                                    onChange={(e) => handleLineChange(line.id, 'charge', e.target.value)}
-                                    onBlur={(e) => !disabled && handleValueBlur(line.id, 'charge', e.target.value)}
+                                    value={draftCharges[line.id] ?? line.charge ?? ''}
+                                    onChange={(e) => setDraftCharges((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                    onBlur={() => !disabled && handleChargeBlur(line)}
                                     readOnly={disabled}
                                     className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Input
-                                    value={line.gst ?? ''}
-                                    onChange={(e) => gstEditable && handleLineChange(line.id, 'gst', e.target.value)}
-                                    onBlur={(e) => gstEditable && handleValueBlur(line.id, 'gst', e.target.value)}
+                                    value={draftGsts[line.id] ?? line.gst ?? ''}
+                                    onChange={(e) => gstEditable && setDraftGsts((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                    onBlur={() => gstEditable && handleGstBlur(line)}
                                     readOnly={!gstEditable}
                                     className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
                                   />
