@@ -38,6 +38,60 @@ Deno.serve(async (req) => {
 
         let result;
         let operationMeta = { action, table, id: id || null, ids: ids || null };
+
+        const buildCreateRow = (rowData = {}) => {
+            let insertData;
+
+            if (table === 'Note') {
+                insertData = {
+                    ...rowData,
+                    created_by: rowData?.created_by || user.id,
+                    status: rowData?.status || 'Private'
+                };
+            } else {
+                const newId = rowData?.id || crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+                insertData = {
+                    id: newId,
+                    ...rowData
+                };
+            }
+
+            if (table === 'BankTransaction') {
+                const nowIso = getCurrentMountainTimeISO();
+                insertData = {
+                    ...insertData,
+                    created_date: rowData?.created_date || nowIso,
+                    updated_date: rowData?.updated_date || nowIso,
+                    created_by: rowData?.created_by || user.email
+                };
+            }
+
+            if (table === 'SupplierInvoiceLine') {
+                const nowIso = getCurrentMountainTimeISO();
+                insertData = {
+                    ...insertData,
+                    created_date: rowData?.created_date || nowIso,
+                    updated_date: rowData?.updated_date || nowIso,
+                    created_by: rowData?.created_by || user.email,
+                    created_by_id: rowData?.created_by_id || user.id
+                };
+            }
+
+            if (table === 'GLTransaction') {
+                const nowIso = getCurrentMountainTimeISO();
+                const userDisplay = rowData?.created_by || user.full_name || user.email || user.id;
+                insertData = {
+                    ...insertData,
+                    created_date: rowData?.created_date || nowIso,
+                    updated_date: rowData?.updated_date || nowIso,
+                    created_by: userDisplay,
+                    created_by_id: rowData?.created_by_id || user.id,
+                    updated_by: rowData?.updated_by || userDisplay
+                };
+            }
+
+            return insertData;
+        };
         
         if (action === 'read' || action === 'list') {
             let query = supabase.from(table).select('*');
@@ -52,46 +106,9 @@ Deno.serve(async (req) => {
             }
             result = await query;
         } else if (action === 'create') {
-            let insertData;
-
-            if (table === 'Note') {
-                insertData = {
-                    ...payloadData,
-                    created_by: payloadData?.created_by || user.id,
-                    status: payloadData?.status || 'Private'
-                };
-            } else {
-                const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
-                insertData = {
-                    id: newId,
-                    ...payloadData
-                };
-            }
-
-            if (table === 'BankTransaction' || table === 'SupplierInvoiceLine') {
-                const nowIso = getCurrentMountainTimeISO();
-                insertData = {
-                    ...insertData,
-                    created_date: payloadData?.created_date || nowIso,
-                    updated_date: payloadData?.updated_date || nowIso,
-                    created_by: payloadData?.created_by || user.email
-                };
-            }
-
-            if (table === 'GLTransaction') {
-                const nowIso = getCurrentMountainTimeISO();
-                const userDisplay = payloadData?.created_by || user.full_name || user.email || user.id;
-                insertData = {
-                    ...insertData,
-                    created_date: payloadData?.created_date || nowIso,
-                    updated_date: payloadData?.updated_date || nowIso,
-                    created_by: userDisplay,
-                    created_by_id: payloadData?.created_by_id || user.id,
-                    updated_by: payloadData?.updated_by || userDisplay
-                };
-            }
-
-            result = await supabase.from(table).insert([insertData]).select();
+            const rows = Array.isArray(payloadData) ? payloadData : [payloadData];
+            const insertRows = rows.map((row) => buildCreateRow(row || {}));
+            result = await supabase.from(table).insert(insertRows).select();
         } else if (action === 'update') {
             let updateData = {
                 ...payloadData

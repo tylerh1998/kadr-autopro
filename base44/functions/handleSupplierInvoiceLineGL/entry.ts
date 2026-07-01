@@ -164,38 +164,38 @@ Deno.serve(async (req) => {
         let createdCount = 0;
 
         if (glTransactions.length > 0) {
-            console.time('Bulk Create GL Transactions');
+            console.time('Create GL Transactions via SupabaseProxy');
             try {
-                // Sanitize transactions
+                const userDisplay = user.full_name || user.email || user.id;
                 const sanitizedTxs = glTransactions.map(glTx => ({
                     ...glTx,
-                    debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
-                    credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
+                    debit_amount: Math.round(parseFloat(glTx.debit_amount || 0) * 100) / 100,
+                    credit_amount: Math.round(parseFloat(glTx.credit_amount || 0) * 100) / 100,
+                    created_by: glTx.created_by || userDisplay,
+                    created_by_id: glTx.created_by_id || user.id,
+                    updated_by: glTx.updated_by || userDisplay
                 }));
 
-                // Use bulkCreate for efficiency
-                const created = await base44.asServiceRole.entities.GLTransaction.bulkCreate(sanitizedTxs);
-                createdCount = created.length;
-                console.log(`Successfully bulk created ${createdCount} GL transactions`);
-            } catch (error) {
-                console.error('Bulk creation failed, falling back to individual:', error);
-                // Fallback to individual creation if bulk fails (e.g. partial failure)
-                for (const glTx of glTransactions) {
-                    try {
-                        const sanitizedTx = {
-                            ...glTx,
-                            debit_amount: Math.round(parseFloat(glTx.debit_amount) * 100) / 100,
-                            credit_amount: Math.round(parseFloat(glTx.credit_amount) * 100) / 100
-                        };
-                        await base44.asServiceRole.entities.GLTransaction.create(sanitizedTx);
-                        createdCount++;
-                    } catch (createError) {
-                        console.error('Error creating GL transaction:', createError);
-                        errors.push({ transaction: glTx, error: createError.message });
-                    }
+                const createResponse = await base44.functions.invoke('SupabaseProxy', {
+                    action: 'create',
+                    table: 'GLTransaction',
+                    data: sanitizedTxs
+                });
+
+                if (createResponse?.data?.error) {
+                    throw new Error(createResponse.data.error);
                 }
+
+                createdCount = Array.isArray(createResponse?.data?.data) ? createResponse.data.data.length : 0;
+                console.log(`Successfully created ${createdCount} GL transactions through SupabaseProxy`);
+            } catch (error) {
+                console.error('Failed to create GL transactions through SupabaseProxy:', error);
+                errors.push({
+                    transaction_count: glTransactions.length,
+                    error: error.message
+                });
             }
-            console.timeEnd('Bulk Create GL Transactions');
+            console.timeEnd('Create GL Transactions via SupabaseProxy');
         }
         
         console.timeEnd('Total GL Processing Time');
