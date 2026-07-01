@@ -48,25 +48,18 @@ export default function GLJournalPage() {
       });
       setAccountsMap(accountMap);
       
-      // Fetch transactions filtered by date range directly from the database
-      const query = {
-        transaction_date: {
-          $gte: appliedStartDate,
-          $lte: appliedEndDate + 'T23:59:59.999Z'
-        }
-      };
-      const filteredTransactions = await base44.entities.GLTransaction.filter(query, '-transaction_date', 20000);
-
-      // Sort by transaction date (newest first), then by created date (newest first) within the same transaction date
-      const sortedTransactions = filteredTransactions.sort((a, b) => {
-        const transactionDateDiff = new Date(b.transaction_date) - new Date(a.transaction_date);
-        if (transactionDateDiff !== 0) return transactionDateDiff;
-
-        return new Date(b.created_date || 0) - new Date(a.created_date || 0);
+      const response = await base44.functions.invoke('getGLJournalData', {
+        appliedStartDate,
+        appliedEndDate
       });
 
-      setTransactions(sortedTransactions);
-      console.log(`Loaded ${sortedTransactions.length} transactions`);
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to load GL journal data');
+      }
+
+      const loadedTransactions = response.data.transactions || [];
+      setTransactions(loadedTransactions);
+      console.log(`Loaded ${loadedTransactions.length} transactions`);
     } catch (error) {
       console.error('Error loading GL transactions:', error);
       alert('Failed to load transactions: ' + error.message);
