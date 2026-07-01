@@ -119,6 +119,7 @@ const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range)
   toDate.setHours(23, 59, 59, 999);
 
   lines.forEach((line) => {
+    console.log(line.invoice_date);
     const hasContent = line.invoice_number || line.description || (parseFloat(line.charge) || 0) !== 0 || (parseFloat(line.gst) || 0) !== 0 || (parseFloat(line.line_total) || 0) !== 0;
     if (!hasContent) return;
 
