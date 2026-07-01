@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+import { v4 as uuidv4 } from 'npm:uuid@9.0.1';
 
 export default Deno.serve(async (req) => {
     try {
@@ -93,7 +94,7 @@ export default Deno.serve(async (req) => {
 
                     const { error: reversalInsertError } = await supabase
                         .from('GLTransaction')
-                        .insert(reversalTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+                        .insert(reversalTxs.map((tx) => ({ id: crypto.randomUUID(), ...tx, ...getAuditFields() })));
 
                     if (reversalInsertError) {
                         throw reversalInsertError;
@@ -253,7 +254,7 @@ export default Deno.serve(async (req) => {
 
             const { error: invoiceInsertError } = await supabase
                 .from('GLTransaction')
-                .insert(invoiceTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+                .insert(invoiceTxs.map((tx) => ({ id: crypto.randomUUID(), ...tx, ...getAuditFields() })));
 
             if (invoiceInsertError) {
                 throw invoiceInsertError;
@@ -290,7 +291,7 @@ export default Deno.serve(async (req) => {
 
             const { error: inventoryInsertError } = await supabase
                 .from('GLTransaction')
-                .insert(inventoryTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+                .insert(inventoryTxs.map((tx) => ({ id: crypto.randomUUID(), ...tx, ...getAuditFields() })));
 
             if (inventoryInsertError) {
                 throw inventoryInsertError;
@@ -353,7 +354,7 @@ export default Deno.serve(async (req) => {
         if (paymentTxs.length > 0) {
             const { error: paymentInsertError } = await supabase
                 .from('GLTransaction')
-                .insert(paymentTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+                .insert(paymentTxs.map((tx) => ({ id: crypto.randomUUID(), ...tx, ...getAuditFields() })));
 
             if (paymentInsertError) {
                 throw paymentInsertError;
