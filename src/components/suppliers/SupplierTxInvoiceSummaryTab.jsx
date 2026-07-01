@@ -118,7 +118,6 @@ export default function SupplierTxInvoiceSummaryTab({
     const nextCharge = draftCharges[line.id] ?? '';
     const hasChanged = String(nextCharge) !== String(line.charge ?? '');
     if (!hasChanged) return;
-    handleLineChange(line.id, 'charge', nextCharge);
     handleValueBlur(line.id, 'charge', nextCharge);
   };
 
@@ -126,7 +125,6 @@ export default function SupplierTxInvoiceSummaryTab({
     const nextGst = draftGsts[line.id] ?? '';
     const hasChanged = String(nextGst) !== String(line.gst ?? '');
     if (!hasChanged) return;
-    handleLineChange(line.id, 'gst', nextGst);
     handleValueBlur(line.id, 'gst', nextGst);
   };
 
