@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn, GLTransaction } from '@/entities/all';
+import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 
@@ -133,6 +133,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     }
   };
 
+  const createGLTransaction = async (transactionData) => {
+    const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+
+    return await base44.functions.invoke('SupabaseProxy', {
+      action: 'create',
+      table: 'GLTransaction',
+      data: {
+        ...transactionData,
+        created_by: userDisplay,
+        created_by_id: currentUser?.id,
+        updated_by: userDisplay
+      }
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -254,7 +269,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       const glDescription = `Inventory Return Credit: ${returnItem.part_number} (Inv: ${invoiceNumber})`;
 
       // Credit Inventory (1200) for subtotal (parts cost ONLY)
-      await GLTransaction.create({
+      await createGLTransaction({
         transaction_date: invoiceDate,
         account_number: '1200',
         description: glDescription,
@@ -267,7 +282,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
       // Credit GST Paid (2003) for the GST portion of the main return item
       if (gst !== 0) {
-        await GLTransaction.create({
+        await createGLTransaction({
           transaction_date: invoiceDate,
           account_number: '2003',
           description: glDescription,
@@ -286,7 +301,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         // Debit the selected GL account for the adjustment amount
         // If adj is negative (fee/charge), we DEBIT the expense account to balance the smaller AP Debit.
         // If adj is positive (extra credit), we CREDIT the account to balance the larger AP Debit.
-        await GLTransaction.create({
+        await createGLTransaction({
           transaction_date: invoiceDate,
           account_number: glAccount,
           description: adjustmentGlDescription,
@@ -299,7 +314,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
         // Debit/Credit GST Paid (2003) for the adjustment's GST
         if (adjGst !== 0) {
-          await GLTransaction.create({
+          await createGLTransaction({
             transaction_date: invoiceDate,
             account_number: '2003',
             description: `Adjustment GST: ${adjustmentReason || 'Miscellaneous'} (Inv: ${invoiceNumber})`,
@@ -314,7 +329,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
       if (refundCreditTo === 'Supplier AP') {
         // Debit: Accounts Payable (2000) for grand total
-        await GLTransaction.create({
+        await createGLTransaction({
           transaction_date: invoiceDate,
           account_number: '2000',
           description: glDescription,
@@ -327,7 +342,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
       } else if (refundCreditTo === 'Cash Drawer') {
         // Debit: Cash Drawer (1010) for grand total
-        await GLTransaction.create({
+        await createGLTransaction({
           transaction_date: invoiceDate,
           account_number: '1010',
           description: glDescription,
@@ -361,7 +376,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         const selectedLOC = linesOfCredit.find(loc => loc.id === toAccount);
         if (selectedLOC && selectedLOC.gl_account) {
           // Debit: LOC GL Account for grand total
-          await GLTransaction.create({
+          await createGLTransaction({
             transaction_date: invoiceDate,
             account_number: selectedLOC.gl_account,
             description: glDescription,
