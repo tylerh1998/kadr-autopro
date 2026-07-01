@@ -145,29 +145,32 @@ export default function AdvancePaymentModal({
       // Create the payment via parent (which creates CustomerPayment record)
       const createdPayment = await onProcessPayment('add', newPaymentData);
       
-      // Post GL transactions for the advance payment
-      // Debit 1010 (Cash Drawer) - increase asset
-      await GLTransaction.create({
-        account_number: '1010',
-        transaction_date: paymentDate,
-        description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
-        reference: reference || workOrder.wo_number || workOrder.ro_number,
-        debit_amount: paymentAmount,
-        credit_amount: 0,
-        source_type: 'work_order', // Changed from 'payment' to 'work_order'
-        source_id: createdPayment?.id || ''
-      });
-      
-      // Credit 2100 (Unearned Revenue/Customer Deposits) - increase liability
-      await GLTransaction.create({
-        account_number: '2100',
-        transaction_date: paymentDate,
-        description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
-        reference: reference || workOrder.wo_number || workOrder.ro_number,
-        debit_amount: 0,
-        credit_amount: paymentAmount,
-        source_type: 'work_order', // Changed from 'payment' to 'work_order'
-        source_id: createdPayment?.id || ''
+      // Post GL transactions for the advance payment through SupabaseProxy
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'GLTransaction',
+        data: [
+          {
+            account_number: '1010',
+            transaction_date: paymentDate,
+            description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
+            reference: reference || workOrder.wo_number || workOrder.ro_number,
+            debit_amount: paymentAmount,
+            credit_amount: 0,
+            source_type: 'work_order',
+            source_id: createdPayment?.id || ''
+          },
+          {
+            account_number: '2100',
+            transaction_date: paymentDate,
+            description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
+            reference: reference || workOrder.wo_number || workOrder.ro_number,
+            debit_amount: 0,
+            credit_amount: paymentAmount,
+            source_type: 'work_order',
+            source_id: createdPayment?.id || ''
+          }
+        ]
       });
       
       // Reset form for next entry only after successful processing
@@ -244,28 +247,32 @@ export default function AdvancePaymentModal({
       const woRef = workOrder.wo_number || workOrder.ro_number;
       const reversalDesc = `Reversal: Advance payment - WO ${woRef}`;
 
-      // Reverse the 1010 debit (credit 1010 to remove the asset)
-      await base44.entities.GLTransaction.create({
-        account_number: '1010',
-        transaction_date: reversalDate,
-        description: reversalDesc,
-        reference: paymentToDelete.reference || woRef,
-        debit_amount: 0,
-        credit_amount: paymentAmount,
-        source_type: 'work_order',
-        source_id: paymentIdToDelete
-      });
-
-      // Reverse the 2100 credit (debit 2100 to remove the liability)
-      await base44.entities.GLTransaction.create({
-        account_number: '2100',
-        transaction_date: reversalDate,
-        description: reversalDesc,
-        reference: paymentToDelete.reference || woRef,
-        debit_amount: paymentAmount,
-        credit_amount: 0,
-        source_type: 'work_order',
-        source_id: paymentIdToDelete
+      // Post reversal GL transactions through SupabaseProxy
+      await base44.functions.invoke('SupabaseProxy', {
+        action: 'create',
+        table: 'GLTransaction',
+        data: [
+          {
+            account_number: '1010',
+            transaction_date: reversalDate,
+            description: reversalDesc,
+            reference: paymentToDelete.reference || woRef,
+            debit_amount: 0,
+            credit_amount: paymentAmount,
+            source_type: 'work_order',
+            source_id: paymentIdToDelete
+          },
+          {
+            account_number: '2100',
+            transaction_date: reversalDate,
+            description: reversalDesc,
+            reference: paymentToDelete.reference || woRef,
+            debit_amount: paymentAmount,
+            credit_amount: 0,
+            source_type: 'work_order',
+            source_id: paymentIdToDelete
+          }
+        ]
       });
 
       // Delete the payment via parent
