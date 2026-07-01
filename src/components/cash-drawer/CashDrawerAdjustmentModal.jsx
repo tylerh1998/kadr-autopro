@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import RegistriesBatchUploaderModal from '@/components/cash-drawer/RegistriesBatchUploaderModal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,7 +21,6 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
   });
   const [glAccounts, setGlAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showRegistriesUploader, setShowRegistriesUploader] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -97,6 +95,25 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
         return <ArrowLeftRight className="w-4 h-4" />;
       default:
         return <DollarSign className="w-4 h-4" />;
+    }
+  };
+
+  const getPaymentMethodLabel = (method) => {
+    switch (method) {
+      case 'cash':
+        return 'Cash';
+      case 'debit':
+        return 'Debit';
+      case 'credit_card':
+        return 'Credit Card';
+      case 'cheque':
+        return 'Cheque';
+      case 'e_transfer':
+        return 'E-Transfer';
+      case 'other':
+        return 'Other';
+      default:
+        return 'Cash';
     }
   };
 
@@ -283,14 +300,6 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
               )}
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button
-                type="button"
-                onClick={() => setShowRegistriesUploader(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={loading}
-              >
-                Add Registries Batch
-              </Button>
               <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
                 Cancel
               </Button>
@@ -323,7 +332,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                     <th className="text-left p-3 font-semibold text-slate-700">Type</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Amount</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
+                    <th className="text-left p-3 font-semibold text-slate-700">Method</th>
                     <th className="text-center p-3 font-semibold text-slate-700">Status</th>
                   </tr>
                 </thead>
@@ -357,9 +366,10 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                         </div>
                       </td>
                       <td className="p-3">
-                        <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
-                          {adj.reference || '-'}
-                        </code>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          {getPaymentMethodIcon(adj.payment_method)}
+                          <span>{getPaymentMethodLabel(adj.payment_method)}</span>
+                        </div>
                       </td>
                       <td className="p-3 text-center">
                         <Badge variant={adj.status === 'posted_to_gl' ? 'default' : 'secondary'}>
@@ -374,11 +384,6 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
           )}
         </div>
       </DialogContent>
-      <RegistriesBatchUploaderModal
-        open={showRegistriesUploader}
-        onClose={() => setShowRegistriesUploader(false)}
-        onSuccess={() => window.location.reload()}
-      />
     </Dialog>
   );
 }
