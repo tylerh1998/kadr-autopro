@@ -33,6 +33,7 @@ Deno.serve(async (req) => {
             const mountainNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' }));
             return mountainNow.toISOString();
         };
+        const userDisplay = user.full_name || user.email || user.id;
 
         // Helper to create GL transactions
         const createGLTransactions = async (linesToProcess, action, oldValues) => {
@@ -72,6 +73,7 @@ Deno.serve(async (req) => {
             const createGLEntries = (line, isReversal = false) => {
                 const multiplier = isReversal ? -1 : 1;
                 const reversalPrefix = isReversal ? 'REVERSAL - ' : '';
+                const nowIso = getCurrentMountainTimeISO();
                 
                 const purchaseAmount = parseFloat(line.purchase_amount || 0);
                 const gstAmount = parseFloat(line.gst_amount || 0);
@@ -85,9 +87,11 @@ Deno.serve(async (req) => {
                 if (purchaseAmount !== 0) {
                     glTransactions.push({
                         id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-                        created_date: new Date().toISOString(),
-                        updated_date: new Date().toISOString(),
-                        created_by: user.email,
+                        created_date: nowIso,
+                        updated_date: nowIso,
+                        created_by: userDisplay,
+                        created_by_id: user.id,
+                        updated_by: userDisplay,
                         account_number: String(line.gl_account),
                         transaction_date: line.invoice_date,
                         description: `${reversalPrefix}${baseDescription} - ${glAccountName}`,
@@ -218,7 +222,9 @@ Deno.serve(async (req) => {
                     paid_amount: 0,
                     created_date: nowIso,
                     updated_date: nowIso,
-                    created_by: user.email
+                    created_by: userDisplay,
+                    created_by_id: user.id,
+                    updated_by: userDisplay
                 };
             });
             
@@ -278,7 +284,8 @@ Deno.serve(async (req) => {
                     gst_amount: line.gst_amount,
                     gl_account: line.gl_account,
                     gst_override: line.gst_override,
-                    updated_date: getCurrentMountainTimeISO()
+                    updated_date: getCurrentMountainTimeISO(),
+                    updated_by: userDisplay
                 };
 
                 const { data: updatedLine, error: updateError } = await supabase.from('SupplierInvoiceLine').update(updateData).eq('id', line.id).select().single();
@@ -357,6 +364,7 @@ Deno.serve(async (req) => {
                                 await supabase.from('SupplierInvoiceLine')
                                     .update({
                                         updated_date: getCurrentMountainTimeISO(),
+                                        updated_by: userDisplay,
                                         paid_amount: Math.round(newPaidAmount * 100) / 100
                                     })
                                     .eq('id', l.id);
