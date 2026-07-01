@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChartOfAccount, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { ChartOfAccount } from '@/entities/all';
+import { postJournalEntries } from '@/functions/postJournalEntries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,19 +95,10 @@ export default function JournalEntriesPage() {
 
     setSaving(true);
     try {
-      const reference = `JE-${Date.now()}`;
-      const transactionsToCreate = journalLines.map(line => ({
-        account_number: line.account,
-        transaction_date: transactionDate,
-        description: line.memo || 'Manual Journal Entry',
-        reference: reference,
-        debit_amount: parseFloat(line.debit) || 0,
-        credit_amount: parseFloat(line.credit) || 0,
-        source_type: 'manual',
-        source_id: null
-      }));
-
-      await base44.entities.GLTransaction.bulkCreate(transactionsToCreate);
+      await postJournalEntries({
+        transactionDate,
+        journalLines
+      });
 
       alert('Journal entry posted successfully!');
       handleClear();
