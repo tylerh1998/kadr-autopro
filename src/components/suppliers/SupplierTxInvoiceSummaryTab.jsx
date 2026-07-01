@@ -11,6 +11,10 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { Check } from 'lucide-react';
 
 const getInvoiceKey = (invoice) => `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
+const truncateText = (value, max = 25) => {
+  const text = String(value || '');
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
 const getLineCharge = (line) => parseFloat(line.charge ?? line.purchase_amount ?? 0) || 0;
 const getLineGst = (line) => parseFloat(line.gst ?? line.gst_amount ?? 0) || 0;
 const getLineTotal = (line) => {
@@ -248,20 +252,31 @@ export default function SupplierTxInvoiceSummaryTab({
                                   />
                                 </TableCell>
                                 <TableCell>
-                                   <GLAccountCombobox
-                                     chartOfAccounts={chartOfAccounts}
-                                     currentValue={draftGlAccounts[line.id] ?? (line.gl_account ? String(line.gl_account) : '')}
-                                     onChange={(value) => setDraftGlAccounts((prev) => ({ ...prev, [line.id]: value }))}
-                                     onPopoverOpenChange={(open) => {
-                                       if (!open && !(isReadOnly || hasInventoryItem || locked)) {
-                                         handleGlAccountBlur(line);
-                                       }
-                                     }}
-                                     disabled={isReadOnly || hasInventoryItem || locked}
-                                     placeholder="Select GL"
-                                     className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}
-                                   />
-                                 </TableCell>
+                                  {(() => {
+                                    const account = line.gl_account
+                                      ? chartOfAccounts.find(acc => String(acc.account_number) === String(line.gl_account))
+                                      : null;
+                                    const fullGlLabel = account ? `${account.account_number} - ${account.account_name}` : (line.gl_account || '');
+                                    const truncatedGlLabel = truncateText(fullGlLabel, 25);
+
+                                    return (
+                                      <GLAccountCombobox
+                                        chartOfAccounts={chartOfAccounts}
+                                        currentValue={draftGlAccounts[line.id] ?? (line.gl_account ? String(line.gl_account) : '')}
+                                        selectedLabel={truncatedGlLabel}
+                                        onChange={(value) => setDraftGlAccounts((prev) => ({ ...prev, [line.id]: value }))}
+                                        onPopoverOpenChange={(open) => {
+                                          if (!open && !(isReadOnly || hasInventoryItem || locked)) {
+                                            handleGlAccountBlur(line);
+                                          }
+                                        }}
+                                        disabled={isReadOnly || hasInventoryItem || locked}
+                                        placeholder="Select GL"
+                                        className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}
+                                      />
+                                    );
+                                  })()}
+                                </TableCell>
                                 <TableCell className="text-right">
                                   <Input
                                     value={draftCharges[line.id] ?? line.charge ?? ''}
