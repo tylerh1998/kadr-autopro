@@ -76,6 +76,54 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+    if (!supabaseUrl || !supabaseSecret) {
+      return Response.json(
+        { error: 'Supabase credentials not configured' },
+        { status: 500 }
+      );
+    }
+
+    const getCurrentMountainTimeISO = () => {
+      const mountainNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' }));
+      return mountainNow.toISOString();
+    };
+
+    const createGLTransaction = async (transactionData) => {
+      const nowIso = getCurrentMountainTimeISO();
+      const userDisplay = user.full_name || user.email || user.id;
+      const glPayload = {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        created_date: nowIso,
+        updated_date: nowIso,
+        created_by: userDisplay,
+        created_by_id: user.id,
+        updated_by: userDisplay,
+        ...transactionData
+      };
+
+      const glResponse = await fetch(`${supabaseUrl}/rest/v1/GLTransaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseSecret,
+          Authorization: `Bearer ${supabaseSecret}`,
+          Prefer: 'return=representation'
+        },
+        body: JSON.stringify(glPayload)
+      });
+
+      if (!glResponse.ok) {
+        const errorText = await glResponse.text();
+        throw new Error(`Failed to create GL transaction: ${glResponse.status} ${errorText}`);
+      }
+
+      const glRows = await glResponse.json();
+      return Array.isArray(glRows) ? glRows[0] : glRows;
+    };
+
     // Generate a unique transfer reference
     const transferRef = `TRANSFER-${Date.now()}`;
     const transferDescription = description || `Transfer from ${fromAccount.name} to ${toAccount.name}`;
@@ -121,7 +169,7 @@ Deno.serve(async (req) => {
 
     // Create GL Transactions
     // 1. Credit the source account's GL (decreases asset)
-    const fromGLTx = await base44.asServiceRole.entities.GLTransaction.create({
+    await createGLTransaction({
       account_number: String(fromAccount.gl_account),
       transaction_date: transferDate,
       description: transferDescription,
@@ -132,7 +180,7 @@ Deno.serve(async (req) => {
     });
 
     // 2. Debit the destination account's GL (increases asset)
-    const toGLTx = await base44.asServiceRole.entities.GLTransaction.create({
+    await createGLTransaction({
       account_number: String(toAccount.gl_account),
       transaction_date: transferDate,
       description: transferDescription,

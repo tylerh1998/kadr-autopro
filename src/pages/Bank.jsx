@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChartOfAccount, GLTransaction } from '@/entities/all';
+import { ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
@@ -66,6 +66,26 @@ export default function BankPage() {
   const [sortConfig, setSortConfig] = useState({ key: 'transaction_date', direction: 'asc' });
 
   const navigate = useNavigate();
+
+  const createGLTransaction = useCallback(async (transactionData) => {
+    const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+    const response = await base44.functions.invoke('SupabaseProxy', {
+      action: 'create',
+      table: 'GLTransaction',
+      data: {
+        ...transactionData,
+        created_by: userDisplay,
+        created_by_id: currentUser?.id,
+        updated_by: userDisplay
+      }
+    });
+
+    if (response.data?.error) {
+      throw new Error(response.data.error);
+    }
+
+    return response.data?.data?.[0] || null;
+  }, [currentUser]);
 
   const handleSort = (key) => {
     setSortConfig(prev => {
@@ -426,7 +446,7 @@ export default function BankPage() {
           // Reverse old GL entries (swap debit/credit)
           if (oldTransactionData.credit_amount > 0) {
             // Old was a credit (deposit), reverse it
-            await base44.entities.GLTransaction.create({
+            await createGLTransaction({
               account_number: String(bankAccount.gl_account),
               transaction_date: oldTransactionData.transaction_date,
               description: `REVERSAL: ${oldTransactionData.description}`,
@@ -437,7 +457,7 @@ export default function BankPage() {
               source_id: selectedAccountId
             });
 
-            await base44.entities.GLTransaction.create({
+            await createGLTransaction({
               account_number: String(oldTransactionData.gl_account),
               transaction_date: oldTransactionData.transaction_date,
               description: `REVERSAL: ${oldTransactionData.description}`,
@@ -449,7 +469,7 @@ export default function BankPage() {
             });
           } else if (oldTransactionData.debit_amount > 0) {
             // Old was a debit (withdrawal), reverse it
-            await base44.entities.GLTransaction.create({
+            await createGLTransaction({
               account_number: String(bankAccount.gl_account),
               transaction_date: oldTransactionData.transaction_date,
               description: `REVERSAL: ${oldTransactionData.description}`,
@@ -460,7 +480,7 @@ export default function BankPage() {
               source_id: selectedAccountId
             });
 
-            await base44.entities.GLTransaction.create({
+            await createGLTransaction({
               account_number: String(oldTransactionData.gl_account),
               transaction_date: oldTransactionData.transaction_date,
               description: `REVERSAL: ${oldTransactionData.description}`,
@@ -484,7 +504,7 @@ export default function BankPage() {
       if (transactionData.credit_amount > 0) {
         // Credit transaction (deposit)
         // Debit the bank account (increases asset)
-        await base44.entities.GLTransaction.create({
+        await createGLTransaction({
           account_number: String(bankAccount.gl_account),
           transaction_date: transactionData.transaction_date,
           description: transactionData.description,
@@ -496,7 +516,7 @@ export default function BankPage() {
         });
 
         // Credit the selected GL account
-        await base44.entities.GLTransaction.create({
+        await createGLTransaction({
           account_number: String(transactionData.gl_account),
           transaction_date: transactionData.transaction_date,
           description: transactionData.description,
@@ -509,7 +529,7 @@ export default function BankPage() {
       } else if (transactionData.debit_amount > 0) {
         // Debit transaction (withdrawal/payment)
         // Credit the bank account (decreases asset)
-        await base44.entities.GLTransaction.create({
+        await createGLTransaction({
           account_number: String(bankAccount.gl_account),
           transaction_date: transactionData.transaction_date,
           description: transactionData.description,
@@ -521,7 +541,7 @@ export default function BankPage() {
         });
 
         // Debit the selected GL account
-        await base44.entities.GLTransaction.create({
+        await createGLTransaction({
           account_number: String(transactionData.gl_account),
           transaction_date: transactionData.transaction_date,
           description: transactionData.description,
@@ -559,7 +579,7 @@ export default function BankPage() {
         // Reverse GL entries
         if (transaction.credit_amount > 0) {
           // Old was a credit (deposit), reverse it
-          await base44.entities.GLTransaction.create({
+          await createGLTransaction({
             account_number: String(bankAccount.gl_account),
             transaction_date: transaction.transaction_date,
             description: `REVERSAL: ${transaction.description}`,
@@ -570,7 +590,7 @@ export default function BankPage() {
             source_id: selectedAccountId
           });
 
-          await base44.entities.GLTransaction.create({
+          await createGLTransaction({
             account_number: transaction.gl_account,
             transaction_date: transaction.transaction_date,
             description: `REVERSAL: ${transaction.description}`,
@@ -582,7 +602,7 @@ export default function BankPage() {
           });
         } else if (transaction.debit_amount > 0) {
           // Old was a debit (withdrawal), reverse it
-          await base44.entities.GLTransaction.create({
+          await createGLTransaction({
             account_number: String(bankAccount.gl_account),
             transaction_date: transaction.transaction_date,
             description: `REVERSAL: ${transaction.description}`,
@@ -593,7 +613,7 @@ export default function BankPage() {
             source_id: selectedAccountId
           });
 
-          await base44.entities.GLTransaction.create({
+          await createGLTransaction({
             account_number: transaction.gl_account,
             transaction_date: transaction.transaction_date,
             description: `REVERSAL: ${transaction.description}`,
