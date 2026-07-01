@@ -411,17 +411,66 @@ export default function CashDrawerPage() {
         return;
       }
 
+      const currentUser = await base44.auth.me();
+      if (!currentUser) {
+        alert('You must be logged in to record an adjustment.');
+        return;
+      }
+
       const amount = parseFloat(adjustmentData.amount);
       if (isNaN(amount) || amount === 0) {
         alert('Invalid adjustment amount.');
         return;
       }
 
+      const creatorName = currentUser.User_name || currentUser.full_name || currentUser.email || currentUser.id;
       const adjustedAmount = adjustmentData.type === 'shortage' ? -Math.abs(amount) : Math.abs(amount);
       const reference = adjustmentData.reference || `ADJ-${Date.now()}`;
       const glTransactionIds = [];
 
-      const cashDrawerGL = await base44.entities.GLTransaction.create({
+      const createGLTransaction = async (transactionData) => {
+        const response = await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'GLTransaction',
+          data: {
+            ...transactionData,
+            created_by: creatorName,
+            created_by_id: currentUser.id
+          }
+        });
+
+        if (response?.data?.error) {
+          throw new Error(response.data.error);
+        }
+
+        const record = Array.isArray(response?.data?.data)
+          ? response.data.data[0]
+          : response?.data?.data;
+
+        if (!record?.id) {
+          throw new Error('Failed to create GL transaction.');
+        }
+
+        return record;
+      };
+
+      const updateGLTransaction = async (transactionId, transactionData) => {
+        const response = await base44.functions.invoke('SupabaseProxy', {
+          action: 'update',
+          table: 'GLTransaction',
+          id: transactionId,
+          data: {
+            ...transactionData,
+            updated_by: creatorName
+          }
+        });
+
+        if (response?.data?.error) {
+          throw new Error(response.data.error);
+        }
+      };
+
+      const cashDrawerGL = await createGLTransaction({
         account_number: CASH_DRAWER_GL_ACCOUNT,
         transaction_date: adjustmentData.adjustmentDate,
         description: `Cash Drawer Adjustment - ${adjustmentData.description}`,
@@ -433,7 +482,7 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(cashDrawerGL.id);
 
-      const adjustmentGL = await base44.entities.GLTransaction.create({
+      const adjustmentGL = await createGLTransaction({
         account_number: adjustmentData.glAccount,
         transaction_date: adjustmentData.adjustmentDate,
         description: `Cash Drawer Adjustment - ${adjustmentData.description}`,
@@ -457,8 +506,8 @@ export default function CashDrawerPage() {
         deposited: false
       });
 
-      await base44.entities.GLTransaction.update(cashDrawerGL.id, { source_id: adjustmentRecord.id });
-      await base44.entities.GLTransaction.update(adjustmentGL.id, { source_id: adjustmentRecord.id });
+      await updateGLTransaction(cashDrawerGL.id, { source_id: adjustmentRecord.id });
+      await updateGLTransaction(adjustmentGL.id, { source_id: adjustmentRecord.id });
 
       alert(`Cash drawer adjustment recorded successfully!\nReference: ${reference}`);
       

@@ -78,6 +78,19 @@ Deno.serve(async (req) => {
                 };
             }
 
+            if (table === 'GLTransaction') {
+                const nowIso = getCurrentMountainTimeISO();
+                const userDisplay = payloadData?.created_by || user.full_name || user.email || user.id;
+                insertData = {
+                    ...insertData,
+                    created_date: payloadData?.created_date || nowIso,
+                    updated_date: payloadData?.updated_date || nowIso,
+                    created_by: userDisplay,
+                    created_by_id: payloadData?.created_by_id || user.id,
+                    updated_by: payloadData?.updated_by || userDisplay
+                };
+            }
+
             result = await supabase.from(table).insert([insertData]).select();
         } else if (action === 'update') {
             let updateData = {
@@ -90,6 +103,17 @@ Deno.serve(async (req) => {
                     updated_date: payloadData?.updated_date || getCurrentMountainTimeISO()
                 };
                 delete updateData.created_by;
+                delete updateData.created_date;
+            }
+
+            if (table === 'GLTransaction') {
+                updateData = {
+                    ...updateData,
+                    updated_date: payloadData?.updated_date || getCurrentMountainTimeISO(),
+                    updated_by: payloadData?.updated_by || user.full_name || user.email || user.id
+                };
+                delete updateData.created_by;
+                delete updateData.created_by_id;
                 delete updateData.created_date;
             }
 
