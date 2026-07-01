@@ -1,13 +1,29 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 export default Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
-        
+
         const user = await base44.auth.me();
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+
+        if (!supabaseUrl || !supabaseSecret) {
+            return Response.json({ error: 'Missing Supabase configuration' }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseSecret);
+        const auditUser = user.full_name || user.email || 'Unknown User';
+        const getAuditFields = () => ({
+            created_by: auditUser,
+            created_by_id: user.id,
+            updated_by: auditUser
+        });
 
         let workOrder, lineItems, payments, systemSettings, action;
         try {
@@ -22,8 +38,8 @@ export default Deno.serve(async (req) => {
         console.log('Work Order RO:', workOrder?.ro_number);
 
         if (!workOrder || !lineItems || !payments || !systemSettings || !action) {
-            return Response.json({ 
-                error: 'Missing required parameters: workOrder, lineItems, payments, systemSettings, action' 
+            return Response.json({
+                error: 'Missing required parameters: workOrder, lineItems, payments, systemSettings, action'
             }, { status: 400 });
         }
 
@@ -40,7 +56,11 @@ export default Deno.serve(async (req) => {
         };
 
         const generatedGLTransactions = [];
-        
+        const reversalTxs = [];
+        const invoiceTxs = [];
+        const inventoryTxs = [];
+        const paymentTxs = [];
+
         // Mountain Time Utility
         const getMountainTimeDateString = () => {
             const mtDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
@@ -59,7 +79,7 @@ export default Deno.serve(async (req) => {
                 const previousEntries = JSON.parse(workOrder.accounting_details);
                 if (Array.isArray(previousEntries) && previousEntries.length > 0) {
                     for (const entry of previousEntries) {
-                        const reversalEntry = {
+                        reversalTxs.push({
                             account_number: entry.account_number,
                             transaction_date: invoiceDate,
                             description: `REVERSAL: ${entry.description}`,
@@ -68,10 +88,15 @@ export default Deno.serve(async (req) => {
                             credit_amount: entry.debit_amount,
                             source_type: 'work_order',
                             source_id: workOrder.id
-                        };
-                        // Save reversal to GL table, but DO NOT add to generatedGLTransactions
-                        // This ensures accounting_details only contains the current active entries
-                        await base44.asServiceRole.entities.GLTransaction.create(reversalEntry);
+                        });
+                    }
+
+                    const { error: reversalInsertError } = await supabase
+                        .from('GLTransaction')
+                        .insert(reversalTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+
+                    if (reversalInsertError) {
+                        throw reversalInsertError;
                     }
                 }
             } catch (error) {
@@ -84,7 +109,7 @@ export default Deno.serve(async (req) => {
         let laborTotal = 0;
         let partsInventoryCost = 0;
         const finalShopSuppliesTotal = parseFloat(workOrder.shop_supply_total || 0);
-        
+
         // Helper to round to 2 decimals
         const round2 = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
@@ -98,13 +123,13 @@ export default Deno.serve(async (req) => {
                 const qty = parseFloat(line.qty || 0);
                 const costEa = parseFloat(line.cost_ea || 0);
                 const basePartCost = qty * costEa;
-                
+
                 const coreNum = parseFloat(line.Core_num || 0);
                 const coreRet = parseFloat(line.core_ret || 0);
                 const coreCost = parseFloat(line.core_cost || 0);
                 const outstandingCores = coreNum - coreRet;
                 const coreCostContribution = outstandingCores * coreCost;
-                
+
                 partsInventoryCost += basePartCost + coreCostContribution;
             }
         }
@@ -112,7 +137,7 @@ export default Deno.serve(async (req) => {
         const gstTotal = parseFloat(workOrder.tax_amount || 0);
 
         // --- Step 3: Create Invoice Transaction (Revenue & AR) ---
-        // Strategy: Gross Method. 
+        // Strategy: Gross Method.
         // 1. Post all Revenues (Credits).
         // 2. Post full Invoice Amount to AR (Debit).
         // 3. Ensure this transaction balances perfectly.
@@ -175,7 +200,7 @@ export default Deno.serve(async (req) => {
                 if (ocTotal !== 0) {
                     const amount = round2(ocTotal);
                     const account_number = line.gl_account || '4003';
-                    
+
                     // Other charges can be negative (discounts), handling debit/credit accordingly
                     if (amount > 0) {
                         invoiceEntries.push({
@@ -203,9 +228,9 @@ export default Deno.serve(async (req) => {
         // AR Debit (Full Amount)
         // We set AR Debit exactly equal to totalInvoiceCredits to force balance
         const arDebitAmount = round2(totalInvoiceCredits);
-        
+
         if (arDebitAmount !== 0) {
-            const arEntry = {
+            invoiceTxs.push({
                 account_number: GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,
                 transaction_date: invoiceDate,
                 description: `Invoice Total - ${reference}`,
@@ -214,31 +239,34 @@ export default Deno.serve(async (req) => {
                 credit_amount: 0,
                 source_type: 'work_order',
                 source_id: workOrder.id
-            };
-            
-            // Save AR entry
-            await base44.asServiceRole.entities.GLTransaction.create(arEntry);
-            generatedGLTransactions.push(arEntry);
+            });
 
-            // Save Revenue entries
             for (const entry of invoiceEntries) {
-                const glEntry = {
+                invoiceTxs.push({
                     ...entry,
                     transaction_date: invoiceDate,
                     reference: reference,
                     source_type: 'work_order',
                     source_id: workOrder.id
-                };
-                await base44.asServiceRole.entities.GLTransaction.create(glEntry);
-                generatedGLTransactions.push(glEntry);
+                });
             }
+
+            const { error: invoiceInsertError } = await supabase
+                .from('GLTransaction')
+                .insert(invoiceTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+
+            if (invoiceInsertError) {
+                throw invoiceInsertError;
+            }
+
+            generatedGLTransactions.push(...invoiceTxs);
         }
 
         // --- Step 4: Inventory & COGS (unchanged dates, balanced) ---
         if (partsInventoryCost !== 0) {
             const cogsAmount = round2(partsInventoryCost);
-            
-            const cogsEntry = {
+
+            inventoryTxs.push({
                 account_number: GL_ACCOUNTS.COGS,
                 transaction_date: invoiceDate,
                 description: `Cost of parts sold - ${reference}`,
@@ -247,11 +275,9 @@ export default Deno.serve(async (req) => {
                 credit_amount: 0,
                 source_type: 'work_order',
                 source_id: workOrder.id
-            };
-            await base44.asServiceRole.entities.GLTransaction.create(cogsEntry);
-            generatedGLTransactions.push(cogsEntry);
+            });
 
-            const inventoryEntry = {
+            inventoryTxs.push({
                 account_number: GL_ACCOUNTS.INVENTORY,
                 transaction_date: invoiceDate,
                 description: `Inventory reduction - ${reference}`,
@@ -260,15 +286,23 @@ export default Deno.serve(async (req) => {
                 credit_amount: cogsAmount,
                 source_type: 'work_order',
                 source_id: workOrder.id
-            };
-            await base44.asServiceRole.entities.GLTransaction.create(inventoryEntry);
-            generatedGLTransactions.push(inventoryEntry);
+            });
+
+            const { error: inventoryInsertError } = await supabase
+                .from('GLTransaction')
+                .insert(inventoryTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+
+            if (inventoryInsertError) {
+                throw inventoryInsertError;
+            }
+
+            generatedGLTransactions.push(...inventoryTxs);
         }
 
         // --- Step 5: Process Payments (Gross Method) ---
         // Create individual balanced transactions for each payment
         // Debit Cash/Advance, Credit AR
-        
+
         let totalAdvancePayments = 0;
         let totalOnAccountPayments = 0;
         let totalCashPayments = 0;
@@ -293,8 +327,7 @@ export default Deno.serve(async (req) => {
             const txDate = isAdvance ? invoiceDate : (payment.payment_date || invoiceDate);
             const desc = isAdvance ? `Advance Pmt Applied - ${reference}` : `Payment Received (${payment.payment_method}) - ${reference}`;
 
-            // Debit Cash/Advance
-            const debitEntry = {
+            paymentTxs.push({
                 account_number: debitAccount,
                 transaction_date: txDate,
                 description: desc,
@@ -303,23 +336,30 @@ export default Deno.serve(async (req) => {
                 credit_amount: 0,
                 source_type: 'work_order',
                 source_id: workOrder.id
-            };
-            await base44.asServiceRole.entities.GLTransaction.create(debitEntry);
-            generatedGLTransactions.push(debitEntry);
+            });
 
-            // Credit AR
-            const creditEntry = {
+            paymentTxs.push({
                 account_number: GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,
                 transaction_date: txDate,
                 description: `Payment Applied - ${reference}`,
                 reference: reference,
                 debit_amount: 0,
-                credit_amount: amount, // Balancing the debit exactly
+                credit_amount: amount,
                 source_type: 'work_order',
                 source_id: workOrder.id
-            };
-            await base44.asServiceRole.entities.GLTransaction.create(creditEntry);
-            generatedGLTransactions.push(creditEntry);
+            });
+        }
+
+        if (paymentTxs.length > 0) {
+            const { error: paymentInsertError } = await supabase
+                .from('GLTransaction')
+                .insert(paymentTxs.map((tx) => ({ ...tx, ...getAuditFields() })));
+
+            if (paymentInsertError) {
+                throw paymentInsertError;
+            }
+
+            generatedGLTransactions.push(...paymentTxs);
         }
 
         // Calculate Remaining Balance for summary (Display only, logic handled by GL)
@@ -348,9 +388,9 @@ export default Deno.serve(async (req) => {
 
     } catch (error) {
         console.error('Error in handleInvoiceConversionGL:', error);
-        return Response.json({ 
+        return Response.json({
             success: false,
-            error: error.message || 'Failed to process GL transactions' 
+            error: error.message || 'Failed to process GL transactions'
         }, { status: 500 });
     }
 });
