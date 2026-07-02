@@ -27,61 +27,80 @@ Deno.serve(async (req) => {
       auth: { persistSession: false }
     });
 
+    const callRpcWithCandidates = async (functionName, candidates) => {
+      let lastError = null;
+
+      for (const args of candidates) {
+        const { data, error } = await supabase.rpc(functionName, args);
+        if (!error) {
+          return data || [];
+        }
+        lastError = error;
+      }
+
+      throw new Error(`Failed to run ${functionName}: ${lastError?.message || 'Unknown RPC error'}`);
+    };
+
     const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
-    const revenueAccounts = allAccounts.filter((acc) => acc.account_type === 'Revenue' && acc.is_active);
-    const expenseAccounts = allAccounts.filter((acc) => acc.account_type === 'Expense' && acc.is_active);
+    const normalizedAccounts = (allAccounts || []).map((account) => ({
+      ...account,
+      account_number: account.account_number != null ? String(account.account_number) : '',
+      parent_account: account.parent_account != null ? String(account.parent_account) : null
+    }));
 
-    console.log('Found accounts - Revenue:', revenueAccounts.length, 'Expense:', expenseAccounts.length);
+    console.log('Found total accounts:', normalizedAccounts.length);
 
-    const { data: allTransactions, error: transactionsError } = await supabase
+    const aggregatedRows = await callRpcWithCandidates('get_pl_report_data', [
+      { start_date: startDate, end_date: endDate },
+      { p_start_date: startDate, p_end_date: endDate },
+      { startDate, endDate }
+    ]);
+
+    const totalsByAccount = {};
+    (aggregatedRows || []).forEach((row) => {
+      const accountNumber = row.account_number != null ? String(row.account_number) : '';
+      if (!accountNumber) return;
+
+      totalsByAccount[accountNumber] = {
+        debits: Number(row.total_debits) || 0,
+        credits: Number(row.total_credits) || 0,
+        transactionCount: Number(row.transaction_count) || 0
+      };
+    });
+
+    const { data: transactionAuditRows, error: transactionsError } = await supabase
       .from('GLTransaction')
-      .select('id, account_number, transaction_date, debit_amount, credit_amount')
+      .select('id, account_number, transaction_date')
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate);
 
     if (transactionsError) {
-      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
+      throw new Error(`Failed to fetch GLTransaction audit rows from Supabase: ${transactionsError.message}`);
     }
 
-    const knownAccountNumbers = new Set(allAccounts.map((acc) => acc.account_number));
-    const invalidTransactions = [];
+    const knownAccountNumbers = new Set(normalizedAccounts.map((acc) => acc.account_number).filter(Boolean));
+    const invalidTransactions = (transactionAuditRows || [])
+      .filter((tx) => {
+        if (!tx.transaction_date) return false;
+        const txDateStr = String(tx.transaction_date).split('T')[0];
+        if (txDateStr < startDate || txDateStr > endDate) return false;
 
-    const validTransactions = (allTransactions || []).filter((tx) => {
-      if (!tx.transaction_date) return false;
-      const txDateStr = String(tx.transaction_date).split('T')[0];
-      if (txDateStr < startDate || txDateStr > endDate) return false;
+        const accountNumber = tx.account_number != null ? String(tx.account_number) : '';
+        return accountNumber && !knownAccountNumbers.has(accountNumber);
+      })
+      .map((tx) => ({
+        ...tx,
+        account_number: tx.account_number != null ? String(tx.account_number) : ''
+      }));
 
-      if (!knownAccountNumbers.has(tx.account_number)) {
-        console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
-        invalidTransactions.push(tx);
-        return false;
-      }
-      return true;
+    invalidTransactions.forEach((tx) => {
+      console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
     });
-
-    console.log('Found', validTransactions.length, 'valid transactions in date range');
-
-    const calculateAccountBalance = (accountNumber, transactions) => {
-      const accountTransactions = transactions.filter((tx) => tx.account_number === accountNumber);
-
-      let totalCredits = 0;
-      let totalDebits = 0;
-
-      accountTransactions.forEach((tx) => {
-        totalCredits += Number(tx.credit_amount) || 0;
-        totalDebits += Number(tx.debit_amount) || 0;
-      });
-
-      return {
-        credits: totalCredits,
-        debits: totalDebits,
-        transactionCount: accountTransactions.length
-      };
-    };
 
     const accountMap = {};
 
-    allAccounts.forEach((account) => {
+    normalizedAccounts.forEach((account) => {
+      if (!account.account_number) return;
       accountMap[account.account_number] = {
         ...account,
         children: [],
@@ -94,20 +113,24 @@ Deno.serve(async (req) => {
     });
 
     Object.values(accountMap).forEach((accNode) => {
-      const { credits, debits, transactionCount } = calculateAccountBalance(accNode.account_number, validTransactions);
+      const totals = totalsByAccount[accNode.account_number] || {
+        credits: 0,
+        debits: 0,
+        transactionCount: 0
+      };
 
-      accNode.credits = credits;
-      accNode.debits = debits;
-      accNode.transactionCount = transactionCount;
+      accNode.credits = totals.credits;
+      accNode.debits = totals.debits;
+      accNode.transactionCount = totals.transactionCount;
 
       if (accNode.account_type === 'Revenue') {
-        accNode.own_amount = credits - debits;
+        accNode.own_amount = accNode.credits - accNode.debits;
       } else if (accNode.account_type === 'Expense') {
-        accNode.own_amount = debits - credits;
+        accNode.own_amount = accNode.debits - accNode.credits;
       } else if (['Asset', 'Expense'].includes(accNode.account_type)) {
-        accNode.own_amount = debits - credits;
+        accNode.own_amount = accNode.debits - accNode.credits;
       } else {
-        accNode.own_amount = credits - debits;
+        accNode.own_amount = accNode.credits - accNode.debits;
       }
     });
 
