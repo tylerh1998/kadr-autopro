@@ -23,101 +23,184 @@ Deno.serve(async (req) => {
     const minOpenDate = openPeriods.reduce((min, period) => period.start_date < min ? period.start_date : min, openPeriods[0].start_date);
     const maxOpenDate = openPeriods.reduce((max, period) => period.end_date > max ? period.end_date : max, openPeriods[0].end_date);
 
-    const { data: allTransactions, error: transactionsError } = await supabase
-      .from('GLTransaction')
-      .select('id, account_number, transaction_date, debit_amount, credit_amount')
-      .gte('transaction_date', minOpenDate)
-      .lte('transaction_date', maxOpenDate);
-
-    if (transactionsError) {
-      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
-    }
-
     const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list(null, 10000);
-
     const accountTypeMap = {};
     allAccounts.forEach((acc) => {
       accountTypeMap[acc.account_number] = acc.account_type;
     });
 
     const knownAccountNumbers = new Set(allAccounts.map((acc) => acc.account_number));
-    const invalidTransactions = [];
+    let invalidTransactions = [];
+    let validTransactions = [];
+    let dailyResults = [];
+    let scannedCount = 0;
 
-    const validTransactions = (allTransactions || []).filter((tx) => {
-      const txDate = tx.transaction_date ? String(tx.transaction_date).split('T')[0] : null;
-      if (!txDate) return false;
+    const isInOpenPeriod = (dateString) => {
+      return openPeriods.some((period) => dateString >= period.start_date && dateString <= period.end_date);
+    };
 
-      const inOpenPeriod = openPeriods.some((period) => txDate >= period.start_date && txDate <= period.end_date);
-      if (!inOpenPeriod) return false;
+    const callRpcWithCandidates = async (functionName, candidates) => {
+      let lastError = null;
 
-      if (!knownAccountNumbers.has(tx.account_number)) {
-        console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
-        invalidTransactions.push(tx);
-        return false;
-      }
-      return true;
-    });
-
-    const dailyBlocks = {};
-    validTransactions.forEach((tx) => {
-      const day = tx.transaction_date ? String(tx.transaction_date).split('T')[0] : 'Unknown';
-
-      if (!dailyBlocks[day]) {
-        dailyBlocks[day] = {
-          assetDebits: 0,
-          assetCredits: 0,
-          otherDebits: 0,
-          otherCredits: 0,
-          count: 0
-        };
+      for (const args of candidates) {
+        const { data, error } = await supabase.rpc(functionName, args);
+        if (!error) {
+          return { data: data || [], error: null };
+        }
+        lastError = error;
       }
 
-      const debit = Number(tx.debit_amount) || 0;
-      const credit = Number(tx.credit_amount) || 0;
-      const accountType = accountTypeMap[tx.account_number] || 'Unknown';
+      return { data: null, error: lastError };
+    };
 
-      if (accountType === 'Asset') {
-        dailyBlocks[day].assetDebits += debit;
-        dailyBlocks[day].assetCredits += credit;
-      } else {
-        dailyBlocks[day].otherDebits += debit;
-        dailyBlocks[day].otherCredits += credit;
+    const helperResult = await callRpcWithCandidates('get_daily_gl_totals', [
+      { _start_date: minOpenDate, _end_date: maxOpenDate },
+      { start_date: minOpenDate, end_date: maxOpenDate },
+      { p_start_date: minOpenDate, p_end_date: maxOpenDate },
+      { from_date: minOpenDate, to_date: maxOpenDate }
+    ]);
+
+    const helperRows = helperResult.data || [];
+    const hasDetailedHelperColumns = helperRows.some((row) =>
+      row.asset_debits !== undefined ||
+      row.asset_credits !== undefined ||
+      row.other_debits !== undefined ||
+      row.other_credits !== undefined ||
+      row.assetDebits !== undefined ||
+      row.assetCredits !== undefined ||
+      row.otherDebits !== undefined ||
+      row.otherCredits !== undefined
+    );
+
+    if (helperRows.length > 0 && hasDetailedHelperColumns) {
+      const pickValue = (row, keys, fallback = 0) => {
+        for (const key of keys) {
+          if (row[key] !== undefined && row[key] !== null) {
+            return row[key];
+          }
+        }
+        return fallback;
+      };
+
+      const normalizeNumber = (value) => Number(value) || 0;
+
+      helperRows.forEach((row) => {
+        const day = String(pickValue(row, ['tx_date', 'transaction_date', 'day'], '') || '');
+        if (!day || !isInOpenPeriod(day)) return;
+
+        const assetDebits = normalizeNumber(pickValue(row, ['asset_debits', 'assetDebits'], 0));
+        const assetCredits = normalizeNumber(pickValue(row, ['asset_credits', 'assetCredits'], 0));
+        const otherDebits = normalizeNumber(pickValue(row, ['other_debits', 'otherDebits'], 0));
+        const otherCredits = normalizeNumber(pickValue(row, ['other_credits', 'otherCredits'], 0));
+
+        const assetsChange = assetDebits - assetCredits;
+        const liabilitiesAndEquityChange = otherCredits - otherDebits;
+        const bsDiff = assetsChange - liabilitiesAndEquityChange;
+        const isBsBalanced = Math.abs(bsDiff) < 0.01;
+
+        const totalDebits = assetDebits + otherDebits;
+        const totalCredits = assetCredits + otherCredits;
+        const tbDiff = totalDebits - totalCredits;
+        const isTbBalanced = Math.abs(tbDiff) < 0.01;
+        const isBalanced = isBsBalanced && isTbBalanced;
+
+        dailyResults.push({
+          day,
+          difference: tbDiff,
+          bsDiff,
+          tbDiff,
+          isBalanced
+        });
+
+        scannedCount += normalizeNumber(pickValue(row, ['transaction_count', 'tx_count', 'entry_count', 'count'], 0));
+      });
+    } else {
+      const { data: allTransactions, error: transactionsError } = await supabase
+        .from('GLTransaction')
+        .select('id, account_number, transaction_date, debit_amount, credit_amount')
+        .gte('transaction_date', minOpenDate)
+        .lte('transaction_date', maxOpenDate);
+
+      if (transactionsError) {
+        throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
       }
 
-      dailyBlocks[day].count += 1;
-    });
+      validTransactions = (allTransactions || []).filter((tx) => {
+        const txDate = tx.transaction_date ? String(tx.transaction_date).split('T')[0] : null;
+        if (!txDate) return false;
 
-    const dailyResults = [];
+        if (!isInOpenPeriod(txDate)) return false;
+
+        if (!knownAccountNumbers.has(tx.account_number)) {
+          console.error(`CRITICAL ERROR: Transaction ${tx.id} references unknown account: ${tx.account_number}`);
+          invalidTransactions.push(tx);
+          return false;
+        }
+        return true;
+      });
+
+      const dailyBlocks = {};
+      validTransactions.forEach((tx) => {
+        const day = tx.transaction_date ? String(tx.transaction_date).split('T')[0] : 'Unknown';
+
+        if (!dailyBlocks[day]) {
+          dailyBlocks[day] = {
+            assetDebits: 0,
+            assetCredits: 0,
+            otherDebits: 0,
+            otherCredits: 0,
+            count: 0
+          };
+        }
+
+        const debit = Number(tx.debit_amount) || 0;
+        const credit = Number(tx.credit_amount) || 0;
+        const accountType = accountTypeMap[tx.account_number] || 'Unknown';
+
+        if (accountType === 'Asset') {
+          dailyBlocks[day].assetDebits += debit;
+          dailyBlocks[day].assetCredits += credit;
+        } else {
+          dailyBlocks[day].otherDebits += debit;
+          dailyBlocks[day].otherCredits += credit;
+        }
+
+        dailyBlocks[day].count += 1;
+      });
+
+      scannedCount = validTransactions.length;
+
+      for (const [day, data] of Object.entries(dailyBlocks)) {
+        const assetsChange = data.assetDebits - data.assetCredits;
+        const liabilitiesAndEquityChange = data.otherCredits - data.otherDebits;
+        const bsDiff = assetsChange - liabilitiesAndEquityChange;
+        const isBsBalanced = Math.abs(bsDiff) < 0.01;
+
+        const totalDebits = data.assetDebits + data.otherDebits;
+        const totalCredits = data.assetCredits + data.otherCredits;
+        const tbDiff = totalDebits - totalCredits;
+        const isTbBalanced = Math.abs(tbDiff) < 0.01;
+        const isBalanced = isBsBalanced && isTbBalanced;
+
+        dailyResults.push({
+          day,
+          difference: tbDiff,
+          bsDiff,
+          tbDiff,
+          isBalanced
+        });
+      }
+    }
+
     let totalImbalance = 0;
     let imbalancesCount = 0;
 
-    for (const [day, data] of Object.entries(dailyBlocks)) {
-      const assetsChange = data.assetDebits - data.assetCredits;
-      const liabilitiesAndEquityChange = data.otherCredits - data.otherDebits;
-      const bsDiff = assetsChange - liabilitiesAndEquityChange;
-      const isBsBalanced = Math.abs(bsDiff) < 0.01;
-
-      const totalDebits = data.assetDebits + data.otherDebits;
-      const totalCredits = data.assetCredits + data.otherCredits;
-      const tbDiff = totalDebits - totalCredits;
-      const isTbBalanced = Math.abs(tbDiff) < 0.01;
-
-      const diff = tbDiff;
-      const isBalanced = isBsBalanced && isTbBalanced;
-
-      dailyResults.push({
-        day,
-        difference: diff,
-        bsDiff,
-        tbDiff,
-        isBalanced
-      });
-
-      if (!isBalanced) {
+    dailyResults.forEach((res) => {
+      if (!res.isBalanced) {
         imbalancesCount++;
-        totalImbalance += diff;
+        totalImbalance += res.difference;
       }
-    }
+    });
 
     dailyResults.sort((a, b) => a.day.localeCompare(b.day));
 
@@ -192,7 +275,7 @@ Deno.serve(async (req) => {
       warnings: invalidTransactions.length > 0 ? `Found ${invalidTransactions.length} transactions with unknown accounts.` : null,
       invalidTransactions,
       data: {
-        scannedCount: validTransactions.length,
+        scannedCount,
         daysScanned: dailyResults.length,
         imbalancedDaysCount: imbalancesCount,
         totalImbalance

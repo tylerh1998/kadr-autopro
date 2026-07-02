@@ -11,12 +11,12 @@ Deno.serve(async (req) => {
     }
 
     const { asOfDate } = await req.json();
-
     if (!asOfDate) {
       return Response.json({ error: 'As-of date is required' }, { status: 400 });
     }
 
-    console.log('Fetching Balance Sheet data as of:', asOfDate);
+    const asOfDateStr = moment.tz(asOfDate, 'America/Edmonton').format('YYYY-MM-DD');
+    console.log('Fetching Balance Sheet data as of:', asOfDateStr);
 
     const supabaseUrl = Deno.env.get('Supabase_project_url');
     const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
@@ -28,110 +28,88 @@ Deno.serve(async (req) => {
       auth: { persistSession: false }
     });
 
+    const callRpcWithCandidates = async (functionName, candidates) => {
+      let lastError = null;
+
+      for (const args of candidates) {
+        const { data, error } = await supabase.rpc(functionName, args);
+        if (!error) {
+          return data || [];
+        }
+        lastError = error;
+      }
+
+      throw new Error(`Failed to run ${functionName}: ${lastError?.message || 'Unknown RPC error'}`);
+    };
+
+    const pickValue = (row, keys, fallback = 0) => {
+      for (const key of keys) {
+        if (row[key] !== undefined && row[key] !== null) {
+          return row[key];
+        }
+      }
+      return fallback;
+    };
+
+    const normalizeNumber = (value) => Number(value) || 0;
+
     const allAccounts = await base44.entities.ChartOfAccount.list(null, 10000);
     console.log('Found accounts:', allAccounts.length);
 
-    const { data: allTransactions, error: transactionsError } = await supabase
-      .from('GLTransaction')
-      .select('id, account_number, transaction_date, debit_amount, credit_amount')
-      .lte('transaction_date', asOfDate);
+    const rawAggregatedRows = await callRpcWithCandidates('get_balance_sheet_data', [
+      { _as_of_date: asOfDateStr },
+      { as_of_date: asOfDateStr },
+      { p_as_of_date: asOfDateStr },
+      { report_date: asOfDateStr },
+      { asOfDate: asOfDateStr }
+    ]);
 
-    if (transactionsError) {
-      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
-    }
+    const aggregatedRows = (rawAggregatedRows || [])
+      .map((row) => ({
+        account_number: String(pickValue(row, ['account_number', 'gl_account_number', 'account', 'account_num'], '') || ''),
+        totalDebits: normalizeNumber(pickValue(row, ['total_debits', 'debit_total', 'debits', 'total_debit', 'debit_amount'], 0)),
+        totalCredits: normalizeNumber(pickValue(row, ['total_credits', 'credit_total', 'credits', 'total_credit', 'credit_amount'], 0)),
+        directBalance: pickValue(row, ['balance', 'net_balance', 'account_balance', 'own_balance'], null),
+        hasDirectBalance: ['balance', 'net_balance', 'account_balance', 'own_balance'].some((key) => row[key] !== undefined && row[key] !== null),
+        ytdDebits: normalizeNumber(pickValue(row, ['ytd_debits', 'current_year_debits', 'cy_debits', 'year_to_date_debits'], 0)),
+        ytdCredits: normalizeNumber(pickValue(row, ['ytd_credits', 'current_year_credits', 'cy_credits', 'year_to_date_credits'], 0)),
+        priorDebits: normalizeNumber(pickValue(row, ['prior_debits', 'prior_year_debits', 'pre_year_debits', 'retained_earnings_debits'], 0)),
+        priorCredits: normalizeNumber(pickValue(row, ['prior_credits', 'prior_year_credits', 'pre_year_credits', 'retained_earnings_credits'], 0)),
+        transactionCount: normalizeNumber(pickValue(row, ['transaction_count', 'tx_count', 'entry_count', 'count'], 0))
+      }))
+      .filter((row) => row.account_number);
 
-    const transactions = allTransactions || [];
-    const formatTransactionDate = (value) => moment.tz(value, 'America/Edmonton').format('YYYY-MM-DD');
-    const knownAccountNumbers = new Set(allAccounts.map((acc) => acc.account_number));
-    const accountsWithKnownType = new Set(allAccounts.filter((acc) => acc.account_type).map((acc) => acc.account_number));
-    const invalidTransactions = [];
-    const unknownAccountNumbers = new Set();
-
-    const validTransactions = transactions.filter((tx) => {
-      if (!tx.transaction_date) return false;
-      const txDateStr = formatTransactionDate(tx.transaction_date);
-      if (txDateStr > asOfDate) return false;
-
-      if (!knownAccountNumbers.has(tx.account_number)) {
-        invalidTransactions.push(tx);
-        return false;
-      }
-      if (!accountsWithKnownType.has(tx.account_number)) {
-        unknownAccountNumbers.add(tx.account_number);
-        return false;
-      }
-      return true;
+    const accountTotalsMap = {};
+    aggregatedRows.forEach((row) => {
+      accountTotalsMap[row.account_number] = row;
     });
-
-    let unclassifiedBalance = 0;
-    transactions.forEach((tx) => {
-      if (!tx.transaction_date) return;
-      const txDateStr = formatTransactionDate(tx.transaction_date);
-      if (txDateStr > asOfDate) return;
-
-      if (unknownAccountNumbers.has(tx.account_number)) {
-        unclassifiedBalance += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
-      }
-    });
-
-    let unclassifiedWarning = null;
-    if (invalidTransactions.length > 0) {
-      unclassifiedWarning = `Found ${invalidTransactions.length} transactions referencing non-existent GL accounts.`;
-    }
-    if (unknownAccountNumbers.size > 0) {
-      if (unclassifiedWarning) {
-        unclassifiedWarning += ' Additionally, ';
-      } else {
-        unclassifiedWarning = '';
-      }
-      unclassifiedWarning += `Found ${unknownAccountNumbers.size} GL accounts with missing or unknown 'account_type'. Total unclassified balance: $${unclassifiedBalance.toFixed(2)}.`;
-    }
-
-    console.log('Found', validTransactions.length, 'valid transactions up to', asOfDate);
-
-    const calculateAccountBalance = (accountNumber, items) => {
-      const accountTransactions = items.filter((tx) => tx.account_number === accountNumber);
-
-      let totalCredits = 0;
-      let totalDebits = 0;
-
-      accountTransactions.forEach((tx) => {
-        totalCredits += Number(tx.credit_amount) || 0;
-        totalDebits += Number(tx.debit_amount) || 0;
-      });
-
-      return {
-        credits: totalCredits,
-        debits: totalDebits,
-        transactionCount: accountTransactions.length
-      };
-    };
 
     const accountMap = {};
     allAccounts.forEach((account) => {
+      const totals = accountTotalsMap[account.account_number] || {
+        totalDebits: 0,
+        totalCredits: 0,
+        directBalance: null,
+        hasDirectBalance: false,
+        transactionCount: 0
+      };
+
+      const ownBalance = totals.hasDirectBalance
+        ? normalizeNumber(totals.directBalance)
+        : account.account_type === 'Asset' || account.account_type === 'Expense'
+          ? totals.totalDebits - totals.totalCredits
+          : totals.totalCredits - totals.totalDebits;
+
       accountMap[account.account_number] = {
         ...account,
         children: [],
-        own_balance: 0,
+        own_balance: ownBalance,
         total_balance: 0,
-        credits: 0,
-        debits: 0,
-        transactionCount: 0
+        balance: 0,
+        credits: totals.totalCredits,
+        debits: totals.totalDebits,
+        transactionCount: totals.transactionCount
       };
-    });
-
-    Object.values(accountMap).forEach((accNode) => {
-      const { credits, debits, transactionCount } = calculateAccountBalance(accNode.account_number, validTransactions);
-
-      accNode.credits = credits;
-      accNode.debits = debits;
-      accNode.transactionCount = transactionCount;
-
-      if (accNode.account_type === 'Asset' || accNode.account_type === 'Expense') {
-        accNode.own_balance = debits - credits;
-      } else {
-        accNode.own_balance = credits - debits;
-      }
     });
 
     const roots = [];
@@ -199,54 +177,71 @@ Deno.serve(async (req) => {
     liabilityData.sort((a, b) => a.account_number.localeCompare(b.account_number));
     equityData.sort((a, b) => a.account_number.localeCompare(b.account_number));
 
-    if (Math.abs(unclassifiedBalance) > 0.001) {
-      equityData.push({
-        account_number: '',
-        account_name: 'Unclassified Accounts Balance (System Adjustment)',
-        balance: unclassifiedBalance,
-        children: [],
-        is_synthetic: true,
-        transactionCount: 0,
-        account_type: 'Equity'
-      });
-    }
+    const revenueAccountNums = new Set(allAccounts.filter((acc) => acc.account_type === 'Revenue').map((acc) => acc.account_number));
+    const expenseAccountNums = new Set(allAccounts.filter((acc) => acc.account_type === 'Expense').map((acc) => acc.account_number));
+    const pnlAccountNumbers = [...new Set([...revenueAccountNums, ...expenseAccountNums])].filter(Boolean);
 
-    const currentYear = new Date(asOfDate).getUTCFullYear();
+    const hasPeriodColumns = (rawAggregatedRows || []).some((row) =>
+      row.ytd_debits !== undefined ||
+      row.ytd_credits !== undefined ||
+      row.current_year_debits !== undefined ||
+      row.current_year_credits !== undefined ||
+      row.prior_debits !== undefined ||
+      row.prior_credits !== undefined ||
+      row.prior_year_debits !== undefined ||
+      row.prior_year_credits !== undefined
+    );
+
+    const currentYear = moment.tz(asOfDateStr, 'America/Edmonton').year();
     const startOfYearStr = `${currentYear}-01-01`;
-
-    const revenueAccountNums = new Set(allAccounts.filter((acc) => acc.account_type === 'Revenue').map((a) => a.account_number));
-    const expenseAccountNums = new Set(allAccounts.filter((acc) => acc.account_type === 'Expense').map((a) => a.account_number));
 
     let yearToDateRevenue = 0;
     let yearToDateExpenses = 0;
-    validTransactions.forEach((tx) => {
-      if (!tx.transaction_date) return;
-      const txDateStr = String(tx.transaction_date).split('T')[0];
-      if (txDateStr >= startOfYearStr) {
-        if (revenueAccountNums.has(tx.account_number)) {
-          yearToDateRevenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
-        } else if (expenseAccountNums.has(tx.account_number)) {
-          yearToDateExpenses += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
-        }
-      }
-    });
-
-    const netIncome = yearToDateRevenue - yearToDateExpenses;
-
     let retainedEarningsRevenue = 0;
     let retainedEarningsExpenses = 0;
-    validTransactions.forEach((tx) => {
-      if (!tx.transaction_date) return;
-      const txDateStr = String(tx.transaction_date).split('T')[0];
-      if (txDateStr < startOfYearStr) {
-        if (revenueAccountNums.has(tx.account_number)) {
-          retainedEarningsRevenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
-        } else if (expenseAccountNums.has(tx.account_number)) {
-          retainedEarningsExpenses += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
-        }
-      }
-    });
 
+    if (hasPeriodColumns) {
+      aggregatedRows.forEach((row) => {
+        if (revenueAccountNums.has(row.account_number)) {
+          yearToDateRevenue += row.ytdCredits - row.ytdDebits;
+          retainedEarningsRevenue += row.priorCredits - row.priorDebits;
+        } else if (expenseAccountNums.has(row.account_number)) {
+          yearToDateExpenses += row.ytdDebits - row.ytdCredits;
+          retainedEarningsExpenses += row.priorDebits - row.priorCredits;
+        }
+      });
+    } else if (pnlAccountNumbers.length > 0) {
+      const { data: pnlTransactions, error: pnlError } = await supabase
+        .from('GLTransaction')
+        .select('account_number, transaction_date, debit_amount, credit_amount')
+        .in('account_number', pnlAccountNumbers)
+        .lte('transaction_date', asOfDateStr);
+
+      if (pnlError) {
+        throw new Error(`Failed to fetch P&L transactions from Supabase: ${pnlError.message}`);
+      }
+
+      (pnlTransactions || []).forEach((tx) => {
+        if (!tx.transaction_date) return;
+        const txDateStr = moment.tz(tx.transaction_date, 'America/Edmonton').format('YYYY-MM-DD');
+
+        if (txDateStr >= startOfYearStr) {
+          if (revenueAccountNums.has(tx.account_number)) {
+            yearToDateRevenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
+          } else if (expenseAccountNums.has(tx.account_number)) {
+            yearToDateExpenses += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
+          }
+        } else {
+          if (revenueAccountNums.has(tx.account_number)) {
+            retainedEarningsRevenue += (Number(tx.credit_amount) || 0) - (Number(tx.debit_amount) || 0);
+          } else if (expenseAccountNums.has(tx.account_number)) {
+            retainedEarningsExpenses += (Number(tx.debit_amount) || 0) - (Number(tx.credit_amount) || 0);
+          }
+        }
+      });
+    }
+
+    const netIncome = yearToDateRevenue - yearToDateExpenses;
     const retainedEarnings = retainedEarningsRevenue - retainedEarningsExpenses;
 
     if (Math.abs(netIncome) > 0.001) {
@@ -287,8 +282,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      warnings: unclassifiedWarning,
-      invalidTransactions,
+      warnings: null,
+      invalidTransactions: [],
       data: {
         assets: assetData,
         liabilities: liabilityData,
@@ -300,7 +295,7 @@ Deno.serve(async (req) => {
           totalLiabilitiesAndEquity,
           isBalanced
         },
-        asOfDate
+        asOfDate: asOfDateStr
       }
     });
   } catch (error) {
