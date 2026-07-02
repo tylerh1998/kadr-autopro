@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
 export default function GLJournalPage() {
+  const JOURNAL_ROW_CAP = 10000;
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -138,6 +139,7 @@ export default function GLJournalPage() {
 
   const totalDebit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.debit_amount || 0), 0);
   const totalCredit = filteredDisplayTransactions.reduce((sum, tx) => sum + (tx.credit_amount || 0), 0);
+  const hasReachedJournalRowCap = transactions.length >= JOURNAL_ROW_CAP;
 
   console.log('DEBUG GLJournal: Final filteredDisplayTransactions count:', filteredDisplayTransactions.length);
   const missingTxId = '697c35a6a1e978baa77c2cd3';
@@ -329,8 +331,8 @@ export default function GLJournalPage() {
              background-color: white !important;
           }
           
-          th:nth-child(1), td:nth-child(1) { width: 10% !important; }
-          th:nth-child(2), td:nth-child(2) { width: 10% !important; }
+          th:nth-child(1), td:nth-child(1) { width: 11% !important; white-space: nowrap !important; }
+          th:nth-child(2), td:nth-child(2) { width: 9% !important; }
           th:nth-child(3), td:nth-child(3) { width: 45% !important; }
           th:nth-child(4), td:nth-child(4) { width: 12% !important; text-align: right !important; }
           th:nth-child(5), td:nth-child(5) { width: 12% !important; text-align: right !important; }
@@ -429,6 +431,12 @@ export default function GLJournalPage() {
           </div>
         </div>
 
+        {hasReachedJournalRowCap && (
+          <div className="no-print rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            This date range hit the current {JOURNAL_ROW_CAP.toLocaleString()} transaction fetch cap, so you may be viewing only part of the journal. Narrow the date range to review the full set.
+          </div>
+        )}
+
         <Card className="print-card">
           <CardHeader className="no-print">
             <div className="flex items-center justify-between">
@@ -452,8 +460,8 @@ export default function GLJournalPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Account</th>
+                    <th className="w-[7.75rem] text-left p-3 font-semibold text-slate-700">Date</th>
+                    <th className="w-[4.25rem] text-left p-3 font-semibold text-slate-700">Account</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Description</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
                     <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
@@ -474,8 +482,8 @@ export default function GLJournalPage() {
                     <>
                       {filteredDisplayTransactions.map((tx) => (
                         <tr key={tx.id} className="border-b hover:bg-slate-50">
-                        <td className="p-3">{formatTransactionDate(tx.transaction_date)}</td>
-                        <td className="p-3 font-medium text-slate-900">
+                        <td className="w-[7.75rem] whitespace-nowrap p-3 align-top">{formatTransactionDate(tx.transaction_date)}</td>
+                        <td className="w-[4.25rem] p-3 align-top font-medium text-slate-900">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>

@@ -206,7 +206,7 @@ button:focus-visible {
 }
 
 @media print {
-  #root {
+  body:has(.vehicle-history-dialog) #root {
     display: none !important;
   }
 
