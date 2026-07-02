@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.3';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
+import moment from 'npm:moment-timezone@0.5.48';
 
 Deno.serve(async (req) => {
   try {
@@ -40,6 +41,7 @@ Deno.serve(async (req) => {
     }
 
     const transactions = allTransactions || [];
+    const formatTransactionDate = (value) => moment.tz(value, 'America/Edmonton').format('YYYY-MM-DD');
     const knownAccountNumbers = new Set(allAccounts.map((acc) => acc.account_number));
     const accountsWithKnownType = new Set(allAccounts.filter((acc) => acc.account_type).map((acc) => acc.account_number));
     const invalidTransactions = [];
@@ -47,7 +49,7 @@ Deno.serve(async (req) => {
 
     const validTransactions = transactions.filter((tx) => {
       if (!tx.transaction_date) return false;
-      const txDateStr = String(tx.transaction_date).split('T')[0];
+      const txDateStr = formatTransactionDate(tx.transaction_date);
       if (txDateStr > asOfDate) return false;
 
       if (!knownAccountNumbers.has(tx.account_number)) {
@@ -64,7 +66,7 @@ Deno.serve(async (req) => {
     let unclassifiedBalance = 0;
     transactions.forEach((tx) => {
       if (!tx.transaction_date) return;
-      const txDateStr = String(tx.transaction_date).split('T')[0];
+      const txDateStr = formatTransactionDate(tx.transaction_date);
       if (txDateStr > asOfDate) return;
 
       if (unknownAccountNumbers.has(tx.account_number)) {
