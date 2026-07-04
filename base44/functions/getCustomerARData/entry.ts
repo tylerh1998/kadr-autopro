@@ -289,7 +289,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const transactionsTab = filtered.filter((transaction) => transaction.ar_pmt !== true);
+    const transactionsTab = filtered.filter((transaction) => 
+      transaction.source === 'on_account' || transaction.source === 'adjustment'
+    );
+
     const paymentsTab = filtered.filter((transaction) => transaction.ar_pmt === true);
 
     return Response.json({
