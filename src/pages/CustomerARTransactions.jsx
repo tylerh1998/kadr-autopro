@@ -338,7 +338,7 @@ export default function CustomerARTransactionsPage() {
   };
 
   const eligibleTransactions = useMemo(
-    () => transactionsTabData.filter((transaction) => transaction.work_order_id),
+    () => transactionsTabData.filter((transaction) => transaction.source === 'charge' && transaction.work_order_id),
     [transactionsTabData]
   );
 
@@ -478,14 +478,14 @@ export default function CustomerARTransactionsPage() {
                     >
                       {!showPaymentDetails && (
                         <td className="p-3 no-print" onClick={(e) => e.stopPropagation()}>
-                          {transaction.work_order_id && (
-                            <input
-                              type="checkbox"
-                              checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
-                              onChange={() => handleToggleWorkOrderSelection(transaction)}
-                              className="h-4 w-4 rounded border-slate-300"
-                            />
-                          )}
+                        {transaction.source === 'charge' && transaction.work_order_id && (
+                          <input
+                            type="checkbox"
+                            checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
+                            onChange={() => handleToggleWorkOrderSelection(transaction)}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                        )}
                         </td>
                       )}
                       <td className="p-3">
@@ -558,7 +558,7 @@ export default function CustomerARTransactionsPage() {
                     </tr>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    {transaction.reference && transaction.source !== 'adjustment' && (
+                    {transaction.source === 'charge' && transaction.workOrderLookupNumber && (
                       <ContextMenuItem onClick={() => handleViewInvoice(transaction)}>
                         <Eye className="w-4 h-4 mr-2" />
                         View {transaction.reference}
