@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
           workOrderLookupNumber: getWorkOrderLookupNumber(workOrder),
           work_order: workOrder || null,
           cp_id: null,
-          ar_pmt: !isOnAccount,
+          ar_pmt: true,
           payment_method: paymentMethod,
           lankar_invoice: paymentRecord?.lankar_invoice || null,
           applied_data: Array.isArray(row.applied_data) ? row.applied_data : [],
