@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 
 const getCustomerDisplayName = (customer) => {
@@ -59,7 +59,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
   const totalSelectedAmount = useMemo(() => {
     return outstandingCharges
       .filter(charge => selectedCharges[charge.id])
-      .reduce((total, charge) => total + charge.balance, 0);
+      .reduce((total, charge) => total + Number(charge.balance || 0), 0);
   }, [selectedCharges, outstandingCharges]);
 
   const handleSelectCharge = (chargeId, checked) => {
@@ -175,9 +175,9 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                         </TableCell>
                         <TableCell className="capitalize">{charge.type}</TableCell>
                         <TableCell>{charge.reference}</TableCell>
-                        <TableCell>{format(new Date(charge.date), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{differenceInDays(new Date(), new Date(charge.date))} days</TableCell>
-                        <TableCell className="text-right">${charge.balance.toFixed(2)}</TableCell>
+                        <TableCell>{format(parseISO(charge.date), 'MMM d, yyyy')}</TableCell>
+                        <TableCell>{differenceInDays(new Date(), parseISO(charge.date))} days</TableCell>
+                        <TableCell className="text-right">${Number(charge.balance || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     );
                   }) : (
