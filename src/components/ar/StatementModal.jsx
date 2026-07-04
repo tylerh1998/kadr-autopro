@@ -36,6 +36,160 @@ export default function StatementModal({ open, onClose, customer }) {
     return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
   };
 
+  const formatCurrency = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+  const buildStatementIframeHtml = (items) => `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Statement of Account</title>
+        <style>
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            padding: 24px;
+            background: white;
+            color: black;
+            font-family: Arial, sans-serif;
+          }
+          @media print {
+            body, html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+          .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            border-bottom: 2px solid black;
+            padding-bottom: 16px;
+          }
+          .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+            margin-top: -4mm;
+            gap: 24px;
+          }
+          .left-col, .right-col {
+            width: 50%;
+          }
+          .statement-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 0 0 8px;
+          }
+          .customer-name {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 8px;
+          }
+          .summary-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 16px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+          }
+          th, td {
+            padding: 8px;
+          }
+          .summary-table tr.border-b,
+          .transactions-table tr.border-b {
+            border-bottom: 1px solid #d1d5db;
+          }
+          .transactions-table thead tr {
+            border-bottom: 2px solid black;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .text-left {
+            text-align: left;
+          }
+          .balance-row {
+            background: #f3f4f6;
+            font-weight: 700;
+          }
+          .empty-state {
+            padding: 16px;
+            text-align: center;
+            color: #6b7280;
+          }
+          img {
+            max-width: 100%;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="top-row">
+          <div>
+            <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/bbd9a7847_KensAutoDieselRepair1.jpg" alt="Company Logo" style="height: 120px;" />
+          </div>
+          <div style="text-align: right;">
+            <h3 class="statement-title">STATEMENT</h3>
+            <p style="margin: 0;">Date: ${formatStatementDate(getMountainToday())}</p>
+          </div>
+        </div>
+
+        <div class="summary-row">
+          <div class="left-col">
+            <h2 class="customer-name">${customer?.org_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim()}</h2>
+            ${customer?.org_name && (customer?.first_name || customer?.last_name) ? `<p style="margin: 0 0 8px; font-size: 14px;">Contact: ${customer?.first_name || ''} ${customer?.last_name || ''}</p>` : ''}
+            <p style="margin: 0 0 8px;">${customer?.address || ''}</p>
+            <p style="margin: 0 0 8px;">${customer?.city || ''}${customer?.city && customer?.state ? ', ' : ''}${customer?.state || ''} ${customer?.zip_code || ''}</p>
+            <p style="margin: 0;">${customer?.phone || ''}</p>
+          </div>
+          <div class="right-col">
+            <h4 class="summary-title">Account Summary</h4>
+            <table class="summary-table">
+              <tbody>
+                <tr class="border-b"><td>Current</td><td class="text-right">${formatCurrency(agedBalances.current)}</td></tr>
+                <tr class="border-b"><td>31-60 Days</td><td class="text-right">${formatCurrency(agedBalances['30'])}</td></tr>
+                <tr class="border-b"><td>61-90 Days</td><td class="text-right">${formatCurrency(agedBalances['60'])}</td></tr>
+                <tr class="border-b"><td>Over 90 Days</td><td class="text-right">${formatCurrency(agedBalances['90+'])}</td></tr>
+                <tr class="balance-row"><td>Balance Due</td><td class="text-right">${formatCurrency(agedBalances.total)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <table class="transactions-table">
+          <thead>
+            <tr>
+              <th class="text-left">Date</th>
+              <th class="text-left">Reference</th>
+              <th class="text-left">Description</th>
+              <th class="text-right">Charges</th>
+              <th class="text-right">Payments</th>
+              <th class="text-right">Owing</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.length ? items.map((t, index) => `
+              <tr class="border-b" key="${t.id || index}">
+                <td>${formatStatementDate(t.date)}</td>
+                <td>${t.reference || ''}</td>
+                <td>${t.description || ''}</td>
+                <td class="text-right">${(t.amount || 0) > 0 ? formatCurrency(t.amount) : ''}</td>
+                <td class="text-right">${(t.payment || 0) > 0 ? formatCurrency(t.payment) : ''}</td>
+                <td class="text-right">${formatCurrency(t.balance)}</td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td colspan="6" class="empty-state">No transactions found for this customer.</td>
+              </tr>
+            `}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
   useEffect(() => {
     const createStatementRecord = async () => {
       if (!open || !customer) return;
@@ -101,14 +255,28 @@ export default function StatementModal({ open, onClose, customer }) {
       createStatementRecord();
     }
   }, [open, customer]);
+
+  useEffect(() => {
+    if (!open || !customer) return;
+
+    const iframe = document.getElementById('statement-iframe');
+    const iframeDocument = iframe?.contentDocument || iframe?.contentWindow?.document;
+    if (!iframeDocument) return;
+
+    const items = [...(transactions || [])].filter((t) => {
+      const roundedBalance = Math.round((t.balance || 0) * 100) / 100;
+      return Math.abs(roundedBalance) > 0;
+    });
+
+    iframeDocument.open();
+    iframeDocument.write(buildStatementIframeHtml(items));
+    iframeDocument.close();
+  }, [open, customer, transactions, agedBalances]);
   
   const handlePrint = () => {
-    const printContents = document.getElementById('statement-print-area').innerHTML;
-    const originalContents = document.body.innerHTML;
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;
-    window.location.reload();
+    const iframe = document.getElementById('statement-iframe');
+    iframe?.contentWindow?.focus();
+    iframe?.contentWindow?.print();
   };
 
   const handleCopyUrl = () => {
@@ -121,12 +289,6 @@ export default function StatementModal({ open, onClose, customer }) {
 
   if (!customer) return null;
 
-  // Display transactions oldest first (same as CustomerARTransactions)
-  const displayTransactions = [...(transactions || [])].filter(t => {
-    const roundedBalance = Math.round((t.balance || 0) * 100) / 100;
-    return Math.abs(roundedBalance) > 0;
-  });
-
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -134,89 +296,7 @@ export default function StatementModal({ open, onClose, customer }) {
           <DialogHeader>
             <DialogTitle>Statement of Account</DialogTitle>
           </DialogHeader>
-          <div id="statement-print-area" className="flex-grow overflow-y-auto p-6 bg-white text-black">
-            <style>{`
-              @media print {
-                body, html { -webkit-print-color-adjust: exact; }
-                .no-print { display: none; }
-              }
-            `}</style>
-            {/* Top Row: Logo and Statement Title */}
-            <div className="flex justify-between items-start mb-8 border-b-2 border-black pb-4">
-              <div>
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/bbd9a7847_KensAutoDieselRepair1.jpg" alt="Company Logo" style={{ height: '120px' }} />
-              </div>
-              <div className="text-right">
-                <h3 className="text-3xl font-bold">STATEMENT</h3>
-                <p>Date: {formatStatementDate(getMountainToday())}</p>
-              </div>
-            </div>
-
-            {/* Second Row: Customer Info and Account Summary */}
-            <div className="flex justify-between items-start mb-8" style={{ marginTop: '-4mm' }}>
-              <div className="w-1/2 pr-4">
-                <h2 className="text-xl font-bold">
-                  {customer.org_name || `${customer.first_name} ${customer.last_name}`}
-                </h2>
-                {customer.org_name && (customer.first_name || customer.last_name) && (
-                  <p className="text-sm">Contact: {customer.first_name} {customer.last_name}</p>
-                )}
-                <p>{customer.address}</p>
-                <p>{customer.city}, {customer.state} {customer.zip_code}</p>
-                <p>{customer.phone}</p>
-              </div>
-              <div className="w-1/2 pl-4">
-                <h4 className="text-lg font-semibold mb-2">Account Summary</h4>
-                <table className="w-full text-sm">
-                  <tbody>
-                    <tr className="border-b"><td className="p-2">Current</td><td className="text-right p-2">${agedBalances.current.toFixed(2)}</td></tr>
-                    <tr className="border-b"><td className="p-2">31-60 Days</td><td className="text-right p-2">${agedBalances['30'].toFixed(2)}</td></tr>
-                    <tr className="border-b"><td className="p-2">61-90 Days</td><td className="text-right p-2">${agedBalances['60'].toFixed(2)}</td></tr>
-                    <tr className="border-b"><td className="p-2">Over 90 Days</td><td className="text-right p-2">${agedBalances['90+'].toFixed(2)}</td></tr>
-                    <tr className="bg-gray-100 font-bold"><td className="p-2">Balance Due</td><td className="text-right p-2">${agedBalances.total.toFixed(2)}</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Bottom Section: Transactions Table */}
-            <table className="w-full text-sm mb-8">
-              <thead>
-                <tr className="border-b-2 border-black">
-                  <th className="text-left p-2">Date</th>
-                  <th className="text-left p-2">Reference</th>
-                  <th className="text-left p-2">Description</th>
-                  <th className="text-right p-2">Charges</th>
-                  <th className="text-right p-2">Payments</th>
-                  <th className="text-right p-2">Owing</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayTransactions.map((t, index) => (
-                  <tr key={t.id || index} className="border-b">
-                    <td className="p-2">{formatStatementDate(t.date)}</td>
-                    <td className="p-2">{t.reference || ''}</td>
-                    <td className="p-2">{t.description || ''}</td>
-                    <td className="text-right p-2">
-                      {(t.amount || 0) > 0 ? `$${(t.amount || 0).toFixed(2)}` : ''}
-                    </td>
-                    <td className="text-right p-2">
-                      {(t.payment || 0) > 0 ? `$${(t.payment || 0).toFixed(2)}` : ''}
-                    </td>
-                    <td className="text-right p-2">${(t.balance || 0).toFixed(2)}</td>
-                  </tr>
-                ))}
-                {displayTransactions.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="p-4 text-center text-gray-500">
-                      No transactions found for this customer.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-          </div>
+          <iframe id="statement-iframe" title="Statement Preview" className="flex-grow w-full border-none bg-white" />
           <DialogFooter className="no-print flex-wrap sm:flex-nowrap justify-between items-center gap-4">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {statementPortalId && (
