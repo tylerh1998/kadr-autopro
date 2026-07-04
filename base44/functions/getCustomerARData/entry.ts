@@ -75,6 +75,14 @@ const sumAppliedData = (appliedData) => {
   return appliedData.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0);
 };
 
+const sumAppliedString = (value) => {
+  if (!value || typeof value !== 'string') return 0;
+  return value.split(',').reduce((sum, item) => {
+    const [, amount] = item.split(':');
+    return sum + (Number(amount) || 0);
+  }, 0);
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -108,24 +116,34 @@ Deno.serve(async (req) => {
       .map((row) => row.transaction_id)
       .filter(Boolean);
 
-    const [paymentsResponse, adjustmentsResponse] = await Promise.all([
+    const [paymentsResponse, adjustmentsResponse, directPaymentsResponse] = await Promise.all([
       paymentIds.length
         ? supabase.from('CustomerPayments').select('*').in('id', paymentIds)
         : Promise.resolve({ data: [], error: null }),
       adjustmentIds.length
         ? supabase.from('CustomerARAdjustment').select('*').in('id', adjustmentIds)
-        : Promise.resolve({ data: [], error: null })
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('CustomerPayments')
+        .select('*')
+        .eq('customer_id', customerId)
+        .eq('ar_pmt', true)
+        .not('payment_method', 'eq', 'on_account')
     ]);
 
     if (paymentsResponse.error) throw paymentsResponse.error;
     if (adjustmentsResponse.error) throw adjustmentsResponse.error;
+    if (directPaymentsResponse.error) throw directPaymentsResponse.error;
 
     const paymentsMap = Object.fromEntries((paymentsResponse.data || []).map((record) => [record.id, record]));
     const adjustmentsMap = Object.fromEntries((adjustmentsResponse.data || []).map((record) => [record.id, record]));
+    const directPayments = directPaymentsResponse.data || [];
 
     const workOrderLookupValues = [
       ...(paymentsResponse.data || []).map((payment) => payment?.work_order_id),
       ...(paymentsResponse.data || []).map((payment) => payment?.invoice_number),
+      ...directPayments.map((payment) => payment?.work_order_id),
+      ...directPayments.map((payment) => payment?.invoice_number),
       ...(adjustmentsResponse.data || []).map((adjustment) => adjustment?.work_order_id)
     ];
 
@@ -161,7 +179,7 @@ Deno.serve(async (req) => {
           workOrderLookupNumber: getWorkOrderLookupNumber(workOrder),
           work_order: workOrder || null,
           cp_id: null,
-          ar_pmt: true,
+          ar_pmt: paymentRecord?.ar_pmt === true,
           payment_method: paymentMethod,
           lankar_invoice: paymentRecord?.lankar_invoice || null,
           applied_data: Array.isArray(row.applied_data) ? row.applied_data : [],
@@ -196,6 +214,45 @@ Deno.serve(async (req) => {
         customer_id: adjustmentRecord?.customer_id || customerId
       };
     });
+
+    const existingPaymentIds = new Set(
+      transactions
+        .filter((transaction) => transaction.sourceId)
+        .map((transaction) => transaction.sourceId)
+    );
+
+    const supplementalPayments = directPayments
+      .filter((paymentRecord) => !existingPaymentIds.has(paymentRecord.id))
+      .map((paymentRecord) => {
+        const workOrder = workOrdersMap[paymentRecord?.work_order_id] || workOrdersMap[paymentRecord?.invoice_number] || null;
+        const totalAmount = Number(paymentRecord?.amount) || 0;
+        const appliedAmount = sumAppliedString(paymentRecord?.ar_applyto);
+        const remainingUnapplied = Math.max(0, totalAmount - appliedAmount);
+
+        return {
+          date: toDateString(paymentRecord?.payment_date || paymentRecord?.created_date),
+          type: 'Payment',
+          description: paymentRecord?.notes || workOrder?.description || '',
+          reference: paymentRecord?.reference || workOrder?.inv_number || paymentRecord?.invoice_number || getWorkOrderLookupNumber(workOrder) || '',
+          amount: 0,
+          payment: totalAmount,
+          balance: remainingUnapplied > 0.009 ? -remainingUnapplied : 0,
+          source: 'payment',
+          sourceId: paymentRecord.id,
+          workOrderId: workOrder?.id || paymentRecord?.work_order_id || null,
+          work_order_id: workOrder?.id || paymentRecord?.work_order_id || null,
+          workOrderLookupNumber: getWorkOrderLookupNumber(workOrder),
+          work_order: workOrder || null,
+          cp_id: null,
+          ar_pmt: true,
+          payment_method: paymentRecord?.payment_method || '',
+          lankar_invoice: paymentRecord?.lankar_invoice || null,
+          applied_data: [],
+          customer_id: paymentRecord?.customer_id || customerId
+        };
+      });
+
+    transactions.push(...supplementalPayments);
 
     transactions.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
