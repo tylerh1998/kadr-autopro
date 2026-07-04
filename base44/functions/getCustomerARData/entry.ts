@@ -260,40 +260,40 @@ Deno.serve(async (req) => {
       return (a.reference || '').localeCompare(b.reference || '');
     });
 
-    const allTimeBalance = transactions.reduce((total, transaction) => total + (Number(transaction.balance) || 0), 0);
+    const arLedgerTransactions = transactions.filter((transaction) =>
+      transaction.source === 'on_account' || transaction.source === 'adjustment'
+    );
+
+    const paymentTransactions = transactions.filter((transaction) => transaction.ar_pmt === true);
+
+    const allTimeBalance = arLedgerTransactions.reduce((total, transaction) => total + (Number(transaction.balance) || 0), 0);
 
     const fromDate = dateFrom ? String(dateFrom).slice(0, 10) : null;
     const toDate = dateTo ? String(dateTo).slice(0, 10) : null;
 
     let openingBalance = 0;
     if (fromDate) {
-      openingBalance = transactions
+      openingBalance = arLedgerTransactions
         .filter((transaction) => transaction.date < fromDate)
         .reduce((total, transaction) => total + (Number(transaction.balance) || 0), 0);
     }
 
-    let filtered = transactions.filter((transaction) => {
-      return (!fromDate || transaction.date >= fromDate) && (!toDate || transaction.date <= toDate);
-    });
-
-    if (searchTerm && String(searchTerm).trim()) {
+    const inDateRange = (transaction) => (!fromDate || transaction.date >= fromDate) && (!toDate || transaction.date <= toDate);
+    const matchesSearch = (transaction) => {
+      if (!searchTerm || !String(searchTerm).trim()) return true;
       const searchValue = String(searchTerm).toLowerCase().trim();
-      filtered = filtered.filter((transaction) => {
-        return (
-          (transaction.reference || '').toLowerCase().includes(searchValue) ||
-          (transaction.description || '').toLowerCase().includes(searchValue) ||
-          (Number(transaction.amount) || 0).toFixed(2).includes(searchValue) ||
-          (Number(transaction.payment) || 0).toFixed(2).includes(searchValue) ||
-          (Number(transaction.balance) || 0).toFixed(2).includes(searchValue)
-        );
-      });
-    }
+      return (
+        (transaction.reference || '').toLowerCase().includes(searchValue) ||
+        (transaction.description || '').toLowerCase().includes(searchValue) ||
+        (Number(transaction.amount) || 0).toFixed(2).includes(searchValue) ||
+        (Number(transaction.payment) || 0).toFixed(2).includes(searchValue) ||
+        (Number(transaction.balance) || 0).toFixed(2).includes(searchValue)
+      );
+    };
 
-    const transactionsTab = filtered.filter((transaction) => 
-      transaction.source === 'on_account' || transaction.source === 'adjustment'
-    );
+    const transactionsTab = arLedgerTransactions.filter((transaction) => inDateRange(transaction) && matchesSearch(transaction));
 
-    const paymentsTab = filtered.filter((transaction) => transaction.ar_pmt === true);
+    const paymentsTab = paymentTransactions.filter((transaction) => inDateRange(transaction) && matchesSearch(transaction));
 
     return Response.json({
       success: true,
