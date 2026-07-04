@@ -81,12 +81,13 @@ export default function StatementModal({ open, onClose, customer }) {
             margin: 0 0 8px;
           }
           .customer-name {
-            font-size: 32px;
+            font-size: 22px;
             font-weight: 700;
             margin: 0 0 8px;
+            line-height: 1.15;
           }
           .summary-title {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 600;
             margin: 0 0 16px;
           }
@@ -292,11 +293,11 @@ export default function StatementModal({ open, onClose, customer }) {
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-4xl h-[90vh] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Statement of Account</DialogTitle>
           </DialogHeader>
-          <iframe id="statement-iframe" title="Statement Preview" className="flex-grow w-full border-none bg-white" />
+          <iframe id="statement-iframe" title="Statement Preview" className="flex-1 min-h-0 w-full border-none bg-white" />
           <DialogFooter className="no-print flex-wrap sm:flex-nowrap justify-between items-center gap-4">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {statementPortalId && (
