@@ -76,9 +76,10 @@ export default function StatementModal({ open, onClose, customer }) {
             width: 50%;
           }
           .statement-title {
-            font-size: 36px;
+            font-size: 22px;
             font-weight: 700;
             margin: 0 0 8px;
+            line-height: 1.15;
           }
           .customer-name {
             font-size: 22px;
@@ -132,7 +133,7 @@ export default function StatementModal({ open, onClose, customer }) {
             <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/bbd9a7847_KensAutoDieselRepair1.jpg" alt="Company Logo" style="height: 120px;" />
           </div>
           <div style="text-align: right;">
-            <h3 class="statement-title">STATEMENT</h3>
+            <h3 class="statement-title">Statement of Account</h3>
             <p style="margin: 0;">Date: ${formatStatementDate(getMountainToday())}</p>
           </div>
         </div>
