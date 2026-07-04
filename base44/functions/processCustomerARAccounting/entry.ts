@@ -698,7 +698,7 @@ Deno.serve(async (req) => {
         if (!customer?.id || !(Number(calc.totalInterest) > 0)) continue;
 
         const adjustmentId = createId();
-        const reference = `INT-${dateStr}-${customer.id.substring(0, 6)}`;
+        const reference = '';
         const customerName = formatCustomerDisplayName(customer);
 
         adjustmentsToInsert.push({
