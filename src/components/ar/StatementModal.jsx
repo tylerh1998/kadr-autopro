@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
-import { format, differenceInDays, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { Statement } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import StatementEmailModal from './StatementEmailModal';
@@ -24,105 +24,79 @@ export default function StatementModal({ open, onClose, customer }) {
     return isValid(parsedDate) ? format(parsedDate, 'MMM d, yyyy') : '';
   };
 
+  const getMountainToday = () => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Edmonton',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+    return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+  };
+
   useEffect(() => {
     const createStatementRecord = async () => {
-      if (open && customer) {
-        try {
-          // 1. Fetch all transactions using backend function (no date filters for statement)
-          const transactionsResponse = await base44.functions.invoke('getCustomerARTransactions', {
-            customerId: customer.id,
-            dateFrom: null,
-            dateTo: null,
-            searchTerm: ''
-          });
+      if (!open || !customer) return;
 
-          if (!transactionsResponse.data.success) {
-            console.error('Failed to load transactions:', transactionsResponse.data.error);
-            return;
-          }
+      try {
+        const outstandingResponse = await base44.functions.invoke('getOutstandingARItems', {
+          customerId: customer.id
+        });
 
-          // Combine both tabs for complete transaction list
-          const allTransactions = [
-            ...transactionsResponse.data.transactionsTab,
-            ...transactionsResponse.data.paymentsTab
-          ];
-          setTransactions(allTransactions);
-
-          // 2. Extract additional data needed for aging calculations from the backend response
-          const allCustomerPayments = transactionsResponse.data.allPayments || [];
-          const customerAdj = transactionsResponse.data.allAdjustments || [];
-
-          // 3. Calculate aged balances using logic from AR Summary
-          const today = new Date();
-          const onAccountCharges = allCustomerPayments.filter(p => p.payment_method === 'on_account');
-          const actualPayments = allCustomerPayments.filter(p => p.ar_pmt && p.payment_method !== 'on_account');
-          const totalActualPayments = actualPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-          const totalCreditAdjustments = customerAdj.reduce((sum, adj) => sum + (adj.amount < 0 ? Math.abs(adj.amount) : 0), 0);
-          const totalCredits = totalActualPayments + totalCreditAdjustments;
-          
-          let chargeItems = [];
-          onAccountCharges.forEach(charge => charge.payment_date && chargeItems.push({ date: new Date(charge.payment_date), daysOld: differenceInDays(today, new Date(charge.payment_date)), amount: charge.amount || 0 }));
-          customerAdj.forEach(adj => adj.amount > 0 && adj.adjustment_date && chargeItems.push({ date: new Date(adj.adjustment_date), daysOld: differenceInDays(today, new Date(adj.adjustment_date)), amount: adj.amount }));
-          
-          // Sort charges by date to apply credits chronologically
-          chargeItems.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-          let tempCreditsToApply = totalCredits;
-          chargeItems.forEach(charge => {
-              if (tempCreditsToApply > 0) {
-                  const paidAmount = Math.min(tempCreditsToApply, charge.amount);
-                  charge.amount -= paidAmount;
-                  tempCreditsToApply -= paidAmount;
-              }
-          });
-          
-          const calculatedAgedBalances = chargeItems.reduce((acc, item) => {
-              if (item.amount > 0) {
-                  if (item.daysOld <= 30) acc.current += item.amount;
-                  else if (item.daysOld <= 60) acc['30'] += item.amount;
-                  else if (item.daysOld <= 90) acc['60'] += item.amount;
-                  else acc['90+'] += item.amount;
-              }
-              return acc;
-          }, { current: 0, '30': 0, '60': 0, '90+': 0, total: 0 });
-          calculatedAgedBalances.total = calculatedAgedBalances.current + calculatedAgedBalances['30'] + calculatedAgedBalances['60'] + calculatedAgedBalances['90+'];
-          setAgedBalances(calculatedAgedBalances);
-
-          // 4. Keep the backend-enriched transaction data and filter out fully paid items
-          const enrichedTransactions = allTransactions.filter(t => {
-            const roundedBalance = Math.round((t.balance || 0) * 100) / 100;
-            return Math.abs(roundedBalance) > 0;
-          });
-
-          // 5. Create the Statement record
-          const generateRandomString = (length) => {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let result = '';
-            for (let i = 0; i < length; i++) {
-              result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-          };
-
-          const newStatement = {
-            cp_id: generateRandomString(10),
-            customer_id: customer.id,
-            statement_date: format(new Date(), 'yyyy-MM-dd'),
-            transactions: JSON.stringify(enrichedTransactions),
-            aged_balances: JSON.stringify(calculatedAgedBalances),
-            total_balance_due: calculatedAgedBalances.total,
-          };
-          
-          await Statement.create(newStatement);
-          setStatementPortalId(newStatement.cp_id);
-          console.log("Statement record created successfully:", newStatement);
-
-        } catch (error) {
-          console.error("Failed to create statement record:", error);
+        if (!outstandingResponse.data?.success) {
+          console.error('Failed to load outstanding items:', outstandingResponse.data?.error);
+          return;
         }
+
+        const outstandingItems = [...(outstandingResponse.data.items || [])]
+          .filter((item) => Math.abs(Number(item.balance || 0)) > 0)
+          .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+        setTransactions(outstandingItems);
+
+        const calculatedAgedBalances = outstandingItems.reduce((acc, item) => {
+          const balance = Number(item.balance || 0);
+          const ageDays = Number(item.age_days || 0);
+
+          if (ageDays <= 30) acc.current += balance;
+          else if (ageDays <= 60) acc['30'] += balance;
+          else if (ageDays <= 90) acc['60'] += balance;
+          else acc['90+'] += balance;
+
+          return acc;
+        }, { current: 0, '30': 0, '60': 0, '90+': 0, total: 0 });
+
+        calculatedAgedBalances.total = calculatedAgedBalances.current + calculatedAgedBalances['30'] + calculatedAgedBalances['60'] + calculatedAgedBalances['90+'];
+        setAgedBalances(calculatedAgedBalances);
+
+        const generateRandomString = (length) => {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let result = '';
+          for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return result;
+        };
+
+        const newStatement = {
+          cp_id: generateRandomString(10),
+          customer_id: customer.id,
+          statement_date: getMountainToday(),
+          transactions: JSON.stringify(outstandingItems),
+          aged_balances: JSON.stringify(calculatedAgedBalances),
+          total_balance_due: calculatedAgedBalances.total,
+        };
+
+        await Statement.create(newStatement);
+        setStatementPortalId(newStatement.cp_id);
+        console.log("Statement record created successfully:", newStatement);
+      } catch (error) {
+        console.error("Failed to create statement record:", error);
       }
     };
-    
+
     if (open && customer) {
       createStatementRecord();
     }
@@ -174,7 +148,7 @@ export default function StatementModal({ open, onClose, customer }) {
               </div>
               <div className="text-right">
                 <h3 className="text-3xl font-bold">STATEMENT</h3>
-                <p>Date: {formatStatementDate(new Date())}</p>
+                <p>Date: {formatStatementDate(getMountainToday())}</p>
               </div>
             </div>
 

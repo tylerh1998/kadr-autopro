@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 
 const getCustomerDisplayName = (customer) => {
@@ -176,7 +176,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                         <TableCell className="capitalize">{charge.type}</TableCell>
                         <TableCell>{charge.reference}</TableCell>
                         <TableCell>{format(parseISO(charge.date), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{differenceInDays(new Date(), parseISO(charge.date))} days</TableCell>
+                        <TableCell>{charge.age_days} days</TableCell>
                         <TableCell className="text-right">${Number(charge.balance || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     );

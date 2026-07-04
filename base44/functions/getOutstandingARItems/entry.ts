@@ -44,9 +44,21 @@ Deno.serve(async (req) => {
     }
 
     // 3. Return the exact shape the UI expects
+    const items = (data || []).map((item) => ({
+      id: item.id,
+      type: item.type,
+      reference: item.reference || '',
+      date: item.date,
+      amount: Number(item.amount || 0),
+      ar_paid: Number(item.ar_paid || 0),
+      balance: Number(item.balance || 0),
+      description: item.description || '',
+      age_days: Number(item.age_days || 0)
+    }));
+
     return Response.json({
       success: true,
-      items: data || []
+      items
     });
 
   } catch (error) {
