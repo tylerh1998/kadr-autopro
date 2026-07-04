@@ -114,18 +114,17 @@ export default function CustomerARTransactionsPage() {
         setCustomer(customerData);
       }
 
-      // Call backend function to get transactions
-      const response = await base44.functions.invoke('getCustomerARTransactions', {
+      const response = await base44.functions.invoke('getCustomerARData', {
         customerId,
-        dateFrom: dateRange.from ? dateRange.from.toISOString() : null,
-        dateTo: dateRange.to ? dateRange.to.toISOString() : null,
-        searchTerm: searchTerm
+        dateFrom: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
+        dateTo: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
+        searchTerm
       });
 
       if (response.data.success) {
-        setTransactionsTabData(response.data.transactionsTab);
-        setPaymentsTabData(response.data.paymentsTab);
-        setCurrentBalance(response.data.allTimeBalance);
+        setTransactionsTabData(response.data.transactionsTab || []);
+        setPaymentsTabData(response.data.paymentsTab || []);
+        setCurrentBalance(response.data.summary?.total_balance ?? response.data.allTimeBalance ?? 0);
         setOpeningBalance(response.data.openingBalance || 0);
       } else {
         console.error('Failed to load transactions:', response.data.error);

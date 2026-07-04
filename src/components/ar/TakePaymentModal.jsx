@@ -33,76 +33,20 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
   const [loading, setLoading] = useState(false);
   const [showPaymentDetailsDialog, setShowPaymentDetailsDialog] = useState(false);
 
-  // Fetch outstanding charges when modal opens
   useEffect(() => {
     const fetchOutstandingCharges = async () => {
       if (!customer || !open) return;
 
       try {
-        const [paymentsRes, adjustmentsRes, workOrdersRes] = await Promise.all([
-          base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { customer_id: customer.id } }),
-          base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'filter', match: { customer_id: customer.id } }),
-          base44.functions.invoke('supabaseWorkOrder', { action: 'filter', match: { customer_id: customer.id } })
-        ]);
-        const allPayments = paymentsRes?.data?.data || [];
-        const allAdjustments = adjustmentsRes?.data?.data || [];
-        const allWorkOrders = workOrdersRes?.data?.data || [];
-        const workOrderMap = new Map();
-
-        allWorkOrders.forEach((workOrder) => {
-          if (!workOrder) return;
-          [workOrder.id, workOrder.inv_number, workOrder.ro_number, workOrder.wo_number, workOrder.est_number, workOrder.crinv_number]
-            .filter(Boolean)
-            .forEach((key) => {
-              if (!workOrderMap.has(key)) {
-                workOrderMap.set(key, workOrder);
-              }
-            });
+        const response = await base44.functions.invoke('getOutstandingARItems', {
+          customerId: customer.id
         });
 
-        const charges = [];
-
-        // Add on_account charges (invoices)
-        allPayments
-          .filter(p => p.payment_method === 'on_account')
-          .forEach(payment => {
-            const balance = (payment.amount || 0) - (payment.ar_paid || 0);
-            if (balance > 0.01) {
-              const workOrder = workOrderMap.get(payment.work_order_id) || workOrderMap.get(payment.invoice_number) || null;
-              charges.push({
-                id: payment.id,
-                type: 'invoice',
-                reference: workOrder?.inv_number || payment.invoice_number || getWorkOrderLookupNumber(workOrder) || '',
-                date: payment.payment_date,
-                amount: payment.amount || 0,
-                ar_paid: payment.ar_paid || 0,
-                balance: balance
-              });
-            }
-          });
-
-        // Add adjustments (charges and credits)
-        allAdjustments
-          .forEach(adj => {
-            const balance = adj.amount - (adj.ar_paid || 0);
-            // Check if there is an outstanding balance (positive or negative)
-            if (Math.abs(balance) > 0.01) {
-              charges.push({
-                id: adj.id,
-                type: 'adjustment',
-                reference: adj.reference || adj.description || '',
-                date: adj.adjustment_date,
-                amount: adj.amount,
-                ar_paid: adj.ar_paid || 0,
-                balance: balance
-              });
-            }
-          });
-
-        // Sort by date (oldest first)
-        charges.sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        setOutstandingCharges(charges);
+        if (response.data?.success) {
+          setOutstandingCharges(response.data.items || []);
+        } else {
+          throw new Error(response.data?.error || 'Failed to load outstanding charges');
+        }
       } catch (error) {
         console.error('Error fetching outstanding charges:', error);
         alert('Failed to load outstanding charges');

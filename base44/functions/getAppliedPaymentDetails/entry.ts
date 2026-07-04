@@ -1,7 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
-
-const WORK_ORDER_LOOKUP_SELECT = 'id, customer_id, description, ro_number, wo_number, est_number, inv_number, crinv_number, stage';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -16,52 +14,21 @@ const createSupabaseClient = () => {
   });
 };
 
-const resolveWorkOrdersMap = async (supabase, lookupValues, customerId) => {
-  const values = [...new Set((lookupValues || []).filter(Boolean))];
-  const workOrdersMap = {};
+const parseArApplyTo = (value) => {
+  if (!value) return [];
 
-  if (values.length === 0 || !customerId) {
-    return workOrdersMap;
-  }
-
-  const { data: directMatches, error: directError } = await supabase
-    .from('WorkOrder')
-    .select(WORK_ORDER_LOOKUP_SELECT)
-    .eq('customer_id', customerId)
-    .in('id', values);
-
-  if (directError) throw directError;
-
-  (directMatches || []).forEach((wo) => {
-    workOrdersMap[wo.id] = wo;
-  });
-
-  const fields = ['ro_number', 'wo_number', 'est_number', 'inv_number', 'crinv_number'];
-
-  for (const field of fields) {
-    const unresolvedValues = values.filter((value) => !workOrdersMap[value]);
-    if (unresolvedValues.length === 0) break;
-
-    const { data, error } = await supabase
-      .from('WorkOrder')
-      .select(WORK_ORDER_LOOKUP_SELECT)
-      .eq('customer_id', customerId)
-      .in(field, unresolvedValues);
-
-    if (error) throw error;
-
-    (data || []).forEach((wo) => {
-      if (wo[field] && !workOrdersMap[wo[field]]) {
-        workOrdersMap[wo[field]] = wo;
-      }
-    });
-  }
-
-  return workOrdersMap;
-};
-
-const getWorkOrderLookupNumber = (workOrder) => {
-  return workOrder?.inv_number || workOrder?.ro_number || workOrder?.wo_number || workOrder?.est_number || workOrder?.crinv_number || null;
+  return String(value)
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [id, amount] = entry.split(':');
+      return {
+        id,
+        amount: Number(amount) || 0
+      };
+    })
+    .filter((item) => item.id);
 };
 
 Deno.serve(async (req) => {
@@ -74,106 +41,89 @@ Deno.serve(async (req) => {
     }
 
     const { paymentId, arApplyTo, customerId } = await req.json();
+    const supabase = createSupabaseClient();
 
-    let targetArApplyTo = arApplyTo || '';
     let targetCustomerId = customerId || null;
+    let fallbackArApplyTo = arApplyTo || '';
 
     if (paymentId) {
-      const paymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentId });
-      const payment = paymentRes?.data?.data;
+      const { data: payment, error: paymentError } = await supabase
+        .from('CustomerPayments')
+        .select('id, customer_id, ar_applyto')
+        .eq('id', paymentId)
+        .single();
 
+      if (paymentError) throw paymentError;
       if (!payment) {
         return Response.json({ error: 'Payment not found' }, { status: 404 });
       }
 
-      targetArApplyTo = payment.ar_applyto || '';
-      targetCustomerId = targetCustomerId || payment.customer_id || null;
+      targetCustomerId = payment.customer_id || targetCustomerId;
+      fallbackArApplyTo = payment.ar_applyto || fallbackArApplyTo;
     }
 
-    if (!targetArApplyTo) {
+    if (!targetCustomerId) {
       return Response.json({ success: true, appliedDetails: [] });
     }
 
-    const entries = targetArApplyTo.split(',').filter((entry) => entry.trim());
-    const recordIds = entries
-      .map((entry) => entry.split(':')[0])
-      .filter(Boolean);
-
-    const supabase = createSupabaseClient();
-
-    const [paymentsResponse, adjustmentsResponse] = await Promise.all([
-      supabase.from('CustomerPayments').select('*').in('id', recordIds),
-      supabase.from('CustomerARAdjustment').select('*').in('id', recordIds)
-    ]);
-
-    if (paymentsResponse.error) throw paymentsResponse.error;
-    if (adjustmentsResponse.error) throw adjustmentsResponse.error;
-
-    const paymentsMap = Object.fromEntries((paymentsResponse.data || []).map((record) => [record.id, record]));
-    const adjustmentsMap = Object.fromEntries((adjustmentsResponse.data || []).map((record) => [record.id, record]));
-
-    const workOrderLookupValues = [
-      ...(paymentsResponse.data || []).map((payment) => payment?.work_order_id),
-      ...(paymentsResponse.data || []).map((payment) => payment?.invoice_number),
-      ...(adjustmentsResponse.data || []).map((adjustment) => adjustment?.work_order_id)
-    ];
-
-    const workOrdersMap = await resolveWorkOrdersMap(supabase, workOrderLookupValues, targetCustomerId);
-
-    const appliedDetails = entries.reduce((details, entry) => {
-      const [recordId, amountStr] = entry.split(':');
-      const amount = parseFloat(amountStr);
-
-      if (!recordId || Number.isNaN(amount)) {
-        return details;
-      }
-
-      const customerPayment = paymentsMap[recordId];
-      if (customerPayment) {
-        const workOrder = workOrdersMap[customerPayment.work_order_id] || workOrdersMap[customerPayment.invoice_number] || null;
-        const description = workOrder?.description || customerPayment.notes || 'Invoice';
-        const reference = workOrder?.inv_number || customerPayment.invoice_number || getWorkOrderLookupNumber(workOrder) || '';
-
-        details.push({
-          id: recordId,
-          type: 'Invoice',
-          reference,
-          date: customerPayment.payment_date || null,
-          description,
-          amountApplied: amount,
-          isOverpayment: false,
-          source: 'customer_payment'
-        });
-        return details;
-      }
-
-      const adjustment = adjustmentsMap[recordId];
-      if (adjustment) {
-        const workOrder = workOrdersMap[adjustment.work_order_id] || null;
-        const isOverpayment = adjustment.amount < 0 && adjustment.reference && adjustment.reference.startsWith('OVERPMT');
-
-        details.push({
-          id: recordId,
-          type: isOverpayment ? 'Overpayment Credit' : (adjustment.amount > 0 ? 'Charge' : 'Credit'),
-          reference: adjustment.reference || '',
-          date: adjustment.adjustment_date || null,
-          description: workOrder?.description || adjustment.description || '',
-          amountApplied: amount,
-          isOverpayment,
-          source: 'customer_ar_adjustment'
-        });
-      }
-
-      return details;
-    }, []);
-
-    appliedDetails.sort((a, b) => {
-      const dateA = a?.date ? new Date(a.date) : null;
-      const dateB = b?.date ? new Date(b.date) : null;
-      const timeA = dateA && !Number.isNaN(dateA.getTime()) ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
-      const timeB = dateB && !Number.isNaN(dateB.getTime()) ? dateB.getTime() : Number.MAX_SAFE_INTEGER;
-      return timeA - timeB;
+    const { data: customerData, error: customerDataError } = await supabase.rpc('get_customer_ar_data', {
+      customer_id_val: targetCustomerId
     });
+
+    if (customerDataError) throw customerDataError;
+
+    const rowMap = Object.fromEntries((customerData || []).map((row) => [row.transaction_id, row]));
+    const paymentRow = paymentId ? rowMap[paymentId] : null;
+    const parsedAppliedData = Array.isArray(paymentRow?.applied_data) && paymentRow.applied_data.length
+      ? paymentRow.applied_data
+      : parseArApplyTo(fallbackArApplyTo);
+
+    const appliedDetails = parsedAppliedData
+      .map((item) => {
+        const id = item?.id;
+        const amountApplied = Number(item?.amount) || 0;
+        if (!id) return null;
+
+        const row = rowMap[id];
+        if (!row) {
+          return {
+            id,
+            type: 'Unknown',
+            reference: '',
+            date: null,
+            description: '',
+            amountApplied,
+            isOverpayment: false,
+            source: 'unknown'
+          };
+        }
+
+        const numericAmount = Number(row.amount) || 0;
+        const isOverpayment = row.transaction_type === 'adjustment' && String(row.reference || '').startsWith('OVERPMT');
+
+        return {
+          id,
+          type: row.transaction_type === 'payment'
+            ? 'Invoice'
+            : isOverpayment
+              ? 'Overpayment Credit'
+              : numericAmount > 0
+                ? 'Charge'
+                : 'Credit',
+          reference: row.reference || '',
+          date: row.txn_date ? String(row.txn_date).slice(0, 10) : null,
+          description: row.description || '',
+          amountApplied,
+          isOverpayment,
+          source: row.transaction_type === 'payment' ? 'customer_payment' : 'customer_ar_adjustment'
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const dateA = a.date || '9999-12-31';
+        const dateB = b.date || '9999-12-31';
+        return dateA.localeCompare(dateB);
+      });
 
     return Response.json({ success: true, appliedDetails });
   } catch (error) {
