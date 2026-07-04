@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Customer, GLTransaction, FiscalPeriod } from '@/entities/all';
+import { Customer } from '@/entities/all';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -203,62 +203,11 @@ export default function CustomerARTransactionsPage() {
 
   const handleRecordAdjustment = async (adjustmentData) => {
     try {
-      // Create the CustomerARAdjustment record
-      const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: adjustmentData });
-      const adjustment = res.data.data;
-      
-      const amount = Math.abs(adjustmentData.amount);
-      const isCharge = adjustmentData.amount > 0;
-      const glDescription = `AR Adjustment: ${adjustmentData.description}`;
-      const reference = adjustmentData.reference || `ADJ-${adjustment.id}`;
-      
-      // Create GL transactions
-      if (isCharge) {
-        // Charge (+): Debit 1100 (AR), Credit selected GL account
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: '1100',
-          description: glDescription,
-          debit_amount: amount,
-          credit_amount: 0,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: adjustmentData.gl_account,
-          description: glDescription,
-          debit_amount: 0,
-          credit_amount: amount,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
-      } else {
-        // Credit (-): Debit selected GL account, Credit 1100 (AR)
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: adjustmentData.gl_account,
-          description: glDescription,
-          debit_amount: amount,
-          credit_amount: 0,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
-        await GLTransaction.create({
-          transaction_date: adjustmentData.adjustment_date,
-          account_number: '1100',
-          description: glDescription,
-          debit_amount: 0,
-          credit_amount: amount,
-          reference: reference,
-          source_type: 'adjustment',
-          source_id: adjustment.id
-        });
-      }
-      
+      await base44.functions.invoke('processCustomerARAccounting', {
+        action: 'create_adjustment',
+        adjustmentData
+      });
+
       await loadData();
       setShowAdjustmentModal(false);
     } catch (error) {
@@ -318,77 +267,18 @@ export default function CustomerARTransactionsPage() {
     if (!paymentToDelete) return;
     
     try {
-      const arApplyTo = paymentToDelete.ar_applyto || '';
-      
-      if (!arApplyTo) {
-        // If there's no ar_applyto, it implies the payment was potentially an unapplied credit (though ar_pmt true usually means it was applied)
-        // or a payment that didn't apply to anything explicitly (e.g., initial credit). Just delete it.
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentToDelete.id });
-      } else {
-        // Parse ar_applyto string: "id1:amount1,id2:amount2,..."
-        const entries = arApplyTo.split(',').filter(e => e.trim());
-        
-        for (const entry of entries) {
-          const [recordId, amountStr] = entry.split(':');
-          const amountApplied = parseFloat(amountStr);
-          
-          if (!recordId || isNaN(amountApplied)) continue;
-          
-          let updated = false;
-          // Try to update CustomerPayments (e.g., if it was an invoice created as a payment type 'on_account')
-          try {
-            const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: recordId });
-            const payment = res?.data?.data;
-            if (payment) {
-              const newArPaid = Math.max(0, (payment.ar_paid || 0) - amountApplied);
-              await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: recordId, data: {
-                ar_paid: newArPaid
-              } });
-              console.log(`Reversed $${amountApplied.toFixed(2)} from CustomerPayments record ${recordId}, new ar_paid: ${newArPaid}`);
-              updated = true;
-            }
-          } catch (e) {
-            // console.warn(`Record ${recordId} not found in CustomerPayments, trying CustomerARAdjustment. Error:`, e);
-            // This is expected if the record is an adjustment, not an invoice-as-payment
-          }
-          
-          // If not updated, try to update CustomerARAdjustment record
-          if (!updated) {
-            try {
-              const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: recordId });
-              const adjustment = res?.data?.data;
-              if (adjustment) {
-                const newArPaid = Math.max(0, (adjustment.ar_paid || 0) - amountApplied);
-                await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'update', id: recordId, data: {
-                  ar_paid: newArPaid
-                } });
-                console.log(`Reversed $${amountApplied.toFixed(2)} from CustomerARAdjustment record ${recordId}, new ar_paid: ${newArPaid}`);
-                updated = true;
-              }
-            } catch (e) {
-              // console.warn(`Record ${recordId} not found in CustomerARAdjustment. Error:`, e);
-            }
-          }
+      await base44.functions.invoke('processCustomerARAccounting', {
+        action: 'reverse_payment',
+        payment_id: paymentToDelete.id
+      });
 
-          if (!updated) {
-            console.warn(`Could not find a record (CustomerPayments or CustomerARAdjustment) to reverse payment for ID: ${recordId}. It might be a work order invoice not tracked via ar_paid on these entities.`);
-          }
-        }
-        
-        // After reversing all applications, delete the payment record itself
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentToDelete.id });
-      }
-      
-      console.log('Payment deleted successfully:', paymentToDelete.id);
-      
-      // Close dialog and refresh data
       setShowDeleteConfirm(false);
       setPaymentToDelete(null);
       await loadData();
       
     } catch (error) {
       console.error('Error deleting payment:', error);
-      alert(`Failed to delete payment: ${error.message}`);
+      alert(`Failed to delete payment: ${error?.response?.data?.error || error.message}`);
     }
   };
 
@@ -413,82 +303,23 @@ export default function CustomerARTransactionsPage() {
     if (!adjustmentToDelete) return;
 
     try {
-      // Check fiscal period status — only block if the period is explicitly closed
       const periodStatus = await checkFiscalPeriodStatus(adjustmentToDelete.adjustment_date);
       if (!periodStatus.isValid && periodStatus.message && periodStatus.message.includes('closed')) {
         alert('Cannot delete this adjustment as it was created in a closed fiscal period. You can record a new adjustment to reverse it if needed.');
         return;
       }
 
-      // Create reversing GL transactions (only if gl_account is set)
-      const amount = Math.abs(adjustmentToDelete.amount);
-      const isCharge = adjustmentToDelete.amount > 0;
-      const glDescription = `Reversal: ${adjustmentToDelete.description}`;
-      const reference = `REV-${adjustmentToDelete.reference || adjustmentToDelete.id}`;
-
-      if (adjustmentToDelete.gl_account) {
-        if (isCharge) {
-          // Original was: Debit 1100, Credit gl_account
-          // Reversal: Debit gl_account, Credit 1100
-          await GLTransaction.create({
-            transaction_date: format(new Date(), 'yyyy-MM-dd'),
-            account_number: adjustmentToDelete.gl_account,
-            description: glDescription,
-            debit_amount: amount,
-            credit_amount: 0,
-            reference: reference,
-            source_type: 'adjustment',
-            source_id: adjustmentToDelete.id
-          });
-          await GLTransaction.create({
-            transaction_date: format(new Date(), 'yyyy-MM-dd'),
-            account_number: '1100',
-            description: glDescription,
-            debit_amount: 0,
-            credit_amount: amount,
-            reference: reference,
-            source_type: 'adjustment',
-            source_id: adjustmentToDelete.id
-          });
-        } else {
-          // Original was: Debit gl_account, Credit 1100
-          // Reversal: Debit 1100, Credit gl_account
-          await GLTransaction.create({
-            transaction_date: format(new Date(), 'yyyy-MM-dd'),
-            account_number: '1100',
-            description: glDescription,
-            debit_amount: amount,
-            credit_amount: 0,
-            reference: reference,
-            source_type: 'adjustment',
-            source_id: adjustmentToDelete.id
-          });
-          await GLTransaction.create({
-            transaction_date: format(new Date(), 'yyyy-MM-dd'),
-            account_number: adjustmentToDelete.gl_account,
-            description: glDescription,
-            debit_amount: 0,
-            credit_amount: amount,
-            reference: reference,
-            source_type: 'adjustment',
-            source_id: adjustmentToDelete.id
-          });
-        }
-      } else {
-        console.warn('Adjustment has no gl_account set — skipping GL reversal entries for adjustment:', adjustmentToDelete.id);
-      }
-
-      // Delete the adjustment
-      await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'delete', id: adjustmentToDelete.id });
-
-      console.log('Adjustment deleted with reversing GL transactions:', adjustmentToDelete.id);
+      await base44.functions.invoke('processCustomerARAccounting', {
+        action: 'reverse_adjustment',
+        adjustment_id: adjustmentToDelete.id
+      });
 
       setShowDeleteAdjustmentConfirm(false);
       setAdjustmentToDelete(null);
       await loadData();
     } catch (error) {
       console.error('Error deleting adjustment:', error);
-      alert(`Failed to delete adjustment: ${error.message}`);
+      alert(`Failed to delete adjustment: ${error?.response?.data?.error || error.message}`);
     }
   };
 

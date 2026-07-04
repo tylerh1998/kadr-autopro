@@ -12,7 +12,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { base44 } from '@/api/base44Client';
-import { GLTransaction } from '@/entities/all';
 
 const getCustomerDisplayName = (customer) => {
   if (!customer) return '';
@@ -148,221 +147,41 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
   const handleSubmit = async () => {
     const paymentAmount = activeTab === 'pay_invoices' ? totalSelectedAmount : parseFloat(amount);
-    const totalAmountWithFee = paymentAmount + creditCardFeeAmount;
 
     setLoading(true);
     try {
-      const applyToEntries = [];
-
-      // Step 1: If credit card fee exists, create a CustomerARAdjustment and GL entries for it
-      if (creditCardFeeAmount > 0) {
-        const feeReference = `CCFEE-${format(paymentDate, 'yyyyMMdd')}-${Date.now()}`;
-        
-        // Create the AR adjustment for the credit card fee
-        const feeAdjRes = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: {
-          customer_id: customer.id,
-          adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
-          amount: creditCardFeeAmount,
-          gl_account: '4009',
-          description: 'Credit Card Processing Fee (3%)',
-          reference: '',
-          ar_paid: creditCardFeeAmount // Immediately paid by this payment
-        } });
-        const feeAdjustment = feeAdjRes.data.data;
-
-        // Create GL entries: Debit 1100 (AR), Credit 4009 (CC Fees Collected)
-        await GLTransaction.create({
-          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-          account_number: '1100',
-          description: `Credit Card Fee - ${getCustomerDisplayName(customer)}`,
-          debit_amount: creditCardFeeAmount,
-          credit_amount: 0,
-          reference: '',
-          source_type: 'customer_ar_adjustment',
-          source_id: feeAdjustment.id
-        });
-
-        await GLTransaction.create({
-          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-          account_number: '4009',
-          description: `Credit Card Fee - ${getCustomerDisplayName(customer)}`,
-          debit_amount: 0,
-          credit_amount: creditCardFeeAmount,
-          reference: '',
-          source_type: 'customer_ar_adjustment',
-          source_id: feeAdjustment.id
-        });
-
-        // Add fee adjustment to ar_applyto
-        applyToEntries.push(`${feeAdjustment.id}:${creditCardFeeAmount.toFixed(2)}`);
-        
-        console.log('Created CC fee adjustment:', feeAdjustment.id, 'Amount:', creditCardFeeAmount);
-      }
-
-      // Step 2: Create the CustomerPayments record
-      const newPaymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: {
+      const response = await base44.functions.invoke('processCustomerARAccounting', {
+        action: 'create_payment',
         customer_id: customer.id,
-        amount: totalAmountWithFee,
-        payment_method: paymentMethod,
         payment_date: format(paymentDate, 'yyyy-MM-dd'),
-        reference: reference,
-        notes: `AR Payment for ${getCustomerDisplayName(customer)}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`,
-        ar_pmt: true,
-        ar_applyto: '' // Will be updated after applying to charges
-      } });
-      const newPaymentRecord = newPaymentRes.data.data;
-
-      console.log('Created payment record:', newPaymentRecord);
-
-      // Step 2b: Create GL entries for the payment (Debit 1010 Cash Drawer, Credit 1100 AR)
-      const paymentReference = `ARPMT-${newPaymentRecord.id}`;
-      
-      // Debit 1010 (Cash Drawer) - money received
-      await GLTransaction.create({
-        transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-        account_number: '1010',
-        description: `AR Payment - ${getCustomerDisplayName(customer)}`,
-        debit_amount: totalAmountWithFee,
-        credit_amount: 0,
-        reference: paymentReference,
-        source_type: 'customer_payment',
-        source_id: newPaymentRecord.id
+        payment_amount: paymentAmount,
+        payment_method: paymentMethod,
+        reference,
+        apply_mode: activeTab === 'pay_invoices' ? 'selected' : 'oldest',
+        selected_charge_ids: Object.keys(selectedCharges),
+        credit_card_fee_amount: creditCardFeeAmount
       });
 
-      // Credit 1100 (Accounts Receivable) - reduce AR balance
-      await GLTransaction.create({
-        transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-        account_number: '1100',
-        description: `AR Payment - ${getCustomerDisplayName(customer)}`,
-        debit_amount: 0,
-        credit_amount: totalAmountWithFee,
-        reference: paymentReference,
-        source_type: 'customer_payment',
-        source_id: newPaymentRecord.id
-      });
+      const updatedPaymentRecord = response.data?.payment;
 
-      console.log('Created GL entries for payment:', paymentReference);
-
-      // Step 3: Determine which charges to apply payment to
-      let chargesToPay = [];
-      
-      if (activeTab === 'pay_invoices') {
-        // User selected specific charges
-        chargesToPay = outstandingCharges.filter(charge => selectedCharges[charge.id]);
-      } else {
-        // Apply to oldest charges first
-        let remainingAmount = paymentAmount;
-        for (const charge of outstandingCharges) {
-          if (remainingAmount <= 0) break;
-          
-          const amountToApply = Math.min(remainingAmount, charge.balance);
-          chargesToPay.push({ ...charge, amountToApply });
-          remainingAmount -= amountToApply;
-        }
-      }
-
-      // Step 4: Apply payment to each charge and build ar_applyto string
-      let totalApplied = 0;
-      for (const charge of chargesToPay) {
-        const amountToApply = activeTab === 'pay_invoices' ? charge.balance : (charge.amountToApply || charge.balance);
-        const newArPaid = (charge.ar_paid || 0) + amountToApply;
-
-        // Update the charge's ar_paid field
-        if (charge.type === 'invoice') {
-          await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: charge.id, data: {
-            ar_paid: newArPaid
-          } });
-        } else if (charge.type === 'adjustment') {
-          await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'update', id: charge.id, data: {
-            ar_paid: newArPaid
-          } });
-        }
-
-        // Add to ar_applyto string
-        applyToEntries.push(`${charge.id}:${amountToApply.toFixed(2)}`);
-        totalApplied += amountToApply;
-
-        console.log(`Applied $${amountToApply.toFixed(2)} to ${charge.type} ${charge.id}, new ar_paid: ${newArPaid}`);
-      }
-
-      // Step 4b: Handle overpayment - create credit adjustment for unapplied amount
-      const overpaymentAmount = paymentAmount - totalApplied;
-      if (overpaymentAmount > 0.01) {
-        const overpaymentRes = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'create', data: {
-          customer_id: customer.id,
-          adjustment_date: format(paymentDate, 'yyyy-MM-dd'),
-          amount: -overpaymentAmount,
-          gl_account: '2100',
-          description: 'Overpayment',
-          ar_paid: 0,
-          overpayment: true
-        } });
-        const overpaymentAdjustment = overpaymentRes.data.data;
-
-        // Create GL entries for overpayment: Debit 1100 (AR), Credit 2100 (Payments in Advance)
-        await GLTransaction.create({
-          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-          account_number: '1100',
-          description: `Overpayment Credit - ${getCustomerDisplayName(customer)}`,
-          debit_amount: overpaymentAmount,
-          credit_amount: 0,
-          reference: '',
-          source_type: 'adjustment',
-          source_id: overpaymentAdjustment.id
-        });
-
-        await GLTransaction.create({
-          transaction_date: format(paymentDate, 'yyyy-MM-dd'),
-          account_number: '2100',
-          description: `Overpayment Credit - ${getCustomerDisplayName(customer)}`,
-          debit_amount: 0,
-          credit_amount: overpaymentAmount,
-          reference: '',
-          source_type: 'adjustment',
-          source_id: overpaymentAdjustment.id
-        });
-
-        // Add overpayment to ar_applyto
-        applyToEntries.push(`${overpaymentAdjustment.id}:${overpaymentAmount.toFixed(2)}`);
-
-        console.log(`Created overpayment credit adjustment: $${overpaymentAmount.toFixed(2)}`);
-      }
-
-      // Step 5: Update the payment record with ar_applyto
-      const arApplyToString = applyToEntries.join(',');
-      await base44.functions.invoke('supabaseCustomerPayments', { action: 'update', id: newPaymentRecord.id, data: {
-        ar_applyto: arApplyToString
-      } });
-
-      console.log('Payment application complete. ar_applyto:', arApplyToString);
-
-      // Call the parent callback to refresh data
       if (onTakePayment) {
         await onTakePayment();
       }
 
-      // Reset form state
       setSelectedCharges({});
       setAmount('');
       setPaymentDate(new Date());
       setPaymentMethod('cash');
       setReference('');
       setShowPaymentDetailsDialog(false);
-      
-      // Fetch the updated payment record with ar_applyto populated
-      const updatedPaymentRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: newPaymentRecord.id });
-      const updatedPaymentRecord = updatedPaymentRes.data.data;
-      
-      // Close modal and notify parent to open payment details
       onClose();
-      
-      if (onPaymentComplete) {
+
+      if (onPaymentComplete && updatedPaymentRecord) {
         onPaymentComplete(updatedPaymentRecord);
       }
     } catch (error) {
       console.error('Error processing payment:', error);
-      // More detailed error message
-      const errorMessage = error.message || error.toString();
+      const errorMessage = error?.response?.data?.error || error.message || error.toString();
       alert(`Failed to process payment: ${errorMessage}\n\nPlease check the console for details.`);
     } finally {
       setLoading(false);
