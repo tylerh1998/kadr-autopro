@@ -108,6 +108,8 @@ Deno.serve(async (req) => {
         // Revenue reversals (debit revenue accounts)
         if (partsCreditTotal !== 0) {
             const partsEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.PARTS_SALES,
                 transaction_date: invoiceDate,
                 description: `Credit Parts sales - ${reference}`,
@@ -117,12 +119,13 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(partsEntry);
             generatedGLTransactions.push(partsEntry);
         }
 
         if (laborCreditTotal !== 0) {
             const laborEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.LABOR_SALES,
                 transaction_date: invoiceDate,
                 description: `Credit Labor sales - ${reference}`,
@@ -132,12 +135,13 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(laborEntry);
             generatedGLTransactions.push(laborEntry);
         }
 
         if (finalShopSuppliesTotal !== 0) {
             const shopSuppliesEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.SHOP_SUPPLIES_REVENUE,
                 transaction_date: invoiceDate,
                 description: `Credit Shop supplies - ${reference}`,
@@ -147,12 +151,13 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(shopSuppliesEntry);
             generatedGLTransactions.push(shopSuppliesEntry);
         }
 
         if (gstTotal !== 0) {
             const gstEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.GST_RECEIVED,
                 transaction_date: invoiceDate,
                 description: `Credit GST collected - ${reference}`,
@@ -162,13 +167,14 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(gstEntry);
             generatedGLTransactions.push(gstEntry);
         }
 
         // COGS and Inventory reversals
         if (partsInventoryCostReversed !== 0) {
             const cogsEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.COGS,
                 transaction_date: invoiceDate,
                 description: `Credit cost of parts sold - ${reference}`,
@@ -178,10 +184,11 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(cogsEntry);
             generatedGLTransactions.push(cogsEntry);
 
             const inventoryEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.INVENTORY,
                 transaction_date: invoiceDate,
                 description: `Credit Inventory increase - ${reference}`,
@@ -191,7 +198,6 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(inventoryEntry);
             generatedGLTransactions.push(inventoryEntry);
         }
 
@@ -201,6 +207,8 @@ Deno.serve(async (req) => {
                 const ocTotal = parseFloat(line.oc_total || 0);
                 if (ocTotal !== 0) {
                     const ocEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                         account_number: line.gl_account,
                         transaction_date: invoiceDate,
                         description: `Credit ${line.description} - ${reference}`,
@@ -210,7 +218,6 @@ Deno.serve(async (req) => {
                         source_type: 'credit_invoice',
                         source_id: workOrder.id
                     };
-                    await base44.asServiceRole.entities.GLTransaction.create(ocEntry);
                     generatedGLTransactions.push(ocEntry);
                 }
             }
@@ -236,6 +243,8 @@ Deno.serve(async (req) => {
 
         if (totalAdvancePaymentsReversed !== 0) {
             const advanceEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.PAYMENTS_IN_ADVANCE,
                 transaction_date: invoiceDate,
                 description: `Credit advance payments applied - ${reference}`,
@@ -245,12 +254,13 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(advanceEntry);
             generatedGLTransactions.push(advanceEntry);
         }
 
         if (totalOnAccountPaymentsReversed !== 0) {
             const arEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,
                 transaction_date: invoiceDate,
                 description: `Credit AR payment - ${reference}`,
@@ -260,12 +270,13 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(arEntry);
             generatedGLTransactions.push(arEntry);
         }
 
         if (totalCashPaymentsReversed !== 0) {
             const cashEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.CASH_DRAWER,
                 transaction_date: invoiceDate,
                 description: `Credit Payment refunded - ${reference}`,
@@ -275,7 +286,6 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(cashEntry);
             generatedGLTransactions.push(cashEntry);
         }
 
@@ -290,6 +300,8 @@ Deno.serve(async (req) => {
 
         if (Math.abs(remainingBalance) > 0.01) {
             const arBalanceEntry = {
+                id: crypto.randomUUID().replace(/-/g, "").substring(0, 24),
+                ...getAuditFields(),
                 account_number: GL_ACCOUNTS.ACCOUNTS_RECEIVABLE,
                 transaction_date: invoiceDate,
                 description: `Credit invoice balance adjustment - ${reference}`,
@@ -299,11 +311,17 @@ Deno.serve(async (req) => {
                 source_type: 'credit_invoice',
                 source_id: workOrder.id
             };
-            await base44.asServiceRole.entities.GLTransaction.create(arBalanceEntry);
             generatedGLTransactions.push(arBalanceEntry);
         }
 
         console.log(`--- Generated ${generatedGLTransactions.length} GL transactions for credit invoice ---`);
+
+        if (generatedGLTransactions.length > 0) {
+            const { error: glInsertError } = await supabase.from('GLTransaction').insert(generatedGLTransactions);
+            if (glInsertError) {
+                throw new Error(glInsertError.message);
+            }
+        }
 
         return Response.json({
             success: true,
