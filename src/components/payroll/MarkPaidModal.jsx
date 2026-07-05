@@ -150,6 +150,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         throw new Error(`GL Transactions do not balance. Debits: $${totalDebits.toFixed(2)}, Credits: $${totalCredits.toFixed(2)}`);
       }
       
+      const glTransactionsToInsert = [];
+
       for (const transaction of transactions) {
         // Update transaction as paid
         await base44.functions.invoke('SupabaseProxy', {
@@ -239,7 +241,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           const netPay = getNetPay(transaction);
 
           // Credit Bank Account (payment out)
-          await GLTransaction.create({
+          glTransactionsToInsert.push({
             account_number: selectedAccount.gl_account || '1000',
             transaction_date: paymentDate,
             description: `Paycheque payment ${transaction.paycheque_number || ''}`,
@@ -257,7 +259,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             ? `Bus Driver Wages ${transaction.paycheque_number || ''}` 
             : `Wages & Salaries ${transaction.paycheque_number || ''}`;
 
-          await GLTransaction.create({
+          glTransactionsToInsert.push({
             account_number: expenseAccount,
             transaction_date: paymentDate,
             description: expenseDescription,
@@ -270,7 +272,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
           // Credit Income Tax Payable (2054)
           if (transaction.income_tax && transaction.income_tax > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2054', // Income Tax Payable
               transaction_date: paymentDate,
               description: `Income tax withheld ${transaction.paycheque_number || ''}`,
@@ -285,7 +287,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           // Credit CPP Payable (2052) - Combine CPP and CPP2
           const totalCppEmployee = (transaction.cpp_contribution || 0) + (transaction.cpp2_contribution || 0);
           if (totalCppEmployee > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2052', // CPP Payable
               transaction_date: paymentDate,
               description: `CPP/CPP2 withheld ${transaction.paycheque_number || ''}`,
@@ -299,7 +301,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
           // Credit EI Payable (2053)
           if (transaction.ei_premium && transaction.ei_premium > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2053', // EI Payable
               transaction_date: paymentDate,
               description: `EI withheld ${transaction.paycheque_number || ''}`,
@@ -321,7 +323,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
               if (Array.isArray(addDeductions)) {
                 for (const deduction of addDeductions) {
                   if (deduction.amount > 0 && deduction.gl_account) {
-                    await GLTransaction.create({
+                    glTransactionsToInsert.push({
                       account_number: deduction.gl_account,
                       transaction_date: paymentDate,
                       description: `${deduction.description} withheld ${transaction.paycheque_number || ''}`,
@@ -345,7 +347,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           const totalCppEmployer = (transaction.cpp_employer || 0) + (transaction.cpp2_employer || 0);
           if (totalCppEmployer > 0) {
             // Debit Expense
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '5006', // CPP Expense
               transaction_date: paymentDate,
               description: `CPP Employer Expense ${transaction.paycheque_number || ''}`,
@@ -357,7 +359,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             });
             
             // Credit Liability
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2052', // CPP Payable
               transaction_date: paymentDate,
               description: `CPP Employer Liability ${transaction.paycheque_number || ''}`,
@@ -372,7 +374,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           // EI Employer Expense (5007) and Liability (2053)
           if (transaction.ei_employer && transaction.ei_employer > 0) {
             // Debit Expense
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '5007', // EI Expense
               transaction_date: paymentDate,
               description: `EI Employer Expense ${transaction.paycheque_number || ''}`,
@@ -384,7 +386,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             });
             
             // Credit Liability
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2053', // EI Payable
               transaction_date: paymentDate,
               description: `EI Employer Liability ${transaction.paycheque_number || ''}`,
@@ -398,7 +400,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
         } else if (transaction.transaction_type === 'Remittance') {
           // Credit Bank Account (remittance payment out)
-          await GLTransaction.create({
+          glTransactionsToInsert.push({
             account_number: selectedAccount.gl_account || '1000',
             transaction_date: paymentDate,
             description: `Remittance payment`,
@@ -411,7 +413,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
           // Debit Income Tax Payable (2054)
           if (transaction.income_tax && transaction.income_tax > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2054', // Income Tax Payable
               transaction_date: paymentDate,
               description: `Remittance paid - Income Tax`,
@@ -426,7 +428,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           // Debit CPP Payable (2052) - Employee + Employer
           const totalCpp = (transaction.cpp_contribution || 0) + (transaction.cpp_employer || 0);
           if (totalCpp > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2052', // CPP Payable
               transaction_date: paymentDate,
               description: `Remittance paid - CPP`,
@@ -441,7 +443,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           // Debit EI Payable (2053) - Employee + Employer
           const totalEi = (transaction.ei_premium || 0) + (transaction.ei_employer || 0);
           if (totalEi > 0) {
-            await GLTransaction.create({
+            glTransactionsToInsert.push({
               account_number: '2053', // EI Payable
               transaction_date: paymentDate,
               description: `Remittance paid - EI`,
@@ -459,7 +461,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           const isPositive = (transaction.amount || 0) >= 0;
           const postingAccount = String(transaction.gl_account || '5005');
 
-          await GLTransaction.create({
+          glTransactionsToInsert.push({
             account_number: selectedAccount.gl_account || '1000',
             transaction_date: paymentDate,
             description: `Payroll adjustment - ${transaction.adjustment_reason || ''}`,
@@ -470,7 +472,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             source_id: transaction.id
           });
 
-          await GLTransaction.create({
+          glTransactionsToInsert.push({
             account_number: postingAccount,
             transaction_date: paymentDate,
             description: `Payroll adjustment - ${transaction.adjustment_reason || ''}`,
@@ -481,6 +483,14 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
             source_id: transaction.id
           });
         }
+      }
+
+      if (glTransactionsToInsert.length > 0) {
+        await base44.functions.invoke('SupabaseProxy', {
+          action: 'create',
+          table: 'GLTransaction',
+          data: glTransactionsToInsert
+        });
       }
 
       // Recalculate bank balance

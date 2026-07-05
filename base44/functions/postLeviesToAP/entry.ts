@@ -163,9 +163,8 @@ Deno.serve(async (req) => {
 
       createdLines.push(invoiceLine);
 
-      // Create GL Transactions
-      // Debit 5001
-      await base44.asServiceRole.entities.GLTransaction.create({
+      // Create GL Transactions natively in Supabase
+      const debitTransaction = buildSupabaseRecord(user, {
         account_number: '5001',
         transaction_date: invoiceDate,
         description: `Levy Remittance - ${invoiceNumber} - ${otherCharge.description}`,
@@ -176,8 +175,7 @@ Deno.serve(async (req) => {
         source_id: invoiceLine.id
       });
 
-      // Credit 2000 (AP)
-      await base44.asServiceRole.entities.GLTransaction.create({
+      const creditTransaction = buildSupabaseRecord(user, {
         account_number: '2000',
         transaction_date: invoiceDate,
         description: `Levy Remittance - ${invoiceNumber} - ${otherCharge.description}`,
@@ -187,6 +185,14 @@ Deno.serve(async (req) => {
         source_type: 'supplier_invoice',
         source_id: invoiceLine.id
       });
+
+      const { error: glError } = await supabase
+        .from('GLTransaction')
+        .insert([debitTransaction, creditTransaction]);
+
+      if (glError) {
+        throw new Error(`Failed to create GL transactions: ${glError.message}`);
+      }
 
       // Update Levies
       // We can use update_entities for bulk update if query is supported well, or loop.

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 Deno.serve(async (req) => {
   try {
@@ -10,6 +11,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const auditUser = user?.full_name || user?.email || 'Unknown User';
+    const getAuditFields = () => ({
+      created_by: auditUser,
+      created_by_id: user?.id,
+      updated_by: auditUser
+    });
+
     // Parse request body
     const { gst_return_id, payment_date, bank_account_id } = await req.json();
     
@@ -20,7 +37,16 @@ Deno.serve(async (req) => {
     }
 
     // Get the GST return record
-    const gstReturnRecords = await base44.asServiceRole.entities.GSTReturn.filter({ id: gst_return_id });
+    const { data: gstReturnRecords, error: gstReturnError } = await supabase
+      .from('GSTReturn')
+      .select('*')
+      .eq('id', gst_return_id)
+      .limit(1);
+
+    if (gstReturnError) {
+      throw new Error(`Failed to fetch GST return: ${gstReturnError.message}`);
+    }
+
     const gstReturn = gstReturnRecords && gstReturnRecords.length > 0 ? gstReturnRecords[0] : null;
     
     if (!gstReturn) {
@@ -34,7 +60,15 @@ Deno.serve(async (req) => {
     }
 
     // Get system settings for GST payable/receivable account
-    const settingsRecords = await base44.asServiceRole.entities.SystemSettings.list();
+    const { data: settingsRecords, error: settingsError } = await supabase
+      .from('SystemSettings')
+      .select('*')
+      .limit(1);
+
+    if (settingsError) {
+      throw new Error(`Failed to fetch system settings: ${settingsError.message}`);
+    }
+
     const settings = settingsRecords && settingsRecords.length > 0 ? settingsRecords[0] : null;
     
     if (!settings) {
@@ -46,7 +80,16 @@ Deno.serve(async (req) => {
     const gstPayableReceivableAccount = settings.gst_payable_receivable_account_number || '2001';
 
     // Get bank account details
-    const bankAccountRecords = await base44.asServiceRole.entities.BankAccount.filter({ id: bank_account_id });
+    const { data: bankAccountRecords, error: bankAccountError } = await supabase
+      .from('BankAccount')
+      .select('*')
+      .eq('id', bank_account_id)
+      .limit(1);
+
+    if (bankAccountError) {
+      throw new Error(`Failed to fetch bank account: ${bankAccountError.message}`);
+    }
+
     const bankAccount = bankAccountRecords && bankAccountRecords.length > 0 ? bankAccountRecords[0] : null;
     
     if (!bankAccount || !bankAccount.gl_account) {
@@ -112,13 +155,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Add UUIDs and Audit Fields to GL Transactions
+    const glTransactionsToInsert = glTransactions.map(tx => ({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...getAuditFields(),
+        ...tx
+    }));
+
     // Create all GL transactions
-    for (const tx of glTransactions) {
-      await base44.asServiceRole.entities.GLTransaction.create(tx);
+    const { error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactionsToInsert);
+    if (glInsertError) {
+      throw new Error(`Failed to insert GL transactions: ${glInsertError.message}`);
     }
 
     // Create Bank Transaction
     const bankTx = {
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      ...getAuditFields(),
       bank_account_id: bankAccount.id,
       transaction_date: payment_date,
       description: netGstDue > 0 
@@ -134,15 +187,26 @@ Deno.serve(async (req) => {
       gl_account: gstPayableReceivableAccount
     };
     
-    await base44.asServiceRole.entities.BankTransaction.create(bankTx);
+    const { error: bankTxError } = await supabase.from('BankTransaction').insert(bankTx);
+    if (bankTxError) {
+      throw new Error(`Failed to insert Bank transaction: ${bankTxError.message}`);
+    }
 
     // Update the GST return to "paid" status
-    await base44.asServiceRole.entities.GSTReturn.update(gstReturn.id, {
-      status: 'paid',
-      paid_date: payment_date,
-      paid_by: user.email,
-      bank_account_id: bank_account_id
-    });
+    const { error: updateError } = await supabase
+      .from('GSTReturn')
+      .update({
+        status: 'paid',
+        paid_date: payment_date,
+        paid_by: user.email,
+        bank_account_id: bank_account_id,
+        updated_by: auditUser
+      })
+      .eq('id', gstReturn.id);
+    
+    if (updateError) {
+      throw new Error(`Failed to update GST Return: ${updateError.message}`);
+    }
 
     return Response.json({
       success: true,

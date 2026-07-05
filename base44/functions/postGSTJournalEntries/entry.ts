@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 Deno.serve(async (req) => {
   try {
@@ -7,6 +8,22 @@ Deno.serve(async (req) => {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const auditUser = user?.full_name || user?.email || 'Unknown User';
+    const getAuditFields = () => ({
+      created_by: auditUser,
+      created_by_id: user?.id,
+      updated_by: auditUser
+    });
 
     const {
       gst_return_id,
@@ -20,7 +37,15 @@ Deno.serve(async (req) => {
     }
 
     // Fetch system settings for account numbers
-    const settingsList = await base44.asServiceRole.entities.SystemSettings.list();
+    const { data: settingsList, error: settingsError } = await supabase
+      .from('SystemSettings')
+      .select('*')
+      .limit(1);
+
+    if (settingsError) {
+      throw new Error(`Failed to fetch system settings: ${settingsError.message}`);
+    }
+
     const settings = settingsList?.[0] || {};
     
     const gstCollectedAccount = settings.gst_collected_account_number || '2002';
@@ -138,9 +163,17 @@ Deno.serve(async (req) => {
         }
     }
 
+    // Add UUIDs and Audit Fields
+    const glTransactionsToInsert = glTransactions.map(tx => ({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...getAuditFields(),
+        ...tx
+    }));
+
     // Create transactions
-    for (const tx of glTransactions) {
-        await base44.asServiceRole.entities.GLTransaction.create(tx);
+    const { error: insertError } = await supabase.from('GLTransaction').insert(glTransactionsToInsert);
+    if (insertError) {
+      throw new Error(`Failed to insert GL transactions: ${insertError.message}`);
     }
 
     return Response.json({ success: true, count: glTransactions.length });

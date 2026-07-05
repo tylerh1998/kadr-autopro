@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 Deno.serve(async (req) => {
   try {
@@ -10,6 +11,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
     // Parse request body
     const { period_start_date, period_end_date } = await req.json();
     
@@ -20,7 +30,15 @@ Deno.serve(async (req) => {
     }
 
     // Get system settings to retrieve GST account numbers
-    const settingsRecords = await base44.asServiceRole.entities.SystemSettings.list();
+    const { data: settingsRecords, error: settingsError } = await supabase
+      .from('SystemSettings')
+      .select('*')
+      .limit(1);
+
+    if (settingsError) {
+      throw new Error(`Failed to fetch system settings: ${settingsError.message}`);
+    }
+
     const settings = settingsRecords && settingsRecords.length > 0 ? settingsRecords[0] : null;
     
     if (!settings) {
@@ -32,24 +50,31 @@ Deno.serve(async (req) => {
     const gstCollectedAccount = settings.gst_collected_account_number || '2002';
     const gstPaidAccount = settings.gst_paid_account_number || '2003';
 
-    // Fetch all GL transactions with pagination to ensure we don't hit the limit
-    const allTransactions = [];
-    let skip = 0;
-    while(true) {
-      const batch = await base44.asServiceRole.entities.GLTransaction.filter({ }, undefined, 5000, skip);
-      if (batch.length === 0) break;
-      allTransactions.push(...batch);
-      if (batch.length < 5000) break;
-      skip += 5000;
-    }
+    // Fetch GL transactions within date range with pagination
+    const transactions = [];
+    const PAGE_SIZE = 1000;
+    let from = 0;
     
-    // Filter transactions by date range
-    const transactions = allTransactions.filter(tx => {
-      const txDate = new Date(tx.transaction_date);
-      const startDate = new Date(period_start_date);
-      const endDate = new Date(period_end_date);
-      return txDate >= startDate && txDate <= endDate;
-    });
+    while(true) {
+      const to = from + PAGE_SIZE - 1;
+      const { data: batch, error: fetchError } = await supabase
+        .from('GLTransaction')
+        .select('account_number, debit_amount, credit_amount')
+        .gte('transaction_date', period_start_date)
+        .lte('transaction_date', period_end_date)
+        .range(from, to);
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch transactions: ${fetchError.message}`);
+      }
+
+      if (!batch || batch.length === 0) break;
+      
+      transactions.push(...batch);
+      
+      if (batch.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
 
     // Calculate GST collected (credits to account 2002)
     const gstCollectedTransactions = transactions.filter(
