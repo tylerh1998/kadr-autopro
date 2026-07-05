@@ -27,6 +27,22 @@ const parseArApplyTo = (value) => {
   });
 };
 
+const parseAppliedData = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 const buildArApplyTo = (entries) => {
   return entries.map(e => `${e.id}:${e.type}:${(Number(e.amount) || 0).toFixed(2)}:${sanitizeDescription(e.description)}`).join(',');
 };
@@ -74,8 +90,9 @@ Deno.serve(async (req) => {
 
     const rowMap = Object.fromEntries((customerData || []).map((row) => [row.transaction_id, row]));
     const paymentRow = paymentId ? rowMap[paymentId] : null;
-    const parsedAppliedData = Array.isArray(paymentRow?.applied_data) && paymentRow.applied_data.length
-      ? paymentRow.applied_data
+    const rpcAppliedData = parseAppliedData(paymentRow?.applied_data);
+    const parsedAppliedData = rpcAppliedData.length
+      ? rpcAppliedData
       : parseArApplyTo(fallbackArApplyTo);
 
     const appliedDetails = parsedAppliedData
@@ -112,7 +129,7 @@ Deno.serve(async (req) => {
                 : 'Credit',
           reference: row.reference || '',
           date: row.txn_date ? String(row.txn_date).slice(0, 10) : null,
-          description: row.description || '',
+          description: item?.description || row.description || '',
           amountApplied,
           isOverpayment,
           source: row.transaction_type === 'payment' ? 'customer_payment' : 'customer_ar_adjustment'
