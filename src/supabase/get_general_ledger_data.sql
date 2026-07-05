@@ -5,7 +5,7 @@ RETURNS TABLE (
     account_type TEXT,
     parent_account TEXT,
     is_active BOOLEAN,
-    controlled BOOLEAN,
+    controlled TEXT,
     description TEXT,
     own_balance NUMERIC,
     "transactionCount" BIGINT

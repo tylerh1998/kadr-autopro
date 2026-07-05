@@ -154,7 +154,6 @@ Deno.serve(async (req) => {
     // Create Bank Transaction
     const bankTx = {
       id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-      ...getAuditFields(),
       bank_account_id: bankAccount.id,
       transaction_date: payment_date,
       description: netGstDue > 0 
