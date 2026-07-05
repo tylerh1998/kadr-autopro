@@ -111,8 +111,16 @@ Deno.serve(async (req) => {
     const batchReference = `DEP-${parsed.batchDate.replace(/-/g, '')}`;
     const confirmationReference = parsed.confirmation;
 
+    const auditFields = {
+      created_by: 'registries-batch-service',
+      created_by_id: 'registries-batch-service',
+      updated_by: 'registries-batch-service'
+    };
+
     const glTransactions = [
       {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...auditFields,
         account_number: AR_GL,
         transaction_date: parsed.batchDate,
         description: `Invoice Total - Registries Batch ${batchReference}`,
@@ -123,6 +131,8 @@ Deno.serve(async (req) => {
         source_id: confirmationReference
       },
       {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...auditFields,
         account_number: REGISTRIES_PAYABLE_GL,
         transaction_date: parsed.batchDate,
         description: `Registries Sales - ${batchReference}`,
@@ -136,6 +146,8 @@ Deno.serve(async (req) => {
 
     if (parsed.totalServiceFees !== 0) {
       glTransactions.push({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...auditFields,
         account_number: REGISTRIES_COMMISSION_GL,
         transaction_date: parsed.batchDate,
         description: `Registries Commission - ${batchReference}`,
@@ -163,6 +175,8 @@ Deno.serve(async (req) => {
 
       glTransactions.push(
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...auditFields,
           account_number: CASH_DRAWER_GL,
           transaction_date: settlement.payment_date,
           description: `Registries Settlement - ${batchReference}`,
@@ -173,6 +187,8 @@ Deno.serve(async (req) => {
           source_id: confirmationReference
         },
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...auditFields,
           account_number: AR_GL,
           transaction_date: settlement.payment_date,
           description: `Registries Settlement - ${batchReference}`,
@@ -201,6 +217,8 @@ Deno.serve(async (req) => {
 
       glTransactions.push(
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...auditFields,
           account_number: CASH_DRAWER_GL,
           transaction_date: parsed.batchDate,
           description: `Registries Deposit - ${batchReference}`,
@@ -211,6 +229,8 @@ Deno.serve(async (req) => {
           source_id: confirmationReference
         },
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...auditFields,
           account_number: AR_GL,
           transaction_date: parsed.batchDate,
           description: `Registries Deposit - ${batchReference}`,
@@ -255,6 +275,8 @@ Deno.serve(async (req) => {
       if (purchaseAmount !== 0) {
         glTransactions.push(
           {
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            ...auditFields,
             account_number: REGISTRIES_PAYABLE_GL,
             transaction_date: line.invoice_date,
             description: `${baseDescription} - ${REGISTRIES_PAYABLE_GL} - Alberta Registries Payable`,
@@ -265,6 +287,8 @@ Deno.serve(async (req) => {
             source_id: line.id || ''
           },
           {
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            ...auditFields,
             account_number: ACCOUNTS_PAYABLE_GL,
             transaction_date: line.invoice_date,
             description: `${baseDescription} - Accounts Payable`,
@@ -278,11 +302,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const glCreate = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
+    const { data: glCreate, error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactions).select();
+    if (glInsertError) throw new Error(glInsertError.message);
 
     return Response.json({
       success: true,
-      message: `Imported registries batch with ${supplierInvoiceLines.length} invoice lines, ${parsed.settlements.length + (parsed.bankDepositAmount !== 0 ? 1 : 0)} payments, and ${glCreate.length} GL transactions.`
+      message: `Imported registries batch with ${supplierInvoiceLines.length} invoice lines, ${parsed.settlements.length + (parsed.bankDepositAmount !== 0 ? 1 : 0)} payments, and ${glCreate?.length || glTransactions.length} GL transactions.`
     });
   } catch (error) {
     console.error('processRegistriesBatch error:', error);

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 /**
  * Backend function to process manual line of credit transactions
@@ -23,6 +24,22 @@ Deno.serve(async (req) => {
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const supabaseUrl = Deno.env.get('Supabase_project_url');
+    const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+    if (!supabaseUrl || !supabaseKey) {
+      return Response.json({ success: false, error: 'Supabase configuration is missing' }, { status: 500 });
+    }
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    });
+
+    const auditUser = user?.full_name || user?.email || 'Unknown User';
+    const getAuditFields = () => ({
+      created_by: auditUser,
+      created_by_id: user?.id,
+      updated_by: auditUser
+    });
 
     // Parse request body
     const payload = await req.json();
@@ -73,10 +90,8 @@ Deno.serve(async (req) => {
         if (!locAccount) return Response.json({ success: false, error: 'Line of credit account not found' }, { status: 404 });
 
         // 1. Delete associated GL transactions
-        const existingGLs = await base44.asServiceRole.entities.GLTransaction.filter({ source_id: id });
-        if (existingGLs.length > 0) {
-            await Promise.all(existingGLs.map(gl => base44.asServiceRole.entities.GLTransaction.delete(gl.id)));
-        }
+        const { error: glDeleteError } = await supabase.from('GLTransaction').delete().eq('source_id', id);
+        if (glDeleteError) throw new Error(glDeleteError.message);
 
         // 2. Reverse effect on balance
         let currentBalance = locAccount.current_balance || 0;
@@ -126,6 +141,8 @@ Deno.serve(async (req) => {
              const glTransactions = [];
              if (transaction_type === 'charge') {
                 glTransactions.push({
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                    ...getAuditFields(),
                     account_number: offset_gl_account,
                     transaction_date: transaction_date,
                     description: `LOC Draw: ${description}`,
@@ -136,6 +153,8 @@ Deno.serve(async (req) => {
                     source_id: id
                 });
                 glTransactions.push({
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                    ...getAuditFields(),
                     account_number: locAccount.gl_account,
                     transaction_date: transaction_date,
                     description: `LOC Draw: ${description}`,
@@ -147,6 +166,8 @@ Deno.serve(async (req) => {
                 });
             } else {
                 glTransactions.push({
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                    ...getAuditFields(),
                     account_number: locAccount.gl_account,
                     transaction_date: transaction_date,
                     description: `LOC Credit: ${description}`,
@@ -157,6 +178,8 @@ Deno.serve(async (req) => {
                     source_id: id
                 });
                 glTransactions.push({
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                    ...getAuditFields(),
                     account_number: offset_gl_account,
                     transaction_date: transaction_date,
                     description: `LOC Credit: ${description}`,
@@ -168,7 +191,8 @@ Deno.serve(async (req) => {
                 });
             }
 
-            await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
+            const { error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactions);
+            if (glInsertError) throw new Error(glInsertError.message);
 
             return Response.json({ success: true, message: 'Transaction updated successfully' });
         }
@@ -208,6 +232,8 @@ Deno.serve(async (req) => {
         const glTransactions = [];
         if (transaction_type === 'charge') {
             glTransactions.push({
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                ...getAuditFields(),
                 account_number: offset_gl_account,
                 transaction_date: transaction_date,
                 description: `LOC Draw: ${description}`,
@@ -218,6 +244,8 @@ Deno.serve(async (req) => {
                 source_id: locTransaction.id
             });
             glTransactions.push({
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                ...getAuditFields(),
                 account_number: locAccount.gl_account,
                 transaction_date: transaction_date,
                 description: `LOC Draw: ${description}`,
@@ -229,6 +257,8 @@ Deno.serve(async (req) => {
             });
         } else {
             glTransactions.push({
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                ...getAuditFields(),
                 account_number: locAccount.gl_account,
                 transaction_date: transaction_date,
                 description: `LOC Credit: ${description}`,
@@ -239,6 +269,8 @@ Deno.serve(async (req) => {
                 source_id: locTransaction.id
             });
             glTransactions.push({
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                ...getAuditFields(),
                 account_number: offset_gl_account,
                 transaction_date: transaction_date,
                 description: `LOC Credit: ${description}`,
@@ -250,13 +282,18 @@ Deno.serve(async (req) => {
             });
         }
 
-        const createdGLTransactions = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
+        const { data: createdGLTransactions, error: glInsertError } = await supabase
+            .from('GLTransaction')
+            .insert(glTransactions)
+            .select();
+
+        if (glInsertError) throw new Error(glInsertError.message);
 
         return Response.json({
             success: true,
             message: 'Transaction processed successfully',
             loc_transaction_id: locTransaction.id,
-            gl_transaction_ids: createdGLTransactions.map(tx => tx.id),
+            gl_transaction_ids: createdGLTransactions ? createdGLTransactions.map(tx => tx.id) : glTransactions.map(tx => tx.id),
             new_balance: newBalance
         });
     }

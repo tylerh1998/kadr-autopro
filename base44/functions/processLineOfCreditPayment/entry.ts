@@ -33,6 +33,13 @@ Deno.serve(async (req) => {
       auth: { persistSession: false }
     });
 
+    const auditUser = user?.full_name || user?.email || 'Unknown User';
+    const getAuditFields = () => ({
+      created_by: auditUser,
+      created_by_id: user?.id,
+      updated_by: auditUser
+    });
+
     // Parse request body
     const payload = await req.json();
     const { 
@@ -273,6 +280,8 @@ Deno.serve(async (req) => {
 
     // Debit the LOC account (reducing liability)
     glTransactions.push({
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      ...getAuditFields(),
       account_number: locAccount.gl_account,
       transaction_date: payment_date,
       description: paymentDescription,
@@ -285,6 +294,8 @@ Deno.serve(async (req) => {
 
     // Credit the source account (reducing asset or increasing liability)
     glTransactions.push({
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      ...getAuditFields(),
       account_number: sourceGLAccount,
       transaction_date: payment_date,
       description: paymentDescription,
@@ -296,7 +307,14 @@ Deno.serve(async (req) => {
     });
 
     // Create both GL transactions
-    const createdGLTransactions = await base44.asServiceRole.entities.GLTransaction.bulkCreate(glTransactions);
+    const { data: createdGLTransactions, error: glInsertError } = await supabase
+      .from('GLTransaction')
+      .insert(glTransactions)
+      .select();
+
+    if (glInsertError) {
+      throw new Error(glInsertError.message);
+    }
 
     // Recalculate LOC balance (which will filter out payment_made records from balance calculation)
     await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
@@ -310,7 +328,7 @@ Deno.serve(async (req) => {
       success: true,
       message: 'Payment processed successfully',
       loc_transaction_id: locTransaction.id,
-      gl_transaction_ids: createdGLTransactions.map(tx => tx.id),
+      gl_transaction_ids: createdGLTransactions ? createdGLTransactions.map(tx => tx.id) : glTransactions.map(tx => tx.id),
       new_loc_balance: updatedLOC.current_balance
     });
 
