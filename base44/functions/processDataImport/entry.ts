@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import Papa from 'npm:papaparse@5.4.1';
 import * as XLSX from 'npm:xlsx@0.18.5';
 
@@ -427,7 +428,14 @@ Deno.serve(async (req) => {
         for (let i = 0; i < recordsToCreate.length; i += BATCH_SIZE) {
             const batch = recordsToCreate.slice(i, i + BATCH_SIZE);
             try {
-                if (entityName) {
+                if (entityName === 'GLTransaction') {
+                    const supabaseUrl = Deno.env.get('Supabase_project_url');
+                    const supabaseSecret = Deno.env.get('Supabase_Secret_Key');
+                    const supabase = createClient(supabaseUrl, supabaseSecret, { auth: { persistSession: false } });
+                    
+                    const { error } = await supabase.from('GLTransaction').insert(batch);
+                    if (error) throw error;
+                } else if (entityName) {
                     await base44.asServiceRole.entities[entityName].bulkCreate(batch);
                 }
                 processed += batch.length;
