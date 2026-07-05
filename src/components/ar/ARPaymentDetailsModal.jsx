@@ -216,6 +216,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           onClose={() => setShowEmailModal(false)}
           paymentRecord={paymentRecord}
           customerEmail={customerEmail || ''}
+          appliedToDetails={appliedToDetails}
         />
       )}
       {showReceiptModal && (
@@ -223,6 +224,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
           open={showReceiptModal}
           onClose={handleCloseReceiptModal}
           pdfUrl={receiptPdfUrl}
+          appliedToDetails={appliedToDetails}
         />
       )}
     </Dialog>

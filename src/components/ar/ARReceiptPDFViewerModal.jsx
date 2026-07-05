@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
-export default function ARReceiptPDFViewerModal({ open, onClose, pdfUrl }) {
+export default function ARReceiptPDFViewerModal({ open, onClose, pdfUrl, appliedToDetails = [] }) {
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -33,7 +33,13 @@ export default function ARReceiptPDFViewerModal({ open, onClose, pdfUrl }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="h-full px-3 pb-3 pt-1">
+        <div className="h-full px-3 pb-3 pt-1 space-y-2">
+          {appliedToDetails.length > 0 && (
+            <div className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">Applied to:</span>{' '}
+              {appliedToDetails.map((detail) => detail.description || detail.reference || 'Applied item').join(', ')}
+            </div>
+          )}
           {pdfUrl ? (
             <iframe
               ref={iframeRef}
