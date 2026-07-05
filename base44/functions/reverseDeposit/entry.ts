@@ -138,6 +138,8 @@ Deno.serve(async (req) => {
         const customerPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { deposit_batch_id: depositBatchId } });
         const customerPayments = customerPaymentsRes?.data?.data || [];
 
+        const cashDrawerAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: depositBatchId });
+
         for (const payment of customerPayments) {
             await base44.functions.invoke('supabaseCustomerPayments', {
                 action: 'update',
@@ -150,18 +152,13 @@ Deno.serve(async (req) => {
             });
         }
 
-        const { error: updateCashDrawerError } = await supabase
-            .from('CashDrawerAdjustment')
-            .update({
+        for (const adjustment of cashDrawerAdjustments) {
+            await base44.entities.CashDrawerAdjustment.update(adjustment.id, {
                 deposited: false,
                 deposit_date: null,
                 deposit_batch_id: null,
                 status: 'pending'
-            })
-            .eq('deposit_batch_id', depositBatchId);
-
-        if (updateCashDrawerError) {
-            throw new Error(updateCashDrawerError.message);
+            });
         }
 
         const { error: deleteBankTransactionError } = await supabase
