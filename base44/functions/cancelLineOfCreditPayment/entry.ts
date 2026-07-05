@@ -19,6 +19,13 @@ Deno.serve(async (req) => {
       auth: { persistSession: false }
     });
 
+    const auditUser = user?.full_name || user?.email || 'Unknown User';
+    const getAuditFields = () => ({
+      created_by: auditUser,
+      created_by_id: user?.id,
+      updated_by: auditUser
+    });
+
     const { transactionId } = await req.json();
 
     if (!transactionId) {
@@ -217,13 +224,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    const glTransactions = await base44.asServiceRole.entities.GLTransaction.filter({
-      source_id: originalPayment.id,
-      source_type: 'payment_made'
-    });
+    const { data: glTransactions, error: glFetchError } = await supabase
+      .from('GLTransaction')
+      .select('*')
+      .eq('source_id', originalPayment.id)
+      .eq('source_type', 'payment_made');
 
-    if (glTransactions.length > 0) {
-      const reversalEntries = glTransactions.map((tx) => ({
+    if (glFetchError) {
+      throw new Error(glFetchError.message);
+    }
+
+    let glTransactionsToInsert = [];
+    if (glTransactions && glTransactions.length > 0) {
+      glTransactionsToInsert = glTransactions.map((tx) => ({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        ...getAuditFields(),
         account_number: tx.account_number,
         transaction_date: paymentDate,
         description: reversalDescription,
@@ -233,11 +248,11 @@ Deno.serve(async (req) => {
         source_type: 'manual',
         source_id: originalPayment.id
       }));
-
-      await base44.asServiceRole.entities.GLTransaction.bulkCreate(reversalEntries);
     } else {
-      await base44.asServiceRole.entities.GLTransaction.bulkCreate([
+      glTransactionsToInsert = [
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...getAuditFields(),
           account_number: sourceGLAccount,
           transaction_date: paymentDate,
           description: reversalDescription,
@@ -248,6 +263,8 @@ Deno.serve(async (req) => {
           source_id: originalPayment.id
         },
         {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...getAuditFields(),
           account_number: targetLoc.gl_account,
           transaction_date: paymentDate,
           description: reversalDescription,
@@ -257,8 +274,11 @@ Deno.serve(async (req) => {
           source_type: 'manual',
           source_id: originalPayment.id
         }
-      ]);
+      ];
     }
+
+    const { error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactionsToInsert);
+    if (glInsertError) throw new Error(glInsertError.message);
 
     await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
       lineOfCreditId: originalPayment.line_of_credit_id
