@@ -91,14 +91,21 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Associated bank account not found' }, { status: 404 });
         }
 
-        const originalGLs = await base44.entities.GLTransaction.filter({ reference: depositBatchId, source_type: 'deposit' });
+        const { data: originalGLs, error: glFilterError } = await supabase
+            .from('GLTransaction')
+            .select('*')
+            .eq('reference', depositBatchId)
+            .eq('source_type', 'deposit');
 
-        if (originalGLs.length === 0) {
-            console.warn(`No GL transactions found for deposit batch ID: ${depositBatchId}. Proceeding with other reversals.`);
+        if (glFilterError) {
+             throw new Error(glFilterError.message);
         }
 
-        for (const originalGL of originalGLs) {
-            await base44.entities.GLTransaction.create({
+        if (!originalGLs || originalGLs.length === 0) {
+            throw new Error(`No GL transactions found for deposit batch ID: ${depositBatchId}. Cannot reverse an unbalanced deposit.`);
+        } else {
+            const glsToInsert = originalGLs.map(originalGL => ({
+                app_id: originalGL.app_id,
                 account_number: originalGL.account_number,
                 transaction_date: transactionDate,
                 description: `REVERSAL: ${originalGL.description}`,
@@ -107,12 +114,19 @@ Deno.serve(async (req) => {
                 credit_amount: originalGL.debit_amount,
                 source_type: 'deposit_reversal',
                 source_id: originalGL.id
-            });
+            }));
+
+            const { error: glInsertError } = await supabase
+                .from('GLTransaction')
+                .insert(glsToInsert);
+
+            if (glInsertError) {
+                throw new Error(glInsertError.message);
+            }
         }
 
         const customerPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'filter', match: { deposit_batch_id: depositBatchId } });
         const customerPayments = customerPaymentsRes?.data?.data || [];
-        const cashDrawerAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: depositBatchId });
 
         for (const payment of customerPayments) {
             await base44.functions.invoke('supabaseCustomerPayments', {
@@ -126,13 +140,18 @@ Deno.serve(async (req) => {
             });
         }
 
-        for (const adjustment of cashDrawerAdjustments) {
-            await base44.entities.CashDrawerAdjustment.update(adjustment.id, {
+        const { error: updateCashDrawerError } = await supabase
+            .from('CashDrawerAdjustment')
+            .update({
                 deposited: false,
                 deposit_date: null,
                 deposit_batch_id: null,
                 status: 'pending'
-            });
+            })
+            .eq('deposit_batch_id', depositBatchId);
+
+        if (updateCashDrawerError) {
+            throw new Error(updateCashDrawerError.message);
         }
 
         const { error: deleteBankTransactionError } = await supabase
