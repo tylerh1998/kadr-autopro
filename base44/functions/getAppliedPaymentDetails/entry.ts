@@ -74,10 +74,9 @@ Deno.serve(async (req) => {
 
     const rowMap = Object.fromEntries((customerData || []).map((row) => [row.transaction_id, row]));
     const paymentRow = paymentId ? rowMap[paymentId] : null;
-    const applied = parseArApplyTo(fallbackArApplyTo);
     const parsedAppliedData = Array.isArray(paymentRow?.applied_data) && paymentRow.applied_data.length
       ? paymentRow.applied_data
-      : applied;
+      : parseArApplyTo(fallbackArApplyTo);
 
     const appliedDetails = parsedAppliedData
       .map((item) => {
