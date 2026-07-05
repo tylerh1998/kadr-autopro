@@ -16,16 +16,11 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
     if (open && paymentRecord) {
       const paymentDate = format(new Date(paymentRecord.payment_date), 'MMMM d, yyyy');
       const paymentAmount = `$${paymentRecord.amount.toFixed(2)}`;
-      const appliedSummary = appliedToDetails
-        .map((detail) => `- ${detail.description || detail.reference || 'Applied item'}: $${(detail.amountApplied || 0).toFixed(2)}`)
-        .join('\n');
 
       setEmailData({
         to: customerEmail || '',
         subject: `Payment Receipt - ${paymentAmount} - Ken's Auto`,
-        body: appliedSummary
-          ? `Thank you for your recent payment on ${paymentDate}.\n\nApplied to:\n${appliedSummary}`
-          : `Thank you for your recent payment on ${paymentDate}.`
+        body: `Thank you for your recent payment on ${paymentDate}.`
       });
     }
   }, [open, paymentRecord, customerEmail, appliedToDetails]);
@@ -95,18 +90,6 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
               />
             </div>
 
-            {appliedToDetails.length > 0 && (
-              <div className="space-y-2 rounded-md border bg-slate-50 p-3">
-                <Label>Applied Items</Label>
-                <div className="space-y-1 text-sm text-slate-700">
-                  {appliedToDetails.map((detail, index) => (
-                    <div key={`${detail.reference}-${index}`}>
-                      {detail.description || detail.reference || 'Applied item'} — ${(detail.amountApplied || 0).toFixed(2)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
