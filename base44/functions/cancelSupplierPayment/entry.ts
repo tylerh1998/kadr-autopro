@@ -264,25 +264,48 @@ Deno.serve(async (req) => {
     }
 
     if (creditAccountId) {
-      await base44.asServiceRole.entities.GLTransaction.create({
-        account_number: creditAccountId,
-        transaction_date: payment.payment_date,
-        description: `REVERSAL: Payment to ${supplier ? supplier.name : 'Supplier'}`,
-        debit_amount: paymentAmount > 0 ? paymentAmount : 0,
-        credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
-        source_type: 'manual',
-        source_id: payment.id
-      });
+      const creatorName = user.User_name || user.full_name || user.email || user.id;
+      const nowIso = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Edmonton' })).toISOString();
+      const reversalDescription = `REVERSAL: Payment to ${supplier ? supplier.name : 'Supplier'}`;
 
-      await base44.asServiceRole.entities.GLTransaction.create({
-        account_number: '2000',
-        transaction_date: payment.payment_date,
-        description: `REVERSAL: Payment to ${supplier ? supplier.name : 'Supplier'}`,
-        debit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
-        credit_amount: paymentAmount > 0 ? paymentAmount : 0,
-        source_type: 'manual',
-        source_id: payment.id
-      });
+      const { error: glInsertError } = await supabase
+        .from('GLTransaction')
+        .insert([
+          {
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            account_number: creditAccountId,
+            transaction_date: payment.payment_date,
+            description: reversalDescription,
+            debit_amount: paymentAmount > 0 ? paymentAmount : 0,
+            credit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+            source_type: 'manual',
+            source_id: payment.id,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: creatorName,
+            created_by_id: user.id,
+            updated_by: creatorName
+          },
+          {
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            account_number: '2000',
+            transaction_date: payment.payment_date,
+            description: reversalDescription,
+            debit_amount: paymentAmount < 0 ? Math.abs(paymentAmount) : 0,
+            credit_amount: paymentAmount > 0 ? paymentAmount : 0,
+            source_type: 'manual',
+            source_id: payment.id,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: creatorName,
+            created_by_id: user.id,
+            updated_by: creatorName
+          }
+        ]);
+
+      if (glInsertError) {
+        throw new Error(glInsertError.message || 'Failed to create GL reversal transactions');
+      }
     }
 
     const { error: deleteError } = await supabase
