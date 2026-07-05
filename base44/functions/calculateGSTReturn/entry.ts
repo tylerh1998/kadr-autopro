@@ -30,15 +30,7 @@ Deno.serve(async (req) => {
     }
 
     // Get system settings to retrieve GST account numbers
-    const { data: settingsRecords, error: settingsError } = await supabase
-      .from('SystemSettings')
-      .select('*')
-      .limit(1);
-
-    if (settingsError) {
-      throw new Error(`Failed to fetch system settings: ${settingsError.message}`);
-    }
-
+    const settingsRecords = await base44.asServiceRole.entities.SystemSettings.list();
     const settings = settingsRecords && settingsRecords.length > 0 ? settingsRecords[0] : null;
     
     if (!settings) {

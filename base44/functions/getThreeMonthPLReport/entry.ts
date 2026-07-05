@@ -60,17 +60,18 @@ Deno.serve(async (req) => {
     const allAccounts = await base44.asServiceRole.entities.ChartOfAccount.list(null, 10000);
     const plAccounts = allAccounts.filter((account) => ['Revenue', 'Expense'].includes(account.account_type) && account.is_active !== false);
 
-    const { data: allTransactions, error: transactionsError } = await supabase
-      .from('GLTransaction')
-      .select('account_number, transaction_date, debit_amount, credit_amount')
-      .gte('transaction_date', overallStart)
-      .lte('transaction_date', overallEnd);
+    const callRpcForMonth = async (start_date, end_date) => {
+      const { data, error } = await supabase.rpc('get_pl_report_data', { start_date, end_date });
+      if (error) throw new Error(`RPC error for ${start_date}: ${error.message}`);
+      return data || [];
+    };
 
-    if (transactionsError) {
-      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
-    }
+    const [m1Rows, m2Rows, m3Rows] = await Promise.all([
+      callRpcForMonth(months[0].start, months[0].end),
+      callRpcForMonth(months[1].start, months[1].end),
+      callRpcForMonth(months[2].start, months[2].end)
+    ]);
 
-    const monthForDate = (dateStr) => months.find((month) => dateStr >= month.start && dateStr <= month.end)?.key || null;
     const accountMap = {};
 
     plAccounts.forEach((account) => {
@@ -92,21 +93,24 @@ Deno.serve(async (req) => {
       };
     });
 
-    (allTransactions || []).forEach((tx) => {
-      const txDate = String(tx.transaction_date || '').split('T')[0];
-      if (!txDate || txDate < overallStart || txDate > overallEnd) return;
+    const processRpcRows = (rows, monthKey) => {
+      rows.forEach((row) => {
+        const accNum = String(row.account_number || '');
+        const node = accountMap[accNum];
+        if (!node) return;
 
-      const node = accountMap[tx.account_number];
-      const monthKey = monthForDate(txDate);
-      if (!node || !monthKey) return;
+        const creditAmount = Number(row.total_credits) || 0;
+        const debitAmount = Number(row.total_debits) || 0;
+        const signedAmount = node.account_type === 'Revenue' ? creditAmount - debitAmount : debitAmount - creditAmount;
 
-      const creditAmount = Number(tx.credit_amount) || 0;
-      const debitAmount = Number(tx.debit_amount) || 0;
-      const signedAmount = node.account_type === 'Revenue' ? creditAmount - debitAmount : debitAmount - creditAmount;
+        node[`${monthKey}_own`] += signedAmount;
+        node.transactionCount += Number(row.transaction_count) || 0;
+      });
+    };
 
-      node[`${monthKey}_own`] += signedAmount;
-      node.transactionCount += 1;
-    });
+    processRpcRows(m1Rows, 'month1');
+    processRpcRows(m2Rows, 'month2');
+    processRpcRows(m3Rows, 'month3');
 
     const roots = [];
     Object.values(accountMap).forEach((node) => {

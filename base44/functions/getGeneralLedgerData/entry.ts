@@ -22,45 +22,25 @@ Deno.serve(async (req) => {
       auth: { persistSession: false }
     });
 
-    const accounts = await base44.asServiceRole.entities.ChartOfAccount.filter({ is_active: true }, undefined, 5000);
-    const { data: allTransactions, error: transactionsError } = await supabase
-      .from('GLTransaction')
-      .select('account_number, transaction_date, debit_amount, credit_amount')
-      .lte('transaction_date', endDate);
+    const { data: accounts, error: rpcError } = await supabase.rpc('get_general_ledger_data', {
+      start_date: startDate,
+      end_date: endDate
+    });
 
-    if (transactionsError) {
-      throw new Error(`Failed to fetch GLTransaction rows from Supabase: ${transactionsError.message}`);
+    if (rpcError) {
+      throw new Error(`Failed to fetch General Ledger data from Supabase RPC: ${rpcError.message}`);
     }
 
-    const accountMap = {};
-    accounts.forEach((account) => {
-      accountMap[account.account_number] = {
-        ...account,
-        own_balance: 0,
-        transactionCount: 0
-      };
-    });
-
-    (allTransactions || []).forEach((tx) => {
-      if (!tx.account_number || !accountMap[tx.account_number]) return;
-      if (!tx.transaction_date) return;
-
-      const txDate = String(tx.transaction_date).split('T')[0];
-      const acc = accountMap[tx.account_number];
-      const isDebitNormal = ['Asset', 'Expense'].includes(acc.account_type);
-      const dr = Number(tx.debit_amount) || 0;
-      const cr = Number(tx.credit_amount) || 0;
-
-      acc.own_balance += isDebitNormal ? (dr - cr) : (cr - dr);
-
-      if (txDate >= startDate) {
-        acc.transactionCount++;
-      }
-    });
+    // Map RPC data to ensure numbers are correctly typed (Supabase returns numeric/bigint as strings depending on client config)
+    const formattedAccounts = (accounts || []).map(acc => ({
+      ...acc,
+      own_balance: Number(acc.own_balance) || 0,
+      transactionCount: Number(acc.transactionCount) || 0
+    }));
 
     return Response.json({
       success: true,
-      accounts: Object.values(accountMap)
+      accounts: formattedAccounts
     });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });

@@ -37,16 +37,7 @@ Deno.serve(async (req) => {
     }
 
     // Get the GST return record
-    const { data: gstReturnRecords, error: gstReturnError } = await supabase
-      .from('GSTReturn')
-      .select('*')
-      .eq('id', gst_return_id)
-      .limit(1);
-
-    if (gstReturnError) {
-      throw new Error(`Failed to fetch GST return: ${gstReturnError.message}`);
-    }
-
+    const gstReturnRecords = await base44.asServiceRole.entities.GSTReturn.filter({ id: gst_return_id });
     const gstReturn = gstReturnRecords && gstReturnRecords.length > 0 ? gstReturnRecords[0] : null;
     
     if (!gstReturn) {
@@ -60,15 +51,7 @@ Deno.serve(async (req) => {
     }
 
     // Get system settings for GST payable/receivable account
-    const { data: settingsRecords, error: settingsError } = await supabase
-      .from('SystemSettings')
-      .select('*')
-      .limit(1);
-
-    if (settingsError) {
-      throw new Error(`Failed to fetch system settings: ${settingsError.message}`);
-    }
-
+    const settingsRecords = await base44.asServiceRole.entities.SystemSettings.list();
     const settings = settingsRecords && settingsRecords.length > 0 ? settingsRecords[0] : null;
     
     if (!settings) {
@@ -193,20 +176,12 @@ Deno.serve(async (req) => {
     }
 
     // Update the GST return to "paid" status
-    const { error: updateError } = await supabase
-      .from('GSTReturn')
-      .update({
-        status: 'paid',
-        paid_date: payment_date,
-        paid_by: user.email,
-        bank_account_id: bank_account_id,
-        updated_by: auditUser
-      })
-      .eq('id', gstReturn.id);
-    
-    if (updateError) {
-      throw new Error(`Failed to update GST Return: ${updateError.message}`);
-    }
+    await base44.asServiceRole.entities.GSTReturn.update(gstReturn.id, {
+      status: 'paid',
+      paid_date: payment_date,
+      paid_by: user.email,
+      bank_account_id: bank_account_id
+    });
 
     return Response.json({
       success: true,
