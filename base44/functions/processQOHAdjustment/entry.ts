@@ -86,9 +86,11 @@ Deno.serve(async (req) => {
             const adjustmentDescription = `Inventory QOH Adjustment - ${inventoryItem.part_number}`;
             const transactionDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
+            let glTransactions = [];
+
             if (value_change > 0) {
                 // Inventory increased - Debit 1200 (Asset increases), Credit 5003 (Expense/contra-account)
-                await base44.asServiceRole.entities.GLTransaction.create({
+                glTransactions.push({
                     account_number: '1200',
                     transaction_date: transactionDate,
                     description: adjustmentDescription,
@@ -99,7 +101,7 @@ Deno.serve(async (req) => {
                     source_id: inventoryTx.id
                 });
 
-                await base44.asServiceRole.entities.GLTransaction.create({
+                glTransactions.push({
                     account_number: '5003',
                     transaction_date: transactionDate,
                     description: adjustmentDescription,
@@ -111,7 +113,7 @@ Deno.serve(async (req) => {
                 });
             } else {
                 // Inventory decreased - Credit 1200 (Asset decreases), Debit 5003 (Expense increases)
-                await base44.asServiceRole.entities.GLTransaction.create({
+                glTransactions.push({
                     account_number: '1200',
                     transaction_date: transactionDate,
                     description: adjustmentDescription,
@@ -122,7 +124,7 @@ Deno.serve(async (req) => {
                     source_id: inventoryTx.id
                 });
 
-                await base44.asServiceRole.entities.GLTransaction.create({
+                glTransactions.push({
                     account_number: '5003',
                     transaction_date: transactionDate,
                     description: adjustmentDescription,
@@ -133,6 +135,12 @@ Deno.serve(async (req) => {
                     source_id: inventoryTx.id
                 });
             }
+
+            await base44.functions.invoke('SupabaseProxy', {
+                action: 'create',
+                table: 'GLTransaction',
+                data: glTransactions
+            });
         }
 
         return Response.json({ 
