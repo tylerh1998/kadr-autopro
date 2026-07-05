@@ -105,6 +105,9 @@ Deno.serve(async (req) => {
                 query = query.match(params);
             }
             result = await query;
+        } else if (action === 'rpc') {
+            const rpcFunction = table || payloadData?.function_name || reqBody.function_name;
+            result = await supabase.rpc(rpcFunction, payloadData || {});
         } else if (action === 'create') {
             const rows = Array.isArray(payloadData) ? payloadData : [payloadData];
             const insertRows = rows.map((row) => buildCreateRow(row || {}));

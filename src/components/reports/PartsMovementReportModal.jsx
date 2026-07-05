@@ -74,10 +74,14 @@ export default function PartsMovementReportModal() {
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await base44.functions.invoke('getPartsMovementReport', { 
-        dateFrom, 
-        dateTo,
-        search: debouncedSearch
+      const { data, error } = await base44.functions.invoke('SupabaseProxy', { 
+        action: 'rpc',
+        table: 'get_parts_movement_v2',
+        data: {
+          p_start_date: dateFrom,
+          p_end_date: dateTo,
+          p_search_term: debouncedSearch
+        }
       });
 
       if (error) throw new Error(error);
@@ -102,25 +106,25 @@ export default function PartsMovementReportModal() {
 
   const sortedData = React.useMemo(() => {
     let sortableItems = [...reportData];
-    if (sortConfig.key !== null) {
+    if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
         
-        // Handle null/undefined
-        if (aValue === null || aValue === undefined) aValue = '';
-        if (bValue === null || bValue === undefined) bValue = '';
-
-        // String comparison
-        if (typeof aValue === 'string') {
-            aValue = aValue.toLowerCase();
-            bValue = bValue.toString().toLowerCase();
+        // Handle calculated totals for sorting
+        if (sortConfig.key === 'totalQty') {
+          valA = (a.invoiced_qty || 0) + (a.wip_qty || 0);
+          valB = (b.invoiced_qty || 0) + (b.wip_qty || 0);
+        }
+        if (sortConfig.key === 'totalSalesAmount') {
+          valA = (a.invoiced_amount || 0) + (a.wip_amount || 0);
+          valB = (b.invoiced_amount || 0) + (b.wip_amount || 0);
         }
 
-        if (aValue < bValue) {
+        if (valA < valB) {
           return sortConfig.direction === 'asc' ? -1 : 1;
         }
-        if (aValue > bValue) {
+        if (valA > valB) {
           return sortConfig.direction === 'asc' ? 1 : -1;
         }
         return 0;
@@ -131,10 +135,14 @@ export default function PartsMovementReportModal() {
 
   const totals = React.useMemo(() => {
     return reportData.reduce((acc, item) => {
-      acc.salesCount += (item.salesCount || 0);
-      acc.totalSalesAmount += (item.totalSalesAmount || 0);
+      acc.wipQty += (item.wip_qty || 0);
+      acc.wipAmount += (item.wip_amount || 0);
+      acc.invoicedQty += (item.invoiced_qty || 0);
+      acc.invoicedAmount += (item.invoiced_amount || 0);
+      acc.totalQty += (item.invoiced_qty || 0) + (item.wip_qty || 0);
+      acc.totalAmount += (item.invoiced_amount || 0) + (item.wip_amount || 0);
       return acc;
-    }, { salesCount: 0, totalSalesAmount: 0 });
+    }, { wipQty: 0, wipAmount: 0, invoicedQty: 0, invoicedAmount: 0, totalQty: 0, totalAmount: 0 });
   }, [reportData]);
 
   const SortIcon = ({ columnKey }) => {
@@ -213,44 +221,68 @@ export default function PartsMovementReportModal() {
                     <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('category')}>
                       <div className="flex items-center">Category <SortIcon columnKey="category" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('listPrice')}>
-                      <div className="flex items-center justify-end">List Price <SortIcon columnKey="listPrice" /></div>
+                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('listPrice')}>
+                      <div className="flex items-center">List Price <SortIcon columnKey="listPrice" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('salesCount')}>
-                      <div className="flex items-center justify-end"># of Sales <SortIcon columnKey="salesCount" /></div>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-amber-50" onClick={() => handleSort('wip_qty')}>
+                      <div className="flex items-center justify-end">WIP Qty <SortIcon columnKey="wip_qty" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('totalSalesAmount')}>
-                      <div className="flex items-center justify-end">Amt of Sales <SortIcon columnKey="totalSalesAmount" /></div>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-amber-50" onClick={() => handleSort('wip_amount')}>
+                      <div className="flex items-center justify-end">WIP Amt <SortIcon columnKey="wip_amount" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-green-50" onClick={() => handleSort('invoiced_qty')}>
+                      <div className="flex items-center justify-end">Invoiced Qty <SortIcon columnKey="invoiced_qty" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-green-50" onClick={() => handleSort('invoiced_amount')}>
+                      <div className="flex items-center justify-end">Invoiced Amt <SortIcon columnKey="invoiced_amount" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 font-bold" onClick={() => handleSort('totalQty')}>
+                      <div className="flex items-center justify-end">Total Qty <SortIcon columnKey="totalQty" /></div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 font-bold" onClick={() => handleSort('totalSalesAmount')}>
+                      <div className="flex items-center justify-end">Total Amt <SortIcon columnKey="totalSalesAmount" /></div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedData.map((item, idx) => (
                     <TableRow key={idx} className="hover:bg-slate-50/50">
-                      <TableCell className="font-medium">{item.partNumber}</TableCell>
+                      <TableCell className="font-medium">{item.part_number}</TableCell>
                       <TableCell>{item.description}</TableCell>
                       <TableCell>{item.category}</TableCell>
-                      <TableCell className="text-right">
-                        ${(item.listPrice || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <TableCell>
+                        ${(item.list_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right bg-amber-50/30 text-amber-700">
+                        {Number(item.wip_qty || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right bg-amber-50/30 text-amber-700">
+                        ${Number(item.wip_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right bg-green-50/30 text-green-700">
+                        {Number(item.invoiced_qty || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right bg-green-50/30 text-green-700">
+                        ${Number(item.invoiced_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="text-right font-bold text-blue-600">
-                        {item.salesCount.toLocaleString()}
+                        {(Number(item.invoiced_qty || 0) + Number(item.wip_qty || 0)).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-green-600">
-                        ${(item.totalSalesAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <TableCell className="text-right font-bold text-blue-600">
+                        ${(Number(item.invoiced_amount || 0) + Number(item.wip_amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   ))}
                   {reportData.length === 0 && !isLoading && (
                       <TableRow>
-                          <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={10} className="text-center text-slate-500 py-8">
                             No parts found matching criteria
                           </TableCell>
                       </TableRow>
                   )}
                   {isLoading && (
                       <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8">
+                          <TableCell colSpan={10} className="text-center py-8">
                             <div className="flex justify-center items-center gap-2 text-slate-500">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                                 Loading report data...
@@ -264,12 +296,28 @@ export default function PartsMovementReportModal() {
             <CardFooter className="bg-slate-100 border-t p-4 shrink-0">
                 <div className="w-full flex justify-end gap-8 text-sm font-bold">
                     <div>
-                        <span className="text-slate-500 mr-2">Total Quantity:</span>
-                        <span className="text-blue-700">{totals.salesCount.toLocaleString()}</span>
+                        <span className="text-slate-500 mr-2">Total WIP Qty:</span>
+                        <span className="text-amber-700">{totals.wipQty.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Total Sales Amount:</span>
-                        <span className="text-green-700">${totals.totalSalesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-slate-500 mr-2">Total WIP Amt:</span>
+                        <span className="text-amber-700">${totals.wipAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 mr-2">Total Inv Qty:</span>
+                        <span className="text-green-700">{totals.invoicedQty.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 mr-2">Total Inv Amt:</span>
+                        <span className="text-green-700">${totals.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 mr-2">Grand Total Qty:</span>
+                        <span className="text-blue-700">{totals.totalQty.toLocaleString()}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 mr-2">Grand Total Amt:</span>
+                        <span className="text-blue-700">${totals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
             </CardFooter>
