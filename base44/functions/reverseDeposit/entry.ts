@@ -21,6 +21,15 @@ async function checkFiscalPeriodStatusForDeno(base44Client, dateString) {
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
+        const user = await base44.auth.me();
+        const auditUser = user?.full_name || user?.email || 'Unknown User';
+        
+        const getAuditFields = () => ({
+            created_by: auditUser,
+            created_by_id: user?.id,
+            updated_by: auditUser
+        });
+
         const { bankTransactionId } = await req.json();
 
         if (!bankTransactionId) {
@@ -105,7 +114,7 @@ Deno.serve(async (req) => {
             throw new Error(`No GL transactions found for deposit batch ID: ${depositBatchId}. Cannot reverse an unbalanced deposit.`);
         } else {
             const glsToInsert = originalGLs.map(originalGL => ({
-                app_id: originalGL.app_id,
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                 account_number: originalGL.account_number,
                 transaction_date: transactionDate,
                 description: `REVERSAL: ${originalGL.description}`,
@@ -113,7 +122,8 @@ Deno.serve(async (req) => {
                 debit_amount: originalGL.credit_amount,
                 credit_amount: originalGL.debit_amount,
                 source_type: 'deposit_reversal',
-                source_id: originalGL.id
+                source_id: originalGL.id,
+                ...getAuditFields()
             }));
 
             const { error: glInsertError } = await supabase
