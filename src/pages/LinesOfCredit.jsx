@@ -116,23 +116,9 @@ export default function LinesOfCreditPage() {
       const allAccountsData = await LinesOfCredit.list();
       const activeAccounts = allAccountsData.filter(acc => acc.is_active !== false);
 
-      // 2. Recalculate balances for each active line of credit account
-      console.log('Recalculating balances for all lines of credit...');
-      const recalculationPromises = activeAccounts.map(account =>
-        base44.functions.invoke('calculateLOCBalances', {
-          lineOfCreditId: account.id
-        }).catch(error => {
-          console.error(`Failed to recalculate balances for account ${account.name}:`, error);
-          return null; // Continue even if one fails
-        })
-      );
-      await Promise.all(recalculationPromises);
-      console.log('Balance recalculation complete');
-
-      // 3. Reload accounts to get updated current_balance values
-      const updatedAccountsData = await LinesOfCredit.list();
-      const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
-      setLinesOfCredit(updatedActiveAccounts);
+      // 2. Removed backend recalculation logic as we no longer track balances here
+      
+      setLinesOfCredit(activeAccounts);
 
       // Do NOT auto-select first account - let user choose
 
@@ -282,6 +268,8 @@ export default function LinesOfCreditPage() {
   const displayedTransactions = useMemo(() => {
     if (viewMode === 'payments') {
       return transactionsWithBalance.filter(tx => tx.source_type === 'payment_made');
+    } else if (viewMode === 'all') {
+      return transactionsWithBalance; // Show all transactions and payments chronologically
     } else {
       // Show only non-payment transactions in default view (charges/credits)
       // Payments are shown in the payments column of charges
@@ -341,29 +329,6 @@ export default function LinesOfCreditPage() {
     }
   };
 
-  const handleRefreshBalances = async () => {
-    if (!selectedAccountId) return;
-    
-    setRefreshing(true);
-    try {
-      await base44.functions.invoke('calculateLOCBalances', {
-        lineOfCreditId: selectedAccountId
-      });
-      
-      // Reload accounts to get updated current_balance and last_recalculated_date
-      const updatedAccountsData = await LinesOfCredit.list();
-      const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
-      setLinesOfCredit(updatedActiveAccounts);
-      
-      alert('Balance refreshed successfully!');
-    } catch (error) {
-      console.error('Error refreshing balances:', error);
-      alert('Failed to refresh balance. Please try again.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const handleMakePayment = () => {
     if (!selectedAccount) {
       alert('Please select a line of credit account first.');
@@ -400,17 +365,6 @@ export default function LinesOfCreditPage() {
   const handleTransactionMade = async () => {
     setShowTransactionModal(false);
     setEditingTransaction(null);
-    
-    // Recalculate balance
-    if (selectedAccountId) {
-      try {
-        await base44.functions.invoke('calculateLOCBalances', {
-          lineOfCreditId: selectedAccountId
-        });
-      } catch (error) {
-        console.error('Error recalculating balance after transaction:', error);
-      }
-    }
     
     // Reload data and transactions
     loadData();
@@ -562,9 +516,9 @@ export default function LinesOfCreditPage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2 flex-[2] min-w-[300px]">
+                <div className="space-y-2 flex-[3] min-w-[600px]">
                   <Label>Date Range</Label>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       value={daysBack}
@@ -577,13 +531,13 @@ export default function LinesOfCreditPage() {
                       type="date"
                       value={fromDate}
                       onChange={(e) => setFromDate(e.target.value)}
-                      className="flex-1"
+                      className="w-[140px]"
                     />
                     <Input
                       type="date"
                       value={toDate}
                       onChange={(e) => setToDate(e.target.value)}
-                      className="flex-1"
+                      className="w-[140px]"
                     />
                     <Button
                       onClick={handleApply}
@@ -593,73 +547,33 @@ export default function LinesOfCreditPage() {
                     >
                       Apply
                     </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 flex-1 min-w-[160px]">
-                  <Label className="invisible">Refresh</Label>
-                  <Button
-                    onClick={handleRefreshBalances}
-                    variant="outline"
-                    className="w-full"
-                    disabled={!selectedAccountId || refreshing}
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    {refreshing ? 'Refreshing...' : 'Refresh Balance'}
-                  </Button>
-                </div>
-                
-                <div className="space-y-2 text-right min-w-[140px]">
-                  <Label className="text-slate-600">Current Balance</Label>
-                  <div>
-                    <p className="text-xl font-bold text-red-600">
-                      ${(selectedAccount?.current_balance || 0).toFixed(2)}
-                    </p>
-                    {selectedAccount?.last_recalculated_date && (
-                      <p className="text-xs text-slate-500">
-                        Updated: {format(new Date(selectedAccount.last_recalculated_date), 'MMM d, h:mm a')}
-                      </p>
-                    )}
+                    
+                    <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                          const start = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+                          const end = format(new Date(), 'yyyy-MM-dd');
+                          setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
+                      }}>This Month</Button>
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                          const prevMonth = subMonths(new Date(), 1);
+                          const start = format(startOfMonth(prevMonth), 'yyyy-MM-dd');
+                          const end = format(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0), 'yyyy-MM-dd');
+                          setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
+                      }}>Last Month</Button>
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => handleDaysBackChange(90)}>Last 90 Days</Button>
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                          const start = format(new Date(new Date().getFullYear(), 0, 1), 'yyyy-MM-dd');
+                          const end = format(new Date(), 'yyyy-MM-dd');
+                          setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
+                      }}>YTD</Button>
+                    </div>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Account Summary */}
-          {selectedAccount && (
-            <Card className="no-print">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div>
-                    <h3 className="font-semibold text-slate-900 mb-2">{selectedAccount.name}</h3>
-                    <p className="text-slate-600">{selectedAccount.institution_name}</p>
-                    {selectedAccount.account_number && (
-                      <p className="text-slate-600 text-sm">***{selectedAccount.account_number.slice(-4)}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Credit Limit</p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      ${(selectedAccount.credit_limit || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Current Balance</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      ${(selectedAccount.current_balance || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-600">Available Credit</p>
-                    <p className="text-xl font-bold text-green-600">
-                      ${(selectedAccount.available_credit || 0).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
 
           {/* Print Title */}
           <div className="print-area">
@@ -686,6 +600,16 @@ export default function LinesOfCreditPage() {
                         }`}
                       >
                         Transactions
+                      </button>
+                      <button
+                        onClick={() => setViewMode('all')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          viewMode === 'all'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        All
                       </button>
                       <button
                         onClick={() => setViewMode('payments')}
@@ -768,10 +692,10 @@ export default function LinesOfCreditPage() {
                         <tr>
                           <th className="text-left p-3 font-semibold text-slate-700">Date</th>
                           <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                          <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
                           <th className="text-right p-3 font-semibold text-slate-700">Charges</th>
                           <th className="text-right p-3 font-semibold text-slate-700">Credits</th>
                           <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
+                          <th className="text-right p-3 font-semibold text-slate-700">Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -804,7 +728,6 @@ export default function LinesOfCreditPage() {
                                   )}
                                 </div>
                               </td>
-                              <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
                               <td className="p-3 text-right">
                                 {tx.charge_amount > 0 && (
                                   <span className="font-medium text-red-600">${tx.charge_amount.toFixed(2)}</span>
@@ -818,6 +741,19 @@ export default function LinesOfCreditPage() {
                               <td className="p-3 text-right">
                                 {(tx.payment_amount || 0) !== 0 && (
                                   <span className="font-medium text-green-600">${(tx.payment_amount || 0).toFixed(2)}</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-right">
+                                {tx.source_type !== 'payment_made' && (tx.charge_amount > 0 || tx.credit_amount > 0) && (
+                                  (tx.payment_amount || 0) === 0 ? (
+                                    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-red-200">Unpaid</Badge>
+                                  ) : ((tx.charge_amount || tx.credit_amount || 0) - (tx.payment_amount || 0) <= 0.005) ? (
+                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">Paid</Badge>
+                                  ) : (
+                                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200">
+                                      ${((tx.charge_amount || tx.credit_amount || 0) - tx.payment_amount).toFixed(2)}
+                                    </Badge>
+                                  )
                                 )}
                               </td>
                             </tr>

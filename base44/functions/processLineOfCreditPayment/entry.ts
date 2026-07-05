@@ -316,10 +316,7 @@ Deno.serve(async (req) => {
       throw new Error(glInsertError.message);
     }
 
-    // Recalculate LOC balance (which will filter out payment_made records from balance calculation)
-    await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
-      lineOfCreditId: line_of_credit_id
-    });
+
 
     // Get updated balance for response
     const updatedLOC = await base44.asServiceRole.entities.LinesOfCredit.get(line_of_credit_id);

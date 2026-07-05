@@ -263,9 +263,7 @@ Deno.serve(async (req) => {
           source_id: paymentId
         });
 
-        await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
-          lineOfCreditId: selectedLOC.id
-        });
+
 
         await createGlTransaction({
           account_number: '2000',

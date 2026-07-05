@@ -218,9 +218,7 @@ Deno.serve(async (req) => {
           reversed_by_id: sourceReversalTx.id
         });
 
-        await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
-          lineOfCreditId: sourceLocTx.line_of_credit_id
-        });
+
       }
     }
 
@@ -280,9 +278,7 @@ Deno.serve(async (req) => {
     const { error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactionsToInsert);
     if (glInsertError) throw new Error(glInsertError.message);
 
-    await base44.asServiceRole.functions.invoke('calculateLOCBalances', {
-      lineOfCreditId: originalPayment.line_of_credit_id
-    });
+
 
     return Response.json({
       success: true,

@@ -319,8 +319,6 @@ Deno.serve(async (req) => {
 
     if (linkedAccountType === 'bank' && linkedAccountId) {
       await base44.asServiceRole.functions.invoke('calculateBankBalances', { bankAccountId: linkedAccountId });
-    } else if (linkedAccountType === 'loc' && linkedAccountId) {
-      await base44.asServiceRole.functions.invoke('calculateLOCBalances', { lineOfCreditId: linkedAccountId });
     }
 
     return Response.json({ success: true });
