@@ -152,10 +152,15 @@ Deno.serve(async (req) => {
     }
 
     // Create Bank Transaction
+    const mountainTimestamp = new Date().toISOString();
     const bankTx = {
       id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
       bank_account_id: bankAccount.id,
       transaction_date: payment_date,
+      created_date: mountainTimestamp,
+      updated_date: mountainTimestamp,
+      created_by: user?.full_name || user?.email || 'Unknown User',
+      created_by_id: user?.id,
       description: netGstDue > 0 
         ? `GST Payment to CRA (${gstReturn.period_start_date} - ${gstReturn.period_end_date})` 
         : `GST Refund from CRA (${gstReturn.period_start_date} - ${gstReturn.period_end_date})`,

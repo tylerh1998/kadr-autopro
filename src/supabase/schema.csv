@@ -1,0 +1,509 @@
+table_name,column_name,data_type
+BankAccount,account_number,text
+BankAccount,account_type,text
+BankAccount,is_active,boolean
+BankAccount,notes,text
+BankAccount,locked_by_user,text
+BankAccount,last_recalculated_date,timestamp with time zone
+BankAccount,locked_timestamp,text
+BankAccount,next_cheque_number,bigint
+BankAccount,routing_number,text
+BankAccount,name,text
+BankAccount,bank_name,text
+BankAccount,current_balance,double precision
+BankAccount,gl_account,text
+BankAccount,primary,boolean
+BankAccount,id,text
+BankAccount,created_date,timestamp with time zone
+BankAccount,updated_date,timestamp with time zone
+BankAccount,created_by_id,text
+BankAccount,created_by,text
+BankAccount,is_sample,boolean
+BankReconciliation,bank_account_id,text
+BankReconciliation,reconciliation_date,timestamp with time zone
+BankReconciliation,reconciliation_id,text
+BankReconciliation,period_end_date,text
+BankReconciliation,total_credits,double precision
+BankReconciliation,period_start_date,text
+BankReconciliation,cleared_balance_at_reconciliation,double precision
+BankReconciliation,difference,double precision
+BankReconciliation,reconciled_by,text
+BankReconciliation,total_debits,double precision
+BankReconciliation,starting_balance,double precision
+BankReconciliation,statement_ending_balance,double precision
+BankReconciliation,id,text
+BankReconciliation,created_date,timestamp with time zone
+BankReconciliation,updated_date,timestamp with time zone
+BankReconciliation,created_by_id,text
+BankReconciliation,created_by,text
+BankReconciliation,is_sample,boolean
+BankTransaction,transaction_date,text
+BankTransaction,bank_account_id,text
+BankTransaction,reversed_by_id,text
+BankTransaction,reconciled,boolean
+BankTransaction,banktx,boolean
+BankTransaction,reconciliation_id,text
+BankTransaction,credit_amount,double precision
+BankTransaction,description,text
+BankTransaction,source_type,text
+BankTransaction,debit_amount,double precision
+BankTransaction,reference,text
+BankTransaction,source_id,text
+BankTransaction,is_reversed,text
+BankTransaction,cleared,boolean
+BankTransaction,gl_account,text
+BankTransaction,id,text
+BankTransaction,created_date,timestamp with time zone
+BankTransaction,updated_date,timestamp with time zone
+BankTransaction,created_by_id,text
+BankTransaction,created_by,text
+BankTransaction,is_sample,boolean
+ChartOfAccount,controlled,text
+ChartOfAccount,account_number,bigint
+ChartOfAccount,account_type,text
+ChartOfAccount,is_active,boolean
+ChartOfAccount,account_name,text
+ChartOfAccount,description,text
+ChartOfAccount,parent_account,bigint
+ChartOfAccount,id,text
+ChartOfAccount,created_date,timestamp with time zone
+ChartOfAccount,updated_date,timestamp with time zone
+ChartOfAccount,created_by_id,text
+ChartOfAccount,created_by,text
+ChartOfAccount,is_sample,boolean
+Customer,address,text
+Customer,notes,text
+Customer,is_active,text
+Customer,city,text
+Customer,default_taxable,boolean
+Customer,last_name,text
+Customer,zip_code,text
+Customer,phone,text
+Customer,secondary_phone,text
+Customer,cusid,text
+Customer,state,text
+Customer,org_name,text
+Customer,first_name,text
+Customer,email,text
+Customer,id,text
+Customer,created_date,timestamp with time zone
+Customer,updated_date,timestamp with time zone
+Customer,created_by_id,text
+Customer,created_by,text
+Customer,is_sample,boolean
+Customer,google_contacts_id,text
+CustomerARAdjustment,reference,text
+CustomerARAdjustment,amount,double precision
+CustomerARAdjustment,overpayment,boolean
+CustomerARAdjustment,description,text
+CustomerARAdjustment,customer_id,text
+CustomerARAdjustment,gl_account,text
+CustomerARAdjustment,adjustment_date,text
+CustomerARAdjustment,ar_paid,double precision
+CustomerARAdjustment,id,text
+CustomerARAdjustment,created_date,timestamp with time zone
+CustomerARAdjustment,updated_date,timestamp with time zone
+CustomerARAdjustment,created_by_id,text
+CustomerARAdjustment,created_by,text
+CustomerARAdjustment,is_sample,boolean
+CustomerPayments,amount,double precision
+CustomerPayments,notes,text
+CustomerPayments,lankar_invoice,text
+CustomerPayments,cheque_name,text
+CustomerPayments,cheque_number,text
+CustomerPayments,deposited,boolean
+CustomerPayments,ar_paid,double precision
+CustomerPayments,ar_applyto,text
+CustomerPayments,reference,text
+CustomerPayments,ar_pmt,boolean
+CustomerPayments,deposit_date,text
+CustomerPayments,deposit_batch_id,text
+CustomerPayments,gl_posted,boolean
+CustomerPayments,advance_pmt,boolean
+CustomerPayments,work_order_id,text
+CustomerPayments,customer_id,text
+CustomerPayments,invoice_number,text
+CustomerPayments,payment_method,text
+CustomerPayments,payment_date,text
+CustomerPayments,id,text
+CustomerPayments,created_date,timestamp with time zone
+CustomerPayments,updated_date,timestamp with time zone
+CustomerPayments,created_by_id,text
+CustomerPayments,created_by,text
+CustomerPayments,is_sample,boolean
+Employee,id,bigint
+Employee,created_at,timestamp with time zone
+Employee,workpro_user_id,text
+Employee,autopro_user_id,text
+Employee,first_name,text
+Employee,last_name,text
+Employee,full_name,text
+Employee,employee_type,text
+Employee,status,text
+Employee,position,text
+Employee,notify_for_projects,boolean
+Employee,email,text
+Employee,pay_rate,bigint
+Employee,pto_eligible,boolean
+GLTransaction,id,text
+GLTransaction,account_number,text
+GLTransaction,transaction_date,date
+GLTransaction,description,text
+GLTransaction,reference,text
+GLTransaction,debit_amount,numeric
+GLTransaction,credit_amount,numeric
+GLTransaction,source_type,text
+GLTransaction,source_id,text
+GLTransaction,created_date,timestamp with time zone
+GLTransaction,updated_date,timestamp with time zone
+GLTransaction,created_by,text
+GLTransaction,created_by_id,text
+GLTransaction,updated_by,text
+GLTransaction,is_sample,boolean
+InventoryItem,selling_price,double precision
+InventoryItem,duplicate_inventory_item_ids,text
+InventoryItem,cost,double precision
+InventoryItem,is_active,boolean
+InventoryItem,master_inventory_item_id,text
+InventoryItem,maximum_quantity,text
+InventoryItem,description,text
+InventoryItem,quantity_on_order,text
+InventoryItem,quantity_on_hand,text
+InventoryItem,manufacturer,text
+InventoryItem,core_cost,text
+InventoryItem,sales_class,text
+InventoryItem,core,boolean
+InventoryItem,tag_along_id,text
+InventoryItem,unit,text
+InventoryItem,vendor,text
+InventoryItem,profit_margin,text
+InventoryItem,part_number,text
+InventoryItem,location,text
+InventoryItem,category,text
+InventoryItem,minimum_quantity,text
+InventoryItem,stocked_item,boolean
+InventoryItem,supplier_id,text
+InventoryItem,id,text
+InventoryItem,created_date,timestamp with time zone
+InventoryItem,updated_date,timestamp with time zone
+InventoryItem,created_by_id,text
+InventoryItem,created_by,text
+InventoryItem,is_sample,boolean
+LankarWOInfo,woid,text
+LankarWOInfo,vehid,text
+LankarWOInfo,cusid,text
+LankarWOInfo,wodate,text
+LankarWOInfo,invoicedate,text
+LankarWOInfo,txtOdometer,text
+LankarWOInfo,txtCustomerRequests,text
+LankarWOInfo,Summary,text
+LankarWOInfo,screensubtotal,text
+LankarWOInfo,screentotdiscount,text
+LankarWOInfo,totalinvoiceamt,text
+LankarWOInfo,WOorPWOorEorINVorCRED,text
+LankarWOInfo,ponum,text
+LankarWOInfo,OPTIONSnotetocustomer,text
+LankarWOInfo,estid,text
+LankarWOInfo,WOdeleted,text
+LankarWOInfo,invoiceid,text
+LankarWOInventory,invid,bigint
+LankarWOInventory,partnum,text
+LankarWOInventory,description,text
+LankarWOLines,id,text
+LankarWOLines,woid,text
+LankarWOLines,linenum,text
+LankarWOLines,qty,text
+LankarWOLines,hrs,text
+LankarWOLines,description,text
+LankarWOLines,partsea,text
+LankarWOLines,totparts,text
+LankarWOLines,labour,text
+LankarWOLines,total,text
+LankarWOLines,tx,text
+LankarWOLines,c,text
+LankarWOLines,otherchargeamt,text
+LankarWOLines,LBold,text
+LankarWOLines,partserial,text
+LankarWOLines,invinvid,text
+Note,id,uuid
+Note,created_at,timestamp with time zone
+Note,updated_at,timestamp with time zone
+Note,title,text
+Note,comment,text
+Note,status,text
+Note,customer_id,text
+Note,vehicle_id,text
+Note,work_order_id,text
+Note,appointment_id,uuid
+Note,created_by,text
+Note,colour,text
+Note,board_column,text
+Note,board_order,text
+Note,is_archived,boolean
+PayPeriods,total_stat_hours,bigint
+PayPeriods,total_overtime_hours,double precision
+PayPeriods,total_regular_hours,double precision
+PayPeriods,total_records,bigint
+PayPeriods,total_pto_hours,bigint
+PayPeriods,date_to,text
+PayPeriods,date_from,text
+PayPeriods,id,text
+PayPeriods,created_date,timestamp with time zone
+PayPeriods,updated_date,timestamp with time zone
+PayPeriods,created_by_id,text
+PayPeriods,created_by,text
+PayPeriods,is_sample,boolean
+PayrollTransaction,pay_date,text
+PayrollTransaction,amount,text
+PayrollTransaction,additional_deductions,text
+PayrollTransaction,ei_premium,double precision
+PayrollTransaction,notes,text
+PayrollTransaction,is_bus_driver_wages,boolean
+PayrollTransaction,import_file_name,text
+PayrollTransaction,transaction_type,text
+PayrollTransaction,gross_pay,double precision
+PayrollTransaction,import_date,timestamp with time zone
+PayrollTransaction,employee_reference,text
+PayrollTransaction,paycheque_number,text
+PayrollTransaction,cpp2_contribution,bigint
+PayrollTransaction,ei_employer,double precision
+PayrollTransaction,remittance_period_end,text
+PayrollTransaction,cpp2_employer,bigint
+PayrollTransaction,paycheque_numbers_included,text
+PayrollTransaction,remittance_period_start,text
+PayrollTransaction,is_paid,boolean
+PayrollTransaction,cpp_employer,double precision
+PayrollTransaction,income_tax,double precision
+PayrollTransaction,cpp_contribution,double precision
+PayrollTransaction,adjustment_reason,text
+PayrollTransaction,id,text
+PayrollTransaction,created_date,timestamp with time zone
+PayrollTransaction,updated_date,timestamp with time zone
+PayrollTransaction,created_by_id,text
+PayrollTransaction,created_by,text
+PayrollTransaction,is_sample,boolean
+PayrollTransaction,gl_account,text
+Project,next_oil_change_odometer,text
+Project,in_odometer,text
+Project,description,text
+Project,cabin,text
+Project,oil_type,text
+Project,employees_assigned,jsonb
+Project,air,text
+Project,reset_oil_light,text
+Project,oil_change_type,text
+Project,vehicle,text
+Project,oil,text
+Project,odometer_reading,text
+Project,oil_qty,text
+Project,default_category,text
+Project,wind_wash,text
+Project,vin,text
+Project,work_order,text
+Project,inspection_results,text
+Project,project_type,text
+Project,date_archived,text
+Project,tpms_reset,text
+Project,due_date,text
+Project,inspection_comments,text
+Project,priority,text
+Project,time_estimate,text
+Project,filter,text
+Project,task,text
+Project,name,text
+Project,tire_rotation,text
+Project,customer,text
+Project,status,text
+Project,id,text
+Project,created_date,timestamp with time zone
+Project,updated_date,timestamp with time zone
+Project,created_by_id,text
+Project,created_by,text
+Project,is_sample,boolean
+Project,odometer_date,date
+ProjectTimeSession,start_time,timestamp with time zone
+ProjectTimeSession,user_email,text
+ProjectTimeSession,notes,text
+ProjectTimeSession,project_id,text
+ProjectTimeSession,user_name,text
+ProjectTimeSession,end_time,timestamp with time zone
+ProjectTimeSession,project_name,text
+ProjectTimeSession,total_hours,double precision
+ProjectTimeSession,category,text
+ProjectTimeSession,status,text
+ProjectTimeSession,id,text
+ProjectTimeSession,created_date,timestamp with time zone
+ProjectTimeSession,updated_date,timestamp with time zone
+ProjectTimeSession,created_by_id,text
+ProjectTimeSession,created_by,text
+ProjectTimeSession,is_sample,boolean
+SalesClass,name,text
+SalesClass,description,text
+SalesClass,pricing_matrix,jsonb
+SalesClass,is_active,boolean
+SalesClass,id,text
+SalesClass,created_date,timestamp with time zone
+SalesClass,updated_date,timestamp with time zone
+SalesClass,created_by_id,text
+SalesClass,created_by,text
+SalesClass,is_sample,boolean
+Supplier,account_number,text
+Supplier,supid,text
+Supplier,address,text
+Supplier,default_gl_account,bigint
+Supplier,notes,text
+Supplier,town,text
+Supplier,pin_to_top,boolean
+Supplier,contact_person,text
+Supplier,default_taxable,jsonb
+Supplier,inventory_supplier,boolean
+Supplier,LockedByUser,text
+Supplier,province,text
+Supplier,phone,text
+Supplier,name,text
+Supplier,postal_code,text
+Supplier,email,text
+Supplier,id,text
+Supplier,created_date,timestamp with time zone
+Supplier,updated_date,timestamp with time zone
+Supplier,created_by_id,text
+Supplier,created_by,text
+Supplier,is_sample,boolean
+SupplierInvoiceLine,gst_amount,numeric
+SupplierInvoiceLine,purchase_amount,double precision
+SupplierInvoiceLine,inventory_item_id,text
+SupplierInvoiceLine,paid_amount,numeric
+SupplierInvoiceLine,description,text
+SupplierInvoiceLine,gst_override,boolean
+SupplierInvoiceLine,inventory,boolean
+SupplierInvoiceLine,supplier_id,text
+SupplierInvoiceLine,invoice_number,text
+SupplierInvoiceLine,gl_account,bigint
+SupplierInvoiceLine,invoice_date,text
+SupplierInvoiceLine,inventory_credit,boolean
+SupplierInvoiceLine,id,text
+SupplierInvoiceLine,created_date,timestamp with time zone
+SupplierInvoiceLine,updated_date,timestamp with time zone
+SupplierInvoiceLine,created_by_id,text
+SupplierInvoiceLine,created_by,text
+SupplierInvoiceLine,is_sample,boolean
+SupplierInvoiceLine,updated_by,text
+SupplierPayment,amount,double precision
+SupplierPayment,cheque_number,text
+SupplierPayment,error_message,text
+SupplierPayment,invoice_number,jsonb
+SupplierPayment,notes,text
+SupplierPayment,payment_date,text
+SupplierPayment,payment_method,text
+SupplierPayment,source,text
+SupplierPayment,status,text
+SupplierPayment,supplier_id,text
+SupplierPayment,id,text
+SupplierPayment,created_date,timestamp with time zone
+SupplierPayment,updated_date,timestamp with time zone
+SupplierPayment,created_by_id,text
+SupplierPayment,created_by,text
+SupplierPayment,is_sample,boolean
+TimeRecord,notes,text
+TimeRecord,clock_out_time,text
+TimeRecord,employee_name,text
+TimeRecord,clock_in_time,timestamp with time zone
+TimeRecord,stat_hours,bigint
+TimeRecord,total_hours,text
+TimeRecord,pto_hours,bigint
+TimeRecord,status,text
+TimeRecord,id,text
+TimeRecord,created_date,timestamp with time zone
+TimeRecord,updated_date,timestamp with time zone
+TimeRecord,created_by_id,text
+TimeRecord,created_by,text
+TimeRecord,is_sample,boolean
+UnassignedTime,end_time,text
+UnassignedTime,start_time,timestamp with time zone
+UnassignedTime,user_email,text
+UnassignedTime,total_hours,double precision
+UnassignedTime,user_name,text
+UnassignedTime,status,text
+UnassignedTime,id,text
+UnassignedTime,created_date,timestamp with time zone
+UnassignedTime,updated_date,timestamp with time zone
+UnassignedTime,created_by_id,text
+UnassignedTime,created_by,text
+UnassignedTime,is_sample,boolean
+Vehicle,notes,text
+Vehicle,is_active,text
+Vehicle,color,text
+Vehicle,year,bigint
+Vehicle,odometer_date,text
+Vehicle,license_plate,text
+Vehicle,unit_number,text
+Vehicle,trim,text
+Vehicle,engine,text
+Vehicle,model,text
+Vehicle,vin,text
+Vehicle,vehid,text
+Vehicle,customer_id,text
+Vehicle,make,text
+Vehicle,mileage,text
+Vehicle,id,text
+Vehicle,created_date,timestamp with time zone
+Vehicle,updated_date,timestamp with time zone
+Vehicle,created_by_id,text
+Vehicle,created_by,text
+Vehicle,is_sample,boolean
+WorkOrder,id,text
+WorkOrder,ro_number,text
+WorkOrder,wo_number,text
+WorkOrder,est_number,text
+WorkOrder,inv_number,text
+WorkOrder,crinv_number,text
+WorkOrder,customer_id,text
+WorkOrder,vehicle_id,text
+WorkOrder,status,text
+WorkOrder,kanban_order,integer
+WorkOrder,priority,text
+WorkOrder,stage,text
+WorkOrder,approval,text
+WorkOrder,converted,boolean
+WorkOrder,LockedByUser,text
+WorkOrder,description,text
+WorkOrder,odometer,integer
+WorkOrder,labor_rate,numeric
+WorkOrder,parts_total,numeric
+WorkOrder,labor_total,numeric
+WorkOrder,shop_supply_total,numeric
+WorkOrder,tax_amount,numeric
+WorkOrder,total_amount,numeric
+WorkOrder,est_date,date
+WorkOrder,wo_date,date
+WorkOrder,completed_date,date
+WorkOrder,invoice_date,date
+WorkOrder,internal_notes,text
+WorkOrder,line_items,jsonb
+WorkOrder,payments,jsonb
+WorkOrder,amount_paid,numeric
+WorkOrder,notes_to_customer,text
+WorkOrder,po_number,text
+WorkOrder,cvip,text
+WorkOrder,default_taxable,boolean
+WorkOrder,accounting_details,jsonb
+WorkOrder,tech_time,jsonb
+WorkOrder,last_updated,timestamp with time zone
+WorkOrder,last_updated_by,text
+WorkOrder,completed_by,text
+WorkOrder,created_at,timestamp with time zone
+WorkOrder,updated_at,timestamp with time zone
+WorkOrder,created_by,text
+WorkOrder,created_date,timestamp with time zone
+WorkOrder,locked_timestamp,timestamp with time zone
+flashcards,id,bigint
+flashcards,question,text
+flashcards,answer,text
+flashcards,created_at,timestamp with time zone
+workorderversionhistory,id,uuid
+workorderversionhistory,workorder_id,text
+workorderversionhistory,change_type,text
+workorderversionhistory,changed_at,timestamp with time zone
+workorderversionhistory,changed_by,text
+workorderversionhistory,new_data,jsonb
+workorderversionhistory,total_amount,numeric

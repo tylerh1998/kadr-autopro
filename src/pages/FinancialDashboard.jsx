@@ -18,6 +18,7 @@ import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendR
 import AccountBalancesByTypeReport from '@/components/financial-dashboard/AccountBalancesByTypeReport';
 import TopExpenseCategoriesReport from '@/components/financial-dashboard/TopExpenseCategoriesReport';
 import ThreeMonthPLReport from '@/components/financial-dashboard/ThreeMonthPLReport';
+import ThreeMonthAPReport from '@/components/financial-dashboard/ThreeMonthAPReport';
 import CustomerPaymentsBreakdownReport from '@/components/financial-dashboard/CustomerPaymentsBreakdownReport';
 
 const REPORT_OPTIONS = [
@@ -25,7 +26,8 @@ const REPORT_OPTIONS = [
   { value: 'accountBalances', label: 'Account Balances by Type' },
   { value: 'topExpenses', label: 'Top Expense Categories' },
   { value: 'customerPayments', label: 'Customer Payments Breakdown Report' },
-  { value: 'threeMonthPL', label: 'Three Month P&L Report' }
+  { value: 'threeMonthPL', label: 'Three Month P&L Report' },
+  { value: 'threeMonthAP', label: 'Three Month Accounts Payable Summary' }
 ];
 
 export default function FinancialDashboard() {
@@ -44,6 +46,10 @@ export default function FinancialDashboard() {
   const [threeMonthPLData, setThreeMonthPLData] = useState(null);
   const [threeMonthPLLoading, setThreeMonthPLLoading] = useState(false);
   const [threeMonthPLLoadedForEndDate, setThreeMonthPLLoadedForEndDate] = useState('');
+
+  const [threeMonthAPData, setThreeMonthAPData] = useState(null);
+  const [threeMonthAPLoading, setThreeMonthAPLoading] = useState(false);
+  const [threeMonthAPLoadedForEndDate, setThreeMonthAPLoadedForEndDate] = useState('');
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
@@ -103,6 +109,37 @@ export default function FinancialDashboard() {
     }
   }, [reportType, loadThreeMonthPLReport]);
 
+  const loadThreeMonthAPReport = useCallback(async (forceReload = false) => {
+    if (!forceReload && threeMonthAPLoadedForEndDate === appliedToDate && threeMonthAPData) {
+      return;
+    }
+
+    setThreeMonthAPLoading(true);
+    try {
+      const response = await base44.functions.invoke('getThreeMonthAPReport', {
+        endDate: appliedToDate
+      });
+
+      if (response.data.success) {
+        setThreeMonthAPData(response.data.data);
+        setThreeMonthAPLoadedForEndDate(appliedToDate);
+      } else {
+        throw new Error(response.data.error || 'Failed to load three month AP report');
+      }
+    } catch (error) {
+      console.error('Error loading three month AP report:', error);
+      alert('Failed to load Three Month AP report. Please try again.');
+    } finally {
+      setThreeMonthAPLoading(false);
+    }
+  }, [appliedToDate, threeMonthAPData, threeMonthAPLoadedForEndDate]);
+
+  useEffect(() => {
+    if (reportType === 'threeMonthAP') {
+      loadThreeMonthAPReport();
+    }
+  }, [reportType, loadThreeMonthAPReport]);
+
   const handleDaysBackChange = (value) => {
     setDraftDaysBack(value);
     const calculatedFromDate = format(subDays(new Date(draftToDate), parseInt(value) || 0), 'yyyy-MM-dd');
@@ -132,6 +169,11 @@ export default function FinancialDashboard() {
   const handleRefresh = () => {
     if (reportType === 'threeMonthPL') {
       loadThreeMonthPLReport(true);
+      return;
+    }
+
+    if (reportType === 'threeMonthAP') {
+      loadThreeMonthAPReport(true);
       return;
     }
 
@@ -166,6 +208,18 @@ export default function FinancialDashboard() {
           );
         }
         return threeMonthPLData ? <ThreeMonthPLReport data={threeMonthPLData} /> : null;
+      case 'threeMonthAP':
+        if (threeMonthAPLoading) {
+          return (
+            <Card>
+              <CardContent className="p-10 text-center text-slate-600">
+                <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                Loading Three Month Accounts Payable Summary...
+              </CardContent>
+            </Card>
+          );
+        }
+        return threeMonthAPData ? <ThreeMonthAPReport data={threeMonthAPData} /> : null;
       case 'cashFlow':
       default:
         return charts.cashFlow.length > 0 ? <CashFlowTrendReport data={charts.cashFlow} /> : null;
