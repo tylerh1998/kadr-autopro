@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.4';
+import { createClient } from 'npm:@supabase/supabase-js@2.56.0';
 
 Deno.serve(async (req) => {
     try {
@@ -8,6 +9,20 @@ Deno.serve(async (req) => {
         if (!user) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const supabaseUrl = Deno.env.get('Supabase_project_url');
+        const supabaseKey = Deno.env.get('Supabase_Secret_Key');
+        if (!supabaseUrl || !supabaseKey) {
+            return Response.json({ error: 'Supabase configuration is missing' }, { status: 500 });
+        }
+        const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+
+        const auditUser = user?.full_name || user?.email || 'Unknown User';
+        const getAuditFields = () => ({
+            created_by: auditUser,
+            created_by_id: user?.id,
+            updated_by: auditUser
+        });
 
         const { workOrder, lineItems, payments, systemSettings } = await req.json();
 
