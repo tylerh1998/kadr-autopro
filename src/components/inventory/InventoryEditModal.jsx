@@ -298,8 +298,10 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 const description = `Price adjustment: ${item.part_number} (${qoh} x $${costDifference.toFixed(2)})`;
 
+                const glTransactions = [];
+
                 if (costDifference > 0) {
-                    await base44.entities.GLTransaction.create({
+                    glTransactions.push({
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -309,7 +311,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_type: 'adjustment',
                         source_id: item.id
                     });
-                    await base44.entities.GLTransaction.create({
+                    glTransactions.push({
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
@@ -320,7 +322,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                 } else {
-                    await base44.entities.GLTransaction.create({
+                    glTransactions.push({
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -330,7 +332,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_type: 'adjustment',
                         source_id: item.id
                     });
-                    await base44.entities.GLTransaction.create({
+                    glTransactions.push({
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
@@ -341,6 +343,12 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                 }
+
+                await base44.functions.invoke('SupabaseProxy', {
+                    action: 'create',
+                    table: 'GLTransaction',
+                    data: glTransactions
+                });
             }
 
             onUpdate(updatedItem);
