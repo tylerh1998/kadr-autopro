@@ -2,6 +2,23 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 import { formatInTimeZone } from 'npm:date-fns-tz@3.1.3';
 
+const sanitizeDescription = (value) => String(value || '')
+  .replace(/:/g, '-')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const parseArApplyTo = (value) => {
+  if (!value) return [];
+  return String(value).split(',').map(entry => entry.trim()).filter(Boolean).map(entry => {
+    const [id, type, amount, ...descParts] = entry.split(':');
+    return { id, type, amount: Number(amount) || 0, description: descParts.join(':') };
+  });
+};
+
+const buildArApplyTo = (entries) => {
+  return entries.map(e => `${e.id}:${e.type}:${(Number(e.amount) || 0).toFixed(2)}:${sanitizeDescription(e.description)}`).join(',');
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -45,6 +62,17 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (error) throw error;
       return data;
+    };
+
+    const fetchWorkOrderDescription = async (woId) => {
+      if (!woId) return '';
+      try {
+        const { data: wo } = await supabase.from('WorkOrder').select('description').eq('id', woId).single();
+        return wo?.description || '';
+      } catch (e) {
+        console.error(`Failed to fetch WO for AR: ${woId}`, e);
+        return '';
+      }
     };
 
     const insertCustomerPayment = async (data) => {
@@ -182,7 +210,9 @@ Deno.serve(async (req) => {
               date: payment.payment_date,
               amount: Number(payment.amount) || 0,
               ar_paid: Number(payment.ar_paid) || 0,
-              balance
+              balance,
+              work_order_id: payment.work_order_id || '',
+              notes: payment.notes || ''
             });
           }
         });
@@ -447,7 +477,12 @@ Deno.serve(async (req) => {
           }
         ]);
 
-        applyToEntries.push(`${feeAdjustment.id}:${creditCardFeeAmount.toFixed(2)}`);
+        applyToEntries.push({
+          id: feeAdjustment.id,
+          type: 'adj',
+          amount: creditCardFeeAmount,
+          description: feeAdjustment.description
+        });
       }
 
       await insertGLTransactions([
@@ -485,7 +520,16 @@ Deno.serve(async (req) => {
           await updateAdjustment(charge.id, { ar_paid: newArPaid });
         }
 
-        applyToEntries.push(`${charge.id}:${amountToApply.toFixed(2)}`);
+        if (charge.type === 'invoice') {
+          let description = '';
+          description = await fetchWorkOrderDescription(charge.work_order_id);
+          if (!description) {
+            description = charge.notes || '';
+          }
+          applyToEntries.push({ id: charge.id, type: 'pmt', amount: amountToApply, description });
+        } else {
+          applyToEntries.push({ id: charge.id, type: 'adj', amount: amountToApply, description: charge.description || '' });
+        }
         totalApplied += amountToApply;
       }
 
@@ -525,11 +569,16 @@ Deno.serve(async (req) => {
           }
         ]);
 
-        applyToEntries.push(`${overpaymentAdjustment.id}:${overpaymentAmount.toFixed(2)}`);
+        applyToEntries.push({
+          id: overpaymentAdjustment.id,
+          type: 'adj',
+          amount: overpaymentAmount,
+          description: overpaymentAdjustment.description
+        });
       }
 
       const updatedPayment = await updateCustomerPayment(paymentRecord.id, {
-        ar_applyto: applyToEntries.join(',')
+        ar_applyto: buildArApplyTo(applyToEntries)
       });
 
       return Response.json({ success: true, payment: updatedPayment });
@@ -583,16 +632,13 @@ Deno.serve(async (req) => {
 
       const customer = payment.customer_id ? await fetchCustomer(payment.customer_id) : null;
       const customerName = formatCustomerDisplayName(customer);
-      const arApplyToEntries = String(payment.ar_applyto || '')
-        .split(',')
-        .map((entry) => entry.trim())
-        .filter(Boolean);
+      const arApplyToEntries = parseArApplyTo(payment.ar_applyto);
 
       const autoAdjustmentsToReverse = new Map();
 
       for (const entry of arApplyToEntries) {
-        const [recordId, amountStr] = entry.split(':');
-        const amountApplied = Number(amountStr) || 0;
+        const recordId = entry?.id;
+        const amountApplied = Number(entry?.amount) || 0;
         if (!recordId || amountApplied <= 0) continue;
 
         const appliedPayment = await fetchCustomerPayment(recordId);

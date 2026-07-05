@@ -14,21 +14,21 @@ const createSupabaseClient = () => {
   });
 };
 
+const sanitizeDescription = (value) => String(value || '')
+  .replace(/:/g, '-')
+  .replace(/\s+/g, ' ')
+  .trim();
+
 const parseArApplyTo = (value) => {
   if (!value) return [];
+  return String(value).split(',').map(entry => entry.trim()).filter(Boolean).map(entry => {
+    const [id, type, amount, ...descParts] = entry.split(':');
+    return { id, type, amount: Number(amount) || 0, description: descParts.join(':') };
+  });
+};
 
-  return String(value)
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => {
-      const [id, amount] = entry.split(':');
-      return {
-        id,
-        amount: Number(amount) || 0
-      };
-    })
-    .filter((item) => item.id);
+const buildArApplyTo = (entries) => {
+  return entries.map(e => `${e.id}:${e.type}:${(Number(e.amount) || 0).toFixed(2)}:${sanitizeDescription(e.description)}`).join(',');
 };
 
 Deno.serve(async (req) => {
@@ -74,9 +74,10 @@ Deno.serve(async (req) => {
 
     const rowMap = Object.fromEntries((customerData || []).map((row) => [row.transaction_id, row]));
     const paymentRow = paymentId ? rowMap[paymentId] : null;
+    const applied = parseArApplyTo(fallbackArApplyTo);
     const parsedAppliedData = Array.isArray(paymentRow?.applied_data) && paymentRow.applied_data.length
       ? paymentRow.applied_data
-      : parseArApplyTo(fallbackArApplyTo);
+      : applied;
 
     const appliedDetails = parsedAppliedData
       .map((item) => {
