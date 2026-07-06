@@ -39,6 +39,9 @@ Deno.serve(async (req) => {
       return openPeriods.some((period) => dateString >= period.start_date && dateString <= period.end_date);
     };
 
+    const roundToCents = (value) => Number((Number(value) || 0).toFixed(2));
+    const isBalancedAtCents = (value) => Math.abs(roundToCents(value)) < 0.009;
+
     const callRpcWithCandidates = async (functionName, candidates) => {
       let lastError = null;
 
@@ -53,62 +56,45 @@ Deno.serve(async (req) => {
       return { data: null, error: lastError };
     };
 
-    const helperResult = await callRpcWithCandidates('get_daily_gl_totals', [
+    const helperResult = await callRpcWithCandidates('get_daily_gl_imbalances', [
       { _start_date: minOpenDate, _end_date: maxOpenDate },
       { start_date: minOpenDate, end_date: maxOpenDate },
       { p_start_date: minOpenDate, p_end_date: maxOpenDate },
       { from_date: minOpenDate, to_date: maxOpenDate }
     ]);
 
-    const helperRows = helperResult.data || [];
-    const hasDetailedHelperColumns = helperRows.some((row) =>
-      row.asset_debits !== undefined ||
-      row.asset_credits !== undefined ||
-      row.other_debits !== undefined ||
-      row.other_credits !== undefined ||
-      row.assetDebits !== undefined ||
-      row.assetCredits !== undefined ||
-      row.otherDebits !== undefined ||
-      row.otherCredits !== undefined
-    );
-
-    if (helperRows.length > 0 && hasDetailedHelperColumns) {
-      const pickValue = (row, keys, fallback = 0) => {
-        for (const key of keys) {
-          if (row[key] !== undefined && row[key] !== null) {
-            return row[key];
-          }
+    const pickValue = (row, keys, fallback = 0) => {
+      for (const key of keys) {
+        if (row[key] !== undefined && row[key] !== null) {
+          return row[key];
         }
-        return fallback;
-      };
+      }
+      return fallback;
+    };
 
-      const normalizeNumber = (value) => Number(value) || 0;
+    const normalizeNumber = (value) => Number(value) || 0;
+
+    if (!helperResult.error) {
+      const helperRows = helperResult.data || [];
 
       helperRows.forEach((row) => {
-        const day = String(pickValue(row, ['tx_date', 'transaction_date', 'day'], '') || '');
+        const rawDay = String(pickValue(row, ['tx_day', 'transaction_date', 'tx_date', 'day'], '') || '');
+        const day = rawDay ? rawDay.split('T')[0] : '';
         if (!day || !isInOpenPeriod(day)) return;
 
-        const assetDebits = normalizeNumber(pickValue(row, ['asset_debits', 'assetDebits'], 0));
-        const assetCredits = normalizeNumber(pickValue(row, ['asset_credits', 'assetCredits'], 0));
-        const otherDebits = normalizeNumber(pickValue(row, ['other_debits', 'otherDebits'], 0));
-        const otherCredits = normalizeNumber(pickValue(row, ['other_credits', 'otherCredits'], 0));
-
-        const assetsChange = assetDebits - assetCredits;
-        const liabilitiesAndEquityChange = otherCredits - otherDebits;
-        const bsDiff = assetsChange - liabilitiesAndEquityChange;
-        const isBsBalanced = Math.abs(bsDiff) < 0.01;
-
-        const totalDebits = assetDebits + otherDebits;
-        const totalCredits = assetCredits + otherCredits;
-        const tbDiff = totalDebits - totalCredits;
-        const isTbBalanced = Math.abs(tbDiff) < 0.01;
-        const isBalanced = isBsBalanced && isTbBalanced;
+        const totalDebits = normalizeNumber(pickValue(row, ['total_debits', 'totalDebits', 'debits'], 0));
+        const totalCredits = normalizeNumber(pickValue(row, ['total_credits', 'totalCredits', 'credits'], 0));
+        const rawDiff = row.diff !== undefined && row.diff !== null
+          ? normalizeNumber(row.diff)
+          : totalDebits - totalCredits;
+        const roundedDiff = roundToCents(rawDiff);
+        const isBalanced = isBalancedAtCents(rawDiff);
 
         dailyResults.push({
           day,
-          difference: tbDiff,
-          bsDiff,
-          tbDiff,
+          difference: roundedDiff,
+          bsDiff: roundedDiff,
+          tbDiff: roundedDiff,
           isBalanced
         });
 
@@ -173,13 +159,15 @@ Deno.serve(async (req) => {
       for (const [day, data] of Object.entries(dailyBlocks)) {
         const assetsChange = data.assetDebits - data.assetCredits;
         const liabilitiesAndEquityChange = data.otherCredits - data.otherDebits;
-        const bsDiff = assetsChange - liabilitiesAndEquityChange;
-        const isBsBalanced = Math.abs(bsDiff) < 0.01;
+        const rawBsDiff = assetsChange - liabilitiesAndEquityChange;
+        const bsDiff = roundToCents(rawBsDiff);
+        const isBsBalanced = isBalancedAtCents(rawBsDiff);
 
         const totalDebits = data.assetDebits + data.otherDebits;
         const totalCredits = data.assetCredits + data.otherCredits;
-        const tbDiff = totalDebits - totalCredits;
-        const isTbBalanced = Math.abs(tbDiff) < 0.01;
+        const rawTbDiff = totalDebits - totalCredits;
+        const tbDiff = roundToCents(rawTbDiff);
+        const isTbBalanced = isBalancedAtCents(rawTbDiff);
         const isBalanced = isBsBalanced && isTbBalanced;
 
         dailyResults.push({
@@ -202,6 +190,7 @@ Deno.serve(async (req) => {
       }
     });
 
+    totalImbalance = roundToCents(totalImbalance);
     dailyResults.sort((a, b) => a.day.localeCompare(b.day));
 
     let emailBody = '<h2>GL Imbalance Report for Open Fiscal Periods</h2>';
