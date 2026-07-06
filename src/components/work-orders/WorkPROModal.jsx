@@ -415,7 +415,6 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         task: formData.task,
         employees_assigned: formData.assigned_employees,
         time_estimate: formData.time_estimate === '' ? null : String(formData.time_estimate),
-        promised_by: formData.promised_by || null,
         status: formData.status,
         description: formData.description,
         default_category: formData.default_category,
