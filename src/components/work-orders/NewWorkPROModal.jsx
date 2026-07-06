@@ -132,6 +132,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         task: formData.task,
         employees_assigned: formData.assigned_employees,
         default_category: formData.default_category,
+        due_date: formData.promised_by || null,
         status: formData.status,
         description: formData.description,
         project_type: formData.project_type
