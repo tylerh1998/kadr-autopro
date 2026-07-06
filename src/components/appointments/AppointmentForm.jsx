@@ -1313,6 +1313,7 @@ export default function AppointmentForm({
         customer={selectedCustomer}
         customers={customers}
         vehicles={availableVehicles}
+        appointmentStartTime={formData.start_time}
       />
       </>
       );

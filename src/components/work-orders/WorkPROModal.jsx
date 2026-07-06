@@ -37,7 +37,7 @@ const INSPECTION_SECTIONS = [
   }
 ];
 
-export default function WorkPROModal({ open, onClose, workOrder, customer, customers, vehicles, initialWorkPROProject, onConnectionChange }) {
+export default function WorkPROModal({ open, onClose, workOrder, customer, customers, vehicles, initialWorkPROProject, onConnectionChange, appointmentStartTime }) {
   const [project, setProject] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +61,24 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   
   const [localCustomer, setLocalCustomer] = useState(null);
   const [localVehicle, setLocalVehicle] = useState(null);
+
+  const formatMountainDateTimeLocal = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Edmonton',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).formatToParts(date);
+
+    const getPart = (type) => parts.find((part) => part.type === type)?.value || '';
+
+    return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
+  };
 
   useEffect(() => {
     if (open && workOrder) {
@@ -397,6 +415,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         task: formData.task,
         employees_assigned: formData.assigned_employees,
         time_estimate: formData.time_estimate === '' ? null : String(formData.time_estimate),
+        promised_by: formData.promised_by || null,
         status: formData.status,
         description: formData.description,
         default_category: formData.default_category,
@@ -851,7 +870,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Promised By</Label>
+                  <Label className="text-sm font-medium">Scheduled for</Label>
                   <Input
                     type="datetime-local"
                     value={formData.promised_by}
@@ -1187,7 +1206,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               : `${targetCustomer?.first_name || ''} ${targetCustomer?.last_name || ''}`.trim(),
             vehicle: targetVehicle ? `${targetVehicle.year} ${targetVehicle.make} ${targetVehicle.model}` : '',
             vin: targetVehicle?.vin || '',
-            work_order: workOrderIdentifier
+            work_order: workOrderIdentifier,
+            promised_by: formatMountainDateTimeLocal(appointmentStartTime)
           };
         })() : null}
         lockedFields={workOrderIdentifier ? ['vin', 'work_order'] : []}
