@@ -294,7 +294,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) { onClose(); setSelectedReportId(null); setShowPartsOnOrder(false); setShowOtherChargesBreakdown(false); } }}>
-      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary || showTechPerformance || showCustomerReport || showPartsMovement ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      <DialogContent className={`flex flex-col max-h-[90vh] ${showSalesAnalysis || showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showWorkOrderSummary || showTechPerformance || showCustomerReport || showPartsMovement ? 'max-w-[95vw]' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {(showPartsOnOrder || showOtherChargesBreakdown || showReportableLevies || showSalesAnalysis || showWorkOrderSummary || showTechPerformance || showCustomerReport || showPartsMovement || selectedReportId) && (

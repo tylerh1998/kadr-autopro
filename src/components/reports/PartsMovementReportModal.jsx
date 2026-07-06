@@ -15,7 +15,21 @@ export default function PartsMovementReportModal() {
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [reportData, setReportData] = useState([]);
-  const [sortConfig, setSortConfig] = useState({ key: 'salesCount', direction: 'desc' });
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortConfig, setSortConfig] = useState({ key: 'totalQty', direction: 'desc' });
+
+  const uniqueCategories = React.useMemo(() => {
+    const cats = new Set(reportData.map(item => item.category).filter(Boolean));
+    return Array.from(cats).sort();
+  }, [reportData]);
+
+  const filteredData = React.useMemo(() => {
+    let items = reportData;
+    if (selectedCategory !== "all") {
+      items = items.filter(item => item.category === selectedCategory);
+    }
+    return items;
+  }, [reportData, selectedCategory]);
 
   // Debounce search
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -65,11 +79,7 @@ export default function PartsMovementReportModal() {
     setDateRange('thisMonth');
   }, []);
 
-  useEffect(() => {
-    if (dateFrom && dateTo) {
-      loadReportData();
-    }
-  }, [dateFrom, dateTo, debouncedSearch]);
+  // Automatic data loading removed; users must click "Run Report"
 
   const loadReportData = async () => {
     setIsLoading(true);
@@ -105,7 +115,7 @@ export default function PartsMovementReportModal() {
   };
 
   const sortedData = React.useMemo(() => {
-    let sortableItems = [...reportData];
+    let sortableItems = [...filteredData];
     if (sortConfig !== null) {
       sortableItems.sort((a, b) => {
         let valA = a[sortConfig.key];
@@ -131,10 +141,10 @@ export default function PartsMovementReportModal() {
       });
     }
     return sortableItems;
-  }, [reportData, sortConfig]);
+  }, [filteredData, sortConfig]);
 
   const totals = React.useMemo(() => {
-    return reportData.reduce((acc, item) => {
+    return filteredData.reduce((acc, item) => {
       acc.wipQty += (item.wip_qty || 0);
       acc.wipAmount += (item.wip_amount || 0);
       acc.invoicedQty += (item.invoiced_qty || 0);
@@ -143,7 +153,7 @@ export default function PartsMovementReportModal() {
       acc.totalAmount += (item.invoiced_amount || 0) + (item.wip_amount || 0);
       return acc;
     }, { wipQty: 0, wipAmount: 0, invoicedQty: 0, invoicedAmount: 0, totalQty: 0, totalAmount: 0 });
-  }, [reportData]);
+  }, [filteredData]);
 
   const SortIcon = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-slate-400" />;
@@ -156,19 +166,17 @@ export default function PartsMovementReportModal() {
     <div className="space-y-6 h-full flex flex-col min-h-0">
           {/* Controls */}
           <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end shrink-0">
-            <div className="space-y-2 min-w-[150px]">
-               <Label>Quick Select</Label>
-               <Select onValueChange={setDateRange} defaultValue="thisMonth">
+            <div className="space-y-2 min-w-[200px]">
+               <Label>Category Filter</Label>
+               <Select onValueChange={setSelectedCategory} value={selectedCategory}>
                  <SelectTrigger>
-                   <SelectValue placeholder="Select Range" />
+                   <SelectValue placeholder="All Categories" />
                  </SelectTrigger>
                  <SelectContent>
-                   <SelectItem value="last30">Last 30 Days</SelectItem>
-                   <SelectItem value="thisMonth">This Month</SelectItem>
-                   <SelectItem value="lastMonth">Last Month</SelectItem>
-                   <SelectItem value="thisQuarter">This Quarter</SelectItem>
-                   <SelectItem value="thisYear">This Year</SelectItem>
-                   <SelectItem value="lastYear">Last Year</SelectItem>
+                   <SelectItem value="all">All Categories</SelectItem>
+                   {uniqueCategories.map(cat => (
+                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                   ))}
                  </SelectContent>
                </Select>
             </div>
@@ -181,8 +189,18 @@ export default function PartsMovementReportModal() {
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
             
-            <div className="space-y-2 flex-1 min-w-[200px]">
-                <Label>Search Parts</Label>
+            <div className="space-y-2 flex-1 min-w-[300px]">
+                <div className="flex justify-between items-center">
+                    <Label>Search Parts</Label>
+                    <div className="flex gap-4 text-xs font-medium text-blue-600">
+                      <button onClick={() => setDateRange('last30')} className="hover:underline hover:text-blue-800 transition-colors">Last 30</button>
+                      <button onClick={() => setDateRange('thisMonth')} className="hover:underline hover:text-blue-800 transition-colors">This Month</button>
+                      <button onClick={() => setDateRange('lastMonth')} className="hover:underline hover:text-blue-800 transition-colors">Last Month</button>
+                      <button onClick={() => setDateRange('thisQuarter')} className="hover:underline hover:text-blue-800 transition-colors">This Qtr</button>
+                      <button onClick={() => setDateRange('thisYear')} className="hover:underline hover:text-blue-800 transition-colors">This Year</button>
+                      <button onClick={() => setDateRange('lastYear')} className="hover:underline hover:text-blue-800 transition-colors">Last Year</button>
+                    </div>
+                </div>
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
