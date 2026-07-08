@@ -187,7 +187,12 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
             </tbody>
           </table>
 
-          <script>window.print();</script>
+          <script>
+            setTimeout(function() {
+              window.print();
+              window.close();
+            }, 500);
+          </script>
         </body>
       </html>
     `;
