@@ -36,10 +36,11 @@ import {
   Pencil,
   List,
   FileWarning,
-  ArrowUpDown
+  ArrowUpDown,
+  ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { createPageUrl } from '@/utils';
+import { createPageUrl, getWorkOrderEditUrl } from '@/utils';
 import ChangeSupplierModal from '../components/inventory/ChangeSupplierModal';
 import ReceiveCreditModal from '../components/inventory/ReceiveCreditModal';
 import EditReturnInfoModal from '../components/inventory/EditReturnInfoModal';
@@ -133,6 +134,25 @@ export default function InventoryReturnsPage() {
     }
 
     handleStatusClick(returnItem);
+  };
+
+  const handleOpenWorkOrder = async (workOrderId) => {
+    try {
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'filter',
+        table: 'WorkOrder',
+        params: { id: workOrderId }
+      });
+      const wo = response.data?.data?.[0];
+      if (wo && wo.ro_number) {
+        window.open(getWorkOrderEditUrl(wo.ro_number), '_blank');
+      } else {
+        alert('Could not find RO number for this Work Order.');
+      }
+    } catch (error) {
+      console.error('Error fetching Work Order:', error);
+      alert('Failed to open Work Order.');
+    }
   };
 
   const handleBulkReturn = async () => {
@@ -624,6 +644,11 @@ export default function InventoryReturnsPage() {
                                 <ContextMenuItem onClick={() => openModal(setShowEditReturnInfoModal, returnItem)}>
                                   <Pencil className="w-4 h-4 mr-2" /> Edit Return Info
                                 </ContextMenuItem>
+                                {returnItem.work_order_id && (
+                                  <ContextMenuItem onClick={() => handleOpenWorkOrder(returnItem.work_order_id)}>
+                                    <ExternalLink className="w-4 h-4 mr-2" /> Open Work Order
+                                  </ContextMenuItem>
+                                )}
                               </ContextMenuContent>
                             </ContextMenu>
                           ))}
