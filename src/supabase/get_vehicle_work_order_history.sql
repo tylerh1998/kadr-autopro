@@ -118,16 +118,21 @@ BEGIN
     ch."originalWoid",
     ch.scheduled_date
   FROM combined_history ch
-  WHERE (v_effective_from IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE >= v_effective_from)
-    AND (v_effective_to IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE <= v_effective_to)
-    AND (
+  WHERE (
+      v_search_term IS NOT NULL
+      AND (
+        COALESCE(ch.description, '') ILIKE '%' || v_search_term || '%'
+        OR COALESCE(ch.ro_number, '') ILIKE '%' || v_search_term || '%'
+        OR COALESCE(ch.wo_number, '') ILIKE '%' || v_search_term || '%'
+        OR COALESCE(ch.est_number, '') ILIKE '%' || v_search_term || '%'
+        OR COALESCE(ch.inv_number, '') ILIKE '%' || v_search_term || '%'
+        OR COALESCE(ch.crinv_number, '') ILIKE '%' || v_search_term || '%'
+      )
+    )
+    OR (
       v_search_term IS NULL
-      OR COALESCE(ch.description, '') ILIKE '%' || v_search_term || '%'
-      OR COALESCE(ch.ro_number, '') ILIKE '%' || v_search_term || '%'
-      OR COALESCE(ch.wo_number, '') ILIKE '%' || v_search_term || '%'
-      OR COALESCE(ch.est_number, '') ILIKE '%' || v_search_term || '%'
-      OR COALESCE(ch.inv_number, '') ILIKE '%' || v_search_term || '%'
-      OR COALESCE(ch.crinv_number, '') ILIKE '%' || v_search_term || '%'
+      AND (v_effective_from IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE >= v_effective_from)
+      AND (v_effective_to IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE <= v_effective_to)
     )
   ORDER BY ch.created_date DESC NULLS LAST;
 END;
