@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { vehicleId } = await req.json();
+    const { vehicleId, daysBack, fromDate, toDate, searchTerm } = await req.json();
 
     if (!vehicleId) {
       return Response.json({ error: 'Vehicle ID is required' }, { status: 400 });
@@ -33,7 +33,13 @@ Deno.serve(async (req) => {
 
     // Invoke the new SQL RPC function that merges native and Lankar work orders
     const { data, error } = await supabase
-      .rpc('get_vehicle_work_order_history', { p_vehicle_id: vehicleId });
+      .rpc('get_vehicle_work_order_history', {
+        p_vehicle_id: vehicleId,
+        p_days_back: daysBack ?? 365,
+        p_from_date: fromDate || null,
+        p_to_date: toDate || null,
+        p_search_term: searchTerm || null
+      });
 
     if (error) {
       throw error;

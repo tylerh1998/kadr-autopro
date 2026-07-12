@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
 import VehicleForm from './VehicleForm';
 import VehicleHistorySummaryCards from './VehicleHistorySummaryCards';
+import VehicleHistoryFilters, { DEFAULT_VEHICLE_HISTORY_FILTERS } from './VehicleHistoryFilters';
 import VehicleHistoryPrintHeader from './VehicleHistoryPrintHeader';
 import { printVehicleHistory } from './vehicleHistoryUtils';
 
@@ -18,6 +19,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
   const [customers, setCustomers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentVehicle, setCurrentVehicle] = useState(vehicle);
+  const [filters, setFilters] = useState({ ...DEFAULT_VEHICLE_HISTORY_FILTERS });
 
   useEffect(() => {
     setCurrentVehicle(vehicle);
@@ -28,7 +30,13 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
       const fetchHistory = async () => {
         setLoading(true);
         try {
-          const response = await getVehicleWorkOrderHistory({ vehicleId: vehicle.id });
+          const response = await getVehicleWorkOrderHistory({
+            vehicleId: vehicle.id,
+            daysBack: filters.daysBack,
+            fromDate: filters.fromDate,
+            toDate: filters.toDate,
+            searchTerm: filters.search.trim()
+          });
           setHistory(response.data?.workOrders || []);
         } catch (error) {
           console.error("Failed to fetch vehicle history:", error);
@@ -39,7 +47,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
       };
       fetchHistory();
     }
-  }, [open, vehicle]);
+  }, [open, vehicle?.id, filters]);
 
 
 
@@ -128,6 +136,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
               onPrint={printVehicleHistory}
               layout="modal"
             />
+            <VehicleHistoryFilters filters={filters} onApply={setFilters} />
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
           ) : history.length > 0 ? (

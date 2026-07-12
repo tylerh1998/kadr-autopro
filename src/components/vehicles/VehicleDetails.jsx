@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import VehicleHistorySummaryCards from "./VehicleHistorySummaryCards";
+import VehicleHistoryFilters, { DEFAULT_VEHICLE_HISTORY_FILTERS } from "./VehicleHistoryFilters";
 import VehicleHistoryPrintHeader from "./VehicleHistoryPrintHeader";
 import { printVehicleHistory } from "./vehicleHistoryUtils";
 
@@ -30,6 +31,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   const [workOrders, setWorkOrders] = useState([]);
   const [loadingWorkOrders, setLoadingWorkOrders] = useState(true);
   const [vinCopied, setVinCopied] = useState(false);
+  const [filters, setFilters] = useState({ ...DEFAULT_VEHICLE_HISTORY_FILTERS });
 
   useEffect(() => {
     const fetchWorkOrders = async () => {
@@ -41,7 +43,13 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
       setLoadingWorkOrders(true);
       try {
-        const response = await getVehicleWorkOrderHistory({ vehicleId: vehicle.id });
+        const response = await getVehicleWorkOrderHistory({
+          vehicleId: vehicle.id,
+          daysBack: filters.daysBack,
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          searchTerm: filters.search.trim()
+        });
         setWorkOrders(response.data?.workOrders || []);
       } catch (error) {
         console.error('Error fetching work orders:', error);
@@ -51,7 +59,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
     };
 
     fetchWorkOrders();
-  }, [vehicle?.id]);
+  }, [vehicle?.id, filters]);
 
 
 
@@ -320,10 +328,13 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
             {/* Service History */}
             <div className="flex-1 flex flex-col min-h-0">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Service History
-              </h3>
+              <div className="mb-4 space-y-3">
+                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Service History
+                </h3>
+                <VehicleHistoryFilters filters={filters} onApply={setFilters} />
+              </div>
               {loadingWorkOrders ? (
                 <div className="space-y-3 flex-1">
                   {Array(3).fill(0).map((_, i) => (
