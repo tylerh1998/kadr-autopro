@@ -35,6 +35,15 @@ Deno.serve(async (req) => {
         .select('*')
         .eq('woid', woid)
         .maybeSingle();
+        
+      // If not found by woid, try checking if they passed an invoiceid as the woid
+      if (!infoResult.data && !infoResult.error) {
+        infoResult = await supabase
+          .from('LankarWOInfo')
+          .select('*')
+          .eq('invoiceid', woid)
+          .maybeSingle();
+      }
     } else {
       infoResult = await supabase
         .from('LankarWOInfo')
