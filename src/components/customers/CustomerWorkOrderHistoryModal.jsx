@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { base44 } from '@/api/base44Client';
+import { getCustomerWorkOrderHistory } from '@/functions/getCustomerWorkOrderHistory';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge, Car } from 'lucide-react';
+import HistoryFilters, { DEFAULT_HISTORY_FILTERS } from '@/components/history/HistoryFilters';
 import VehicleHistorySummaryCards from '../vehicles/VehicleHistorySummaryCards';
 import CustomerHistoryPrintHeader from './CustomerHistoryPrintHeader';
 import { printVehicleHistory } from '../vehicles/vehicleHistoryUtils';
@@ -12,37 +13,22 @@ import { printVehicleHistory } from '../vehicles/vehicleHistoryUtils';
 export default function CustomerWorkOrderHistoryModal({ open, onClose, customer, onOpenVehicleHistory }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({ ...DEFAULT_HISTORY_FILTERS });
 
   useEffect(() => {
     if (open && customer?.id) {
       const fetchHistory = async () => {
         setLoading(true);
         try {
-          const workOrdersResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { customer_id: customer.id }
+          const response = await getCustomerWorkOrderHistory({
+            customerId: customer.id,
+            daysBack: filters.daysBack,
+            fromDate: filters.fromDate,
+            toDate: filters.toDate,
+            searchTerm: filters.search.trim()
           });
 
-          const vehicleResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Vehicle',
-            match: { customer_id: customer.id }
-          });
-
-          const workOrders = workOrdersResponse.data?.data || [];
-          const vehicles = vehicleResponse.data?.data || [];
-          const vehicleMap = new Map(vehicles.map(vehicle => [vehicle.id, vehicle]));
-
-          const enrichedHistory = workOrders
-            .map(workOrder => ({
-              ...workOrder,
-              vehicle: vehicleMap.get(workOrder.vehicle_id) || null,
-              scheduled_date: null
-            }))
-            .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
-
-          setHistory(enrichedHistory);
+          setHistory(response.data?.workOrders || []);
         } catch (error) {
           console.error("Failed to fetch customer work order history:", error);
           alert("Could not load customer history.");
@@ -53,7 +39,7 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
 
       fetchHistory();
     }
-  }, [open, customer]);
+  }, [open, customer?.id, filters]);
 
   const getDisplayNumber = (workOrder) => {
     if (workOrder.stage === 'estimate') return workOrder.est_number;
@@ -105,13 +91,14 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
             layout="modal"
             primaryActionLabel="Vehicle History"
           />
+          <HistoryFilters filters={filters} onApply={setFilters} />
           {loading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)
           ) : history.length > 0 ? (
             history.map(wo => (
               <a
                 key={wo.id}
-                href={`/WorkOrderEdit?id=${wo.ro_number}`}
+                href={wo.isLankar ? `/LankarWOView?woid=${wo.originalWoid}` : `/WorkOrderEdit?id=${wo.ro_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
