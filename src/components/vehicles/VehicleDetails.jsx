@@ -134,7 +134,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
       <CardContent className="p-6 space-y-6">
         <VehicleHistoryPrintHeader vehicle={vehicle} customer={customer} />
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 items-stretch">
           {/* Vehicle Information */}
           <div className="space-y-6">
             <div>
@@ -230,7 +230,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
           </div>
 
           {/* Owner Information */}
-          <div className="space-y-6">
+          <div className="space-y-6 h-full flex flex-col">
             {customer && (
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
@@ -316,19 +316,19 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
             <Separator />
 
             {/* Service History */}
-            <div>
+            <div className="flex-1 flex flex-col min-h-0">
               <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
                 Service History
               </h3>
               {loadingWorkOrders ? (
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1">
                   {Array(3).fill(0).map((_, i) => (
                     <Skeleton key={i} className="h-20 w-full" />
                   ))}
                 </div>
               ) : workOrders.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto vehicle-history-scroll vehicle-history-list">
+                <div className="space-y-3 flex-1 overflow-y-auto vehicle-history-scroll vehicle-history-list">
                   {workOrders.map((wo) => (
                     <a
                       key={wo.id}
@@ -368,7 +368,7 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg">
+                <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg flex-1">
                   <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                   <p className="text-sm">No service history yet</p>
                   <p className="text-xs mt-1">Work orders for this vehicle will appear here</p>
