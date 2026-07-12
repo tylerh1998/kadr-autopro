@@ -29,7 +29,10 @@ RETURNS TABLE (
   odometer INTEGER,
   "isLankar" BOOLEAN,
   "originalWoid" TEXT,
-  scheduled_date TIMESTAMP WITH TIME ZONE
+  scheduled_date TIMESTAMP WITH TIME ZONE,
+  vehicle_year BIGINT,
+  vehicle_make TEXT,
+  vehicle_model TEXT
 )
 LANGUAGE plpgsql
 AS $$
@@ -73,8 +76,13 @@ BEGIN
       w.odometer,
       false AS "isLankar",
       NULL::TEXT AS "originalWoid",
-      NULL::TIMESTAMP WITH TIME ZONE AS scheduled_date
+      NULL::TIMESTAMP WITH TIME ZONE AS scheduled_date,
+      veh.year AS vehicle_year,
+      veh.make AS vehicle_make,
+      veh.model AS vehicle_model
     FROM public."WorkOrder" w
+    LEFT JOIN public."Vehicle" veh
+      ON veh.id::TEXT = w.vehicle_id::TEXT
     WHERE w.customer_id = p_customer_id
 
     UNION ALL
@@ -106,8 +114,13 @@ BEGIN
       CAST(NULLIF(TRIM(l."txtOdometer"), '') AS INTEGER) AS odometer,
       true AS "isLankar",
       l.woid AS "originalWoid",
-      NULL::TIMESTAMP WITH TIME ZONE AS scheduled_date
+      NULL::TIMESTAMP WITH TIME ZONE AS scheduled_date,
+      veh.year AS vehicle_year,
+      veh.make AS vehicle_make,
+      veh.model AS vehicle_model
     FROM public."LankarWOInfo" l
+    LEFT JOIN public."Vehicle" veh
+      ON NULLIF(BTRIM(veh.vehid), '') = NULLIF(BTRIM(l.vehid), '')
     WHERE v_legacy_cusid IS NOT NULL
       AND NULLIF(BTRIM(l.cusid), '') = v_legacy_cusid
   )
@@ -128,7 +141,10 @@ BEGIN
     ch.odometer,
     ch."isLankar",
     ch."originalWoid",
-    ch.scheduled_date
+    ch.scheduled_date,
+    ch.vehicle_year,
+    ch.vehicle_make,
+    ch.vehicle_model
   FROM combined_history ch
   WHERE (
       v_search_term IS NOT NULL
