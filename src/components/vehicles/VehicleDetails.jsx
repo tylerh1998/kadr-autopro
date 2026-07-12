@@ -4,18 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { getVehicleWorkOrderHistory } from "@/functions/getVehicleWorkOrderHistory";
 import {
   X,
   User,
   Car,
-  Gauge,
-  Palette,
   Phone,
   Mail,
   MapPin,
   Calendar,
-  FileText
+  FileText,
+  Copy,
+  Check
 } from "lucide-react";
 import { format } from "date-fns";
 import VehicleHistorySummaryCards from "./VehicleHistorySummaryCards";
@@ -25,6 +29,7 @@ import { printVehicleHistory } from "./vehicleHistoryUtils";
 export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   const [workOrders, setWorkOrders] = useState([]);
   const [loadingWorkOrders, setLoadingWorkOrders] = useState(true);
+  const [vinCopied, setVinCopied] = useState(false);
 
   useEffect(() => {
     const fetchWorkOrders = async () => {
@@ -93,6 +98,13 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleCopyVin = async () => {
+    if (!vehicle?.vin) return;
+    await navigator.clipboard.writeText(vehicle.vin);
+    setVinCopied(true);
+    window.setTimeout(() => setVinCopied(false), 2000);
+  };
+
   return (
     <Card className="shadow-xl border-0 vehicle-history-card">
       <CardHeader className="border-b bg-slate-50 no-print">
@@ -130,63 +142,81 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                 <Car className="w-5 h-5" />
                 Vehicle Details
               </h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Year</p>
-                    <p className="text-lg font-semibold text-slate-900">{vehicle.year}</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Year</Label>
+                    <Input value={vehicle.year || ""} readOnly className="bg-slate-50" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Make</p>
-                    <p className="text-lg font-semibold text-slate-900">{vehicle.make}</p>
+                  <div className="space-y-2">
+                    <Label>Make</Label>
+                    <Input value={vehicle.make || ""} readOnly className="bg-slate-50" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Model</Label>
+                    <Input value={vehicle.model || ""} readOnly className="bg-slate-50" />
                   </div>
                 </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Model</p>
-                  <p className="text-lg font-semibold text-slate-900">{vehicle.model}</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>VIN</Label>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input value={vehicle.vin || ""} readOnly className="font-mono uppercase bg-slate-50" />
+                        <div className="font-mono text-sm text-slate-400 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
+                          {'       * *      *'}
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" onClick={handleCopyVin} disabled={!vehicle.vin} className="min-w-24">
+                        {vinCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        <span>{vinCopied ? "Copied" : "Copy"}</span>
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>License Plate</Label>
+                    <Input value={vehicle.license_plate || ""} readOnly className="bg-slate-50" />
+                  </div>
                 </div>
 
-                {vehicle.color && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                      <Palette className="w-4 h-4" />
-                      Color
-                    </span>
-                    <span className="text-slate-900 font-medium">{vehicle.color}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Unit Number</Label>
+                    <Input value={vehicle.unit_number || ""} readOnly className="bg-slate-50" />
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label>Color</Label>
+                    <Input value={vehicle.color || ""} readOnly className="bg-slate-50" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Mileage</Label>
+                    <Input value={vehicle.mileage ? vehicle.mileage.toLocaleString() : ""} readOnly className="bg-slate-50" />
+                  </div>
+                </div>
 
-                {vehicle.mileage && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                      <Gauge className="w-4 h-4" />
-                      Mileage
-                    </span>
-                    <span className="text-slate-900 font-medium">{vehicle.mileage.toLocaleString()} km</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Engine</Label>
+                    <Input value={vehicle.engine || ""} readOnly className="bg-slate-50" />
                   </div>
-                )}
+                  <div className="space-y-2">
+                    <Label>Trim</Label>
+                    <Input value={vehicle.trim || ""} readOnly className="bg-slate-50" />
+                  </div>
+                </div>
 
-                {vehicle.engine && (
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Engine</p>
-                    <p className="text-slate-900 font-medium">{vehicle.engine}</p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Textarea value={vehicle.notes || ""} readOnly className="bg-slate-50 min-h-[96px]" />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox checked={vehicle.is_active !== false} disabled />
+                  <Label className="cursor-default">Active</Label>
+                </div>
               </div>
             </div>
-
-            {vehicle.vin && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-2">VIN Number</p>
-                  <p className="text-sm font-mono bg-slate-100 p-3 rounded-lg break-all text-slate-900">
-                    {vehicle.vin}
-                  </p>
-                </div>
-              </>
-            )}
 
             <>
               <Separator />
@@ -197,21 +227,6 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                 gridClassName="xl:grid-cols-2"
               />
             </>
-
-            {vehicle.notes && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Notes
-                  </p>
-                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">
-                    {vehicle.notes}
-                  </p>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Owner Information */}
