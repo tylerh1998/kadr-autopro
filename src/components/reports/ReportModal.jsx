@@ -66,12 +66,6 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
             path: 'ChartOfAccounts'
           },
           {
-            name: 'Cheque Register',
-            description: 'View and manage cheque history',
-            icon: 'BookCopy',
-            path: 'ChequeRegister'
-          },
-          {
             name: 'Taxes',
             description: 'Manage tax rates and settings',
             icon: 'Percent',
@@ -88,34 +82,6 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
             description: 'Manage fiscal years and periods',
             icon: 'CalendarClock',
             path: 'FiscalPeriods'
-          }
-        ];
-
-      case 'financial':
-        return [
-          {
-            name: 'Financial Dashboard',
-            description: 'Comprehensive overview of key financial metrics, cash flow, and account balances',
-            icon: 'BarChart3',
-            path: 'FinancialDashboard'
-          },
-          {
-            name: 'Profit & Loss Statement',
-            description: 'Income and expense summary for a specified period',
-            icon: 'TrendingUp',
-            path: 'PLReport'
-          },
-          {
-            name: 'Balance Sheet',
-            description: 'Assets, liabilities, and equity at a point in time',
-            icon: 'Scale',
-            path: 'BalanceSheet'
-          },
-          {
-            name: 'General Ledger',
-            description: 'Detailed transaction history by account',
-            icon: 'FileText',
-            path: 'GeneralLedger'
           },
           {
             name: 'GL Journal',
@@ -249,7 +215,10 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
   };
 
   const handleReportClick = (report) => {
-    if (report.path) {
+    if (report.path === 'ChartOfAccounts') {
+      window.open(createPageUrl('FinancialDashboard') + '?view=chartofaccounts', '_blank', 'width=1400,height=900');
+      onClose();
+    } else if (report.path) {
       // Open report in new window
       window.open(createPageUrl(report.path), '_blank', 'width=1400,height=900');
       onClose();

@@ -9,9 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Search, BookOpen, Loader2, FileText, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format, subDays } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-export default function GeneralLedgerPage() {
+export default function GeneralLedgerPage({ isEmbedded = false }) {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,12 +221,14 @@ export default function GeneralLedgerPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link to={createPageUrl('ChartOfAccounts')}>
-            <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-          </Link>
+          {!isEmbedded && (
+            <Link to={createPageUrl('ChartOfAccounts')}>
+              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+            </Link>
+          )}
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">General Ledger</h1>
-            <p className="text-slate-600 mt-1">View all account balances and transactions</p>
+            <h1 className="text-3xl font-bold text-foreground">General Ledger</h1>
+            <p className="text-muted-foreground mt-1">View all account balances and transactions</p>
           </div>
         </div>
 

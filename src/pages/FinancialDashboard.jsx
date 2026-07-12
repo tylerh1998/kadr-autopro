@@ -13,13 +13,17 @@ import {
 } from '@/components/ui/select';
 import { ArrowLeft, Calendar, RefreshCw, Printer } from 'lucide-react';
 import { format, subMonths, subDays } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendReport';
 import AccountBalancesByTypeReport from '@/components/financial-dashboard/AccountBalancesByTypeReport';
 import TopExpenseCategoriesReport from '@/components/financial-dashboard/TopExpenseCategoriesReport';
 import ThreeMonthPLReport from '@/components/financial-dashboard/ThreeMonthPLReport';
 import ThreeMonthAPReport from '@/components/financial-dashboard/ThreeMonthAPReport';
 import CustomerPaymentsBreakdownReport from '@/components/financial-dashboard/CustomerPaymentsBreakdownReport';
+import PLReport from './PLReport';
+import BalanceSheet from './BalanceSheet';
+import GeneralLedger from './GeneralLedger';
+import ChartOfAccounts from './ChartOfAccounts';
 
 const REPORT_OPTIONS = [
   { value: 'cashFlow', label: 'Cash Flow Trend' },
@@ -42,7 +46,23 @@ export default function FinancialDashboard() {
   const [draftDaysBack, setDraftDaysBack] = useState(365);
   const [draftFromDate, setDraftFromDate] = useState(initialFromDate);
   const [draftToDate, setDraftToDate] = useState(initialToDate);
-  const [reportType, setReportType] = useState('cashFlow');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reportType = searchParams.get('report') || 'cashFlow';
+  const view = searchParams.get('view') || 'dashboard';
+
+  const setView = (newView) => {
+    setSearchParams(params => {
+      params.set('view', newView);
+      return params;
+    });
+  };
+
+  const setReportType = (newReportType) => {
+    setSearchParams(params => {
+      params.set('report', newReportType);
+      return params;
+    });
+  };
   const [threeMonthPLData, setThreeMonthPLData] = useState(null);
   const [threeMonthPLLoading, setThreeMonthPLLoading] = useState(false);
   const [threeMonthPLLoadedForEndDate, setThreeMonthPLLoadedForEndDate] = useState('');
@@ -253,8 +273,51 @@ export default function FinancialDashboard() {
     );
   }
 
+  const renderTabs = () => (
+    <div className="bg-background border-b border-border px-6 pt-4 pb-4 sticky top-0 z-10 no-print">
+      <div className="max-w-7xl mx-auto flex items-center gap-2">
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md ${view === 'dashboard' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          onClick={() => setView('dashboard')}
+        >
+          Financial Dashboard
+        </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md ${view === 'plreport' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          onClick={() => setView('plreport')}
+        >
+          Profit & Loss
+        </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md ${view === 'balancesheet' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          onClick={() => setView('balancesheet')}
+        >
+          Balance Sheet
+        </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md ${view === 'generalledger' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          onClick={() => setView('generalledger')}
+        >
+          General Ledger
+        </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md ${view === 'chartofaccounts' ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+          onClick={() => setView('chartofaccounts')}
+        >
+          Chart of Accounts
+        </button>
+      </div>
+    </div>
+  );
+
+  if (view === 'plreport') return <div className="min-h-screen flex flex-col">{renderTabs()}<div className="flex-1"><PLReport isEmbedded={true} /></div></div>;
+  if (view === 'balancesheet') return <div className="min-h-screen flex flex-col">{renderTabs()}<div className="flex-1"><BalanceSheet isEmbedded={true} /></div></div>;
+  if (view === 'generalledger') return <div className="min-h-screen flex flex-col">{renderTabs()}<div className="flex-1"><GeneralLedger isEmbedded={true} /></div></div>;
+  if (view === 'chartofaccounts') return <div className="min-h-screen flex flex-col">{renderTabs()}<div className="flex-1"><ChartOfAccounts isEmbedded={true} /></div></div>;
+
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
+      {renderTabs()}
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -306,20 +369,22 @@ export default function FinancialDashboard() {
             <CardContent className="p-6 space-y-4">
               <div className="flex flex-wrap gap-4 items-end">
                 <div className="space-y-2">
-                  <Label>Days Back</Label>
+                  <Label className={reportType === 'threeMonthPL' || reportType === 'threeMonthAP' ? 'text-slate-400' : ''}>Days Back</Label>
                   <Input
                     type="number"
                     value={draftDaysBack}
                     onChange={(e) => handleDaysBackChange(e.target.value)}
+                    disabled={reportType === 'threeMonthPL' || reportType === 'threeMonthAP'}
                     className="w-28"
                   />
                 </div>
                 <div className="space-y-2 w-[170px]">
-                  <Label>From Date</Label>
+                  <Label className={reportType === 'threeMonthPL' || reportType === 'threeMonthAP' ? 'text-slate-400' : ''}>From Date</Label>
                   <Input
                     type="date"
                     value={draftFromDate}
                     onChange={(e) => setDraftFromDate(e.target.value)}
+                    disabled={reportType === 'threeMonthPL' || reportType === 'threeMonthAP'}
                     className="w-full"
                   />
                 </div>
@@ -455,12 +520,15 @@ export default function FinancialDashboard() {
 
           <div className="print-area">
             <div className="print-title" style={{ display: 'none' }}>
-              {getReportLabel()} - {format(new Date(appliedFromDate), 'MMM d, yyyy')} to {format(new Date(appliedToDate), 'MMM d, yyyy')}
+              {(reportType === 'threeMonthPL' || reportType === 'threeMonthAP') 
+                ? `As of ${format(new Date(appliedToDate.replace(/-/g, '/')), 'MMM d, yyyy')}`
+                : `${format(new Date(appliedFromDate.replace(/-/g, '/')), 'MMM d, yyyy')} to ${format(new Date(appliedToDate.replace(/-/g, '/')), 'MMM d, yyyy')}`
+              }
             </div>
             {renderReport()}
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import { createPageUrl } from '@/utils';
 import AccountForm from '../components/accounts/AccountForm';
 import { Link } from 'react-router-dom';
 
-export default function ChartOfAccountsPage() {
+export default function ChartOfAccountsPage({ isEmbedded = false }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -174,30 +174,6 @@ export default function ChartOfAccountsPage() {
             <p className="text-slate-600 mt-1">Manage your accounting structure</p>
           </div>
           <div className="flex flex-wrap gap-2 no-print">
-            <Link to={createPageUrl('PLReport')}>
-              <Button variant="outline" className="bg-white">
-                <BookOpen className="w-4 h-4 mr-2" />
-                P&L Report
-              </Button>
-            </Link>
-            <Link to={createPageUrl('BalanceSheet')}>
-              <Button variant="outline" className="bg-white">
-                <BookOpen className="w-4 h-4 mr-2" />
-                Balance Sheet
-              </Button>
-            </Link>
-            <Link to={createPageUrl('GeneralLedger')}>
-              <Button variant="outline" className="bg-white">
-                <BookOpen className="w-4 h-4 mr-2" />
-                GL Ledger
-              </Button>
-            </Link>
-            <Link to={createPageUrl('GLJournal')}>
-              <Button variant="outline" className="bg-white">
-                <BookOpen className="w-4 h-4 mr-2" />
-                GL Journal
-              </Button>
-            </Link>
             <Button 
               onClick={() => {
                 setEditingAccount(null);

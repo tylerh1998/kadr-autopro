@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
       const debit = Number.parseFloat(line?.debit || 0) || 0;
       const credit = Number.parseFloat(line?.credit || 0) || 0;
       const memo = String(line?.memo || '').trim();
+      const reference = String(line?.reference || '').trim();
 
       if (!account) {
         throw new Error(`Line ${index + 1} is missing an account.`);
@@ -59,6 +60,7 @@ Deno.serve(async (req) => {
         debit: Number(debit.toFixed(2)),
         credit: Number(credit.toFixed(2)),
         memo,
+        reference,
       };
     });
 
@@ -72,7 +74,7 @@ Deno.serve(async (req) => {
     };
 
     const creatorName = user.User_name || user.full_name || user.email || user.id;
-    const reference = `JE-${Date.now()}`;
+    const pairingId = `JE-${Date.now()}`;
     const nowIso = getCurrentMountainTimeISO();
 
     for (const line of normalizedLines) {
@@ -82,11 +84,11 @@ Deno.serve(async (req) => {
         account_number: line.account,
         transaction_date: transactionDate,
         description: line.memo || 'Manual Journal Entry',
-        reference,
+        reference: line.reference || '',
         debit_amount: line.debit,
         credit_amount: line.credit,
         source_type: 'manual',
-        source_id: null,
+        source_id: pairingId,
         created_date: nowIso,
         updated_date: nowIso,
         created_by: creatorName,
@@ -111,7 +113,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      reference,
+      reference: pairingId,
       count: normalizedLines.length,
       transaction_ids: createdTransactionIds,
     });

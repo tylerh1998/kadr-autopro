@@ -5,25 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Save, RotateCcw, BookOpen, Plus } from 'lucide-react';
+import { AlertTriangle, Save, RotateCcw, BookOpen, Plus, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
+import PayrollGLAccountCombobox from '@/components/payroll/PayrollGLAccountCombobox';
 
 export default function JournalEntriesPage() {
-  const accountInputRef = React.useRef(null);
+  const memoInputRef = React.useRef(null);
+  const dateInputRef = React.useRef(null);
   const [accounts, setAccounts] = useState([]);
   const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedAccount, setSelectedAccount] = useState('');
   const [currentDebit, setCurrentDebit] = useState('');
   const [currentCredit, setCurrentCredit] = useState('');
   const [currentMemo, setCurrentMemo] = useState('');
+  const [currentReference, setCurrentReference] = useState('');
   const [journalLines, setJournalLines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadAccounts();
+    // Auto-focus date field on load
+    setTimeout(() => {
+      if (dateInputRef.current) {
+        dateInputRef.current.focus();
+      }
+    }, 50);
   }, []);
 
   const loadAccounts = async () => {
@@ -59,21 +67,21 @@ export default function JournalEntriesPage() {
       accountName: getAccountName(selectedAccount),
       debit: currentDebit ? parseFloat(currentDebit).toFixed(2) : '0.00',
       credit: currentCredit ? parseFloat(currentCredit).toFixed(2) : '0.00',
-      memo: currentMemo
+      memo: currentMemo,
+      reference: currentReference
     };
 
     setJournalLines([...journalLines, newLine]);
     
-    // Clear form
+    // Clear only monetary and account fields, leave Memo and Reference intact
     setSelectedAccount('');
     setCurrentDebit('');
     setCurrentCredit('');
-    setCurrentMemo('');
 
-    // Shift focus back to account field
+    // Shift focus to memo field as requested
     setTimeout(() => {
-      if (accountInputRef.current) {
-        accountInputRef.current.focus();
+      if (memoInputRef.current) {
+        memoInputRef.current.focus();
       }
     }, 10);
   };
@@ -116,6 +124,7 @@ export default function JournalEntriesPage() {
     setCurrentDebit('');
     setCurrentCredit('');
     setCurrentMemo('');
+    setCurrentReference('');
     setTransactionDate(format(new Date(), 'yyyy-MM-dd'));
   };
 
@@ -149,6 +158,7 @@ export default function JournalEntriesPage() {
                 <Input
                   id="transaction-date"
                   type="date"
+                  ref={dateInputRef}
                   value={transactionDate}
                   onChange={(e) => setTransactionDate(e.target.value)}
                 />
@@ -156,25 +166,19 @@ export default function JournalEntriesPage() {
             </div>
 
             {/* Entry Line Form */}
-            <div className="border-t pt-4">
+            <div className="border-t pt-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <div className="md:col-span-3 space-y-2">
+                <div className="md:col-span-4 space-y-2">
                   <Label htmlFor="account">Account</Label>
-                  <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                    <SelectTrigger ref={accountInputRef} id="account">
-                      <SelectValue placeholder="Select account..." />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {accounts.map((account) => (
-                        <SelectItem key={account.account_number} value={account.account_number}>
-                          <span className="font-bold">{account.account_number}</span> - {account.account_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PayrollGLAccountCombobox
+                    chartOfAccounts={accounts}
+                    currentValue={selectedAccount}
+                    onChange={setSelectedAccount}
+                    placeholder="Select account..."
+                  />
                 </div>
 
-                <div className="md:col-span-2 space-y-2">
+                <div className="md:col-span-4 space-y-2">
                   <Label htmlFor="debit">Debit</Label>
                   <Input
                     id="debit"
@@ -189,7 +193,7 @@ export default function JournalEntriesPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2 space-y-2">
+                <div className="md:col-span-4 space-y-2">
                   <Label htmlFor="credit">Credit</Label>
                   <Input
                     id="credit"
@@ -203,20 +207,45 @@ export default function JournalEntriesPage() {
                     }}
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div className="md:col-span-5 space-y-2">
                   <Label htmlFor="memo">Memo</Label>
                   <Input
                     id="memo"
+                    ref={memoInputRef}
                     placeholder="Description..."
                     value={currentMemo}
                     onChange={(e) => setCurrentMemo(e.target.value)}
                   />
                 </div>
 
-                <div className="md:col-span-1">
-                  <Button onClick={handleAddLine} size="sm" className="w-full">
-                    <Plus className="w-4 h-4 mr-1" />
+                <div className="md:col-span-5 space-y-2 relative">
+                  <Label htmlFor="reference">Reference No.</Label>
+                  <div className="flex">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="px-2 rounded-r-none border-r-0 text-slate-500 hover:text-slate-800"
+                      onClick={() => setCurrentReference(currentMemo)}
+                      title="Copy Memo to Reference"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                    <Input
+                      id="reference"
+                      placeholder="Reference..."
+                      value={currentReference}
+                      onChange={(e) => setCurrentReference(e.target.value)}
+                      className="rounded-l-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <Button onClick={handleAddLine} size="lg" className="w-full text-base h-10">
+                    <Plus className="w-5 h-5 mr-1" />
                     Add
                   </Button>
                 </div>
@@ -243,9 +272,10 @@ export default function JournalEntriesPage() {
                   <tr>
                     <th className="text-left p-3 font-semibold text-slate-700 w-8">#</th>
                     <th className="text-left p-3 font-semibold text-slate-700 w-48">Account</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-32">Debit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-32">Credit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 w-28">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 w-28">Credit</th>
                     <th className="text-left p-3 font-semibold text-slate-700">Memo</th>
+                    <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
                     <th className="text-center p-3 font-semibold text-slate-700 w-16"></th>
                   </tr>
                 </thead>
@@ -267,6 +297,7 @@ export default function JournalEntriesPage() {
                           {parseFloat(line.credit) > 0 ? `$${parseFloat(line.credit).toFixed(2)}` : ''}
                         </td>
                         <td className="p-3 text-slate-600">{line.memo}</td>
+                        <td className="p-3 text-slate-600">{line.reference}</td>
                         <td className="p-3 text-center">
                           <Button
                             variant="ghost"
@@ -281,7 +312,7 @@ export default function JournalEntriesPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="6" className="p-12 text-center text-slate-500">
+                      <td colSpan="7" className="p-12 text-center text-slate-500">
                         No journal entry lines added yet. Use the form above to add entries.
                       </td>
                     </tr>
@@ -297,14 +328,13 @@ export default function JournalEntriesPage() {
                       <td className="p-3 text-right text-slate-900">
                         ${totalCredits.toFixed(2)}
                       </td>
-                      <td className="p-3">
+                      <td className="p-3" colSpan="3">
                         {!isBalanced && (
-                          <span className="text-red-600 text-xs">
-                            Difference: ${Math.abs(totalDebits - totalCredits).toFixed(2)}
+                          <span className="text-red-600 flex items-center gap-1 text-sm">
+                            <AlertTriangle className="w-4 h-4" /> Difference: ${Math.abs(totalDebits - totalCredits).toFixed(2)}
                           </span>
                         )}
                       </td>
-                      <td className="p-3"></td>
                     </tr>
                   )}
                 </tbody>

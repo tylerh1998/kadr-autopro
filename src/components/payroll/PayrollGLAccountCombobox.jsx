@@ -6,11 +6,13 @@ import { Check, Search } from 'lucide-react';
 
 const sortAccounts = (accounts) => [...accounts].sort((a, b) => String(a.account_number).localeCompare(String(b.account_number), undefined, { numeric: true, sensitivity: 'base' }));
 
-export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel }) {
+export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue, onChange, disabled, placeholder = 'Select GL Account *', className = '', selectedLabel, nextElementId = 'debit' }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const selectedItemRef = React.useRef(null);
   const listRef = React.useRef(null);
+  const highlightedItemRef = React.useRef(null);
 
   const availableAccounts = useMemo(() => {
     return sortAccounts(chartOfAccounts || []);
@@ -27,18 +29,23 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
   }, [availableAccounts, search]);
 
   React.useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [search]);
+
+  React.useEffect(() => {
     if (!open) return;
 
     const timeoutId = window.setTimeout(() => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const listEl = listRef.current;
-          const selectedEl = selectedItemRef.current;
-          if (!listEl || !selectedEl) return;
+          // Use highlighted item if navigating by keyboard, otherwise fallback to selected item
+          const targetEl = highlightedItemRef.current || selectedItemRef.current;
+          if (!listEl || !targetEl) return;
 
           const listRect = listEl.getBoundingClientRect();
-          const selectedRect = selectedEl.getBoundingClientRect();
-          const targetTop = selectedRect.top - listRect.top + listEl.scrollTop - (listEl.clientHeight / 2) + (selectedEl.offsetHeight / 2);
+          const targetRect = targetEl.getBoundingClientRect();
+          const targetTop = targetRect.top - listRect.top + listEl.scrollTop - (listEl.clientHeight / 2) + (targetEl.offsetHeight / 2);
 
           listEl.scrollTop = Math.max(0, targetTop);
         });
@@ -46,7 +53,33 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
     }, 30);
 
     return () => window.clearTimeout(timeoutId);
-  }, [open, filteredAccounts, currentValue]);
+  }, [open, filteredAccounts, currentValue, highlightedIndex]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Tab' && e.shiftKey) {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+    } else if (e.key === 'ArrowDown' || e.key === 'Tab') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev < filteredAccounts.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const accountToSelect = highlightedIndex >= 0 ? filteredAccounts[highlightedIndex] : filteredAccounts[0];
+      if (accountToSelect) {
+        onChange(String(accountToSelect.account_number));
+        setOpen(false);
+        setSearch('');
+        setTimeout(() => {
+          if (nextElementId) {
+             document.getElementById(nextElementId)?.focus();
+          }
+        }, 50);
+      }
+    }
+  };
 
   const selectedAccount = availableAccounts.find((account) => String(account.account_number) === String(currentValue));
   const defaultSelectedLabel = selectedAccount ? `${selectedAccount.account_number} - ${selectedAccount.account_name}` : placeholder;
@@ -78,6 +111,7 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
             placeholder="Search by account # or name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="mb-2"
             autoFocus
           />
@@ -85,18 +119,29 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
             {filteredAccounts.length === 0 ? (
               <div className="py-6 text-center text-sm text-slate-500">No accounts found.</div>
             ) : (
-              filteredAccounts.map((account) => {
+              filteredAccounts.map((account, index) => {
                 const isSelected = String(currentValue) === String(account.account_number);
+                const isHighlighted = index === highlightedIndex;
+                
+                // If it's highlighted, attach highlightedItemRef. 
+                // If it's selected, attach selectedItemRef.
+                const ref = isHighlighted ? highlightedItemRef : (isSelected ? selectedItemRef : null);
+
                 return (
                   <div
                     key={account.id || account.account_number}
-                    ref={isSelected ? selectedItemRef : null}
+                    ref={ref}
                     onClick={() => {
                       onChange(String(account.account_number));
                       setOpen(false);
                       setSearch('');
+                      setTimeout(() => {
+                        if (nextElementId) {
+                           document.getElementById(nextElementId)?.focus();
+                        }
+                      }, 50);
                     }}
-                    className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                    className={`flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none cursor-pointer border-b border-slate-50 last:border-0 ${isHighlighted ? 'bg-slate-200' : 'hover:bg-slate-100'}`}
                   >
                     <div className="flex flex-col min-w-0">
                       <span className="font-medium text-slate-900">{account.account_number}</span>

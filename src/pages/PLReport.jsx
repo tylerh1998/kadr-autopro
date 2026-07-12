@@ -9,7 +9,7 @@ import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-f
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
-export default function PLReportPage() {
+export default function PLReport({ isEmbedded = false }) {
   const [reportData, setReportData] = useState(null);
   const [warnings, setWarnings] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -338,12 +338,14 @@ export default function PLReportPage() {
           {/* Header - Hidden when printing */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 no-print">
             <div className="flex items-center gap-4">
-              <Link to={createPageUrl('ChartOfAccounts')}>
-                <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-              </Link>
+              {!isEmbedded && (
+                <Link to={createPageUrl('ChartOfAccounts')}>
+                  <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+                </Link>
+              )}
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Profit & Loss Report</h1>
-                <p className="text-slate-600 mt-1">Income and expense summary</p>
+                <h1 className="text-3xl font-bold text-foreground">Profit & Loss Report</h1>
+                <p className="text-muted-foreground mt-1">Income and expense summary</p>
               </div>
             </div>
             <Button onClick={handlePrint} variant="outline">

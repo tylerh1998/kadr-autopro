@@ -446,6 +446,10 @@ function LayoutContent({ children, currentPageName }) {
         setReportType('accounting');
         setShowReportModal(true);
         break;
+      case 'openFinancialDashboard':
+        console.log('✅ Opening Financial Dashboard');
+        window.open(createPageUrl('FinancialDashboard'), '_blank', 'width=1400,height=900');
+        break;
       default:
         console.log('⚠️ Unknown action:', action);
     }
@@ -531,7 +535,7 @@ const navigationItems = [
           { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
           { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
           { title: "Accounting", action: "showAccountingReports", icon: Calculator },
-          { title: "Reports", action: "showFinancialReports", icon: BarChart3 },
+          { title: "Reports", action: "openFinancialDashboard", icon: BarChart3 },
         ]
       };
     } else if (user?.AcctsPayAccess === true) {
