@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -8,17 +8,30 @@ import { Search, FileText, DollarSign, CreditCard } from "lucide-react";
 import { getworkorderlist } from "@/functions/getworkorderlist";
 
 export default function OpenROModal({ open, onClose }) {
-  const [activeTab, setActiveTab] = useState("work_order");
+  const [activeTab, setActiveTab] = useState("est_wo");
   const [searchNumber, setSearchNumber] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const inputRef = useRef(null);
 
   // Reset when modal opens/closes
   useEffect(() => {
     if (open) {
       setSearchNumber("");
-      setActiveTab("work_order");
+      setActiveTab("est_wo");
+      // Use a short timeout to ensure the modal is fully rendered before focusing
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  // Focus input when tab changes
+  useEffect(() => {
+    if (open) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, open]);
 
   const handleSearch = async () => {
     if (!searchNumber.trim()) {
@@ -29,12 +42,26 @@ export default function OpenROModal({ open, onClose }) {
     setIsSearching(true);
     
     try {
-      const cleanNumber = searchNumber.trim();
-      const parsedNumber = Number(cleanNumber);
+      // Helper function to strip known prefixes
+      const cleanStr = searchNumber.toUpperCase().replace(/^(EST|WO-?|INV|CRINV|RO)/, '').trim();
+      const parsedNumber = Number(cleanStr);
       const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
 
-      if (activeTab === "work_order" && Number.isFinite(parsedNumber) && parsedNumber < 50000) {
-        window.open(`/LankarWOView?woid=${cleanNumber}`, '_blank', windowFeatures);
+      if (!Number.isFinite(parsedNumber) || !cleanStr) {
+        alert("Invalid number format.");
+        setIsSearching(false);
+        return;
+      }
+
+      if (activeTab === "est_wo" && parsedNumber < 50000) {
+        window.open(`/LankarWOView?woid=${parsedNumber}`, '_blank', windowFeatures);
+        onClose();
+        setSearchNumber("");
+        return;
+      }
+
+      if (activeTab === "lankar_invoice") {
+        window.open(`/LankarWOView?invoiceid=${parsedNumber}`, '_blank', windowFeatures);
         onClose();
         setSearchNumber("");
         return;
@@ -44,49 +71,31 @@ export default function OpenROModal({ open, onClose }) {
 
       // Determine search attempts based on tab
       switch (activeTab) {
-        case "estimate":
+        case "est_wo":
           searchAttempts = [
-            { field: "est_number", value: `EST${cleanNumber}` }
-          ];
-          break;
-        case "work_order":
-          searchAttempts = [
-            { field: "ro_number", value: `RO${cleanNumber}` },
-            { field: "wo_number", value: `WO-${cleanNumber}` },
-            { field: "wo_number", value: `WO${cleanNumber}` }
+            { field: "ro_number", value: `RO${parsedNumber}` },
+            { field: "wo_number", value: `WO-${parsedNumber}` },
+            { field: "wo_number", value: `WO${parsedNumber}` },
+            { field: "est_number", value: `EST${parsedNumber}` }
           ];
           break;
         case "invoice":
-          searchAttempts = cleanNumber.length <= 5
-            ? [
-                { field: "inv_number", value: `INV0${cleanNumber}` },
-                { field: "inv_number", value: `INV${cleanNumber}` }
-              ]
-            : [
-                { field: "inv_number", value: `INV${cleanNumber}` },
-                { field: "inv_number", value: `INV0${cleanNumber}` }
-              ];
+          searchAttempts = [
+            { field: "inv_number", value: `INV${parsedNumber}` },
+            { field: "inv_number", value: `INV0${parsedNumber}` }
+          ];
           break;
         case "credit_invoice":
-          searchAttempts = cleanNumber.length <= 5
-            ? [
-                { field: "crinv_number", value: `CRINV0${cleanNumber}` },
-                { field: "crinv_number", value: `CRINV${cleanNumber}` },
-                { field: "inv_number", value: `INV0${cleanNumber}` },
-                { field: "inv_number", value: `INV${cleanNumber}` }
-              ]
-            : [
-                { field: "crinv_number", value: `CRINV${cleanNumber}` },
-                { field: "crinv_number", value: `CRINV0${cleanNumber}` },
-                { field: "inv_number", value: `INV${cleanNumber}` },
-                { field: "inv_number", value: `INV0${cleanNumber}` }
-              ];
+          searchAttempts = [
+            { field: "crinv_number", value: `CRINV${parsedNumber}` },
+            { field: "crinv_number", value: `CRINV0${parsedNumber}` }
+          ];
           break;
         default:
           searchAttempts = [
-            { field: "ro_number", value: `RO${cleanNumber}` },
-            { field: "wo_number", value: `WO-${cleanNumber}` },
-            { field: "wo_number", value: `WO${cleanNumber}` }
+            { field: "ro_number", value: `RO${parsedNumber}` },
+            { field: "wo_number", value: `WO-${parsedNumber}` },
+            { field: "wo_number", value: `WO${parsedNumber}` }
           ];
       }
 
@@ -106,7 +115,7 @@ export default function OpenROModal({ open, onClose }) {
       }
 
       if (!workOrder) {
-        alert(`No ${activeTab.replace('_', ' ')} found with number: ${cleanNumber}`);
+        alert(`No ${activeTab.replace('_', ' ')} found with number: ${cleanStr}`);
         return;
       }
 
@@ -137,40 +146,40 @@ export default function OpenROModal({ open, onClose }) {
 
   const getTabInfo = (tab) => {
     switch (tab) {
-      case "estimate":
+      case "est_wo":
         return {
           icon: FileText,
-          label: "Estimate",
-          prefix: "EST",
-          placeholder: "Enter estimate number..."
-        };
-      case "work_order":
-        return {
-          icon: FileText,
-          label: "Work Order", 
-          prefix: "WO-",
-          placeholder: "Enter work order number..."
+          label: "Estimate / Work Order",
+          prefix: "",
+          placeholder: "Enter number (e.g., WO-51234 or 51234)"
         };
       case "invoice":
         return {
           icon: DollarSign,
           label: "Invoice",
-          prefix: "INV",
+          prefix: "",
           placeholder: "Enter invoice number..."
         };
       case "credit_invoice":
         return {
           icon: CreditCard,
           label: "Credit Invoice",
-          prefix: "INV",
+          prefix: "",
           placeholder: "Enter credit invoice number..."
+        };
+      case "lankar_invoice":
+        return {
+          icon: DollarSign,
+          label: "Lankar Invoice",
+          prefix: "",
+          placeholder: "Enter legacy invoice number..."
         };
       default:
         return {
           icon: FileText,
-          label: "Work Order",
-          prefix: "WO-",
-          placeholder: "Enter work order number..."
+          label: "Estimate / Work Order",
+          prefix: "",
+          placeholder: "Enter number..."
         };
     }
   };
@@ -191,12 +200,32 @@ export default function OpenROModal({ open, onClose }) {
         <div className="py-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="estimate">Estimate</TabsTrigger>
-              <TabsTrigger value="work_order">Work Order</TabsTrigger>
+              <TabsTrigger 
+                value="est_wo"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+              >
+                Est / Work Order
+              </TabsTrigger>
+              <TabsTrigger 
+                value="invoice"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+              >
+                Invoice
+              </TabsTrigger>
             </TabsList>
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="invoice">Invoice</TabsTrigger>
-              <TabsTrigger value="credit_invoice">Credit Invoice</TabsTrigger>
+              <TabsTrigger 
+                value="credit_invoice"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+              >
+                Credit Invoice
+              </TabsTrigger>
+              <TabsTrigger 
+                value="lankar_invoice"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+              >
+                Lankar Invoice
+              </TabsTrigger>
             </TabsList>
 
             <div className="space-y-4">
@@ -208,22 +237,25 @@ export default function OpenROModal({ open, onClose }) {
               </div>
               
               <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                  {currentTabInfo.prefix}
-                </span>
+                {currentTabInfo.prefix && (
+                  <span className="text-sm font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                    {currentTabInfo.prefix}
+                  </span>
+                )}
                 <Input
+                  ref={inputRef}
                   type="text"
                   value={searchNumber}
                   onChange={(e) => setSearchNumber(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="944989"
+                  placeholder={currentTabInfo.placeholder}
                   className="flex-1"
                   autoFocus
                 />
               </div>
               
               <div className="text-xs text-slate-500">
-                Enter the number without the prefix. Press Enter to search.
+                Enter the full number or just the digits. Press Enter to search.
               </div>
             </div>
           </Tabs>

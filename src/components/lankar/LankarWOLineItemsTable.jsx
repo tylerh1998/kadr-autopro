@@ -14,13 +14,30 @@ const toNumber = (value) => {
   return Number.isFinite(num) ? num : 0;
 };
 
+const cleanText = (text) => {
+  if (!text) return text;
+  return String(text).replace(/^"|"$/g, '').trim();
+};
+
 export default function LankarWOLineItemsTable({ lineItems = [] }) {
   const sortedLineItems = [...lineItems].sort((a, b) => toNumber(a.linenum) - toNumber(b.linenum));
 
   return (
     <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
       <Table>
-...
+        <TableHeader>
+          <TableRow className="bg-slate-100 hover:bg-slate-100">
+            <TableHead className="w-20 text-center font-bold text-slate-700">Qty</TableHead>
+            <TableHead className="w-20 text-center font-bold text-slate-700">Hrs</TableHead>
+            <TableHead className="font-bold text-slate-700">Description</TableHead>
+            <TableHead className="w-28 text-right font-bold text-slate-700">Unit Price</TableHead>
+            <TableHead className="w-24 text-right font-bold text-slate-700">Parts</TableHead>
+            <TableHead className="w-24 text-right font-bold text-slate-700">Labor</TableHead>
+            <TableHead className="w-24 text-right font-bold text-slate-700">Other</TableHead>
+            <TableHead className="w-12 text-center font-bold text-slate-700">Tax</TableHead>
+            <TableHead className="w-24 text-right font-bold text-slate-700">Total</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {sortedLineItems.map((line, index) => {
             const isEven = index % 2 === 0;
@@ -36,7 +53,7 @@ export default function LankarWOLineItemsTable({ lineItems = [] }) {
                 <TableCell className={`w-20 p-2 align-top text-center ${boldClass}`}>{line.hrs || '-'}</TableCell>
                 <TableCell className="min-w-0 flex-1 pr-2 p-2 align-top">
                   <div className="space-y-1">
-                    <p className={`text-sm ${boldClass}`}>{line.description || '-'}</p>
+                    <p className={`text-sm ${boldClass}`}>{cleanText(line.description) || '-'}</p>
                     {line.partnum && (
                       <p className="text-xs text-slate-500"><span className="font-medium text-slate-600">Part #:</span> {line.partnum}</p>
                     )}

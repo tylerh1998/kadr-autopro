@@ -22,17 +22,26 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { woid } = body;
+    const { woid, invoiceid } = body;
 
-    if (!woid) {
-      return Response.json({ error: 'woid is required' }, { status: 400 });
+    if (!woid && !invoiceid) {
+      return Response.json({ error: 'woid or invoiceid is required' }, { status: 400 });
     }
 
-    const infoResult = await supabase
-      .from('LankarWOInfo')
-      .select('*')
-      .eq('woid', woid)
-      .maybeSingle();
+    let infoResult;
+    if (woid) {
+      infoResult = await supabase
+        .from('LankarWOInfo')
+        .select('*')
+        .eq('woid', woid)
+        .maybeSingle();
+    } else {
+      infoResult = await supabase
+        .from('LankarWOInfo')
+        .select('*')
+        .eq('invoiceid', invoiceid)
+        .maybeSingle();
+    }
 
     if (infoResult.error) {
       return Response.json({ error: infoResult.error.message }, { status: 500 });
@@ -42,10 +51,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Lankar work order not found' }, { status: 404 });
     }
 
+    const actualWoid = infoResult.data.woid;
+
     const linesResult = await supabase
       .from('LankarWOLines')
       .select('*')
-      .eq('woid', woid)
+      .eq('woid', actualWoid)
       .order('linenum', { ascending: true });
 
     if (linesResult.error) {

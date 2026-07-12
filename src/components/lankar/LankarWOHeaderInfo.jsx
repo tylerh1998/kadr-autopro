@@ -3,6 +3,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { User, Car, Calendar, Phone, Mail, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
+const cleanText = (text) => {
+  if (!text) return text;
+  return String(text).replace(/^"|"$/g, '').trim();
+};
+
 const getStageLabel = (stage) => {
   const normalized = String(stage || '').toUpperCase();
   if (normalized === 'UINVOICE' || normalized === 'UPINVOICE') return 'Invoice';
@@ -91,7 +96,7 @@ export default function LankarWOHeaderInfo({ info, customer, vehicle }) {
             {info?.Summary && (
               <div className="pt-4 border-t border-slate-100">
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Summary</h3>
-                <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">{info.Summary}</p>
+                <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">{cleanText(info.Summary)}</p>
               </div>
             )}
           </div>

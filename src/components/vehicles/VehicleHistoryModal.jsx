@@ -134,7 +134,7 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
             history.map(wo => (
               <a 
                 key={wo.id}
-                href={`/WorkOrderEdit?id=${wo.ro_number}`}
+                href={wo.isLankar ? `/LankarWOView?woid=${wo.originalWoid}` : `/WorkOrderEdit?id=${wo.ro_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"

@@ -35,6 +35,7 @@ export default function LankarWOView() {
   const urlParams = new URLSearchParams(window.location.search);
   const navigate = useNavigate();
   const woid = urlParams.get('woid');
+  const invoiceid = urlParams.get('invoiceid');
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,14 +48,14 @@ export default function LankarWOView() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (!woid) {
-        setError('Missing work order id');
+      if (!woid && !invoiceid) {
+        setError('Missing work order or invoice id');
         setLoading(false);
         return;
       }
 
       try {
-        const response = await getLankarWorkOrderData({ woid });
+        const response = await getLankarWorkOrderData({ woid, invoiceid });
         setData(response.data?.data || null);
       } catch (err) {
         setError(err?.response?.data?.error || err.message || 'Failed to load Lankar work order');
@@ -84,7 +85,7 @@ export default function LankarWOView() {
           <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
           <h2 className="mt-4 text-xl font-semibold text-slate-900">Error Loading Lankar Work Order</h2>
           <p className="mt-2 text-slate-600">{error || 'Work order not found'}</p>
-          <Button onClick={() => navigate('/Customers')} className="mt-4">Back</Button>
+          <Button onClick={() => window.close()} className="mt-4">Close</Button>
         </div>
       </div>
     );
