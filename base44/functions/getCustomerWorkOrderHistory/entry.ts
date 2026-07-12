@@ -43,24 +43,9 @@ Deno.serve(async (req) => {
       throw historyError;
     }
 
-    const { data: vehicleData, error: vehicleError } = await supabase
-      .from('Vehicle')
-      .select('id, year, make, model')
-      .eq('customer_id', customerId);
-
-    if (vehicleError) {
-      throw vehicleError;
-    }
-
-    const vehicleMap = new Map((vehicleData || []).map((vehicle) => [String(vehicle.id), vehicle]));
-    const workOrders = (historyData || []).map((workOrder) => ({
-      ...workOrder,
-      vehicle: workOrder.vehicle_id ? vehicleMap.get(String(workOrder.vehicle_id)) || null : null
-    }));
-
     return Response.json({
       success: true,
-      workOrders
+      workOrders: historyData || []
     });
   } catch (error) {
     console.error('Error in getCustomerWorkOrderHistory:', error);

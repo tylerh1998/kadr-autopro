@@ -68,9 +68,8 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
     }
   };
 
-  const getVehicleLabel = (vehicle) => {
-    if (!vehicle) return 'Vehicle information unavailable';
-    return [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle information unavailable';
+  const getVehicleLabel = (workOrder) => {
+    return [workOrder.vehicle_year, workOrder.vehicle_make, workOrder.vehicle_model].filter(Boolean).join(' ') || 'Vehicle information unavailable';
   };
 
   return (
@@ -123,7 +122,7 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
                 </p>
                 <p className="text-sm text-slate-600 mb-3 flex items-start gap-2">
                   <Car className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>{getVehicleLabel(wo.vehicle)}</span>
+                  <span>{getVehicleLabel(wo)}</span>
                 </p>
                 <div className="flex items-center justify-between">
                   {wo.odometer !== undefined && wo.odometer !== null ? (
