@@ -87,7 +87,24 @@ function buildInvoiceNumber(code, batchDate) {
   return `${code}${batchDate.replace(/-/g, '')}`;
 }
 
+function serializeError(error) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    name: error.name || null,
+    message: error.message || String(error),
+    code: error.code || null,
+    details: error.details || null,
+    hint: error.hint || null,
+    stack: error.stack || null
+  };
+}
+
 Deno.serve(async (req) => {
+  let currentStep = 'reading request';
+
   try {
     const payload = await req.json();
 
@@ -159,7 +176,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    for (const settlement of parsed.settlements) {
+    for (const [index, settlement] of parsed.settlements.entries()) {
+      currentStep = `creating settlement payment ${index + 1} of ${parsed.settlements.length}`;
+      console.log('processRegistriesBatch settlement payment payload:', JSON.stringify({
+        step: currentStep,
+        payment_date: settlement.payment_date,
+        amount: settlement.amount,
+        reference: confirmationReference
+      }));
+
       const paymentCreate = await supabase.from('CustomerPayments').insert({
         id: crypto.randomUUID(),
         created_date: new Date().toISOString(),
@@ -172,6 +197,11 @@ Deno.serve(async (req) => {
         reference: confirmationReference
       }).select().single();
       if (paymentCreate.error) throw paymentCreate.error;
+
+      console.log('processRegistriesBatch settlement payment created:', JSON.stringify({
+        step: currentStep,
+        id: paymentCreate.data?.id || null
+      }));
 
       glTransactions.push(
         {
@@ -202,6 +232,14 @@ Deno.serve(async (req) => {
     }
 
     if (parsed.bankDepositAmount !== 0) {
+      currentStep = 'creating bank deposit payment';
+      console.log('processRegistriesBatch bank deposit payload:', JSON.stringify({
+        step: currentStep,
+        payment_date: parsed.batchDate,
+        amount: parsed.bankDepositAmount,
+        reference: confirmationReference
+      }));
+
       const depositCreate = await supabase.from('CustomerPayments').insert({
         id: crypto.randomUUID(),
         created_date: new Date().toISOString(),
@@ -214,6 +252,11 @@ Deno.serve(async (req) => {
         reference: confirmationReference
       }).select().single();
       if (depositCreate.error) throw depositCreate.error;
+
+      console.log('processRegistriesBatch bank deposit created:', JSON.stringify({
+        step: currentStep,
+        id: depositCreate.data?.id || null
+      }));
 
       glTransactions.push(
         {
@@ -263,8 +306,22 @@ Deno.serve(async (req) => {
       inventory_credit: false
     }));
 
+    currentStep = `creating supplier invoice lines (${supplierInvoiceLines.length})`;
+    console.log('processRegistriesBatch supplier invoice payload:', JSON.stringify({
+      step: currentStep,
+      count: supplierInvoiceLines.length,
+      invoice_numbers: supplierInvoiceLines.map((line) => line.invoice_number),
+      purchase_amounts: supplierInvoiceLines.map((line) => line.purchase_amount)
+    }));
+
     const supplierInsert = await supabase.from('SupplierInvoiceLine').insert(supplierInvoiceLines).select();
     if (supplierInsert.error) throw supplierInsert.error;
+
+    console.log('processRegistriesBatch supplier invoice lines created:', JSON.stringify({
+      step: currentStep,
+      count: supplierInsert.data?.length || 0,
+      ids: (supplierInsert.data || []).map((line) => line.id)
+    }));
 
     const insertedSupplierLines = supplierInsert.data || [];
     for (const line of insertedSupplierLines) {
@@ -302,15 +359,33 @@ Deno.serve(async (req) => {
       }
     }
 
+    currentStep = `creating GL transactions (${glTransactions.length})`;
+    console.log('processRegistriesBatch GL transaction payload:', JSON.stringify({
+      step: currentStep,
+      count: glTransactions.length,
+      total_debits: Math.round(glTransactions.reduce((sum, tx) => sum + (Number(tx.debit_amount) || 0), 0) * 100) / 100,
+      total_credits: Math.round(glTransactions.reduce((sum, tx) => sum + (Number(tx.credit_amount) || 0), 0) * 100) / 100,
+      sample: glTransactions.slice(0, 3)
+    }));
+
     const { data: glCreate, error: glInsertError } = await supabase.from('GLTransaction').insert(glTransactions).select();
-    if (glInsertError) throw new Error(glInsertError.message);
+    if (glInsertError) throw glInsertError;
+
+    console.log('processRegistriesBatch GL transactions created:', JSON.stringify({
+      step: currentStep,
+      count: glCreate?.length || 0,
+      ids: (glCreate || []).slice(0, 10).map((tx) => tx.id)
+    }));
 
     return Response.json({
       success: true,
       message: `Imported registries batch with ${supplierInvoiceLines.length} invoice lines, ${parsed.settlements.length + (parsed.bankDepositAmount !== 0 ? 1 : 0)} payments, and ${glCreate?.length || glTransactions.length} GL transactions.`
     });
   } catch (error) {
-    console.error('processRegistriesBatch error:', error);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('processRegistriesBatch error:', JSON.stringify({
+      step: currentStep,
+      error: serializeError(error)
+    }));
+    return Response.json({ error: error.message, step: currentStep }, { status: 500 });
   }
 });
