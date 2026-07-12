@@ -67,13 +67,14 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
       estimate: 'Estimate',
       work_order: 'Work Order',
       invoice: 'Invoice',
-      credit_invoice: 'Credit Invoice'
+      credit_invoice: 'Credit Invoice',
+      void: 'VOID'
     };
-    return labels[stage] || 'Work Order';
+    return labels[String(stage || '').toLowerCase()] || 'Work Order';
   };
 
   const getStageBadgeStyles = (stage) => {
-    switch (stage) {
+    switch (String(stage || '').toLowerCase()) {
       case 'estimate':
         return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'work_order':
@@ -82,6 +83,8 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
         return 'bg-green-100 text-green-800 border-green-200';
       case 'credit_invoice':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'void':
+        return 'bg-black text-white border-black';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
