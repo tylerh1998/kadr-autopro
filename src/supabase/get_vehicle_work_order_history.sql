@@ -37,6 +37,7 @@ DECLARE
   v_effective_from DATE := NULL;
   v_effective_to DATE := NULL;
   v_search_term TEXT := NULLIF(BTRIM(p_search_term), '');
+  v_legacy_vehid TEXT := NULL;
 BEGIN
   IF p_from_date IS NOT NULL OR p_to_date IS NOT NULL THEN
     v_effective_from := p_from_date;
@@ -45,6 +46,12 @@ BEGIN
     v_effective_to := v_today_mt;
     v_effective_from := v_today_mt - GREATEST(p_days_back, 0);
   END IF;
+
+  SELECT NULLIF(BTRIM(v.vehid), '')
+  INTO v_legacy_vehid
+  FROM public."Vehicle" v
+  WHERE v.id::TEXT = p_vehicle_id
+  LIMIT 1;
 
   RETURN QUERY
   WITH combined_history AS (
@@ -98,7 +105,7 @@ BEGIN
       l.woid as "originalWoid",
       NULL::TIMESTAMP WITH TIME ZONE as scheduled_date
     FROM "LankarWOInfo" l
-    WHERE l.vehid = p_vehicle_id
+    WHERE NULLIF(BTRIM(l.vehid), '') = v_legacy_vehid
   )
   SELECT
     ch.id,
