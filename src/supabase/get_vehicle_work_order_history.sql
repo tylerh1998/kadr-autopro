@@ -66,7 +66,7 @@ BEGIN
       w.est_number,
       w.inv_number,
       w.crinv_number,
-      w.created_date,
+      w.created_date::DATE as created_date,
       w.total_amount,
       w.odometer,
       false as "isLankar",
@@ -98,7 +98,7 @@ BEGIN
       COALESCE(
         CAST(NULLIF(TRIM(l.invoicedate), '') AS TIMESTAMP WITH TIME ZONE),
         CAST(NULLIF(TRIM(l.wodate), '') AS TIMESTAMP WITH TIME ZONE)
-      ) as created_date,
+      )::DATE as created_date,
       CAST(NULLIF(TRIM(l.totalinvoiceamt), '') AS NUMERIC) as total_amount,
       CAST(NULLIF(TRIM(l."txtOdometer"), '') AS INTEGER) as odometer,
       true as "isLankar",
@@ -138,8 +138,8 @@ BEGIN
     )
     OR (
       v_search_term IS NULL
-      AND (v_effective_from IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE >= v_effective_from)
-      AND (v_effective_to IS NULL OR (ch.created_date AT TIME ZONE 'America/Edmonton')::DATE <= v_effective_to)
+      AND (v_effective_from IS NULL OR ch.created_date::DATE >= v_effective_from)
+      AND (v_effective_to IS NULL OR ch.created_date::DATE <= v_effective_to)
     )
   ORDER BY ch.created_date DESC NULLS LAST;
 END;
