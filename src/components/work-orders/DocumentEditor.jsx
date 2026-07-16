@@ -1074,6 +1074,16 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleHeaderSaveClick]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges || saving || !lockCheckComplete || !workOrder?.id) return;
+
+    const autoSaveTimer = window.setTimeout(() => {
+      handleSave({}, false, null, { silentError: true });
+    }, 2000);
+
+    return () => window.clearTimeout(autoSaveTimer);
+  }, [hasUnsavedChanges, saving, lockCheckComplete, workOrder?.id, handleSave]);
+
   const handleCustomerUpdate = async (customerData) => {
     try {
       if (customer) {
