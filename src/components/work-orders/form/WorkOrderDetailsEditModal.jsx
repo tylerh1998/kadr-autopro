@@ -42,7 +42,7 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
 
   const handleSave = () => {
     // Save work order details first, then update line items
-    onSave(formData, false);
+    onSave(formData, false, null, { should_keep_lock: true });
     
     // If default_taxable changed, update all line items AFTER work order is updated
     if (formData.default_taxable !== workOrder.default_taxable && onUpdateLineItems && lineItems) {
@@ -84,7 +84,7 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
     }
 
     if (window.confirm("Are you sure you want to void this repair order?")) {
-      onSave({ stage: 'void' }, false);
+      onSave({ stage: 'void' }, false, null, { should_keep_lock: true });
       onClose();
     }
   };

@@ -161,7 +161,11 @@ export default function useDocumentEditorSave({
       }
 
       if (useFunctionData) {
-        const functionPayload = sessionId ? { ...apiPayload, session_id: sessionId } : { ...apiPayload };
+        const functionPayload = {
+          ...apiPayload,
+          should_keep_lock: saveOptions.should_keep_lock === true,
+          ...(sessionId ? { session_id: sessionId } : {})
+        };
         delete functionPayload.last_updated;
         delete functionPayload.last_updated_by;
         await saveworkorderdata({ ro_number: workOrder.ro_number, data: functionPayload });

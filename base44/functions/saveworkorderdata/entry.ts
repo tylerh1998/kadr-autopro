@@ -262,6 +262,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'data is required' }, { status: 400 });
     }
 
+    const shouldKeepLock = data.should_keep_lock === true;
+
     const supabase = createClient(supabaseUrl, supabaseSecret, {
       auth: { persistSession: false }
     });
@@ -300,8 +302,11 @@ Deno.serve(async (req) => {
 
       payload.last_updated = getMountainTimeISOString();
       payload.last_updated_by = user.email;
-      payload.LockedByUser = null;
-      payload.locked_timestamp = null;
+
+      if (!shouldKeepLock) {
+        payload.LockedByUser = null;
+        payload.locked_timestamp = null;
+      }
 
       const result = await supabase
         .from('WorkOrder')
@@ -316,6 +321,10 @@ Deno.serve(async (req) => {
       }
 
       return Response.json({ success: true, id: result.data?.id || existingResult.data.id, message: 'Work order updated.' });
+    }
+
+    if (shouldKeepLock) {
+      return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock preserved.' });
     }
 
     if (existingResult.data.LockedByUser === user.email) {

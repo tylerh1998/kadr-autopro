@@ -715,7 +715,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         await handleSave({
           payments: updatedPaymentsJson,
           amount_paid: currentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-        }, false);
+        }, false, null, { should_keep_lock: true });
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
@@ -734,7 +734,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         await handleSave({
           payments: updatedPaymentsJson,
           amount_paid: filteredPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-        }, false);
+        }, false, null, { should_keep_lock: true });
       }
     } catch (error) {
       console.error(`Error processing payment ${action}:`, error);
@@ -877,7 +877,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         await handleSave({
           payments: updatedPaymentsJson,
           amount_paid: newTotalPaid
-        }, false, newLineItems);
+        }, false, newLineItems, { should_keep_lock: true });
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
@@ -917,7 +917,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         await handleSave({
           payments: updatedPaymentsJson,
           amount_paid: newTotalPaid
-        }, false, newLineItems);
+        }, false, newLineItems, { should_keep_lock: true });
       }
     } catch (error) {
       console.error(`Error processing invoice payment ${action}:`, error);
@@ -927,7 +927,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const onConversionModalCancel = useCallback(async () => {
     try {
-      await handleSave({ stage: 'work_order', converted: false }, false);
+      await handleSave({ stage: 'work_order', converted: false }, false, null, { should_keep_lock: true });
       setInvoiceConversionPhase(0);
       alert('Invoice conversion cancelled. Work order has been reverted to "Work Order" stage.');
     } catch (error) {
@@ -943,20 +943,20 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         if (data.action === 'skipped' || data.action === 'no_change') {
           console.log('Odometer update skipped or no change detected, proceeding to next phase.');
         } else {
-          await handleSave({ odometer: data.odometer }, false);
+          await handleSave({ odometer: data.odometer }, false, null, { should_keep_lock: true });
         }
         setInvoiceConversionPhase(2);
       } else if (invoiceConversionPhase === 2) {
         if (data.action === 'no_change') {
           console.log('Description update skipped as no change detected, proceeding to next phase.');
         } else {
-          await handleSave({ description: data.description }, false);
+          await handleSave({ description: data.description }, false, null, { should_keep_lock: true });
         }
         setInvoiceConversionPhase(3);
       } else if (invoiceConversionPhase === 3) {
         await handleSave({
           invoice_date: data.invoice_date,
-        }, false);
+        }, false, null, { should_keep_lock: true });
 
         isClosingAfterSaveRef.current = true;
         setInvoiceConversionPhase(0);
@@ -992,13 +992,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     }
 
     if(!window.confirm('Convert to Invoice?'))return;
-    workOrder.vehicle_id==='69562a182efce2529204db01'?(await handleSave({},false),setInvoiceConversionPhase(3)):setInvoiceConversionPhase(1);
+    workOrder.vehicle_id==='69562a182efce2529204db01'?(await handleSave({}, false, null, { should_keep_lock: true }),setInvoiceConversionPhase(3)):setInvoiceConversionPhase(1);
   }, [workOrder, lineItems]);
 
   const handleHeaderSaveClick = useCallback(async () => {
     if (saving) return;
     try {
-      await handleSave({}, false, null, { throwOnError: true, silentError: true });
+      await handleSave({}, false, null, { throwOnError: true, silentError: true, should_keep_lock: false });
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
         await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
@@ -1078,7 +1078,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     if (!hasUnsavedChanges || saving || !lockCheckComplete || !workOrder?.id) return;
 
     const autoSaveTimer = window.setTimeout(() => {
-      handleSave({}, false, null, { silentError: true });
+      handleSave({}, false, null, { silentError: true, should_keep_lock: true });
     }, 2000);
 
     return () => window.clearTimeout(autoSaveTimer);
@@ -1177,7 +1177,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         }
       }
       
-      await handleSave(updateData, false);
+      await handleSave(updateData, false, null, { should_keep_lock: true });
       setWorkOrder(prev => ({ ...prev, ...updateData }));
     } catch (error) {
       console.error('Error changing stage:', error);
@@ -1223,8 +1223,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     setConverting(true);
     try {
       // First save any changes
-      await handleSave({}, false);
-      
+      await handleSave({}, false, null, { should_keep_lock: true });
+
       // Call backend to convert and process inventory
       const response = await base44.functions.invoke('convertEstimateToWorkOrder', {
         workOrderId: workOrder.id
