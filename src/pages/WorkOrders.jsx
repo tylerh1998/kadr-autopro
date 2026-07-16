@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
+import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
 import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
@@ -146,6 +147,9 @@ export default function WorkOrdersPage() {
   };
 
   useEffect(() => {
+    let isActive = true;
+    let realtimeChannel = null;
+
     const refreshWorkOrders = () => {
       if (workOrderRefreshTimeoutRef.current) {
         clearTimeout(workOrderRefreshTimeoutRef.current);
@@ -162,11 +166,23 @@ export default function WorkOrdersPage() {
       }, 500);
     };
 
-    const unsubscribe = base44.entities.RealtimeSignal.subscribe((event) => {
-      if (!event?.data) return;
-      if (event.data.channel !== 'work_order_refresh') return;
-      refreshWorkOrders();
-    });
+    const startRealtime = async () => {
+      const supabase = await getSupabaseRealtimeClient();
+      if (!isActive) return;
+
+      realtimeChannel = supabase
+        .channel('work_order_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'WorkOrder' },
+          () => {
+            refreshWorkOrders();
+          }
+        )
+        .subscribe();
+    };
+
+    startRealtime();
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -177,7 +193,8 @@ export default function WorkOrdersPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      unsubscribe?.();
+      isActive = false;
+      realtimeChannel?.unsubscribe();
       if (workOrderRefreshTimeoutRef.current) {
         clearTimeout(workOrderRefreshTimeoutRef.current);
         workOrderRefreshTimeoutRef.current = null;
