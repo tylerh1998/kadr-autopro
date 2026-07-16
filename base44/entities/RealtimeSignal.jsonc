@@ -1,0 +1,38 @@
+{
+  "name": "RealtimeSignal",
+  "type": "object",
+  "properties": {
+    "channel": {
+      "type": "string",
+      "description": "Signal channel name"
+    },
+    "source_table": {
+      "type": "string",
+      "description": "Source table that triggered the signal"
+    },
+    "event_type": {
+      "type": "string",
+      "description": "Source event type"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Source record id if available"
+    },
+    "last_changed_mt": {
+      "type": "string",
+      "description": "Last change timestamp in America/Edmonton local time"
+    },
+    "sequence": {
+      "type": "number",
+      "description": "Monotonic counter used to force realtime update events",
+      "default": 0
+    },
+    "payload_preview": {
+      "type": "string",
+      "description": "Short payload preview for debugging"
+    }
+  },
+  "required": [
+    "channel"
+  ]
+}
