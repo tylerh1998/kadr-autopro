@@ -41,8 +41,8 @@ import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 // Initialize raw Supabase client to connect directly to the WebSocket gateway
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function WorkOrdersPage() {
