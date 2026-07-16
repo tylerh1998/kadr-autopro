@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
@@ -17,10 +17,11 @@ import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { base44 } from "@/api/base44Client";
-import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
 import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
+
+import { createClient } from '@supabase/supabase-js';
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -38,6 +39,11 @@ import TechTimeModal from "../components/work-orders/TechTimeModal";
 import NoteBoard from "../components/work-orders/NoteBoard";
 import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
+
+// Initialize raw Supabase client to connect directly to the WebSocket gateway
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState([]);
@@ -108,7 +114,6 @@ export default function WorkOrdersPage() {
   const [invoicePageData, setInvoicePageData] = useState([]);
 
   const INVOICES_PER_PAGE = 100;
-  const workOrderRefreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -146,60 +151,27 @@ export default function WorkOrdersPage() {
     }
   };
 
+  // Direct Broadcast WebSocket Connection - Zero Polling
   useEffect(() => {
-    let isActive = true;
-    let realtimeChannel = null;
-
-    const refreshWorkOrders = () => {
-      if (workOrderRefreshTimeoutRef.current) {
-        clearTimeout(workOrderRefreshTimeoutRef.current);
-      }
-
-      workOrderRefreshTimeoutRef.current = setTimeout(() => {
-        if (document.hidden) return;
-
+    const channel = supabase
+      .channel('work_order_refresh')
+      .on('broadcast', { event: 'workorder-updated' }, (message) => {
+        console.log('Live broadcast received! Database changed:', message.payload);
+        
         loadData();
         if (activeTab === 'workpro' && workPROLoaded) {
           loadWorkPROProjects();
           loadTechTimeForProjects();
         }
-      }, 500);
-    };
-
-    const startRealtime = async () => {
-      const supabase = await getSupabaseRealtimeClient();
-      if (!isActive) return;
-
-      realtimeChannel = supabase
-        .channel('work_order_changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'WorkOrder' },
-          () => {
-            refreshWorkOrders();
-          }
-        )
-        .subscribe();
-    };
-
-    startRealtime();
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refreshWorkOrders();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Connected to Supabase Live WebSocket!');
+        }
+      });
 
     return () => {
-      isActive = false;
-      realtimeChannel?.unsubscribe();
-      if (workOrderRefreshTimeoutRef.current) {
-        clearTimeout(workOrderRefreshTimeoutRef.current);
-        workOrderRefreshTimeoutRef.current = null;
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(channel);
     };
   }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
 
@@ -1688,7 +1660,7 @@ export default function WorkOrdersPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                {/* Clocked In Badge - moved here */}
+                                {/* Clocked In Badge */}
                                 {projectTechTime[project.id]?.clockedInTechs?.length > 0 && (
                                   <Badge className="bg-green-100 text-green-800 border-green-200">
                                     Clocked in: {projectTechTime[project.id].clockedInTechs.join(', ')}
@@ -1727,7 +1699,7 @@ export default function WorkOrdersPage() {
                                 )}
                               </div>
 
-                              {/* Right Side: Work Order Connected or Not Connected - Stops propagation */}
+                              {/* Right Side: Work Order Connected or Not Connected */}
                               <div className="flex items-center justify-end">
                                 {project.work_order ? (
                                   <div 
