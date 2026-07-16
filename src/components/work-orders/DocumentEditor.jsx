@@ -222,6 +222,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Local state for unsaved changes tracking
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const navigate = useNavigate();
+  const sessionIdRef = useRef(crypto.randomUUID());
   const shadowStorageKey = useMemo(() => roNumber ? `work_order_shadow_${roNumber}` : null, [roNumber]);
 
   useEffect(() => {
@@ -243,7 +244,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
     return JSON.stringify({
       ro_number: activeWorkOrder.ro_number,
-      data: apiPayload,
+      data: {
+        ...apiPayload,
+        session_id: sessionIdRef.current,
+      },
     });
   }, [draftWorkOrder, workOrder, lineItems, systemSettings, invoiceConversionPhase]);
 
@@ -659,6 +663,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     lockAcquiredRef,
     setHasUnsavedChanges,
     setSaving,
+    sessionId: sessionIdRef.current,
   });
 
   const handleProcessAdvancePayment = useCallback(async (action, payload) => {

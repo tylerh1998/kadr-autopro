@@ -6,8 +6,8 @@ const DATE_FIELDS = new Set(['est_date', 'wo_date', 'completed_date', 'invoice_d
 const CURRENCY_FIELDS = new Set(['labor_rate', 'parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid']);
 const IMMUTABLE_FIELDS = ['id', 'ro_number', 'created_at', 'updated_at', 'created_date', 'updated_date', 'created_by', 'created_by_id'];
 const AUDIT_FIELDS = ['last_updated', 'last_updated_by'];
-const NON_PERTINENT_FIELDS = new Set(['LockedByUser', 'locked_timestamp', ...AUDIT_FIELDS]);
-const ALLOWED_FIELDS = new Set(['wo_number', 'est_number', 'inv_number', 'crinv_number', 'customer_id', 'vehicle_id', 'status', 'kanban_order', 'priority', 'stage', 'approval', 'converted', 'LockedByUser', 'locked_timestamp', 'description', 'odometer', 'labor_rate', 'parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'est_date', 'wo_date', 'completed_date', 'invoice_date', 'internal_notes', 'line_items', 'payments', 'amount_paid', 'notes_to_customer', 'po_number', 'cvip', 'default_taxable', 'accounting_details', 'cp_id', 'tech_time', 'last_updated', 'last_updated_by', 'completed_by']);
+const NON_PERTINENT_FIELDS = new Set(['LockedByUser', 'locked_timestamp', 'session_id', ...AUDIT_FIELDS]);
+const ALLOWED_FIELDS = new Set(['wo_number', 'est_number', 'inv_number', 'crinv_number', 'customer_id', 'vehicle_id', 'status', 'kanban_order', 'priority', 'stage', 'approval', 'converted', 'LockedByUser', 'locked_timestamp', 'session_id', 'description', 'odometer', 'labor_rate', 'parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'est_date', 'wo_date', 'completed_date', 'invoice_date', 'internal_notes', 'line_items', 'payments', 'amount_paid', 'notes_to_customer', 'po_number', 'cvip', 'default_taxable', 'accounting_details', 'cp_id', 'tech_time', 'last_updated', 'last_updated_by', 'completed_by']);
 
 const getMountainTimeISOString = () => {
   const now = new Date();

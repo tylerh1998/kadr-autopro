@@ -25,6 +25,7 @@ export default function useDocumentEditorSave({
   lockAcquiredRef,
   setHasUnsavedChanges,
   setSaving,
+  sessionId,
 }) {
   return useCallback(async (updatedDetails = {}, showAlertOnSuccess = true, lineItemsOverride = null, saveOptions = {}) => {
     if (!workOrder || !workOrder.id) {
@@ -160,9 +161,10 @@ export default function useDocumentEditorSave({
       }
 
       if (useFunctionData) {
-        delete apiPayload.last_updated;
-        delete apiPayload.last_updated_by;
-        await saveworkorderdata({ ro_number: workOrder.ro_number, data: apiPayload });
+        const functionPayload = sessionId ? { ...apiPayload, session_id: sessionId } : { ...apiPayload };
+        delete functionPayload.last_updated;
+        delete functionPayload.last_updated_by;
+        await saveworkorderdata({ ro_number: workOrder.ro_number, data: functionPayload });
       } else {
         try {
           const originalWorkOrderResponse = await base44.functions.invoke('SupabaseProxy', {
@@ -256,5 +258,6 @@ export default function useDocumentEditorSave({
     lockAcquiredRef,
     setHasUnsavedChanges,
     setSaving,
+    sessionId,
   ]);
 }
