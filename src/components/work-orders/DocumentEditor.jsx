@@ -4,7 +4,10 @@ import { useShopData } from '../hooks/useInventory';
 import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client'; import { saveworkorderdata } from '@/functions/saveworkorderdata'; import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
+import { base44 } from '@/api/base44Client';
+import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
+import { appParams } from '@/lib/app-params';
+import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 import {
   Save,
   Printer,
@@ -95,6 +98,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     setLineItems,
     refetch: refetchWorkOrder
   } = useWorkOrder(roNumber, { useFunctionData });
+  const [draftWorkOrder, setDraftWorkOrder] = useState(null);
 
   const setWorkOrder = useCallback((value) => {
     console.trace('WorkOrder state updated in DocumentEditor:', value);
@@ -128,6 +132,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const [lockCheckComplete, setLockCheckComplete] = useState(false);
   const lockAcquiredRef = useRef(false);
   const isClosingAfterSaveRef = useRef(false);
+  const backgroundSyncStartedRef = useRef(false);
   const [lockError, setLockError] = useState(null);
 
   // Add state for WorkPRO project data and new modals
@@ -217,6 +222,91 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Local state for unsaved changes tracking
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const navigate = useNavigate();
+  const shadowStorageKey = useMemo(() => roNumber ? `work_order_shadow_${roNumber}` : null, [roNumber]);
+
+  useEffect(() => {
+    if (workOrder) {
+      setDraftWorkOrder(workOrder);
+    }
+  }, [workOrder]);
+
+  const buildShadowSaveRequest = useCallback(() => {
+    const activeWorkOrder = draftWorkOrder || workOrder;
+    if (!activeWorkOrder?.ro_number) return null;
+
+    const { apiPayload } = prepareWorkOrderSavePayload({
+      workOrder: activeWorkOrder,
+      lineItems: lineItems || [],
+      systemSettings,
+      invoiceConversionPhase,
+    });
+
+    return JSON.stringify({
+      ro_number: activeWorkOrder.ro_number,
+      data: apiPayload,
+    });
+  }, [draftWorkOrder, workOrder, lineItems, systemSettings, invoiceConversionPhase]);
+
+  const postKeepAliveFunction = useCallback((functionName, body) => {
+    if (!body || !appParams?.token) return false;
+
+    fetch(`${window.location.origin}/functions/${functionName}`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${appParams.token}`,
+      },
+      body,
+    }).catch((error) => {
+      console.error(`Background ${functionName} failed:`, error);
+    });
+
+    return true;
+  }, []);
+
+  const dispatchBackgroundSaveOrRelease = useCallback(() => {
+    if (isClosingAfterSaveRef.current || backgroundSyncStartedRef.current || !workOrder?.ro_number) {
+      return;
+    }
+
+    backgroundSyncStartedRef.current = true;
+
+    if (hasUnsavedChanges) {
+      const shadowBody = (shadowStorageKey && window.localStorage.getItem(shadowStorageKey)) || buildShadowSaveRequest();
+      if (shadowBody) {
+        postKeepAliveFunction('saveworkorderdata', shadowBody);
+        return;
+      }
+    }
+
+    if (lockAcquiredRef.current) {
+      postKeepAliveFunction('manageWorkOrderLock', JSON.stringify({
+        ro_number: workOrder.ro_number,
+        action: 'release',
+      }));
+    }
+  }, [workOrder?.ro_number, hasUnsavedChanges, shadowStorageKey, buildShadowSaveRequest, postKeepAliveFunction]);
+
+  useEffect(() => {
+    if (!shadowStorageKey) return;
+
+    if (!hasUnsavedChanges) {
+      window.localStorage.removeItem(shadowStorageKey);
+      backgroundSyncStartedRef.current = false;
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const shadowBody = buildShadowSaveRequest();
+      if (shadowBody) {
+        window.localStorage.setItem(shadowStorageKey, shadowBody);
+        backgroundSyncStartedRef.current = false;
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hasUnsavedChanges, shadowStorageKey, buildShadowSaveRequest]);
 
   // Combined loading state
   const loading = workOrderLoading || shopDataLoading;
@@ -445,7 +535,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Warn user to save when closing
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (!isClosingAfterSaveRef.current) {
+      dispatchBackgroundSaveOrRelease();
+
+      if (hasUnsavedChanges && !isClosingAfterSaveRef.current) {
         const entityName = mode === 'estimate' ? 'an estimate' : 'a work order';
         const message = `Please use the save button when closing ${entityName}.`;
         e.preventDefault();
@@ -454,9 +546,17 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
     };
 
+    const handlePageHide = () => {
+      dispatchBackgroundSaveOrRelease();
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [mode]);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [mode, hasUnsavedChanges, dispatchBackgroundSaveOrRelease]);
 
   // Release lock on unmount
   useEffect(() => {
@@ -464,12 +564,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     const currentUserEmail = currentUser?.email;
 
     const releaseLock = async () => {
-      if (!currentWorkOrderId || !currentUserEmail || !lockAcquiredRef.current) {
+      if (!currentWorkOrderId || !currentUserEmail || !lockAcquiredRef.current || backgroundSyncStartedRef.current) {
         return;
       }
 
       try {
-        // Optimized: Use get instead of filter for faster response during unmount
         const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
@@ -481,22 +580,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
     };
 
-    const handleBeforeUnload = (e) => {
-      if (lockAcquiredRef.current && currentWorkOrderId) {
-        // Best effort to release lock on tab close
-        manageWorkOrderLock({ ro_number: workOrder?.ro_number, action: 'release' })
-          .then(() => {})
-          .catch((error) => console.error('=== LOCK: Failed to initiate lock release on beforeunload:', error));
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       releaseLock();
     };
-  }, [workOrder?.id, workOrder?.ro_number, currentUser?.email]);
+  }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
 
   // Fetch WorkPRO project data
   useEffect(() => {
@@ -555,7 +642,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   };
 
   const handleSave = useDocumentEditorSave({
-    workOrder,
+    workOrder: draftWorkOrder || workOrder,
     lineItems,
     setLineItems,
     setWorkOrder,
@@ -906,7 +993,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleHeaderSaveClick = useCallback(async () => {
     if (saving) return;
     try {
-      await handleSave({}, false);
+      await handleSave({}, false, null, { throwOnError: true, silentError: true });
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
         await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
@@ -948,6 +1035,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
       document.body.appendChild(style);
       document.body.appendChild(successMessage);
+
+      if (shadowStorageKey) {
+        window.localStorage.removeItem(shadowStorageKey);
+      }
+      backgroundSyncStartedRef.current = false;
 
       setTimeout(() => {
         successMessage.remove();
@@ -1585,6 +1677,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               mode={mode} // Pass mode to WorkOrderForm
               shopSupplyRate={systemSettings.shop_supply_rate}
               onLineItemProcessed={handleLineItemProcessed}
+              onWorkOrderDraftChange={setDraftWorkOrder}
+              onWorkOrderDirty={() => setHasUnsavedChanges(true)}
             />
           )}
         </div>

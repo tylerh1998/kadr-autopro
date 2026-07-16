@@ -80,6 +80,8 @@ export default function WorkOrderForm({
   mode = 'work_order', // Add mode prop with default
   shopSupplyRate = 0.07,
   onLineItemProcessed,
+  onWorkOrderDraftChange,
+  onWorkOrderDirty,
 }) {
   const [editedWorkOrder, setEditedWorkOrder] = useState(initialWorkOrder);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -163,6 +165,12 @@ export default function WorkOrderForm({
   useEffect(() => {
     setEditedWorkOrder(initialWorkOrder);
   }, [initialWorkOrder]);
+
+  useEffect(() => {
+    if (editedWorkOrder && onWorkOrderDraftChange) {
+      onWorkOrderDraftChange(editedWorkOrder);
+    }
+  }, [editedWorkOrder, onWorkOrderDraftChange]);
 
   // Define handleSelectLine BEFORE using it in useEffect
   const handleSelectLine = useCallback((index) => {
@@ -353,11 +361,13 @@ export default function WorkOrderForm({
   const handleFieldChange = (field, value) => {
     setEditedWorkOrder(prev => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
+    onWorkOrderDirty?.();
   };
 
   const handleStatusChange = (status) => {
     setEditedWorkOrder(prev => ({ ...prev, status }));
     setHasUnsavedChanges(true);
+    onWorkOrderDirty?.();
   };
 
   const handleGetPart = useCallback((lineIndex) => {
