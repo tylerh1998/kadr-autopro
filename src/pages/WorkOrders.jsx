@@ -146,48 +146,39 @@ export default function WorkOrdersPage() {
   };
 
   useEffect(() => {
-    const channel = base44.supabase
-      .channel('work_order_updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'WorkOrder' },
-        () => {
-          if (workOrderRefreshTimeoutRef.current) {
-            clearTimeout(workOrderRefreshTimeoutRef.current);
-          }
+    const refreshWorkOrders = () => {
+      if (workOrderRefreshTimeoutRef.current) {
+        clearTimeout(workOrderRefreshTimeoutRef.current);
+      }
 
-          workOrderRefreshTimeoutRef.current = setTimeout(() => {
-            if (document.hidden) return;
+      workOrderRefreshTimeoutRef.current = setTimeout(() => {
+        if (document.hidden) return;
 
-            loadData();
-            if (activeTab === 'workpro' && workPROLoaded) {
-              loadWorkPROProjects();
-              loadTechTimeForProjects();
-            }
-          }, 500);
-        }
-      )
-      .subscribe();
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
         loadData();
         if (activeTab === 'workpro' && workPROLoaded) {
           loadWorkPROProjects();
           loadTechTimeForProjects();
         }
+      }, 500);
+    };
+
+    const refreshInterval = setInterval(refreshWorkOrders, 20000);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshWorkOrders();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      clearInterval(refreshInterval);
       if (workOrderRefreshTimeoutRef.current) {
         clearTimeout(workOrderRefreshTimeoutRef.current);
         workOrderRefreshTimeoutRef.current = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      base44.supabase.removeChannel(channel);
     };
   }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
 
