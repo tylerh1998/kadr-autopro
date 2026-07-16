@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
@@ -107,6 +107,7 @@ export default function WorkOrdersPage() {
   const [invoicePageData, setInvoicePageData] = useState([]);
 
   const INVOICES_PER_PAGE = 100;
+  const workOrderRefreshTimeoutRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,49 +145,49 @@ export default function WorkOrdersPage() {
     }
   };
 
-  // Auto-refresh data every 20 seconds when tab is visible
   useEffect(() => {
-    let refreshInterval;
+    const channel = base44.supabase
+      .channel('work_order_updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'WorkOrder' },
+        () => {
+          if (workOrderRefreshTimeoutRef.current) {
+            clearTimeout(workOrderRefreshTimeoutRef.current);
+          }
+
+          workOrderRefreshTimeoutRef.current = setTimeout(() => {
+            if (document.hidden) return;
+
+            loadData();
+            if (activeTab === 'workpro' && workPROLoaded) {
+              loadWorkPROProjects();
+              loadTechTimeForProjects();
+            }
+          }, 500);
+        }
+      )
+      .subscribe();
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Tab is hidden, clear interval
-        if (refreshInterval) {
-          clearInterval(refreshInterval);
-          refreshInterval = null;
-        }
-      } else {
-        // Tab is visible, start interval
-        refreshInterval = setInterval(() => {
-          loadData();
-          if (activeTab === 'workpro' && workPROLoaded) {
-            loadWorkPROProjects();
-            loadTechTimeForProjects();
-          }
-        }, 20000); // 20 seconds
-      }
-    };
-
-    // Initial setup - only start if tab is visible
-    if (!document.hidden) {
-      refreshInterval = setInterval(() => {
+      if (!document.hidden) {
         loadData();
         if (activeTab === 'workpro' && workPROLoaded) {
           loadWorkPROProjects();
           loadTechTimeForProjects();
         }
-      }, 20000);
-    }
+      }
+    };
 
-    // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup
     return () => {
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
+      if (workOrderRefreshTimeoutRef.current) {
+        clearTimeout(workOrderRefreshTimeoutRef.current);
+        workOrderRefreshTimeoutRef.current = null;
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      base44.supabase.removeChannel(channel);
     };
   }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
 
