@@ -1248,7 +1248,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const handleSendClick = useCallback(async () => {
     // Save before opening send modal to ensure snapshot is created with latest data
-    await handleSave({}, false);
+    await handleSave({}, false, null, { should_keep_lock: true });
     openModal('send');
   }, [handleSave, openModal]);
 
