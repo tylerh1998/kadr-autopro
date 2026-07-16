@@ -288,8 +288,16 @@ Deno.serve(async (req) => {
       enableLogging: true,
       roNumber: ro_number,
     });
+    const forcePersistFromSession = Boolean(payload.session_id);
 
-    if (pertinentChangeDetected) {
+    if (pertinentChangeDetected || forcePersistFromSession) {
+      if (!pertinentChangeDetected && forcePersistFromSession) {
+        console.log('saveworkorderdata forcing update from active session', {
+          ro_number,
+          session_id: payload.session_id,
+        });
+      }
+
       payload.last_updated = getMountainTimeISOString();
       payload.last_updated_by = user.email;
       payload.LockedByUser = null;
