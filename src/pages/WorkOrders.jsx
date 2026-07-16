@@ -21,7 +21,8 @@ import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
 
-import { createClient } from '@supabase/supabase-js';
+// Reuse your existing helper that already has the Supabase credentials configured!
+import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
 
 import WorkOrderForm from "../components/work-orders/WorkOrderForm";
 import WorkOrderList from "../components/work-orders/WorkOrderList";
@@ -39,11 +40,6 @@ import TechTimeModal from "../components/work-orders/TechTimeModal";
 import NoteBoard from "../components/work-orders/NoteBoard";
 import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
-
-// Initialize raw Supabase client to connect directly to the WebSocket gateway
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function WorkOrdersPage() {
   const [workOrders, setWorkOrders] = useState([]);
@@ -153,25 +149,37 @@ export default function WorkOrdersPage() {
 
   // Direct Broadcast WebSocket Connection - Zero Polling
   useEffect(() => {
-    const channel = supabase
-      .channel('work_order_refresh')
-      .on('broadcast', { event: 'workorder-updated' }, (message) => {
-        console.log('Live broadcast received! Database changed:', message.payload);
-        
-        loadData();
-        if (activeTab === 'workpro' && workPROLoaded) {
-          loadWorkPROProjects();
-          loadTechTimeForProjects();
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Connected to Supabase Live WebSocket!');
-        }
-      });
+    let isActive = true;
+    let realtimeChannel = null;
+
+    const startRealtime = async () => {
+      // Safely gets the working instance of the client
+      const supabase = await getSupabaseRealtimeClient();
+      if (!isActive) return;
+
+      realtimeChannel = supabase
+        .channel('work_order_refresh')
+        .on('broadcast', { event: 'workorder-updated' }, (message) => {
+          console.log('Live broadcast received! Database changed:', message.payload);
+          
+          loadData();
+          if (activeTab === 'workpro' && workPROLoaded) {
+            loadWorkPROProjects();
+            loadTechTimeForProjects();
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Connected to Supabase Live WebSocket!');
+          }
+        });
+    };
+
+    startRealtime();
 
     return () => {
-      supabase.removeChannel(channel);
+      isActive = false;
+      realtimeChannel?.unsubscribe();
     };
   }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
 
