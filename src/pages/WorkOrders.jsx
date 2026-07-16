@@ -162,7 +162,11 @@ export default function WorkOrdersPage() {
       }, 500);
     };
 
-    const refreshInterval = setInterval(refreshWorkOrders, 20000);
+    const unsubscribe = base44.entities.RealtimeSignal.subscribe((event) => {
+      if (!event?.data) return;
+      if (event.data.channel !== 'work_order_refresh') return;
+      refreshWorkOrders();
+    });
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -173,7 +177,7 @@ export default function WorkOrdersPage() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(refreshInterval);
+      unsubscribe?.();
       if (workOrderRefreshTimeoutRef.current) {
         clearTimeout(workOrderRefreshTimeoutRef.current);
         workOrderRefreshTimeoutRef.current = null;
