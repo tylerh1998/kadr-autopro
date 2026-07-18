@@ -11,6 +11,7 @@ import { ChartOfAccount, LinesOfCredit, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import GLAccountCombobox from '@/components/suppliers/GLAccountCombobox';
 
 export default function LineOfCreditTransactionModal({ open, onClose, lineOfCredit, onTransactionMade, currentUser, transaction }) {
   const [formData, setFormData] = useState({
@@ -397,23 +398,14 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
             <div className="space-y-2">
               <Label htmlFor="offset_gl_account">Offset GL Account *</Label>
-              <Select
-                value={formData.offset_gl_account}
-                onValueChange={(value) => handleChange('offset_gl_account', value)}
+              <GLAccountCombobox
+                chartOfAccounts={chartOfAccounts}
+                currentValue={formData.offset_gl_account}
+                onChange={(value) => handleChange('offset_gl_account', value)}
                 disabled={loading}
-                required
-              >
-                <SelectTrigger className={!formData.offset_gl_account ? 'border-red-300' : ''}>
-                  <SelectValue placeholder="Select GL Account..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {chartOfAccounts.filter(account => !account.controlled).map((account) => (
-                    <SelectItem key={account.id} value={account.account_number}>
-                      {account.account_number} - {account.account_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select GL Account..."
+                className={!formData.offset_gl_account ? 'border-red-300' : ''}
+              />
             </div>
           </div>
 
