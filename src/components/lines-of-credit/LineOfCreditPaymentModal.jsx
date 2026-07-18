@@ -60,6 +60,40 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const processCSV = (text) => {
     const lines = text.split('\n');
     const clean = (str) => str ? str.replace(/^"|"$/g, '').trim() : '';
+    const splitCsvLineRespectingQuotes = (input) => {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let index = 0; index < input.length; index += 1) {
+        const char = input[index];
+        const nextChar = input[index + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            current += '"';
+            index += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          values.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+
+      values.push(current);
+      return values;
+    };
+    const parseServusAmount = (amountStr) => {
+      const normalized = clean(amountStr)
+        .replace(/\((.*)\)/, '-$1')
+        .replace(/[$,]/g, '');
+      const amount = parseFloat(normalized);
+      return Number.isNaN(amount) ? null : amount;
+    };
     const csvAmounts = [];
 
     // Specific parsing for Servus and ATB
@@ -73,14 +107,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             // Skip header if it exists
             if (i === 0 && line.toLowerCase().includes('card number')) continue;
 
-            const parts = line.split(';');
+            const parts = splitCsvLineRespectingQuotes(line);
             if (parts.length >= 5) {
-                const amountStr = clean(parts[4]);
-                // Parse Amount: "$66.58"
-                const amountClean = amountStr.replace(/[$,]/g, '');
-                const amount = parseFloat(amountClean);
+                const amount = parseServusAmount(parts[4]);
 
-                if (!isNaN(amount) && amount !== 0) {
+                if (amount !== null && amount !== 0) {
                     csvAmounts.push(Math.abs(amount));
                 }
             }
