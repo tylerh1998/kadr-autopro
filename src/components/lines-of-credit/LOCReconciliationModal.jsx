@@ -52,6 +52,40 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
           
           // Helper to clean quotes
           const clean = (str) => str ? str.replace(/^"|"$/g, '').trim() : '';
+          const splitCsvLineRespectingQuotes = (input) => {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let index = 0; index < input.length; index += 1) {
+              const char = input[index];
+              const nextChar = input[index + 1];
+
+              if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                  current += '"';
+                  index += 1;
+                } else {
+                  inQuotes = !inQuotes;
+                }
+              } else if (char === ',' && !inQuotes) {
+                values.push(current);
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+
+            values.push(current);
+            return values;
+          };
+          const parseServusAmount = (amountStr) => {
+            const normalized = clean(amountStr)
+              .replace(/\((.*)\)/, '-$1')
+              .replace(/[$,]/g, '');
+            const amount = parseFloat(normalized);
+            return Number.isNaN(amount) ? null : amount;
+          };
 
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
@@ -62,20 +96,19 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 // Skip header if it exists
                 if (i === 0 && line.toLowerCase().includes('card number')) continue;
 
-                const parts = line.split(';');
+                const parts = splitCsvLineRespectingQuotes(line);
                 if (parts.length >= 5) {
                     const dateStr = clean(parts[2]);
                     const desc = clean(parts[3]);
                     const amountStr = clean(parts[4]);
 
-                    // Parse Date: "Jan 5, 2026"
-                    const date = new Date(dateStr);
+                    // Parse Date: "Jun 17, 2026"
+                    const date = parse(dateStr, 'MMM d, yyyy', new Date());
                     
-                    // Parse Amount: "$66.58"
-                    const amountClean = amountStr.replace(/[$,]/g, '');
-                    const amount = parseFloat(amountClean);
+                    // Parse Amount: "$504.31" or "-$2.25"
+                    const amount = parseServusAmount(amountStr);
 
-                    if (isValid(date) && !isNaN(amount)) {
+                    if (isValid(date) && amount !== null) {
                         rows.push({
                             date: format(date, 'yyyy-MM-dd'),
                             originalDate: date,
