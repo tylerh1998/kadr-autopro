@@ -1002,7 +1002,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     {paymentData.payment_method === 'Line of Credit'
                       ? linesOfCredit.map((loc) => (
                           <SelectItem key={loc.id} value={loc.id}>
-                            {loc.name} (Available: {loc.available_credit?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || '$0.00'})
+                            {loc.name}
                           </SelectItem>
                         ))
                       : bankAccounts.map((bank) => (
