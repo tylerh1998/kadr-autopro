@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import moment from 'moment';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -166,6 +167,7 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
         formatCurrency={formatCurrency}
         renderEditableRow={renderEditableRow}
       />
+      <CashFlowTimelineSection rows={rows} val={val} formatCurrency={formatCurrency} />
       <EtransferLimitsSection
         summaryData={summaryData}
         onSummaryChange={onSummaryChange}
@@ -300,6 +302,98 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
           <div className="flex justify-between items-center font-bold">
             <span className="text-slate-700">Total Remaining Overhead</span>
             <span className="font-mono text-red-600">{formatCurrency(includedTotal)}</span>
+          </div>
+        </CollapsibleContent>
+      </CardContent>
+    </Collapsible>
+  );
+}
+
+function CashFlowTimelineSection({ rows, val, formatCurrency }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const parseDueDate = (dateStr) => {
+    if (!dateStr || !dateStr.trim()) return null;
+
+    const formats = [
+      "YYYY-MM-DD",
+      "MMM D", "MMM DD", "MMM D, YYYY", "MMM DD, YYYY",
+      "M/D/YYYY", "MM/DD/YYYY", "M-D-YYYY", "MM-DD-YYYY",
+      "M/D", "MM/DD"
+    ];
+
+    let mDate = moment(dateStr, formats, true);
+    if (!mDate.isValid()) {
+      mDate = moment(dateStr);
+    }
+
+    return mDate.isValid() ? mDate.startOf('day') : null;
+  };
+
+  const buckets = [
+    { key: 'overdue', label: 'Overdue (incl today)', min: null, max: 0, className: 'bg-red-100 text-red-700' },
+    { key: 'due1to5', label: 'Due 1-5', min: 1, max: 5, className: 'bg-yellow-100 text-yellow-800' },
+    { key: 'due6to10', label: 'Due 6-10', min: 6, max: 10, className: 'bg-yellow-100 text-yellow-800' },
+    { key: 'due11to15', label: 'Due 11-15', min: 11, max: 15, className: 'bg-blue-100 text-blue-700' },
+    { key: 'due16to20', label: 'Due 16-20', min: 16, max: 20, className: 'bg-blue-100 text-blue-700' },
+    { key: 'due21plus', label: 'Due 21+', min: 21, max: null, className: 'bg-blue-100 text-blue-700' }
+  ];
+
+  const timelineTotals = buckets.reduce((acc, bucket) => {
+    acc[bucket.key] = 0;
+    return acc;
+  }, {});
+
+  const today = moment().startOf('day');
+
+  rows.forEach((row) => {
+    const remaining = val(row.amount) - val(row.amountPaid);
+    if (remaining <= 0.01) return;
+
+    const dueDate = parseDueDate(row.dueDate);
+    if (!dueDate) return;
+
+    const diff = dueDate.diff(today, 'days');
+    const bucket = buckets.find((item) => {
+      if (item.max === 0) return diff <= 0;
+      if (item.max === null) return diff >= item.min;
+      return diff >= item.min && diff <= item.max;
+    });
+
+    if (bucket) {
+      timelineTotals[bucket.key] += remaining;
+    }
+  });
+
+  const totalTimeline = Object.values(timelineTotals).reduce((sum, amount) => sum + amount, 0);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Separator />
+      <CardContent className="pt-4 pb-2 bg-white">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between cursor-pointer group">
+            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Cash Flow Timeline</h3>
+            <div className="flex items-center gap-2">
+              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(totalTimeline)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+          </div>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="space-y-3 pt-3">
+          <div className="space-y-2">
+            {buckets.map((bucket) => (
+              <div key={bucket.key} className={`flex justify-between items-center text-sm rounded-md px-2 py-1.5 ${bucket.className}`}>
+                <span className="font-medium">{bucket.label}</span>
+                <span className="font-bold font-mono">{formatCurrency(timelineTotals[bucket.key])}</span>
+              </div>
+            ))}
+            <Separator className="my-2" />
+            <div className="flex justify-between items-center font-bold">
+              <span className="text-slate-700">Total Timeline Due</span>
+              <span className="font-mono text-red-600">{formatCurrency(totalTimeline)}</span>
+            </div>
           </div>
         </CollapsibleContent>
       </CardContent>
