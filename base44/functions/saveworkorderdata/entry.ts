@@ -290,63 +290,56 @@ Deno.serve(async (req) => {
       enableLogging: true,
       roNumber: ro_number,
     });
-    const forcePersistFromSession = Boolean(payload.session_id);
+    const mountainTime = getMountainTimeISOString();
 
-    if (pertinentChangeDetected || forcePersistFromSession) {
-      if (!pertinentChangeDetected && forcePersistFromSession) {
-        console.log('saveworkorderdata forcing update from active session', {
-          ro_number,
-          session_id: payload.session_id,
-        });
-      }
+    const updatePayload = pertinentChangeDetected
+      ? {
+          ...payload,
+          updated_at: mountainTime,
+          last_updated: mountainTime,
+          last_updated_by: user.email,
+          ...(!shouldKeepLock
+            ? {
+                LockedByUser: null,
+                locked_timestamp: null,
+              }
+            : {}),
+        }
+      : {
+          updated_at: mountainTime,
+          ...(Object.prototype.hasOwnProperty.call(payload, 'session_id') ? { session_id: payload.session_id } : {}),
+          ...(shouldKeepLock
+            ? {
+                ...(Object.prototype.hasOwnProperty.call(payload, 'LockedByUser') ? { LockedByUser: payload.LockedByUser } : {}),
+                ...(Object.prototype.hasOwnProperty.call(payload, 'locked_timestamp') ? { locked_timestamp: payload.locked_timestamp } : {}),
+              }
+            : {
+                LockedByUser: null,
+                locked_timestamp: null,
+              }),
+        };
 
-      payload.last_updated = getMountainTimeISOString();
-      payload.last_updated_by = user.email;
+    const result = await supabase
+      .from('WorkOrder')
+      .update(updatePayload)
+      .eq('ro_number', ro_number)
+      .select('id')
+      .maybeSingle();
 
-      if (!shouldKeepLock) {
-        payload.LockedByUser = null;
-        payload.locked_timestamp = null;
-      }
-
-      const result = await supabase
-        .from('WorkOrder')
-        .update(payload)
-        .eq('ro_number', ro_number)
-        .select('id')
-        .maybeSingle();
-
-      if (result.error) {
-        console.error('saveworkorderdata supabase error:', result.error);
-        return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
-      }
-
-      return Response.json({ success: true, id: result.data?.id || existingResult.data.id, message: 'Work order updated.' });
+    if (result.error) {
+      console.error('saveworkorderdata supabase error:', result.error);
+      return Response.json({ error: 'Failed to save work order', details: result.error.message }, { status: 500 });
     }
 
-    if (shouldKeepLock) {
-      return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock preserved.' });
-    }
-
-    if (existingResult.data.LockedByUser === user.email) {
-      const lockReleasePayload = {
-        LockedByUser: null,
-        locked_timestamp: null,
-      };
-      const lockReleaseResult = await supabase
-        .from('WorkOrder')
-        .update(lockReleasePayload)
-        .eq('ro_number', ro_number)
-        .select('id')
-        .maybeSingle();
-
-      if (lockReleaseResult.error) {
-        console.error('saveworkorderdata lock release error:', lockReleaseResult.error);
-        return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save, but failed to release lock.', error: lockReleaseResult.error.message });
-      }
-      return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save. Lock released.' });
-    }
-
-    return Response.json({ success: true, id: existingResult.data.id, message: 'No pertinent changes to save.' });
+    return Response.json({
+      success: true,
+      id: result.data?.id || existingResult.data.id,
+      message: pertinentChangeDetected
+        ? 'Work order updated.'
+        : shouldKeepLock
+          ? 'No pertinent changes to save. Timestamp refreshed and lock preserved.'
+          : 'No pertinent changes to save. Timestamp refreshed and lock released.',
+    });
   } catch (error) {
     console.error('saveworkorderdata error:', error);
     return Response.json({ error: error.message }, { status: 500 });
