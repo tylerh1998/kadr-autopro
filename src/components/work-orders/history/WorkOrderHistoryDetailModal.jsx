@@ -9,6 +9,14 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
     return currentIndex >= 0 ? allRecords[currentIndex + 1] || null : null;
   }, [allRecords, record]);
 
+  const compareData = useMemo(() => {
+    if (!record) return {};
+    if (record.session_id) {
+      return comparisonRecord?.new_data || record?.old_data || {};
+    }
+    return record?.old_data || comparisonRecord?.new_data || {};
+  }, [comparisonRecord, record]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[85vh] overflow-y-auto">
@@ -20,7 +28,7 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
         </DialogHeader>
         <JsonToTableDisplay
           data={record?.new_data || {}}
-          compareData={record?.old_data || comparisonRecord?.new_data || {}}
+          compareData={compareData}
         />
       </DialogContent>
     </Dialog>
