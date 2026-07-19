@@ -82,12 +82,24 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
     });
   }, [records]);
 
+  const visibleRecords = useMemo(() => {
+    const seenSessions = new Set();
+
+    return sortedRecords.filter((record) => {
+      const sessionId = record?.session_id;
+      if (!sessionId) return true;
+      if (seenSessions.has(sessionId)) return false;
+      seenSessions.add(sessionId);
+      return true;
+    });
+  }, [sortedRecords]);
+
   const pagedRecords = useMemo(() => {
     const start = page * PAGE_SIZE;
-    return sortedRecords.slice(start, start + PAGE_SIZE);
-  }, [sortedRecords, page]);
+    return visibleRecords.slice(start, start + PAGE_SIZE);
+  }, [visibleRecords, page]);
 
-  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(visibleRecords.length / PAGE_SIZE));
 
   return (
     <>
@@ -102,7 +114,7 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Loading history...</span>
             </div>
-          ) : records.length === 0 ? (
+          ) : visibleRecords.length === 0 ? (
             <div className="py-16 text-center text-slate-500">No version history available for this work order.</div>
           ) : (
             <div className="space-y-4">
