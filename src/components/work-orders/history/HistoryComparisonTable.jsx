@@ -56,8 +56,15 @@ export default function HistoryComparisonTable({
         previousRow,
       }));
 
-    return [...activeRows, ...removedRows];
-  }, [currentRows, previousRows, getRowKey]);
+    return [...activeRows, ...removedRows].filter(({ currentRow, previousRow }) => {
+      if (!currentRow || !previousRow) return true;
+      return columns.some((column) => {
+        const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
+        const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
+        return !valuesEqual(previousValue, currentValue);
+      });
+    });
+  }, [currentRows, previousRows, getRowKey, columns]);
 
   if (!displayRows.length) return null;
 
@@ -76,35 +83,27 @@ export default function HistoryComparisonTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayRows.map(({ rowKey, currentRow, previousRow }) => {
-              const rowChanged = !currentRow || !previousRow || columns.some((column) => {
-                const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
-                const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
-                return !valuesEqual(previousValue, currentValue);
-              });
+            {displayRows.map(({ rowKey, currentRow, previousRow }) => (
+              <TableRow key={rowKey}>
+                {columns.map((column) => {
+                  const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
+                  const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
+                  const cellChanged = !valuesEqual(previousValue, currentValue);
+                  const previousDisplay = column.formatValue ? column.formatValue(previousValue, previousRow) : formatDisplayValue(previousValue);
+                  const currentDisplay = column.formatValue ? column.formatValue(currentValue, currentRow) : formatDisplayValue(currentValue);
+                  const displayValue = cellChanged ? `${previousDisplay} --> ${currentDisplay}` : currentDisplay;
 
-              return (
-                <TableRow key={rowKey} className={rowChanged ? 'bg-black text-white hover:bg-black' : ''}>
-                  {columns.map((column) => {
-                    const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
-                    const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
-                    const cellChanged = !valuesEqual(previousValue, currentValue);
-                    const previousDisplay = column.formatValue ? column.formatValue(previousValue, previousRow) : formatDisplayValue(previousValue);
-                    const currentDisplay = column.formatValue ? column.formatValue(currentValue, currentRow) : formatDisplayValue(currentValue);
-                    const displayValue = cellChanged ? `${previousDisplay} --> ${currentDisplay}` : currentDisplay;
-
-                    return (
-                      <TableCell
-                        key={column.key}
-                        className={`align-top whitespace-pre-wrap break-words ${rowChanged ? 'text-white font-semibold' : ''} ${column.cellClassName || ''}`}
-                      >
-                        {displayValue}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              );
-            })}
+                  return (
+                    <TableCell
+                      key={column.key}
+                      className={`align-top whitespace-pre-wrap break-words ${column.cellClassName || ''}`}
+                    >
+                      {displayValue}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
