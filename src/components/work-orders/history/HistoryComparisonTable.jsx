@@ -23,12 +23,32 @@ function formatDisplayValue(value) {
   return String(value);
 }
 
+function getRowState(currentRow, previousRow, columns) {
+  if (currentRow && !previousRow) return 'added';
+  if (!currentRow && previousRow) return 'deleted';
+  const hasChanges = columns.some((column) => {
+    const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
+    const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
+    return !valuesEqual(previousValue, currentValue);
+  });
+  return hasChanges ? 'changed' : 'unchanged';
+}
+
+function getRowClasses(rowState) {
+  if (rowState === 'added') return 'bg-emerald-50 hover:bg-emerald-50';
+  if (rowState === 'changed') return 'bg-amber-50 hover:bg-amber-50';
+  if (rowState === 'deleted') return 'bg-rose-50 hover:bg-rose-50';
+  return '';
+}
+
 export default function HistoryComparisonTable({
   title,
   columns = [],
   currentRows = [],
   previousRows = [],
   getRowKey,
+  showAllCurrentRows = false,
+  showLegend = false,
 }) {
   const displayRows = useMemo(() => {
     const previousMap = new Map();
@@ -41,10 +61,12 @@ export default function HistoryComparisonTable({
     const activeRows = (currentRows || []).map((currentRow, index) => {
       const rowKey = getRowKey(currentRow, index);
       currentKeys.add(rowKey);
+      const previousRow = previousMap.get(rowKey) || null;
       return {
         rowKey,
         currentRow,
-        previousRow: previousMap.get(rowKey) || null,
+        previousRow,
+        rowState: getRowState(currentRow, previousRow, columns),
       };
     });
 
@@ -54,23 +76,27 @@ export default function HistoryComparisonTable({
         rowKey: `removed-${getRowKey(previousRow, index)}`,
         currentRow: null,
         previousRow,
+        rowState: 'deleted',
       }));
 
-    return [...activeRows, ...removedRows].filter(({ currentRow, previousRow }) => {
-      if (!currentRow || !previousRow) return true;
-      return columns.some((column) => {
-        const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
-        const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
-        return !valuesEqual(previousValue, currentValue);
-      });
-    });
-  }, [currentRows, previousRows, getRowKey, columns]);
+    const rows = [...activeRows, ...removedRows];
+    return showAllCurrentRows ? rows : rows.filter((row) => row.rowState !== 'unchanged');
+  }, [currentRows, previousRows, getRowKey, columns, showAllCurrentRows]);
 
   if (!displayRows.length) return null;
 
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
+        {showLegend && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <span className="flex items-center gap-1"><span className="text-emerald-500">●</span>Added</span>
+            <span className="flex items-center gap-1"><span className="text-amber-500">●</span>Changed</span>
+            <span className="flex items-center gap-1"><span className="text-rose-500">●</span>Deleted</span>
+          </div>
+        )}
+      </div>
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
@@ -83,20 +109,21 @@ export default function HistoryComparisonTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayRows.map(({ rowKey, currentRow, previousRow }) => (
-              <TableRow key={rowKey}>
+            {displayRows.map(({ rowKey, currentRow, previousRow, rowState }) => (
+              <TableRow key={rowKey} className={getRowClasses(rowState)}>
                 {columns.map((column) => {
-                  const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
-                  const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
-                  const cellChanged = !valuesEqual(previousValue, currentValue);
-                  const previousDisplay = column.formatValue ? column.formatValue(previousValue, previousRow) : formatDisplayValue(previousValue);
-                  const currentDisplay = column.formatValue ? column.formatValue(currentValue, currentRow) : formatDisplayValue(currentValue);
-                  const displayValue = cellChanged ? `${previousDisplay} --> ${currentDisplay}` : currentDisplay;
+                  const sourceRow = currentRow || previousRow;
+                  const sourceValue = currentRow
+                    ? (column.getValue ? column.getValue(currentRow) : currentRow?.[column.key])
+                    : (column.getValue ? column.getValue(previousRow) : previousRow?.[column.key]);
+                  const displayValue = column.formatValue
+                    ? column.formatValue(sourceValue, sourceRow)
+                    : formatDisplayValue(sourceValue);
 
                   return (
                     <TableCell
                       key={column.key}
-                      className={`align-top whitespace-pre-wrap break-words ${column.cellClassName || ''}`}
+                      className={`align-top whitespace-pre-wrap break-words ${rowState === 'deleted' ? 'line-through text-slate-500' : ''} ${column.cellClassName || ''}`}
                     >
                       {displayValue}
                     </TableCell>

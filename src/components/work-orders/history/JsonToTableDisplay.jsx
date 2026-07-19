@@ -7,7 +7,7 @@ import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import HistoryComparisonTable from './HistoryComparisonTable';
 
 const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
-const excludedKeys = new Set(['last_updated', 'LockedByUser', 'locked_timestamp', 'line_items', 'payments', 'accounting_details', ...financialFieldKeys]);
+const excludedKeys = new Set(['last_updated', 'LockedByUser', 'locked_timestamp', 'session_id', 'line_items', 'payments', 'accounting_details', ...financialFieldKeys]);
 
 function isDateLikeKey(key) {
   return key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key.toLowerCase().includes('updated_at') || key.toLowerCase().includes('changed_at');
@@ -164,14 +164,14 @@ export default function JsonToTableDisplay({ data, compareData }) {
   const parsedAccountingDetails = useMemo(() => parseHistoryArray(currentData.accounting_details), [currentData]);
   const previousAccountingDetails = useMemo(() => parseHistoryArray(previousData.accounting_details), [previousData]);
 
-  const hasLineItemChanges = useMemo(() => !valuesEqual(previousLineItems, parsedLineItems), [previousLineItems, parsedLineItems]);
+  const hasLineItems = parsedLineItems.length > 0 || previousLineItems.length > 0;
   const hasPaymentChanges = useMemo(() => !valuesEqual(previousPayments, parsedPayments), [previousPayments, parsedPayments]);
   const hasAccountingChanges = useMemo(() => !valuesEqual(previousAccountingDetails, parsedAccountingDetails), [previousAccountingDetails, parsedAccountingDetails]);
   const changedFinancialKeys = useMemo(() => {
     return financialFieldKeys.filter((key) => !valuesEqual(previousData[key], currentData[key]));
   }, [currentData, previousData]);
 
-  const hasAnyDetails = changedFieldKeys.length > 0 || hasLineItemChanges || hasPaymentChanges || hasAccountingChanges || changedFinancialKeys.length > 0;
+  const hasAnyDetails = changedFieldKeys.length > 0 || hasLineItems || hasPaymentChanges || hasAccountingChanges || changedFinancialKeys.length > 0;
 
   if (!hasAnyDetails) {
     return <p className="text-sm text-slate-500">No details available for this change.</p>;
@@ -186,38 +186,34 @@ export default function JsonToTableDisplay({ data, compareData }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1/3">Field</TableHead>
-                  <TableHead>Value</TableHead>
+                  <TableHead className="w-1/4">Field</TableHead>
+                  <TableHead>From</TableHead>
+                  <TableHead>To</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {changedFieldKeys.map((key) => {
-                  const previousValue = previousData[key];
-                  const currentValue = currentData[key];
-
-                  return (
-                    <TableRow key={key}>
-                      <TableCell className="font-medium align-top">{key}</TableCell>
-                      <TableCell className="align-top whitespace-pre-wrap break-words">
-                        {`${formatValue(key, previousValue)} --> ${formatValue(key, currentValue)}`}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {changedFieldKeys.map((key) => (
+                  <TableRow key={key}>
+                    <TableCell className="font-medium align-top">{key}</TableCell>
+                    <TableCell className="align-top whitespace-pre-wrap break-words">{formatValue(key, previousData[key])}</TableCell>
+                    <TableCell className="align-top whitespace-pre-wrap break-words">{formatValue(key, currentData[key])}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
         </div>
       )}
 
-      {hasLineItemChanges && (
+      {hasLineItems && (
         <HistoryComparisonTable
           title="Line Items"
           currentRows={parsedLineItems}
           previousRows={previousLineItems}
           getRowKey={(line, index) => String(line?.line_uuid || line?.uuid || line?.id || line?.line_id || line?.selection_id || `line-${index}`)}
+          showAllCurrentRows
+          showLegend
           columns={[
-            { key: 'line_type', label: 'Type', formatValue: (value) => formatValue('line_type', value) },
             { key: 'description', label: 'Description', formatValue: (value) => formatValue('description', value) },
             { key: 'part_number', label: 'Part #', formatValue: (value) => formatValue('part_number', value) },
             { key: 'qty', label: 'Qty', formatValue: (value) => formatValue('qty', value), cellClassName: 'text-center' },

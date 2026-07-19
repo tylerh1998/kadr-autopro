@@ -20,7 +20,12 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+        {record?.session_id && (
+          <div className="absolute right-12 top-4 text-xs text-slate-400 font-mono">
+            {record.session_id}
+          </div>
+        )}
+        <DialogHeader className="pr-24">
           <DialogTitle>Change Details</DialogTitle>
           <p className="text-sm text-slate-500">
             Comparing this version to {comparisonRecord ? `${comparisonRecord.changed_by_display || 'System'} on ${formatDateTime?.(comparisonRecord.changed_at) || 'the previous saved version'}` : 'the previous saved version'}.
