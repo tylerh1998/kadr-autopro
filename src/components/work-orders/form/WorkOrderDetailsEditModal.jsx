@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import ModalCloseButton from '@/components/ui/modal-close-button';
 import { Save, X, FileText, Ban } from 'lucide-react';
 
 export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, onSave, lineItems, onUpdateLineItems }) {
@@ -94,8 +95,9 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
 
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl [&>button:last-child]:hidden">
+        <ModalCloseButton onClick={handleCancel} />
+        <DialogHeader className="pr-16">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Edit Work Order Details

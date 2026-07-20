@@ -6,6 +6,7 @@ import { base44 } from '@/api/base44Client';
 import { getVehicleWorkOrderHistory } from '@/functions/getVehicleWorkOrderHistory';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
+import ModalCloseButton from '@/components/ui/modal-close-button';
 import VehicleForm from './VehicleForm';
 import VehicleHistorySummaryCards from './VehicleHistorySummaryCards';
 import VehicleHistoryFilters, { DEFAULT_VEHICLE_HISTORY_FILTERS } from './VehicleHistoryFilters';
@@ -121,9 +122,10 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl vehicle-history-dialog">
+        <DialogContent className="max-w-2xl vehicle-history-dialog [&>button:last-child]:hidden">
+          <ModalCloseButton onClick={onClose} />
           <DialogHeader className="no-print">
-            <div className="pr-8">
+            <div className="pr-16">
               <DialogTitle>Work Order History for {currentVehicle?.year} {currentVehicle?.make} {currentVehicle?.model}</DialogTitle>
               <DialogDescription>A list of all previous work orders for this vehicle.</DialogDescription>
             </div>
@@ -190,8 +192,9 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
     </Dialog>
 
     <Dialog open={showEditVehicle} onOpenChange={setShowEditVehicle}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl [&>button:last-child]:hidden">
+        <ModalCloseButton onClick={() => setShowEditVehicle(false)} />
+        <DialogHeader className="pr-16">
           <DialogTitle>Edit Vehicle</DialogTitle>
         </DialogHeader>
         <VehicleForm
