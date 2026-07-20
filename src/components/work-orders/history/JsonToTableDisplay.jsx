@@ -7,7 +7,7 @@ import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import HistoryComparisonTable from './HistoryComparisonTable';
 
 const financialFieldKeys = ['parts_total', 'labor_total', 'shop_supply_total', 'tax_amount', 'total_amount', 'amount_paid'];
-const excludedKeys = new Set(['last_updated', 'last_updated_by', 'LockedByUser', 'locked_timestamp', 'session_id', 'line_items', 'payments', 'accounting_details', ...financialFieldKeys]);
+const excludedKeys = new Set(['created_date', 'default_taxable', 'last_updated', 'last_updated_by', 'LockedByUser', 'locked_timestamp', 'session_id', 'line_items', 'payments', 'accounting_details', ...financialFieldKeys]);
 
 function isDateLikeKey(key) {
   return key.toLowerCase().includes('date') || key.toLowerCase().includes('time') || key.toLowerCase().includes('updated_at') || key.toLowerCase().includes('changed_at');
