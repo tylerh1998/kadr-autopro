@@ -39,45 +39,50 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
-        <div className="absolute right-4 top-4 z-10 flex items-center gap-2 no-print">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!previousRecord}
-            onClick={() => previousRecord && onSelectRecord?.(previousRecord)}
-            className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            &lt; Prev Version
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!nextRecord}
-            onClick={() => nextRecord && onSelectRecord?.(nextRecord)}
-            className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Next Version &gt;
-          </Button>
-          <Button
-            type="button"
-            onClick={onClose}
-            className="h-11 w-11 bg-red-600 p-0 text-white shadow-sm hover:bg-red-700"
-          >
-            <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
-          </Button>
-        </div>
-        {record?.session_id && (
-          <div className="absolute right-4 top-16 w-72 text-right text-xs text-slate-400 font-mono">
-            {record.session_id}
+        <div className="flex items-start justify-between gap-6 pb-4 pr-1">
+          <DialogHeader className="flex-1 space-y-1 pt-1 text-left">
+            <DialogTitle>{currentVersionTitle}</DialogTitle>
+            <p className="text-sm leading-snug text-slate-500">
+              Comparing this version to {comparisonRecord ? `${comparisonRecord.changed_by_display || 'System'} on ${formatDateTime?.(comparisonRecord.changed_at) || 'the previous saved version'}` : 'the previous saved version'}.
+            </p>
+          </DialogHeader>
+
+          <div className="flex shrink-0 flex-col items-end gap-2 no-print">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!previousRecord}
+                onClick={() => previousRecord && onSelectRecord?.(previousRecord)}
+                className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                &lt; Prev Version
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!nextRecord}
+                onClick={() => nextRecord && onSelectRecord?.(nextRecord)}
+                className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next Version &gt;
+              </Button>
+              <Button
+                type="button"
+                onClick={onClose}
+                className="h-11 w-11 bg-red-600 p-0 text-white shadow-sm hover:bg-red-700"
+              >
+                <X className="h-5 w-5" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </div>
+            {record?.session_id && (
+              <div className="w-full text-right text-xs font-mono text-slate-400">
+                {record.session_id}
+              </div>
+            )}
           </div>
-        )}
-        <DialogHeader className="pr-80 pt-5 space-y-1">
-          <DialogTitle>{currentVersionTitle}</DialogTitle>
-          <p className="text-sm text-slate-500 leading-snug">
-            Comparing this version to {comparisonRecord ? `${comparisonRecord.changed_by_display || 'System'} on ${formatDateTime?.(comparisonRecord.changed_at) || 'the previous saved version'}` : 'the previous saved version'}.
-          </p>
-        </DialogHeader>
+        </div>
         <JsonToTableDisplay
           data={record?.new_data || {}}
           compareData={compareData}
