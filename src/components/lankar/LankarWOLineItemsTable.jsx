@@ -42,7 +42,7 @@ export default function LankarWOLineItemsTable({ lineItems = [] }) {
           {sortedLineItems.map((line, index) => {
             const isEven = index % 2 === 0;
             const rowBgClass = isEven ? 'bg-white' : 'bg-slate-50';
-            const isBold = String(line.LBold || '').toLowerCase() === 'true' || String(line.LBold || '').toLowerCase() === 'y';
+            const isBold = String(line.LBold ?? '').trim() === '1';
             const boldClass = isBold ? 'font-bold' : '';
             const txValue = String(line.tx || '').trim().toUpperCase();
             const taxable = txValue === 'GST';
