@@ -30,6 +30,12 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
     return record?.old_data || comparisonRecord?.new_data || {};
   }, [comparisonRecord, record]);
 
+  const currentVersionTitle = useMemo(() => {
+    const changedAt = formatDateTime?.(record?.changed_at) || 'Unknown date';
+    const changedBy = record?.changed_by_display || 'System';
+    return `Version Detail - ${changedAt} by ${changedBy}`;
+  }, [formatDateTime, record]);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
@@ -62,13 +68,13 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
           </Button>
         </div>
         {record?.session_id && (
-          <div className="absolute left-6 top-5 pr-80 text-xs text-slate-400 font-mono">
+          <div className="absolute right-4 top-16 w-72 text-right text-xs text-slate-400 font-mono">
             {record.session_id}
           </div>
         )}
-        <DialogHeader className="pr-80 pt-10">
-          <DialogTitle>Change Details</DialogTitle>
-          <p className="text-sm text-slate-500">
+        <DialogHeader className="pr-80 pt-5 space-y-1">
+          <DialogTitle>{currentVersionTitle}</DialogTitle>
+          <p className="text-sm text-slate-500 leading-snug">
             Comparing this version to {comparisonRecord ? `${comparisonRecord.changed_by_display || 'System'} on ${formatDateTime?.(comparisonRecord.changed_at) || 'the previous saved version'}` : 'the previous saved version'}.
           </p>
         </DialogHeader>
