@@ -147,6 +147,7 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
         record={selectedRecord}
         allRecords={visibleRecords}
         formatDateTime={formatMountainDateTimeSafe}
+        onSelectRecord={setSelectedRecord}
       />
     </>
   );
