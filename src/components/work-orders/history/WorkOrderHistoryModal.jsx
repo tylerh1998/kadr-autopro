@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import ModalCloseButton from '@/components/ui/modal-close-button';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import HistoryCard from './HistoryCard';
@@ -104,8 +105,9 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto [&>button:last-child]:hidden">
+          <ModalCloseButton onClick={onClose} />
+          <DialogHeader className="pr-16">
             <DialogTitle>Work Order Version History</DialogTitle>
           </DialogHeader>
 
