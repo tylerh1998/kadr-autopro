@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 function normalizeCompareValue(value) {
@@ -90,10 +91,10 @@ export default function HistoryComparisonTable({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
         {showLegend && (
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><span className="text-emerald-500">●</span>Added</span>
-            <span className="flex items-center gap-1"><span className="text-amber-500">●</span>Changed</span>
-            <span className="flex items-center gap-1"><span className="text-rose-500">●</span>Deleted</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Added</Badge>
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Changed</Badge>
+            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">Deleted</Badge>
           </div>
         )}
       </div>
