@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
-const WORK_ORDER_SELECT = 'id, customer_id, stage, ro_number, wo_number, est_number, inv_number, total_amount, amount_paid, payments';
+const WORK_ORDER_SELECT = 'id, customer_id, stage, ro_number, wo_number, est_number, inv_number, total_amount, amount_paid, payments, est_date, wo_date, invoice_date';
 
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('Supabase_project_url');
@@ -19,6 +19,20 @@ const createSupabaseClient = () => {
 const normalizeDate = (value) => {
   if (!value) return null;
   return String(value).slice(0, 10);
+};
+
+const getWorkOrderAuthoritativeDate = (workOrder) => {
+  if (!workOrder) return null;
+
+  if (workOrder.stage === 'estimate') {
+    return normalizeDate(workOrder.est_date || workOrder.wo_date || workOrder.invoice_date);
+  }
+
+  if (workOrder.stage === 'work_order') {
+    return normalizeDate(workOrder.wo_date || workOrder.invoice_date || workOrder.est_date);
+  }
+
+  return normalizeDate(workOrder.invoice_date || workOrder.wo_date || workOrder.est_date);
 };
 
 const getMountainToday = () => {
@@ -81,32 +95,43 @@ Deno.serve(async (req) => {
 
     const rawTransactions = transactionsResponse.data || [];
     const workOrderIds = [...new Set(rawTransactions.map((row) => row?.work_order_id).filter(Boolean))];
-
-    const workOrdersResponse = workOrderIds.length
-      ? await supabase.from('WorkOrder').select(WORK_ORDER_SELECT).in('id', workOrderIds)
-      : { data: [], error: null };
-
-    if (workOrdersResponse.error) throw workOrdersResponse.error;
-
-    const workOrdersMap = Object.fromEntries((workOrdersResponse.data || []).map((workOrder) => [workOrder.id, workOrder]));
     const paymentSourceIds = [...new Set(rawTransactions
       .filter((row) => row?.source === 'payment' && row?.sourceId)
       .map((row) => row.sourceId))];
+    const adjustmentSourceIds = [...new Set(rawTransactions
+      .filter((row) => row?.source === 'adjustment' && row?.sourceId)
+      .map((row) => row.sourceId))];
 
-    const customerPaymentsResponse = paymentSourceIds.length
-      ? await supabase.from('CustomerPayments').select('id, payment_date').in('id', paymentSourceIds)
-      : { data: [], error: null };
+    const [workOrdersResponse, customerPaymentsResponse, customerAdjustmentsResponse] = await Promise.all([
+      workOrderIds.length
+        ? await supabase.from('WorkOrder').select(WORK_ORDER_SELECT).in('id', workOrderIds)
+        : { data: [], error: null },
+      paymentSourceIds.length
+        ? await supabase.from('CustomerPayments').select('id, payment_date').in('id', paymentSourceIds)
+        : { data: [], error: null },
+      adjustmentSourceIds.length
+        ? await supabase.from('CustomerARAdjustment').select('id, adjustment_date').in('id', adjustmentSourceIds)
+        : { data: [], error: null }
+    ]);
 
+    if (workOrdersResponse.error) throw workOrdersResponse.error;
     if (customerPaymentsResponse.error) throw customerPaymentsResponse.error;
+    if (customerAdjustmentsResponse.error) throw customerAdjustmentsResponse.error;
 
+    const workOrdersMap = Object.fromEntries((workOrdersResponse.data || []).map((workOrder) => [workOrder.id, workOrder]));
     const customerPaymentDateMap = Object.fromEntries((customerPaymentsResponse.data || []).map((payment) => [payment.id, normalizeDate(payment.payment_date)]));
+    const customerAdjustmentDateMap = Object.fromEntries((customerAdjustmentsResponse.data || []).map((adjustment) => [adjustment.id, normalizeDate(adjustment.adjustment_date)]));
 
     const transactions = rawTransactions.map((row) => ({
       sourceId: row.sourceId,
       source: row.source,
       date: row.source === 'payment'
         ? customerPaymentDateMap[row.sourceId] || normalizeDate(row.date)
-        : normalizeDate(row.date),
+        : row.source === 'adjustment'
+          ? customerAdjustmentDateMap[row.sourceId] || normalizeDate(row.date)
+          : row.source === 'charge'
+            ? getWorkOrderAuthoritativeDate(workOrdersMap[row.work_order_id]) || normalizeDate(row.date)
+            : normalizeDate(row.date),
       description: row.description || '',
       reference: row.reference || '',
       amount: Number(row.amount) || 0,
