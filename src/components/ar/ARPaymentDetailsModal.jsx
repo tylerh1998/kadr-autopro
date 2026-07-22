@@ -3,11 +3,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 // Using supabase proxy for entities
-import { format, parseISO } from 'date-fns';
 import { Loader2, FileText, Mail } from 'lucide-react';
+import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import ARPaymentEmailModal from './ARPaymentEmailModal';
 import ARReceiptPDFViewerModal from './ARReceiptPDFViewerModal';
+
+const formatMountainDate = (value) => {
+  if (!value) return '—';
+
+  const isDateOnlyString = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const parsedDate = isDateOnlyString
+    ? moment.tz(value, 'YYYY-MM-DD', true, 'America/Edmonton')
+    : moment.tz(value, 'America/Edmonton');
+
+  return parsedDate.isValid() ? parsedDate.format('MMM D, YYYY') : '—';
+};
 
 export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) {
   const [appliedToDetails, setAppliedToDetails] = useState([]);
@@ -122,7 +133,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
               <div className="bg-slate-50 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="font-semibold">Payment Date:</span>
-                  <span>{format(parseISO(paymentRecord.payment_date), 'MMM d, yyyy')}</span>
+                  <span>{formatMountainDate(paymentRecord.payment_date)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-semibold">Payment Method:</span>
@@ -158,7 +169,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                       {appliedToDetails.map((detail, index) => (
                         <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
                           <TableCell>{detail.reference}</TableCell>
-                          <TableCell>{detail.date ? format(parseISO(detail.date), 'MMM d, yyyy') : '—'}</TableCell>
+                          <TableCell>{formatMountainDate(detail.date)}</TableCell>
                           <TableCell>{detail.description}</TableCell>
                           <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700' : ''}`}>
                             ${detail.amountApplied.toFixed(2)}
