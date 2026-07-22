@@ -20,6 +20,7 @@ import {
   Send,
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, subDays } from 'date-fns';
+import moment from 'moment-timezone';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -46,6 +47,17 @@ import { // Added AlertDialog components
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const formatMountainDate = (value) => {
+  if (!value) return '—';
+
+  const isDateOnlyString = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const parsedDate = isDateOnlyString
+    ? moment.tz(value, 'YYYY-MM-DD', true, 'America/Edmonton')
+    : moment.tz(value, 'America/Edmonton');
+
+  return parsedDate.isValid() ? parsedDate.format('MMM D, YYYY') : '—';
+};
 
 export default function CustomerARTransactionsPage() {
   const [customer, setCustomer] = useState(null);
@@ -489,7 +501,7 @@ export default function CustomerARTransactionsPage() {
                         </td>
                       )}
                       <td className="p-3">
-                        {format(parseISO(transaction.date), 'MMM d, yyyy')}
+                        {showPaymentDetails ? formatMountainDate(transaction.date) : format(parseISO(transaction.date), 'MMM d, yyyy')}
                       </td>
                       {!showPaymentDetails && (
                         <td className="p-3 text-slate-600">

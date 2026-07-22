@@ -5,8 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
+import moment from 'moment-timezone';
 import { base44 } from "@/api/base44Client";
-import { format } from 'date-fns';
+
+const formatMountainDate = (value) => {
+  if (!value) return '—';
+
+  const isDateOnlyString = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const parsedDate = isDateOnlyString
+    ? moment.tz(value, 'YYYY-MM-DD', true, 'America/Edmonton')
+    : moment.tz(value, 'America/Edmonton');
+
+  return parsedDate.isValid() ? parsedDate.format('MMMM D, YYYY') : '—';
+};
 
 export default function ARPaymentEmailModal({ open, onClose, paymentRecord, customerEmail, appliedToDetails = [] }) {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' });
@@ -14,7 +25,7 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
 
   useEffect(() => {
     if (open && paymentRecord) {
-      const paymentDate = format(new Date(paymentRecord.payment_date), 'MMMM d, yyyy');
+      const paymentDate = formatMountainDate(paymentRecord.payment_date);
       const paymentAmount = `$${paymentRecord.amount.toFixed(2)}`;
 
       setEmailData({
