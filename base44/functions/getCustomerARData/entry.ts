@@ -89,11 +89,24 @@ Deno.serve(async (req) => {
     if (workOrdersResponse.error) throw workOrdersResponse.error;
 
     const workOrdersMap = Object.fromEntries((workOrdersResponse.data || []).map((workOrder) => [workOrder.id, workOrder]));
+    const paymentSourceIds = [...new Set(rawTransactions
+      .filter((row) => row?.source === 'payment' && row?.sourceId)
+      .map((row) => row.sourceId))];
+
+    const customerPaymentsResponse = paymentSourceIds.length
+      ? await supabase.from('CustomerPayments').select('id, payment_date').in('id', paymentSourceIds)
+      : { data: [], error: null };
+
+    if (customerPaymentsResponse.error) throw customerPaymentsResponse.error;
+
+    const customerPaymentDateMap = Object.fromEntries((customerPaymentsResponse.data || []).map((payment) => [payment.id, normalizeDate(payment.payment_date)]));
 
     const transactions = rawTransactions.map((row) => ({
       sourceId: row.sourceId,
       source: row.source,
-      date: normalizeDate(row.date),
+      date: row.source === 'payment'
+        ? customerPaymentDateMap[row.sourceId] || normalizeDate(row.date)
+        : normalizeDate(row.date),
       description: row.description || '',
       reference: row.reference || '',
       amount: Number(row.amount) || 0,
