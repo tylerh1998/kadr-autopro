@@ -328,7 +328,10 @@ export default function Login() {
             <form onSubmit={handlePinSubmit} className="space-y-6">
               <div className="relative">
                 <input
+                  id="pin"
+                  name="pin"
                   type="password"
+                  autoComplete="one-time-code"
                   maxLength="4"
                   pattern="\d{4}"
                   autoFocus
