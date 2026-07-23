@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { 
   FileText, 
   Users, 
@@ -86,6 +87,7 @@ function LayoutContent({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { lockState, clearSupplierLock } = useSupplierLock();
+  const { logout } = useAuth();
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -571,7 +573,7 @@ const navigationItems = [
 
   const handleLogout = async () => {
     try {
-      await UserEntity.logout();
+      await logout();
       window.location.reload();
     } catch (error) {
       console.error("Logout failed", error);

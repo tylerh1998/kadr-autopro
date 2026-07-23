@@ -7,11 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://base44.app',
+        target: 'https://hbcrwkmgsazqrvsrmxyr.supabase.co/functions/v1/base44-proxy',
         changeOrigin: true,
         headers: {
-          'Origin': 'https://base44.app',
-          'Referer': 'https://base44.app'
+          'Origin': 'https://hbcrwkmgsazqrvsrmxyr.supabase.co',
+          'Referer': 'https://hbcrwkmgsazqrvsrmxyr.supabase.co'
         }
       }
     }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+  const originalOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url, ...args) {
+    this.__url = url;
+    return originalOpen.apply(this, [method, url, ...args]);
+  };
+  const originalSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (body) {
+    try {
+      this.setRequestHeader('Authorization', 'Bearer 123');
+      console.log("Header set successfully");
+    } catch(e) {
+      console.error("Failed to set header", e);
+    }
+    return originalSend.apply(this, [body]);
+  };
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', 'https://httpbin.org/post');
+  xhr.onload = () => console.log(JSON.parse(xhr.responseText).headers);
+  xhr.send();
+</script>
+</body>
+</html>
