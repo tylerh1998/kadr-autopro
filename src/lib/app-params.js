@@ -29,7 +29,11 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 	}
 	const storedValue = storage.getItem(storageKey);
 	if (storedValue) {
-		return storedValue;
+		if (paramName === 'server_url' && storedValue.includes('localhost') && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+			storage.removeItem(storageKey);
+		} else {
+			return storedValue;
+		}
 	}
 	return null;
 }
