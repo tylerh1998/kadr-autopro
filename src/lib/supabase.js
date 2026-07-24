@@ -32,8 +32,13 @@ if (typeof window !== 'undefined') {
 // Custom storage implementation to use cookies instead of localStorage
 export const cookieStorage = {
   getItem: (key) => {
-    const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'))
-    return match ? match[2] : null
+    const match = document.cookie.match(new RegExp('(^| )' + key + '=([^;]+)'));
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[2]);
+    } catch (e) {
+      return match[2];
+    }
   },
   setItem: (key, value) => {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -44,7 +49,8 @@ export const cookieStorage = {
     }
 
     const domainString = isLocalhost ? '' : `domain=.kensauto.ca; `;
-    document.cookie = `${key}=${value}; ${domainString}path=/; max-age=31536000; SameSite=Lax; ${
+    const encodedValue = encodeURIComponent(value);
+    document.cookie = `${key}=${encodedValue}; ${domainString}path=/; max-age=31536000; SameSite=Lax; ${
       window.location.protocol === 'https:' ? 'Secure' : ''
     }`
   },

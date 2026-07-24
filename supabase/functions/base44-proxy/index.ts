@@ -15,71 +15,72 @@ serve(async (req) => {
   let debugLog: string[] = [];
   const log = (msg: string) => { debugLog.push(msg); console.log(msg); };
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const base44AccessToken = Deno.env.get("BASE44_ACCESS_TOKEN");
-    const base44BackendUrl = Deno.env.get("BASE44_BACKEND_URL") || "https://base44.app";
-
-    log("Env vars loaded");
-
-    if (!supabaseUrl || !supabaseAnonKey || !base44AccessToken) {
-      throw new Error("Missing system environment variables on Supabase (need BASE44_ACCESS_TOKEN).");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const authHeader = req.headers.get("Authorization");
-    log(`Auth header present: ${!!authHeader}`);
-
-    let base44Headers = new Headers(req.headers);
-    base44Headers.delete("Authorization"); 
-    base44Headers.delete("Host"); 
-    base44Headers.delete("Origin");
-    base44Headers.delete("Referer");
-
-    let autoproUserId: string | null = null;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      log(`getUser finished. Error: ${!!authError}. User: ${user?.id}`);
-
-      if (authError || !user) {
-        return new Response(JSON.stringify({ error: "Unauthorized user session", debug: debugLog }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      const base44AccessToken = Deno.env.get("BASE44_ACCESS_TOKEN");
+      const base44PrivateKey = Deno.env.get("BASE44_PRIVATE_KEY");
+      const base44BackendUrl = Deno.env.get("BASE44_BACKEND_URL") || "https://base44.app";
+ 
+      log("Env vars loaded");
+ 
+      if (!supabaseUrl || !supabaseAnonKey || !base44PrivateKey) {
+        throw new Error("Missing system environment variables on Supabase (need BASE44_PRIVATE_KEY).");
       }
-
-      const { data: employee, error: dbError } = await supabase
-        .from("Employee")
-        .select("autopro_user_id")
-        .eq("mykadr_user_id", user.id)
-        .single();
-      
-      log(`Employee lookup: ${employee?.autopro_user_id}. Error: ${!!dbError}`);
-
-      if (dbError || !employee?.autopro_user_id) {
-        log(`Mapping missing or db error for user ${user.id}. Blocking access.`);
-        return new Response(JSON.stringify({
-          error: "Account mapping missing",
-          details: {
-            message: "Your myKADR account is not linked to an AutoPRO user. Please ask your administrator to link your account in the Employee table.",
-            status: 403
-          },
-          proxy_debug: debugLog
-        }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      autoproUserId = employee.autopro_user_id;
-      base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
-      base44Headers.set("X-Act-As-User", employee.autopro_user_id);
-    } else {
+ 
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+ 
+      const authHeader = req.headers.get("Authorization");
+      log(`Auth header present: ${!!authHeader}`);
+ 
+      let base44Headers = new Headers(req.headers);
+      base44Headers.delete("Authorization"); 
+      base44Headers.delete("Host"); 
+      base44Headers.delete("Origin");
+      base44Headers.delete("Referer");
+ 
+      let autoproUserId: string | null = null;
+ 
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        log(`getUser finished. Error: ${!!authError}. User: ${user?.id}`);
+ 
+        if (authError || !user) {
+          return new Response(JSON.stringify({ error: "Unauthorized user session", debug: debugLog }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+ 
+        const { data: employee, error: dbError } = await supabase
+          .from("Employee")
+          .select("autopro_user_id")
+          .eq("mykadr_user_id", user.id)
+          .single();
+        
+        log(`Employee lookup: ${employee?.autopro_user_id}. Error: ${!!dbError}`);
+ 
+        if (dbError || !employee?.autopro_user_id) {
+          log(`Mapping missing or db error for user ${user.id}. Blocking access.`);
+          return new Response(JSON.stringify({
+            error: "Account mapping missing",
+            details: {
+              message: "Your myKADR account is not linked to an AutoPRO user. Please ask your administrator to link your account in the Employee table.",
+              status: 403
+            },
+            proxy_debug: debugLog
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+ 
+        autoproUserId = employee.autopro_user_id;
+        base44Headers.set("api_key", base44PrivateKey);
+        base44Headers.set("X-Act-As-User", employee.autopro_user_id);
+      } else {
       log("No Authorization header provided. Blocking request.");
       return new Response(JSON.stringify({ 
         error: "Authentication required", 
