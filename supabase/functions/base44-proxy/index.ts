@@ -77,7 +77,15 @@ serve(async (req) => {
       base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
       base44Headers.set("X-Act-As-User", employee.autopro_user_id);
     } else {
-      base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
+      log("No Authorization header provided. Blocking request.");
+      return new Response(JSON.stringify({ 
+        error: "Authentication required", 
+        details: "An active user session is required to perform this action.",
+        proxy_debug: debugLog 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const url = new URL(req.url);

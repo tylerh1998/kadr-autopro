@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      cookieStorage.removeItem('supabase-auth-token');
+      cookieStorage.removeItem('supabase_auth_token');
       await supabase.auth.signOut({ scope: 'local' });
     } catch (e) {
       console.error("Local sign out error:", e);
