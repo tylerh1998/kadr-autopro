@@ -78,9 +78,9 @@ serve(async (req) => {
         }
  
         autoproUserId = employee.autopro_user_id;
-        base44Headers.set("api_key", base44PrivateKey);
-        base44Headers.set("X-Act-As-User", employee.autopro_user_id);
-      } else {
+      base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
+      base44Headers.set("X-Act-As-User", employee.autopro_user_id);
+    } else {
       log("No Authorization header provided. Blocking request.");
       return new Response(JSON.stringify({ 
         error: "Authentication required", 
@@ -125,38 +125,26 @@ serve(async (req) => {
       redirect: "manual"
     });
 
+    log(`Response status: ${response.status}`);
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      log(`Base44 Backend Error: status=${response.status}, body=${responseText}`);
+    }
+
     const responseHeaders = new Headers(response.headers);
     Object.entries(corsHeaders).forEach(([key, val]) => {
       responseHeaders.set(key, val);
     });
     responseHeaders.set("X-Debug-Log", JSON.stringify(debugLog));
 
-    // If Base44 returns an error (4xx or 5xx), we want to inject our debug log into the JSON body
-    if (!response.ok) {
-      const contentType = responseHeaders.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        try {
-          const errorJson = await response.json();
-          errorJson.proxy_debug = debugLog;
-          return new Response(JSON.stringify(errorJson), {
-            status: response.status,
-            statusText: response.statusText,
-            headers: responseHeaders,
-          });
-        } catch (e) {
-          // Ignore json parse error, fall back to streaming body
-        }
-      }
-    }
-
-    return new Response(response.body, {
+    return new Response(responseText, {
       status: response.status,
-      statusText: response.statusText,
       headers: responseHeaders,
     });
-  } catch (err: any) {
-    console.error("Proxy error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Proxy failed", debug: debugLog }), {
+  } catch (error: any) {
+    log(`Proxy outer catch error: ${error?.message || error}`);
+    return new Response(JSON.stringify({ error: error?.message || error, debug: debugLog }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
