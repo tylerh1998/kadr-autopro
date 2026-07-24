@@ -38,6 +38,8 @@ serve(async (req) => {
     base44Headers.delete("Origin");
     base44Headers.delete("Referer");
 
+    let autoproUserId: string | null = null;
+
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       
@@ -74,6 +76,7 @@ serve(async (req) => {
         });
       }
 
+      autoproUserId = employee.autopro_user_id;
       base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
       base44Headers.set("X-Act-As-User", employee.autopro_user_id);
     } else {
@@ -97,10 +100,10 @@ serve(async (req) => {
       path = path.substring(proxyPathIndex + "/base44-proxy".length);
     }
 
-    // Rewrite /entities/User/me to /entities/User/<autopro_user_id> to bypass Base44 ignoring X-Act-As-User on User/me
-    if (employee?.autopro_user_id && path.includes("/entities/User/me")) {
-      log(`Rewriting User/me path to User/${employee.autopro_user_id}`);
-      path = path.replace("/entities/User/me", `/entities/User/${employee.autopro_user_id}`);
+    // Rewrite /entities/User/me to /entities/User/<autoproUserId> to bypass Base44 ignoring X-Act-As-User on User/me
+    if (autoproUserId && path.includes("/entities/User/me")) {
+      log(`Rewriting User/me path to User/${autoproUserId}`);
+      path = path.replace("/entities/User/me", `/entities/User/${autoproUserId}`);
     }
 
     const targetUrl = `${base44BackendUrl}${path}${url.search}`;
