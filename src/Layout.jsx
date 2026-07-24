@@ -821,15 +821,20 @@ const navigationItems = [
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel className="flex flex-col gap-0.5">
-                    <span>{user?.User_name || user?.full_name || 'My Account'}</span>
-                    <span className="text-xs font-normal text-slate-500">
-                      {user?.role === 'admin' ? "Program Administrator" :
-                       user?.access_level === 'lvl3_user' ? "Executive Access" :
-                       user?.access_level === 'lvl2_user' ? "Supervisor Access" :
-                       "Standard Access"}
-                    </span>
-                  </DropdownMenuLabel>
+                  <DropdownMenuItem asChild className="focus:bg-slate-50 cursor-pointer !items-start !text-left !justify-start !p-0">
+                    <a href="https://my.kensauto.ca" className="flex flex-col !items-start !text-left gap-0.5 w-full py-1.5 px-3.5 select-none">
+                      <span className="font-semibold text-slate-900 text-sm !text-left leading-none">{user?.User_name || user?.full_name || 'User Profile'}</span>
+                      <span className="text-xs font-normal text-slate-500 !text-left leading-none mt-0.5">
+                        {user?.role === 'admin' ? "Program Administrator" :
+                         user?.access_level === 'lvl3_user' ? "Executive Access" :
+                         user?.access_level === 'lvl2_user' ? "Supervisor Access" :
+                         "Standard Access"}
+                      </span>
+                      <span className="text-xs font-medium text-[#1fa291] mt-1 !text-left leading-none">
+                        My Account
+                      </span>
+                    </a>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <a href="https://workpro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">

@@ -60,13 +60,22 @@ serve(async (req) => {
       log(`Employee lookup: ${employee?.autopro_user_id}. Error: ${!!dbError}`);
 
       if (dbError || !employee?.autopro_user_id) {
-        console.warn(`No autopro_user_id mapped for mykadr_user_id: ${user.id}`);
+        log(`Mapping missing or db error for user ${user.id}. Blocking access.`);
+        return new Response(JSON.stringify({
+          error: "Account mapping missing",
+          details: {
+            message: "Your myKADR account is not linked to an AutoPRO user. Please ask your administrator to link your account in the Employee table.",
+            status: 403
+          },
+          proxy_debug: debugLog
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
-      if (employee?.autopro_user_id) {
-        base44Headers.set("X-Act-As-User", employee.autopro_user_id);
-      }
+      base44Headers.set("X-Act-As-User", employee.autopro_user_id);
     } else {
       base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
     }
