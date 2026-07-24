@@ -89,13 +89,21 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    let relativePath = url.pathname.replace(/^\/(functions\/v1\/)?base44-proxy/, "");
-    if (!relativePath.startsWith("/")) {
-      relativePath = "/" + relativePath;
+    
+    // Rewrite path to replace /base44-proxy/ with /api/
+    let path = url.pathname;
+    const proxyPathIndex = path.indexOf("/base44-proxy");
+    if (proxyPathIndex !== -1) {
+      path = path.substring(proxyPathIndex + "/base44-proxy".length);
     }
-    const safeBaseUrl = base44BackendUrl.replace(/\/$/, "");
-    const targetUrl = `${safeBaseUrl}${relativePath}${url.search}`;
 
+    // Rewrite /entities/User/me to /entities/User/<autopro_user_id> to bypass Base44 ignoring X-Act-As-User on User/me
+    if (employee?.autopro_user_id && path.includes("/entities/User/me")) {
+      log(`Rewriting User/me path to User/${employee.autopro_user_id}`);
+      path = path.replace("/entities/User/me", `/entities/User/${employee.autopro_user_id}`);
+    }
+
+    const targetUrl = `${base44BackendUrl}${path}${url.search}`;
     log(`Target URL: ${targetUrl}`);
     log(`Headers sent: ${JSON.stringify(Object.fromEntries(base44Headers.entries()))}`);
 
