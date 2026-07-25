@@ -1194,21 +1194,6 @@ export default function WorkOrdersPage() {
                 className="pl-10 w-full bg-white"
                 />
             </div>
-            <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
-              <SelectTrigger className="w-auto min-w-[80px] px-4 font-medium bg-white">
-                <span>Sort</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="number_desc">Number (Highest)</SelectItem>
-                <SelectItem value="number_asc">Number (Lowest)</SelectItem>
-                <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
-                <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
-                <SelectItem value="date_newest">Date (Newest)</SelectItem>
-                <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
-                <SelectItem value="amount_highest">Amount (High)</SelectItem>
-                <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Action Buttons */}

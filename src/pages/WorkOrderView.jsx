@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, SystemSettings } from '@/entities/all';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
@@ -200,7 +200,10 @@ export default function WorkOrderViewPage() {
 
       // Step 3: Convert the invoice back to work_order stage
       try {
-        await saveworkorderdata({ ro_number: workOrder.ro_number, data: { stage: 'work_order' } });
+        const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+          body: { ro_number: workOrder.ro_number, data: { stage: 'work_order' } }
+        });
+        if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
         
         // Step 4: Redirect to WorkOrderEdit
         const url = `/WorkOrderEdit?id=${roNumber}`;

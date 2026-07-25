@@ -306,6 +306,12 @@ export default function FinancialDashboard() {
         >
           Chart of Accounts
         </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800`}
+          onClick={() => navigate('/GLJournal')}
+        >
+          GL Journal
+        </button>
       </div>
     </div>
   );
@@ -344,10 +350,6 @@ export default function FinancialDashboard() {
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
               <div>
                 <h1 className="text-3xl font-bold text-slate-900">Financial Dashboard</h1>
                 <p className="text-slate-600 mt-1">Comprehensive overview of financial metrics</p>

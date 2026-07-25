@@ -369,7 +369,7 @@ export default function GLJournalPage() {
         {/* Header with Date Filters - Hidden when printing */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6 no-print">
           <div className="flex-1 flex items-center gap-4">
-            <Link to={createPageUrl('ChartOfAccounts')}>
+            <Link to={createPageUrl('FinancialDashboard')}>
               <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
             <div>

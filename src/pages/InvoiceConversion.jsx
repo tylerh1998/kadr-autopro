@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, SystemSettings } from '@/entities/all';
 import { getworkorderdata } from '@/functions/getworkorderdata';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
@@ -81,10 +81,13 @@ export default function InvoiceConversion() {
                 const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
                 setPortalUrl(newPortalUrl);
                 
-                await saveworkorderdata({
-                  ro_number: currentWo.ro_number,
-                  data: { cp_id: snapshotResponse.data.cp_id }
+                const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+                  body: {
+                    ro_number: currentWo.ro_number,
+                    data: { cp_id: snapshotResponse.data.cp_id }
+                  }
                 });
+                if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
                 currentWo.cp_id = snapshotResponse.data.cp_id;
               } else {
                 console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
@@ -185,17 +188,19 @@ export default function InvoiceConversion() {
         }
 
         // Update work order to invoice stage BEFORE calling GL function
-        console.log('Updating work order to invoice stage');
-        await saveworkorderdata({
-          ro_number: wo.ro_number,
-          data: {
-            stage: 'invoice',
-            converted: true,
-            inv_number: invNumber,
-            invoice_date: invoiceDate,
-            status: 'Completed'
+        const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+          body: {
+            ro_number: wo.ro_number,
+            data: {
+              stage: 'invoice',
+              converted: true,
+              inv_number: invNumber,
+              invoice_date: invoiceDate,
+              status: 'Completed'
+            }
           }
         });
+        if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
 
         const updatedWorkOrder = { 
           ...wo, 
@@ -230,12 +235,15 @@ export default function InvoiceConversion() {
             console.log('Summary:', glResponse.data.summary);
             
             // Save accounting_details back to work order
-            await saveworkorderdata({
-              ro_number: wo.ro_number,
-              data: {
-                accounting_details: glResponse.data.accounting_details
-              }
-            });
+             const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+               body: {
+                 ro_number: wo.ro_number,
+                 data: {
+                   accounting_details: glResponse.data.accounting_details
+                 }
+               }
+             });
+             if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
 
             console.log('Accounting details saved to work order');
             
@@ -258,10 +266,13 @@ export default function InvoiceConversion() {
                 setPortalUrl(portalUrl);
                 
                 // Update work order with cp_id
-                await saveworkorderdata({
-                  ro_number: wo.ro_number,
-                  data: { cp_id: snapshotResponse.data.cp_id }
+                const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+                  body: {
+                    ro_number: wo.ro_number,
+                    data: { cp_id: snapshotResponse.data.cp_id }
+                  }
                 });
+                if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
                 updatedWorkOrder.cp_id = snapshotResponse.data.cp_id;
               } else {
                 console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);

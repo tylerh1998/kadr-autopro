@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { supabase } from '@/lib/supabase';
 import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
 import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
 import { processDeletedWorkOrderLineItem } from '@/functions/processDeletedWorkOrderLineItem';
@@ -166,9 +166,12 @@ export default function useDocumentEditorSave({
           should_keep_lock: saveOptions.should_keep_lock === true,
           ...(sessionId ? { session_id: sessionId } : {})
         };
-        delete functionPayload.last_updated;
-        delete functionPayload.last_updated_by;
-        await saveworkorderdata({ ro_number: workOrder.ro_number, data: functionPayload });
+        const { data: saveResult, error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+          body: { ro_number: workOrder.ro_number, data: functionPayload }
+        });
+        if (saveError) {
+          throw new Error(saveError.message || (typeof saveError === 'string' ? saveError : JSON.stringify(saveError)));
+        }
       } else {
         try {
           const originalWorkOrderResponse = await base44.functions.invoke('SupabaseProxy', {

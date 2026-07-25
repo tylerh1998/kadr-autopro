@@ -279,7 +279,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     if (hasUnsavedChanges) {
       const shadowBody = (shadowStorageKey && window.localStorage.getItem(shadowStorageKey)) || buildShadowSaveRequest();
       if (shadowBody) {
-        postKeepAliveFunction('saveworkorderdata', shadowBody);
+        postKeepAliveFunction('autopro-saveworkorderdata', shadowBody);
         return;
       }
     }
