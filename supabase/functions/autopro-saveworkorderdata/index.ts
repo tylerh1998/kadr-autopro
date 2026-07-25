@@ -67,10 +67,30 @@ serve(async (req) => {
       });
     }
 
+    const allowedColumns = [
+      "ro_number", "wo_number", "est_number", "inv_number", "crinv_number",
+      "customer_id", "vehicle_id", "status", "kanban_order", "priority",
+      "stage", "approval", "converted", "LockedByUser", "description",
+      "odometer", "labor_rate", "parts_total", "labor_total", "shop_supply_total",
+      "tax_amount", "total_amount", "est_date", "wo_date", "completed_date",
+      "invoice_date", "internal_notes", "line_items", "payments", "amount_paid",
+      "notes_to_customer", "po_number", "cvip", "default_taxable",
+      "accounting_details", "tech_time", "last_updated", "last_updated_by",
+      "completed_by", "created_at", "updated_at", "created_by", "created_date",
+      "locked_timestamp", "session_id"
+    ];
+
+    const cleanPayload: any = {};
+    for (const key of Object.keys(payloadData)) {
+      if (allowedColumns.includes(key)) {
+        cleanPayload[key] = payloadData[key];
+      }
+    }
+
     // Inject user identity and update timestamp
     const now = new Date().toISOString();
     const updatedData = {
-      ...payloadData,
+      ...cleanPayload,
       last_updated: now,
       last_updated_by: user.email,
     };
