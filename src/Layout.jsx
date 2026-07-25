@@ -47,7 +47,8 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  Shield
+  Shield,
+  User as UserIcon
   } from 'lucide-react';
 import {
   DropdownMenu,
@@ -144,6 +145,14 @@ function LayoutContent({ children, currentPageName }) {
     };
     fetchUserAndSettings();
   }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const handleToggleDarkMode = async () => {
     const newDarkMode = !darkMode;
@@ -614,14 +623,14 @@ const navigationItems = [
 
   if (pagesWithoutNavbar.includes(currentPageName)) {
     return (
-      <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
+      <div className="min-h-screen bg-background">
         <main>{children}</main>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="no-print bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
         {isTraining && (
@@ -821,18 +830,28 @@ const navigationItems = [
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild className="focus:bg-slate-50 cursor-pointer !items-start !text-left !justify-start !p-0">
-                    <a href="https://my.kensauto.ca" className="flex flex-col !items-start !text-left gap-0.5 w-full py-1.5 px-3.5 select-none">
-                      <span className="font-semibold text-slate-900 text-sm !text-left leading-none">{user?.User_name || user?.full_name || 'User Profile'}</span>
-                      <span className="text-xs font-normal text-slate-500 !text-left leading-none mt-0.5">
-                        {user?.role === 'admin' ? "Program Administrator" :
-                         user?.access_level === 'lvl3_user' ? "Executive Access" :
-                         user?.access_level === 'lvl2_user' ? "Supervisor Access" :
-                         "Standard Access"}
-                      </span>
-                      <span className="text-xs font-medium text-[#1fa291] mt-1 !text-left leading-none">
-                        My Account
-                      </span>
+                  <DropdownMenuItem asChild className="focus:bg-slate-50 cursor-pointer !p-0">
+                    <a href="https://my.kensauto.ca" className="flex items-center gap-3 w-full p-3 select-none">
+                      <Avatar className="h-9 w-9 border border-slate-200">
+                        <AvatarImage src={user?.avatar_url} />
+                        <AvatarFallback className="bg-[#1c2c54] text-white">
+                          <UserIcon className="w-5 h-5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col text-left gap-1">
+                        <span className="font-semibold text-slate-900 text-sm leading-none">
+                          {user?.User_name || user?.full_name || 'User Profile'}
+                        </span>
+                        <span className="text-xs font-normal text-slate-500 leading-none">
+                          {user?.role === 'admin' ? "Program Administrator" :
+                           user?.access_level === 'lvl3_user' ? "Executive Access" :
+                           user?.access_level === 'lvl2_user' ? "Supervisor Access" :
+                           "Standard Access"}
+                        </span>
+                        <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
+                          Manage Account &rarr;
+                        </span>
+                      </div>
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -871,17 +890,10 @@ const navigationItems = [
                             <Shield className="mr-2 h-4 w-4" />
                             <span>Admin Dashboard</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleToggleOpenNewWindow} className="cursor-pointer">
-                            <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
-                            <span>Open New Windows</span>
-                          </DropdownMenuItem>
                           </>
                           )}
-                          <DropdownMenuItem onClick={handleToggleWOCards} className="cursor-pointer">
-                            <span className="mr-2">{user?.wo_cards === true ? 'Work Order Table View' : 'Work Order Card View'}</span>
-                          </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer bg-red-600 text-white font-bold focus:bg-red-700 focus:text-white">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
                   </DropdownMenuItem>
