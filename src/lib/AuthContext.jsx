@@ -48,17 +48,15 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const logout = async () => {
-    try {
-      cookieStorage.removeItem('supabase_auth_token');
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch (e) {
-      console.error("Local sign out error:", e);
-    }
+  const logout = () => {
+    cookieStorage.removeItem('supabase-auth-token');
+    cookieStorage.removeItem('supabase_auth_token');
+    window.location.href = 'https://my.kensauto.ca/login?app=autopro';
   };
 
   const navigateToLogin = () => {
-    window.location.href = '/login';
+    const currentUrl = encodeURIComponent(window.location.href);
+    window.location.href = `https://my.kensauto.ca/login?redirect=${currentUrl}&app=autopro`;
   };
 
   return (

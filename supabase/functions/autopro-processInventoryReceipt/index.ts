@@ -617,18 +617,20 @@ async function processInventoryReceiptReverse(supabase: any, user: any, supplier
     const { data: inventoryTxs } = await supabase
       .from('InventoryAuditLog')
       .select('*')
-      .eq('source_record_id', supplierInvoiceLineId)
-      .eq('tx_type', 'Received');
+      .eq('source_record_id', supplierInvoiceLineId);
 
     let quantityToReverse = 0;
     if (inventoryTxs && inventoryTxs.length > 0) {
-      quantityToReverse = Math.abs(parseFloat(inventoryTxs[0].quantity_change) || 0);
+      // Sum all historical quantity changes (Received + any QOH Adjusted edits)
+      quantityToReverse = inventoryTxs.reduce((sum, tx) => sum + (parseFloat(tx.quantity_change) || 0), 0);
+      quantityToReverse = Math.abs(quantityToReverse);
     } else {
-      const qtyMatch = originalLine.description?.match(/x(\d+(?:\.\d+)?)\//);
+      // Fallback to parsing from description (AddPart QtyX ...)
+      const qtyMatch = originalLine.description?.match(/Qty(\d+(?:\.\d+)?)/);
       quantityToReverse = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
     }
 
-    const currentQOH = inventoryItem.quantity_on_hand || 0;
+    const currentQOH = parseFloat(inventoryItem.quantity_on_hand || 0);
     const newQOH = currentQOH - quantityToReverse;
 
     if (newQOH < 0) {
@@ -785,19 +787,27 @@ async function processInventoryReceiptEdit(supabase: any, user: any, supplierInv
     const { data: inventoryTxs } = await supabase
       .from('InventoryAuditLog')
       .select('*')
-      .eq('source_record_id', supplierInvoiceLineId)
-      .eq('tx_type', 'Received');
+      .eq('source_record_id', supplierInvoiceLineId);
 
     let oldQuantity = 0;
     let oldAmountPerUnit = 0;
     let inventoryTxId = null;
 
     if (inventoryTxs && inventoryTxs.length > 0) {
-      oldQuantity = Math.abs(parseFloat(inventoryTxs[0].quantity_change) || 0);
+      // Sum all historical quantity changes (Received + any QOH Adjusted edits)
+      oldQuantity = inventoryTxs.reduce((sum, tx) => sum + (parseFloat(tx.quantity_change) || 0), 0);
+      oldQuantity = Math.abs(oldQuantity);
+      
+      // Get the original Received transaction to update its supplier_inv/tx_date if needed
+      const receivedTx = inventoryTxs.find(tx => tx.tx_type === 'Received');
+      if (receivedTx) {
+        inventoryTxId = receivedTx.id;
+      }
+      
       oldAmountPerUnit = parseFloat(originalLine.purchase_amount) / oldQuantity;
-      inventoryTxId = inventoryTxs[0].id;
     } else {
-      const qtyMatch = originalLine.description?.match(/x(\d+(?:\.\d+)?)\//);
+      // Fallback to parsing from description (AddPart QtyX ...)
+      const qtyMatch = originalLine.description?.match(/Qty(\d+(?:\.\d+)?)/);
       oldQuantity = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
       oldAmountPerUnit = parseFloat(originalLine.purchase_amount) / oldQuantity;
     }
@@ -805,7 +815,7 @@ async function processInventoryReceiptEdit(supabase: any, user: any, supplierInv
     const newPurchaseAmount = newQuantity * newAmountPerUnit;
     const quantityDelta = newQuantity - oldQuantity;
 
-    const currentQOH = inventoryItem.quantity_on_hand || 0;
+    const currentQOH = parseFloat(inventoryItem.quantity_on_hand || 0);
     const newQOH = currentQOH + quantityDelta;
 
     if (newQOH < 0) {

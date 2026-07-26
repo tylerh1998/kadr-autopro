@@ -306,12 +306,14 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
 
     try {
       const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
-        action: 'edit',
-        supplier_invoice_line_id: transaction.id,
-        invoice_number: formData.invoice_number,
-        invoice_date: formData.invoice_date,
-        quantity: parseFloat(formData.quantity),
-        amount_per_unit: parseFloat(formData.amount_per_unit)
+        body: {
+          action: 'edit',
+          supplier_invoice_line_id: transaction.id,
+          invoice_number: formData.invoice_number,
+          invoice_date: formData.invoice_date,
+          quantity: parseFloat(formData.quantity),
+          amount_per_unit: parseFloat(formData.amount_per_unit)
+        }
       });
 
       if (response.data && response.data.success) {

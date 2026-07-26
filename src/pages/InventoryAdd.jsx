@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search, RotateCcw, X } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Pencil, Loader2, Lock, Truck, Check, Search, RotateCcw, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -152,6 +152,7 @@ export default function InventoryAddPage() {
     const [invoiceDateInput, setInvoiceDateInput] = useState(formatDateForInput(format(new Date(), 'yyyy-MM-dd')));
     const [dateError, setDateError] = useState(null);
     const [batchItems, setBatchItems] = useState([]);
+    const [processedSupplierIds, setProcessedSupplierIds] = useState([]);
     const [saving, setSaving] = useState(false);
     const [currentItem, setCurrentItem] = useState({
         part_number: '',
@@ -604,6 +605,45 @@ export default function InventoryAddPage() {
         });
     };
 
+    const handleEditItem = (groupIndex, item) => {
+        if (currentItem.part_number && currentItem.part_number.trim() !== '') {
+            const proceed = window.confirm("This will clear the current supplier, invoice, date, and parts info you have entered above. Do you want to proceed?");
+            if (!proceed) return;
+        }
+
+        const group = batchItems[groupIndex];
+
+        setSelectedSupplier(String(group.supplier_id));
+        setInvoiceNumber(group.invoice_number);
+        setInvoiceDate(group.invoice_date);
+        setInvoiceDateInput(formatDateForInput(group.invoice_date));
+
+        setCurrentItem({
+            part_number: item.part_number || '',
+            description: item.description || '',
+            unit: item.unit || '',
+            quantity_received: item.quantity_received !== undefined ? String(item.quantity_received) : '',
+            cost: item.cost !== undefined ? String(item.cost) : '',
+            profit_margin: item.profit_margin !== undefined ? String(item.profit_margin) : '',
+            selling_price: item.selling_price !== undefined ? String(item.selling_price) : '',
+            sales_class: item.sales_class || '',
+            tag_along_id: item.tag_along_id || '',
+            core: !!item.core,
+            core_cost: item.core_cost !== undefined ? String(item.core_cost) : '0.00',
+            stocked_item: !!item.stocked_item,
+            minimum_quantity: item.minimum_quantity !== undefined ? String(item.minimum_quantity) : '0',
+            maximum_quantity: item.maximum_quantity !== undefined ? String(item.maximum_quantity) : '0',
+            location: item.location || '',
+            category: item.category || '',
+        });
+
+        handleRemoveItem(groupIndex, item.id);
+
+        setTimeout(() => {
+            partNumberRef.current?.focus();
+        }, 100);
+    };
+
     const handleSaveAndFinish = async () => {
         if (saveInProgressRef.current) {
             return;
@@ -689,6 +729,7 @@ export default function InventoryAddPage() {
                 bypassUnsavedWarningRef.current = true;
             }
 
+            setProcessedSupplierIds(uniqueSupplierIds);
             setBatchResult({ successfulInvoices, failedInvoices });
             setShowBatchResultDialog(true);
 
@@ -1346,14 +1387,24 @@ export default function InventoryAddPage() {
                                                         <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
                                                         <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
                                                     </span>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost" 
-                                                        onClick={() => handleRemoveItem(groupIndex, item.id)}
-                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            onClick={() => handleEditItem(groupIndex, item)}
+                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            onClick={() => handleRemoveItem(groupIndex, item.id)}
+                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1426,7 +1477,11 @@ export default function InventoryAddPage() {
                 }}
                 onGoToSuppliers={() => {
                     setShowBatchResultDialog(false);
-                    handleNavigateAway(createPageUrl('Suppliers'));
+                    if (processedSupplierIds.length === 1) {
+                        handleNavigateAway(createPageUrl(`SupplierTx?id=${processedSupplierIds[0]}`));
+                    } else {
+                        handleNavigateAway(createPageUrl('Suppliers'));
+                    }
                 }}
                 successfulInvoices={batchResult.successfulInvoices}
                 failedInvoices={batchResult.failedInvoices}

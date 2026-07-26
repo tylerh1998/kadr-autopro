@@ -145,8 +145,32 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
     return description && description.startsWith('REVERSAL:');
   };
 
+  const checkSupplierLock = async (transaction) => {
+    try {
+      const response = await base44.functions.invoke('SupabaseProxy', {
+        action: 'read',
+        table: 'Supplier',
+        match: { id: transaction.supplier_id }
+      });
+      
+      const supplier = response.data?.data?.[0];
+      if (supplier?.LockedByUser) {
+        alert(`This supplier is locked by: ${supplier.LockedByUser}`);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to check supplier lock status', err);
+      // If we fail to check, we allow the action to proceed (or we could block it, but usually we allow and let backend block)
+      return false;
+    }
+  };
+
   // Handler to open edit modal
-  const handleEdit = (transaction) => {
+  const handleEdit = async (transaction) => {
+    const isLocked = await checkSupplierLock(transaction);
+    if (isLocked) return;
+    
     setSelectedTransaction(transaction);
     setShowEditModal(true);
   };
@@ -163,7 +187,10 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
   };
 
   // Handler to initiate delete - shows confirmation dialog
-  const handleDeleteClick = (transaction) => {
+  const handleDeleteClick = async (transaction) => {
+    const isLocked = await checkSupplierLock(transaction);
+    if (isLocked) return;
+    
     setTransactionToDelete(transaction);
     setDeleteConfirmOpen(true);
   };
@@ -178,22 +205,18 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
     try {
       const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
-        action: 'reverse',
-        supplier_invoice_line_id: transactionToDelete.id
+        body: {
+          action: 'reverse',
+          supplier_invoice_line_id: transactionToDelete.id
+        }
       });
 
       if (response.data && response.data.success) {
-        // Success - refresh the data
         await loadData();
-        
-        // Show success message briefly
         const successMsg = response.data.message || 'Transaction reversed successfully';
         setError(null);
-        
-        // Optional: Show a temporary success indicator
         console.log('✅ Transaction reversed:', successMsg);
       } else {
-        // Backend returned error
         const errorMessage = response.data?.message || response.data?.error || 'Failed to reverse transaction';
         setError(errorMessage);
         console.error('Reverse failed:', response.data);
