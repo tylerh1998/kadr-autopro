@@ -84,9 +84,11 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
     setMerging(true);
     try {
-      const response = await base44.functions.invoke('mergeInventoryItems', {
-        masterId: masterItem.id,
-        duplicateId: duplicateItem.id
+      const response = await supabase.functions.invoke('autopro-mergeInventoryItems', {
+        body: {
+          masterId: masterItem.id,
+          duplicateId: duplicateItem.id
+        }
       });
 
       if (response.data.error) {
