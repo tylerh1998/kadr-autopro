@@ -220,12 +220,14 @@ export default function InvoiceConversion() {
         // Call handleInvoiceConversionGL backend function
         console.log('=== Calling handleInvoiceConversionGL ===');
         try {
-          const glResponse = await base44.functions.invoke('handleInvoiceConversionGL', {
-            workOrder: updatedWorkOrder,
-            lineItems: parsedLineItems,
-            payments: payments,
-            systemSettings: systemSettings,
-            action: 'convert'
+          const glResponse = await supabase.functions.invoke('autopro-handleInvoiceConversionGL', {
+            body: {
+              workOrder: updatedWorkOrder,
+              lineItems: parsedLineItems,
+              payments: payments,
+              systemSettings: systemSettings,
+              action: 'convert'
+            }
           });
 
           console.log('GL function response:', glResponse);

@@ -11,8 +11,9 @@ export const cookieStorage = {
   },
   setItem: (key, value) => {
     if (typeof document === 'undefined') return;
-    // VERY IMPORTANT: Domain must be exactly '.kensauto.ca' to share with myKADR
-    let cookieString = `${key}=${encodeURIComponent(value)}; path=/; domain=.kensauto.ca; max-age=31536000; SameSite=Lax`;
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const domainString = isLocalhost ? '' : 'domain=.kensauto.ca; ';
+    let cookieString = `${key}=${encodeURIComponent(value)}; path=/; ${domainString}max-age=31536000; SameSite=Lax`;
     if (window.location.protocol === 'https:') {
       cookieString += '; Secure';
     }
@@ -20,7 +21,9 @@ export const cookieStorage = {
   },
   removeItem: (key) => {
     if (typeof document === 'undefined') return;
-    document.cookie = `${key}=; path=/; domain=.kensauto.ca; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const domainString = isLocalhost ? '' : 'domain=.kensauto.ca; ';
+    document.cookie = `${key}=; path=/; ${domainString}expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   }
 };
 
