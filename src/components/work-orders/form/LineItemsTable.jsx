@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { InventoryTxs, InventoryLocation, InventoryCategory } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import {
   Table,
   TableBody,
@@ -89,14 +89,13 @@ export default function LineItemsTable({
       const partIds = [...new Set(lineItems.map(item => item.inventory_item_id).filter(Boolean))];
       if (partIds.length > 0) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: { in: partIds } }
-          });
-          const fetchedItems = response.data?.data || [];
+          const { data: fetchedItems, error } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .in('id', partIds);
+          if (error) throw error;
           const pricesMap = {};
-          fetchedItems.forEach(item => {
+          (fetchedItems || []).forEach(item => {
             pricesMap[item.id] = parseFloat(item.selling_price) || 0;
           });
           setInventoryPrices(pricesMap);
@@ -293,30 +292,27 @@ export default function LineItemsTable({
     try {
         // Fetch necessary data if not already loaded
         if (suppliers.length === 0 || inventoryCategories.length === 0) {
-            const [suppliersResponse, salesClassesData, locationsData, categoriesData] = await Promise.all([
-                base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'Supplier'
-                }),
-                base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data?.data || []),
+            const [suppliersResponse, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
+                supabase.from('Supplier').select('*'),
+                supabase.from('SalesClass').select('*'),
                 InventoryLocation.list(),
                 InventoryCategory.list()
             ]);
-            setSuppliers(suppliersResponse.data?.data || []);
-            setSalesClasses(salesClassesData);
+            setSuppliers(suppliersResponse.data || []);
+            setSalesClasses(salesClassesResponse.data || []);
             setInventoryLocations(locationsData);
             setInventoryCategories(categoriesData);
         }
 
         // Fetch the item details from Supabase
         console.log('Fetching item with ID:', line.inventory_item_id);
-        const itemResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: line.inventory_item_id }
-        });
-        console.log('SupabaseProxy item response:', itemResponse);
-        const item = itemResponse.data?.data?.[0];
+        const { data: itemData, error: itemError } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', line.inventory_item_id);
+        if (itemError) throw itemError;
+        console.log('Supabase item response:', itemData);
+        const item = itemData?.[0];
         console.log('Extracted item:', item);
         setEditingInventoryItem(item);
         setEditInventoryModalOpen(true);

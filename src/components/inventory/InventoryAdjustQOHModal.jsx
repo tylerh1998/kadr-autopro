@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +47,13 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     try {
       const targetQOH = parseFloat(newQOH);
       
-      const response = await base44.functions.invoke('processQOHAdjustment', {
-        inventory_item_id: item.id,
-        new_quantity_on_hand: targetQOH,
-        notes: notes || '',
-        system_issue: systemIssue
+      const response = await supabase.functions.invoke('autopro-processQOHAdjustment', {
+        body: {
+          inventory_item_id: item.id,
+          new_quantity_on_hand: targetQOH,
+          notes: notes || '',
+          system_issue: systemIssue
+        }
       });
 
       if (!response.data.success) {
@@ -87,11 +90,13 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     try {
       const targetQOH = parseFloat(newQOH);
       
-      const response = await base44.functions.invoke('processQOHAdjustment', {
-        inventory_item_id: item.id,
-        new_quantity_on_hand: targetQOH,
-        notes: notes || '',
-        system_issue: systemIssue
+      const response = await supabase.functions.invoke('autopro-processQOHAdjustment', {
+        body: {
+          inventory_item_id: item.id,
+          new_quantity_on_hand: targetQOH,
+          notes: notes || '',
+          system_issue: systemIssue
+        }
       });
 
       if (!response.data.success) {

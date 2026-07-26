@@ -163,20 +163,20 @@ export default function WorkOrderTable({
         break;
     }
 
-    if (!isActive) return <ArrowUpDown className="ml-2 h-3 w-3 text-slate-300" />;
-    return isAsc ? <ArrowUp className="ml-2 h-3 w-3 text-slate-900" /> : <ArrowDown className="ml-2 h-3 w-3 text-slate-900" />;
+    if (!isActive) return <ArrowUpDown className="ml-2 h-3 w-3 text-slate-300 dark:text-slate-600" />;
+    return isAsc ? <ArrowUp className="ml-2 h-3 w-3 text-slate-900 dark:text-slate-100" /> : <ArrowDown className="ml-2 h-3 w-3 text-slate-900 dark:text-slate-100" />;
   };
 
   return (
     <TooltipProvider>
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-card rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
+            <thead className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-medium">
               <tr>
                 <th className="px-4 py-3 w-[120px]">Status</th>
                 <th 
-                  className="px-4 py-3 w-[140px] cursor-pointer hover:bg-slate-100 transition-colors"
+                  className="px-4 py-3 w-[140px] cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   onClick={() => handleHeaderClick('wo_number')}
                 >
                   <div className="flex items-center">
@@ -185,7 +185,7 @@ export default function WorkOrderTable({
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 w-[200px] cursor-pointer hover:bg-slate-100 transition-colors"
+                  className="px-4 py-3 w-[200px] cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   onClick={() => handleHeaderClick('customer')}
                 >
                   <div className="flex items-center">
@@ -196,7 +196,7 @@ export default function WorkOrderTable({
                 <th className="px-4 py-3 w-[250px]">Vehicle</th>
                 <th className="px-4 py-3">Description</th>
                 <th 
-                  className="px-4 py-3 w-[140px] cursor-pointer hover:bg-slate-100 transition-colors"
+                  className="px-4 py-3 w-[140px] cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   onClick={() => handleHeaderClick('date')}
                 >
                   <div className="flex items-center">
@@ -205,7 +205,7 @@ export default function WorkOrderTable({
                   </div>
                 </th>
                 <th 
-                  className="px-4 py-3 w-[120px] text-right cursor-pointer hover:bg-slate-100 transition-colors"
+                  className="px-4 py-3 w-[120px] text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   onClick={() => handleHeaderClick('amount')}
                 >
                   <div className="flex items-center justify-end">
@@ -215,7 +215,7 @@ export default function WorkOrderTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
               {workOrders.map((workOrder) => {
                 const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
                 const vehicle = workOrder.Vehicle || vehicles.find(v => v.id === workOrder.vehicle_id);
@@ -236,24 +236,24 @@ export default function WorkOrderTable({
                   <ContextMenu key={workOrder.id}>
                     <ContextMenuTrigger asChild>
                       <tr 
-                        className="hover:bg-slate-50 cursor-pointer transition-colors"
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                         onClick={() => handleRowClick(workOrder)}
                       >
                         <td className="px-4 py-2">
                           {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
-                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-[10px] whitespace-nowrap`}>
+                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60' : 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900/60'} border font-medium h-5 px-2 text-[10px] whitespace-nowrap`}>
                               {workOrder.stage === 'credit_invoice' ? 'Credit Inv' : 'Invoice'}
                             </Badge>
                           ) : (
                             <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
                           )}
                         </td>
-                        <td className="px-4 py-2 font-medium text-slate-700">
+                        <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">
                           {isLocked ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div>
-                                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
+                                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60 flex items-center gap-1.5 h-6 px-2 w-fit cursor-help">
                                     <Lock className="w-3 h-3" />
                                     <span>{displayNumber || workOrder.ro_number}</span>
                                   </Badge>
@@ -267,16 +267,16 @@ export default function WorkOrderTable({
                             <span>{displayNumber || workOrder.ro_number}</span>
                           )}
                         </td>
-                        <td className="px-4 py-2 font-semibold text-slate-900 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder)}>
+                        <td className="px-4 py-2 font-semibold text-slate-900 dark:text-slate-100 truncate max-w-[200px]" title={contactPerson ? `Contact: ${contactPerson}` : getCustomerName(workOrder)}>
                           {getCustomerName(workOrder)}
                         </td>
-                        <td className="px-4 py-2 text-black truncate max-w-[250px]" title={vehicle?.unit_number ? `Unit #: ${vehicle.unit_number}` : ''}>
+                        <td className="px-4 py-2 text-black dark:text-slate-200 truncate max-w-[250px]" title={vehicle?.unit_number ? `Unit #: ${vehicle.unit_number}` : ''}>
                           {vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : '-'}
                         </td>
-                        <td className="px-4 py-2 text-black truncate max-w-[300px]">
+                        <td className="px-4 py-2 text-black dark:text-slate-200 truncate max-w-[300px]">
                           {workOrder.description}
                         </td>
-                        <td className="px-4 py-2 text-slate-500 whitespace-nowrap">
+                        <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {stageDate && stageDate.date && (() => {
                             const parsedDate = parseLocalDate(stageDate.date);
                             return parsedDate && !isNaN(parsedDate.getTime()) ? (
@@ -285,12 +285,12 @@ export default function WorkOrderTable({
                           })()}
                         </td>
                         <td className="px-4 py-2 text-right">
-                          <div className="flex items-center justify-end gap-0.5 font-bold text-slate-900">
+                          <div className="flex items-center justify-end gap-0.5 font-bold text-slate-900 dark:text-slate-100">
                             <DollarSign className="w-3 h-3" />
                             {(workOrder.total_amount || 0).toFixed(2)}
                           </div>
                           {workOrder.estimated_hours && (
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
                               {workOrder.estimated_hours}h est
                             </div>
                           )}

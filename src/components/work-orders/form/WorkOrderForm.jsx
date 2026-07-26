@@ -5,7 +5,7 @@ import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
 import { InventoryTxs } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 // Modals
 import GetPartModal from '../GetPartModal';
@@ -477,9 +477,11 @@ export default function WorkOrderForm({
     
     if (chargeWithTaxable.applyCost) {
       try {
-        console.log('=== DEBUG: Creating SupplierInvoiceLine ===');
+        const { data: { user } } = await supabase.auth.getUser();
+        const nowIso = new Date().toISOString();
         
         const supplierInvoiceLineData = {
+          id: crypto.randomUUID(),
           supplier_id: chargeWithTaxable.linkedSupplierId,
           invoice_number: chargeWithTaxable.supplierInvoiceNumber,
           invoice_date: chargeWithTaxable.supplierInvoiceDate,
@@ -487,23 +489,30 @@ export default function WorkOrderForm({
           purchase_amount: chargeWithTaxable.supplierPurchaseAmount,
           gst_amount: chargeWithTaxable.supplierGstAmount,
           gl_account: chargeWithTaxable.supplierGlAccount,
-          inventory: false
+          inventory: false,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: user?.email || 'unknown',
+          created_by_id: user?.id || null
         };
         
-        const supplierInvoiceLineResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'SupplierInvoiceLine',
-          data: supplierInvoiceLineData
-        });
-        const createdSupplierInvoiceLine = (supplierInvoiceLineResponse.data?.data || [])[0];
+        const { data: supplierInvoiceLineResponse, error: createSilError } = await supabase
+          .from('SupplierInvoiceLine')
+          .insert(supplierInvoiceLineData)
+          .select();
+          
+        if (createSilError) throw createSilError;
+        const createdSupplierInvoiceLine = supplierInvoiceLineResponse?.[0];
         console.log('=== DEBUG: Created SupplierInvoiceLine:', createdSupplierInvoiceLine);
         
         newLine.supplier_invoice_line_id = createdSupplierInvoiceLine?.id;
         
         console.log('=== DEBUG: Posting to GL ===');
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: createdSupplierInvoiceLine,
-          action: 'create'
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: createdSupplierInvoiceLine,
+            action: 'create'
+          }
         });
         console.log('=== DEBUG: GL posting successful ===');
         
@@ -559,12 +568,16 @@ export default function WorkOrderForm({
       if (existingSupplierInvoiceLineId && updatedChargeData.applyCost) {
         console.log('=== DEBUG: Updating existing SupplierInvoiceLine ===');
         
-        const oldSupplierInvoiceLineResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { id: existingSupplierInvoiceLineId }
-        });
-        const oldSupplierInvoiceLine = (oldSupplierInvoiceLineResponse.data?.data || [])[0];
+        const { data: oldSupplierInvoiceLineResponse, error: oldSilError } = await supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('id', existingSupplierInvoiceLineId);
+          
+        if (oldSilError) throw oldSilError;
+        const oldSupplierInvoiceLine = oldSupplierInvoiceLineResponse?.[0];
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        const nowIso = new Date().toISOString();
         
         const updatedSupplierInvoiceLineData = {
           supplier_id: updatedChargeData.linkedSupplierId,
@@ -574,43 +587,50 @@ export default function WorkOrderForm({
           purchase_amount: updatedChargeData.supplierPurchaseAmount,
           gst_amount: updatedChargeData.supplierGstAmount,
           gl_account: updatedChargeData.supplierGlAccount,
+          updated_date: nowIso
         };
         
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'SupplierInvoiceLine',
-          id: existingSupplierInvoiceLineId,
-          data: updatedSupplierInvoiceLineData
-        });
+        const { error: updateSilError } = await supabase
+          .from('SupplierInvoiceLine')
+          .update(updatedSupplierInvoiceLineData)
+          .eq('id', existingSupplierInvoiceLineId);
+          
+        if (updateSilError) throw updateSilError;
         console.log('=== DEBUG: Updated SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: { ...updatedSupplierInvoiceLineData, id: existingSupplierInvoiceLineId },
-          action: 'update',
-          oldValues: oldSupplierInvoiceLine
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: { ...updatedSupplierInvoiceLineData, id: existingSupplierInvoiceLineId },
+            action: 'update',
+            oldValues: oldSupplierInvoiceLine
+          }
         });
         console.log('=== DEBUG: GL update successful ===');
       }
       else if (existingSupplierInvoiceLineId && !updatedChargeData.applyCost) {
         console.log('=== DEBUG: Deleting SupplierInvoiceLine (cost removed) ===');
         
-        const supplierInvoiceLineToDeleteResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { id: existingSupplierInvoiceLineId }
-        });
-        const supplierInvoiceLineToDelete = (supplierInvoiceLineToDeleteResponse.data?.data || [])[0];
+        const { data: supplierInvoiceLineToDeleteResponse, error: deleteReadError } = await supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('id', existingSupplierInvoiceLineId);
+          
+        if (deleteReadError) throw deleteReadError;
+        const supplierInvoiceLineToDelete = supplierInvoiceLineToDeleteResponse?.[0];
         
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'delete',
-          table: 'SupplierInvoiceLine',
-          id: existingSupplierInvoiceLineId
-        });
+        const { error: deleteSilError } = await supabase
+          .from('SupplierInvoiceLine')
+          .delete()
+          .eq('id', existingSupplierInvoiceLineId);
+          
+        if (deleteSilError) throw deleteSilError;
         console.log('=== DEBUG: Deleted SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: supplierInvoiceLineToDelete,
-          action: 'delete'
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: supplierInvoiceLineToDelete,
+            action: 'delete'
+          }
         });
         console.log('=== DEBUG: GL reversal successful ===');
         
@@ -855,16 +875,21 @@ export default function WorkOrderForm({
     if (itemToDelete.supplier_invoice_line_id) {
       try {
         // Fetch the original SupplierInvoiceLine record
-        const originalSILResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { id: itemToDelete.supplier_invoice_line_id }
-        });
-        const originalSIL = (originalSILResponse.data?.data || [])[0];
+        const { data: originalSILResponse, error: originalSilError } = await supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('id', itemToDelete.supplier_invoice_line_id);
+          
+        if (originalSilError) throw originalSilError;
+        const originalSIL = originalSILResponse?.[0];
         
         if (originalSIL) {
           // Create offsetting SupplierInvoiceLine record instead of deleting the original
+          const { data: { user } } = await supabase.auth.getUser();
+          const nowIso = new Date().toISOString();
+          
           const offsettingSILData = {
+            id: crypto.randomUUID(),
             supplier_id: originalSIL.supplier_id,
             invoice_number: originalSIL.invoice_number,
             invoice_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
@@ -874,21 +899,28 @@ export default function WorkOrderForm({
             gl_account: originalSIL.gl_account,
             inventory: originalSIL.inventory,
             inventory_item_id: originalSIL.inventory_item_id,
-            gst_override: originalSIL.gst_override
+            gst_override: originalSIL.gst_override,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: user?.email || 'unknown',
+            created_by_id: user?.id || null
           };
 
-          const offsettingSILResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'create',
-            table: 'SupplierInvoiceLine',
-            data: offsettingSILData
-          });
-          const offsettingSIL = (offsettingSILResponse.data?.data || [])[0];
+          const { data: offsettingSILResponse, error: offsettingSilError } = await supabase
+            .from('SupplierInvoiceLine')
+            .insert(offsettingSILData)
+            .select();
+            
+          if (offsettingSilError) throw offsettingSilError;
+          const offsettingSIL = offsettingSILResponse?.[0];
           console.log('WorkOrderForm: Created offsetting SupplierInvoiceLine:', offsettingSIL);
           
           // Post the offsetting GL entries (action: 'create' with negative values acts as reversal)
-          await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-            supplierInvoiceLine: offsettingSIL,
-            action: 'create'
+          await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+            body: {
+              supplierInvoiceLine: offsettingSIL,
+              action: 'create'
+            }
           });
           console.log(`WorkOrderForm: Successfully created offsetting SIL and GL entries for line ${lineIndex}`);
         } else {

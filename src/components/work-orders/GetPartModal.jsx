@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TagAlong, OtherChargeList } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 
 export default function GetPartModal({ open, onClose, onAddParts, contextLineItem, workOrder, mode = 'work_order' }) {
@@ -288,17 +289,23 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
     try {
       if (mode === 'work_order') {
         // Bulk transaction call
-        const response = await base44.functions.invoke('WOBulkGetParts', {
-          items: itemsPayload.map(({ _calculatedPrice, _invItem, ...rest }) => rest), // Clean payload
-          workOrderId: workOrder.id,
-          roNumber: workOrder.ro_number
+        const response = await supabase.functions.invoke('autopro-WOBulkGetParts', {
+          body: {
+            items: itemsPayload.map(({ _calculatedPrice, _invItem, ...rest }) => rest), // Clean payload
+            workOrderId: workOrder.id,
+            roNumber: workOrder.ro_number
+          }
         });
 
         if (!response.data.success) {
           throw new Error(response.data.message || 'Bulk transaction failed');
         }
 
-        processedResults = response.data.results;
+        processedResults = response.data.items || response.data.results || [];
+        
+        if (processedResults.length === 0 && response.data.debug_errors && response.data.debug_errors.length > 0) {
+          alert('Backend skipped all items. Debug info: ' + JSON.stringify(response.data.debug_errors));
+        }
       } else {
         // Estimate Mode: Mock results without backend call
         processedResults = itemsPayload.map(item => ({
@@ -323,7 +330,9 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         // Note: We assume the backend returns results in same order, but safer to match by ID if possible.
         // Since we loop sequentially in backend, order should be preserved.
         const originalPayloadItem = itemsPayload[index];
-        if (originalPayloadItem.inventoryItemId !== result.inventoryItemId) {
+        const resInvItemId = result.inventoryItemId || result.inventory_item_id;
+        
+        if (originalPayloadItem.inventoryItemId !== resInvItemId) {
           console.error("Result mismatch order detected");
           // Fallback search
           // This shouldn't happen with sequential processing, but for safety:
@@ -333,16 +342,19 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         const requestedQuantity = originalPayloadItem.requestedQuantity;
         const invItem = originalPayloadItem._invItem; // Use cached item for tag along lookups
 
+        // Handle both camelCase and snake_case from different backends
+        const onOrderQty = result.onOrderQuantity !== undefined ? result.onOrderQuantity : (result.ordered_quantity || 0);
+
         // Create the line item with the processed inventory data
         const partLineItem = {
           id: crypto.randomUUID(),
-          inventory_item_id: result.inventoryItemId,
+          inventory_item_id: resInvItemId || originalPayloadItem.inventoryItemId,
           qty: requestedQuantity, // Total requested quantity
-          qty_on_order: result.onOrderQuantity, // Quantity that needs to be ordered
+          qty_on_order: onOrderQty, // Quantity that needs to be ordered
           hrs: 0,
-          description: result.description || '',
-          part_number: result.part_number || '',
-          unit: result.unit || '',
+          description: result.description || invItem.description || '',
+          part_number: result.part_number || invItem.part_num || invItem.part_number || '',
+          unit: result.unit || invItem.unit || '',
           parts_ea: calculatedPrice,
           tot_parts: requestedQuantity * calculatedPrice, // Total for full requested quantity
           labour: 0,
@@ -350,11 +362,11 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           taxable: workOrder?.default_taxable !== undefined ? workOrder.default_taxable : true,
           complete: false,
           bold: false,
-          cost_ea: result.cost || 0,
-          Core_num: result.core ? requestedQuantity : 0,
+          cost_ea: result.cost || invItem.cost || 0,
+          Core_num: (result.core || invItem.core) ? requestedQuantity : 0,
           core_ret: 0,
-          core_cost: result.core_cost || 0,
-          core_osamt: result.core ? ((result.core_cost || 0) * requestedQuantity) : 0,
+          core_cost: result.core_cost || invItem.core_cost || 0,
+          core_osamt: (result.core || invItem.core) ? ((result.core_cost || invItem.core_cost || 0) * requestedQuantity) : 0,
           inventory_processed: mode === 'work_order', // True for WO, False for Estimate
           is_other_charge: false,
           oc_total: 0,

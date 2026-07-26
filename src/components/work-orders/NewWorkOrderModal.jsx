@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
 import { format } from "date-fns";
+import { supabase } from "@/lib/supabase";
 
 export default function NewWorkOrderModal({
   open,
@@ -36,11 +37,9 @@ export default function NewWorkOrderModal({
       const fetchData = async () => {
         setLoading(true);
         try {
-          const vehiclesResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Vehicle'
-          });
-          setLocalVehicles(vehiclesResponse.data?.data || []);
+          const { data, error } = await supabase.from('Vehicle').select('*');
+          if (error) throw error;
+          setLocalVehicles(data || []);
           
           // Do not load customers initially, let the user search
           setLocalCustomers([]);
@@ -69,12 +68,16 @@ export default function NewWorkOrderModal({
       const searchCustomers = async () => {
         setLoading(true);
         try {
-          const response = await base44.functions.invoke('searchCustomers', { 
-            searchTerm: activeSearchTerm,
-            includeInactive 
+          const { data, error } = await supabase.rpc('search_customers_ranked', {
+            p_search_term: activeSearchTerm,
+            p_include_inactive: includeInactive,
+            p_limit: 50,
+            p_offset: 0
           });
-          if (response.data.success) {
-            setLocalCustomers(response.data.customers || []);
+          if (!error && data) {
+            setLocalCustomers(data.map(({ total_count, match_rank, ...item }) => item) || []);
+          } else if (error) {
+            console.error("Supabase RPC error:", error);
           }
         } catch (error) {
           console.error("Failed to search customers:", error);
@@ -115,14 +118,13 @@ export default function NewWorkOrderModal({
     
     // Check for open work orders or estimates for this vehicle
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'WorkOrder',
-        match: { vehicle_id: vehicle.id }
-      });
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('vehicle_id', vehicle.id)
+        .in('stage', ['estimate', 'work_order']);
       
-      const openWOs = response.data?.data?.filter(wo => wo.stage === 'estimate' || wo.stage === 'work_order') || [];
-      if (openWOs && openWOs.length > 0) {
+      if (!error && data && data.length > 0) {
         setHasOpenWO(true);
       }
     } catch (error) {
@@ -185,20 +187,10 @@ export default function NewWorkOrderModal({
 
     // Reactivate customer or vehicle if they are inactive
     if (selectedCustomer.is_active === false) {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Customer',
-        id: selectedCustomer.id,
-        data: { is_active: true }
-      });
+      await supabase.from('Customer').update({ is_active: true }).eq('id', selectedCustomer.id);
     }
     if (selectedVehicle.is_active === false) {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Vehicle',
-        id: selectedVehicle.id,
-        data: { is_active: true }
-      });
+      await supabase.from('Vehicle').update({ is_active: true }).eq('id', selectedVehicle.id);
     }
 
     const numbers = await generateNumbers(stage);
@@ -250,12 +242,13 @@ export default function NewWorkOrderModal({
 
   const handleNewCustomerSubmit = async (customerData) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Customer',
-        data: customerData
-      });
-      const newCustomer = response.data?.data?.[0];
+      const customerWithId = {
+        id: crypto.randomUUID(),
+        ...customerData
+      };
+      const { data, error } = await supabase.from('Customer').insert(customerWithId).select();
+      if (error) throw error;
+      const newCustomer = data?.[0];
       if (!newCustomer) throw new Error("Failed to create customer");
 
       setLocalCustomers(prev => [newCustomer, ...prev]);
@@ -269,12 +262,13 @@ export default function NewWorkOrderModal({
 
   const handleNewVehicleSubmit = async (vehicleData) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Vehicle',
-        data: vehicleData
-      });
-      const newVehicle = response.data?.data?.[0];
+      const vehicleWithId = {
+        id: crypto.randomUUID(),
+        ...vehicleData
+      };
+      const { data, error } = await supabase.from('Vehicle').insert(vehicleWithId).select();
+      if (error) throw error;
+      const newVehicle = data?.[0];
       if (!newVehicle) throw new Error("Failed to create vehicle");
       
       setLocalVehicles(prev => [newVehicle, ...prev]);

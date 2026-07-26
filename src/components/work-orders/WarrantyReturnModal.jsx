@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import { searchSuppliers } from '@/functions/searchSuppliers';
-import { SupabaseProxy } from '@/functions/SupabaseProxy';
+import { supabase } from '@/lib/supabase';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
   const [quantity, setQuantity] = useState('1');
@@ -43,12 +43,13 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const fetchData = async () => {
         if (lineItem.inventory_item_id) {
           try {
-            const itemResponse = await SupabaseProxy({
-              action: 'read',
-              table: 'InventoryItem',
-              match: { id: lineItem.inventory_item_id }
-            });
-            setInventoryItem(itemResponse.data?.data?.[0] || null);
+            const { data, error } = await supabase
+              .from('InventoryItem')
+              .select('*')
+              .eq('id', lineItem.inventory_item_id);
+            
+            if (error) throw error;
+            setInventoryItem(data?.[0] || null);
           } catch (error) {
             console.error('Error fetching inventory item:', error);
             setInventoryItem(null);

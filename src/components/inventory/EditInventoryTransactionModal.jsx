@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -304,7 +305,7 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     setError(null);
 
     try {
-      const response = await base44.functions.invoke('processInventoryReceipt', {
+      const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
         action: 'edit',
         supplier_invoice_line_id: transaction.id,
         invoice_number: formData.invoice_number,

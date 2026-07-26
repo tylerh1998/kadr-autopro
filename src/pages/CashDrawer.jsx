@@ -775,8 +775,8 @@ export default function CashDrawerPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Cash Drawer</h1>
-              <p className="text-slate-600 mt-1">Daily cash management and deposits</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Cash Drawer</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Daily cash management and deposits</p>
             </div>
             <div className="flex items-center gap-3">
               <Button onClick={loadData} variant="outline" size="icon" disabled={loading}>
@@ -785,17 +785,17 @@ export default function CashDrawerPage() {
               <Button
                 onClick={() => setShowAdjustmentModal(true)}
                 variant="outline"
-                className="bg-white border-orange-300 hover:bg-orange-50"
+                className="bg-card border-orange-300 hover:bg-orange-50 dark:border-orange-900/60 dark:hover:bg-orange-950/40"
               >
-                <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />
+                <AlertCircle className="w-4 h-4 mr-2 text-orange-600 dark:text-orange-400" />
                 Record Adjustment
               </Button>
               <Button
                 onClick={() => setShowDepositHistoryModal(true)}
                 variant="outline"
-                className="bg-white border-blue-300 hover:bg-blue-50"
+                className="bg-card border-blue-300 hover:bg-blue-50 dark:border-blue-900/60 dark:hover:bg-blue-950/40"
               >
-                <History className="w-4 h-4 mr-2 text-blue-600" />
+                <History className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                 History
               </Button>
               <div className="flex flex-col items-end gap-1">
@@ -824,11 +824,11 @@ export default function CashDrawerPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b">
+                  <thead className="border-b dark:border-slate-800">
                     <tr>
-                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50">Payment Method</th>
-                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100">Cash Drawer</th>
-                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100">For Deposit</th>
+                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50 dark:text-slate-300 dark:bg-slate-900">Payment Method</th>
+                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100 dark:text-blue-200 dark:bg-blue-950/60">Cash Drawer</th>
+                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100 dark:text-green-200 dark:bg-green-950/60">For Deposit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -837,33 +837,33 @@ export default function CashDrawerPage() {
                       const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
                       const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
                       const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
-
+ 
                       return (
-                        <tr key={displayGroup.id} className="border-b hover:bg-slate-50">
+                        <tr key={displayGroup.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               {getPaymentIcon(displayGroup.id)}
-                              <span className="font-medium capitalize">{displayGroup.label}</span>
+                              <span className="font-medium capitalize text-foreground">{displayGroup.label}</span>
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors border-r border-blue-100"
+                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-colors border-r border-blue-100 dark:border-blue-900/40"
                             onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
                           >
-                            <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
+                            <div className={`${cdTotal > 0 ? 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
                               ${cdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 ({cdCount} items)
                               </div>
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 transition-colors"
+                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/40 transition-colors"
                             onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
                           >
-                            <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
+                            <div className={`${fdTotal > 0 ? 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
                               ${fdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 ({fdCount} items)
                               </div>
                             </div>
@@ -871,12 +871,12 @@ export default function CashDrawerPage() {
                         </tr>
                       );
                     })}
-                    <tr className="border-t-2 font-semibold">
-                      <td className="p-4 bg-gray-50">Total</td>
-                      <td className="p-4 text-center text-lg bg-blue-100">
+                    <tr className="border-t-2 font-semibold dark:border-slate-700">
+                      <td className="p-4 bg-gray-50 dark:bg-slate-900 text-foreground">Total</td>
+                      <td className="p-4 text-center text-lg bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200">
                         ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
                       </td>
-                      <td className="p-4 text-center text-lg text-green-700 bg-green-100">
+                      <td className="p-4 text-center text-lg text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-950/60">
                         ${getTotalForDeposit().toFixed(2)}
                       </td>
                     </tr>

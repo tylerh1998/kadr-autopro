@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Package, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function ReceivePartModal({ open, onClose, lineItem, inventoryItem: initialInventoryItem, workOrderId, roNumber, onReceive }) {
@@ -21,13 +22,12 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
       if (open && inventoryItemId) {
         setFetchLoading(true);
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: inventoryItemId }
-          });
+          const { data, error } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', inventoryItemId);
 
-          const freshItem = response.data?.data?.[0] || null;
+          const freshItem = data?.[0] || null;
           setCurrentInventoryItem(freshItem);
 
           if (!freshItem) {
@@ -88,15 +88,17 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
 
     try {
       // Call the backend function to handle all updates atomically
-      const response = await base44.functions.invoke('processWorkOrderPartReceive', {
-        workOrderId,
-        roNumber,
-        lineItemId: lineItem.id,
-        receivedQuantity: qtyToReceive
+      const response = await supabase.functions.invoke('autopro-processWorkOrderPartReceive', {
+        body: {
+          workOrderId,
+          roNumber,
+          lineItemId: lineItem.id,
+          receivedQuantity: qtyToReceive
+        }
       });
 
-      if (response.data.error) {
-        setError(response.data.error);
+      if (response.error || response.data?.error) {
+        setError(response.error?.message || response.data?.error || 'Failed to receive part');
         setLoading(false);
         return;
       }

@@ -20,6 +20,7 @@ import { base44 } from "@/api/base44Client";
 import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
+import { supabase } from "@/lib/supabase";
 
 // Reuse your existing helper that already has the Supabase credentials configured!
 import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
@@ -501,12 +502,11 @@ export default function WorkOrdersPage() {
     setNoteCards(nextCards);
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: noteId,
-        data: { colour }
-      });
+      const { error } = await supabase
+        .from('Note')
+        .update({ colour })
+        .eq('id', noteId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating note colour:', error);
       setNoteCards(previousCards);
@@ -525,15 +525,14 @@ export default function WorkOrdersPage() {
     setNoteCards(nextCards);
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           title: nextTitle,
           comment: nextComment
-        }
-      });
+        })
+        .eq('id', noteId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating note content:', error);
       setNoteCards(previousCards);
@@ -553,17 +552,16 @@ export default function WorkOrdersPage() {
     if (changedCards.length === 0) return;
 
     try {
-      await Promise.all(changedCards.map((card) =>
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'Note',
-          id: card.noteId,
-          data: {
+      await Promise.all(changedCards.map(async (card) => {
+        const { error } = await supabase
+          .from('Note')
+          .update({
             board_column: card.boardColumn,
             board_order: String(card.boardOrder)
-          }
-        })
-      ));
+          })
+          .eq('id', card.noteId);
+        if (error) throw error;
+      }));
     } catch (error) {
       console.error('Error updating note board order:', error);
       setNoteCards(previousCards);
@@ -586,14 +584,13 @@ export default function WorkOrdersPage() {
 
     setIsSavingNoteLink(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: selectedNoteForLink.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           work_order_id: workOrder.id
-        }
-      });
+        })
+        .eq('id', selectedNoteForLink.noteId);
+      if (error) throw error;
       setShowNoteLinkModal(false);
       setSelectedNoteForLink(null);
       await loadData();
@@ -613,18 +610,17 @@ export default function WorkOrdersPage() {
 
     setIsCreatingNote(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Note',
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .insert({
           title: '',
           comment: '',
           colour: 'white',
           status: 'Private',
           is_archived: false,
           created_by: currentUser.id
-        }
-      });
+        });
+      if (error) throw error;
       setNotesStatusFilter('private');
       await loadData();
     } catch (error) {
@@ -641,14 +637,13 @@ export default function WorkOrdersPage() {
     const nextStatus = String(note.status || '').toLowerCase() === 'shared' ? 'Private' : 'Shared';
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: note.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           status: nextStatus
-        }
-      });
+        })
+        .eq('id', note.noteId);
+      if (error) throw error;
       await loadData();
     } catch (error) {
       console.error('Error updating note status:', error);
@@ -660,14 +655,13 @@ export default function WorkOrdersPage() {
     if (!note?.noteId) return;
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: note.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           is_archived: note.isArchived !== true
-        }
-      });
+        })
+        .eq('id', note.noteId);
+      if (error) throw error;
       await loadData();
     } catch (error) {
       console.error('Error updating note archive state:', error);
@@ -823,12 +817,11 @@ export default function WorkOrdersPage() {
   const handleSubmit = async (workOrderData) => {
     try {
       if (editingWorkOrder && editingWorkOrder.ro_number) {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'WorkOrder',
-          id: editingWorkOrder.id,
-          data: workOrderData
-        });
+        const { error } = await supabase
+          .from('WorkOrder')
+          .update(workOrderData)
+          .eq('id', editingWorkOrder.id);
+        if (error) throw error;
       } else {
         console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
         return;
@@ -898,12 +891,11 @@ export default function WorkOrdersPage() {
       if (!targetWorkOrder?.ro_number) {
         throw new Error('Work order not found');
       }
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetWorkOrder.id,
-        data: { status: newStatus }
-      });
+      const { error } = await supabase
+        .from('WorkOrder')
+        .update({ status: newStatus })
+        .eq('id', targetWorkOrder.id);
+      if (error) throw error;
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -1038,12 +1030,11 @@ export default function WorkOrdersPage() {
     if (!voidTarget) return;
     
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: voidTarget.id,
-        data: { stage: 'void' }
-      });
+      const { error } = await supabase
+        .from('WorkOrder')
+        .update({ stage: 'void' })
+        .eq('id', voidTarget.id);
+      if (error) throw error;
       loadData();
     } catch (error) {
       console.error('Error voiding work order:', error);
@@ -1555,8 +1546,8 @@ export default function WorkOrdersPage() {
                   }}
                 />
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border bg-white px-4 py-3">
-                  <div className="text-sm text-slate-600">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-card px-4 py-3">
+                  <div className="text-sm text-slate-600 dark:text-slate-400">
                     Page {invoicePage} of {Math.max(1, Math.ceil(invoiceTotalCount / INVOICES_PER_PAGE))} · {invoiceTotalCount} invoices
                   </div>
                   <div className="flex items-center gap-2">

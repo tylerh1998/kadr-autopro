@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import WorkOrderHeaderInfo from './form/WorkOrderHeaderInfo';
 import FinancialSummary from './form/FinancialSummary';
@@ -452,9 +453,11 @@ export default function WorkOrderForm({
         newLine.supplier_invoice_line_id = createdSupplierInvoiceLine.id;
         
         console.log('=== DEBUG: Posting to GL ===');
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: createdSupplierInvoiceLine,
-          action: 'create'
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: createdSupplierInvoiceLine,
+            action: 'create'
+          }
         });
         console.log('=== DEBUG: GL posting successful ===');
         
@@ -504,10 +507,12 @@ export default function WorkOrderForm({
         await SupplierInvoiceLine.update(existingSupplierInvoiceLineId, updatedSupplierInvoiceLineData);
         console.log('=== DEBUG: Updated SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: { ...updatedSupplierInvoiceLineData, id: existingSupplierInvoiceLineId },
-          action: 'update',
-          oldValues: oldSupplierInvoiceLine
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: { ...updatedSupplierInvoiceLineData, id: existingSupplierInvoiceLineId },
+            action: 'update',
+            oldValues: oldSupplierInvoiceLine
+          }
         });
         console.log('=== DEBUG: GL update successful ===');
       }
@@ -519,9 +524,11 @@ export default function WorkOrderForm({
         await SupplierInvoiceLine.delete(existingSupplierInvoiceLineId);
         console.log('=== DEBUG: Deleted SupplierInvoiceLine ===');
         
-        await base44.functions.invoke('handleSupplierInvoiceLineGL', {
-          supplierInvoiceLine: supplierInvoiceLineToDelete,
-          action: 'delete'
+        await supabase.functions.invoke('autopro-handleSupplierInvoiceLineGL', {
+          body: {
+            supplierInvoiceLine: supplierInvoiceLineToDelete,
+            action: 'delete'
+          }
         });
         console.log('=== DEBUG: GL reversal successful ===');
         

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder, workPROProject, mode = 'invoiceConversion', vehicle }) {
   const [odometer, setOdometer] = useState('');
@@ -57,15 +57,14 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
         // Update Vehicle entity with mileage and odometer_date in Supabase
         if (workOrder.vehicle_id) {
           try {
-            await base44.functions.invoke('SupabaseProxy', {
-              action: 'update',
-              table: 'Vehicle',
-              id: workOrder.vehicle_id,
-              data: {
+            const { error: updateError } = await supabase
+              .from('Vehicle')
+              .update({
                 mileage: odometerValue,
                 odometer_date: currentDate
-              }
-            });
+              })
+              .eq('id', workOrder.vehicle_id);
+            if (updateError) throw updateError;
           } catch (e) {
             console.error('Failed to update Vehicle in Supabase:', e);
           }

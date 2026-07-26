@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReturnReason } from '@/entities/all';
-import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
+import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 
 export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
@@ -59,17 +59,19 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     setLoading(true);
 
     try {
-      const response = await processWorkOrderPartReturn({
-        inventoryItemId: lineItem.inventory_item_id,
-        workOrderId: workOrder?.id || '',
-        roNumber: workOrder?.ro_number || '',
-        partNumber: lineItem.part_number || 'UNKNOWN',
-        description: lineItem.description || '',
-        qtyToReturn: qtyReturned,
-        createInventoryReturn: true,
-        returnReason,
-        returnNotes,
-        costEach: lineItem.cost_ea || 0,
+      const response = await supabase.functions.invoke('autopro-processWorkOrderPartReturn', {
+        body: {
+          inventoryItemId: lineItem.inventory_item_id,
+          workOrderId: workOrder?.id || '',
+          roNumber: workOrder?.ro_number || '',
+          partNumber: lineItem.part_number || 'UNKNOWN',
+          description: lineItem.description || '',
+          qtyToReturn: qtyReturned,
+          createInventoryReturn: true,
+          returnReason,
+          returnNotes,
+          costEach: lineItem.cost_ea || 0,
+        }
       });
 
       if (!response.data?.success) {

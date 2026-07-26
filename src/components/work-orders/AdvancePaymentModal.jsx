@@ -9,6 +9,7 @@ import { Plus, Lock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { WorkOrder, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 
 export default function AdvancePaymentModal({
@@ -87,17 +88,17 @@ export default function AdvancePaymentModal({
       console.log("DEBUG: workOrder object at call time:", workOrder);
       console.log("DEBUG: ro_number used:", workOrder.ro_number);
       
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'WorkOrder',
-        match: { ro_number: workOrder.ro_number }
-      });
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('ro_number', workOrder.ro_number);
       
-      if (!response.data || !response.data.data || response.data.data.length === 0) {
+      if (error) throw error;
+      if (!data || data.length === 0) {
           throw new Error("Could not find work order");
       }
       
-      const currentWorkOrder = response.data.data[0];
+      const currentWorkOrder = data[0];
       const currentStage = currentWorkOrder?.stage;
       console.log(`DATABASE CHECK RESULT: Stage is '${currentStage}'.`);
       return currentStage === 'invoice';
@@ -145,12 +146,14 @@ export default function AdvancePaymentModal({
       // Create the payment via parent (which creates CustomerPayment record)
       const createdPayment = await onProcessPayment('add', newPaymentData);
       
+      const { data: { user } } = await supabase.auth.getUser();
+      const nowIso = new Date().toISOString();
+      const userDisplay = user?.user_metadata?.full_name || user?.email || 'unknown';
+
       // Post GL transactions for the advance payment through SupabaseProxy
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'GLTransaction',
-        data: [
+      const { error: glError } = await supabase.from('GLTransaction').insert([
           {
+            id: crypto.randomUUID(),
             account_number: '1010',
             transaction_date: paymentDate,
             description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
@@ -158,9 +161,15 @@ export default function AdvancePaymentModal({
             debit_amount: paymentAmount,
             credit_amount: 0,
             source_type: 'work_order',
-            source_id: createdPayment?.id || ''
+            source_id: createdPayment?.id || '',
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           },
           {
+            id: crypto.randomUUID(),
             account_number: '2100',
             transaction_date: paymentDate,
             description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
@@ -168,10 +177,16 @@ export default function AdvancePaymentModal({
             debit_amount: 0,
             credit_amount: paymentAmount,
             source_type: 'work_order',
-            source_id: createdPayment?.id || ''
+            source_id: createdPayment?.id || '',
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           }
-        ]
-      });
+        ]);
+        
+      if (glError) throw glError;
       
       // Reset form for next entry only after successful processing
       setAmount('');
@@ -213,8 +228,11 @@ export default function AdvancePaymentModal({
 
     try {
       // Validation: Check CustomerPayments entity
-      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentIdToDelete });
-      const cp = cpRes?.data?.data;
+      const { data: cpData } = await supabase
+        .from('CustomerPayment')
+        .select('*')
+        .eq('id', paymentIdToDelete);
+      const cp = cpData?.[0];
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");
@@ -247,12 +265,14 @@ export default function AdvancePaymentModal({
       const woRef = workOrder.wo_number || workOrder.ro_number;
       const reversalDesc = `Reversal: Advance payment - WO ${woRef}`;
 
-      // Post reversal GL transactions through SupabaseProxy
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'GLTransaction',
-        data: [
+      const { data: { user } } = await supabase.auth.getUser();
+      const nowIso = new Date().toISOString();
+      const userDisplay = user?.user_metadata?.full_name || user?.email || 'unknown';
+
+      // Post reversal GL transactions through Supabase client
+      const { error: revGlError } = await supabase.from('GLTransaction').insert([
           {
+            id: crypto.randomUUID(),
             account_number: '1010',
             transaction_date: reversalDate,
             description: reversalDesc,
@@ -260,9 +280,15 @@ export default function AdvancePaymentModal({
             debit_amount: 0,
             credit_amount: paymentAmount,
             source_type: 'work_order',
-            source_id: paymentIdToDelete
+            source_id: paymentIdToDelete,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           },
           {
+            id: crypto.randomUUID(),
             account_number: '2100',
             transaction_date: reversalDate,
             description: reversalDesc,
@@ -270,10 +296,16 @@ export default function AdvancePaymentModal({
             debit_amount: paymentAmount,
             credit_amount: 0,
             source_type: 'work_order',
-            source_id: paymentIdToDelete
+            source_id: paymentIdToDelete,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           }
-        ]
-      });
+        ]);
+        
+      if (revGlError) throw revGlError;
 
       // Delete the payment via parent
       await onProcessPayment('delete', { id: paymentIdToDelete });

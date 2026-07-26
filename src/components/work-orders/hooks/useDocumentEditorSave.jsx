@@ -3,8 +3,7 @@ import { WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
-import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
-import { processDeletedWorkOrderLineItem } from '@/functions/processDeletedWorkOrderLineItem';
+import { useQueryClient } from '@tanstack/react-query';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 
 export default function useDocumentEditorSave({
@@ -60,13 +59,15 @@ export default function useDocumentEditorSave({
             const qtyOnOrder = parseFloat(deletedLine.qty_on_order) || 0;
             if (totalQty <= 0 && qtyOnOrder <= 0) continue;
 
-            const response = await processDeletedWorkOrderLineItem({
-              inventoryItemId: deletedLine.inventory_item_id,
-              workOrderId: workOrder.id,
-              roNumber: workOrder.ro_number,
-              partNumber: deletedLine.part_number,
-              totalQty,
-              qtyOnOrder,
+            const response = await supabase.functions.invoke('autopro-processDeletedWorkOrderLineItem', {
+              body: {
+                inventoryItemId: deletedLine.inventory_item_id,
+                workOrderId: workOrder.id,
+                roNumber: workOrder.ro_number,
+                partNumber: deletedLine.part_number,
+                totalQty,
+                qtyOnOrder,
+              }
             });
 
             if (!response.data?.success) {
@@ -80,13 +81,15 @@ export default function useDocumentEditorSave({
         if (pendingReturns.length > 0) {
           for (const returnItem of pendingReturns) {
             try {
-              const response = await processWorkOrderPartReturn({
-                inventoryItemId: returnItem.inventory_item_id,
-                workOrderId: workOrder.id,
-                roNumber: workOrder.ro_number,
-                partNumber: returnItem.part_number,
-                description: returnItem.description,
-                qtyToReturn: returnItem.qtyToReturn,
+              const response = await supabase.functions.invoke('autopro-processWorkOrderPartReturn', {
+                body: {
+                  inventoryItemId: returnItem.inventory_item_id,
+                  workOrderId: workOrder.id,
+                  roNumber: workOrder.ro_number,
+                  partNumber: returnItem.part_number,
+                  description: returnItem.description,
+                  qtyToReturn: returnItem.qtyToReturn,
+                }
               });
 
               if (!response.data?.success) {
@@ -100,56 +103,67 @@ export default function useDocumentEditorSave({
         }
       }
 
-      const lineItemsAfterInventoryProcessing = await Promise.all(workingLineItems.map(async (line) => {
-        if (mode === 'estimate') return line;
-        if (line.inventory_processed || !line.inventory_item_id || parseFloat(line.qty) <= 0) return line;
+      // Separate lines that need inventory processing from those that don't
+      const linesToProcess = [];
+      const linesSkipped = [];
+      
+      workingLineItems.forEach(line => {
+        if (mode === 'estimate' || line.inventory_processed || !line.inventory_item_id || parseFloat(line.qty) <= 0) {
+          linesSkipped.push(line);
+        } else {
+          linesToProcess.push(line);
+        }
+      });
 
+      let processedMap = new Map();
+
+      if (linesToProcess.length > 0) {
         try {
-          const adjustmentResponse = await base44.functions.invoke('WOGetPart', {
-            inventoryItemId: line.inventory_item_id,
-            requestedQuantity: parseFloat(line.qty),
-            workOrderId: workOrder.id,
-            roNumber: workOrder.ro_number,
-            lineDescription: line.description,
-            linePartNumber: line.part_number,
-            lineQtyOnOrder: parseFloat(line.qty_on_order) || 0
+          const bulkResponse = await supabase.functions.invoke('autopro-WOBulkGetParts', {
+            body: {
+              items: linesToProcess.map(line => ({
+                id: line.id,
+                inventory_item_id: line.inventory_item_id,
+                qty: parseFloat(line.qty),
+                part_number: line.part_number,
+                description: line.description,
+                qty_on_order: parseFloat(line.qty_on_order) || 0
+              })),
+              workOrderId: workOrder.id,
+              roNumber: workOrder.ro_number
+            }
           });
 
-          if (adjustmentResponse.data.success) {
-            const { onOrderQuantity } = adjustmentResponse.data;
-            return {
-              ...line,
-              qty_on_order: onOrderQuantity,
-              inventory_processed: true
-            };
+          if (bulkResponse.data && bulkResponse.data.success && bulkResponse.data.items) {
+            bulkResponse.data.items.forEach(processed => {
+              if (processed.success && processed.id) {
+                processedMap.set(processed.id, processed);
+              }
+            });
+          } else {
+            console.error('Failed to process bulk inventory via autopro-WOBulkGetParts:', bulkResponse.data);
           }
-
-          console.error('Failed to adjust inventory via WOGetPart for line:', line.part_number);
-          return line;
         } catch (error) {
-          console.error('Error invoking WOGetPart for line:', line.part_number, error);
-          return line;
+          console.error('Error invoking autopro-WOBulkGetParts:', error);
         }
-      }));
+      }
 
-      setLineItems(currentLines => {
-        const processedMap = new Map(lineItemsAfterInventoryProcessing.map(l => [l.id, l]));
-        return currentLines.map(currentLine => {
-          const processedLine = processedMap.get(currentLine.id);
-          if (!processedLine) return currentLine;
-          return {
-            ...currentLine,
-            qty_on_order: processedLine.qty_on_order,
-            inventory_processed: processedLine.inventory_processed,
-            supplier_invoice_line_id: processedLine.supplier_invoice_line_id,
-          };
-        });
+      const updatedLinesArray = workingLineItems.map(currentLine => {
+        const processedData = processedMap.get(currentLine.id);
+        if (!processedData) return currentLine;
+        return {
+          ...currentLine,
+          qty_on_order: processedData.qty_on_order,
+          inventory_processed: true
+        };
       });
+
+      setLineItems(updatedLinesArray);
 
       const { lineItemsToSave, workOrderData, apiPayload } = prepareWorkOrderSavePayload({
         workOrder,
         updatedDetails,
-        lineItems: lineItemsAfterInventoryProcessing,
+        lineItems: updatedLinesArray,
         systemSettings,
         invoiceConversionPhase,
       });
@@ -218,7 +232,7 @@ export default function useDocumentEditorSave({
         setHasUnsavedChanges(false);
       }
 
-      previousLineItemsRef.current = [...lineItemsAfterInventoryProcessing];
+      previousLineItemsRef.current = [...updatedLinesArray];
 
       try {
         await base44.functions.invoke('syncLevies', {

@@ -9,6 +9,7 @@ import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import { ReturnCoretoWO } from '@/functions/ReturnCoretoWO';
+import { supabase } from '@/lib/supabase';
 
 export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCoreProcessed }) {
   const [qty, setQty] = useState('');
@@ -81,12 +82,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       let supplierId = 'Unknown Supplier';
       if (lineItem.inventory_item_id) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: lineItem.inventory_item_id }
-          });
-          const inventoryItem = response.data?.data?.[0];
+          const { data, error } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', lineItem.inventory_item_id);
+          const inventoryItem = data?.[0];
           if (inventoryItem && inventoryItem.supplier_id) {
             supplierId = inventoryItem.supplier_id;
           }

@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { Button } from '@/components/ui/button';
@@ -647,18 +648,29 @@ export default function InventoryAddPage() {
             for (const invoiceGroup of batchItems) {
                 const invoiceIdentifier = `${getSupplierName(invoiceGroup.supplier_id)} - Invoice #${invoiceGroup.invoice_number}`;
                 try {
-                    const response = await base44.functions.invoke('processInventoryReceipt', {
+                    console.log('Sending receipt payload to autopro-processInventoryReceipt:', {
                         supplier_id: invoiceGroup.supplier_id,
                         invoice_number: invoiceGroup.invoice_number,
                         invoice_date: invoiceGroup.invoice_date,
                         items: invoiceGroup.partItems,
                         action: 'create'
                     });
+                    const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
+                        body: {
+                            supplier_id: invoiceGroup.supplier_id,
+                            invoice_number: invoiceGroup.invoice_number,
+                            invoice_date: invoiceGroup.invoice_date,
+                            items: invoiceGroup.partItems,
+                            action: 'create'
+                        }
+                    });
+                    console.log('Response from autopro-processInventoryReceipt:', response);
 
-                    if (!response.data.success) {
-                        const errorMessages = response.data.errors && response.data.errors.length > 0
-                            ? response.data.errors.map(err => err.error || JSON.stringify(err)).join('\n')
-                            : (response.data.message || 'Unknown error');
+                    if (!response.data || !response.data.success) {
+                        const data = response.data || {};
+                        const errorMessages = data.errors && data.errors.length > 0
+                            ? data.errors.map(err => err.error || JSON.stringify(err)).join('\n')
+                            : (data.message || data.error || 'Unknown error');
                         results.push({ success: false, invoice: invoiceIdentifier, message: errorMessages });
                     } else {
                         results.push({ success: true, invoice: invoiceIdentifier });

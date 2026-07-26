@@ -11,7 +11,7 @@ import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCharge, editingChargeLine, workOrderNumber }) {
   const [chargeTypes, setChargeTypes] = useState([]);
@@ -50,14 +50,11 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       try {
         const [typesData, suppliersResponse, accountsData] = await Promise.all([
           OtherChargeList.filter({ is_active: true }),
-          base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier'
-          }),
+          supabase.from('Supplier').select('*'),
           ChartOfAccount.list('account_number')
         ]);
         setChargeTypes((typesData || []).map(unwrapEntityData));
-        setSuppliers(((suppliersResponse.data?.data) || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        setSuppliers((suppliersResponse.data || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
         setGlAccounts((accountsData || []).map(unwrapEntityData));
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -123,13 +120,12 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         setApplyCost(true);
         setLoadingSupplierInvoiceLine(true);
         
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { id: editingChargeLine.supplier_invoice_line_id }
-        })
+        supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('id', editingChargeLine.supplier_invoice_line_id)
           .then(response => {
-            const sil = (response.data?.data || [])[0];
+            const sil = response.data?.[0];
             if (!sil) throw new Error('Supplier invoice line not found');
             console.log('=== DEBUG: Fetched SupplierInvoiceLine for editing:', sil);
             setLinkedSupplierId(sil.supplier_id ? String(sil.supplier_id) : '');
@@ -251,12 +247,12 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       if (!editingChargeLine) {
         try {
           setSubmitting(true);
-          const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: linkedSupplierId }
-          });
-          const freshSupplier = (supplierResponse.data?.data || [])[0];
+          const { data: supplierResponse, error: suppError } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', linkedSupplierId);
+          if (suppError) throw suppError;
+          const freshSupplier = supplierResponse?.[0];
           if (freshSupplier && freshSupplier.LockedByUser) {
             alert(`Supplier locked by: ${freshSupplier.LockedByUser}`);
             setSubmitting(false);

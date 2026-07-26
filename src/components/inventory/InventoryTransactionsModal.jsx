@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -176,7 +177,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
     setDeleteConfirmOpen(false);
 
     try {
-      const response = await base44.functions.invoke('processInventoryReceipt', {
+      const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
         action: 'reverse',
         supplier_invoice_line_id: transactionToDelete.id
       });

@@ -10,6 +10,7 @@ import { InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/en
 import { base44 } from '@/api/base44Client';
 import { inventoryAdd } from '@/functions/inventoryAdd';
 import { inventoryUpdate } from '@/functions/inventoryUpdate';
+import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 
@@ -129,19 +130,22 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   const loadDropdownData = async () => {
     try {
-      const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier',
-          match: { inventory_supplier: true }
-        }).then(res => res.data?.data || []),
-        base44.functions.invoke('SupabaseProxy', { action: 'read' }),
+      const [suppliersData, salesClassesData, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
+        supabase
+          .from('Supplier')
+          .select('*')
+          .eq('inventory_supplier', true)
+          .then(res => res.data || []),
+        supabase
+          .from('SalesClass')
+          .select('*')
+          .then(res => res.data || []),
         TagAlong.list(),
         OtherChargeList.list(),
         InventoryCategory.list()
       ]);
       setSuppliers(suppliersData);
-      setSalesClasses(salesClassesResponse.data?.data || []);
+      setSalesClasses(salesClassesData || []);
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
       setInventoryCategories(categoriesData);
@@ -368,13 +372,12 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
             if (item.isExistingPart && item.existingPartId) {
                 // Update existing item QOO
-                // Fetch fresh to get current QOO via SupabaseProxy
-                const freshItemRes = await base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'InventoryItem',
-                    match: { id: item.existingPartId }
-                });
-                const freshItem = freshItemRes.data?.data?.[0];
+                // Fetch fresh to get current QOO via Supabase client
+                const { data: freshItemRes } = await supabase
+                    .from('InventoryItem')
+                    .select('*')
+                    .eq('id', item.existingPartId);
+                const freshItem = freshItemRes?.[0];
                 if (!freshItem) throw new Error("Could not find existing part in database.");
                 
                 const currentQOO = freshItem.quantity_on_order || 0;
