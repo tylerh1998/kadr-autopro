@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, ArrowRight, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function MergeInventoryModal({ open, onClose, onMergeComplete, preselectedMaster }) {
   const [step, setStep] = useState(preselectedMaster ? 2 : 1); // 1: Select Master, 2: Select Duplicate, 3: Confirm
@@ -84,15 +85,20 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
     setMerging(true);
     try {
-      const response = await supabase.functions.invoke('autopro-mergeInventoryItems', {
+      const { data, error } = await supabase.functions.invoke('autopro-mergeInventoryItems', {
         body: {
           masterId: masterItem.id,
           duplicateId: duplicateItem.id
         }
       });
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (error) {
+        console.error('Edge Function Error:', error);
+        throw new Error(error.message || 'Edge function invocation failed');
+      }
+
+      if (data && data.error) {
+        throw new Error(data.error);
       }
 
       alert("Merge completed successfully!");
