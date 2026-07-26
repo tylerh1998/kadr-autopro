@@ -19,7 +19,7 @@ serve(async (req) => {
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(JSON.stringify({ error: 'Missing Supabase configuration' }), {
-        status: 500,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -31,7 +31,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
-        status: 401,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -41,7 +41,7 @@ serve(async (req) => {
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
-        status: 401,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
     } catch (jsonError) {
       console.error('Error parsing request JSON:', jsonError);
       return new Response(JSON.stringify({ error: 'Invalid JSON payload', details: jsonError.message }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -63,14 +63,14 @@ serve(async (req) => {
 
     if (!masterId || !duplicateId) {
       return new Response(JSON.stringify({ error: 'masterId and duplicateId are required' }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
 
     if (masterId === duplicateId) {
       return new Response(JSON.stringify({ error: 'Cannot merge an item into itself' }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -89,13 +89,13 @@ serve(async (req) => {
 
     if (!masterItem) {
       return new Response(JSON.stringify({ error: 'Master item not found' }), {
-        status: 404,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
     if (!duplicateItem) {
       return new Response(JSON.stringify({ error: 'Duplicate item not found' }), {
-        status: 404,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -103,7 +103,7 @@ serve(async (req) => {
     // Check if duplicate is already merged
     if (duplicateItem.master_inventory_item_id) {
       return new Response(JSON.stringify({ error: 'Duplicate item is already merged' }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       });
     }
@@ -179,10 +179,10 @@ serve(async (req) => {
       logs.push(`Updated SupplierInvoiceLine references`);
     }
 
-    // 4. Update Master Inventory Item
-    const newQoh = (masterItem.quantity_on_hand || 0) + (duplicateItem.quantity_on_hand || 0);
-    const newQoo = (masterItem.quantity_on_order || 0) + (duplicateItem.quantity_on_order || 0);
-    const newCost = Math.max((masterItem.cost || 0), (duplicateItem.cost || 0));
+    // 4. Update Master Inventory Item (Fix string concatenation bug)
+    const newQoh = parseFloat(masterItem.quantity_on_hand || 0) + parseFloat(duplicateItem.quantity_on_hand || 0);
+    const newQoo = parseFloat(masterItem.quantity_on_order || 0) + parseFloat(duplicateItem.quantity_on_order || 0);
+    const newCost = Math.max(parseFloat(masterItem.cost || 0), parseFloat(duplicateItem.cost || 0));
 
     let currentDuplicates = masterItem.duplicate_inventory_item_ids;
     if (typeof currentDuplicates === 'string') {
@@ -225,7 +225,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Merge error:', error);
     return new Response(JSON.stringify({ error: error.message || 'Unknown error' }), {
-        status: 500,
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }

@@ -94,7 +94,14 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
       if (error) {
         console.error('Edge Function Error:', error);
-        throw new Error(error.message || 'Edge function invocation failed');
+        let errorMessage = error.message;
+        if (error.context && typeof error.context.json === 'function') {
+           try {
+             const errData = await error.context.json();
+             if (errData.error) errorMessage = errData.error;
+           } catch (e) {}
+        }
+        throw new Error(errorMessage || 'Edge function invocation failed');
       }
 
       if (data && data.error) {
