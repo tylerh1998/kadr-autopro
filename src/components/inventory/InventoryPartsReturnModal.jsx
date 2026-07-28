@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn, ReturnReason, InventoryTxs, Supplier } from '@/entities/all';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
+import { InventoryReturn, ReturnReason, Supplier } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
@@ -58,19 +58,19 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       // This path is for returning a part FROM a work order back TO general stock
       try {
           const currentQOH = Number(item.quantity_on_hand || 0);
-          await inventoryUpdate({ itemId: item.id, updates: { quantity_on_hand: currentQOH + qtyReturned } });
+          const newQOH = currentQOH + qtyReturned;
+          
+          const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: newQOH }).eq('id', item.id);
+          if (updateError) throw new Error('Failed to update inventory quantity');
 
-          await InventoryTxs.create({
+          const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
               inventory_item_id: item.id,
-              part_num: item.part_number,
-              tx_date: new Date().toISOString(),
-              tx_type: 'Returned from WO',
+              transaction_type: 'Returned from WO',
               quantity_change: qtyReturned, // Positive change as it's returning to stock
-              quantity_ordered_change: 0,
-              ro_number: workOrderNumber,
-              source_record_id: workOrderId,
+              reference_number: workOrderNumber,
               description: `Part returned from WO ${workOrderNumber}. Reason: ${returnReason}`
-          });
+          }]);
+          if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
           
           onReturnWorkOrderPart(qtyReturned, returnReason); // Notify parent about the return
           onClose();
@@ -122,20 +122,17 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
       // Decrement QOH from inventory
       const updatedQOH = Number(item.quantity_on_hand || 0) - qtyReturned;
-      await inventoryUpdate({ itemId: item.id, updates: { quantity_on_hand: updatedQOH } });
+      const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: updatedQOH }).eq('id', item.id);
+      if (updateError) throw new Error('Failed to update inventory quantity');
       
       // Create transaction record
-      await InventoryTxs.create({
+      const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: item.id,
-        part_num: item.part_number,
-        tx_date: new Date().toISOString(),
-        tx_type: 'Returned to Supplier',
+        transaction_type: 'Returned to Supplier',
         quantity_change: -qtyReturned, // Negative change as it's leaving stock
-        quantity_ordered_change: 0,
-        source_record_id: createdReturn.id,
-        supplier_name: suppliers.find(s => s.id === item.supplier_id)?.name || '',
         description: `Part returned to supplier. Reason: ${returnReason}`
-      });
+      }]);
+      if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 
       onUpdate();
       onClose();

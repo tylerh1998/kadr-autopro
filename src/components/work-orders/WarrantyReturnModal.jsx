@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, InventoryTxs, GLTransaction, WorkOrder } from '@/entities/all';
+import { InventoryReturn, WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -124,21 +124,15 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const createdReturn = await InventoryReturn.create(returnData);
       console.log('Created warranty return:', createdReturn);
 
-      // Create InventoryTxs record (informational only, no quantity change)
-      const txData = {
+      // Create InventoryAuditLog record (informational only, no quantity change)
+      const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: inventoryItem.id,
-        ro_number: workOrder.wo_number || workOrder.ro_number,
-        part_num: lineItem.part_number,
-        tx_date: new Date().toISOString(),
-        tx_type: 'Returned to Supplier',
+        reference_number: workOrder.wo_number || workOrder.ro_number,
+        transaction_type: 'Warranty Return', // Match the plan
         quantity_change: 0, // Informational only
-        quantity_ordered_change: 0,
-        supplier_name: supplierName,
-        source_record_id: createdReturn.id,
         description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`
-      };
-
-      await InventoryTxs.create(txData);
+      }]);
+      if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
       console.log('Created warranty transaction record');
 
       // Create GL Transactions (Replicating Legacy Warranty Logic)
@@ -147,7 +141,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // ensuring consistency with return_date is best.
       const glDate = format(toMountainTime(new Date()), 'yyyy-MM-dd');
       const totalCost = (inventoryItem.cost || 0) * qty;
-      await GLTransaction.bulkCreate([
+      const { error: glError } = await supabase.from('GLTransaction').insert([
         {
           account_number: "5000",
           transaction_date: glDate,
@@ -167,6 +161,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           source_id: createdReturn.id
         }
       ]);
+      if (glError) console.error('Error creating GL transactions:', glError);
       console.log('Created GL transactions for warranty return');
 
       // Update WorkOrder line items with warranty_returned flag

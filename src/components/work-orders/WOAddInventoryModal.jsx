@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
-import { InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
+import { TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { inventoryAdd } from '@/functions/inventoryAdd';
 import { inventoryUpdate } from '@/functions/inventoryUpdate';
@@ -422,19 +422,16 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 processedInventoryItem = createResponse.data?.data;
             }
 
-            // Create Inventory Transaction
-            await InventoryTxs.create({
+            // Create InventoryAuditLog record
+            const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                 inventory_item_id: processedInventoryItem.id,
-                part_num: processedInventoryItem.part_number,
-                tx_date: new Date().toISOString(),
-                tx_type: 'Ordered',
+                transaction_type: 'Ordered',
                 quantity_change: 0,
                 quantity_ordered_change: quantityToOrder,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                supplier_name: suppliers.find(s => s.id === item.supplier_id)?.name || '',
+                reference_number: workOrder.ro_number,
                 description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`
-            });
+            }]);
+            if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 
             // Create Line Item
             const coreNum = item.core ? quantityToOrder : 0;

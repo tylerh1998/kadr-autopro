@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn, InventoryTxs } from '@/entities/all';
+import { InventoryReturn } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -198,18 +199,16 @@ export default function InventoryReturnsPage() {
 
         const quantityReturned = Number(returnItem.quantity_returned || 0);
         const newQOH = Number(originalItem.quantity_on_hand || 0) + quantityReturned;
-        await inventoryUpdate({ itemId: originalItem.id, updates: { quantity_on_hand: newQOH } });
-        await InventoryTxs.create({
+        const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: newQOH }).eq('id', originalItem.id);
+        if (updateError) throw new Error('Failed to update inventory quantity');
+
+        const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
           inventory_item_id: originalItem.id,
-          part_num: returnItem.part_number,
-          tx_date: getMountainTimeNow().toISOString(),
-          tx_type: 'QOH Adjusted',
+          transaction_type: 'QOH Adjusted',
           quantity_change: quantityReturned,
-          quantity_ordered_change: 0,
-          supplier_name: getSupplierName(returnItem.supplier),
-          source_record_id: returnItem.id,
           description: 'Part removed from inventory, back to inventory.'
-        });
+        }]);
+        if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
         await InventoryReturn.delete(returnItem.id);
         alert('Item returned to inventory successfully.');
         loadReturns();

@@ -10,6 +10,7 @@ import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/lib/supabase';
 
 // Import hooks
 import { useWorkOrder } from '../components/hooks/useWorkOrder';
@@ -352,16 +353,14 @@ export default function CreditInvoicePage() {
                   quantity_on_hand: newQOH
                 }});
                 
-                await base44.entities.InventoryTxs.create({
+                const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                   inventory_item_id: line.inventory_item_id,
-                  ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
-                  part_num: line.part_number || inventoryItem.part_number,
-                  tx_date: new Date().toISOString(),
-                  tx_type: 'Returned from WO',
+                  reference_number: workOrder.ro_number,
+                  transaction_type: 'Returned from WO',
                   quantity_change: returnQty,
-                  quantity_ordered_change: 0,
-                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
-                });
+                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock`
+                }]);
+                if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
                 
                 console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
               }

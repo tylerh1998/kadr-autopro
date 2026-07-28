@@ -24,15 +24,21 @@ function formatDisplayValue(value) {
   return String(value);
 }
 
-function getRowState(currentRow, previousRow, columns) {
+function getRowState(currentRow, previousRow, columns, extraTrackedKeys = []) {
   if (currentRow && !previousRow) return 'added';
   if (!currentRow && previousRow) return 'deleted';
-  const hasChanges = columns.some((column) => {
+  
+  const hasColumnChanges = columns.some((column) => {
     const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
     const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
     return !valuesEqual(previousValue, currentValue);
   });
-  return hasChanges ? 'changed' : 'unchanged';
+  if (hasColumnChanges) return 'changed';
+
+  const hasExtraChanges = extraTrackedKeys.some((key) => {
+    return !valuesEqual(previousRow?.[key], currentRow?.[key]);
+  });
+  return hasExtraChanges ? 'changed' : 'unchanged';
 }
 
 function getRowClasses(rowState) {
@@ -50,6 +56,7 @@ export default function HistoryComparisonTable({
   getRowKey,
   showAllCurrentRows = false,
   showLegend = false,
+  extraTrackedKeys = [],
 }) {
   const displayRows = useMemo(() => {
     const previousMap = new Map();
@@ -67,7 +74,7 @@ export default function HistoryComparisonTable({
         rowKey,
         currentRow,
         previousRow,
-        rowState: getRowState(currentRow, previousRow, columns),
+        rowState: getRowState(currentRow, previousRow, columns, extraTrackedKeys),
       };
     });
 
@@ -82,7 +89,7 @@ export default function HistoryComparisonTable({
 
     const rows = [...activeRows, ...removedRows];
     return showAllCurrentRows ? rows : rows.filter((row) => row.rowState !== 'unchanged');
-  }, [currentRows, previousRows, getRowKey, columns, showAllCurrentRows]);
+  }, [currentRows, previousRows, getRowKey, columns, showAllCurrentRows, extraTrackedKeys]);
 
   if (!displayRows.length) return null;
 
