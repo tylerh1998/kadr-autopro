@@ -164,6 +164,10 @@ Deno.serve(async (req) => {
 
     const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', inventoryUpdatePayload);
 
+    const inventoryUpdateResult = inventoryUpdateResponse?.data?.success === true
+      ? inventoryUpdateResponse.data
+      : inventoryUpdateResponse?.data?.data;
+
     console.log('processWorkOrderPartReceive inventoryUpdate raw response:', inventoryUpdateResponse);
     console.log('processWorkOrderPartReceive inventoryUpdate response details:', {
       effectiveInventoryItemId,
@@ -173,21 +177,24 @@ Deno.serve(async (req) => {
       responseData: inventoryUpdateResponse?.data,
       responseDataType: typeof inventoryUpdateResponse?.data,
       responseDataKeys: inventoryUpdateResponse?.data && typeof inventoryUpdateResponse.data === 'object' ? Object.keys(inventoryUpdateResponse.data) : null,
-      responseSuccess: inventoryUpdateResponse?.data?.success,
-      responseError: inventoryUpdateResponse?.data?.error
+      result: inventoryUpdateResult,
+      resultKeys: inventoryUpdateResult && typeof inventoryUpdateResult === 'object' ? Object.keys(inventoryUpdateResult) : null,
+      responseSuccess: inventoryUpdateResult?.success,
+      responseError: inventoryUpdateResult?.error
     });
 
-    if (!inventoryUpdateResponse.data?.success) {
+    if (inventoryUpdateResult?.success !== true) {
       console.log('processWorkOrderPartReceive inventoryUpdate failed success check:', {
         effectiveInventoryItemId,
         inventoryUpdatePayload,
         responseData: inventoryUpdateResponse?.data,
-        responseSuccess: inventoryUpdateResponse?.data?.success,
-        responseError: inventoryUpdateResponse?.data?.error
+        result: inventoryUpdateResult,
+        responseSuccess: inventoryUpdateResult?.success,
+        responseError: inventoryUpdateResult?.error
       });
       return Response.json({
         error: 'Failed to update inventory item',
-        details: inventoryUpdateResponse.data?.error || 'inventoryUpdate did not return success'
+        details: inventoryUpdateResult?.error || 'inventoryUpdate did not return success'
       }, { status: 500 });
     }
 
@@ -225,7 +232,7 @@ Deno.serve(async (req) => {
       message: `Successfully received ${receivedQuantity} unit(s) and issued to work order`,
       updatedLineItem: lineItems[lineItemIndex],
       newInventoryQOH: newQOH,
-      newInventoryQOO: inventoryUpdateResponse.data?.data?.quantity_on_order ?? newInventoryQOO
+      newInventoryQOO: inventoryUpdateResult?.data?.quantity_on_order ?? newInventoryQOO
     });
 
   } catch (error) {
