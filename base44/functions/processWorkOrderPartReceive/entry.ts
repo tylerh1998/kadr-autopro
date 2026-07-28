@@ -164,13 +164,27 @@ Deno.serve(async (req) => {
 
     const inventoryUpdateResponse = await base44.functions.invoke('inventoryUpdate', inventoryUpdatePayload);
 
-    console.log('processWorkOrderPartReceive inventoryUpdate response:', {
+    console.log('processWorkOrderPartReceive inventoryUpdate raw response:', inventoryUpdateResponse);
+    console.log('processWorkOrderPartReceive inventoryUpdate response details:', {
       effectiveInventoryItemId,
       inventoryUpdatePayload,
-      inventoryUpdateResponse: inventoryUpdateResponse?.data
+      responseType: typeof inventoryUpdateResponse,
+      responseKeys: inventoryUpdateResponse ? Object.keys(inventoryUpdateResponse) : null,
+      responseData: inventoryUpdateResponse?.data,
+      responseDataType: typeof inventoryUpdateResponse?.data,
+      responseDataKeys: inventoryUpdateResponse?.data && typeof inventoryUpdateResponse.data === 'object' ? Object.keys(inventoryUpdateResponse.data) : null,
+      responseSuccess: inventoryUpdateResponse?.data?.success,
+      responseError: inventoryUpdateResponse?.data?.error
     });
 
     if (!inventoryUpdateResponse.data?.success) {
+      console.log('processWorkOrderPartReceive inventoryUpdate failed success check:', {
+        effectiveInventoryItemId,
+        inventoryUpdatePayload,
+        responseData: inventoryUpdateResponse?.data,
+        responseSuccess: inventoryUpdateResponse?.data?.success,
+        responseError: inventoryUpdateResponse?.data?.error
+      });
       return Response.json({
         error: 'Failed to update inventory item',
         details: inventoryUpdateResponse.data?.error || 'inventoryUpdate did not return success'
