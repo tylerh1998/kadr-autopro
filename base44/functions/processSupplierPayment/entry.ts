@@ -7,6 +7,16 @@ const getErrorDetails = (error) => ({
   stack: error?.stack || null,
 });
 
+const buildInvoiceStateSnapshot = (rows = []) => (rows || []).map((row) => ({
+  id: row?.id || null,
+  invoice_number: row?.invoice_number || null,
+  invoice_date: row?.invoice_date || null,
+  purchase_amount: row?.purchase_amount ?? null,
+  gst_amount: row?.gst_amount ?? null,
+  paid_amount: row?.paid_amount ?? null,
+  updated_date: row?.updated_date || null,
+}));
+
 Deno.serve(async (req) => {
   let stage = 'initializing';
   let logContext = {};
@@ -123,6 +133,72 @@ Deno.serve(async (req) => {
     }
 
     stage = 'apply_supplier_invoice_line_paid_updates';
+
+    const trackedInvoiceIds = [...new Set(
+      appliedInvoices
+        .map((invoice) => invoice?.id)
+        .filter(Boolean)
+    )];
+    const trackedInvoiceNumbers = [...new Set(
+      appliedInvoices
+        .map((invoice) => invoice?.invoice_number)
+        .filter((invoiceNumber) => invoiceNumber && invoiceNumber !== 'On Account')
+    )];
+
+    let invoiceStateBeforeById = [];
+    let invoiceStateBeforeByNumber = [];
+
+    if (trackedInvoiceIds.length > 0) {
+      const { data: rowsById, error: rowsByIdError } = await supabase
+        .from('SupplierInvoiceLine')
+        .select('id, invoice_number, invoice_date, purchase_amount, gst_amount, paid_amount, updated_date')
+        .in('id', trackedInvoiceIds);
+
+      if (rowsByIdError) {
+        console.error('processSupplierPayment failed to load invoice state by id before allocation', {
+          ...logContext,
+          stage,
+          payment_id: paymentId,
+          tracked_invoice_ids: trackedInvoiceIds,
+          error: getErrorDetails(rowsByIdError),
+        });
+      } else {
+        invoiceStateBeforeById = rowsById || [];
+      }
+    }
+
+    if (trackedInvoiceNumbers.length > 0) {
+      const { data: rowsByNumber, error: rowsByNumberError } = await supabase
+        .from('SupplierInvoiceLine')
+        .select('id, invoice_number, invoice_date, purchase_amount, gst_amount, paid_amount, updated_date')
+        .eq('supplier_id', supplierId)
+        .in('invoice_number', trackedInvoiceNumbers)
+        .order('invoice_date', { ascending: false });
+
+      if (rowsByNumberError) {
+        console.error('processSupplierPayment failed to load invoice state by invoice number before allocation', {
+          ...logContext,
+          stage,
+          payment_id: paymentId,
+          tracked_invoice_numbers: trackedInvoiceNumbers,
+          error: getErrorDetails(rowsByNumberError),
+        });
+      } else {
+        invoiceStateBeforeByNumber = rowsByNumber || [];
+      }
+    }
+
+    console.info('processSupplierPayment allocation snapshot before RPC', {
+      ...logContext,
+      stage,
+      payment_id: paymentId,
+      applied_invoices: appliedInvoices,
+      tracked_invoice_ids: trackedInvoiceIds,
+      tracked_invoice_numbers: trackedInvoiceNumbers,
+      matched_by_id: buildInvoiceStateSnapshot(invoiceStateBeforeById),
+      matched_by_invoice_number: buildInvoiceStateSnapshot(invoiceStateBeforeByNumber),
+    });
+
     const { data: allocationResult, error: allocationError } = await supabase.rpc('apply_supplier_invoice_line_paid_updates', {
       p_supplier_id: supplierId,
       p_applied_invoices: appliedInvoices
@@ -145,6 +221,59 @@ Deno.serve(async (req) => {
 
       throw new Error(`Failed to create supplier payment: ${allocationError.message}`);
     }
+
+    let invoiceStateAfterById = [];
+    let invoiceStateAfterByNumber = [];
+
+    if (trackedInvoiceIds.length > 0) {
+      const { data: rowsByIdAfter, error: rowsByIdAfterError } = await supabase
+        .from('SupplierInvoiceLine')
+        .select('id, invoice_number, invoice_date, purchase_amount, gst_amount, paid_amount, updated_date')
+        .in('id', trackedInvoiceIds);
+
+      if (rowsByIdAfterError) {
+        console.error('processSupplierPayment failed to load invoice state by id after allocation', {
+          ...logContext,
+          stage,
+          payment_id: paymentId,
+          tracked_invoice_ids: trackedInvoiceIds,
+          error: getErrorDetails(rowsByIdAfterError),
+        });
+      } else {
+        invoiceStateAfterById = rowsByIdAfter || [];
+      }
+    }
+
+    if (trackedInvoiceNumbers.length > 0) {
+      const { data: rowsByNumberAfter, error: rowsByNumberAfterError } = await supabase
+        .from('SupplierInvoiceLine')
+        .select('id, invoice_number, invoice_date, purchase_amount, gst_amount, paid_amount, updated_date')
+        .eq('supplier_id', supplierId)
+        .in('invoice_number', trackedInvoiceNumbers)
+        .order('invoice_date', { ascending: false });
+
+      if (rowsByNumberAfterError) {
+        console.error('processSupplierPayment failed to load invoice state by invoice number after allocation', {
+          ...logContext,
+          stage,
+          payment_id: paymentId,
+          tracked_invoice_numbers: trackedInvoiceNumbers,
+          error: getErrorDetails(rowsByNumberAfterError),
+        });
+      } else {
+        invoiceStateAfterByNumber = rowsByNumberAfter || [];
+      }
+    }
+
+    console.info('processSupplierPayment allocation snapshot after RPC', {
+      ...logContext,
+      stage,
+      payment_id: paymentId,
+      payment_source: paymentSource,
+      allocation_result: allocationResult || null,
+      matched_by_id: buildInvoiceStateSnapshot(invoiceStateAfterById),
+      matched_by_invoice_number: buildInvoiceStateSnapshot(invoiceStateAfterByNumber),
+    });
 
     stage = 'queue_executeSupplierPayment';
     base44.functions.invoke('executeSupplierPayment', {

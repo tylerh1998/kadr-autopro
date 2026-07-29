@@ -257,6 +257,22 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             uniqueKey: `${inv.supplier_id}_${inv.invoice_number}_${inv.invoice_date}_${index}`
           }))
           .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
+
+        console.info('SupplierPaymentModal outstanding invoice snapshot', {
+          supplierId: supplier?.id || null,
+          supplierName: supplier?.name || null,
+          invoiceCount: outstanding.length,
+          invoices: outstanding.map((inv) => ({
+            id: inv.id || null,
+            invoice_number: inv.invoice_number || null,
+            invoice_date: inv.invoice_date || null,
+            purchase_amount: inv.purchase_amount ?? null,
+            gst_amount: inv.gst_amount ?? null,
+            paid_amount: inv.paid_amount ?? null,
+            balance_due: inv.balance_due ?? null
+          }))
+        });
+
         setOutstandingInvoices(outstanding);
       }
     } catch (error) {
@@ -560,6 +576,19 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             });
         }
       }
+
+      console.info('SupplierPaymentModal payment submission snapshot', {
+        supplierId: supplier?.id || null,
+        supplierName: supplier?.name || null,
+        activeTab,
+        paymentDate: paymentData.payment_date,
+        paymentMethod: paymentData.payment_method,
+        fromAccountId: paymentData.from_account_id || null,
+        totalPaymentAmount: paymentAmount,
+        chequeNumber: chequeNumber || null,
+        appliedInvoices: appliedInvoicesDetails,
+        selectedInvoiceKeys: Object.keys(selectedInvoices).filter((key) => selectedInvoices[key])
+      });
 
       // Call backend function to process payment
       const response = await base44.functions.invoke('processSupplierPayment', {
