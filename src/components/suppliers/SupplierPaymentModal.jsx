@@ -125,6 +125,49 @@ const parseAndValidateDateInput = (inputDate) => {
     }
 };
 
+const buildAppliedDetailsFromConceptualInvoice = (invoice) => {
+  const invoiceBalance = Math.round((parseFloat(invoice?.balance_due) || 0) * 100) / 100;
+  const lineDetails = Array.isArray(invoice?.lines)
+    ? invoice.lines
+        .map((line) => {
+          const charge = parseFloat(line?.line_total) || ((parseFloat(line?.charge ?? line?.purchase_amount) || 0) + (parseFloat(line?.gst ?? line?.gst_amount) || 0));
+          const paid = parseFloat(line?.paid_amount) || 0;
+          const amountApplied = Math.round((charge - paid) * 100) / 100;
+
+          if (Math.abs(amountApplied) <= 0.005) return null;
+
+          return {
+            id: line?.id || undefined,
+            invoice_number: line?.invoice_number || invoice?.invoice_number,
+            invoice_date: line?.invoice_date || invoice?.invoice_date,
+            amount_applied: amountApplied
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  if (lineDetails.length === 0) {
+    return [{
+      invoice_number: invoice?.invoice_number,
+      invoice_date: invoice?.invoice_date,
+      amount_applied: invoiceBalance
+    }];
+  }
+
+  const detailTotal = Math.round(lineDetails.reduce((sum, line) => sum + line.amount_applied, 0) * 100) / 100;
+  const roundingDifference = Math.round((invoiceBalance - detailTotal) * 100) / 100;
+
+  if (Math.abs(roundingDifference) > 0.005) {
+    const lastIndex = lineDetails.length - 1;
+    lineDetails[lastIndex] = {
+      ...lineDetails[lastIndex],
+      amount_applied: Math.round((lineDetails[lastIndex].amount_applied + roundingDifference) * 100) / 100
+    };
+  }
+
+  return lineDetails;
+};
+
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const [loading, setLoading] = useState(false);
   const [actionLocked, setActionLocked] = useState(false);
@@ -248,13 +291,15 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       setLinesOfCredit(locs || []);
 
       if (invoiceLines && Array.isArray(invoiceLines)) {
-        // Create a unique key for each invoice since conceptual invoices might not have unique IDs
-        // Include both positive balances (invoices) and negative balances (credits)
         const outstanding = invoiceLines
-          .filter(inv => Math.abs(inv.balance_due) > 0.01)
+          .filter((inv) => Math.abs(parseFloat(inv.balance_due) || 0) > 0.01)
           .map((inv, index) => ({
             ...inv,
-            uniqueKey: `${inv.supplier_id}_${inv.invoice_number}_${inv.invoice_date}_${index}`
+            total_amount: Math.round((parseFloat(inv.total_amount) || 0) * 100) / 100,
+            amount_paid: Math.round((parseFloat(inv.amount_paid) || 0) * 100) / 100,
+            balance_due: Math.round((parseFloat(inv.balance_due) || 0) * 100) / 100,
+            uniqueKey: inv.conceptual_invoice_key || `${inv.supplier_id}_${inv.invoice_number}_${inv.invoice_date}_${index}`,
+            lines: Array.isArray(inv.lines) ? inv.lines : []
           }))
           .sort((a, b) => new Date(a.invoice_date) - new Date(b.invoice_date));
 
@@ -263,17 +308,18 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           supplierName: supplier?.name || null,
           invoiceCount: outstanding.length,
           invoices: outstanding.map((inv) => ({
-            id: inv.id || null,
             invoice_number: inv.invoice_number || null,
             invoice_date: inv.invoice_date || null,
-            purchase_amount: inv.purchase_amount ?? null,
-            gst_amount: inv.gst_amount ?? null,
-            paid_amount: inv.paid_amount ?? null,
-            balance_due: inv.balance_due ?? null
+            total_amount: inv.total_amount ?? null,
+            amount_paid: inv.amount_paid ?? null,
+            balance_due: inv.balance_due ?? null,
+            line_ids: (inv.lines || []).map((line) => line?.id).filter(Boolean)
           }))
         });
 
         setOutstandingInvoices(outstanding);
+      } else {
+        setOutstandingInvoices([]);
       }
     } catch (error) {
       console.error('Error loading payment data:', error);
@@ -552,12 +598,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
 
       if (activeTab === 'pay_invoices') {
         const selectedInvoicesList = outstandingInvoices.filter(inv => selectedInvoices[inv.uniqueKey]);
-        appliedInvoicesDetails = selectedInvoicesList.map(inv => ({
-          invoice_number: inv.invoice_number,
-          amount_applied: inv.balance_due,
-          id: inv.id // Include ID for optimization
-        }));
-        paymentAmount = selectedInvoicesList.reduce((sum, inv) => sum + inv.balance_due, 0);
+        appliedInvoicesDetails = selectedInvoicesList.flatMap(buildAppliedDetailsFromConceptualInvoice);
+        paymentAmount = Math.round(selectedInvoicesList.reduce((sum, inv) => sum + (parseFloat(inv.balance_due) || 0), 0) * 100) / 100;
       } else {
         // Pay On Account - Use calculated results
         paymentAmount = parseAmount(paymentData.amount);
