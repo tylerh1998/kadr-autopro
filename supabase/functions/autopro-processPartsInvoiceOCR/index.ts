@@ -30,7 +30,7 @@ serve(async (req) => {
         }
 
         // We use gemini-1.5-pro or flash for multi-modal tasks
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
         const prompt = `You are a highly accurate invoice parser. 
 Analyze the provided invoice document and extract the following information.
