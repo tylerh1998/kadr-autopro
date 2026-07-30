@@ -733,7 +733,8 @@ export default function InventoryAddPage() {
                         invoice_number: invoiceGroup.invoice_number,
                         invoice_date: invoiceGroup.invoice_date,
                         items: invoiceGroup.partItems,
-                        action: 'create'
+                        action: 'create',
+                        freight_amount: invoiceGroup.freight_amount
                     });
                     const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
                         body: {
@@ -741,7 +742,8 @@ export default function InventoryAddPage() {
                             invoice_number: invoiceGroup.invoice_number,
                             invoice_date: invoiceGroup.invoice_date,
                             items: invoiceGroup.partItems,
-                            action: 'create'
+                            action: 'create',
+                            freight_amount: invoiceGroup.freight_amount
                         }
                     });
                     console.log('Response from autopro-processInventoryReceipt:', response);
@@ -870,11 +872,13 @@ export default function InventoryAddPage() {
                 let margin = 0;
                 let salesClass = regularSalesClassId;
                 let description = item.description || '';
+                let enviroFee = parseFloat(item.enviro_fee) || 0;
+                let matchedTagAlongId = '';
 
                 if (existingPart) {
                     salesClass = existingPart.sales_class || regularSalesClassId;
-                    // Use existing description to prevent overwriting
                     description = existingPart.description || description;
+                    matchedTagAlongId = existingPart.tag_along_id || '';
                     
                     if (!isCore && existingPart.core) {
                         isCore = true;
@@ -882,6 +886,41 @@ export default function InventoryAddPage() {
                     }
                 }
                 
+                if (enviroFee > 0 && !matchedTagAlongId) {
+                    let bestMatch = null;
+                    let minDiff = Infinity;
+                    tagAlongs.forEach(ta => {
+                        const str = (ta.name + ' ' + (ta.description || '')).replace(/\s/g, '');
+                        const match = str.match(/\$?(?:[0-9]+\.[0-9]+|[0-9]+)/);
+                        if (match) {
+                            const taPrice = parseFloat(match[0].replace('$', ''));
+                            if (taPrice >= enviroFee) {
+                                const diff = taPrice - enviroFee;
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    bestMatch = ta;
+                                }
+                            }
+                        }
+                    });
+                    if (bestMatch) {
+                        matchedTagAlongId = bestMatch.id;
+                    }
+                }
+                
+                const isTire = /\btire(s)?\b/i.test(partNumber) || /\btire(s)?\b/i.test(description) || (existingPart && /\btire(s)?\b/i.test(existingPart.category || ''));
+                if (!existingPart && isTire) {
+                    const tireSalesClass = salesClasses.find(sc => sc.name && sc.name.toLowerCase().includes('tire'));
+                    if (tireSalesClass) {
+                        salesClass = String(tireSalesClass.id);
+                    }
+                }
+                
+                let missingTireTax = false;
+                if (isTire && !matchedTagAlongId) {
+                    missingTireTax = true;
+                }
+
                 if (cost > 0 && salesClass) {
                     const calc = calculatePriceFromSalesClass(cost, salesClass);
                     if (calc) {
@@ -903,16 +942,18 @@ export default function InventoryAddPage() {
                     selling_price: sellingPrice,
                     profit_margin: margin,
                     sales_class: salesClass,
-                    tag_along_id: existingPart ? (existingPart.tag_along_id || '') : '',
+                    tag_along_id: matchedTagAlongId,
                     core: isCore,
                     core_cost: coreCost,
+                    enviro_fee: enviroFee,
+                    missing_tire_tax: missingTireTax,
                     stocked_item: existingPart ? !!existingPart.stocked_item : false,
                     minimum_quantity: existingPart ? (parseInt(existingPart.minimum_quantity) || 0) : 0,
                     maximum_quantity: existingPart ? (parseInt(existingPart.maximum_quantity) || 0) : 0,
                     location: existingPart ? (existingPart.location || '') : '',
                     category: existingPart ? (existingPart.category || '') : '',
                     is_existing: !!existingPart,
-                    line_total: (cost + (isCore ? coreCost : 0)) * (parseFloat(item.quantity) || 0)
+                    line_total: (cost + (isCore ? coreCost : 0) + enviroFee) * (parseFloat(item.quantity) || 0)
                 };
             });
 
@@ -921,7 +962,8 @@ export default function InventoryAddPage() {
                 invoice_number: invoiceNumber,
                 invoice_date: invoiceDate,
                 partItems: parsedItems,
-                ocr_expected_subtotal: expectedSubtotal
+                ocr_expected_subtotal: expectedSubtotal,
+                freight_amount: parseFloat(data.freight) || 0
             });
         });
 
@@ -1600,6 +1642,12 @@ export default function InventoryAddPage() {
                                                         {item.core && (
                                                             <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
                                                         )}
+                                                        {item.enviro_fee > 0 && (
+                                                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] mr-2 h-5 px-1 py-0">Enviro Fee: ${(parseFloat(item.enviro_fee) || 0).toFixed(2)}</Badge>
+                                                        )}
+                                                        {item.missing_tire_tax && (
+                                                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 text-[10px] mr-2 h-5 px-1 py-0 font-bold">Tire Tax Missing. Click Edit.</Badge>
+                                                        )}
                                                         <span>- {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>}</span> 
                                                         <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
                                                         <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
@@ -1625,11 +1673,30 @@ export default function InventoryAddPage() {
                                                 </div>
                                             )})}
                                         </div>
-                                        <div className="mt-2 pt-2 border-t border-slate-300 text-right text-sm font-semibold flex items-center justify-end gap-2 text-slate-700">
-                                            Invoice Total: 
-                                            <span className={groupHasError ? 'bg-orange-200 px-1 rounded' : ''}>
-                                                ${actualTotal.toFixed(2)}
-                                            </span>
+                                        <div className="mt-2 pt-2 border-t border-slate-300 text-right text-sm font-semibold flex items-center justify-end gap-6 text-slate-700">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 font-normal">Freight:</span>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-1.5 text-slate-500">$</span>
+                                                    <Input 
+                                                        type="number" 
+                                                        step="0.01" 
+                                                        className="w-24 h-8 pl-5 text-right font-normal" 
+                                                        value={group.freight_amount || ''}
+                                                        onChange={(e) => {
+                                                            const newBatchItems = [...batchItems];
+                                                            newBatchItems[groupIndex].freight_amount = parseFloat(e.target.value) || 0;
+                                                            setBatchItems(newBatchItems);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                Invoice Total: 
+                                                <span className={groupHasError ? 'bg-orange-200 px-1 rounded' : ''}>
+                                                    ${(actualTotal + (group.freight_amount || 0)).toFixed(2)}
+                                                </span>
+                                            </div>
                                             {groupHasError && (
                                                 <TooltipProvider>
                                                     <Tooltip>

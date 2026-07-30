@@ -59,7 +59,8 @@ serve(async (req) => {
       action = 'create', 
       supplier_invoice_line_id,
       quantity,
-      amount_per_unit
+      amount_per_unit,
+      freight_amount
     } = payload;
 
     if (action === 'reverse') {
@@ -140,7 +141,7 @@ serve(async (req) => {
     }
 
     if (action === 'create') {
-      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items);
+      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items, freight_amount);
     } else {
       return res({ success: false, error: 'Invalid action. Must be "create", "edit", or "reverse"' }, { status: 400 });
     }
@@ -236,7 +237,7 @@ async function checkFiscalPeriodStatus(supabase: any, dateString: string) {
   }
 }
 
-async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[]) {
+async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[], freight_amount: any = 0) {
   const res = (data: any, options: any = {}) => {
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -423,6 +424,24 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
         });
       }
 
+      if (item.enviro_fee && parseFloat(item.enviro_fee) > 0) {
+        const enviroFeeAmount = Math.round(parseFloat(item.enviro_fee) * quantityReceived * 100) / 100;
+        const enviroGst = isDefaultTaxable ? 0 : Math.round(enviroFeeAmount * 0.05 * 100) / 100;
+        
+        invoiceLinesToCreate.push({
+          supplier_id: supplier.id,
+          invoice_number: invoice_number,
+          invoice_date: invoice_date,
+          inventory_item_id: inventoryRecordId,
+          description: `Enviro Fee Qty${quantityReceived} ${item.part_number}`,
+          purchase_amount: enviroFeeAmount,
+          gst_amount: enviroGst,
+          gl_account: '5001',
+          inventory: false,
+          gst_override: isDefaultTaxable
+        });
+      }
+
       txsToCreate.push({
         inventory_item_id: inventoryRecordId,
         part_num: item.part_number,
@@ -434,6 +453,25 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
         supplier_name: supplier.name || '',
         source_record_id: null,
         description: `Received from supplier invoice ${invoice_number}`
+      });
+    }
+
+    if (freight_amount && parseFloat(freight_amount) > 0) {
+      const isDefaultTaxable = supplier.default_taxable === true;
+      const freightAmt = parseFloat(freight_amount);
+      const freightGst = isDefaultTaxable ? 0 : Math.round(freightAmt * 0.05 * 100) / 100;
+      
+      invoiceLinesToCreate.push({
+        supplier_id: supplier.id,
+        invoice_number: invoice_number,
+        invoice_date: invoice_date,
+        inventory_item_id: null,
+        description: `Freight Charge - Inv ${invoice_number}`,
+        purchase_amount: freightAmt,
+        gst_amount: freightGst,
+        gl_account: '5030',
+        inventory: false,
+        gst_override: isDefaultTaxable
       });
     }
 

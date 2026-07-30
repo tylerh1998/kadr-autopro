@@ -632,7 +632,7 @@ const navigationItems = [
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="no-print bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <header className="no-print bg-white dark:bg-slate-950 shadow-sm border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
         {isTraining && (
           <div className="bg-orange-500 text-white text-center py-1 text-sm font-bold shadow-inner">
             Training Version of AutoPRO. No changes in this application will affect the live database.
@@ -643,39 +643,37 @@ const navigationItems = [
             {/* Left: Logo, AutoPRO, and Mobile Menu Button */}
             <div className="flex items-center gap-4">
               <div 
-                                    onClick={() => {
-                                      openTechClockStatusModal();
-                                    }}
-                                    className="flex items-center cursor-pointer"
-                                  >
-                                    <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10" />
-                                  </div>
+                onClick={() => {
+                  openTechClockStatusModal();
+                }}
+                className="flex items-center cursor-pointer dark:bg-white dark:p-1 dark:rounded-md"
+              >
+                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10" />
+              </div>
 
-              {/* AutoPRO Area */}
               <div
                 onClick={() => {
                   handleLockedNavigation(createPageUrl("Home"));
                 }}
-                className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100"
+                className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <div className="text-lg font-bold text-slate-800 leading-tight">
+                <div className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">
                   AutoPRO
                 </div>
-                <div className="text-xs text-gray-500 leading-tight">
+                <div className="text-xs text-gray-500 dark:text-slate-400 leading-tight">
                   Ken's Auto
                 </div>
               </div>
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Toggle mobile menu"
               >
                 {isMobileMenuOpen ? (
-                  <X className="w-6 h-6 text-slate-700" />
+                  <X className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 ) : (
-                  <Menu className="w-6 h-6 text-slate-700" />
+                  <Menu className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 )}
               </button>
             </div>
@@ -705,7 +703,7 @@ const navigationItems = [
                             className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
                               isActive
                                 ? 'bg-blue-600 text-white'
-                                : 'text-slate-600 hover:text-blue-700'
+                                : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                             }`}
                           >
                             <item.icon className="w-5 h-5" />
@@ -716,7 +714,7 @@ const navigationItems = [
                       
                       {hoveredItem === item.title && (
                         <div 
-                          className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50"
+                          className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50"
                           onMouseEnter={() => handleMouseEnter(item.title)}
                           onMouseLeave={handleMouseLeave}
                         >
@@ -732,7 +730,7 @@ const navigationItems = [
                                     });
                                     handleLockedNavigation(subItem.url);
                                   }}
-                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-400 transition-colors cursor-pointer"
                                 >
                                   <subItem.icon className="w-4 h-4" />
                                   {subItem.title}
@@ -740,7 +738,7 @@ const navigationItems = [
                               ) : (
                                 <div
                                   onClick={() => handleMenuClick(subItem.action)}
-                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-400 transition-colors cursor-pointer"
                                 >
                                   <subItem.icon className="w-4 h-4" />
                                   {subItem.title}
@@ -774,7 +772,7 @@ const navigationItems = [
                           className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
                             isActive
                               ? 'bg-blue-600 text-white'
-                              : 'text-slate-600 hover:text-blue-700'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                         >
                           <item.icon className="w-5 h-5" />
@@ -797,8 +795,8 @@ const navigationItems = [
                   !isEmployee || clockLoading
                     ? 'bg-blue-600 text-white opacity-90 cursor-not-allowed'
                     : isClockedIn 
-                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                      : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60' 
+                      : 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 dark:hover:bg-green-600 shadow-sm'
                 }`}
               >
                 {clockLoading ? (
@@ -906,7 +904,7 @@ const navigationItems = [
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="no-print lg:hidden fixed top-16 left-0 w-full bg-white shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200">
+        <div className="no-print lg:hidden fixed top-16 left-0 w-full bg-white dark:bg-slate-950 shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200 dark:border-slate-800">
           <nav className="py-4">
             {navigationItems.map((item) => (
               <div key={item.title} className="border-b border-slate-100">

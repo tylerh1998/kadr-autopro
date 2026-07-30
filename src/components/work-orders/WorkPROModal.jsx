@@ -655,7 +655,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-900">Available Projects</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Available Projects</h3>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -681,7 +681,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
                   {/* Status Filter */}
                   <Tabs value={connectStatusFilter} onValueChange={setConnectStatusFilter} className="w-full">
-                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-slate-100 rounded-lg">
+                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                       {['to_do', 'in_progress', 'parts_needed', 'on_hold', 'done', 'archived'].map(status => (
                         <TabsTrigger 
                           key={status} 
@@ -689,16 +689,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                           className={`
                             text-xs py-2 px-1 flex flex-col items-center gap-1
                             data-[state=active]:bg-white data-[state=active]:shadow-sm
-                            ${status === 'to_do' ? 'data-[state=active]:text-slate-900' : ''}
-                            ${status === 'in_progress' ? 'data-[state=active]:text-blue-700' : ''}
-                            ${status === 'parts_needed' ? 'data-[state=active]:text-red-700' : ''}
-                            ${status === 'on_hold' ? 'data-[state=active]:text-orange-700' : ''}
-                            ${status === 'done' ? 'data-[state=active]:text-green-700' : ''}
-                            ${status === 'archived' ? 'data-[state=active]:text-gray-700' : ''}
+                            dark:data-[state=active]:bg-slate-700
+                            ${status === 'to_do' ? 'data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100' : ''}
+                            ${status === 'in_progress' ? 'data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400' : ''}
+                            ${status === 'parts_needed' ? 'data-[state=active]:text-red-700 dark:data-[state=active]:text-red-400' : ''}
+                            ${status === 'on_hold' ? 'data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400' : ''}
+                            ${status === 'done' ? 'data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400' : ''}
+                            ${status === 'archived' ? 'data-[state=active]:text-gray-700 dark:data-[state=active]:text-gray-300' : ''}
                           `}
                         >
                           <span className="capitalize">{status.replace('_', ' ')}</span>
-                          <span className="text-[10px] bg-slate-200 px-1.5 rounded-full min-w-[1.25rem] text-center">
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-600 px-1.5 rounded-full min-w-[1.25rem] text-center text-slate-800 dark:text-slate-200">
                             {getProjectCountByStatus(status)}
                           </span>
                         </TabsTrigger>
@@ -723,7 +724,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         p.task?.toLowerCase().includes(searchLower)
                       );
                     }).length === 0 ? (
-                      <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                      <div className="text-center py-8 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
                         <p>No projects found matching current filters</p>
                       </div>
                     ) : (
@@ -746,44 +747,44 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         .map((proj) => (
                           <Card 
                             key={proj.id}
-                            className="cursor-pointer hover:shadow-md transition-all border-slate-200"
+                            className="cursor-pointer hover:shadow-md transition-all border-slate-200 dark:border-slate-800 dark:bg-slate-900"
                             onClick={() => handleConnectExistingProject(proj)}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-semibold text-slate-900">{proj.name}</h4>
+                                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">{proj.name}</h4>
                                     {getStatusBadge(proj.status)}
                                   </div>
                                   {proj.customer && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Customer:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Customer:</span>
                                       {proj.customer}
                                     </p>
                                   )}
                                   {proj.vehicle && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Vehicle:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Vehicle:</span>
                                       {proj.vehicle}
                                     </p>
                                   )}
                                   {proj.task && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Task:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Task:</span>
                                       {proj.task}
                                     </p>
                                   )}
-                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-100">
+                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     {proj.created_date && (
-                                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                                      <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
                                         Created: {format(new Date(proj.created_date), 'MMM d, yyyy')}
                                       </span>
                                     )}
                                   </div>
                                 </div>
-                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30">
                                   Connect <LinkIcon className="w-3 h-3 ml-1" />
                                 </Button>
                               </div>
