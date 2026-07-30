@@ -819,9 +819,27 @@ export default function InventoryAddPage() {
         }
 
         const newBatchGroups = [];
+        let rejectedCreditInvoices = 0;
 
         ocrResults.forEach(result => {
             const data = result.data;
+            
+            // --- NEGATIVE AMOUNT CHECK (CREDIT INVOICES) ---
+            const expectedSubtotal = parseFloat(data.subtotal) || 0;
+            let hasNegative = expectedSubtotal < 0;
+            if (!hasNegative && data.items) {
+                hasNegative = data.items.some(item => 
+                    (parseFloat(item.cost) < 0) || 
+                    (parseFloat(item.quantity) < 0) || 
+                    (parseFloat(item.core_cost) < 0)
+                );
+            }
+
+            if (hasNegative) {
+                rejectedCreditInvoices++;
+                return; // Skip this invoice entirely
+            }
+            // -----------------------------------------------
             let matchedSupplierId = '';
             
             if (data.supplier_name) {
@@ -908,6 +926,12 @@ export default function InventoryAddPage() {
         });
 
         setBatchItems(prev => [...newBatchGroups, ...prev]);
+        
+        if (rejectedCreditInvoices > 0) {
+            setTimeout(() => {
+                alert(`WARNING: ${rejectedCreditInvoices} invoice(s) were identified as credit invoices (containing negative amounts) and have been skipped. Please enter credit invoices manually on the Inventory Returns page.`);
+            }, 100);
+        }
     };
 
     const selectPartFromList = (itemToSelect) => {
