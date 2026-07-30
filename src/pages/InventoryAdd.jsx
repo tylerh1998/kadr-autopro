@@ -540,10 +540,10 @@ export default function InventoryAddPage() {
             cost: parseFloat(currentItem.cost),
             profit_margin: parseFloat(currentItem.profit_margin),
             selling_price: parseFloat(currentItem.selling_price),
-            core_cost: parseFloat(currentItem.core_cost),
+            core_cost: parseFloat(currentItem.core_cost || 0),
             minimum_quantity: parseInt(currentItem.minimum_quantity, 10) || 0,
             maximum_quantity: parseInt(currentItem.maximum_quantity, 10) || 0,
-            line_total: parseFloat(currentItem.cost) * parseFloat(currentItem.quantity_received),
+            line_total: (parseFloat(currentItem.cost) + (currentItem.core ? (parseFloat(currentItem.core_cost) || 0) : 0)) * parseFloat(currentItem.quantity_received),
             id: Date.now() + Math.random() // Temporary client-side ID for batch management
         };
 
@@ -894,7 +894,7 @@ export default function InventoryAddPage() {
                     location: existingPart ? (existingPart.location || '') : '',
                     category: existingPart ? (existingPart.category || '') : '',
                     is_existing: !!existingPart,
-                    line_total: cost * (parseFloat(item.quantity) || 0)
+                    line_total: (cost + (isCore ? coreCost : 0)) * (parseFloat(item.quantity) || 0)
                 };
             });
 
