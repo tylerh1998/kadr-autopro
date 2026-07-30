@@ -4,20 +4,16 @@ import WorkOrderHeaderInfo from './form/WorkOrderHeaderInfo';
 import FinancialSummary from './form/FinancialSummary';
 import LineItemsTable from './form/LineItemsTable';
 import { SupplierInvoiceLine } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-
-// Modals
 import GetPartModal from './GetPartModal';
 import OtherChargeModal from './OtherChargeModal';
-import AddPartToWOModal from './WOAddInventoryModal';
+import AddPartToWOModal from './AddPartToWOModal';
 import ReturnWOPartModal from './ReturnWOPartModal';
 import ReceivePartModal from './ReceivePartModal';
 import ROCoreModal from './ROCoreModal';
+import PartsTechModal from './PartsTechModal';
 
-// Helper function to pad lines (moved to top of file for reusability)
-function padLines(lines, minLines = 20, defaultTaxable = true) { // Added defaultTaxable parameter
+function padLines(lines, minLines, defaultTaxable) {
   const blankLine = {
-    id: `blank_${Date.now()}_${Math.random()}`, // Unique ID for React keys - initial value
     qty: '',         // Initialize as empty string for clean UI
     hrs: '',
     description: '',
@@ -84,10 +80,6 @@ export default function WorkOrderForm({
   
   // New state for padded line items
   const [displayLineItems, setDisplayLineItems] = useState([]);
-
-  // Use a ref to track if we're currently updating to avoid re-initialization loops
-  const isInternalUpdate = useRef(false);
-
   const [modals, setModals] = useState({
     getPart: false,
     otherCharge: false,
@@ -95,10 +87,10 @@ export default function WorkOrderForm({
     returnPart: false,
     receivePart: false,
     cores: false,
+    partsTech: false,
   });
+  const isInternalUpdate = useRef(false);
 
-  // Initialize displayLineItems ONLY on mount or when initialLineItems reference actually changes externally
-  // Use a ref to track if we're currently updating to avoid re-initialization loops
   useEffect(() => {
     console.log('WorkOrderForm: Initialization useEffect triggered');
     console.log('isInternalUpdate.current:', isInternalUpdate.current);
@@ -403,6 +395,26 @@ export default function WorkOrderForm({
 
     closeModal('getPart');
   }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
+
+  const handlePartsTech = useCallback((lineIndex) => {
+    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex);
+    openModal('partsTech', lineIndex);
+  }, [openModal]);
+
+  const handlePartsTechSuccess = useCallback((cartPayload) => {
+    console.log('=== DEBUG: handlePartsTechSuccess called ===', cartPayload);
+    if (!cartPayload?.parts || !Array.isArray(cartPayload.parts)) return;
+
+    const formattedParts = cartPayload.parts.map(part => ({
+      part_number: part.partNumber || part.part_number || '',
+      description: part.description || '',
+      parts_ea: part.costPrice || part.parts_ea || 0, // Using list or cost price, PartsTech format varies
+      qty: part.quantity || part.qty || 1,
+      inventory_processed: false,
+    }));
+
+    handleMultiplePartsAdded(formattedParts, []);
+  }, [handleMultiplePartsAdded]);
 
   const handleAddOtherCharge = async (chargeData) => {
     console.log('=== DEBUG: handleAddOtherCharge called ===');
@@ -848,6 +860,7 @@ export default function WorkOrderForm({
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
         onCores={handleCores}
+        onPartsTech={handlePartsTech}
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}
@@ -898,6 +911,14 @@ export default function WorkOrderForm({
         lineItem={currentLineItem}
         workOrder={initialWorkOrder}
         onCoreProcessed={handleCoreProcessed}
+      />
+      <PartsTechModal
+        open={modals.partsTech}
+        onClose={() => closeModal('partsTech')}
+        roNumber={initialWorkOrder?.ro_number}
+        vehicleInfo={vehicle}
+        userInfo={{ username: 'tech' }} // Or from auth context if needed
+        onTransferComplete={handlePartsTechSuccess}
       />
     </div>
   );

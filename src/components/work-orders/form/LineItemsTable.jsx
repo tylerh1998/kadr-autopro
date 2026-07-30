@@ -51,6 +51,7 @@ export default function LineItemsTable({
   onGetPart,
   onOtherCharge,
   onAddPart,
+  onPartsTech,
   onReturnPart,
   onReceivePart,
   onCores,
@@ -351,6 +352,10 @@ export default function LineItemsTable({
           <ContextMenuItem onClick={() => onAddPart(index)}>
             <Plus className="mr-2 h-4 w-4" />
             <span>Add New Part</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onPartsTech(index)}>
+            <Package className="mr-2 h-4 w-4" />
+            <span>Online Order (PartsTech)</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
