@@ -88,6 +88,12 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       const costVal = parseFloat(item.cost || 0);
       const qtyVal = Number(qtyReturned);
 
+      // Fetch user from Supabase auth for audit trail
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const userId = authUser?.id || null;
+      const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+      const nowStr = new Date().toISOString();
+
       const returnData = {
         id: returnId,
         inventory_item_id: item.id,
@@ -101,7 +107,11 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         total_cost: costVal * qtyVal,
         return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
         status: 'On-site',
-        notes: returnNotes || ''
+        notes: returnNotes || '',
+        created_date: nowStr,
+        updated_date: nowStr,
+        created_by_id: userId,
+        created_by: userDisplay
       };
       const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
       if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
@@ -123,7 +133,11 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           total_cost: coreCostVal * qtyVal,
           return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
           status: 'On-site',
-          notes: returnNotes || ''
+          notes: returnNotes || '',
+          created_date: nowStr,
+          updated_date: nowStr,
+          created_by_id: userId,
+          created_by: userDisplay
         };
         const { error: coreReturnError } = await supabase.from('InventoryReturn').insert([coreReturnData]);
         if (coreReturnError) throw new Error('Failed to create core return: ' + coreReturnError.message);
@@ -139,7 +153,10 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         inventory_item_id: item.id,
         tx_type: 'Returned to Supplier',
         quantity_change: -qtyVal, // Negative change as it's leaving stock
-        description: `Part returned to supplier from inventory. Reason: ${returnReason}`
+        description: `Part returned to supplier from inventory. Reason: ${returnReason}`,
+        created_by_id: userId,
+        created_by: userDisplay,
+        tx_date: nowStr
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 

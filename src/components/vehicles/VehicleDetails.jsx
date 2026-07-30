@@ -84,29 +84,29 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   const getStageBadgeStyles = (stage) => {
     switch (String(stage || '').toLowerCase()) {
       case 'estimate':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
+        return 'bg-orange-100 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-900';
       case 'work_order':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-900';
       case 'invoice':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-900';
       case 'credit_invoice':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-300 border-red-200 dark:border-red-900';
       case 'void':
-        return 'bg-black text-white border-black';
+        return 'bg-black dark:bg-slate-900 text-white dark:text-slate-200 border-black dark:border-slate-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300 border-gray-200 dark:border-slate-700';
     }
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      'Open': 'bg-blue-100 text-blue-800',
-      'Parts On Order': 'bg-yellow-100 text-yellow-800',
-      'Scheduled': 'bg-purple-100 text-purple-800',
-      'On Hold': 'bg-gray-100 text-gray-800',
-      'Completed': 'bg-green-100 text-green-800'
+      'Open': 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300',
+      'Parts On Order': 'bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-300',
+      'Scheduled': 'bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300',
+      'On Hold': 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300',
+      'Completed': 'bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 dark:bg-slate-850 text-gray-800 dark:text-slate-300';
   };
 
   const handleCopyVin = async () => {
@@ -117,26 +117,26 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
   };
 
   return (
-    <Card className="shadow-xl border-0 vehicle-history-card">
-      <CardHeader className="border-b bg-slate-50 no-print">
+    <Card className="shadow-xl border-0 dark:border dark:border-slate-800 vehicle-history-card dark:bg-card">
+      <CardHeader className="border-b bg-slate-50 dark:bg-slate-900 dark:border-slate-800 no-print">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Car className="w-8 h-8 text-blue-600" />
+            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-950/40 rounded-xl flex items-center justify-center">
+              <Car className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">
+              <CardTitle className="text-2xl font-bold dark:text-slate-100">
                 {vehicle.year} {vehicle.make} {vehicle.model}
               </CardTitle>
               {vehicle.license_plate && (
-                <Badge variant="outline" className="mt-2 font-mono">
+                <Badge variant="outline" className="mt-2 font-mono dark:border-slate-800 dark:text-slate-300">
                   {vehicle.license_plate}
                 </Badge>
               )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={onClose} className="no-print">
+            <Button variant="ghost" size="icon" onClick={onClose} className="no-print dark:text-slate-400 dark:hover:text-slate-100">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -149,88 +149,88 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
           {/* Vehicle Information */}
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
                 <Car className="w-5 h-5" />
                 Vehicle Details
               </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Year</Label>
-                    <Input value={vehicle.year || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Year</Label>
+                    <Input value={vehicle.year || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Make</Label>
-                    <Input value={vehicle.make || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Make</Label>
+                    <Input value={vehicle.make || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Model</Label>
-                    <Input value={vehicle.model || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Model</Label>
+                    <Input value={vehicle.model || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2 md:col-span-2">
-                    <Label>VIN</Label>
+                    <Label className="dark:text-slate-300">VIN</Label>
                     <div className="flex gap-2 items-start">
                       <div className="flex-1">
-                        <Input value={vehicle.vin || ""} readOnly className="font-mono uppercase bg-slate-50" />
-                        <div className="font-mono text-sm text-slate-400 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
+                        <Input value={vehicle.vin || ""} readOnly className="font-mono uppercase bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
+                        <div className="font-mono text-sm text-slate-400 dark:text-slate-500 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
                           {'       * *      *'}
                         </div>
                       </div>
-                      <Button type="button" variant="outline" onClick={handleCopyVin} disabled={!vehicle.vin} className="min-w-24">
+                      <Button type="button" variant="outline" onClick={handleCopyVin} disabled={!vehicle.vin} className="min-w-24 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                         {vinCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                         <span>{vinCopied ? "Copied" : "Copy"}</span>
                       </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>License Plate</Label>
-                    <Input value={vehicle.license_plate || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">License Plate</Label>
+                    <Input value={vehicle.license_plate || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Unit Number</Label>
-                    <Input value={vehicle.unit_number || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Unit Number</Label>
+                    <Input value={vehicle.unit_number || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Color</Label>
-                    <Input value={vehicle.color || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Color</Label>
+                    <Input value={vehicle.color || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Mileage</Label>
-                    <Input value={vehicle.mileage ? vehicle.mileage.toLocaleString() : ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Mileage</Label>
+                    <Input value={vehicle.mileage ? vehicle.mileage.toLocaleString() : ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Engine</Label>
-                    <Input value={vehicle.engine || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Engine</Label>
+                    <Input value={vehicle.engine || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Trim</Label>
-                    <Input value={vehicle.trim || ""} readOnly className="bg-slate-50" />
+                    <Label className="dark:text-slate-300">Trim</Label>
+                    <Input value={vehicle.trim || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200" />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Textarea value={vehicle.notes || ""} readOnly className="bg-slate-50 min-h-[96px]" />
+                  <Label className="dark:text-slate-300">Notes</Label>
+                  <Textarea value={vehicle.notes || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 min-h-[96px]" />
                 </div>
 
                 <div className="flex items-center space-x-2">
                   <Checkbox checked={vehicle.is_active !== false} disabled />
-                  <Label className="cursor-default">Active</Label>
+                  <Label className="cursor-default dark:text-slate-300">Active</Label>
                 </div>
               </div>
             </div>
 
             <>
-              <Separator />
+              <Separator className="dark:bg-slate-800" />
               <VehicleHistorySummaryCards
                 workOrders={workOrders}
                 onEdit={onEdit}
@@ -244,19 +244,19 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
           <div className="space-y-6 h-full flex flex-col">
             {customer && (
               <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <User className="w-5 h-5" />
                   Owner Information
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Name</p>
-                    <p className="text-lg font-semibold text-slate-900">
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Name</p>
+                    <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                       {customer.org_name ? (
                         <>
                           <span className="block">{customer.org_name}</span>
                           {(customer.first_name || customer.last_name) && (
-                            <span className="text-sm font-normal text-slate-500 block">
+                            <span className="text-sm font-normal text-slate-500 dark:text-slate-400 block">
                               {customer.first_name} {customer.last_name}
                             </span>
                           )}
@@ -269,13 +269,13 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
                   {customer.phone && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
                         <Phone className="w-4 h-4" />
                         Phone
                       </span>
                       <a 
                         href={`tel:${customer.phone}`} 
-                        className="text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                       >
                         {customer.phone}
                       </a>
@@ -284,13 +284,13 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
                   {customer.email && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
                         <Mail className="w-4 h-4" />
                         Email
                       </span>
                       <a 
                         href={`mailto:${customer.email}`} 
-                        className="text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                       >
                         {customer.email}
                       </a>
@@ -299,11 +299,11 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
                   {customer.address && (
                     <div>
-                      <p className="text-sm font-medium text-slate-500 flex items-center gap-2 mb-1">
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2 mb-1">
                         <MapPin className="w-4 h-4" />
                         Address
                       </p>
-                      <p className="text-sm text-slate-700">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">
                         {customer.address}
                         {customer.city && `, ${customer.city}`}
                         {customer.state && `, ${customer.state}`}
@@ -314,8 +314,8 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
                   {customer.notes && (
                     <div>
-                      <p className="text-sm font-medium text-slate-500 mb-1">Customer Notes</p>
-                      <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">
+                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Customer Notes</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg">
                         {customer.notes}
                       </p>
                     </div>
@@ -324,12 +324,12 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
               </div>
             )}
 
-            <Separator />
+            <Separator className="dark:bg-slate-800" />
 
             {/* Service History */}
             <div className="flex-1 flex flex-col min-h-0">
               <div className="mb-4 space-y-3">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
                   Service History
                 </h3>
@@ -349,11 +349,11 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                       href={wo.isLankar ? `/LankarWOView?woid=${wo.originalWoid}` : `/WorkOrderEdit?id=${wo.ro_number}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+                      className="vehicle-history-entry block p-4 border dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-blue-700">
+                          <p className="font-semibold text-blue-700 dark:text-blue-400">
                             {getDisplayNumber(wo) || `RO ${wo.ro_number}`}
                           </p>
                           <Badge variant="outline" className={`text-xs ${getStageBadgeStyles(wo.stage)}`}>
@@ -364,16 +364,16 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                           {wo.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-600 mb-2 line-clamp-2">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 line-clamp-2">
                         {wo.description}
                       </p>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {format(new Date(wo.scheduled_date || wo.created_date), 'MMM d, yyyy')}
                         </span>
                         {wo.total_amount && (
-                          <span className="font-medium text-slate-700">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
                             ${wo.total_amount.toFixed(2)}
                           </span>
                         )}
@@ -382,8 +382,8 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg flex-1">
-                  <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <div className="text-center py-8 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-lg flex-1">
+                  <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
                   <p className="text-sm">No service history yet</p>
                   <p className="text-xs mt-1">Work orders for this vehicle will appear here</p>
                 </div>
@@ -393,8 +393,8 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
         </div>
 
         {/* Vehicle Metadata */}
-        <Separator />
-        <div className="flex items-center justify-between text-sm text-slate-500">
+        <Separator className="dark:bg-slate-800" />
+        <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>Vehicle added: {new Date(vehicle.created_date).toLocaleDateString()}</span>
           {vehicle.updated_date !== vehicle.created_date && (
             <span>Last updated: {new Date(vehicle.updated_date).toLocaleDateString()}</span>

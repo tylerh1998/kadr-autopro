@@ -147,15 +147,15 @@ export default function VehiclesPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Vehicles</h1>
-            <p className="text-slate-600 mt-1">Manage customer vehicle information</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Vehicles</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage customer vehicle information</p>
           </div>
           <Button 
             onClick={() => {
               setEditingVehicle(null);
               setShowForm(true);
             }}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Vehicle
@@ -163,10 +163,10 @@ export default function VehiclesPage() {
         </div>
 
         {/* Search */}
-        <Card>
+        <Card className="dark:bg-card border dark:border-slate-800">
           <CardContent className="p-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
               <Input
                 placeholder="Search vehicles by make, model, VIN, license plate, or customer name..."
                 value={searchTerm}
@@ -176,18 +176,18 @@ export default function VehiclesPage() {
                     setAppliedSearchTerm(searchTerm);
                   }
                 }}
-                className="pl-10"
+                className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="flex items-center space-x-2 mt-4">
               <input
                 type="checkbox"
                 id="includeInactive"
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-slate-800 text-blue-600 focus:ring-blue-500 dark:bg-slate-950"
                 checked={includeInactive}
                 onChange={(e) => setIncludeInactive(e.target.checked)}
               />
-              <label htmlFor="includeInactive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-700">
+              <label htmlFor="includeInactive" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-700 dark:text-slate-300">
                 Include Inactive Vehicles
               </label>
             </div>
@@ -223,14 +223,14 @@ export default function VehiclesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               Array(6).fill(0).map((_, i) => (
-                <Card key={i} className="animate-pulse">
+                <Card key={i} className="animate-pulse dark:bg-card border dark:border-slate-800">
                   <CardContent className="p-6">
                     <div className="space-y-3">
-                      <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-                      <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                      <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
                       <div className="space-y-2">
-                        <div className="h-3 bg-slate-200 rounded"></div>
-                        <div className="h-3 bg-slate-200 rounded w-2/3"></div>
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded"></div>
+                        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-2/3"></div>
                       </div>
                     </div>
                   </CardContent>
@@ -241,32 +241,32 @@ export default function VehiclesPage() {
                 const customer = getCustomer(vehicle.customer_id);
                 
                 return (
-                  <Card key={vehicle.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
+                  <Card key={vehicle.id} className="bg-white dark:bg-card border dark:border-slate-800 hover:shadow-lg transition-all duration-200 cursor-pointer group">
                     <CardContent className="p-6">
                       <div className="space-y-4">
                         {/* Vehicle Header */}
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                              <Car className="w-6 h-6 text-blue-600" />
+                            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950/40 rounded-xl flex items-center justify-center">
+                              <Car className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div>
-                              <h3 className="text-lg font-bold text-slate-900">
+                              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                 {vehicle.year} {vehicle.make}
                               </h3>
-                              <p className="text-slate-600 font-medium">{vehicle.model}</p>
+                              <p className="text-slate-600 dark:text-slate-400 font-medium">{vehicle.model}</p>
                             </div>
                           </div>
                         </div>
 
-                        <Separator />
+                        <Separator className="dark:bg-slate-800" />
 
                         {/* Vehicle Details */}
                         <div className="space-y-2 text-sm">
                           {vehicle.license_plate && (
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500">License Plate:</span>
-                              <Badge variant="outline" className="font-mono">
+                              <span className="text-slate-500 dark:text-slate-400">License Plate:</span>
+                              <Badge variant="outline" className="font-mono dark:border-slate-800 dark:text-slate-300">
                                 {vehicle.license_plate}
                               </Badge>
                             </div>
@@ -274,48 +274,48 @@ export default function VehiclesPage() {
                           
                           {vehicle.color && (
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500 flex items-center gap-1">
+                              <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                 <Palette className="w-3 h-3" />
                                 Color:
                               </span>
-                              <span className="font-medium">{vehicle.color}</span>
+                              <span className="font-medium text-slate-800 dark:text-slate-200">{vehicle.color}</span>
                             </div>
                           )}
                           
                           {vehicle.mileage && (
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500 flex items-center gap-1">
+                              <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                 <Gauge className="w-3 h-3" />
                                 Mileage:
                               </span>
-                              <span className="font-medium">{vehicle.mileage.toLocaleString()} mi</span>
+                              <span className="font-medium text-slate-800 dark:text-slate-200">{vehicle.mileage.toLocaleString()} mi</span>
                             </div>
                           )}
 
                           {vehicle.engine && (
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500">Engine:</span>
-                              <span className="font-medium text-xs">{vehicle.engine}</span>
+                              <span className="text-slate-500 dark:text-slate-400">Engine:</span>
+                              <span className="font-medium text-xs text-slate-800 dark:text-slate-200">{vehicle.engine}</span>
                             </div>
                           )}
                         </div>
 
-                        <Separator />
+                        <Separator className="dark:bg-slate-800" />
 
                         {/* Customer Info */}
                         {customer && (
                           <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                               <User className="w-4 h-4" />
                               Owner Information
                             </h4>
                             <div className="space-y-1 text-sm">
-                              <p className="font-medium text-slate-900">
+                              <p className="font-medium text-slate-900 dark:text-slate-100">
                                 {customer.org_name ? (
                                   <>
                                     <span className="block">{customer.org_name}</span>
                                     {(customer.first_name || customer.last_name) && (
-                                      <span className="text-sm font-normal text-slate-500">
+                                      <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
                                         {customer.first_name} {customer.last_name}
                                       </span>
                                     )}
@@ -325,13 +325,13 @@ export default function VehiclesPage() {
                                 )}
                               </p>
                               {customer.phone && (
-                                <p className="text-slate-600 flex items-center gap-1">
+                                <p className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
                                   <Phone className="w-3 h-3" />
                                   {customer.phone}
                                 </p>
                               )}
                               {customer.email && (
-                                <p className="text-slate-600 flex items-center gap-1">
+                                <p className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
                                   <Mail className="w-3 h-3" />
                                   {customer.email}
                                 </p>
@@ -342,9 +342,9 @@ export default function VehiclesPage() {
 
                         {/* VIN */}
                         {vehicle.vin && (
-                          <div className="pt-2 border-t border-slate-100">
-                            <p className="text-xs text-slate-500">VIN:</p>
-                            <p className="text-xs font-mono text-slate-700 break-all">{vehicle.vin}</p>
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">VIN:</p>
+                            <p className="text-xs font-mono text-slate-700 dark:text-slate-300 break-all">{vehicle.vin}</p>
                           </div>
                         )}
 
@@ -357,7 +357,7 @@ export default function VehiclesPage() {
                               e.stopPropagation();
                               setSelectedVehicle(vehicle);
                             }}
-                            className="flex-1 gap-1"
+                            className="flex-1 gap-1 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                           >
                             <Eye className="w-3 h-3" />
                             View
@@ -369,7 +369,7 @@ export default function VehiclesPage() {
                               e.stopPropagation();
                               handleEdit(vehicle);
                             }}
-                            className="flex-1 gap-1"
+                            className="flex-1 gap-1 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                           >
                             <Edit3 className="w-3 h-3" />
                             Edit
@@ -382,16 +382,16 @@ export default function VehiclesPage() {
               })
             ) : (
               <div className="col-span-full">
-                <Card className="text-center py-12">
+                <Card className="text-center py-12 dark:bg-card border dark:border-slate-800">
                   <CardContent>
-                    <div className="text-slate-400 mb-4">
+                    <div className="text-slate-400 dark:text-slate-600 mb-4">
                       <Car className="w-12 h-12 mx-auto" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Vehicles Found</h3>
-                    <p className="text-slate-600 mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Vehicles Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">
                       {searchTerm ? 'No vehicles match your search criteria.' : 'No vehicles have been added yet.'}
                     </p>
-                    <Button onClick={() => setShowForm(true)}>
+                    <Button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Add First Vehicle
                     </Button>
@@ -404,7 +404,7 @@ export default function VehiclesPage() {
 
         {/* Pagination Controls */}
         {!showForm && !selectedVehicle && (
-          <div className="flex justify-between items-center text-sm text-slate-500 px-1 pt-4">
+          <div className="flex justify-between items-center text-sm text-slate-500 dark:text-slate-400 px-1 pt-4">
             <div>
               Showing {vehicles.length > 0 ? ((pagination.page - 1) * pagination.limit) + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} vehicles
             </div>
@@ -414,6 +414,7 @@ export default function VehiclesPage() {
                 size="sm"
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                 disabled={pagination.page <= 1 || loading}
+                className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Previous
               </Button>
@@ -422,6 +423,7 @@ export default function VehiclesPage() {
                 size="sm"
                 onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                 disabled={pagination.page >= pagination.totalPages || loading}
+                className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Next
               </Button>

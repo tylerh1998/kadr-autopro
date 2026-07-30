@@ -191,9 +191,9 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
   };
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className="w-full max-w-2xl dark:bg-card border dark:border-slate-800">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 dark:text-slate-100">
           <Car className="w-5 h-5" />
           {vehicle?.id ? 'Edit Vehicle' : 'New Vehicle'}
         </CardTitle>
@@ -203,11 +203,11 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
           {/* Catch autofocus on modal open to prevent the customer search popover from opening automatically */}
           <div tabIndex={0} className="w-0 h-0 p-0 m-0 opacity-0 focus:outline-none pointer-events-none" aria-hidden="true" />
           <div className="space-y-2">
-            <Label htmlFor="customer_id">Customer *</Label>
+            <Label htmlFor="customer_id" className="dark:text-slate-300">Customer *</Label>
             <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
               <PopoverTrigger asChild>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <Input
                     placeholder="Search or select a customer..."
                     value={customerSearchTerm}
@@ -217,18 +217,18 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                       setCustomerSearchOpen(true);
                     }}
                     onFocus={() => setCustomerSearchOpen(true)}
-                    className="pl-9"
+                    className="pl-9 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   />
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="p-0 w-[400px] max-w-[90vw]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+              <PopoverContent className="p-0 w-[400px] max-w-[90vw] dark:bg-slate-950 dark:border-slate-800" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-950">
                   {loadingCustomers ? (
-                    <div className="py-6 text-center text-sm text-slate-500">
+                    <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                       Searching...
                     </div>
                   ) : filteredCustomers.length === 0 ? (
-                    <div className="py-6 text-center text-sm text-slate-500">
+                    <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                       No customers found.
                     </div>
                   ) : (
@@ -241,11 +241,11 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                             setCustomerSearchTerm(getCustomerDisplayName(customer));
                             setCustomerSearchOpen(false);
                           }}
-                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-50 dark:border-slate-900 last:border-0"
                         >
-                          <span className="font-medium text-slate-900">{getCustomerDisplayName(customer)}</span>
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{getCustomerDisplayName(customer)}</span>
                           {formData.customer_id === customer.id && (
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                           )}
                         </div>
                       ))}
@@ -258,7 +258,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="year">Year *</Label>
+              <Label htmlFor="year" className="dark:text-slate-300">Year *</Label>
               <Input
                 id="year"
                 type="number"
@@ -267,31 +267,34 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                 min="1900"
                 max={new Date().getFullYear() + 1}
                 required
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="make">Make *</Label>
+              <Label htmlFor="make" className="dark:text-slate-300">Make *</Label>
               <Input
                 id="make"
                 value={formData.make}
                 onChange={(e) => handleChange('make', e.target.value)}
                 required
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="model">Model *</Label>
+              <Label htmlFor="model" className="dark:text-slate-300">Model *</Label>
               <Input
                 id="model"
                 value={formData.model}
                 onChange={(e) => handleChange('model', e.target.value)}
                 required
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="vin">VIN</Label>
+              <Label htmlFor="vin" className="dark:text-slate-300">VIN</Label>
               <div className="flex gap-2 items-start">
                 <div className="flex-1">
                   <Input
@@ -299,13 +302,13 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                     value={formData.vin}
                     onChange={(e) => handleChange('vin', e.target.value)}
                     maxLength="17"
-                    className="font-mono uppercase"
+                    className="font-mono uppercase dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   />
-                  <div className="font-mono text-sm text-slate-400 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
+                  <div className="font-mono text-sm text-slate-400 dark:text-slate-500 px-3 mt-0.5 select-none pointer-events-none whitespace-pre overflow-hidden">
                     {'       * *      *'}
                   </div>
                 </div>
-                <Button type="button" variant="outline" onClick={handleVinDecode} disabled={decoding}> {/* Changed onClick and disabled prop */}
+                <Button type="button" variant="outline" onClick={handleVinDecode} disabled={decoding} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"> {/* Changed onClick and disabled prop */}
                   {decoding ? ( // Changed condition
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
@@ -315,40 +318,44 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="license_plate">License Plate</Label>
+              <Label htmlFor="license_plate" className="dark:text-slate-300">License Plate</Label>
               <Input
                 id="license_plate"
                 value={formData.license_plate}
                 onChange={(e) => handleChange('license_plate', e.target.value)}
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="unit_number">Unit Number</Label>
+              <Label htmlFor="unit_number" className="dark:text-slate-300">Unit Number</Label>
               <Input
                 id="unit_number"
                 value={formData.unit_number}
                 onChange={(e) => handleChange('unit_number', e.target.value)}
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="color">Color</Label>
+              <Label htmlFor="color" className="dark:text-slate-300">Color</Label>
               <Input
                 id="color"
                 value={formData.color}
                 onChange={(e) => handleChange('color', e.target.value)}
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="mileage">Mileage</Label>
+              <Label htmlFor="mileage" className="dark:text-slate-300">Mileage</Label>
               <Input
                 id="mileage"
                 type="number"
                 value={formData.mileage}
                 onChange={(e) => handleChange('mileage', e.target.value)}
                 min="0"
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
@@ -356,30 +363,33 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
           {/* New row for Engine and Trim */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="engine">Engine</Label>
+              <Label htmlFor="engine" className="dark:text-slate-300">Engine</Label>
               <Input
                 id="engine"
                 value={formData.engine}
                 onChange={(e) => handleChange('engine', e.target.value)}
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="trim">Trim</Label>
+              <Label htmlFor="trim" className="dark:text-slate-300">Trim</Label>
               <Input
                 id="trim"
                 value={formData.trim}
                 onChange={(e) => handleChange('trim', e.target.value)}
+                className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes" className="dark:text-slate-300">Notes</Label>
             <Textarea
               id="notes"
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
               rows={3}
+              className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
             />
           </div>
 
@@ -389,7 +399,7 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
               checked={formData.is_active}
               onCheckedChange={(checked) => handleChange('is_active', checked)}
             />
-            <Label htmlFor="is_active" className="cursor-pointer">
+            <Label htmlFor="is_active" className="cursor-pointer dark:text-slate-300">
               Active
             </Label>
           </div>
@@ -400,17 +410,17 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
                 type="button" 
                 variant="outline" 
                 onClick={() => setShowMergeModal(true)}
-                className="mr-auto"
+                className="mr-auto dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 <Merge className="w-4 h-4 mr-2" />
                 Merge
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
               <X className="w-4 h-4 mr-2" />
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
               {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               {vehicle?.id ? 'Update' : 'Create'} Vehicle
             </Button>

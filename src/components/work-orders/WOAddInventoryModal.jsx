@@ -422,6 +422,12 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 processedInventoryItem = createResponse.data?.data;
             }
 
+            // Fetch user from Supabase auth for audit trail
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const userId = authUser?.id || null;
+            const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+            const nowStr = new Date().toISOString();
+
             // Create InventoryAuditLog record
             const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                 inventory_item_id: processedInventoryItem.id,
@@ -429,7 +435,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 quantity_change: 0,
                 quantity_ordered_change: quantityToOrder,
                 ro_number: workOrder.ro_number,
-                description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`
+                description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`,
+                created_by_id: userId,
+                created_by: userDisplay,
+                tx_date: nowStr
             }]);
             if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 

@@ -104,6 +104,12 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
       const supplierName = supplier?.name || 'Unknown Supplier';
 
+      // Fetch user from Supabase auth for audit trail
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const userId = authUser?.id || null;
+      const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+      const nowStr = new Date().toISOString();
+
       // Create InventoryReturn record
       const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
       const returnData = {
@@ -120,7 +126,11 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
         status: 'On-site',
         work_order_id: workOrder.id,
-        notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`
+        notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`,
+        created_date: nowStr,
+        updated_date: nowStr,
+        created_by_id: userId,
+        created_by: userDisplay
       };
 
       const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
@@ -133,7 +143,10 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         ro_number: workOrder.wo_number || workOrder.ro_number,
         tx_type: 'Warranty Return', // Match the plan
         quantity_change: 0, // Informational only
-        description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`
+        description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`,
+        created_by_id: userId,
+        created_by: userDisplay,
+        tx_date: nowStr
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
       console.log('Created warranty transaction record');

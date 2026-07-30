@@ -317,6 +317,18 @@ export default function CreditInvoicePage() {
         console.error("Failed to load suppliers for return processing", err);
       }
 
+      // Fetch user from Supabase auth for audit trail
+      let userId = null;
+      let userDisplay = null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        userId = authUser?.id || null;
+        userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+      } catch (err) {
+        console.error("Failed to load user for audit log", err);
+      }
+      const nowStr = new Date().toISOString();
+
       for (const line of selectedLineItems) {
         if (line.inventory_item_id) {
           try {
@@ -328,7 +340,9 @@ export default function CreditInvoicePage() {
                 const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
                 const supplierName = supplier ? supplier.name : 'Unknown';
 
-                await base44.entities.InventoryReturn.create({
+                const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
+                const { error: returnError } = await supabase.from('InventoryReturn').insert([{
+                  id: returnId,
                   part_number: line.part_number || inventoryItem.part_number,
                   description: line.description || inventoryItem.description,
                   supplier: supplierName,
@@ -341,8 +355,13 @@ export default function CreditInvoicePage() {
                   work_order_id: workOrder.id,
                   inventory_item_id: line.inventory_item_id,
                   status: 'On-site',
-                  notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`
-                });
+                  notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`,
+                  created_date: nowStr,
+                  updated_date: nowStr,
+                  created_by_id: userId,
+                  created_by: userDisplay
+                }]);
+                if (returnError) console.error(`Error creating Core Return for ${line.part_number}:`, returnError);
                 console.log(`Created Core Return for ${line.part_number}`);
               } else {
                 // Regular Part Return Logic: Update QOH and create TX
@@ -358,7 +377,10 @@ export default function CreditInvoicePage() {
                   ro_number: workOrder.ro_number,
                   tx_type: 'Returned from WO',
                   quantity_change: returnQty,
-                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock`
+                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock`,
+                  created_by_id: userId,
+                  created_by: userDisplay,
+                  tx_date: nowStr
                 }]);
                 if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
                 

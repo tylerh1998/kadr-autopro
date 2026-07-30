@@ -258,7 +258,10 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         tx_type: "Credit Received",
         quantity_change: 0,
         supplier_inv: invoiceNumber,
-        description: `Credit received for return of ${returnItem.quantity_returned} units. Invoice: ${invoiceNumber}`
+        description: `Credit received for return of ${returnItem.quantity_returned} units. Invoice: ${invoiceNumber}`,
+        created_by_id: currentUser?.id || null,
+        created_by: currentUser?.full_name || currentUser?.email || currentUser?.username || null,
+        tx_date: new Date().toISOString()
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 
