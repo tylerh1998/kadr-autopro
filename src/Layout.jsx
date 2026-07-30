@@ -646,9 +646,10 @@ const navigationItems = [
                 onClick={() => {
                   openTechClockStatusModal();
                 }}
-                className="flex items-center cursor-pointer dark:bg-white dark:p-1 dark:rounded-md"
+                className="flex items-center cursor-pointer"
               >
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10" />
+                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10 dark:hidden" />
+                <img src="/dark_logo.jpg" alt="Logo" className="h-10 hidden dark:block" />
               </div>
 
               <div
@@ -837,10 +838,10 @@ const navigationItems = [
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col text-left gap-1">
-                        <span className="font-semibold text-slate-900 text-sm leading-none">
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-none">
                           {user?.User_name || user?.full_name || 'User Profile'}
                         </span>
-                        <span className="text-xs font-normal text-slate-500 leading-none">
+                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400 leading-none">
                           {user?.role === 'admin' ? "Program Administrator" :
                            user?.access_level === 'lvl3_user' ? "Executive Access" :
                            user?.access_level === 'lvl2_user' ? "Supervisor Access" :

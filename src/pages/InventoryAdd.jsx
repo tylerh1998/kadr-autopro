@@ -679,7 +679,7 @@ export default function InventoryAddPage() {
                 hasHardErrors = true;
             }
 
-            const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+            const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0) + (group.freight_amount || 0);
             const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotal) > 0.01;
             
             if (subtotalMismatch) {
@@ -862,7 +862,7 @@ export default function InventoryAddPage() {
 
 
             const parsedItems = (data.items || []).map(item => {
-                const partNumber = (item.part_number || '').toUpperCase();
+                const partNumber = (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
                 const existingPart = existingItemsMap.get(partNumber);
 
                 const cost = parseFloat(item.cost) || 0;
@@ -908,7 +908,8 @@ export default function InventoryAddPage() {
                     }
                 }
                 
-                const isTire = /\btire(s)?\b/i.test(partNumber) || /\btire(s)?\b/i.test(description) || (existingPart && /\btire(s)?\b/i.test(existingPart.category || ''));
+                const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+                const isTire = /\btire(s)?\b/i.test(partNumber) || /\btire(s)?\b/i.test(description) || (existingPart && /\btire(s)?\b/i.test(existingPart.category || '')) || tireSizeRegex.test(description) || tireSizeRegex.test(partNumber);
                 if (!existingPart && isTire) {
                     const tireSalesClass = salesClasses.find(sc => sc.name && sc.name.toLowerCase().includes('tire'));
                     if (tireSalesClass) {
@@ -1277,7 +1278,7 @@ export default function InventoryAddPage() {
                                                 placeholder="Search or type part #..."
                                                 value={currentItem.part_number}
                                                 onChange={(e) => {
-                                                    handleItemFieldChange('part_number', e.target.value.toUpperCase());
+                                                    handleItemFieldChange('part_number', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
                                                     setPartSearchOpen(true);
                                                 }}
                                                 onKeyDown={handlePartNumberInputKeyDown}
@@ -1610,7 +1611,7 @@ export default function InventoryAddPage() {
                             <div className="space-y-4 max-h-96 overflow-y-auto">
                                 {batchItems.map((group, groupIndex) => {
                                     const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
-                                    const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+                                    const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0) + (group.freight_amount || 0);
                                     const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotal) > 0.01;
                                     
                                     const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
@@ -1694,7 +1695,7 @@ export default function InventoryAddPage() {
                                             <div className="flex items-center gap-2">
                                                 Invoice Total: 
                                                 <span className={groupHasError ? 'bg-orange-200 px-1 rounded' : ''}>
-                                                    ${(actualTotal + (group.freight_amount || 0)).toFixed(2)}
+                                                    ${actualTotal.toFixed(2)}
                                                 </span>
                                             </div>
                                             {groupHasError && (
