@@ -377,6 +377,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             if (item.isExistingPart && item.existingPartId) {
                 // Update existing item QOO
                 // Fetch fresh to get current QOO via Supabase client
+            // Fetch user from Supabase auth for audit trail
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const userId = authUser?.id || null;
+            const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+            const nowStr = new Date().toISOString();
+
+            if (item.isExistingPart) {
                 const { data: freshItemRes } = await supabase
                     .from('InventoryItem')
                     .select('*')
@@ -390,17 +397,23 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 oldQuantityOnOrder = currentQOO;
                 newQuantityOnOrder = currentQOO + quantityToOrder;
                 
-                const updateResponse = await inventoryUpdate({
-                    itemId: freshItem.id,
-                    updates: {
-                        quantity_on_order: currentQOO + quantityToOrder
-                    }
+                const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+                    p_item_id: freshItem.id,
+                    p_qoh: freshItem.quantity_on_hand || 0,
+                    p_qoo: currentQOO + quantityToOrder,
+                    p_ro_number: workOrder.ro_number,
+                    p_supplier_inv: null,
+                    p_source_action: 'WOAddInventoryModal',
+                    p_tx_type: 'Ordered',
+                    p_description: `Ordered existing part for WO ${workOrder.ro_number}`,
+                    p_user_id: userId,
+                    p_user_name: userDisplay,
+                    p_source_record_id: workOrder.id
                 });
                 
-                // We use the fresh item, but we might want to ensure the line item uses the entered cost/price
-                // if they differ from master (for this specific order).
-                // But generally we link to the inventory item ID.
-                processedInventoryItem = updateResponse.data?.data || { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
+                if (updateError) throw new Error('Failed to update inventory quantity via RPC: ' + updateError.message);
+                
+                processedInventoryItem = { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
             } else {
                 // Create new item
                 const newInventoryItemData = {
@@ -426,37 +439,36 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     is_active: item.is_active,
                 };
                 
-                const createResponse = await inventoryAdd({ itemData: newInventoryItemData });
-                processedInventoryItem = createResponse.data?.data;
+                const { data: createData, error: createError } = await supabase
+                    .from('InventoryItem')
+                    .insert([newInventoryItemData])
+                    .select();
+                    
+                if (createError) throw new Error('Failed to create new inventory item: ' + createError.message);
+                processedInventoryItem = createData[0];
+
+                // Create InventoryAuditLog record ONLY for new items (RPC handles existing)
+                const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
+                    inventory_item_id: processedInventoryItem.id,
+                    part_num: processedInventoryItem.part_number,
+                    old_quantity: 0,
+                    new_quantity: 0,
+                    old_quantity_on_order: 0,
+                    new_quantity_on_order: quantityToOrder,
+                    supplier_name: getSupplierName(item.supplier_id),
+                    source_record_id: workOrder.id,
+                    source_function: 'WOAddInventoryModal',
+                    tx_type: 'Ordered',
+                    quantity_change: 0,
+                    quantity_ordered_change: quantityToOrder,
+                    ro_number: workOrder.ro_number,
+                    description: `Ordered new part for WO ${workOrder.ro_number}`,
+                    created_by_id: userId,
+                    created_by: userDisplay,
+                    tx_date: nowStr
+                }]);
+                if (auditError) console.error('Error creating InventoryAuditLog for new item:', auditError);
             }
-
-            // Fetch user from Supabase auth for audit trail
-            const { data: { user: authUser } } = await supabase.auth.getUser();
-            const userId = authUser?.id || null;
-            const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
-            const nowStr = new Date().toISOString();
-
-            // Create InventoryAuditLog record
-            const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-                inventory_item_id: processedInventoryItem.id,
-                part_num: processedInventoryItem.part_number,
-                old_quantity: oldQuantity,
-                new_quantity: newQuantity,
-                old_quantity_on_order: oldQuantityOnOrder,
-                new_quantity_on_order: newQuantityOnOrder,
-                supplier_name: getSupplierName(item.supplier_id),
-                source_record_id: workOrder.id,
-                source_function: 'WOAddInventoryModal',
-                tx_type: 'Ordered',
-                quantity_change: 0,
-                quantity_ordered_change: quantityToOrder,
-                ro_number: workOrder.ro_number,
-                description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`,
-                created_by_id: userId,
-                created_by: userDisplay,
-                tx_date: nowStr
-            }]);
-            if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 
             // Create Line Item
             const coreNum = item.core ? quantityToOrder : 0;

@@ -201,33 +201,31 @@ export default function InventoryReturnsPage() {
 
         const quantityReturned = Number(returnItem.quantity_returned || 0);
         const newQOH = Number(originalItem.quantity_on_hand || 0) + quantityReturned;
-        const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: newQOH }).eq('id', originalItem.id);
-        if (updateError) throw new Error('Failed to update inventory quantity');
-
+        
         // Fetch user from Supabase auth for audit trail
         const { data: { user: authUser } } = await supabase.auth.getUser();
         const userId = authUser?.id || null;
         const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
-        const nowStr = new Date().toISOString();
 
-        const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-          inventory_item_id: originalItem.id,
-          part_num: originalItem.part_number,
-          old_quantity: Number(originalItem.quantity_on_hand || 0),
-          new_quantity: newQOH,
-          old_quantity_on_order: Number(originalItem.quantity_on_order || 0),
-          new_quantity_on_order: Number(originalItem.quantity_on_order || 0),
-          supplier_name: getSupplierName(originalItem.supplier_id),
-          source_record_id: returnItem.id,
-          source_function: 'InventoryReturnsPage',
-          tx_type: 'Transfer from Returns',
-          quantity_change: quantityReturned,
-          description: 'Part removed from Returns, back to inventory.',
-          created_by_id: userId,
-          created_by: userDisplay,
-          tx_date: nowStr
-        }]);
-        if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
+        // Use RPC to update QOH and generate audit log safely without trigger duplicates
+        const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+          p_item_id: originalItem.id,
+          p_qoh: newQOH,
+          p_qoo: originalItem.quantity_on_order || 0,
+          p_ro_number: null,
+          p_supplier_inv: null,
+          p_source_action: 'InventoryReturnsPage',
+          p_tx_type: 'Transfer from Returns',
+          p_description: 'Part removed from Returns, back to inventory.',
+          p_user_id: userId,
+          p_user_name: userDisplay,
+          p_source_record_id: returnItem.id
+        });
+        
+        if (updateError) {
+          console.error('Error updating inventory via RPC:', updateError);
+          throw new Error('Failed to update inventory quantity');
+        }
         const { error: deleteError } = await supabase.from('InventoryReturn').delete().eq('id', returnItem.id);
         if (deleteError) throw deleteError;
         alert('Item returned to inventory successfully.');

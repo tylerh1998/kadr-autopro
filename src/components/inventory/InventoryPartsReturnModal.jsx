@@ -59,31 +59,36 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         return;
     }
 
+    // Fetch user from Supabase auth for audit trail
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id || null;
+    const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+    const nowStr = new Date().toISOString();
+
     if (source === 'workOrder' && onReturnWorkOrderPart) {
       // This path is for returning a part FROM a work order back TO general stock
       try {
           const currentQOH = Number(item.quantity_on_hand || 0);
           const newQOH = currentQOH + qtyReturned;
           
-          const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: newQOH }).eq('id', item.id);
-          if (updateError) throw new Error('Failed to update inventory quantity');
-
-          const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-              inventory_item_id: item.id,
-              part_num: item.part_number,
-              old_quantity: currentQOH,
-              new_quantity: newQOH,
-              old_quantity_on_order: Number(item.quantity_on_order || 0),
-              new_quantity_on_order: Number(item.quantity_on_order || 0),
-              supplier_name: getSupplierName(item.supplier_id),
-              source_record_id: workOrderId,
-              source_function: 'InventoryPartsReturnModal (Work Order)',
-              tx_type: 'Returned from WO',
-              quantity_change: qtyReturned, // Positive change as it's returning to stock
-              ro_number: workOrderNumber,
-              description: `Part returned from WO ${workOrderNumber}. Reason: ${returnReason}`
-          }]);
-          if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
+          const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+              p_item_id: item.id,
+              p_qoh: newQOH,
+              p_qoo: Number(item.quantity_on_order || 0),
+              p_ro_number: workOrderNumber,
+              p_supplier_inv: null,
+              p_source_action: 'InventoryPartsReturnModal (Work Order)',
+              p_tx_type: 'Returned from WO',
+              p_description: `Part returned from WO ${workOrderNumber}. Reason: ${returnReason}`,
+              p_user_id: userId,
+              p_user_name: userDisplay,
+              p_source_record_id: workOrderId
+          });
+          
+          if (updateError) {
+              console.error('Failed to update inventory via RPC:', updateError);
+              throw new Error('Failed to update inventory quantity');
+          }
           
           onReturnWorkOrderPart(qtyReturned, returnReason); // Notify parent about the return
           onClose();
@@ -101,12 +106,6 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       const costVal = parseFloat(item.cost || 0);
       const qtyVal = Number(qtyReturned);
 
-      // Fetch user from Supabase auth for audit trail
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const userId = authUser?.id || null;
-      const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
-      const nowStr = new Date().toISOString();
-
       const returnData = {
         id: returnId,
         inventory_item_id: item.id,
@@ -118,7 +117,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         return_reason: returnReason,
         cost_per_unit: costVal,
         total_cost: costVal * qtyVal,
-        return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
+        return_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'On-site',
         notes: returnNotes || '',
         created_date: nowStr,
@@ -144,7 +143,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           return_reason: returnReason,
           cost_per_unit: coreCostVal,
           total_cost: coreCostVal * qtyVal,
-          return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
+          return_date: format(new Date(), 'yyyy-MM-dd'),
           status: 'On-site',
           notes: returnNotes || '',
           created_date: nowStr,
@@ -158,28 +157,22 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
       // Decrement QOH from inventory
       const updatedQOH = Number(item.quantity_on_hand || 0) - qtyVal;
-      const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: updatedQOH }).eq('id', item.id);
-      if (updateError) throw new Error('Failed to update inventory quantity: ' + updateError.message);
+      const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+        p_item_id: item.id,
+        p_qoh: updatedQOH,
+        p_qoo: Number(item.quantity_on_order || 0),
+        p_ro_number: null,
+        p_supplier_inv: null,
+        p_source_action: 'InventoryPartsReturnModal',
+        p_tx_type: 'Returned to Supplier',
+        p_description: `Part returned to supplier from inventory. Reason: ${returnReason}`,
+        p_user_id: userId,
+        p_user_name: userDisplay,
+        p_source_record_id: returnId
+      });
       
-      // Create transaction record
-      const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-        inventory_item_id: item.id,
-        part_num: item.part_number,
-        old_quantity: Number(item.quantity_on_hand || 0),
-        new_quantity: updatedQOH,
-        old_quantity_on_order: Number(item.quantity_on_order || 0),
-        new_quantity_on_order: Number(item.quantity_on_order || 0),
-        supplier_name: getSupplierName(item.supplier_id),
-        source_record_id: returnId,
-        source_function: 'InventoryPartsReturnModal',
-        tx_type: 'Returned to Supplier',
-        quantity_change: -qtyVal, // Negative change as it's leaving stock
-        description: `Part returned to supplier from inventory. Reason: ${returnReason}`,
-        created_by_id: userId,
-        created_by: userDisplay,
-        tx_date: nowStr
-      }]);
-      if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
+      if (updateError) throw new Error('Failed to update inventory quantity via RPC: ' + updateError.message);
+
 
       onUpdate();
       onClose();

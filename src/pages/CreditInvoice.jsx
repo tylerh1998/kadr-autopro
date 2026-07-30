@@ -368,28 +368,21 @@ export default function CreditInvoicePage() {
                 const returnQty = parseFloat(line.qty) || 0;
                 const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + returnQty;
                 
-                await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'InventoryItem', id: line.inventory_item_id, data: {
-                  quantity_on_hand: newQOH
-                }});
+                const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+                  p_item_id: line.inventory_item_id,
+                  p_qoh: newQOH,
+                  p_qoo: Number(inventoryItem.quantity_on_order || 0),
+                  p_ro_number: workOrder.ro_number,
+                  p_supplier_inv: null,
+                  p_source_action: 'CreditInvoice',
+                  p_tx_type: 'Returned from WO',
+                  p_description: `Credit invoice ${creditInvoiceNumber} - returned to stock`,
+                  p_user_id: userId,
+                  p_user_name: userDisplay,
+                  p_source_record_id: creditInvoiceNumber
+                });
                 
-                const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-                  inventory_item_id: line.inventory_item_id,
-                  part_num: inventoryItem.part_number,
-                  old_quantity: Number(inventoryItem.quantity_on_hand || 0),
-                  new_quantity: newQOH,
-                  old_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
-                  new_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
-                  source_record_id: creditInvoiceNumber,
-                  source_function: 'CreditInvoice',
-                  ro_number: workOrder.ro_number,
-                  tx_type: 'Returned from WO',
-                  quantity_change: returnQty,
-                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock`,
-                  created_by_id: userId,
-                  created_by: userDisplay,
-                  tx_date: nowStr
-                }]);
-                if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
+                if (updateError) console.error('Error updating inventory via RPC:', updateError);
                 
                 console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
               }
