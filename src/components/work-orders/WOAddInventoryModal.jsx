@@ -374,16 +374,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             let oldQuantityOnOrder = 0;
             let newQuantityOnOrder = quantityToOrder;
 
-            if (item.isExistingPart && item.existingPartId) {
-                // Update existing item QOO
-                // Fetch fresh to get current QOO via Supabase client
             // Fetch user from Supabase auth for audit trail
             const { data: { user: authUser } } = await supabase.auth.getUser();
             const userId = authUser?.id || null;
             const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
             const nowStr = new Date().toISOString();
 
-            if (item.isExistingPart) {
+            if (item.isExistingPart && item.existingPartId) {
+                // Update existing item QOO
+                // Fetch fresh to get current QOO via Supabase client
                 const { data: freshItemRes } = await supabase
                     .from('InventoryItem')
                     .select('*')
