@@ -1703,6 +1703,7 @@ export default function InventoryAddPage() {
                 open={ocrModalOpen}
                 onOpenChange={setOcrModalOpen}
                 onSuccess={handleOCRSuccess}
+                supplierNames={suppliers.map(s => s.name)}
             />
         </div>
     );

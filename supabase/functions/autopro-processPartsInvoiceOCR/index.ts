@@ -12,7 +12,7 @@ serve(async (req) => {
     }
 
     try {
-        const { pdfData, mimeType = 'application/pdf' } = await req.json();
+        const { pdfData, mimeType = 'application/pdf', supplierNames = [] } = await req.json();
 
         if (!pdfData) {
             return new Response(
@@ -31,11 +31,17 @@ serve(async (req) => {
 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
+        let supplierNamesContext = '';
+        if (supplierNames && supplierNames.length > 0) {
+            supplierNamesContext = `\nCRITICAL INSTRUCTION: Try to match the supplier name to one of these known suppliers if possible: ${supplierNames.join(', ')}.`;
+        }
+
         const prompt = `You are a highly accurate invoice parser. 
 Analyze the provided invoice document and extract the following information.
 CRITICAL INSTRUCTION: Completely ignore any vehicle information (Year, Make, Model, VIN, Mileage, etc.). Do not extract vehicle details as parts.
 CRITICAL INSTRUCTION: Core charges (e.g., "Core Deposit", "NET CORE") are often listed as separate line items or in a separate column. DO NOT extract a core charge as its own standalone item. Instead, find the main part it applies to, and set "core": true and "core_cost" to the unit amount of the core charge for that item. If an item has no core charge, omit these fields or set them to false/0.
 CRITICAL INSTRUCTION: Often there is a short Manufacturer (MFG) code (e.g., a 3-letter or 3-digit code like "AGL" or "MPA") listed right before the actual part number, either in a separate column or at the start of the string. DO NOT include the MFG code in the "part_number" field. Only extract the true part number itself.
+CRITICAL INSTRUCTION: The unit cost is sometimes labeled as "NET", "NET COST", or "UNIT". Pay close attention to these columns to correctly extract the unit cost.${supplierNamesContext}
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "supplier_name": "Name of the supplier or vendor. If you cannot find it, return empty string.",
@@ -47,7 +53,7 @@ Format the output EXACTLY as a JSON object with no markdown wrappers or addition
       "part_number": "The part number or item code",
       "description": "The item description",
       "quantity": The quantity as a number,
-      "cost": The unit cost as a number,
+      "cost": The unit cost as a number (this may be under a column labeled "NET" or "NET COST"),
       "core": true if there is a core charge, false otherwise,
       "core_cost": The unit cost of the core charge as a number, or 0 if none
     }

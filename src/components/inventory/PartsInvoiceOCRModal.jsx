@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Upload, FileText, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess }) {
+export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess, supplierNames = [] }) {
     const [files, setFiles] = useState([]);
     const [processing, setProcessing] = useState(false);
     const [progress, setProgress] = useState(null);
@@ -79,7 +79,8 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess }) 
                     },
                     body: JSON.stringify({
                         pdfData: base64Data,
-                        mimeType: file.type || 'application/pdf'
+                        mimeType: file.type || 'application/pdf',
+                        supplierNames: supplierNames
                     })
                 });
 
