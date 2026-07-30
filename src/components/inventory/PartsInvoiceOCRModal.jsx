@@ -52,20 +52,50 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess }) 
                 
                 const base64Data = await convertToBase64(file);
 
-                const response = await supabase.functions.invoke('autopro-processPartsInvoiceOCR', {
-                    body: {
+                // Use direct fetch to avoid potential cache/proxy issues
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                
+                // Add a cache buster to the URL to bypass any stale 404s
+                const url = `${supabaseUrl}/functions/v1/autopro-processPartsInvoiceOCR?t=${Date.now()}`;
+                
+                // Read the token from the cookie in case we need auth
+                const match = document.cookie.match(/(?:^|;\s*)supabase_auth_token=([^;]+)/);
+                let jwtToken = supabaseAnonKey;
+                if (match) {
+                    try {
+                        let rawValue = match[1];
+                        if (rawValue.startsWith('%7B')) rawValue = decodeURIComponent(rawValue);
+                        const sessionData = JSON.parse(rawValue);
+                        jwtToken = Array.isArray(sessionData) ? sessionData[0]?.access_token : sessionData?.access_token;
+                    } catch(e) {}
+                }
+
+                const fetchResponse = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${jwtToken}`
+                    },
+                    body: JSON.stringify({
                         pdfData: base64Data,
                         mimeType: file.type || 'application/pdf'
-                    }
+                    })
                 });
 
-                if (!response.data || !response.data.success) {
-                    throw new Error(response.data?.error || `Failed to process ${file.name}`);
+                if (!fetchResponse.ok) {
+                    throw new Error(`Server returned status ${fetchResponse.status}`);
+                }
+
+                const responseData = await fetchResponse.json();
+
+                if (!responseData || !responseData.success) {
+                    throw new Error(responseData?.error || `Failed to process ${file.name}`);
                 }
 
                 results.push({
                     fileName: file.name,
-                    data: response.data.data
+                    data: responseData.data
                 });
             }
 
