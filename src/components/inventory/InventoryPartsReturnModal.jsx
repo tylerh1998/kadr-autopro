@@ -83,20 +83,22 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       }
     }
 
-    // This path is for returning a part FROM general stock TO the supplier
     try {
       const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
+      const costVal = parseFloat(item.cost || 0);
+      const qtyVal = Number(qtyReturned);
+
       const returnData = {
         id: returnId,
         inventory_item_id: item.id,
         part_number: item.part_number,
         description: item.description,
         supplier: item.supplier_id,
-        quantity_returned: qtyReturned,
+        quantity_returned: qtyVal,
         return_type: 'return',
         return_reason: returnReason,
-        cost_per_unit: item.cost,
-        total_cost: item.cost * qtyReturned,
+        cost_per_unit: costVal,
+        total_cost: costVal * qtyVal,
         return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
         status: 'On-site',
         notes: returnNotes || ''
@@ -106,6 +108,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
       // Handle Core Return if applicable
       if (item.core) {
+        const coreCostVal = parseFloat(item.core_cost || 0);
         const coreReturnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
         const coreReturnData = {
           id: coreReturnId,
@@ -113,11 +116,11 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           part_number: item.part_number,
           description: `${item.description} (Core Return)`,
           supplier: item.supplier_id,
-          quantity_returned: qtyReturned,
+          quantity_returned: qtyVal,
           return_type: 'core',
           return_reason: returnReason,
-          cost_per_unit: item.core_cost || 0,
-          total_cost: (item.core_cost || 0) * qtyReturned,
+          cost_per_unit: coreCostVal,
+          total_cost: coreCostVal * qtyVal,
           return_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
           status: 'On-site',
           notes: returnNotes || ''
@@ -127,15 +130,15 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       }
 
       // Decrement QOH from inventory
-      const updatedQOH = Number(item.quantity_on_hand || 0) - qtyReturned;
+      const updatedQOH = Number(item.quantity_on_hand || 0) - qtyVal;
       const { error: updateError } = await supabase.from('InventoryItem').update({ quantity_on_hand: updatedQOH }).eq('id', item.id);
-      if (updateError) throw new Error('Failed to update inventory quantity');
+      if (updateError) throw new Error('Failed to update inventory quantity: ' + updateError.message);
       
       // Create transaction record
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: item.id,
         tx_type: 'Returned to Supplier',
-        quantity_change: -qtyReturned, // Negative change as it's leaving stock
+        quantity_change: -qtyVal, // Negative change as it's leaving stock
         description: `Part returned to supplier from inventory. Reason: ${returnReason}`
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
@@ -144,7 +147,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       onClose();
     } catch (error) {
       console.error('Failed to process return:', error);
-      alert('An error occurred while processing the return.');
+      alert('An error occurred while processing the return: ' + error.message);
     }
   };
 
