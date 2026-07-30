@@ -4,8 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 // A small sub-component for consistently styled financial figures
 const FinancialItem = ({ label, value, className = '' }) => (
   <div className={`text-center px-4 py-2 rounded-lg ${className}`}>
-    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-    <p className="text-xl font-bold text-slate-800">{value}</p>
+    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">{label}</p>
+    <p className="text-xl font-bold text-slate-800 dark:text-slate-200">{value}</p>
   </div>
 );
 
@@ -120,11 +120,11 @@ export default function FinancialSummary({ lineItems = [], workOrder = {}, shopS
         <FinancialItem label="Shop Supplies" value={`$${(shopSupplyTotal || 0).toFixed(2)}`} />
         <FinancialItem label="GST (5%)" value={`$${(taxAmount || 0).toFixed(2)}`} />
         
-        <div className="w-px h-10 bg-slate-200 hidden md:block" />
+        <div className="w-px h-10 bg-slate-200 dark:bg-slate-700 hidden md:block" />
 
-        <FinancialItem label="Total" value={`$${(grandTotal || 0).toFixed(2)}`} className="bg-slate-100" />
-        <FinancialItem label="Payments" value={`$${(amountPaid || 0).toFixed(2)}`} className="text-green-700" />
-        <FinancialItem label="Amount Owing" value={`$${(balanceDue || 0).toFixed(2)}`} className={`font-extrabold ${balanceDue > 0.005 ? 'text-red-700' : 'text-slate-900'}`} />
+        <FinancialItem label="Total" value={`$${(grandTotal || 0).toFixed(2)}`} className="bg-slate-100 dark:bg-slate-800" />
+        <FinancialItem label="Payments" value={`$${(amountPaid || 0).toFixed(2)}`} className="text-green-700 dark:text-green-400" />
+        <FinancialItem label="Amount Owing" value={`$${(balanceDue || 0).toFixed(2)}`} className={`font-extrabold ${balanceDue > 0.005 ? 'text-red-700 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`} />
       </CardContent>
     </Card>
   );

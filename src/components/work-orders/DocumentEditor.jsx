@@ -1428,14 +1428,14 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const getColorClasses = (color, isActive) => {
     const colorMap = {
-      slate: isActive ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-200',
-      gray: isActive ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-200',
-      blue: isActive ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100',
-      green: isActive ? 'bg-green-600 text-white' : 'text-green-600 hover:bg-green-100',
-      red: isActive ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-100',
-      orange: isActive ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-100',
-      yellow: isActive ? 'bg-yellow-600 text-white' : 'text-yellow-600 hover:bg-yellow-100',
-      purple: isActive ? 'bg-purple-600 text-white' : 'text-purple-600 hover:bg-purple-100',
+      slate: isActive ? 'bg-slate-700 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800',
+      gray: isActive ? 'bg-gray-700 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800',
+      blue: isActive ? 'bg-blue-600 text-white' : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30',
+      green: isActive ? 'bg-green-600 text-white' : 'text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30',
+      red: isActive ? 'bg-red-600 text-white' : 'text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30',
+      orange: isActive ? 'bg-orange-600 text-white' : 'text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30',
+      yellow: isActive ? 'bg-yellow-600 text-white' : 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30',
+      purple: isActive ? 'bg-purple-600 text-white' : 'text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30',
     };
     return colorMap[color?.toLowerCase()] || colorMap.slate;
   };
@@ -1488,7 +1488,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       </style>
 
       <div className="min-h-screen screen-only-area">
-        <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-20">
+        <div className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-6 py-3 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
@@ -1502,18 +1502,18 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <Button
                 variant="outline"
                 onClick={handleViewOnlyMode}
-                className="bg-white"
+                className="bg-white dark:bg-slate-900"
               >
                 <Eye className="w-4 h-4 mr-2" />
                 View Only Mode
               </Button>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={() => openModal('payments')}>
@@ -1530,10 +1530,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <div className="flex items-center gap-4">
-                  <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1">
+                  <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-1">
                     {stages.map((stage, index) => (
                       <button
                         key={stage.key}
@@ -1565,7 +1565,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     <button
                       onClick={handleHeaderSaveClick}
                       disabled={saving}
-                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white shadow-sm flex items-center gap-2 ml-1"
+                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-sm flex items-center gap-2 ml-1"
                     >
                       {saving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1580,10 +1580,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           </div>
         </div>
 
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-2 sticky top-[69px] z-20 shadow-sm">
+        <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-2 sticky top-[69px] z-20 shadow-sm">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg">
                   {workOrderStatuses.map(status => {
                     const isActive = workOrder?.status === status.name;
                     const colorClasses = getColorClasses(status.color, isActive);
@@ -1601,15 +1601,15 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                   })}
                 </div>
 
-                <div className="w-px h-6 bg-slate-300"></div>
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
                 <div className="flex items-center gap-3">
                   <div
                     onClick={() => openModal('workPRO')}
-                    className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-100 px-2 py-1 rounded transition-colors"
+                    className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
                   >
                     <div className={`w-3 h-3 rounded-full ${workPROProject ? 'bg-green-500' : 'bg-orange-400'}`}></div>
-                    <span className="text-sm font-semibold text-slate-700">WorkPRO</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">WorkPRO</span>
                     {workPROProject ? (
                       <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
                         Connected
@@ -1641,21 +1641,21 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               </Button>
 
               <div
-                className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100"
+                className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 onClick={handleAppointmentClick}
               >
                 <div className="text-sm">
                   {upcomingAppointment && upcomingAppointment.start_time ? (
                     <>
-                      <p className="font-semibold text-slate-800">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">
                         {format(new Date(upcomingAppointment.start_time), 'EEE, MMM d, yyyy')}
                       </p>
-                      <p className="text-slate-600">
+                      <p className="text-slate-600 dark:text-slate-400">
                         {format(new Date(upcomingAppointment.start_time), 'h:mm a')}
                       </p>
                     </>
                   ) : (
-                    <p className="font-semibold text-slate-500">No Appointment Scheduled</p>
+                    <p className="font-semibold text-slate-500 dark:text-slate-400">No Appointment Scheduled</p>
                   )}
                 </div>
               </div>

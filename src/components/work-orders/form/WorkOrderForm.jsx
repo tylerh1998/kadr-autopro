@@ -1099,7 +1099,7 @@ export default function WorkOrderForm({
         mode={mode} // Pass mode to LineItemsTable
       />
 
-      <div className="sticky bottom-0 z-10 py-2 bg-slate-50/95 backdrop-blur border-t border-slate-200">
+      <div className="sticky bottom-0 z-10 py-2 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur border-t border-slate-200 dark:border-slate-800">
         <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} shopSupplyRate={shopSupplyRate} />
       </div>
       

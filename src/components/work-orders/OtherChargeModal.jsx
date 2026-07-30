@@ -335,8 +335,8 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         
         {loadingSupplierInvoiceLine ? (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-slate-600">Loading cost details...</span>
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+            <span className="ml-3 text-slate-600 dark:text-slate-400">Loading cost details...</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -386,7 +386,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded">
+              <div className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-800 p-3 rounded">
                 <Checkbox
                   id="taxable"
                   checked={isTaxable}
@@ -397,18 +397,18 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                 </Label>
               </div>
               
-              <div className="flex gap-4 bg-blue-50 p-3 rounded">
+              <div className="flex gap-4 bg-blue-50 dark:bg-blue-900/30 p-3 rounded">
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-blue-700">Subtotal</p>
-                  <p className="text-sm font-medium text-blue-900">${subtotal.toFixed(2)}</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Subtotal</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">${subtotal.toFixed(2)}</p>
                 </div>
-                <div className="flex-1 text-center border-l border-blue-200">
-                  <p className="text-xs text-blue-700">GST {isTaxable ? '(5%)' : '(N/A)'}</p>
-                  <p className="text-sm font-medium text-blue-900">${isTaxable ? (subtotal * 0.05).toFixed(2) : '0.00'}</p>
+                <div className="flex-1 text-center border-l border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-400">GST {isTaxable ? '(5%)' : '(N/A)'}</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">${isTaxable ? (subtotal * 0.05).toFixed(2) : '0.00'}</p>
                 </div>
-                <div className="flex-1 text-center border-l border-blue-200">
-                  <p className="text-xs text-blue-700">Charge Total</p>
-                  <p className="text-sm font-bold text-blue-900">${(subtotal + (isTaxable ? subtotal * 0.05 : 0)).toFixed(2)}</p>
+                <div className="flex-1 text-center border-l border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Charge Total</p>
+                  <p className="text-sm font-bold text-blue-900 dark:text-blue-100">${(subtotal + (isTaxable ? subtotal * 0.05 : 0)).toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -430,14 +430,14 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
               </div>
 
               {editingChargeLine?.supplier_invoice_line_id && (
-                <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 p-2 rounded border border-amber-200 dark:border-amber-800">
                   To change the cost details, go to the Supplier Transactions page and edit them there.
                 </p>
               )}
               
               {applyCost && (
-                <div className="space-y-4 bg-slate-50 p-4 rounded border border-slate-200">
-                  <h4 className="font-semibold text-slate-900">Cost Details</h4>
+                <div className="space-y-4 bg-slate-50 dark:bg-slate-800 p-4 rounded border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Cost Details</h4>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -593,7 +593,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
 
                     <div className="space-y-2">
                       <Label>Total</Label>
-                      <div className="h-10 flex items-center px-3 bg-white border rounded">
+                      <div className="h-10 flex items-center px-3 bg-white dark:bg-slate-900 border dark:border-slate-700 rounded">
                         <span className="font-semibold">${supplierTotal.toFixed(2)}</span>
                       </div>
                     </div>
