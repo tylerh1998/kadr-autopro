@@ -699,14 +699,14 @@ export default function InventoryListPage() {
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6 no-print">
             <div className="flex items-center">
-              <Package className="w-8 h-8 text-slate-700" />
-              <h1 className="text-3xl font-bold ml-3 text-slate-800">Inventory</h1>
+              <Package className="w-8 h-8 text-slate-700 dark:text-slate-300" />
+              <h1 className="text-3xl font-bold ml-3 text-slate-800 dark:text-slate-100">Inventory</h1>
             </div>
             <div className="flex items-center gap-2">
               <Button 
                 onClick={() => navigate(createPageUrl('InventoryReturns'))} 
                 variant="outline"
-                className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600"
+                className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 dark:bg-orange-700 dark:hover:bg-orange-800 dark:border-orange-700"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Returns
@@ -714,41 +714,41 @@ export default function InventoryListPage() {
               <Button 
                 onClick={() => navigate(createPageUrl('InventoryAdd'))} 
                 variant="outline"
-                className="bg-green-600 hover:bg-green-700 text-white border-green-600"
+                className="bg-green-600 hover:bg-green-700 text-white border-green-600 dark:bg-green-700 dark:hover:bg-green-800 dark:border-green-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Inventory
               </Button>
-              <Button onClick={handlePrint} variant="outline">
+              <Button onClick={handlePrint} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 <Printer className="h-4 w-4 mr-2" />
                 Print
               </Button>
-              <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Item
               </Button>
-              <Button onClick={fetchInventory} variant="outline">
+              <Button onClick={fetchInventory} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm mb-6 no-print">
+          <div className="bg-white dark:bg-card border dark:border-slate-800 p-4 rounded-lg shadow-sm mb-6 no-print">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex flex-col md:flex-row md:items-start gap-4 flex-1">
                 <div className="flex flex-col gap-2 w-full md:w-auto shrink-0">
                   <div className="relative w-full md:w-80 lg:w-96 shrink-0">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
                     <Input
                       placeholder="Search by Part # or Description (Press Enter)"
                       value={searchTerm}
                       onChange={handleSearchChange}
                       onKeyDown={handleSearchKeyDown}
-                      className="pl-10"
+                      className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                       autoFocus
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                     <input
                       type="checkbox"
                       checked={showInactiveInventory}
@@ -756,39 +756,40 @@ export default function InventoryListPage() {
                         setShowInactiveInventory(e.target.checked);
                         setCurrentPage(1);
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
+                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-600 dark:bg-slate-950"
                     />
                     Show Inactive Inventory
                   </label>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                   <Filter className="h-5 w-5 text-gray-400 shrink-0" />
-                   <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')} className="whitespace-nowrap">All</Button>
-                   <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')} className="whitespace-nowrap">Has Stock</Button>
-                   <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')} className="whitespace-nowrap">No Location</Button>
-                   <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')} className="whitespace-nowrap">Inventory Count</Button>
+                   <Filter className="h-5 w-5 text-gray-400 dark:text-slate-500 shrink-0" />
+                   <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">All</Button>
+                   <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Has Stock</Button>
+                   <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">No Location</Button>
+                   <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Inventory Count</Button>
                 </div>
               </div>
               
               <div className="flex justify-start md:justify-end items-center gap-2 shrink-0">
-                <Button variant={(filterLocationFrom || filterLocationTo) ? 'default' : 'outline'} onClick={() => setShowLocationFilterDialog(true)}>
+                <Button variant={(filterLocationFrom || filterLocationTo) ? 'default' : 'outline'} onClick={() => setShowLocationFilterDialog(true)} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                   Location Range {(filterLocationFrom || filterLocationTo) && `(${filterLocationFrom || '*'} - ${filterLocationTo || '*'})`}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                       <Settings className="mr-2 h-4 w-4" />
                       Customize
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto">
-                    <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                  <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto dark:bg-slate-950 dark:border-slate-800">
+                    <DropdownMenuLabel className="dark:text-slate-200">Toggle Columns</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="dark:bg-slate-800" />
                     {availableColumns.map((column) => (
                       <DropdownMenuCheckboxItem
                         key={column.id}
                         checked={visibleColumns.has(column.id)}
                         onCheckedChange={() => toggleColumn(column.id)}
+                        className="dark:text-slate-300 dark:focus:bg-slate-800"
                       >
                         {column.label}
                       </DropdownMenuCheckboxItem>
@@ -804,114 +805,114 @@ export default function InventoryListPage() {
               Inventory List - {new Date().toLocaleDateString()}
             </div>
             
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-card border dark:border-slate-800 rounded-lg shadow-sm overflow-hidden">
                 <Table className="print-table">
                   <TableHeader>
-                    <TableRow className="bg-gray-50 hover:bg-gray-100">
+                    <TableRow className="bg-gray-50 dark:bg-slate-800/50 hover:bg-gray-100 dark:hover:bg-slate-800 border-b dark:border-slate-800">
                       {visibleColumns.has('part_number') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('part_number')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('part_number')}>
                           <div className="flex items-center">Part Number {getSortIndicator('part_number')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('description') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('description')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('description')}>
                           <div className="flex items-center">Description {getSortIndicator('description')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('unit') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('unit')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('unit')}>
                           <div className="flex items-center justify-center">Unit {getSortIndicator('unit')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('quantity_on_hand') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('quantity_on_hand')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('quantity_on_hand')}>
                            <div className="flex items-center justify-center">QOH {getSortIndicator('quantity_on_hand')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('cost') && (
-                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('cost')}>
+                        <TableHead className="text-right cursor-pointer dark:text-slate-200" onClick={() => handleSort('cost')}>
                            <div className="flex items-center justify-end">Cost {getSortIndicator('cost')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('selling_price') && (
-                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('selling_price')}>
+                        <TableHead className="text-right cursor-pointer dark:text-slate-200" onClick={() => handleSort('selling_price')}>
                            <div className="flex items-center justify-end">Price {getSortIndicator('selling_price')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('location') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('location')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('location')}>
                           <div className="flex items-center justify-center">Location {getSortIndicator('location')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('category') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('category')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('category')}>
                           <div className="flex items-center">Category {getSortIndicator('category')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('supplier') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('supplier_id')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('supplier_id')}>
                           <div className="flex items-center">Supplier {getSortIndicator('supplier_id')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('manufacturer') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('manufacturer')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('manufacturer')}>
                           <div className="flex items-center">Manufacturer {getSortIndicator('manufacturer')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('sales_class') && (
-                        <TableHead className="cursor-pointer" onClick={() => handleSort('sales_class')}>
+                        <TableHead className="cursor-pointer dark:text-slate-200" onClick={() => handleSort('sales_class')}>
                           <div className="flex items-center">Sales Class {getSortIndicator('sales_class')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('quantity_on_order') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('quantity_on_order')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('quantity_on_order')}>
                           <div className="flex items-center justify-center">On Order {getSortIndicator('quantity_on_order')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('minimum_quantity') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('minimum_quantity')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('minimum_quantity')}>
                           <div className="flex items-center justify-center">Min {getSortIndicator('minimum_quantity')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('maximum_quantity') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('maximum_quantity')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('maximum_quantity')}>
                           <div className="flex items-center justify-center">Max {getSortIndicator('maximum_quantity')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('profit_margin') && (
-                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('profit_margin')}>
+                        <TableHead className="text-right cursor-pointer dark:text-slate-200" onClick={() => handleSort('profit_margin')}>
                           <div className="flex items-center justify-end">Margin % {getSortIndicator('profit_margin')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('core') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('core')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('core')}>
                           <div className="flex items-center justify-center">Core {getSortIndicator('core')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('core_cost') && (
-                        <TableHead className="text-right cursor-pointer" onClick={() => handleSort('core_cost')}>
+                        <TableHead className="text-right cursor-pointer dark:text-slate-200" onClick={() => handleSort('core_cost')}>
                           <div className="flex items-center justify-end">Core Cost {getSortIndicator('core_cost')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('stocked_item') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('stocked_item')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('stocked_item')}>
                           <div className="flex items-center justify-center">Stocked {getSortIndicator('stocked_item')}</div>
                         </TableHead>
                       )}
                       {visibleColumns.has('is_active') && (
-                        <TableHead className="text-center cursor-pointer" onClick={() => handleSort('is_active')}>
+                        <TableHead className="text-center cursor-pointer dark:text-slate-200" onClick={() => handleSort('is_active')}>
                           <div className="flex items-center justify-center">Active {getSortIndicator('is_active')}</div>
                         </TableHead>
                       )}
-                      <TableHead className="text-center no-print">Actions</TableHead>
+                      <TableHead className="text-center no-print dark:text-slate-200">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       Array(10).fill(0).map((_, index) => (
-                        <TableRow key={index}>
+                        <TableRow key={index} className="border-b dark:border-slate-800">
                           <TableCell colSpan={8} className="p-0">
-                             <div className="h-12 w-full bg-gray-100 animate-pulse"></div>
+                             <div className="h-12 w-full bg-gray-100 dark:bg-slate-900 animate-pulse"></div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -919,10 +920,10 @@ export default function InventoryListPage() {
                       inventory.map((item) => (
                         <ContextMenu key={item.id}>
                           <ContextMenuTrigger asChild>
-                            <TableRow className="hover:bg-gray-50">
+                            <TableRow className="hover:bg-gray-50 dark:hover:bg-slate-800/30 border-b dark:border-slate-800 dark:text-slate-300">
                               {visibleColumns.has('part_number') && (
                                 <TableCell 
-                                  className="font-medium text-blue-600 cursor-pointer hover:bg-blue-50 transition-colors"
+                                  className="font-medium text-blue-600 dark:text-blue-400 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
                                   onClick={() => handleEdit(item)}
                                 >
                                   {item.part_number}
@@ -932,13 +933,13 @@ export default function InventoryListPage() {
                                 <TableCell>{item.description}</TableCell>
                               )}
                               {visibleColumns.has('unit') && (
-                                <TableCell className="text-center text-sm text-slate-600">
+                                <TableCell className="text-center text-sm text-slate-600 dark:text-slate-400">
                                   {item.unit || ''}
                                 </TableCell>
                               )}
                               {visibleColumns.has('quantity_on_hand') && (
                                 <TableCell 
-                                  className={`text-center font-bold cursor-pointer hover:bg-blue-50 transition-colors ${(item.quantity_on_hand || 0) <= (item.minimum_quantity || 0) ? 'text-red-600' : ''}`}
+                                  className={`text-center font-bold cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors ${(item.quantity_on_hand || 0) <= (item.minimum_quantity || 0) ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}
                                   onClick={() => handleAdjustQOH(item)}
                                 >
                                   {item.quantity_on_hand || 0}
@@ -952,7 +953,7 @@ export default function InventoryListPage() {
                               )}
                               {visibleColumns.has('location') && (
                                 <TableCell 
-                                  className="text-center cursor-pointer hover:bg-blue-50 transition-colors"
+                                  className="text-center cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
                                   onClick={() => handleLocationClick(item)}
                                 >
                                   {item.location || 'No Location'}
@@ -997,43 +998,43 @@ export default function InventoryListPage() {
                               <TableCell className="text-center no-print">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <Button variant="ghost" className="h-8 w-8 p-0 dark:text-slate-400 dark:hover:text-slate-100">
                                       <span className="sr-only">Open menu</span>
                                       <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                  <DropdownMenuContent align="end" className="dark:bg-slate-950 dark:border-slate-800">
+                                    <DropdownMenuLabel className="dark:text-slate-200">Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleEdit(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                       <Edit className="mr-2 h-4 w-4" />
                                       <span>Edit</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleViewTransactions(item)}>
+                                    <DropdownMenuItem onClick={() => handleViewTransactions(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                       <FileText className="mr-2 h-4 w-4" />
                                       <span>View Transactions</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleShowHistory(item)}>
+                                    <DropdownMenuItem onClick={() => handleShowHistory(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                       <History className="mr-2 h-4 w-4" />
                                       <span>History</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleAdjustQOH(item)}>
+                                    <DropdownMenuItem onClick={() => handleAdjustQOH(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                       <PackagePlus className="mr-2 h-4 w-4" />
                                       <span>Adjust QOH</span>
                                     </DropdownMenuItem>
-                                     <DropdownMenuItem onClick={() => handleReturnPart(item)}>
+                                     <DropdownMenuItem onClick={() => handleReturnPart(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                        <RefreshCw className="mr-2 h-4 w-4" />
                                        <span>Return Part</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleLocationClick(item)}>
+                                    <DropdownMenuItem onClick={() => handleLocationClick(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                       <Package className="mr-2 h-4 w-4" />
                                       <span>Edit Location</span>
                                     </DropdownMenuItem>
                                     {currentUser?.role === 'admin' && (
                                       <>
-                                        <DropdownMenuSeparator />
+                                        <DropdownMenuSeparator className="dark:bg-slate-800" />
                                         <DropdownMenuItem
                                           onClick={() => handleDelete(item.id)}
-                                          className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                                          className="text-red-600 dark:text-red-400 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/30 dark:focus:text-red-400"
                                         >
                                           <Trash2 className="mr-2 h-4 w-4" />
                                           <span>Delete</span>
@@ -1061,9 +1062,9 @@ export default function InventoryListPage() {
 
                 {/* Pagination Controls */}
                 {!loading && totalCount > itemsPerPage && filter !== 'inventory-count' && filter !== 'non-zero' && (
-                  <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 no-print">
+                  <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-card border-t border-gray-200 dark:border-slate-800 no-print">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-slate-300">
                         Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} items
                       </span>
                     </div>
@@ -1073,10 +1074,11 @@ export default function InventoryListPage() {
                         size="sm"
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
+                        className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                       >
                         Previous
                       </Button>
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-slate-300">
                         Page {currentPage} of {Math.ceil(totalCount / itemsPerPage)}
                       </span>
                       <Button
@@ -1084,6 +1086,7 @@ export default function InventoryListPage() {
                         size="sm"
                         onClick={() => setCurrentPage(p => Math.min(Math.ceil(totalCount / itemsPerPage), p + 1))}
                         disabled={currentPage >= Math.ceil(totalCount / itemsPerPage)}
+                        className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                       >
                         Next
                       </Button>
