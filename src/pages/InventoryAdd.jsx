@@ -667,6 +667,42 @@ export default function InventoryAddPage() {
             return;
         }
 
+        // --- VALIDATION ---
+        let hasHardErrors = false;
+        let subtotalMismatchInvoices = [];
+
+        for (const group of batchItems) {
+            const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
+            const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
+            
+            if (isMissingGroupInfo || hasRowErrors) {
+                hasHardErrors = true;
+            }
+
+            const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+            const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotal) > 0.01;
+            
+            if (subtotalMismatch) {
+                const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
+                subtotalMismatchInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'}`);
+            }
+        }
+
+        if (hasHardErrors) {
+            alert('Cannot save batch: One or more invoices have missing mandatory fields (Supplier, Invoice #, Date, Part #, Description, Cost, Sales Class, or Selling Price). Please fix them before saving.');
+            saveInProgressRef.current = false;
+            return;
+        }
+
+        if (subtotalMismatchInvoices.length > 0) {
+            const proceed = window.confirm(`WARNING: The following invoices have a subtotal mismatch (the OCR expected subtotal does not match the sum of the line items):\n\n${subtotalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+        // ------------------
+
         // Check all suppliers in the batch for locks
         const uniqueSupplierIds = [...new Set(batchItems.map(group => group.supplier_id))];
         const lockedSuppliers = [];
