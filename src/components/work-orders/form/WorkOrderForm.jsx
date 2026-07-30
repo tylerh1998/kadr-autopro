@@ -447,7 +447,7 @@ export default function WorkOrderForm({
     });
 
     closeModal('getPart');
-  }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex, checkInventoryAndOpenModal]);
+  }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
 
   const handlePartsTech = useCallback((lineIndex) => {
     console.log('=== DEBUG: handlePartsTech called with index:', lineIndex);
