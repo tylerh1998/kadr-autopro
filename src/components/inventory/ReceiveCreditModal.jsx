@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn } from '@/entities/all';
+import { ChartOfAccount, LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
@@ -255,8 +255,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 3. Create InventoryAuditLog record for credit received
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: returnItem.inventory_item_id,
-        transaction_type: "Credit Received",
+        tx_type: "Credit Received",
         quantity_change: 0,
+        supplier_inv: invoiceNumber,
         description: `Credit received for return of ${returnItem.quantity_returned} units. Invoice: ${invoiceNumber}`
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
@@ -406,8 +407,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         }
       }
 
-      // 5. Delete the return item from InventoryReturn
-      await InventoryReturn.delete(returnItem.id);
+      // 5. Delete the return item from InventoryReturn in Supabase
+      const { error: deleteError } = await supabase.from('InventoryReturn').delete().eq('id', returnItem.id);
+      if (deleteError) throw new Error('Failed to delete InventoryReturn record: ' + deleteError.message);
 
       setLoading(false);
       onUpdate();

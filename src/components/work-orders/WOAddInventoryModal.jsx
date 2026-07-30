@@ -425,10 +425,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             // Create InventoryAuditLog record
             const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                 inventory_item_id: processedInventoryItem.id,
-                transaction_type: 'Ordered',
+                tx_type: 'Ordered',
                 quantity_change: 0,
                 quantity_ordered_change: quantityToOrder,
-                reference_number: workOrder.ro_number,
+                ro_number: workOrder.ro_number,
                 description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`
             }]);
             if (auditError) console.error('Error creating InventoryAuditLog:', auditError);

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn, ReturnReason, Supplier } from '@/entities/all';
+import { ReturnReason, Supplier } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -65,9 +65,9 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
           const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
               inventory_item_id: item.id,
-              transaction_type: 'Returned from WO',
+              tx_type: 'Returned from WO',
               quantity_change: qtyReturned, // Positive change as it's returning to stock
-              reference_number: workOrderNumber,
+              ro_number: workOrderNumber,
               description: `Part returned from WO ${workOrderNumber}. Reason: ${returnReason}`
           }]);
           if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
@@ -85,7 +85,9 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
     // This path is for returning a part FROM general stock TO the supplier
     try {
+      const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
       const returnData = {
+        id: returnId,
         inventory_item_id: item.id,
         part_number: item.part_number,
         description: item.description,
@@ -99,11 +101,14 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         status: 'On-site',
         notes: returnNotes || ''
       };
-      const createdReturn = await InventoryReturn.create(returnData);
+      const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
+      if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
 
       // Handle Core Return if applicable
       if (item.core) {
+        const coreReturnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
         const coreReturnData = {
+          id: coreReturnId,
           inventory_item_id: item.id,
           part_number: item.part_number,
           description: `${item.description} (Core Return)`,
@@ -117,7 +122,8 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           status: 'On-site',
           notes: returnNotes || ''
         };
-        await InventoryReturn.create(coreReturnData);
+        const { error: coreReturnError } = await supabase.from('InventoryReturn').insert([coreReturnData]);
+        if (coreReturnError) throw new Error('Failed to create core return: ' + coreReturnError.message);
       }
 
       // Decrement QOH from inventory
@@ -128,7 +134,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       // Create transaction record
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: item.id,
-        transaction_type: 'Returned to Supplier',
+        tx_type: 'Returned to Supplier',
         quantity_change: -qtyReturned, // Negative change as it's leaving stock
         description: `Part returned to supplier. Reason: ${returnReason}`
       }]);

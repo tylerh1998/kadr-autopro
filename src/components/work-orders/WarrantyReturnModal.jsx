@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, WorkOrder } from '@/entities/all';
+import { WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -105,7 +105,9 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const supplierName = supplier?.name || 'Unknown Supplier';
 
       // Create InventoryReturn record
+      const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
       const returnData = {
+        id: returnId,
         inventory_item_id: inventoryItem.id,
         part_number: lineItem.part_number,
         description: lineItem.description,
@@ -121,14 +123,15 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`
       };
 
-      const createdReturn = await InventoryReturn.create(returnData);
-      console.log('Created warranty return:', createdReturn);
+      const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
+      if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
+      console.log('Created warranty return:', returnId);
 
       // Create InventoryAuditLog record (informational only, no quantity change)
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: inventoryItem.id,
-        reference_number: workOrder.wo_number || workOrder.ro_number,
-        transaction_type: 'Warranty Return', // Match the plan
+        ro_number: workOrder.wo_number || workOrder.ro_number,
+        tx_type: 'Warranty Return', // Match the plan
         quantity_change: 0, // Informational only
         description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`
       }]);
@@ -149,7 +152,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           credit_amount: totalCost,
           debit_amount: 0,
           source_type: "adjustment",
-          source_id: createdReturn.id
+          source_id: returnId
         },
         {
           account_number: "1200",
@@ -158,7 +161,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           debit_amount: totalCost,
           credit_amount: 0,
           source_type: "adjustment",
-          source_id: createdReturn.id
+          source_id: returnId
         }
       ]);
       if (glError) console.error('Error creating GL transactions:', glError);

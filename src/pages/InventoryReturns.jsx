@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -73,8 +72,9 @@ export default function InventoryReturnsPage() {
   const loadReturns = async () => {
     setLoading(true);
     try {
-      const returnsData = await InventoryReturn.list('-created_date');
-      setReturns(returnsData);
+      const { data, error } = await supabase.from('InventoryReturn').select('*').order('created_date', { ascending: false });
+      if (error) throw error;
+      setReturns(data || []);
     } catch (error) {
       console.error('Error loading returns:', error);
     } finally {
@@ -108,7 +108,8 @@ export default function InventoryReturnsPage() {
           sent_back: 'N/A',
         };
         try {
-          await InventoryReturn.update(returnItem.id, updateData);
+          const { error } = await supabase.from('InventoryReturn').update(updateData).eq('id', returnItem.id);
+          if (error) throw error;
           loadReturns();
         } catch (error) {
           console.error('Error reverting status:', error);
@@ -160,13 +161,14 @@ export default function InventoryReturnsPage() {
     if (stagedReturns.size === 0) return;
 
     try {
-        const promises = Array.from(stagedReturns).map(id => 
-            InventoryReturn.update(id, {
+        const promises = Array.from(stagedReturns).map(async (id) => {
+            const { error } = await supabase.from('InventoryReturn').update({
                 status: 'Returned',
                 date_returned: new Date().toISOString(),
                 sent_back: bulkReturnDate
-            })
-        );
+            }).eq('id', id);
+            if (error) throw error;
+        });
         
         await Promise.all(promises);
         setStagedReturns(new Set());
@@ -204,12 +206,13 @@ export default function InventoryReturnsPage() {
 
         const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
           inventory_item_id: originalItem.id,
-          transaction_type: 'QOH Adjusted',
+          tx_type: 'QOH Adjusted',
           quantity_change: quantityReturned,
           description: 'Part removed from inventory, back to inventory.'
         }]);
         if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
-        await InventoryReturn.delete(returnItem.id);
+        const { error: deleteError } = await supabase.from('InventoryReturn').delete().eq('id', returnItem.id);
+        if (deleteError) throw deleteError;
         alert('Item returned to inventory successfully.');
         loadReturns();
       } catch (error) {
