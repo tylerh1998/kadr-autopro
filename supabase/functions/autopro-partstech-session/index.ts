@@ -3,7 +3,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
 serve(async (req) => {
@@ -41,39 +40,26 @@ serve(async (req) => {
     // e.g. https://<project>.supabase.co/functions/v1/autopro-partstech-callback?wo_id=RO12345
     const callbackUrl = `${supabaseUrl}/functions/v1/autopro-partstech-callback?wo_id=${encodeURIComponent(ro_number)}`;
 
-    // Prepare PartsTech Payload
-    const partsTechPayload: any = {
-      callbackUrl,
-      poNumber: poNumber, // Attempt to pass PO Number natively
-    };
-
-    if (vehicle) {
-      partsTechPayload.vehicle = vehicle;
-    }
-
-    if (userInfo) {
-      partsTechPayload.userInfo = userInfo;
-    }
-
-    // Make request to PartsTech session endpoint
-    const response = await fetch("https://api.partstech.com/v1/session", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": apiKey,
-      },
-      body: JSON.stringify(partsTechPayload),
+    // Construct the PartsTech Punchout URL
+    const baseUrl = "https://app.partstech.com/punchout";
+    const params = new URLSearchParams({
+      apiKey: apiKey,
+      callbackUrl: callbackUrl,
+      returnUrl: callbackUrl,
+      poNumber: poNumber,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("PartsTech API Error:", response.status, errorText);
-      throw new Error(`PartsTech API returned ${response.status}: ${errorText}`);
+    if (vehicle) {
+      if (vehicle.vin) params.append("vin", vehicle.vin);
+      if (vehicle.year) params.append("year", vehicle.year.toString());
+      if (vehicle.make) params.append("make", vehicle.make);
+      if (vehicle.model) params.append("model", vehicle.model);
     }
+    
+    const iframeUrl = `${baseUrl}?${params.toString()}`;
 
-    const responseData = await response.json();
-
-    return new Response(JSON.stringify({ success: true, data: responseData }), {
+    // Return the URL directly to the frontend so it can embed the iframe
+    return new Response(JSON.stringify({ success: true, data: { url: iframeUrl } }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

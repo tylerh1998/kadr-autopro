@@ -153,7 +153,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
               disabled={isPolling}
             >
               {isPolling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-              {isPolling ? "Waiting for Parts..." : "Complete Order"}
+              {isPolling ? "Waiting for Parts..." : "Load Transferred Parts"}
             </Button>
           </div>
         </DialogHeader>
