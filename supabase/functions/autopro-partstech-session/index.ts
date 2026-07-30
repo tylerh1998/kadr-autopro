@@ -35,7 +35,7 @@ serve(async (req) => {
     }
 
     // Strip "RO" or "WO-" prefix for the PO number
-    const poNumber = ro_number.replace(/^(RO|WO-?)/i, '').trim();
+    const poNumber = String(ro_number).replace(/^(RO|WO-?)/i, '').trim();
 
     // Construct the webhook callback URL
     // e.g. https://<project>.supabase.co/functions/v1/autopro-partstech-callback?wo_id=RO12345

@@ -12,7 +12,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   const [isPolling, setIsPolling] = useState(false);
   const [pollError, setPollError] = useState(null);
 
-  const rawRoNumber = roNumber ? roNumber.replace(/^(RO|WO-?)/i, '').trim() : '';
+  const rawRoNumber = roNumber ? String(roNumber).replace(/^(RO|WO-?)/i, '').trim() : '';
 
   useEffect(() => {
     if (open && roNumber) {
