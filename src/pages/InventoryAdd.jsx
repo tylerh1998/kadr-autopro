@@ -746,11 +746,41 @@ export default function InventoryAddPage() {
         }
     };
 
-    const handleOCRSuccess = (ocrResults) => {
+    const handleOCRSuccess = async (ocrResults) => {
         if (!ocrResults || ocrResults.length === 0) return;
         
         let regularSalesClass = salesClasses.find(sc => sc.name.toLowerCase() === 'regular');
         const regularSalesClassId = regularSalesClass ? String(regularSalesClass.id) : '';
+
+        // Collect all part numbers
+        const partNumbersToFetch = [];
+        ocrResults.forEach(result => {
+            (result.data?.items || []).forEach(item => {
+                if (item.part_number) {
+                    partNumbersToFetch.push(item.part_number.toUpperCase());
+                }
+            });
+        });
+
+        // Fetch existing inventory items
+        let existingItemsMap = new Map();
+        if (partNumbersToFetch.length > 0) {
+            try {
+                // Supabase limits .in() to 1000 items usually, but typical invoice is small
+                const { data: existingItems, error } = await supabase
+                    .from('InventoryItem')
+                    .select('*')
+                    .in('part_number', partNumbersToFetch);
+                    
+                if (!error && existingItems) {
+                    existingItems.forEach(item => {
+                        existingItemsMap.set(item.part_number.toUpperCase(), item);
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching existing items for OCR:", err);
+            }
+        }
 
         const newBatchGroups = [];
 
@@ -776,36 +806,50 @@ export default function InventoryAddPage() {
             const expectedSubtotal = data.subtotal || 0;
 
             const parsedItems = (data.items || []).map(item => {
+                const partNumber = (item.part_number || '').toUpperCase();
+                const existingPart = existingItemsMap.get(partNumber);
+
                 const cost = parseFloat(item.cost) || 0;
                 let sellingPrice = 0;
                 let margin = 0;
+                let salesClass = regularSalesClassId;
+                let description = item.description || '';
+
+                if (existingPart) {
+                    salesClass = existingPart.sales_class || regularSalesClassId;
+                    // Use existing description to prevent overwriting
+                    description = existingPart.description || description;
+                }
                 
-                if (cost > 0 && regularSalesClassId) {
-                    const calc = calculatePriceFromSalesClass(cost, regularSalesClassId);
+                if (cost > 0 && salesClass) {
+                    const calc = calculatePriceFromSalesClass(cost, salesClass);
                     if (calc) {
                         sellingPrice = parseFloat(calc.sellingPrice);
                         margin = parseFloat(calc.margin);
                     }
+                } else if (existingPart) {
+                    sellingPrice = parseFloat(existingPart.selling_price) || 0;
+                    margin = parseFloat(existingPart.profit_margin) || 0;
                 }
 
                 return {
                     id: Date.now() + Math.random(),
-                    part_number: item.part_number || '',
-                    description: item.description || '',
-                    unit: '',
+                    part_number: partNumber,
+                    description: description,
+                    unit: existingPart ? (existingPart.unit || '') : '',
                     quantity_received: parseFloat(item.quantity) || 0,
                     cost: cost,
                     selling_price: sellingPrice,
                     profit_margin: margin,
-                    sales_class: regularSalesClassId,
-                    tag_along_id: '',
-                    core: false,
-                    core_cost: 0,
-                    stocked_item: false,
-                    minimum_quantity: 0,
-                    maximum_quantity: 0,
-                    location: '',
-                    category: '',
+                    sales_class: salesClass,
+                    tag_along_id: existingPart ? (existingPart.tag_along_id || '') : '',
+                    core: existingPart ? !!existingPart.core : false,
+                    core_cost: existingPart ? (parseFloat(existingPart.core_cost) || 0) : 0,
+                    stocked_item: existingPart ? !!existingPart.stocked_item : false,
+                    minimum_quantity: existingPart ? (parseInt(existingPart.minimum_quantity) || 0) : 0,
+                    maximum_quantity: existingPart ? (parseInt(existingPart.maximum_quantity) || 0) : 0,
+                    location: existingPart ? (existingPart.location || '') : '',
+                    category: existingPart ? (existingPart.category || '') : '',
                     line_total: cost * (parseFloat(item.quantity) || 0)
                 };
             });

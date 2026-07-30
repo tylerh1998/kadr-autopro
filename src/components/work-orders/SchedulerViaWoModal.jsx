@@ -256,7 +256,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-4">
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-4 dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>Schedule for WO #{workOrder?.wo_number}</DialogTitle>
           <DialogDescription>

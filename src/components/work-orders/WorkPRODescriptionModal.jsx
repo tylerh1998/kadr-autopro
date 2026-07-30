@@ -64,25 +64,25 @@ export default function WorkPRODescriptionModal({ open, onClose, workOrder, proj
             <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
             WorkPRO Description
             {project ? (
-              <Badge variant="outline" className="bg-green-100 text-green-800">Connected</Badge>
+              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Connected</Badge>
             ) : (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Not Connected</Badge>
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Not Connected</Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           {!project && (
-            <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              <p className="text-sm text-yellow-800">
+            <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800/50">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+              <p className="text-sm text-yellow-800 dark:text-yellow-400">
                 This work order is not connected to WorkPRO. Please create a task first to establish the connection.
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Project Description</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Project Description</label>
             <Textarea
               value={description}
               onChange={(e) => handleDescriptionChange(e.target.value)}
@@ -93,7 +93,7 @@ export default function WorkPRODescriptionModal({ open, onClose, workOrder, proj
           </div>
 
           {project && (
-            <div className="text-sm text-slate-600 space-y-1">
+            <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
               <p><strong>Task:</strong> {project.name || 'No task name'}</p>
               <p><strong>Status:</strong> {project.status}</p>
               <p><strong>Assigned:</strong> {project.employee_assigned || 'Not assigned'}</p>

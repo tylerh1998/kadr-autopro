@@ -116,11 +116,11 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
         <div className="py-4 space-y-4">
           {/* Project Info */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-            <p className="text-sm text-slate-600 mb-1">Linking to Project:</p>
+          <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Linking to Project:</p>
             <p className="font-semibold">{project?.name || 'Unnamed Project'}</p>
             {project?.customer_name && (
-              <p className="text-sm text-slate-600">Customer: {project.customer_name}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Customer: {project.customer_name}</p>
             )}
           </div>
 
@@ -138,8 +138,8 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
           {/* Work Orders List */}
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {filteredWorkOrders.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
-                <AlertCircle className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                <AlertCircle className="w-12 h-12 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
                 <p>No work orders found matching your search.</p>
               </div>
             ) : (
@@ -153,10 +153,10 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
                 return (
                   <Card
                     key={wo.id}
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer transition-all dark:bg-slate-900 dark:border-slate-800 ${
                       isSelected 
-                        ? 'border-2 border-blue-500 bg-blue-50' 
-                        : 'hover:border-blue-200 hover:shadow-md'
+                        ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                        : 'hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md'
                     }`}
                     onClick={() => setSelectedWorkOrder(wo)}
                   >
@@ -175,9 +175,9 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
                             </div>
                           </div>
 
-                          <p className="text-sm text-slate-600 mb-2">{wo.description}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{wo.description}</p>
 
-                          <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+                          <div className="flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
                             {displayNumber && (
                               <div className="flex items-center gap-1">
                                 <FileText className="w-4 h-4" />
@@ -203,18 +203,18 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
                         {/* Right side: Project Status Badge */}
                         {existingProject && (
-                          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg px-4 py-3 min-w-[200px]">
+                          <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-800/50 rounded-lg px-4 py-3 min-w-[200px]">
                             <div className="flex items-start gap-2">
-                              <Briefcase className="w-5 h-5 text-amber-600 mt-0.5" />
+                              <Briefcase className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5" />
                               <div className="flex-1">
-                                <p className="text-xs font-bold text-amber-900 uppercase tracking-wide mb-1">
+                                <p className="text-xs font-bold text-amber-900 dark:text-amber-400 uppercase tracking-wide mb-1">
                                   Project Linked
                                 </p>
-                                <p className="text-sm font-semibold text-amber-800 line-clamp-2">
+                                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 line-clamp-2">
                                   {existingProject.name || 'Unnamed Project'}
                                 </p>
                                 {existingProject.status && (
-                                  <Badge variant="outline" className="mt-2 bg-white text-amber-700 border-amber-300 text-xs">
+                                  <Badge variant="outline" className="mt-2 bg-white dark:bg-amber-950 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 text-xs">
                                     {existingProject.status.replace(/_/g, ' ')}
                                   </Badge>
                                 )}
@@ -253,18 +253,18 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
             <DialogTitle>Confirm Link</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-slate-700">
+            <p className="text-slate-700 dark:text-slate-300">
               Are you sure you want to link <strong>{selectedWorkOrder?.wo_number || selectedWorkOrder?.est_number}</strong> to this project?
             </p>
             {selectedWorkOrder && (
-              <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600">
+              <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Customer: {(() => {
                     const c = localCustomers.find(cust => cust.id === selectedWorkOrder.customer_id);
                     return c ? (c.org_name || `${c.first_name} ${c.last_name}`) : 'Unknown Customer';
                   })()}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Description: {selectedWorkOrder.description}
                 </p>
               </div>

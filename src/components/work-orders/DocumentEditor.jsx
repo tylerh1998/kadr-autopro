@@ -1259,10 +1259,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Show loading until both data and lock check are complete
   if ((loading && !workOrder) || !lockCheckComplete) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
+          <p className="mt-4 text-gray-600 dark:text-slate-400">
             {!lockCheckComplete ? 'Checking work order status...' : 'Loading work order...'}
           </p>
         </div>
@@ -1272,10 +1272,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
-          <p className="text-red-600 text-lg font-semibold">Error loading work order</p>
-          <p className="text-gray-600 mt-2">{error}</p>
+          <p className="text-red-600 dark:text-red-400 text-lg font-semibold">Error loading work order</p>
+          <p className="text-gray-600 dark:text-slate-400 mt-2">{error}</p>
         </div>
       </div>
     );
@@ -1283,9 +1283,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (!workOrder) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
-          <p className="text-gray-600 text-lg">Work order not found</p>
+          <p className="text-gray-600 dark:text-slate-400 text-lg">Work order not found</p>
         </div>
       </div>
     );
@@ -1294,7 +1294,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   if (isAlreadyOpenByMe) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
-        <Card className="max-w-2xl w-full shadow-xl">
+        <Card className="max-w-2xl w-full shadow-xl dark:border-slate-800 dark:bg-slate-950">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
@@ -1365,7 +1365,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   if (isLockedByOtherUser) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
-        <Card className="max-w-2xl w-full shadow-xl">
+        <Card className="max-w-2xl w-full shadow-xl dark:border-slate-800 dark:bg-slate-950">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">

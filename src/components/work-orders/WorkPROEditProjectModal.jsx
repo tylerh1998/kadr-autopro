@@ -126,9 +126,9 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
           {/* Project Name - Display Only */}
           <div className="space-y-2">
             <Label>Project Name</Label>
-            <div className="bg-slate-50 p-3 rounded-lg border">
-              <p className="text-slate-700">{project?.name}</p>
-              <p className="text-xs text-slate-500 mt-1">Project name is auto-assigned based on customer and vehicle data</p>
+            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <p className="text-slate-700 dark:text-slate-300">{project?.name}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Project name is auto-assigned based on customer and vehicle data</p>
             </div>
           </div>
 
@@ -164,7 +164,7 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
           {/* Assigned Employees */}
           <div className="space-y-3">
             <Label>Assigned Employees</Label>
-            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg p-3">
               {employees.map((employee) => {
                 const employeeName = getEmployeeName(employee);
                 const isChecked = formData.assigned_employees.includes(employeeName);
@@ -186,7 +186,7 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
                 );
               })}
               {employees.length === 0 && (
-                <p className="text-slate-500 text-sm">No employees found</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">No employees found</p>
               )}
             </div>
           </div>

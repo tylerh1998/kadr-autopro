@@ -87,13 +87,13 @@ export default function ChangeCustomerModal({ open, onClose, currentCustomer, on
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>Change Assigned Customer</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-900 dark:text-amber-200">
             <div className="flex gap-3">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
@@ -103,7 +103,7 @@ export default function ChangeCustomerModal({ open, onClose, currentCustomer, on
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Customer</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Customer</label>
             <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
               <PopoverTrigger asChild>
                 <div className="relative">
@@ -121,12 +121,12 @@ export default function ChangeCustomerModal({ open, onClose, currentCustomer, on
                   />
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="w-[420px] max-w-[90vw] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <PopoverContent className="w-[420px] max-w-[90vw] p-0 dark:bg-slate-950 dark:border-slate-800" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                 <div className="max-h-[300px] overflow-y-auto p-1">
                   {loadingCustomers ? (
-                    <div className="py-6 text-center text-sm text-slate-500">Searching...</div>
+                    <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Searching...</div>
                   ) : localCustomers.length === 0 ? (
-                    <div className="py-6 text-center text-sm text-slate-500">No customers found.</div>
+                    <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No customers found.</div>
                   ) : (
                     <div className="space-y-1">
                       {localCustomers.map((customer) => (
@@ -138,10 +138,10 @@ export default function ChangeCustomerModal({ open, onClose, currentCustomer, on
                             setCustomerSearchTerm(getCustomerDisplayName(customer));
                             setCustomerSearchOpen(false);
                           }}
-                          className="flex w-full items-center justify-between rounded-sm px-2 py-2 text-left text-sm hover:bg-slate-100"
+                          className="flex w-full items-center justify-between rounded-sm px-2 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
-                          <span className="font-medium text-slate-900">{getCustomerDisplayName(customer)}</span>
-                          {selectedCustomer?.id === customer.id && <Check className="h-4 w-4 text-green-600" />}
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{getCustomerDisplayName(customer)}</span>
+                          {selectedCustomer?.id === customer.id && <Check className="h-4 w-4 text-green-600 dark:text-green-500" />}
                         </button>
                       ))}
                     </div>

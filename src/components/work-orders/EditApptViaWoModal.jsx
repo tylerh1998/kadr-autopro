@@ -102,14 +102,14 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>{appointment ? 'Edit Appointment' : 'New Appointment'}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           {loading ? (
             <div className="text-center py-8">
-              <p>Loading form data...</p>
+              <p className="text-slate-500 dark:text-slate-400">Loading form data...</p>
             </div>
           ) : (
             <AppointmentForm

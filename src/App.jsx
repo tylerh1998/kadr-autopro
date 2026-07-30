@@ -90,6 +90,28 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  useEffect(() => {
+    let wasDark = false;
+    const handleBeforePrint = () => {
+      wasDark = document.documentElement.classList.contains('dark');
+      if (wasDark) {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    const handleAfterPrint = () => {
+      if (wasDark) {
+        document.documentElement.classList.add('dark');
+      }
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
 
   return (
     <AuthProvider>

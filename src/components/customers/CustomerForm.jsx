@@ -143,7 +143,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             onChange={handleChange}
             placeholder="Company or organization name"
           />
-          <p className="text-xs text-slate-500 mt-1">Leave blank for individual customers</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Leave blank for individual customers</p>
         </div>
 
         <div>
@@ -179,7 +179,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             required
             maxLength={12}
           />
-          <p className="text-xs text-slate-500 mt-1">Format: XXX XXX XXXX</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Format: XXX XXX XXXX</p>
         </div>
 
         <div>
@@ -192,7 +192,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             placeholder="XXX XXX XXXX"
             maxLength={12}
           />
-          <p className="text-xs text-slate-500 mt-1">Format: XXX XXX XXXX</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Format: XXX XXX XXXX</p>
         </div>
 
         <div className="md:col-span-2">
@@ -286,7 +286,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t">
+      <div className="flex justify-end gap-2 pt-4 border-t dark:border-slate-800">
         {customer && (
           <Button 
             type="button" 

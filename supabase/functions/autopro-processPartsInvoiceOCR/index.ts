@@ -33,6 +33,7 @@ serve(async (req) => {
 
         const prompt = `You are a highly accurate invoice parser. 
 Analyze the provided invoice document and extract the following information.
+CRITICAL INSTRUCTION: Completely ignore any vehicle information (Year, Make, Model, VIN, Mileage, etc.). Do not extract vehicle details as parts.
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "supplier_name": "Name of the supplier or vendor. If you cannot find it, return empty string.",

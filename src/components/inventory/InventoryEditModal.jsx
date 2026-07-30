@@ -453,7 +453,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                 type="number"
                                 value={formData.quantity_on_hand}
                                 disabled
-                                className="bg-gray-100"
+                                className="bg-slate-100 dark:bg-slate-800"
                             />
                         </div>
                         <div className="space-y-2">
@@ -576,7 +576,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
                     {/* Conditional Fields: Stocked Item Details */}
                     {formData.stocked_item && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
                             <div className="space-y-2">
                                 <Label htmlFor="minimum_quantity">Minimum</Label>
                                 <Input
@@ -624,13 +624,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                                         handleInputChange('location', '');
                                                         setSearchOpen(false);
                                                     }}
-                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                 >
-                                                    <span className="text-slate-500 italic">No Location</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                                                     {(!formData.location || formData.location === '') && <Check className="ml-auto h-4 w-4" />}
                                                 </div>
                                                 {filteredLocations.length === 0 ? (
-                                                    <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                    <div className="py-2 text-center text-sm text-slate-500 dark:text-slate-400">No locations found.</div>
                                                 ) : (
                                                     filteredLocations.map((loc) => (
                                                         <div
@@ -639,7 +639,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                                                 handleInputChange('location', loc.location_name);
                                                                 setSearchOpen(false);
                                                             }}
-                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                         >
                                                             <span>{loc.location_name}</span>
                                                             {formData.location === loc.location_name && (

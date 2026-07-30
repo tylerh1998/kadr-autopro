@@ -375,11 +375,10 @@ export default function AdvancePaymentModal({
                   </div>
                 )}
                 
-              </CardContent>
-              <DialogFooter className="p-4 bg-slate-50 rounded-b-lg">
+              <DialogFooter className="p-4 bg-slate-50 dark:bg-slate-900 rounded-b-lg">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1">
-                    <Label htmlFor="paymentDate" className="text-xs text-slate-600">Payment Date</Label>
+                    <Label htmlFor="paymentDate" className="text-xs text-slate-600 dark:text-slate-400">Payment Date</Label>
                     <Input
                       id="paymentDate"
                       type="date"
@@ -405,17 +404,17 @@ export default function AdvancePaymentModal({
           {/* Existing Payments List */}
           {payments.length > 0 ? (
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-slate-700">Existing Payments:</h4>
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto pr-2">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Existing Payments:</h4>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto pr-2">
                 {payments.map((payment, index) => (
-                  <div key={payment.id || `temp-${index}`} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-b-0">
+                  <div key={payment.id || `temp-${index}`} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-800 last:border-b-0">
                     <div>
                       <span className="font-medium">${payment.amount.toFixed(2)}</span>
-                      <span className="text-slate-500 ml-2">
+                      <span className="text-slate-500 dark:text-slate-400 ml-2">
                         {payment.payment_method} 
                         {payment.reference && ` - ${payment.reference}`}
                       </span>
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-slate-400 dark:text-slate-500">
                         {payment.payment_date ? format(new Date(payment.payment_date), 'MMMM d, yyyy') : 'Unknown Date'}
                       </div>
                     </div>
@@ -424,7 +423,7 @@ export default function AdvancePaymentModal({
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeletePayment(payment)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
                         disabled={isInvoiceUI || processing}
                       >
                         {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
@@ -439,7 +438,7 @@ export default function AdvancePaymentModal({
           )}
           
           {/* Footer with Totals */}
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t dark:border-slate-800">
               <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total Paid:</span>
                   <span>${totalPaid.toFixed(2)}</span>
