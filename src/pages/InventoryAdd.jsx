@@ -21,7 +21,7 @@ import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
 import PartsInvoiceOCRModal from '../components/inventory/PartsInvoiceOCRModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Upload } from 'lucide-react';
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
