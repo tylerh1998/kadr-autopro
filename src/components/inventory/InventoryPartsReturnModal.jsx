@@ -136,7 +136,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         inventory_item_id: item.id,
         tx_type: 'Returned to Supplier',
         quantity_change: -qtyReturned, // Negative change as it's leaving stock
-        description: `Part returned to supplier. Reason: ${returnReason}`
+        description: `Part returned to supplier from inventory. Reason: ${returnReason}`
       }]);
       if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 

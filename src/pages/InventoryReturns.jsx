@@ -206,9 +206,9 @@ export default function InventoryReturnsPage() {
 
         const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
           inventory_item_id: originalItem.id,
-          tx_type: 'QOH Adjusted',
+          tx_type: 'Transfer from Returns',
           quantity_change: quantityReturned,
-          description: 'Part removed from inventory, back to inventory.'
+          description: 'Part removed from Returns, back to inventory.'
         }]);
         if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
         const { error: deleteError } = await supabase.from('InventoryReturn').delete().eq('id', returnItem.id);
