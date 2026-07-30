@@ -374,8 +374,8 @@ export default function AdvancePaymentModal({
                     </div>
                   </div>
                 )}
-                
-              <DialogFooter className="p-4 bg-slate-50 dark:bg-slate-900 rounded-b-lg">
+              </CardContent>
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-b-lg border-t dark:border-slate-800">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1">
                     <Label htmlFor="paymentDate" className="text-xs text-slate-600 dark:text-slate-400">Payment Date</Label>
@@ -397,7 +397,7 @@ export default function AdvancePaymentModal({
                     {processing ? 'Processing...' : 'Apply Payment'}
                   </Button>
                 </div>
-              </DialogFooter>
+              </div>
             </Card>
           )}
 
