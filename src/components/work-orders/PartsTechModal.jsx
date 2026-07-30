@@ -27,17 +27,23 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
 
     // Listen for iframe postMessage events!
     const handleMessage = (event) => {
-      // Allow specific origins or all for debugging
-      if (event.origin.includes('partstech.com')) {
-        console.log("PARTS TECH POST MESSAGE RECEIVED:", event.data);
+      // Listen for messages from our custom Chrome Extension
+      if (event.data && event.data.type === 'PARTSTECH_EXT_DATA') {
+        console.log("🚀 CHROME EXTENSION INTERCEPTED API CALL:", event.data.url, event.data.payload);
         
-        // Let's dump the message payload into the UI so we can see it
-        setPollError("Message received from PartsTech! Check console. Payload: " + JSON.stringify(event.data).substring(0, 200));
+        // We will dump the payload into the UI so we can find exactly where the cart data is
+        setPollError("Extension grabbed data! Check console to see the API payload.");
+        return;
+      }
 
-        // If the payload contains order data, we could automatically transfer it here!
-        if (event.data && (event.data.type === 'PART_TRANSFER' || event.data.cart || event.data.parts)) {
-            // onTransferComplete(event.data);
+      // Allow specific origins or all for debugging standard PartsTech messages
+      if (event.origin.includes('partstech.com')) {
+        // Ignore rrweb session recording messages which fire constantly
+        if (event.data && event.data.type === 'rrweb') {
+          return;
         }
+
+        console.log("PARTS TECH POST MESSAGE RECEIVED:", event.data);
       }
     };
 

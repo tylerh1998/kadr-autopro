@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Ken's Auto - PartsTech Bridge",
+  "version": "1.0",
+  "description": "Bypasses the PartsTech B2B fee by bridging cart data directly to the Ken's Auto Work Order system.",
+  "permissions": ["scripting"],
+  "host_permissions": ["*://*.partstech.com/*"],
+  "action": {},
+  "content_scripts": [
+    {
+      "matches": ["*://*.partstech.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["*://*.partstech.com/*"]
+    }
+  ]
+}
