@@ -6,7 +6,7 @@ import LineItemsTable from './form/LineItemsTable';
 import { SupplierInvoiceLine } from '@/entities/all';
 import GetPartModal from './GetPartModal';
 import OtherChargeModal from './OtherChargeModal';
-import AddPartToWOModal from './AddPartToWOModal';
+import AddPartToWOModal from './WOAddInventoryModal';
 import ReturnWOPartModal from './ReturnWOPartModal';
 import ReceivePartModal from './ReceivePartModal';
 import ROCoreModal from './ROCoreModal';
