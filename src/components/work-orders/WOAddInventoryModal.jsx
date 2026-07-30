@@ -623,11 +623,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent 
-        className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0"
+        className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0 dark:bg-slate-950 dark:border-slate-800"
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle className="flex items-center gap-2">
+        <DialogHeader className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <DialogTitle className="flex items-center gap-2 dark:text-slate-100">
             <Plus className="w-5 h-5" />
             Add Part
           </DialogTitle>
@@ -681,7 +681,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 <Popover open={partSearchOpen} onOpenChange={setPartSearchOpen}>
                     <PopoverTrigger asChild>
                         <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
                             <Input
                                 ref={partNumberRef}
                                 id="part_number"
@@ -703,19 +703,19 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                             />
                         </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-0 w-[300px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                    <PopoverContent className="p-0 w-[300px] dark:bg-slate-950 dark:border-slate-800" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-950">
                             {searchingParts ? (
-                                <div className="py-4 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                     Searching parts...
                                 </div>
                             ) : searchTerm.trim() && !activeSearchTerm ? (
-                                <div className="py-4 text-center text-sm text-slate-500">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                                     Press Enter or Tab to search.
                                 </div>
                             ) : searchResults.length === 0 ? (
-                                <div className="py-4 text-center text-sm text-slate-500">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No existing parts found.<br/>Type to create new.
                                 </div>
                             ) : (
@@ -727,10 +727,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                                                 selectPartFromList(item);
                                                 setPartSearchOpen(false);
                                             }}
-                                            className="flex flex-col px-3 py-2 text-sm rounded cursor-pointer hover:bg-slate-100 border-b border-slate-50 last:border-0"
+                                            className="flex flex-col px-3 py-2 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800/50 last:border-0"
                                         >
-                                            <span className="font-medium text-slate-900">{item.part_number}</span>
-                                            <span className="text-xs text-slate-500">{item.description}</span>
+                                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.part_number}</span>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -739,7 +739,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     </PopoverContent>
                 </Popover>
                 {isExistingPart && (
-                    <div className={`mt-2 p-2 rounded-md border ${existingPartQOH !== 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                    <div className={`mt-2 p-2 rounded-md border ${existingPartQOH !== 0 ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700/50 text-yellow-800 dark:text-yellow-400' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700/50 text-blue-700 dark:text-blue-400'}`}>
                         <div className="flex items-center gap-1.5 text-sm font-semibold">
                             {existingPartQOH !== 0 ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                             Existing Part Selected (QOH: {existingPartQOH})
@@ -914,7 +914,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
             {/* Conditional Fields: Stocked Item Details */}
             {formData.stocked_item && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 dark:bg-slate-900/50 p-4 rounded-md">
                 <div className="space-y-2">
                     <Label htmlFor="minimum_quantity">Minimum (Optional)</Label>
                     <Input
@@ -977,18 +977,17 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             </div>
             </form>
 
-            {/* Batch List */}
             {batchItems.length > 0 && (
-                <div className="mt-8 border-t pt-4">
+                <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-4">
                     <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-semibold">Batched Items ({batchItems.length})</h4>
-                        <div className="text-sm font-medium text-slate-600">
+                        <h4 className="text-lg font-semibold dark:text-slate-100">Batched Items ({batchItems.length})</h4>
+                        <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
                             Total Value: ${batchItems.reduce((acc, item) => acc + (parseFloat(item.cost || 0) * parseFloat(item.quantity_to_order || 0)), 0).toFixed(2)}
                         </div>
                     </div>
                     
-                    <div className="border rounded-md overflow-hidden bg-white shadow-sm">
-                        <div className="grid grid-cols-12 gap-4 p-3 bg-slate-50 border-b text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                        <div className="grid grid-cols-12 gap-4 p-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                             <div className="col-span-3">Part Details</div>
                             <div className="col-span-2">Supplier</div>
                             <div className="col-span-1">Qty</div>
@@ -999,28 +998,28 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                         </div>
                         <div className="max-h-60 overflow-y-auto">
                             {batchItems.map((item, index) => (
-                                <div key={item.temp_id} className="grid grid-cols-12 gap-4 p-3 border-b last:border-0 items-center hover:bg-slate-50 text-sm">
+                                <div key={item.temp_id} className="grid grid-cols-12 gap-4 p-3 border-b border-slate-200 dark:border-slate-700 last:border-0 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm">
                                     <div className="col-span-3">
-                                        <div className="font-semibold text-slate-900">{item.part_number}</div>
-                                        <div className="text-slate-500 text-xs truncate">{item.description}</div>
+                                        <div className="font-semibold text-slate-900 dark:text-slate-100">{item.part_number}</div>
+                                        <div className="text-slate-500 dark:text-slate-400 text-xs truncate">{item.description}</div>
                                     </div>
-                                    <div className="col-span-2 text-slate-600 text-xs truncate">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400 text-xs truncate">
                                         {getSupplierName(item.supplier_id)}
                                     </div>
-                                    <div className="col-span-1 font-medium">
+                                    <div className="col-span-1 font-medium dark:text-slate-200">
                                         {item.quantity_to_order}
                                     </div>
-                                    <div className="col-span-2 text-slate-600">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400">
                                         ${parseFloat(item.cost).toFixed(2)}
                                     </div>
-                                    <div className="col-span-2 text-slate-600">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400">
                                         ${parseFloat(item.selling_price).toFixed(2)}
                                     </div>
                                     <div className="col-span-1">
                                         {item.isExistingPart ? (
-                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">Update</Badge>
+                                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700/50 text-[10px] px-1.5 py-0">Update</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 py-0">New</Badge>
+                                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700/50 text-[10px] px-1.5 py-0">New</Badge>
                                         )}
                                     </div>
                                     <div className="col-span-1 flex justify-end">
@@ -1028,7 +1027,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleRemoveFromBatch(item.temp_id)}
-                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -1041,7 +1040,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             )}
         </div>
 
-        <div className="p-6 border-t bg-slate-50 flex justify-between items-center">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center rounded-b-lg">
             <Button variant="outline" onClick={onClose} disabled={processingBatch || loading}>
                 Cancel
             </Button>

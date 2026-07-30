@@ -1293,26 +1293,26 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (isAlreadyOpenByMe) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
         <Card className="max-w-2xl w-full shadow-xl">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                   Document Already Open
                 </h2>
-                <p className="text-lg text-slate-700">
+                <p className="text-lg text-slate-700 dark:text-slate-300">
                   You already have this {mode === 'estimate' ? 'Estimate' : 'Work Order'} open in another window or tab.
                 </p>
-                <p className="text-sm text-slate-600 mt-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
                   Opening it here may cause data conflicts if you are editing it elsewhere.
                 </p>
               </div>
@@ -1349,7 +1349,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     setLockAcquired(true);
                     lockAcquiredRef.current = true;
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open Anyway
@@ -1364,29 +1364,29 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (isLockedByOtherUser) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
         <Card className="max-w-2xl w-full shadow-xl">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <svg className="w-10 h-10 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-yellow-600 dark:text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                   Work Order Currently Being Edited
                 </h2>
-                <p className="text-lg text-slate-700">
+                <p className="text-lg text-slate-700 dark:text-slate-300">
                   Work Order <span className="font-semibold">{workOrder.wo_number || workOrder.ro_number}</span> is currently being edited by:
                 </p>
-                <p className="text-xl font-bold text-blue-600 mt-2">
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-2">
                   {lockedByUserName || 'Another User'}
                 </p>
-                <p className="text-sm text-slate-600 mt-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
                   You can view the last saved version, close this window, or try again.
                 </p>
               </div>
@@ -1397,7 +1397,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     const viewUrl = createPageUrl(`WorkOrderView?id=${roNumber}`);
                     window.location.href = viewUrl;
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white"
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   View Only (Last Save)

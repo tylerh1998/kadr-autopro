@@ -124,17 +124,17 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md dark:bg-slate-950 dark:border-slate-800">
         {fetchLoading ? (
           <div className="flex flex-col items-center justify-center p-8 min-h-[200px]">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-            <p className="text-slate-600">Checking inventory...</p>
+            <p className="text-slate-600 dark:text-slate-400">Checking inventory...</p>
           </div>
         ) : (!lineItem || !currentInventoryItem) ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
              <AlertCircle className="w-10 h-10 text-red-500 mb-3" />
-             <h3 className="text-lg font-semibold text-slate-900">Details Unavailable</h3>
-             <p className="text-slate-500 mt-1 mb-4">{error || "Could not load inventory or line item details."}</p>
+             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Details Unavailable</h3>
+             <p className="text-slate-500 dark:text-slate-400 mt-1 mb-4">{error || "Could not load inventory or line item details."}</p>
              <Button onClick={onClose} variant="secondary">Close</Button>
           </div>
         ) : (
@@ -151,26 +151,26 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
 
             <div className="space-y-4">
               {/* Part Information */}
-              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg space-y-2 border border-slate-100 dark:border-slate-800">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Part Number</p>
-                  <p className="text-lg font-semibold">{lineItem.part_number}</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Part Number</p>
+                  <p className="text-lg font-semibold dark:text-slate-100">{lineItem.part_number}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700">Description</p>
-                  <p className="text-sm text-slate-600">{lineItem.description}</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Description</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{lineItem.description}</p>
                 </div>
               </div>
 
               {/* Inventory Status */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-xs text-blue-600 font-medium mb-1">Available in Inventory</p>
-                  <p className="text-2xl font-bold text-blue-700">{currentQOH}</p>
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg border border-transparent dark:border-blue-800/50">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">Available in Inventory</p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{currentQOH}</p>
                 </div>
-                <div className="bg-purple-50 p-3 rounded-lg">
-                  <p className="text-xs text-purple-600 font-medium mb-1">On Order (WO)</p>
-                  <p className="text-2xl font-bold text-purple-700">{qtyOnOrder}</p>
+                <div className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-lg border border-transparent dark:border-purple-800/50">
+                  <p className="text-xs text-purple-600 dark:text-purple-400 font-medium mb-1">On Order (WO)</p>
+                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{qtyOnOrder}</p>
                 </div>
               </div>
 
@@ -189,22 +189,22 @@ export default function ReceivePartModal({ open, onClose, lineItem, inventoryIte
                     placeholder="Enter quantity"
                     required
                   />
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Maximum receivable: {maxReceivable} (limited by available inventory)
                   </p>
                 </div>
 
                 {/* Error Display */}
                 {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-red-700">{error}</p>
+                  <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                   </div>
                 )}
 
                 {/* Info Box */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-800">
+                <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
                     <TrendingDown className="w-4 h-4 inline mr-1" />
                     This will reduce inventory QOH and the on-order quantity for this work order.
                   </p>

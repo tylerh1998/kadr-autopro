@@ -84,7 +84,13 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess }) 
                 });
 
                 if (!fetchResponse.ok) {
-                    throw new Error(`Server returned status ${fetchResponse.status}`);
+                    let errorMsg = `Server returned status ${fetchResponse.status}`;
+                    try {
+                        const errorData = await fetchResponse.json();
+                        if (errorData.error) errorMsg += `: ${errorData.error}`;
+                        if (errorData.details) errorMsg += ` - ${errorData.details}`;
+                    } catch(e) {}
+                    throw new Error(errorMsg);
                 }
 
                 const responseData = await fetchResponse.json();

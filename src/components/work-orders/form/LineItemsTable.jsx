@@ -409,7 +409,7 @@ export default function LineItemsTable({
       </ContextMenuItem>
       <ContextMenuItem
         onClick={() => onDeleteLine(index)}
-        className="text-red-600 focus:text-red-700"
+        className="text-red-600 focus:text-red-700 dark:text-red-400 dark:focus:text-red-300"
         disabled={!line.description && !line.part_number} // Disable if line is empty
       >
         <Trash2 className="mr-2 h-4 w-4" />

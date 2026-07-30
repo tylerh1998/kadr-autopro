@@ -130,23 +130,23 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>Process Core</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Part:</strong> {lineItem.part_number} - {lineItem.description}
             </p>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Total Cores:</strong> {coreNum}
             </p>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Cores Returned by Customer:</strong> {coreRet}
             </p>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               <strong>Core Cost Each:</strong> ${coreCost.toFixed(2)}
             </p>
           </div>
@@ -162,7 +162,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
                 <SelectItem value="return_to_work_order">Return Core to Work Order</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               {coreAction === 'return_to_work_order'
                 ? 'Move an on-site core return back onto this work order. Only matching part #, same work order, and On-site inventory return records will be used.'
                 : 'Log that customer has returned the core. Creates an on-site inventory return record for later processing.'}
@@ -180,7 +180,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               onChange={(e) => setQty(e.target.value)}
               placeholder="Enter quantity"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               {coreAction === 'return_to_work_order'
                 ? `Max available on this line: ${coreRet}`
                 : `Max outstanding on this line: ${outstandingCoreQty}`}
