@@ -857,7 +857,7 @@ export default function InventoryAddPage() {
 
             const invoiceNumber = data.invoice_number || '';
             const invoiceDate = data.invoice_date || ''; // Should be YYYY-MM-DD
-            const expectedSubtotal = data.subtotal || 0;
+
 
             const parsedItems = (data.items || []).map(item => {
                 const partNumber = (item.part_number || '').toUpperCase();
