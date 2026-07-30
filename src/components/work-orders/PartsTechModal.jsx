@@ -24,6 +24,28 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
       setPollError(null);
       setIsPolling(false);
     }
+
+    // Listen for iframe postMessage events!
+    const handleMessage = (event) => {
+      // Allow specific origins or all for debugging
+      if (event.origin.includes('partstech.com')) {
+        console.log("PARTS TECH POST MESSAGE RECEIVED:", event.data);
+        
+        // Let's dump the message payload into the UI so we can see it
+        setPollError("Message received from PartsTech! Check console. Payload: " + JSON.stringify(event.data).substring(0, 200));
+
+        // If the payload contains order data, we could automatically transfer it here!
+        if (event.data && (event.data.type === 'PART_TRANSFER' || event.data.cart || event.data.parts)) {
+            // onTransferComplete(event.data);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, [open, roNumber]);
 
   const loadSession = async () => {
