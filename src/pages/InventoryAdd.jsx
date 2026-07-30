@@ -671,10 +671,18 @@ export default function InventoryAddPage() {
         let hasHardErrors = false;
         let subtotalMismatchInvoices = [];
 
+        let missingTireTaxItems = [];
+
         for (const group of batchItems) {
             const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
             const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
             
+            group.partItems.forEach(item => {
+                if (item.missing_tire_tax) {
+                    missingTireTaxItems.push(item.part_number || item.description || 'Unknown Part');
+                }
+            });
+
             if (isMissingGroupInfo || hasRowErrors) {
                 hasHardErrors = true;
             }
@@ -696,6 +704,14 @@ export default function InventoryAddPage() {
 
         if (subtotalMismatchInvoices.length > 0) {
             const proceed = window.confirm(`WARNING: The following invoices have a subtotal mismatch (the OCR expected subtotal does not match the sum of the line items):\n\n${subtotalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        if (missingTireTaxItems.length > 0) {
+            const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
             if (!proceed) {
                 saveInProgressRef.current = false;
                 return;
@@ -1632,7 +1648,7 @@ export default function InventoryAddPage() {
                                         </div>
                                         <div className="space-y-2">
                                             {group.partItems.map((item) => {
-                                                const rowHasError = !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price;
+                                                const rowHasError = !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price || item.missing_tire_tax;
                                                 return (
                                                 <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 border-orange-300' : 'bg-white border-slate-200'}`}>
                                                     <span className="text-sm">
@@ -1646,10 +1662,10 @@ export default function InventoryAddPage() {
                                                         {item.enviro_fee > 0 && (
                                                             <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] mr-2 h-5 px-1 py-0">Enviro Fee: ${(parseFloat(item.enviro_fee) || 0).toFixed(2)}</Badge>
                                                         )}
-                                                        {item.missing_tire_tax && (
-                                                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 text-[10px] mr-2 h-5 px-1 py-0 font-bold">Tire Tax Missing. Click Edit.</Badge>
-                                                        )}
                                                         <span>- {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>}</span> 
+                                                        {item.missing_tire_tax && (
+                                                            <span className="text-red-500 font-bold italic ml-2">Missing Tire Tax</span>
+                                                        )}
                                                         <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
                                                         <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
                                                     </span>
