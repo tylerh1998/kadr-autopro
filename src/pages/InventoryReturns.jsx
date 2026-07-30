@@ -452,9 +452,9 @@ export default function InventoryReturnsPage() {
 
   const getReturnTypeBadge = (type) => {
     const colors = {
-      core: "bg-blue-100 text-blue-800 border-blue-200",
-      warranty: "bg-green-100 text-green-800 border-green-200",
-      return: "bg-orange-100 text-orange-800 border-orange-200"
+      core: "bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-900",
+      warranty: "bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-900",
+      return: "bg-orange-100 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-900"
     };
 
     return (
@@ -484,45 +484,45 @@ export default function InventoryReturnsPage() {
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Inventory Returns</h1>
-              <p className="text-slate-600 mt-1">Track parts returned to suppliers</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Inventory Returns</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Track parts returned to suppliers</p>
             </div>
             <div className="flex gap-3 flex-wrap">
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-[160px] bg-white">
+                <SelectTrigger className="w-[160px] bg-white dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="return">Return</SelectItem>
-                  <SelectItem value="core">Core</SelectItem>
-                  <SelectItem value="warranty">Warranty</SelectItem>
+                <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
+                  <SelectItem value="all" className="dark:text-slate-300 dark:focus:bg-slate-800">All</SelectItem>
+                  <SelectItem value="return" className="dark:text-slate-300 dark:focus:bg-slate-800">Return</SelectItem>
+                  <SelectItem value="core" className="dark:text-slate-300 dark:focus:bg-slate-800">Core</SelectItem>
+                  <SelectItem value="warranty" className="dark:text-slate-300 dark:focus:bg-slate-800">Warranty</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => window.location.href = createPageUrl('InventoryList')} variant="outline">
+              <Button onClick={() => window.location.href = createPageUrl('InventoryList')} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 <List className="w-4 h-4 mr-2" />
                 Inventory List
               </Button>
-              <Button onClick={() => setShowLegacyWarrantyModal(true)} variant="outline" className="bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-yellow-800">
+              <Button onClick={() => setShowLegacyWarrantyModal(true)} variant="outline" className="bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-yellow-800 dark:bg-yellow-950/20 dark:hover:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-400">
                 <FileWarning className="w-4 h-4 mr-2" />
                 LANKAR Warranty
               </Button>
-              <Button onClick={handlePrint} variant="outline">
+              <Button onClick={handlePrint} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 <Printer className="w-4 h-4 mr-2" />
                 Print
               </Button>
             </div>
           </div>
 
-          <Card className="no-print">
+          <Card className="no-print dark:bg-card border dark:border-slate-800">
             <CardContent className="p-6">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
                 <Input
                   placeholder="Search returns by part number, description, supplier, or reason..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                 />
               </div>
             </CardContent>
@@ -534,48 +534,48 @@ export default function InventoryReturnsPage() {
 
           <div className="print-area space-y-8">
             {loading ? (
-              <Card><CardContent className="p-8"><div className="animate-pulse space-y-4">{Array(5).fill(0).map((_, i) => (<div key={i} className="h-4 bg-slate-200 rounded w-full"></div>))}</div></CardContent></Card>
+              <Card className="dark:bg-card border dark:border-slate-800"><CardContent className="p-8"><div className="animate-pulse space-y-4">{Array(5).fill(0).map((_, i) => (<div key={i} className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-full"></div>))}</div></CardContent></Card>
             ) : sortedSupplierNames.length > 0 ? (
               sortedSupplierNames.map((supplierName) => {
                 const supplierReturns = returnsBySupplier[supplierName];
                 return (
-                <Card key={supplierName}>
+                <Card key={supplierName} className="dark:bg-card border dark:border-slate-800">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><Truck className="w-5 h-5" />{supplierName} ({supplierReturns.length} items)</div>
-                      <div className="text-sm font-normal text-slate-600">Total Value: ${supplierReturns.reduce((sum, item) => sum + (item.total_cost || 0), 0).toFixed(2)}</div>
+                      <div className="flex items-center gap-2 dark:text-slate-100"><Truck className="w-5 h-5" />{supplierName} ({supplierReturns.length} items)</div>
+                      <div className="text-sm font-normal text-slate-600 dark:text-slate-400">Total Value: ${supplierReturns.reduce((sum, item) => sum + (item.total_cost || 0), 0).toFixed(2)}</div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-50 border-b">
+                        <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-800">
                           <tr>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('part_number')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('part_number')}>
                               <div className="flex items-center gap-1">Part # <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('description')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('description')}>
                               <div className="flex items-center gap-1">Description <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_type')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('return_type')}>
                               <div className="flex items-center gap-1">Type <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('quantity_returned')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('quantity_returned')}>
                               <div className="flex items-center gap-1">Qty <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_reason')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('return_reason')}>
                               <div className="flex items-center gap-1">Reason <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('total_cost')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('total_cost')}>
                               <div className="flex items-center gap-1">Cost <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('return_date')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('return_date')}>
                               <div className="flex items-center gap-1">Return Date <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('sent_back')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('sent_back')}>
                               <div className="flex items-center gap-1">Sent Back <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
-                            <th className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
+                            <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => handleSort('status')}>
                               <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3 opacity-50" /></div>
                             </th>
                           </tr>
@@ -585,25 +585,25 @@ export default function InventoryReturnsPage() {
                             <ContextMenu key={returnItem.id}>
                               <ContextMenuTrigger asChild>
                                 <tr
-                                  className="border-b hover:bg-slate-50 transition-colors cursor-pointer"
+                                  className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors cursor-pointer dark:text-slate-300"
                                   onClick={() => handleRowClick(returnItem)}
                                 >
-                                  <td className="p-3"><span className="font-mono text-sm font-medium text-slate-900">{returnItem.part_number}</span></td>
-                                  <td className="p-3"><p className="font-medium text-slate-900">{returnItem.description}</p></td>
+                                  <td className="p-3"><span className="font-mono text-sm font-medium text-slate-900 dark:text-slate-100">{returnItem.part_number}</span></td>
+                                  <td className="p-3"><p className="font-medium text-slate-900 dark:text-slate-100">{returnItem.description}</p></td>
                                   <td className="p-3">{getReturnTypeBadge(returnItem.return_type)}</td>
                                   <td className="p-3"><span className="font-medium">{returnItem.quantity_returned}</span></td>
                                   <td className="p-3">
                                     <TooltipProvider><Tooltip>
-                                      <TooltipTrigger asChild><span className="text-slate-600 cursor-help underline decoration-dotted">{returnItem.return_reason}</span></TooltipTrigger>
-                                      {returnItem.notes && (<TooltipContent><p className="max-w-xs">{returnItem.notes}</p></TooltipContent>)}
+                                      <TooltipTrigger asChild><span className="text-slate-600 dark:text-slate-400 cursor-help underline decoration-dotted">{returnItem.return_reason}</span></TooltipTrigger>
+                                      {returnItem.notes && (<TooltipContent className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-300"><p className="max-w-xs">{returnItem.notes}</p></TooltipContent>)}
                                     </Tooltip></TooltipProvider>
                                   </td>
-                                  <td className="p-3"><span className="font-semibold text-slate-900">${(returnItem.total_cost || 0).toFixed(2)}</span></td>
-                                  <td className="p-3"><span className="text-slate-600">{returnItem.return_date ? (() => {
+                                  <td className="p-3"><span className="font-semibold text-slate-900 dark:text-slate-100">${(returnItem.total_cost || 0).toFixed(2)}</span></td>
+                                  <td className="p-3"><span className="text-slate-600 dark:text-slate-400">{returnItem.return_date ? (() => {
                                     const d = new Date(returnItem.return_date + 'T12:00:00');
                                     return !isNaN(d.getTime()) ? format(d, 'MMM d, yyyy') : returnItem.return_date;
                                   })() : 'N/A'}</span></td>
-                                  <td className="p-3"><span className="text-slate-600">{returnItem.sent_back && returnItem.sent_back !== 'N/A' ? (() => {
+                                  <td className="p-3"><span className="text-slate-600 dark:text-slate-400">{returnItem.sent_back && returnItem.sent_back !== 'N/A' ? (() => {
                                     const parts = returnItem.sent_back.split('-');
                                     if (parts.length === 3) {
                                       const [year, month, day] = parts.map(Number);
@@ -626,13 +626,13 @@ export default function InventoryReturnsPage() {
                                                 ? 'bg-green-600 hover:bg-green-700 text-white' 
                                                 : stagedReturns.has(returnItem.id)
                                                     ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                                    : 'text-yellow-800 bg-yellow-100 border-yellow-200'
+                                                    : 'text-yellow-800 bg-yellow-100 border-yellow-200 dark:text-yellow-300 dark:bg-yellow-950/40 dark:border-yellow-900'
                                           }`}
                                         >
                                           {stagedReturns.has(returnItem.id) ? 'RETURN' : returnItem.status}
                                         </Badge>
                                       </TooltipTrigger>
-                                      {returnItem.status === 'Returned' && returnItem.date_returned && (<TooltipContent>Returned on: {(() => {
+                                      {returnItem.status === 'Returned' && returnItem.date_returned && (<TooltipContent className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-300">Returned on: {(() => {
                                         try {
                                           const d = toMountainTime(returnItem.date_returned);
                                           return !isNaN(d.getTime()) ? format(d, "MMM d, yyyy, h:mm a") : '';
@@ -642,21 +642,21 @@ export default function InventoryReturnsPage() {
                                   </td>
                                 </tr>
                               </ContextMenuTrigger>
-                              <ContextMenuContent>
-                                <ContextMenuItem onClick={() => openModal(setShowReceiveCreditModal, returnItem)}>
+                              <ContextMenuContent className="dark:bg-slate-950 dark:border-slate-800">
+                                <ContextMenuItem onClick={() => openModal(setShowReceiveCreditModal, returnItem)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                   <CreditCard className="w-4 h-4 mr-2" /> Receive Credit/Refund
                                 </ContextMenuItem>
-                                <ContextMenuItem disabled={returnItem.status === 'Returned' || returnItem.return_type === 'warranty' || returnItem.return_type === 'core'} onClick={() => handleReturnToInventory(returnItem)}>
+                                <ContextMenuItem disabled={returnItem.status === 'Returned' || returnItem.return_type === 'warranty' || returnItem.return_type === 'core'} onClick={() => handleReturnToInventory(returnItem)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                   <ArchiveRestore className="w-4 h-4 mr-2" /> Return to Inventory
                                 </ContextMenuItem>
-                                <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => openModal(setShowChangeSupplierModal, returnItem)}>
+                                <ContextMenuItem disabled={returnItem.status === 'Returned'} onClick={() => openModal(setShowChangeSupplierModal, returnItem)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                   <Truck className="w-4 h-4 mr-2" /> Change Supplier
                                 </ContextMenuItem>
-                                <ContextMenuItem onClick={() => openModal(setShowEditReturnInfoModal, returnItem)}>
+                                <ContextMenuItem onClick={() => openModal(setShowEditReturnInfoModal, returnItem)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                   <Pencil className="w-4 h-4 mr-2" /> Edit Return Info
                                 </ContextMenuItem>
                                 {returnItem.work_order_id && (
-                                  <ContextMenuItem onClick={() => handleOpenWorkOrder(returnItem.work_order_id)}>
+                                  <ContextMenuItem onClick={() => handleOpenWorkOrder(returnItem.work_order_id)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                                     <ExternalLink className="w-4 h-4 mr-2" /> Open Work Order
                                   </ContextMenuItem>
                                 )}
@@ -670,10 +670,10 @@ export default function InventoryReturnsPage() {
                 </Card>
               );})
             ) : (
-              <Card className="text-center py-12"><CardContent>
-                <div className="text-slate-400 mb-4"><RotateCcw className="w-12 h-12 mx-auto" /></div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Returns Found</h3>
-                <p className="text-slate-600">{searchTerm ? 'No returns match your search.' : 'No parts have been returned yet.'}</p>
+              <Card className="text-center py-12 dark:bg-card border dark:border-slate-800"><CardContent>
+                <div className="text-slate-400 dark:text-slate-600 mb-4"><RotateCcw className="w-12 h-12 mx-auto" /></div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Returns Found</h3>
+                <p className="text-slate-600 dark:text-slate-400">{searchTerm ? 'No returns match your search.' : 'No parts have been returned yet.'}</p>
               </CardContent></Card>
             )}
           </div>
@@ -681,23 +681,23 @@ export default function InventoryReturnsPage() {
       </div>
       
       {stagedReturns.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white shadow-xl border rounded-lg p-4 z-50 flex gap-4 items-center animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 shadow-xl border dark:border-slate-800 rounded-lg p-4 z-50 flex gap-4 items-center animate-in slide-in-from-bottom-5">
             <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm whitespace-nowrap">{stagedReturns.size} item{stagedReturns.size !== 1 ? 's' : ''} selected</span>
+                <span className="font-semibold text-sm whitespace-nowrap text-slate-900 dark:text-slate-100">{stagedReturns.size} item{stagedReturns.size !== 1 ? 's' : ''} selected</span>
             </div>
             <div className="flex items-center gap-2">
-                <label className="text-sm font-medium whitespace-nowrap">Sent Back Date:</label>
+                <label className="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300">Sent Back Date:</label>
                 <Input 
                     type="date" 
                     value={bulkReturnDate} 
                     onChange={(e) => setBulkReturnDate(e.target.value)}
-                    className="w-40"
+                    className="w-40 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                 />
             </div>
-            <Button onClick={handleBulkReturn} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={handleBulkReturn} className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 dark:hover:bg-blue-800">
                 Mark Returned
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setStagedReturns(new Set())} className="h-8 w-8 ml-2">
+            <Button variant="ghost" size="icon" onClick={() => setStagedReturns(new Set())} className="h-8 w-8 ml-2 dark:text-slate-400 dark:hover:text-slate-100">
                 <ArrowUpDown className="w-4 h-4 rotate-45" />
             </Button>
         </div>

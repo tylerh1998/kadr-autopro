@@ -536,37 +536,37 @@ export default function InventoryListPage() {
   };
 
   const renderContextMenu = (item) => (
-    <ContextMenuContent>
-      <ContextMenuItem onClick={() => handleShowHistory(item)}>
+    <ContextMenuContent className="dark:bg-slate-950 dark:border-slate-800">
+      <ContextMenuItem onClick={() => handleShowHistory(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
         <History className="mr-2 h-4 w-4" />
         <span>History</span>
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => handleViewTransactions(item)}>
+      <ContextMenuItem onClick={() => handleViewTransactions(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
         <FileText className="mr-2 h-4 w-4" />
         <span>View Transactions</span>
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => handleReturnPart(item)}>
+      <ContextMenuItem onClick={() => handleReturnPart(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
         <RefreshCw className="mr-2 h-4 w-4" />
         <span>Return Part</span>
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => handleEdit(item)}>
+      <ContextMenuItem onClick={() => handleEdit(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
         <Edit className="mr-2 h-4 w-4" />
         <span>Edit</span>
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => handleAdjustQOH(item)}>
+      <ContextMenuItem onClick={() => handleAdjustQOH(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
         <PackagePlus className="mr-2 h-4 w-4" />
         <span>Adjust QOH</span>
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => handleLocationClick(item)}>
+      <ContextMenuItem onClick={() => handleLocationClick(item)} className="dark:text-slate-300 dark:focus:bg-slate-800">
           <Package className="mr-2 h-4 w-4" />
           <span>Edit Location</span>
       </ContextMenuItem>
       {currentUser?.role === 'admin' && (
         <>
-          <ContextMenuSeparator />
+          <ContextMenuSeparator className="dark:bg-slate-800" />
           <ContextMenuItem
             onClick={() => handleDelete(item.id)}
-            className="text-red-600 focus:bg-red-50 focus:text-red-700"
+            className="text-red-600 dark:text-red-400 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950/30 dark:focus:text-red-400"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             <span>Delete</span>

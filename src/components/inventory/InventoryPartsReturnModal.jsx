@@ -170,31 +170,31 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle>Return Part to Supplier</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="dark:text-slate-100">Return Part to Supplier</DialogTitle>
+          <DialogDescription className="dark:text-slate-400">
             This will remove the part from your inventory and place it in the returns list.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-md">
-            <Package className="w-6 h-6 text-slate-600" />
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-800 p-3 rounded-md">
+            <Package className="w-6 h-6 text-slate-600 dark:text-slate-400" />
             <div>
-              <p className="font-semibold">{item?.part_number}</p>
-              <p className="text-sm text-slate-500">{item?.description}</p>
+              <p className="font-semibold dark:text-slate-100">{item?.part_number}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{item?.description}</p>
             </div>
           </div>
 
           {item?.core && (
-            <div className="bg-blue-50 text-blue-700 p-3 rounded-md text-sm">
+            <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 p-3 rounded-md text-sm border dark:border-blue-900">
               This part has a core. A core return will also be processed automatically.
             </div>
           )}
 
           <div>
-            <Label htmlFor="returnQuantity">Quantity to Return</Label>
+            <Label htmlFor="returnQuantity" className="dark:text-slate-300">Quantity to Return</Label>
             <Input
               id="returnQuantity"
               type="number"
@@ -202,19 +202,20 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
               max={source === 'workOrder' ? item?.qty : item?.quantity_on_hand}
               value={returnQuantity}
               onChange={(e) => setReturnQuantity(e.target.value)}
+              className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="returnReason">Reason for Return</Label>
+            <Label htmlFor="returnReason" className="dark:text-slate-300">Reason for Return</Label>
             <Select value={returnReason} onValueChange={setReturnReason}>
-              <SelectTrigger id="returnReason">
+              <SelectTrigger id="returnReason" className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
                 {reasons.map((r) => (
-                  <SelectItem key={r.id} value={r.reason}>
+                  <SelectItem key={r.id} value={r.reason} className="dark:text-slate-300 dark:focus:bg-slate-800">
                     {r.reason}
                   </SelectItem>
                 ))}
@@ -223,21 +224,22 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
           </div>
 
           <div>
-            <Label htmlFor="returnNotes">Notes (Optional)</Label>
+            <Label htmlFor="returnNotes" className="dark:text-slate-300">Notes (Optional)</Label>
             <Input
               id="returnNotes"
               type="text"
               value={returnNotes}
               onChange={(e) => setReturnNotes(e.target.value)}
               placeholder="Additional notes..."
+              className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
               <RotateCcw className="w-4 h-4 mr-2" />
               Process Return
             </Button>

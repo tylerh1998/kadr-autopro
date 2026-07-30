@@ -425,37 +425,39 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 dark:text-slate-100">
             <CreditCard className="w-5 h-5" />
             Receive Credit / Refund
           </DialogTitle>
         </DialogHeader>
         {returnItem && (
           <form onSubmit={handleSubmit} className="space-y-6 py-4 overflow-y-auto flex-1">
-            <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-slate-900">{returnItem.part_number}</h4>
-              <p className="text-sm text-slate-600">{returnItem.description}</p>
+            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-800">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">{returnItem.part_number}</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{returnItem.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="invoice-number">Invoice #</Label>
+                <Label htmlFor="invoice-number" className="dark:text-slate-300">Invoice #</Label>
                 <Input
                   id="invoice-number"
                   value={invoiceNumber}
                   onChange={e => setInvoiceNumber(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-date">Date</Label>
+                <Label htmlFor="invoice-date" className="dark:text-slate-300">Date</Label>
                 <Input
                   id="invoice-date"
                   type="date"
                   value={invoiceDate}
                   onChange={e => setInvoiceDate(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   required
                 />
               </div>
@@ -463,32 +465,32 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="refund-credit-to">Refund/Credit To</Label>
+                <Label htmlFor="refund-credit-to" className="dark:text-slate-300">Refund/Credit To</Label>
                 <Select value={refundCreditTo} onValueChange={setRefundCreditTo}>
-                  <SelectTrigger>
+                  <SelectTrigger className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Supplier AP">Supplier AP</SelectItem>
-                    <SelectItem value="Cash Drawer">Cash Drawer</SelectItem>
-                    <SelectItem value="Line of Credit">Line of Credit</SelectItem>
+                  <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
+                    <SelectItem value="Supplier AP" className="dark:text-slate-300 dark:focus:bg-slate-800">Supplier AP</SelectItem>
+                    <SelectItem value="Cash Drawer" className="dark:text-slate-300 dark:focus:bg-slate-800">Cash Drawer</SelectItem>
+                    <SelectItem value="Line of Credit" className="dark:text-slate-300 dark:focus:bg-slate-800">Line of Credit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to-account">
+                <Label htmlFor="to-account" className="dark:text-slate-300">
                   {refundCreditTo === 'Supplier AP' ? 'Supplier' : 'To Account'}
                 </Label>
                 <Select
                   value={toAccount}
                   onValueChange={setToAccount}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                     <SelectValue placeholder="Select account" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
                     {getToAccountOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
+                      <SelectItem key={option.value} value={option.value} className="dark:text-slate-300 dark:focus:bg-slate-800">
                         {option.label}
                       </SelectItem>
                     ))}
@@ -498,24 +500,24 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
             </div>
 
             {/* Financial Summary */}
-            <div className="bg-white border rounded-lg p-4 space-y-3">
-              <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 Financial Summary
               </h4>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm dark:text-slate-300">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span className="font-medium">${displaySubtotal.toFixed(2)}</span>
+                  <span className="font-medium dark:text-slate-200">${displaySubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>GST (5%):</span>
-                  <span className="font-medium">${displayGst.toFixed(2)}</span>
+                  <span className="font-medium dark:text-slate-200">${displayGst.toFixed(2)}</span>
                 </div>
-                <Separator />
+                <Separator className="dark:bg-slate-800" />
                 <div className="flex justify-between font-bold">
                   <span>Grand Total:</span>
-                  <span className="text-lg">${grandTotal.toFixed(2)}</span>
+                  <span className="text-lg dark:text-slate-100">${grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -526,7 +528,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full flex items-center justify-between"
+                  className="w-full flex items-center justify-between dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <span className="font-semibold">Adjustment (Optional)</span>
                   {isAdjustmentOpen ? (
@@ -536,11 +538,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   )}
                 </Button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-4">
-                <div className="space-y-4 border rounded-lg p-4 bg-slate-50">
+              <CollapsibleContent className="mt-4 animate-in fade-in-50 duration-200">
+                <div className="space-y-4 border dark:border-slate-800 rounded-lg p-4 bg-slate-50 dark:bg-slate-900">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="adjustment-amount">Amount</Label>
+                      <Label htmlFor="adjustment-amount" className="dark:text-slate-300">Amount</Label>
                       <Input
                         id="adjustment-amount"
                         type="number"
@@ -548,17 +550,18 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                         value={adjustmentAmount}
                         onChange={e => setAdjustmentAmount(e.target.value)}
                         placeholder="0.00"
+                        className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="gl-account">GL Account *</Label>
+                      <Label htmlFor="gl-account" className="dark:text-slate-300">GL Account *</Label>
                       <Select value={glAccount} onValueChange={setGlAccount}>
-                        <SelectTrigger className={adj !== 0 && !glAccount ? 'border-red-300' : ''}>
+                        <SelectTrigger className={(adj !== 0 && !glAccount ? 'border-red-300' : '') + " dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"}>
                           <SelectValue placeholder="Select account" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
                           {accounts.filter(account => !account.controlled || account.account_number === '5004').map(account => (
-                            <SelectItem key={account.id} value={account.account_number}>
+                            <SelectItem key={account.id} value={account.account_number} className="dark:text-slate-300 dark:focus:bg-slate-800">
                               {account.account_number} - {account.account_name}
                             </SelectItem>
                           ))}
@@ -568,23 +571,23 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   </div>
                   
                   {adj !== 0 && (
-                    <div className="bg-white border rounded-lg p-3 space-y-1 text-sm">
+                    <div className="bg-white dark:bg-slate-950 border dark:border-slate-800 rounded-lg p-3 space-y-1 text-sm dark:text-slate-300">
                       <div className="flex justify-between">
                         <span>Adjustment Amount:</span>
-                        <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-medium ${adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           ${adj.toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>GST (5%):</span>
-                        <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-medium ${adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           ${adjGst.toFixed(2)}
                         </span>
                       </div>
-                      <Separator className="my-2" />
+                      <Separator className="my-2 dark:bg-slate-800" />
                       <div className="flex justify-between font-bold">
                         <span>Adjustment Total:</span>
-                        <span className={adj >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        <span className={adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                           ${adjTotal.toFixed(2)}
                         </span>
                       </div>
@@ -592,13 +595,14 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="adjustment-reason">Reason</Label>
+                    <Label htmlFor="adjustment-reason" className="dark:text-slate-300">Reason</Label>
                     <Textarea
                       id="adjustment-reason"
                       value={adjustmentReason}
                       onChange={e => setAdjustmentReason(e.target.value)}
                       placeholder="Reason for adjustment..."
                       rows={2}
+                      className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -606,10 +610,10 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
             </Collapsible>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white">
                 {loading ? 'Processing...' : 'Record Credit/Refund'}
               </Button>
             </DialogFooter>
