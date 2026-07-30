@@ -4,7 +4,6 @@ import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import WorkOrderHeaderInfo from './WorkOrderHeaderInfo';
 import FinancialSummary from './FinancialSummary';
 import LineItemsTable from './LineItemsTable';
-import { InventoryTxs } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 
 // Modals
@@ -14,6 +13,7 @@ import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
 import ROCoreModal from '../ROCoreModal';
+import PartsTechModal from '../PartsTechModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
@@ -101,6 +101,7 @@ export default function WorkOrderForm({
     returnPart: false,
     receivePart: false,
     cores: false,
+    partsTech: false,
   });
 
   // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
@@ -441,11 +442,32 @@ export default function WorkOrderForm({
             }
         });
 
+        console.log('Line items after adding parts:', updated);
         return updated;
     });
 
     closeModal('getPart');
-  }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
+  }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex, checkInventoryAndOpenModal]);
+
+  const handlePartsTech = useCallback((lineIndex) => {
+    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex);
+    openModal('partsTech', lineIndex);
+  }, [openModal]);
+
+  const handlePartsTechSuccess = useCallback((cartPayload) => {
+    console.log('=== DEBUG: handlePartsTechSuccess called ===', cartPayload);
+    if (!cartPayload?.parts || !Array.isArray(cartPayload.parts)) return;
+
+    const formattedParts = cartPayload.parts.map(part => ({
+      part_number: part.partNumber || part.part_number || '',
+      description: part.description || '',
+      parts_ea: part.costPrice || part.parts_ea || 0,
+      qty: part.quantity || part.qty || 1,
+      inventory_processed: false,
+    }));
+
+    handleMultiplePartsAdded(formattedParts, []);
+  }, [handleMultiplePartsAdded]);
 
   const handleAddOtherCharge = async (chargeData) => {
     console.log('=== DEBUG: handleAddOtherCharge called ===');
@@ -1091,6 +1113,7 @@ export default function WorkOrderForm({
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
         onCores={handleCores}
+        onPartsTech={handlePartsTech}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         onInsertLine={handleInsertLine}
         workOrder={initialWorkOrder}
@@ -1149,6 +1172,15 @@ export default function WorkOrderForm({
         lineItem={currentLineItem}
         workOrder={initialWorkOrder}
         onCoreProcessed={handleCoreProcessed}
+        mode={mode} // Pass mode
+      />
+      <PartsTechModal
+        open={modals.partsTech}
+        onClose={() => closeModal('partsTech')}
+        roNumber={initialWorkOrder?.ro_number}
+        vehicleInfo={vehicle}
+        userInfo={{ username: 'tech' }}
+        onTransferComplete={handlePartsTechSuccess}
       />
     </div>
   );
