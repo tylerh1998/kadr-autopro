@@ -29,16 +29,7 @@ serve(async (req) => {
             );
         }
 
-        // In 2026, we should use gemini-2.0-flash-lite or later
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
-
-        try {
-            const listResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-            const listData = await listResponse.json();
-            console.log("AVAILABLE MODELS:", listData.models?.map(m => m.name).join(', '));
-        } catch (e) {
-            console.error("Failed to list models", e);
-        }
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
         const prompt = `You are a highly accurate invoice parser. 
 Analyze the provided invoice document and extract the following information.
