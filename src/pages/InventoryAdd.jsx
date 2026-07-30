@@ -810,6 +810,8 @@ export default function InventoryAddPage() {
                 const existingPart = existingItemsMap.get(partNumber);
 
                 const cost = parseFloat(item.cost) || 0;
+                let isCore = !!item.core;
+                let coreCost = parseFloat(item.core_cost) || 0;
                 let sellingPrice = 0;
                 let margin = 0;
                 let salesClass = regularSalesClassId;
@@ -819,6 +821,11 @@ export default function InventoryAddPage() {
                     salesClass = existingPart.sales_class || regularSalesClassId;
                     // Use existing description to prevent overwriting
                     description = existingPart.description || description;
+                    
+                    if (!isCore && existingPart.core) {
+                        isCore = true;
+                        coreCost = parseFloat(existingPart.core_cost) || 0;
+                    }
                 }
                 
                 if (cost > 0 && salesClass) {
@@ -843,13 +850,14 @@ export default function InventoryAddPage() {
                     profit_margin: margin,
                     sales_class: salesClass,
                     tag_along_id: existingPart ? (existingPart.tag_along_id || '') : '',
-                    core: existingPart ? !!existingPart.core : false,
-                    core_cost: existingPart ? (parseFloat(existingPart.core_cost) || 0) : 0,
+                    core: isCore,
+                    core_cost: coreCost,
                     stocked_item: existingPart ? !!existingPart.stocked_item : false,
                     minimum_quantity: existingPart ? (parseInt(existingPart.minimum_quantity) || 0) : 0,
                     maximum_quantity: existingPart ? (parseInt(existingPart.maximum_quantity) || 0) : 0,
                     location: existingPart ? (existingPart.location || '') : '',
                     category: existingPart ? (existingPart.category || '') : '',
+                    is_existing: !!existingPart,
                     line_total: cost * (parseFloat(item.quantity) || 0)
                 };
             });
@@ -1525,7 +1533,16 @@ export default function InventoryAddPage() {
                                                 return (
                                                 <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 border-orange-300' : 'bg-white border-slate-200'}`}>
                                                     <span className="text-sm">
-                                                        <span className="font-medium">{item.part_number || <span className="text-red-500 font-bold italic">Missing Part #</span>}</span> - {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>} 
+                                                        <span className="font-medium mr-2">{item.part_number || <span className="text-red-500 font-bold italic">Missing Part #</span>}</span>
+                                                        {item.is_existing ? (
+                                                            <Badge variant="outline" className="bg-slate-100 text-slate-600 text-[10px] mr-2 h-5 px-1 py-0">Existing</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] mr-2 h-5 px-1 py-0">New</Badge>
+                                                        )}
+                                                        {item.core && (
+                                                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
+                                                        )}
+                                                        <span>- {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>}</span> 
                                                         <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
                                                         <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
                                                     </span>

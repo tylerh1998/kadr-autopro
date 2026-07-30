@@ -34,6 +34,7 @@ serve(async (req) => {
         const prompt = `You are a highly accurate invoice parser. 
 Analyze the provided invoice document and extract the following information.
 CRITICAL INSTRUCTION: Completely ignore any vehicle information (Year, Make, Model, VIN, Mileage, etc.). Do not extract vehicle details as parts.
+CRITICAL INSTRUCTION: Core charges (e.g., "Core Deposit", "NET CORE") are often listed as separate line items or in a separate column. DO NOT extract a core charge as its own standalone item. Instead, find the main part it applies to, and set "core": true and "core_cost" to the unit amount of the core charge for that item. If an item has no core charge, omit these fields or set them to false/0.
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "supplier_name": "Name of the supplier or vendor. If you cannot find it, return empty string.",
@@ -45,11 +46,13 @@ Format the output EXACTLY as a JSON object with no markdown wrappers or addition
       "part_number": "The part number or item code",
       "description": "The item description",
       "quantity": The quantity as a number,
-      "cost": The unit cost as a number
+      "cost": The unit cost as a number,
+      "core": true if there is a core charge, false otherwise,
+      "core_cost": The unit cost of the core charge as a number, or 0 if none
     }
   ]
 }
-Ensure the items array includes all line items found on the invoice.`;
+Ensure the items array includes all line items found on the invoice (consolidating core lines into their parent part).`;
 
         const requestBody = {
             contents: [
