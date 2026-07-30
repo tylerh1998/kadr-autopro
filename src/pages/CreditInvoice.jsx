@@ -374,6 +374,13 @@ export default function CreditInvoicePage() {
                 
                 const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                   inventory_item_id: line.inventory_item_id,
+                  part_num: inventoryItem.part_number,
+                  old_quantity: Number(inventoryItem.quantity_on_hand || 0),
+                  new_quantity: newQOH,
+                  old_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+                  new_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+                  source_record_id: creditInvoiceNumber,
+                  source_function: 'CreditInvoice',
                   ro_number: workOrder.ro_number,
                   tx_type: 'Returned from WO',
                   quantity_change: returnQty,

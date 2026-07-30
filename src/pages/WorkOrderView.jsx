@@ -260,7 +260,7 @@ export default function WorkOrderViewPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600" />
-          <p className="mt-4 text-slate-600">Loading work order...</p>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading work order...</p>
         </div>
       </div>
     );
@@ -271,8 +271,8 @@ export default function WorkOrderViewPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
-          <h2 className="mt-4 text-xl font-semibold text-slate-900">Error Loading Work Order</h2>
-          <p className="mt-2 text-slate-600">{workOrderError || 'Work order not found'}</p>
+          <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">Error Loading Work Order</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">{workOrderError || 'Work order not found'}</p>
           <Button onClick={() => navigate(createPageUrl('WorkOrders'))} className="mt-4">
             Back to Work Orders
           </Button>
@@ -311,18 +311,18 @@ export default function WorkOrderViewPage() {
               {/* Header with Stage Indicator and Actions */}
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 no-print">
                 {/* Stage/Number Box */}
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[200px]">
+                <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-[200px]">
                   <div className={`${stageConfig.headerColor} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
                     {stageConfig.text}
                   </div>
                   <div className="px-4 py-2">
-                    <h1 className="text-xl font-bold text-slate-900">
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                       {workOrder.stage === 'estimate' ? (workOrder.est_number || 'New Estimate') :
                         workOrder.stage === 'credit_invoice' ? (workOrder.crinv_number || 'New Credit Invoice') :
                         workOrder.stage === 'invoice' ? (workOrder.inv_number || 'New Invoice') :
                         (workOrder.wo_number || workOrder.ro_number || 'New Work Order')}
                     </h1>
-                    <p className="text-slate-500 text-xs">View Only Mode</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs">View Only Mode</p>
                   </div>
                 </div>
 
@@ -376,7 +376,7 @@ export default function WorkOrderViewPage() {
                     variant="outline" 
                     onClick={handleEditWorkOrder} 
                     disabled={workOrder.stage === 'credit_invoice'}
-                    className="h-auto min-h-[88px] w-[120px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-auto min-h-[88px] w-[120px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-green-300 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit3 className="w-5 h-5" />
                     <span className="leading-tight">Edit Work Order</span>
@@ -386,7 +386,7 @@ export default function WorkOrderViewPage() {
                     <Button
                       variant="outline"
                       onClick={handleCreateCreditInvoice}
-                      className="h-auto min-h-[88px] w-[132px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-red-300 text-red-700 hover:bg-red-50"
+                      className="h-auto min-h-[88px] w-[132px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                     >
                       <CreditCard className="w-5 h-5" />
                       <span className="leading-tight">Create Credit Invoice</span>
@@ -396,7 +396,7 @@ export default function WorkOrderViewPage() {
                   <Button
                     variant="outline"
                     onClick={handleExit}
-                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal bg-slate-100 hover:bg-slate-200"
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                   >
                     <X className="w-5 h-5" />
                     <span className="leading-tight">Exit</span>

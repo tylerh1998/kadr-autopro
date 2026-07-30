@@ -112,12 +112,12 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
           </DialogHeader>
 
           {loading ? (
-            <div className="py-16 flex items-center justify-center gap-3 text-slate-600">
+            <div className="py-16 flex items-center justify-center gap-3 text-slate-600 dark:text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Loading history...</span>
             </div>
           ) : visibleRecords.length === 0 ? (
-            <div className="py-16 text-center text-slate-500">No version history available for this work order.</div>
+            <div className="py-16 text-center text-slate-500 dark:text-slate-400">No version history available for this work order.</div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-3">
@@ -132,7 +132,7 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <p className="text-sm text-slate-500">Page {page + 1} of {totalPages}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Page {page + 1} of {totalPages}</p>
                 <div className="flex gap-2">
                   <Button variant="outline" disabled={page === 0} onClick={() => setPage((prev) => prev - 1)}>Previous</Button>
                   <Button variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((prev) => prev + 1)}>Next</Button>

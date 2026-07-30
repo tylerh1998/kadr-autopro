@@ -38,7 +38,7 @@ export default function WorkOrderViewLineItemsTable({
     
     // Zebra striping
     const isEven = index % 2 === 0;
-    const rowBgClass = isEven ? 'bg-white' : 'bg-slate-50';
+    const rowBgClass = isEven ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50';
 
     // Determine if line should be bold
     const isBold = line.bold === true;
@@ -52,7 +52,7 @@ export default function WorkOrderViewLineItemsTable({
     const coreOsamt = coreOutstanding * coreCost;
 
     const rowContent = (
-      <TableRow key={line.id || index} className={`${rowBgClass} hover:bg-slate-100 transition-colors`}>
+      <TableRow key={line.id || index} className={`${rowBgClass} hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}>
         {/* Qty Column */}
         <TableCell className={`w-20 p-2 align-top text-center ${boldClass}`}>
           {line.qty || '-'}
@@ -68,15 +68,15 @@ export default function WorkOrderViewLineItemsTable({
           <div className="space-y-1">
             <p className={`text-sm ${boldClass}`}>{line.description || '-'}</p>
             {hasPartNumber && (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span className="font-mono">{line.part_number}</span>
                 {coreOutstanding > 0 && (
-                  <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 text-amber-700 border-amber-300 whitespace-nowrap">
+                  <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 whitespace-nowrap">
                     Cores ({coreOutstanding}) - ${coreOsamt.toFixed(2)}
                   </Badge>
                 )}
                 {line.qty_on_order > 0 && (
-                  <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
                     On Order {line.qty_on_order}
                   </Badge>
                 )}
@@ -91,7 +91,7 @@ export default function WorkOrderViewLineItemsTable({
         </TableCell>
 
         {/* Unit Column */}
-        <TableCell className={`w-16 p-2 align-top text-center text-sm text-slate-600 ${boldClass}`}>
+        <TableCell className={`w-16 p-2 align-top text-center text-sm text-slate-600 dark:text-slate-400 ${boldClass}`}>
           {line.unit || ''}
         </TableCell>
 
@@ -141,10 +141,10 @@ export default function WorkOrderViewLineItemsTable({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="border dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow className="bg-slate-100">
+          <TableRow className="bg-slate-100 dark:bg-slate-800">
             <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
             <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
             <TableHead className="min-w-0 text-left text-xs font-semibold p-2">Description</TableHead>

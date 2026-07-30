@@ -101,12 +101,12 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
         
         <div className="space-y-4 py-4">
           {vehicle?.mileage && (
-            <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-              <p className="text-sm font-medium text-slate-700 mb-1">Previous Odometer Recording</p>
+            <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-md p-3">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Previous Odometer Recording</p>
               <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-slate-900">{vehicle.mileage.toLocaleString()}</span>
+                <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">{vehicle.mileage.toLocaleString()}</span>
                 {vehicle.odometer_date && (
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">
                     {format(new Date(vehicle.odometer_date), 'MMM d, yyyy')}
                   </span>
                 )}

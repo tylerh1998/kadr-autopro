@@ -255,6 +255,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 3. Create InventoryAuditLog record for credit received
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: returnItem.inventory_item_id,
+        part_num: returnItem.part_number,
+        source_record_id: returnItem.id,
+        source_function: 'ReceiveCreditModal',
         tx_type: "Credit Received",
         quantity_change: 0,
         supplier_inv: invoiceNumber,

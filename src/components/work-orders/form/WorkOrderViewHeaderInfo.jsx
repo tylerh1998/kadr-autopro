@@ -202,23 +202,23 @@ export default function WorkOrderViewHeaderInfo({
               {/* Customer Info */}
               <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <User className="w-5 h-5" />
                 Customer Information
               </h3>
             </div>
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-slate-900">
+              <p className="font-medium text-slate-900 dark:text-slate-100">
                 {getCustomerDisplayName()}
               </p>
               {getCustomerContact() && (
-                <p className="text-slate-500 text-xs">
+                <p className="text-slate-500 dark:text-slate-400 text-xs">
                   Contact: {getCustomerContact()}
                 </p>
               )}
               {customer?.phone && (
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-slate-600 flex-1">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 flex-1">
                     <Phone className="w-4 h-4" />
                     <span>{formatPhoneDisplay(customer.phone)}</span>
                   </div>
@@ -234,7 +234,7 @@ export default function WorkOrderViewHeaderInfo({
               )}
               {customer?.email && (
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-slate-600 flex-1">
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 flex-1">
                     <Mail className="w-4 h-4" />
                     <span className="truncate">{customer.email}</span>
                   </div>
@@ -249,7 +249,7 @@ export default function WorkOrderViewHeaderInfo({
                 </div>
               )}
               {(customer?.address || customer?.city || customer?.state) && (
-                <p className="flex items-start gap-2 text-slate-600">
+                <p className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
                   <MapPin className="w-4 h-4 mt-0.5" />
                   <span>
                     {customer?.address}
@@ -264,36 +264,36 @@ export default function WorkOrderViewHeaderInfo({
 
           {/* Vehicle Info */}
           <div 
-            className="space-y-4 cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-lg transition-colors duration-200"
+            className="space-y-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -m-2 rounded-lg transition-colors duration-200"
             onClick={onViewVehicleDetails}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Car className="w-5 h-5" />
                 Vehicle Information
               </h3>
             </div>
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-slate-900">
+              <p className="font-medium text-slate-900 dark:text-slate-100">
                 {vehicle?.year} {vehicle?.make} {vehicle?.model}
               </p>
               {vehicle?.vin && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">VIN:</span> {vehicle.vin}
                 </p>
               )}
               {vehicle?.license_plate && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">License:</span> {vehicle.license_plate}
                 </p>
               )}
               {vehicle?.color && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Color:</span> {vehicle.color}
                 </p>
               )}
               {workOrder?.odometer && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Odometer:</span> {workOrder.odometer.toLocaleString()} km
                 </p>
               )}
@@ -303,9 +303,9 @@ export default function WorkOrderViewHeaderInfo({
 
         {/* Work Description */}
         {workOrder?.description && (
-          <div className="pt-4 border-t border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Work Description</h3>
-            <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Work Description</h3>
+            <p className="text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg whitespace-pre-wrap border border-slate-100 dark:border-slate-800">
               {workOrder.description}
             </p>
           </div>
@@ -314,32 +314,32 @@ export default function WorkOrderViewHeaderInfo({
 
           {/* Work Order Info */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Work Order Details
             </h3>
             <div className="space-y-2 text-sm">
               {workOrder?.invoice_date && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Invoice Date:</span>{' '}
                   {formatDate(workOrder.invoice_date)}
                 </p>
               )}
               
               {(workOrder?.stage === 'estimate' && workOrder?.est_number) && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Estimate #:</span> {workOrder.est_number}
                 </p>
               )}
               
               {((workOrder?.stage === 'work_order' || workOrder?.stage === 'invoice' || workOrder?.stage === 'credit_invoice') && workOrder?.wo_number) && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Work Order #:</span> {workOrder.wo_number}
                 </p>
               )}
               
               {((workOrder?.stage === 'work_order' || workOrder?.stage === 'invoice' || workOrder?.stage === 'credit_invoice') && workOrder?.wo_date) && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Work Order Date:</span>{' '}
                   {formatDate(workOrder.wo_date)}
                 </p>
@@ -348,25 +348,25 @@ export default function WorkOrderViewHeaderInfo({
               {/* Status badge removed as per request */}
               
               {workOrder?.po_number && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">PO #:</span> {workOrder.po_number}
                 </p>
               )}
               
               {workOrder?.cvip && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">CVIP:</span> {workOrder.cvip}
                 </p>
               )}
 
               {workOrder?.technician && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Technician:</span> {workOrder.technician}
                 </p>
               )}
               
               {workOrder?.scheduled_date && (
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   <span className="font-medium">Scheduled:</span>{' '}
                   {formatDate(workOrder.scheduled_date)}
                 </p>
@@ -374,8 +374,8 @@ export default function WorkOrderViewHeaderInfo({
 
               {workOrder?.customer_complaint && (
                 <div>
-                  <p className="font-medium text-slate-700 mb-1">Customer Complaint:</p>
-                  <p className="text-slate-600 bg-slate-50 p-2 rounded">
+                  <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">Customer Complaint:</p>
+                  <p className="text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-2 rounded">
                     {workOrder.customer_complaint}
                   </p>
                 </div>
@@ -388,12 +388,12 @@ export default function WorkOrderViewHeaderInfo({
                 <button
                   type="button"
                   onClick={onOpenVersionHistory}
-                  className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 w-full text-left hover:bg-slate-50 rounded-md px-1 py-2 transition-colors"
+                  className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md px-1 py-2 transition-colors"
                 >
                   {workOrder.created_by && (
                     <div className="flex justify-between items-center">
                       <span>Created By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={createdByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={createdByName}>
                         {createdByName}
                       </span>
                     </div>
@@ -401,16 +401,16 @@ export default function WorkOrderViewHeaderInfo({
                   {workOrder.created_date && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Created:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatMountainDateTimeSafe(workOrder.created_date)}
                       </span>
                     </div>
                   )}
                   
                   {workOrder.last_updated_by && (
-                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                       <span>Updated By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={lastUpdatedByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={lastUpdatedByName}>
                         {lastUpdatedByName}
                       </span>
                     </div>
@@ -418,16 +418,16 @@ export default function WorkOrderViewHeaderInfo({
                   {workOrder.last_updated && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Updated:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatMountainDateTimeSafe(workOrder.last_updated)}
                       </span>
                     </div>
                   )}
 
                   {workOrder.completed_by && (
-                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                       <span>Completed By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={completedByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={completedByName}>
                         {completedByName}
                       </span>
                     </div>
@@ -435,7 +435,7 @@ export default function WorkOrderViewHeaderInfo({
                   {workOrder.completed_date && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Completed:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatDate(workOrder.completed_date)}
                       </span>
                     </div>

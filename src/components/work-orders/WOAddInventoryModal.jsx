@@ -369,6 +369,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         for (const item of batchItems) {
             const quantityToOrder = parseFloat(item.quantity_to_order);
             let processedInventoryItem;
+            let oldQuantity = 0;
+            let newQuantity = 0;
+            let oldQuantityOnOrder = 0;
+            let newQuantityOnOrder = quantityToOrder;
 
             if (item.isExistingPart && item.existingPartId) {
                 // Update existing item QOO
@@ -381,6 +385,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 if (!freshItem) throw new Error("Could not find existing part in database.");
                 
                 const currentQOO = freshItem.quantity_on_order || 0;
+                oldQuantity = freshItem.quantity_on_hand || 0;
+                newQuantity = freshItem.quantity_on_hand || 0;
+                oldQuantityOnOrder = currentQOO;
+                newQuantityOnOrder = currentQOO + quantityToOrder;
                 
                 const updateResponse = await inventoryUpdate({
                     itemId: freshItem.id,
@@ -431,6 +439,14 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             // Create InventoryAuditLog record
             const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
                 inventory_item_id: processedInventoryItem.id,
+                part_num: processedInventoryItem.part_number,
+                old_quantity: oldQuantity,
+                new_quantity: newQuantity,
+                old_quantity_on_order: oldQuantityOnOrder,
+                new_quantity_on_order: newQuantityOnOrder,
+                supplier_name: getSupplierName(item.supplier_id),
+                source_record_id: workOrder.id,
+                source_function: 'WOAddInventoryModal',
                 tx_type: 'Ordered',
                 quantity_change: 0,
                 quantity_ordered_change: quantityToOrder,

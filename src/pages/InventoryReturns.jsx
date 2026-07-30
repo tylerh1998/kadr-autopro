@@ -212,6 +212,14 @@ export default function InventoryReturnsPage() {
 
         const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
           inventory_item_id: originalItem.id,
+          part_num: originalItem.part_number,
+          old_quantity: Number(originalItem.quantity_on_hand || 0),
+          new_quantity: newQOH,
+          old_quantity_on_order: Number(originalItem.quantity_on_order || 0),
+          new_quantity_on_order: Number(originalItem.quantity_on_order || 0),
+          supplier_name: getSupplierName(originalItem.supplier_id),
+          source_record_id: returnItem.id,
+          source_function: 'InventoryReturnsPage',
           tx_type: 'Transfer from Returns',
           quantity_change: quantityReturned,
           description: 'Part removed from Returns, back to inventory.',

@@ -59,7 +59,7 @@ export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewO
 
         <div className="py-4 space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="internal_notes" className="text-base font-semibold text-slate-900">
+            <Label htmlFor="internal_notes" className="text-base font-semibold text-slate-900 dark:text-slate-100">
               Internal Notes
             </Label>
             <Textarea
@@ -71,14 +71,14 @@ export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewO
               readOnly={viewOnly}
               disabled={viewOnly}
             />
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Internal notes for staff use only - not visible to customers.
             </p>
           </div>
 
-          <div className="border-t border-slate-200 pt-6">
+          <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
             <div className="space-y-3">
-              <Label htmlFor="notes_to_customer" className="text-base font-semibold text-slate-900">
+              <Label htmlFor="notes_to_customer" className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Notes to Customer
               </Label>
               <Textarea
@@ -90,7 +90,7 @@ export default function WONotesModal({ open, onClose, workOrder, onUpdate, viewO
                 readOnly={viewOnly}
                 disabled={viewOnly}
               />
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 These notes will appear on the customer's copy of the work order and any communications.
               </p>
             </div>

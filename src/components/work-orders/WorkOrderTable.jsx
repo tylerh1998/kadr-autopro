@@ -215,7 +215,7 @@ export default function WorkOrderTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {workOrders.map((workOrder) => {
                 const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
                 const vehicle = workOrder.Vehicle || vehicles.find(v => v.id === workOrder.vehicle_id);

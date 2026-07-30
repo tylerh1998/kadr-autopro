@@ -140,6 +140,13 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // Create InventoryAuditLog record (informational only, no quantity change)
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: inventoryItem.id,
+        part_num: lineItem.part_number,
+        old_quantity: Number(inventoryItem.quantity_on_hand || 0),
+        new_quantity: Number(inventoryItem.quantity_on_hand || 0),
+        old_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+        new_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+        source_record_id: returnId,
+        source_function: 'WarrantyReturnModal',
         ro_number: workOrder.wo_number || workOrder.ro_number,
         tx_type: 'Warranty Return', // Match the plan
         quantity_change: 0, // Informational only

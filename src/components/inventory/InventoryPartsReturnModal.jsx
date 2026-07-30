@@ -44,6 +44,11 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
     }
   }, [item, source]);
 
+  const getSupplierName = (id) => {
+    const s = suppliers.find(x => x.id === id);
+    return s ? s.name : 'Unknown';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!item) return;
@@ -65,6 +70,14 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
           const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
               inventory_item_id: item.id,
+              part_num: item.part_number,
+              old_quantity: currentQOH,
+              new_quantity: newQOH,
+              old_quantity_on_order: Number(item.quantity_on_order || 0),
+              new_quantity_on_order: Number(item.quantity_on_order || 0),
+              supplier_name: getSupplierName(item.supplier_id),
+              source_record_id: workOrderId,
+              source_function: 'InventoryPartsReturnModal (Work Order)',
               tx_type: 'Returned from WO',
               quantity_change: qtyReturned, // Positive change as it's returning to stock
               ro_number: workOrderNumber,
@@ -151,6 +164,14 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       // Create transaction record
       const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: item.id,
+        part_num: item.part_number,
+        old_quantity: Number(item.quantity_on_hand || 0),
+        new_quantity: updatedQOH,
+        old_quantity_on_order: Number(item.quantity_on_order || 0),
+        new_quantity_on_order: Number(item.quantity_on_order || 0),
+        supplier_name: getSupplierName(item.supplier_id),
+        source_record_id: returnId,
+        source_function: 'InventoryPartsReturnModal',
         tx_type: 'Returned to Supplier',
         quantity_change: -qtyVal, // Negative change as it's leaving stock
         description: `Part returned to supplier from inventory. Reason: ${returnReason}`,
