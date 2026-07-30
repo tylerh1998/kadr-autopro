@@ -1534,13 +1534,11 @@ export default function InventoryAddPage() {
                                                 <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 border-orange-300' : 'bg-white border-slate-200'}`}>
                                                     <span className="text-sm">
                                                         <span className="font-medium mr-2">{item.part_number || <span className="text-red-500 font-bold italic">Missing Part #</span>}</span>
-                                                        {item.is_existing ? (
-                                                            <Badge variant="outline" className="bg-slate-100 text-slate-600 text-[10px] mr-2 h-5 px-1 py-0">Existing</Badge>
-                                                        ) : (
+                                                        {!item.is_existing && (
                                                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] mr-2 h-5 px-1 py-0">New</Badge>
                                                         )}
                                                         {item.core && (
-                                                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
+                                                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
                                                         )}
                                                         <span>- {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>}</span> 
                                                         <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
