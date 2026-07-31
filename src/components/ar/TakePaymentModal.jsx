@@ -164,7 +164,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                     return (
                       <TableRow 
                         key={charge.id}
-                        className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (index % 2 === 1 ? 'bg-slate-50' : '')} hover:bg-blue-100`}
+                        className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/40' : (index % 2 === 1 ? 'bg-slate-50 dark:bg-slate-800/50' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/60`}
                         onClick={() => handleSelectCharge(charge.id, !isSelected)}
                       >
                         <TableCell onClick={(e) => e.stopPropagation()}>
@@ -186,7 +186,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                 </TableBody>
               </Table>
             </div>
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+            <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <span className="font-semibold">Selected Amount:</span>
               <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
             </div>
@@ -217,24 +217,24 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
             <DialogTitle>Payment Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">Payment Amount:</p>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">
                 ${(activeTab === 'pay_invoices' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)}
               </p>
             </div>
 
             {paymentMethod === 'credit_card' && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-900/50 rounded-lg">
                 <div className="flex justify-between items-center">
-                  <p className="text-sm text-amber-800">Credit Card Fee (3%):</p>
-                  <p className="text-lg font-bold text-amber-800">
+                  <p className="text-sm text-amber-800 dark:text-amber-500">Credit Card Fee (3%):</p>
+                  <p className="text-lg font-bold text-amber-800 dark:text-amber-400">
                     ${creditCardFeeAmount.toFixed(2)}
                   </p>
                 </div>
-                <div className="flex justify-between items-center mt-2 pt-2 border-t border-amber-200">
-                  <p className="text-sm font-semibold text-amber-900">Total to Charge:</p>
-                  <p className="text-lg font-bold text-amber-900">
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-amber-200 dark:border-amber-900/50">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-400">Total to Charge:</p>
+                  <p className="text-lg font-bold text-amber-900 dark:text-amber-300">
                     ${((activeTab === 'pay_invoices' ? totalSelectedAmount : (parseFloat(amount) || 0)) + creditCardFeeAmount).toFixed(2)}
                   </p>
                 </div>
@@ -271,8 +271,8 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                     onClick={() => setPaymentMethod(method.value)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                       paymentMethod === method.value
-                        ? 'bg-slate-900 text-white shadow-md'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     {method.label}

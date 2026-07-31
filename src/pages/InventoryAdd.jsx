@@ -670,6 +670,7 @@ export default function InventoryAddPage() {
         // --- VALIDATION ---
         let hasHardErrors = false;
         let subtotalMismatchInvoices = [];
+        let totalMismatchInvoices = [];
 
         let missingTireTaxItems = [];
 
@@ -687,12 +688,20 @@ export default function InventoryAddPage() {
                 hasHardErrors = true;
             }
 
-            const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0) + (group.freight_amount || 0);
-            const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotal) > 0.01;
+            const actualSubtotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+            const actualTotalForMismatch = actualSubtotal + (group.freight_amount || 0); // legacy variable name
+            const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotalForMismatch) > 0.01;
             
+            const calculatedGrandTotal = actualTotalForMismatch + (group.invoice_gst || 0);
+            const totalMismatch = group.invoice_total !== undefined && group.invoice_total !== null && group.invoice_total > 0 && Math.abs(group.invoice_total - calculatedGrandTotal) > 0.01;
+
             if (subtotalMismatch) {
                 const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
                 subtotalMismatchInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'}`);
+            }
+            if (totalMismatch) {
+                const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
+                totalMismatchInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'}`);
             }
         }
 
@@ -704,6 +713,14 @@ export default function InventoryAddPage() {
 
         if (subtotalMismatchInvoices.length > 0) {
             const proceed = window.confirm(`WARNING: The following invoices have a subtotal mismatch (the OCR expected subtotal does not match the sum of the line items):\n\n${subtotalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        if (totalMismatchInvoices.length > 0) {
+            const proceed = window.confirm(`WARNING: The following invoices have a grand total mismatch (the OCR expected invoice total does not match your subtotal + freight + GST):\n\n${totalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
             if (!proceed) {
                 saveInProgressRef.current = false;
                 return;
@@ -759,7 +776,8 @@ export default function InventoryAddPage() {
                             invoice_date: invoiceGroup.invoice_date,
                             items: invoiceGroup.partItems,
                             action: 'create',
-                            freight_amount: invoiceGroup.freight_amount
+                            freight_amount: invoiceGroup.freight_amount,
+                            invoice_gst: invoiceGroup.invoice_gst
                         }
                     });
                     console.log('Response from autopro-processInventoryReceipt:', response);
@@ -980,7 +998,9 @@ export default function InventoryAddPage() {
                 invoice_date: invoiceDate,
                 partItems: parsedItems,
                 ocr_expected_subtotal: expectedSubtotal,
-                freight_amount: parseFloat(data.freight) || 0
+                freight_amount: parseFloat(data.freight) || 0,
+                invoice_gst: parseFloat(data.gst_amount) || 0,
+                invoice_total: parseFloat(data.invoice_total) || 0
             });
         });
 
@@ -1627,15 +1647,20 @@ export default function InventoryAddPage() {
                             <div className="space-y-4 max-h-96 overflow-y-auto">
                                 {batchItems.map((group, groupIndex) => {
                                     const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
-                                    const actualTotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0) + (group.freight_amount || 0);
-                                    const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotal) > 0.01;
+                                    const actualSubtotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+                                    const actualTotalForMismatch = actualSubtotal + (group.freight_amount || 0);
+                                    const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotalForMismatch) > 0.01;
                                     
+                                    const calculatedGrandTotal = actualTotalForMismatch + (group.invoice_gst || 0);
+                                    const totalMismatch = group.invoice_total !== undefined && group.invoice_total !== null && group.invoice_total > 0 && Math.abs(group.invoice_total - calculatedGrandTotal) > 0.01;
+
                                     const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
-                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || hasRowErrors;
+                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors;
                                     
                                     const errorMessages = [];
                                     if (isMissingGroupInfo) errorMessages.push("Missing Supplier, Invoice #, or Date");
-                                    if (subtotalMismatch) errorMessages.push(`Subtotal mismatch (OCR Expected: $${group.ocr_expected_subtotal?.toFixed(2)}, Actual: $${actualTotal.toFixed(2)})`);
+                                    if (subtotalMismatch) errorMessages.push(`Subtotal mismatch (OCR Expected: $${group.ocr_expected_subtotal?.toFixed(2)}, Actual: $${actualTotalForMismatch.toFixed(2)})`);
+                                    if (totalMismatch) errorMessages.push(`Total mismatch (OCR Expected: $${group.invoice_total?.toFixed(2)}, Actual: $${calculatedGrandTotal.toFixed(2)})`);
                                     if (hasRowErrors) errorMessages.push("One or more rows have missing information");
 
                                     return (
@@ -1692,6 +1717,12 @@ export default function InventoryAddPage() {
                                         </div>
                                         <div className="mt-2 pt-2 border-t border-slate-300 text-right text-sm font-semibold flex items-center justify-end gap-6 text-slate-700">
                                             <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 font-normal">Subtotal:</span>
+                                                <span className={subtotalMismatch ? 'bg-orange-200 px-1 rounded' : ''}>
+                                                    ${actualTotalForMismatch.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
                                                 <span className="text-slate-500 font-normal">Freight:</span>
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-1.5 text-slate-500">$</span>
@@ -1709,9 +1740,26 @@ export default function InventoryAddPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 font-normal">GST:</span>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-1.5 text-slate-500">$</span>
+                                                    <Input 
+                                                        type="number" 
+                                                        step="0.01" 
+                                                        className="w-24 h-8 pl-5 text-right font-normal" 
+                                                        value={group.invoice_gst || ''}
+                                                        onChange={(e) => {
+                                                            const newBatchItems = [...batchItems];
+                                                            newBatchItems[groupIndex].invoice_gst = parseFloat(e.target.value) || 0;
+                                                            setBatchItems(newBatchItems);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
                                                 Invoice Total: 
-                                                <span className={groupHasError ? 'bg-orange-200 px-1 rounded' : ''}>
-                                                    ${actualTotal.toFixed(2)}
+                                                <span className={totalMismatch ? 'bg-orange-200 px-1 rounded' : ''}>
+                                                    ${calculatedGrandTotal.toFixed(2)}
                                                 </span>
                                             </div>
                                             {groupHasError && (

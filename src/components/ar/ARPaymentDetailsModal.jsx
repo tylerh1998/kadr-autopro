@@ -130,7 +130,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         ) : (
           <div className="space-y-4">
             {paymentRecord && (
-              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="font-semibold">Payment Date:</span>
                   <span>{formatMountainDate(paymentRecord.payment_date)}</span>
@@ -167,17 +167,17 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                     </TableHeader>
                     <TableBody>
                       {appliedToDetails.map((detail, index) => (
-                        <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
+                        <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50 dark:bg-green-900/30' : ''}>
                           <TableCell>{detail.reference}</TableCell>
                           <TableCell>{formatMountainDate(detail.date)}</TableCell>
                           <TableCell>{detail.description}</TableCell>
-                          <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700' : ''}`}>
+                          <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700 dark:text-green-400' : ''}`}>
                             ${detail.amountApplied.toFixed(2)}
                             {detail.isOverpayment && <span className="ml-2 text-xs">(Available Credit)</span>}
                           </TableCell>
                         </TableRow>
                       ))}
-                      <TableRow className="font-bold bg-slate-50">
+                      <TableRow className="font-bold bg-slate-50 dark:bg-slate-800">
                         <TableCell colSpan={3} className="text-right">Total Applied:</TableCell>
                         <TableCell className="text-right">${totalApplied.toFixed(2)}</TableCell>
                       </TableRow>

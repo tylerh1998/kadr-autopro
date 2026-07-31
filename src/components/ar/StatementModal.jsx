@@ -303,18 +303,18 @@ export default function StatementModal({ open, onClose, customer }) {
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {statementPortalId && (
                   <>
-                    <Button variant="outline" onClick={() => setShowEmailModal(true)}><Mail className="w-4 h-4 mr-2" /> Email</Button>
+                    <Button variant="outline" onClick={() => setShowEmailModal(true)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"><Mail className="w-4 h-4 mr-2" /> Email</Button>
                     <Input
                       readOnly
                       value={`portal.kensauto.ca/statement?cp_id=${statementPortalId}`}
-                      className="flex-grow min-w-[300px]"
+                      className="flex-grow min-w-[300px] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
-                    <Button variant="outline" onClick={handleCopyUrl}><Copy className="w-4 h-4 mr-2" /> Copy</Button>
+                    <Button variant="outline" onClick={handleCopyUrl} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"><Copy className="w-4 h-4 mr-2" /> Copy</Button>
                   </>
               )}
             </div>
             <div className="flex items-center gap-2 self-end">
-              <Button variant="outline" onClick={onClose}>Close</Button>
+              <Button variant="outline" onClick={onClose} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">Close</Button>
               <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Print</Button>
             </div>
           </DialogFooter>

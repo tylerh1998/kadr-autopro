@@ -60,7 +60,8 @@ serve(async (req) => {
       supplier_invoice_line_id,
       quantity,
       amount_per_unit,
-      freight_amount
+      freight_amount,
+      invoice_gst
     } = payload;
 
     if (action === 'reverse') {
@@ -141,7 +142,7 @@ serve(async (req) => {
     }
 
     if (action === 'create') {
-      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items, freight_amount);
+      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items, freight_amount, invoice_gst);
     } else {
       return res({ success: false, error: 'Invalid action. Must be "create", "edit", or "reverse"' }, { status: 400 });
     }
@@ -237,7 +238,7 @@ async function checkFiscalPeriodStatus(supabase: any, dateString: string) {
   }
 }
 
-async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[], freight_amount: any = 0) {
+async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[], freight_amount: any = 0, invoice_gst: any = 0) {
   const res = (data: any, options: any = {}) => {
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -473,6 +474,26 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
         inventory: false,
         gst_override: isDefaultTaxable
       });
+    }
+
+    if (invoice_gst && parseFloat(invoice_gst) > 0 && invoiceLinesToCreate.length > 0) {
+      const targetGst = parseFloat(invoice_gst);
+      const calculatedGst = invoiceLinesToCreate.reduce((sum, line) => sum + line.gst_amount, 0);
+      let diff = Math.round((targetGst - calculatedGst) * 100) / 100;
+      
+      let index = 0;
+      while (Math.abs(diff) >= 0.01 && index < invoiceLinesToCreate.length) {
+        const adjustment = diff > 0 ? 0.01 : -0.01;
+        invoiceLinesToCreate[index].gst_amount = Math.round((invoiceLinesToCreate[index].gst_amount + adjustment) * 100) / 100;
+        diff = Math.round((diff - adjustment) * 100) / 100;
+        
+        index++;
+        if (index >= invoiceLinesToCreate.length && Math.abs(diff) >= 0.01) {
+          // If we looped through all lines and still have a diff (very rare), just apply the rest to the first line
+          invoiceLinesToCreate[0].gst_amount = Math.round((invoiceLinesToCreate[0].gst_amount + diff) * 100) / 100;
+          diff = 0;
+        }
+      }
     }
 
     let createdLines = [];

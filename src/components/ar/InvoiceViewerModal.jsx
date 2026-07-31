@@ -53,12 +53,12 @@ export default function InvoiceViewerModal({ open, onClose, invoiceUrl }) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="p-4 border-b">
+                <DialogHeader className="p-4 border-b border-slate-200 dark:border-slate-800">
                     <DialogTitle>View Invoice</DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 w-full h-full bg-slate-100 overflow-hidden relative">
+                <div className="flex-1 w-full h-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
                     {loading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 z-10">
                             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                         </div>
                     )}
@@ -87,7 +87,7 @@ export default function InvoiceViewerModal({ open, onClose, invoiceUrl }) {
                     )}
 
                     {!loading && !error && !blobUrl && !invoiceUrl && (
-                         <div className="flex items-center justify-center h-full text-slate-500">
+                         <div className="flex items-center justify-center h-full text-slate-500 dark:text-slate-400">
                             No invoice URL provided
                         </div>
                     )}

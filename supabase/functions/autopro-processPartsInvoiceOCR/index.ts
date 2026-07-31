@@ -51,6 +51,8 @@ Format the output EXACTLY as a JSON object with no markdown wrappers or addition
   "invoice_date": "The invoice date in YYYY-MM-DD format. If you cannot find it, return empty string.",
   "subtotal": The subtotal amount as a number (before taxes). If not found, return 0,
   "freight": The total freight or shipping charge as a number. If not found, return 0,
+  "gst_amount": The total GST or tax amount for the invoice as a number. If not found, return 0,
+  "invoice_total": The final grand total for the invoice as a number. If not found, return 0,
   "items": [
     {
       "part_number": "The part number or item code",

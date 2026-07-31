@@ -438,29 +438,29 @@ export default function CustomerARTransactionsPage() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-200">{!showPaymentDetails && <th className="w-12 p-3 no-print"></th>}<th className="text-left p-3 font-semibold text-slate-700">Date</th>
-              {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Reference</th>}
-              <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-              {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700">Payment Method</th>}
-              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Charges</th>}
-              <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
-              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700">Owing</th>}
-              {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>}
+            <tr className="border-b border-slate-200 dark:border-slate-800">{!showPaymentDetails && <th className="w-12 p-3 no-print"></th>}<th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+              {!showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Reference</th>}
+              <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+              {showPaymentDetails && <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Payment Method</th>}
+              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Charges</th>}
+              <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Payments</th>
+              {!showPaymentDetails && <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Owing</th>}
+              {showPaymentDetails && <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300 no-print">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {!showPaymentDetails && Math.abs(openingBalance) > 0.005 && (
-              <tr className="bg-slate-50/80 border-b border-slate-200 font-medium italic">
+              <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-medium italic">
                 <td className="p-3 no-print"></td>
-                <td className="p-3 text-slate-500">
+                <td className="p-3 text-slate-500 dark:text-slate-400">
                   {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'Prior'}
                 </td>
-                <td className="p-3 text-slate-500"></td>
-                <td className="p-3 text-slate-900">Previous Balance</td>
+                <td className="p-3 text-slate-500 dark:text-slate-400"></td>
+                <td className="p-3 text-slate-900 dark:text-slate-100">Previous Balance</td>
                 <td className="p-3 text-right"></td>
                 <td className="p-3 text-right"></td>
                 <td className="p-3 text-right">
-                  <span className={`${openingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`${openingBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                     ${Math.abs(openingBalance).toFixed(2)}
                     {openingBalance < 0 && ' CR'}
                   </span>
@@ -471,8 +471,8 @@ export default function CustomerARTransactionsPage() {
               <tr>
                 <td colSpan={showPaymentDetails ? 5 : 6} className="text-center py-12">
                   <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                  <p className="text-slate-600">No transactions found for the selected date range.</p>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions</h3>
+                  <p className="text-slate-600 dark:text-slate-400">No transactions found for the selected date range.</p>
                 </td>
               </tr>
             ) : (
@@ -480,7 +480,7 @@ export default function CustomerARTransactionsPage() {
                 <ContextMenu key={`${transaction.sourceId}-${index}`}>
                   <ContextMenuTrigger asChild>
                     <tr 
-                      className={`border-b border-slate-100 ${showPaymentDetails && transaction.source === 'payment' ? 'cursor-pointer hover:bg-slate-50' : ''} ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                      className={`border-b border-slate-100 dark:border-slate-800 ${showPaymentDetails && transaction.source === 'payment' ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800' : ''} ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}`}
                       onClick={(e) => {
                         if (showPaymentDetails && transaction.source === 'payment') {
                           e.stopPropagation();
@@ -495,7 +495,7 @@ export default function CustomerARTransactionsPage() {
                             type="checkbox"
                             checked={selectedWorkOrderIds.includes(transaction.work_order_id)}
                             onChange={() => handleToggleWorkOrderSelection(transaction)}
-                            className="h-4 w-4 rounded border-slate-300"
+                            className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 dark:bg-slate-800"
                           />
                         )}
                         </td>
@@ -504,22 +504,22 @@ export default function CustomerARTransactionsPage() {
                         {showPaymentDetails ? formatMountainDate(transaction.date) : format(parseISO(transaction.date), 'MMM d, yyyy')}
                       </td>
                       {!showPaymentDetails && (
-                        <td className="p-3 text-slate-600">
+                        <td className="p-3 text-slate-600 dark:text-slate-400">
                           {transaction.reference}
                         </td>
                       )}
-                      <td className="p-3 text-slate-900">
+                      <td className="p-3 text-slate-900 dark:text-slate-100">
                         {transaction.description}
                       </td>
                       {showPaymentDetails && (
-                        <td className="p-3 text-slate-600">
+                        <td className="p-3 text-slate-600 dark:text-slate-400">
                           {formatPaymentMethod(transaction.payment_method)}
                         </td>
                       )}
                       {!showPaymentDetails && (
                         <td className="p-3 text-right">
                           {(transaction.amount || 0) > 0 && (
-                            <span className="font-semibold text-red-600">
+                            <span className="font-semibold text-red-600 dark:text-red-400">
                               ${(transaction.amount || 0).toFixed(2)}
                             </span>
                           )}
@@ -535,7 +535,7 @@ export default function CustomerARTransactionsPage() {
                         }}
                       >
                         {(transaction.payment || 0) > 0 && (
-                          <span className="font-semibold text-green-600">
+                          <span className="font-semibold text-green-600 dark:text-green-400">
                             ${(transaction.payment || 0).toFixed(2)}
                           </span>
                         )}
@@ -543,9 +543,9 @@ export default function CustomerARTransactionsPage() {
                       {!showPaymentDetails && (
                         <td className="p-3 text-right">
                           <span className={`font-semibold ${
-                            (transaction.balance || 0) > 0 ? 'text-red-600' : 
-                            (transaction.balance || 0) < 0 ? 'text-green-600' : 
-                            'text-slate-900'
+                            (transaction.balance || 0) > 0 ? 'text-red-600 dark:text-red-400' : 
+                            (transaction.balance || 0) < 0 ? 'text-green-600 dark:text-green-400' : 
+                            'text-slate-900 dark:text-slate-100'
                           }`}>
                             ${Math.abs(transaction.balance || 0).toFixed(2)}
                             {(transaction.balance || 0) < 0 && ' CR'}
@@ -561,7 +561,7 @@ export default function CustomerARTransactionsPage() {
                               e.stopPropagation();
                               handleDeletePayment(transaction);
                             }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -589,16 +589,16 @@ export default function CustomerARTransactionsPage() {
           </tbody>
           {showTotalsRow && (
             <tfoot>
-              <tr className="border-t-2 border-slate-300 bg-slate-100 font-semibold">
+              <tr className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 font-semibold">
                 {!showPaymentDetails && <td className="p-3 no-print"></td>}
-                <td className="p-3 text-slate-900" colSpan={showPaymentDetails ? 3 : 3}>Total</td>
+                <td className="p-3 text-slate-900 dark:text-slate-100" colSpan={showPaymentDetails ? 3 : 3}>Total</td>
                 {!showPaymentDetails && (
-                  <td className="p-3 text-right text-red-600">${totalCharges.toFixed(2)}</td>
+                  <td className="p-3 text-right text-red-600 dark:text-red-400">${totalCharges.toFixed(2)}</td>
                 )}
-                <td className="p-3 text-right text-green-600">${totalPayments.toFixed(2)}</td>
+                <td className="p-3 text-right text-green-600 dark:text-green-400">${totalPayments.toFixed(2)}</td>
                 {!showPaymentDetails && (
                   <td className="p-3 text-right">
-                    <span className={closingOwing > 0 ? 'text-red-600' : closingOwing < 0 ? 'text-green-600' : 'text-slate-900'}>
+                    <span className={closingOwing > 0 ? 'text-red-600 dark:text-red-400' : closingOwing < 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'}>
                       ${Math.abs(closingOwing).toFixed(2)}
                       {closingOwing < 0 && ' CR'}
                     </span>
@@ -614,40 +614,40 @@ export default function CustomerARTransactionsPage() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
+    <div className="p-6 min-h-screen dark:bg-slate-900">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
           <div className="flex items-center gap-4">
             <Button 
               variant="outline" 
               onClick={handleBackClick}
-              className="shrink-0"
+              className="shrink-0 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                 A/R Transactions for {customer ? formatCustomerName(customer) : '...'}
               </h1>
               <div className="flex items-center gap-4 mt-2">
-                <p className="text-slate-600">{customer.phone}</p>
-                {customer.email && <p className="text-slate-600">{customer.email}</p>}
+                <p className="text-slate-600 dark:text-slate-400">{customer.phone}</p>
+                {customer.email && <p className="text-slate-600 dark:text-slate-400">{customer.email}</p>}
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            <Card className="mr-2">
+            <Card className="mr-2 dark:bg-slate-900 dark:border-slate-800">
               <CardContent className="p-4">
-                <p className="text-sm text-slate-600">Current Balance</p>
-                <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-red-600' : currentBalance < 0 ? 'text-green-600' : 'text-slate-900'}`}>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Current Balance</p>
+                <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-red-600 dark:text-red-400' : currentBalance < 0 ? 'text-green-600 dark:text-green-400' : 'text-slate-900 dark:text-slate-100'}`}>
                   ${Math.abs(currentBalance).toFixed(2)}
                   {currentBalance < 0 && ' CR'}
                 </p>
               </CardContent>
             </Card>
-            <Button variant="outline" onClick={() => setShowStatementModal(true)}>
+            <Button variant="outline" onClick={() => setShowStatementModal(true)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">
               <Printer className="w-4 h-4 mr-2" />
               Statement
             </Button>
@@ -655,32 +655,32 @@ export default function CustomerARTransactionsPage() {
               <DollarSign className="w-4 h-4 mr-2" />
               Take Payment
             </Button>
-            <Button variant="outline" onClick={() => setShowAdjustmentModal(true)}>
+            <Button variant="outline" onClick={() => setShowAdjustmentModal(true)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">
               <Plus className="w-4 h-4 mr-2" />
               Record Adjustment
             </Button>
           </div>
         </div>
 
-        <Card className="no-print">
+        <Card className="no-print dark:bg-slate-900 dark:border-slate-800">
           <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
             <div className="flex items-center gap-2">
-              <Label htmlFor="days-back">Days Back</Label>
+              <Label htmlFor="days-back" className="dark:text-slate-300">Days Back</Label>
               <Input
                 id="days-back"
                 type="number"
                 value={pendingDaysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
-                className="w-24"
+                className="w-24 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
               />
             </div>
             <div className="flex items-center gap-2">
-              <Label>Date Range</Label>
+              <Label className="dark:text-slate-300">Date Range</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
-                    className="w-[280px] justify-start text-left font-normal"
+                    className="w-[280px] justify-start text-left font-normal dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {pendingDateRange.from ? (
@@ -711,20 +711,20 @@ export default function CustomerARTransactionsPage() {
             </div>
             <Button onClick={handleApplyDateFilter}>Apply</Button>
             <div className="flex items-center gap-2 flex-1">
-              <Label htmlFor="search">Search</Label>
+              <Label htmlFor="search" className="dark:text-slate-300">Search</Label>
               <Input
                 id="search"
                 type="text"
                 placeholder="Search by reference, description, or amount..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
+                className="flex-1 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
               />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:bg-slate-900 dark:border-slate-800">
           <CardHeader className="no-print">
             <div className="flex items-center justify-between gap-4">
               <CardTitle>Transaction History</CardTitle>
@@ -735,7 +735,7 @@ export default function CustomerARTransactionsPage() {
                     Send Selected
                   </Button>
                 )}
-                <Button variant="outline" onClick={handlePrint}>
+                <Button variant="outline" onClick={handlePrint} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">
                   <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>
@@ -743,13 +743,13 @@ export default function CustomerARTransactionsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="print-only mb-4 border-b border-slate-300 pb-3">
-              <h2 className="text-xl font-bold text-slate-900">A/R Transaction History</h2>
-              <p className="text-slate-700">{formatCustomerName(customer)}</p>
-              <div className="mt-2 space-y-1 text-sm text-slate-600">
-                <p><span className="font-semibold text-slate-900">Tab:</span> {activeTab === 'payments' ? 'Payments' : 'Transactions'}</p>
-                <p><span className="font-semibold text-slate-900">Date Range:</span> {appliedDateRangeLabel}</p>
-                {searchTerm && <p><span className="font-semibold text-slate-900">Search:</span> {searchTerm}</p>}
+            <div className="print-only mb-4 border-b border-slate-300 dark:border-slate-700 pb-3">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">A/R Transaction History</h2>
+              <p className="text-slate-700 dark:text-slate-400">{formatCustomerName(customer)}</p>
+              <div className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                <p><span className="font-semibold text-slate-900 dark:text-slate-100">Tab:</span> {activeTab === 'payments' ? 'Payments' : 'Transactions'}</p>
+                <p><span className="font-semibold text-slate-900 dark:text-slate-100">Date Range:</span> {appliedDateRangeLabel}</p>
+                {searchTerm && <p><span className="font-semibold text-slate-900 dark:text-slate-100">Search:</span> {searchTerm}</p>}
               </div>
             </div>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -799,18 +799,18 @@ export default function CustomerARTransactionsPage() {
       )}
 
       {batchSendResults.length > 0 && (
-       <Card className="mt-6 no-print">
+       <Card className="mt-6 no-print dark:bg-slate-900 dark:border-slate-800">
          <CardHeader>
            <CardTitle>Last Batch Send Status</CardTitle>
          </CardHeader>
          <CardContent className="space-y-3">
            {batchSendResults.map((result) => (
-             <div key={result.work_order_id} className="flex items-center justify-between gap-3 rounded-md border p-3 text-sm">
+             <div key={result.work_order_id} className="flex items-center justify-between gap-3 rounded-md border dark:border-slate-800 p-3 text-sm">
                <div>
-                 <p className="font-medium text-slate-900">{result.label}</p>
-                 <p className="text-slate-500">{result.message}</p>
+                 <p className="font-medium text-slate-900 dark:text-slate-100">{result.label}</p>
+                 <p className="text-slate-500 dark:text-slate-400">{result.message}</p>
                </div>
-               <Badge className={result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+               <Badge className={result.success ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}>
                  {result.success ? 'Sent' : 'Failed'}
                </Badge>
              </div>
@@ -844,9 +844,9 @@ export default function CustomerARTransactionsPage() {
             <AlertDialogDescription>
               This will reverse the payment and update all affected invoices/adjustments. This action cannot be undone.
               {paymentToDelete && (
-                <div className="mt-4 p-3 bg-slate-100 rounded">
-                  <p className="font-semibold">Payment Amount: ${(paymentToDelete.amount || 0).toFixed(2)}</p>
-                  <p>Payment Date: {format(parseISO(paymentToDelete.payment_date), 'MMM d, yyyy')}</p>
+                <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded">
+                  <p className="font-semibold dark:text-slate-100">Payment Amount: ${(paymentToDelete.amount || 0).toFixed(2)}</p>
+                  <p className="dark:text-slate-300">Payment Date: {format(parseISO(paymentToDelete.payment_date), 'MMM d, yyyy')}</p>
                 </div>
               )}
             </AlertDialogDescription>
@@ -870,10 +870,10 @@ export default function CustomerARTransactionsPage() {
             <AlertDialogDescription>
               This will delete the adjustment and reverse all associated GL transactions. This action cannot be undone.
               {adjustmentToDelete && (
-                <div className="mt-4 p-3 bg-slate-100 rounded">
-                  <p className="font-semibold">Amount: ${Math.abs(adjustmentToDelete.amount || 0).toFixed(2)}</p>
-                  <p>Date: {format(parseISO(adjustmentToDelete.adjustment_date), 'MMM d, yyyy')}</p>
-                  <p>Description: {adjustmentToDelete.description}</p>
+                <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-800 rounded">
+                  <p className="font-semibold dark:text-slate-100">Amount: ${Math.abs(adjustmentToDelete.amount || 0).toFixed(2)}</p>
+                  <p className="dark:text-slate-300">Date: {format(parseISO(adjustmentToDelete.adjustment_date), 'MMM d, yyyy')}</p>
+                  <p className="dark:text-slate-300">Description: {adjustmentToDelete.description}</p>
                 </div>
               )}
             </AlertDialogDescription>

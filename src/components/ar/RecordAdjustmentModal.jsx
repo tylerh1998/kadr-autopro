@@ -222,7 +222,7 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
                 }}
                 onBlur={handleDateBlur}
                 placeholder="MM/DD/YYYY"
-                className={dateInputError ? 'border-red-500' : ''}
+                className={dateInputError ? 'border-red-500 dark:border-red-700' : ''}
               />
               <Popover>
                 <PopoverTrigger asChild>
@@ -242,9 +242,9 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
             </div>
             {dateInputError && <p className="text-xs text-red-500">{dateInputError}</p>}
             {periodError && !dateInputError && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md mt-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-800">{periodError}</p>
+              <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-900/50 rounded-md mt-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-800 dark:text-red-400">{periodError}</p>
               </div>
             )}
           </div>

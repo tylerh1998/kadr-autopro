@@ -183,19 +183,27 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
 
         const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
         
-        const formattedParts = order.items.map((item, idx) => {
-            let costPrice = 0;
+        const formattedParts = order.items.map((rawItem, idx) => {
+            // Support flat item or item wrapped in a node
+            const item = rawItem.node || rawItem;
+            // Sometimes parts details are nested under item.part
+            const partInfo = item.part || item;
+            
+            let costPrice = item.costPrice || item.cost || item.price || 0;
             if (item.builtItem) {
-                costPrice = item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || 0;
-                if (costPrice === 0 && item.builtItem.price) {
-                   costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || 0;
+                costPrice = item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || costPrice;
+                if (!costPrice && item.builtItem.price) {
+                   costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || costPrice;
                 }
             }
+            // Ensure costPrice is a number
+            costPrice = Number(costPrice) || 0;
+
             return {
                 id: idx,
-                partNumber: item.partNumber || '',
-                description: item.partName || item.description || '',
-                quantity: item.quantity || 1,
+                partNumber: partInfo.partNumber || partInfo.part_number || '',
+                description: partInfo.partName || partInfo.description || partInfo.name || '',
+                quantity: item.quantity || item.qty || 1,
                 costPrice: costPrice,
                 salesClassId: defaultSc?.id || "",
                 selected: true
