@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
@@ -11,6 +11,9 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   
   const [isPolling, setIsPolling] = useState(false);
   const [pollError, setPollError] = useState(null);
+  const latestCartDataRef = useRef(null);
+  const [showCartReview, setShowCartReview] = useState(false);
+  const [reviewParts, setReviewParts] = useState([]);
 
   const rawRoNumber = roNumber ? String(roNumber).replace(/^(RO|WO-?)/i, '').trim() : '';
 
@@ -29,10 +32,25 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
     const handleMessage = (event) => {
       // Listen for messages from our custom Chrome Extension
       if (event.data && event.data.type === 'PARTSTECH_EXT_DATA') {
-        console.log("🚀 CHROME EXTENSION INTERCEPTED API CALL:", event.data.url, event.data.payload);
+        const payload = event.data.payload;
+        let order = null;
         
-        // We will dump the payload into the UI so we can find exactly where the cart data is
-        setPollError("Extension grabbed data! Check console to see the API payload.");
+        // PartsTech uses different GraphQL queries for active cart vs saved quotes
+        if (payload?.data?.activeCart?.order) {
+            order = payload.data.activeCart.order;
+        } else if (payload?.data?.cart) {
+            order = payload.data.cart;
+        } else if (payload?.data?.quote) {
+            order = payload.data.quote;
+        } else if (payload?.data?.addItemsToCart?.cart?.order) {
+            order = payload.data.addItemsToCart.cart.order;
+        }
+
+        if (order && order.items && order.items.length > 0) {
+            console.log("🔥 WE HAVE THE CART DATA:", order);
+            latestCartDataRef.current = order;
+            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'Load Transferred Parts' to import.`);
+        }
         return;
       }
 
@@ -103,7 +121,38 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
 
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
-  const handleCompleteOrder = async () => {
+  const handleViewCart = async () => {
+    // If our extension grabbed the cart, use it instantly!
+    if (latestCartDataRef.current) {
+        const order = latestCartDataRef.current;
+        const formattedParts = order.items.map((item, idx) => {
+            // Attempt to extract pricing from builtItem
+            let costPrice = 0;
+            if (item.builtItem) {
+                // PartsTech puts pricing in builtItem.price or similar
+                costPrice = item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || 0;
+                
+                if (costPrice === 0 && item.builtItem.price) {
+                   costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || 0;
+                }
+            }
+
+            return {
+                id: idx,
+                partNumber: item.partNumber || '',
+                description: item.partName || item.description || '',
+                quantity: item.quantity || 1,
+                costPrice: costPrice,
+                selected: true
+            };
+        });
+
+        setReviewParts(formattedParts);
+        setShowCartReview(true);
+        return;
+    }
+
+    // Fallback to database polling if no extension data
     setIsPolling(true);
     setPollError(null);
     let found = false;
@@ -130,13 +179,21 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             .update({ status: 'processed' })
             .eq('id', cartRow.id);
 
-          // Pass payload to parent component
-          if (onTransferComplete) {
-            onTransferComplete(cartRow.payload);
-          }
+          // We grabbed it from DB, so we map it and show the review cart too!
+          const dbParts = cartRow.payload?.parts || [];
+          const formattedDbParts = dbParts.map((p, idx) => ({
+             id: idx,
+             partNumber: p.part_number || p.partNumber || '',
+             description: p.description || p.partName || '',
+             quantity: p.qty || p.quantity || 1,
+             costPrice: p.parts_ea || p.costPrice || 0,
+             selected: true
+          }));
+          
+          setReviewParts(formattedDbParts);
+          setShowCartReview(true);
           
           found = true;
-          onClose(); // Close modal upon success
           break;
         }
 
@@ -155,6 +212,29 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
         setIsPolling(false);
       }
     }
+  };
+
+  const handleConfirmTransfer = async () => {
+    const selectedParts = reviewParts.filter(p => p.selected);
+    
+    try {
+        // Create the historical row in PartsTechCart
+        await supabase.from('PartsTechCart').insert({
+            wo_id: String(rawRoNumber || roNumber),
+            payload: { parts: selectedParts },
+            status: 'processed'
+        });
+    } catch (e) {
+        console.error("Failed to create historical cart row", e);
+    }
+
+    if (onTransferComplete) {
+        // handlePartsTechSuccess expects 'parts' array
+        onTransferComplete({ parts: selectedParts });
+    }
+    
+    setShowCartReview(false);
+    onClose();
   };
 
   return (
@@ -177,11 +257,11 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             <Button 
               variant="default" 
               className="bg-green-600 hover:bg-green-700 text-white" 
-              onClick={handleCompleteOrder}
+              onClick={handleViewCart}
               disabled={isPolling}
             >
               {isPolling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-              {isPolling ? "Waiting for Parts..." : "Load Transferred Parts"}
+              {isPolling ? "Waiting for Parts..." : "View Cart"}
             </Button>
           </div>
         </DialogHeader>
@@ -217,6 +297,76 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
           </div>
         )}
       </DialogContent>
+
+      <Dialog open={showCartReview} onOpenChange={setShowCartReview}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-6">
+          <DialogHeader>
+            <DialogTitle>Review Parts to Transfer</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto border rounded-md my-4">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-100 text-slate-700 sticky top-0 shadow-sm z-10">
+                <tr>
+                  <th className="p-3 w-12 text-center">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-gray-300"
+                      checked={reviewParts.length > 0 && reviewParts.every(p => p.selected)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setReviewParts(reviewParts.map(p => ({ ...p, selected: checked })));
+                      }}
+                    />
+                  </th>
+                  <th className="p-3 font-semibold">Part Number</th>
+                  <th className="p-3 font-semibold">Description</th>
+                  <th className="p-3 font-semibold text-right">Qty</th>
+                  <th className="p-3 font-semibold text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {reviewParts.map(part => (
+                  <tr key={part.id} className={part.selected ? "bg-white" : "bg-slate-50 opacity-50"}>
+                    <td className="p-3 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-gray-300"
+                        checked={part.selected}
+                        onChange={(e) => {
+                          setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, selected: e.target.checked } : p));
+                        }}
+                      />
+                    </td>
+                    <td className="p-3 font-mono">{part.partNumber}</td>
+                    <td className="p-3 truncate max-w-[300px]">{part.description}</td>
+                    <td className="p-3 text-right">{part.quantity}</td>
+                    <td className="p-3 text-right">${Number(part.costPrice || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {reviewParts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                      No parts found in the cart.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="flex justify-end gap-3 shrink-0">
+            <Button variant="outline" onClick={() => setShowCartReview(false)}>Cancel</Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleConfirmTransfer}
+              disabled={reviewParts.filter(p => p.selected).length === 0}
+            >
+              Add {reviewParts.filter(p => p.selected).length} Parts to Work Order
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
