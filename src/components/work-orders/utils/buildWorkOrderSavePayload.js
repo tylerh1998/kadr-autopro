@@ -83,6 +83,8 @@ export const prepareWorkOrderSavePayload = ({
       complete: item.complete || false,
       bold: item.bold || false,
       inventory_processed: item.inventory_processed || false,
+      not_ordered: item.not_ordered || false,
+      partstech_cart_id: item.partstech_cart_id || null,
       Core_num: item.Core_num || 0,
       core_ret: item.core_ret || 0,
       core_cost: item.core_cost || 0,

@@ -196,7 +196,10 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
                    costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || costPrice;
                 }
             }
-            // Ensure costPrice is a number
+            // Ensure costPrice is a number, handling string currencies like "$15.99"
+            if (typeof costPrice === 'string') {
+                costPrice = parseFloat(costPrice.replace(/[^0-9.]/g, ''));
+            }
             costPrice = Number(costPrice) || 0;
 
             return {
@@ -291,18 +294,23 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             }
         } else {
             // Create new inventory item
+            const parsedCost = parseFloat(part.costPrice) || 0;
+            const parsedList = parseFloat(listPrice) || 0;
             const newItemData = {
                 part_number: part.partNumber,
                 description: part.description,
-                cost: part.costPrice,
-                list: listPrice,
+                cost: parsedCost,
+                list: parsedList,
                 quantity_on_hand: 0,
                 quantity_on_order: finalQOO,
                 supplier_id: globalSupplierId || null,
                 sales_class: part.salesClassId || null,
                 is_active: true
             };
-            const { data: createData } = await supabase.from('InventoryItem').insert([newItemData]).select();
+            const { data: createData, error: createError } = await supabase.from('InventoryItem').insert([newItemData]).select();
+            if (createError) {
+                console.error("Failed to insert InventoryItem:", createError);
+            }
             if (createData && createData[0]) {
                 inventoryId = createData[0].id;
                 await supabase.from('InventoryAuditLog').insert([{
