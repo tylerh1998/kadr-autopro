@@ -20,7 +20,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { InventoryTxs } from '@/entities/all';
 import { Loader2, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
@@ -48,7 +47,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
     setError(null);
 
     try {
-      const [invoiceLinesResponse, suppliersResponse, inventoryTxsData] = await Promise.all([
+      const [invoiceLinesResponse, suppliersResponse, inventoryAuditResponse] = await Promise.all([
         base44.functions.invoke('SupabaseProxy', {
           action: 'read',
           table: 'SupplierInvoiceLine',
@@ -58,8 +57,14 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
           action: 'read',
           table: 'Supplier'
         }),
-        InventoryTxs.filter({ inventory_item_id: inventoryItemId })
+        supabase
+          .from('InventoryAuditLog')
+          .select('source_record_id, quantity_change')
+          .eq('inventory_item_id', inventoryItemId)
       ]);
+      
+      if (inventoryAuditResponse.error) throw inventoryAuditResponse.error;
+      const inventoryTxsData = inventoryAuditResponse.data || [];
 
       const invoiceLines = [...(invoiceLinesResponse.data?.data || [])].sort((a, b) =>
         new Date(b.invoice_date || 0).getTime() - new Date(a.invoice_date || 0).getTime()

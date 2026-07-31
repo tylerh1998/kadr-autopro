@@ -91,8 +91,6 @@ export default function WorkOrderForm({
   });
   
   const [partsTechCartId, setPartsTechCartId] = useState(null);
-
-  const [currentLineItem, setCurrentLineItem] = useState(null);
   const isInternalUpdate = useRef(false);
 
   useEffect(() => {

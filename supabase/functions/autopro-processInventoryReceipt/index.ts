@@ -432,7 +432,7 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
           supplier_id: supplier.id,
           invoice_number: invoice_number,
           invoice_date: invoice_date,
-          inventory_item_id: inventoryRecordId,
+          inventory_item_id: null,
           description: `Enviro Fee Qty${quantityReceived} ${item.part_number}`,
           purchase_amount: enviroFeeAmount,
           gst_amount: enviroGst,

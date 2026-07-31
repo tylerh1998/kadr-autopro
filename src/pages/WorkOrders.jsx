@@ -1165,25 +1165,20 @@ export default function WorkOrdersPage() {
   }, [noteCards, currentUser?.id, notesStatusFilter]);
 
   return (
-    <div className="p-6 min-h-screen">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Section 1: Actions, Search, Sort */}
-        <div className="flex flex-col xl:flex-row gap-3 items-center justify-between">
-          {/* Search and Sort */}
-          <div className="flex flex-1 w-full gap-3">
-            <div className="relative flex-1">
+    <div className="bg-white dark:bg-slate-950 min-h-screen">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+        {/* Section 1: Top Bar & Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Dashboard</h1>
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-                placeholder={
-                  activeTab === 'workpro' 
-                    ? "Search projects, customers, VIN..." 
-                    : "Search work orders, customers..."
-                }
+              <Input 
+                placeholder="Search by RO #, Name, Vehicle..." 
+                className="pl-9 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full bg-white"
-                />
+              />
             </div>
           </div>
 
@@ -1242,7 +1237,7 @@ export default function WorkOrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Flush All Locks</DialogTitle>
-              <DialogDescription className="text-red-600 font-medium">
+              <DialogDescription className="text-red-600 dark:text-red-400 font-medium">
                 This will unlock all work orders. Progress of any unsaved work orders may not be saved. 
                 Verify that all open work orders are saved and closed across the platform before executing this.
               </DialogDescription>
@@ -1263,7 +1258,7 @@ export default function WorkOrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Expire/Void Estimate</DialogTitle>
-              <DialogDescription className="text-red-600 font-medium space-y-2">
+              <DialogDescription className="text-red-600 dark:text-red-400 font-medium space-y-2">
                 <p>Are you sure you want to mark this Estimate as Expired/Void?</p>
                 <p>This is a permanent change.</p>
                 <p>It will remove it from the estimate tabs but it will still be visible as void under the vehicle history.</p>
@@ -1307,34 +1302,34 @@ export default function WorkOrdersPage() {
             
             {/* Section 2: Main Tabs */}
             <div className="w-full">
-              <TabsList className="grid grid-cols-5 w-full">
+              <TabsList className="grid grid-cols-5 w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                 <TabsTrigger 
                   value="estimates"
-                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
                 >
                   Estimates
                 </TabsTrigger>
                 <TabsTrigger 
                   value="work_in_progress"
-                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
                 >
                   Work In Progress
                 </TabsTrigger>
                 <TabsTrigger 
                   value="workpro"
-                  className="data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-black dark:data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
                 >
                   WorkPRO
                 </TabsTrigger>
                 <TabsTrigger 
                   value="board"
-                  className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-purple-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
                 >
                   Notes
                 </TabsTrigger>
                 <TabsTrigger 
                   value="invoices"
-                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
                 >
                   Invoices
                 </TabsTrigger>
@@ -1343,7 +1338,7 @@ export default function WorkOrdersPage() {
 
             {/* Section 3: Status Filters - Conditional */}
             {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro' || activeTab === 'board') && (
-              <Card className="mb-6">
+              <Card className="mb-6 dark:bg-slate-900 dark:border-slate-800">
                 <CardContent className="p-1">
                   {/* Estimates Statuses */}
                   {activeTab === 'estimates' && (
@@ -1351,10 +1346,10 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getWOCountByStatus('estimate', 'all')}
                           </Badge>
                         </TabsTrigger>
@@ -1362,10 +1357,10 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)} dark:text-slate-100`}
                           >
                             <span>{status.name}</span>
-                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                               {getWOCountByStatus('estimate', status.name)}
                             </Badge>
                           </TabsTrigger>
@@ -1380,10 +1375,10 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getWOCountByStatus('work_order', 'all')}
                           </Badge>
                         </TabsTrigger>
@@ -1391,10 +1386,10 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)} dark:text-slate-100`}
                           >
                             <span>{status.name}</span>
-                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                               {getWOCountByStatus('work_order', status.name)}
                             </Badge>
                           </TabsTrigger>
@@ -1409,55 +1404,55 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="to_do" 
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>To Do</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getProjectCountByStatus('to_do')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="in_progress"
-                          className="flex-1 flex items-center justify-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-blue-200 dark:bg-blue-900/50 text-blue-900 dark:text-blue-300 data-[state=active]:bg-blue-600 dark:data-[state=active]:bg-blue-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>In Progress</span>
-                          <Badge variant="outline" className="bg-white text-blue-600 border-blue-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-300 border-blue-400 dark:border-blue-600">
                             {getProjectCountByStatus('in_progress')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="parts_needed"
-                          className="flex-1 flex items-center justify-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-200 dark:bg-red-900/50 text-red-900 dark:text-red-300 data-[state=active]:bg-red-600 dark:data-[state=active]:bg-red-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Parts Needed</span>
-                          <Badge variant="outline" className="bg-white text-red-600 border-red-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-red-600 dark:text-red-300 border-red-400 dark:border-red-600">
                             {getProjectCountByStatus('parts_needed')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="on_hold"
-                          className="flex-1 flex items-center justify-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-300 data-[state=active]:bg-orange-500 dark:data-[state=active]:bg-orange-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>On Hold</span>
-                          <Badge variant="outline" className="bg-white text-orange-500 border-orange-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-orange-500 dark:text-orange-300 border-orange-400 dark:border-orange-600">
                             {getProjectCountByStatus('on_hold')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="done"
-                          className="flex-1 flex items-center justify-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-green-200 dark:bg-green-900/50 text-green-900 dark:text-green-300 data-[state=active]:bg-green-600 dark:data-[state=active]:bg-green-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Done</span>
-                          <Badge variant="outline" className="bg-white text-green-600 border-green-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-green-600 dark:text-green-300 border-green-400 dark:border-green-600">
                             {getProjectCountByStatus('done')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="archived"
-                          className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-800 text-gray-900 dark:text-gray-300 data-[state=active]:bg-gray-600 dark:data-[state=active]:bg-gray-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Archived</span>
-                          <Badge variant="outline" className="bg-white text-gray-600 border-gray-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-gray-600 dark:text-gray-300 border-gray-400 dark:border-gray-600">
                             {getProjectCountByStatus('archived')}
                           </Badge>
                         </TabsTrigger>
@@ -1546,7 +1541,7 @@ export default function WorkOrdersPage() {
                   }}
                 />
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-card px-4 py-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
                   <div className="text-sm text-slate-600 dark:text-slate-400">
                     Page {invoicePage} of {Math.max(1, Math.ceil(invoiceTotalCount / INVOICES_PER_PAGE))} · {invoiceTotalCount} invoices
                   </div>
@@ -1616,12 +1611,12 @@ export default function WorkOrdersPage() {
                     return (
                       <Card 
                         key={project.id} 
-                        className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-black shadow-sm"
+                        className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-black dark:border-slate-700 dark:bg-slate-900 shadow-sm"
                       >
                         <CardContent className="p-0">
                           {/* Header Section - Clickable to open WorkPRO Modal */}
                           <div 
-                            className="p-6 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
+                            className="p-6 border-b border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenWorkPROModal(e, project, workOrder);
@@ -1629,11 +1624,11 @@ export default function WorkOrdersPage() {
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
                                   {project.customer || 'Unknown Customer'}
                                 </h3>
                                 {project.vehicle && (
-                                  <p className="text-sm text-slate-600 mb-1">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
                                     {project.vehicle}
                                   </p>
                                 )}
@@ -1652,7 +1647,7 @@ export default function WorkOrdersPage() {
                                 )}
                                 {/* Static clock icon - opens tech clock status modal */}
                                 <div 
-                                  className="p-1 rounded hover:bg-slate-200 cursor-pointer transition-colors"
+                                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openTechClockStatusModal(project.id);
@@ -1667,7 +1662,7 @@ export default function WorkOrdersPage() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               {/* Left Side: Tech Assigned and Created Date */}
                               <div className="space-y-1">
-                                <div className="flex items-center gap-1 text-slate-600">
+                                <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
                                   <Users className="w-4 h-4" />
                                   <span>{employeesDisplay}</span>
                                 </div>
@@ -1687,33 +1682,33 @@ export default function WorkOrdersPage() {
                               <div className="flex items-center justify-end">
                                 {project.work_order ? (
                                   <div 
-                                    className="bg-blue-50 border border-blue-200 rounded-md px-4 py-2 cursor-pointer hover:bg-blue-100 transition-colors min-w-[180px]"
+                                    className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md px-4 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors min-w-[180px]"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenWorkOrder(project.work_order);
                                     }}
                                   >
                                     <div className="flex items-center gap-2">
-                                      <FileText className="w-4 h-4 text-blue-600" />
+                                      <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                       <div>
-                                        <p className="text-xs font-semibold text-blue-900">Work Order Connected</p>
-                                        <p className="text-xs text-blue-700">WO: {project.work_order}</p>
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">Work Order Connected</p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">WO: {project.work_order}</p>
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
                                   <div 
-                                    className="bg-white border border-slate-300 rounded-md px-4 py-2 cursor-pointer hover:bg-slate-50 transition-colors min-w-[180px]"
+                                    className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-4 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors min-w-[180px]"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenConnectorModal(e, project);
                                     }}
                                   >
                                     <div className="flex items-center gap-2">
-                                      <LinkIcon className="w-4 h-4 text-slate-500" />
+                                      <LinkIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                                       <div>
-                                        <p className="text-xs font-semibold text-slate-700">No Work Order</p>
-                                        <p className="text-xs text-slate-500">Click to connect</p>
+                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Work Order</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">Click to connect</p>
                                       </div>
                                     </div>
                                   </div>
@@ -1725,14 +1720,14 @@ export default function WorkOrdersPage() {
                           {/* Appointments Section - Only show if work order is connected AND found */}
                           {workOrder && project.work_order && (
                             <div 
-                              className="px-6 py-3 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenAppointmentsModal(e, workOrder)}
                             >
                               <div className="flex items-center gap-2">
-                                <Calendar className={`w-4 h-4 ${appointmentInfo?.isFuture ? 'text-green-600' : 'text-slate-400'}`} />
+                                <Calendar className={`w-4 h-4 ${appointmentInfo?.isFuture ? 'text-green-600 dark:text-green-500' : 'text-slate-400 dark:text-slate-500'}`} />
                                 <div>
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Appointments</p>
-                                  <p className={`text-sm ${appointmentInfo?.isFuture ? 'text-green-700 font-medium' : 'text-slate-600'}`}>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Appointments</p>
+                                  <p className={`text-sm ${appointmentInfo?.isFuture ? 'text-green-700 dark:text-green-400 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
                                     {appointmentInfo?.text || 'No Appointments'}
                                   </p>
                                 </div>
@@ -1743,27 +1738,27 @@ export default function WorkOrdersPage() {
                           {/* Task Section - Clickable */}
                           {project.task ? (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenTaskModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-600 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-600 dark:text-slate-400 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Task</p>
-                                  <p className="text-sm text-slate-900">{project.task}</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Task</p>
+                                  <p className="text-sm text-slate-900 dark:text-slate-200">{project.task}</p>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenTaskModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-400 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Task</p>
-                                  <p className="text-sm text-slate-400 italic">No task defined - click to add</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Task</p>
+                                  <p className="text-sm text-slate-400 dark:text-slate-500 italic">No task defined - click to add</p>
                                 </div>
                               </div>
                             </div>
@@ -1772,34 +1767,34 @@ export default function WorkOrdersPage() {
                           {/* Description Section - Clickable */}
                           {project.description ? (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                               onClick={(e) => handleOpenDescriptionModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-600 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-600 dark:text-slate-400 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-slate-700">{project.description}</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-slate-700 dark:text-slate-300">{project.description}</p>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                               onClick={(e) => handleOpenDescriptionModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-400 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-slate-400 italic">No description provided - click to add</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-slate-400 dark:text-slate-500 italic">No description provided - click to add</p>
                                 </div>
                               </div>
                             </div>
                           )}
 
                           {/* Footer Section */}
-                          <div className="px-6 py-4 bg-slate-50">
+                          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                               <div className="flex items-center gap-3">
                                 {getStatusBadge(project.status)}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { InventoryTxs } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -54,25 +54,47 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     setLoading(true);
     setError('');
     try {
-      // First try to find by inventory_item_id if we have it
       let data = [];
       if (inventoryItemId) {
-        data = await InventoryTxs.filter({ inventory_item_id: inventoryItemId }, '-tx_date');
+        const { data: logData, error } = await supabase
+          .from('InventoryAuditLog')
+          .select('*')
+          .eq('inventory_item_id', inventoryItemId)
+          .order('tx_date', { ascending: false });
+        if (error) throw error;
+        data = logData;
       } else {
         // Fallback to searching by part number and then finding inventory_item_id
-        const inventoryItemsResponse = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'InventoryItem', match: { part_number: pn } });
-        const inventoryItems = inventoryItemsResponse.data?.data || [];
-        if (inventoryItems.length > 0) {
-          const itemId = inventoryItems[0].id;
-          data = await InventoryTxs.filter({ inventory_item_id: itemId }, '-tx_date');
+        const { data: inventoryItems, error: itemError } = await supabase
+          .from('InventoryItem')
+          .select('id')
+          .eq('part_number', pn);
+          
+        if (itemError) throw itemError;
+        
+        if (inventoryItems && inventoryItems.length > 0) {
+          const itemIds = inventoryItems.map(i => i.id);
+          const { data: logData, error } = await supabase
+            .from('InventoryAuditLog')
+            .select('*')
+            .in('inventory_item_id', itemIds)
+            .order('tx_date', { ascending: false });
+          if (error) throw error;
+          data = logData;
         } else {
           // Last fallback to old part_num field for backward compatibility
-          data = await InventoryTxs.filter({ part_num: pn }, '-tx_date');
+          const { data: logData, error } = await supabase
+            .from('InventoryAuditLog')
+            .select('*')
+            .eq('part_num', pn)
+            .order('tx_date', { ascending: false });
+          if (error) throw error;
+          data = logData;
         }
       }
       
       // Ensure data is sorted with newest at the top
-      const sortedData = (data || []).sort((a, b) => new Date(b.tx_date) - new Date(a.tx_date));
+      const sortedData = (data || []).sort((a, b) => new Date(b.tx_date || b.created_at) - new Date(a.tx_date || a.created_at));
       setTransactions(sortedData);
     } catch (err) {
       console.error('Error fetching inventory history:', err);
