@@ -89,6 +89,10 @@ export default function WorkOrderForm({
     cores: false,
     partsTech: false,
   });
+  
+  const [partsTechCartId, setPartsTechCartId] = useState(null);
+
+  const [currentLineItem, setCurrentLineItem] = useState(null);
   const isInternalUpdate = useRef(false);
 
   useEffect(() => {
@@ -367,6 +371,15 @@ export default function WorkOrderForm({
               taxable: editedWorkOrder?.default_taxable !== undefined ? editedWorkOrder.default_taxable : true
             };
             
+            // If the part already exists from a previous PartsTech Quote, update it instead of adding a new one
+            if (lineWithTaxable.partstech_cart_id) {
+               const existingIdx = updated.findIndex(l => l && l.part_number === lineWithTaxable.part_number && l.partstech_cart_id === lineWithTaxable.partstech_cart_id);
+               if (existingIdx !== -1) {
+                  updated[existingIdx] = { ...updated[existingIdx], ...lineWithTaxable };
+                  return; // Move to next part
+               }
+            }
+            
             let emptyLineFound = false;
             if (currentUpdateIndex !== -1 && updated[currentUpdateIndex] && (!updated[currentUpdateIndex]?.description && !updated[currentUpdateIndex]?.part_number && !updated[currentUpdateIndex]?.manually_inserted)) {
               updated[currentUpdateIndex] = { ...lineWithTaxable, id: Date.now() + Math.random() };
@@ -396,8 +409,9 @@ export default function WorkOrderForm({
     closeModal('getPart');
   }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
 
-  const handlePartsTech = useCallback((lineIndex) => {
-    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex);
+  const handlePartsTech = useCallback((lineIndex, cartId = null) => {
+    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex, 'cartId:', cartId);
+    setPartsTechCartId(cartId);
     openModal('partsTech', lineIndex);
   }, [openModal]);
 
@@ -408,9 +422,13 @@ export default function WorkOrderForm({
     const formattedParts = cartPayload.parts.map(part => ({
       part_number: part.partNumber || part.part_number || '',
       description: part.description || '',
-      parts_ea: part.costPrice || part.parts_ea || 0, // Using list or cost price, PartsTech format varies
+      parts_ea: part.parts_ea || part.costPrice || 0, // Using passed list price
+      cost_ea: part.cost_ea || part.costPrice || 0, 
       qty: part.quantity || part.qty || 1,
-      inventory_processed: false,
+      inventory_processed: part.inventory_processed || false,
+      not_ordered: part.not_ordered || false,
+      partstech_cart_id: part.partstech_cart_id || null,
+      inventory_item_id: part.inventory_item_id || null
     }));
 
     handleMultiplePartsAdded(formattedParts, []);
@@ -914,11 +932,15 @@ export default function WorkOrderForm({
       />
       <PartsTechModal
         open={modals.partsTech}
-        onClose={() => closeModal('partsTech')}
+        onClose={() => {
+            closeModal('partsTech');
+            setPartsTechCartId(null);
+        }}
         roNumber={initialWorkOrder?.ro_number}
-        vehicleInfo={vehicle}
-        userInfo={{ username: 'tech' }} // Or from auth context if needed
+        vehicleInfo={initialWorkOrder?.vehicle_info}
+        userInfo={initialWorkOrder?.customer_info}
         onTransferComplete={handlePartsTechSuccess}
+        cartId={partsTechCartId}
       />
     </div>
   );

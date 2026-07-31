@@ -362,6 +362,12 @@ export default function LineItemsTable({
       )}
       {line.part_number && (
         <>
+          {line.not_ordered && line.partstech_cart_id && (
+            <ContextMenuItem onClick={() => onPartsTech(index, line.partstech_cart_id)}>
+              <Package className="mr-2 h-4 w-4" />
+              <span>Finalize Order (PartsTech)</span>
+            </ContextMenuItem>
+          )}
           {mode !== 'estimate' && (
             <ContextMenuItem onClick={() => onReturnPart(index)} disabled={!line.part_number}>
               <RotateCcw className="mr-2 h-4 w-4" />
@@ -527,6 +533,11 @@ export default function LineItemsTable({
                     {line.qty_on_order > 0 && (
                       <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700">
                         On Order {line.qty_on_order}
+                      </Badge>
+                    )}
+                    {line.not_ordered && (
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700">
+                        Quoted (Not Ordered)
                       </Badge>
                     )}
                     {isPriceDifferent && (

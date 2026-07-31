@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete }) {
+export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId }) {
   const [sessionUrl, setSessionUrl] = useState(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [sessionError, setSessionError] = useState(null);
@@ -14,8 +14,28 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   const latestCartDataRef = useRef(null);
   const [showCartReview, setShowCartReview] = useState(false);
   const [reviewParts, setReviewParts] = useState([]);
+  
+  // New state for dropdowns
+  const [salesClasses, setSalesClasses] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [globalSupplierId, setGlobalSupplierId] = useState("");
 
   const rawRoNumber = roNumber ? String(roNumber).replace(/^(RO|WO-?)/i, '').trim() : '';
+
+  useEffect(() => {
+    if (open) {
+      // Fetch SalesClasses and Suppliers
+      const fetchDropdownData = async () => {
+        const [scRes, supRes] = await Promise.all([
+          supabase.from('SalesClass').select('*').order('name'),
+          supabase.from('Supplier').select('id, name').order('name')
+        ]);
+        setSalesClasses(scRes.data || []);
+        setSuppliers(supRes.data || []);
+      };
+      fetchDropdownData();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && roNumber) {
@@ -49,7 +69,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
         if (order && order.items && order.items.length > 0) {
             console.log("🔥 WE HAVE THE CART DATA:", order);
             latestCartDataRef.current = order;
-            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'Load Transferred Parts' to import.`);
+            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'View Cart' to import.`);
         }
         return;
       }
@@ -88,10 +108,15 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
       if (data?.error) throw new Error(data.error);
 
       // PartsTech session response usually has a `url` field
-      const url = data?.data?.url; 
+      let url = data?.data?.url; 
       if (!url) {
         console.error("Invalid session response:", data);
         throw new Error("Did not receive a valid session URL from PartsTech.");
+      }
+
+      if (cartId) {
+        // Deep-link directly to the saved cart
+        url = url.replace('search/catalog', `saved-quotes/carts/${cartId}`);
       }
 
       setSessionUrl(url);
@@ -114,114 +139,195 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   const handleViewWorkOrder = () => {
     if (rawRoNumber) {
       const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
-      // Use LankarWOView just like OpenROModal does
       window.open(`/LankarWOView?woid=${rawRoNumber}`, '_blank', windowFeatures);
     }
   };
 
   const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
+  const calculateListPrice = (cost, salesClassId) => {
+      if (!cost || !salesClassId || !salesClasses) return cost;
+      const selectedSalesClass = salesClasses.find(sc => sc.id === salesClassId);
+      if (!selectedSalesClass || !selectedSalesClass.pricing_matrix) return cost;
+      try {
+        let parsedData = selectedSalesClass.pricing_matrix;
+        if (typeof parsedData === 'string') parsedData = JSON.parse(parsedData);
+        if (!Array.isArray(parsedData)) return cost;
+        const costValue = parseFloat(cost);
+        const matchingRange = parsedData.find(range => costValue >= parseFloat(range.min_cost) && costValue <= parseFloat(range.max_cost));
+        if (matchingRange) {
+          const margin = parseFloat(matchingRange.margin);
+          return (costValue / (1 - (margin / 100))).toFixed(2);
+        }
+      } catch (e) { console.error('Error calculating list price:', e); }
+      return cost;
+  };
+
   const handleViewCart = async () => {
-    // If our extension grabbed the cart, use it instantly!
     if (latestCartDataRef.current) {
         const order = latestCartDataRef.current;
+        
+        // Auto-match supplier based on PartsTech account name
+        const accountName = order?.account?.name || '';
+        let matchedSupplierId = "";
+        if (accountName && suppliers.length > 0) {
+            const match = suppliers.find(s => s.name.toLowerCase().includes(accountName.toLowerCase()) || accountName.toLowerCase().includes(s.name.toLowerCase()));
+            if (match) matchedSupplierId = match.id;
+        }
+        setGlobalSupplierId(matchedSupplierId);
+
+        const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
+        
         const formattedParts = order.items.map((item, idx) => {
-            // Attempt to extract pricing from builtItem
             let costPrice = 0;
             if (item.builtItem) {
-                // PartsTech puts pricing in builtItem.price or similar
                 costPrice = item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || 0;
-                
                 if (costPrice === 0 && item.builtItem.price) {
                    costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || 0;
                 }
             }
-
             return {
                 id: idx,
                 partNumber: item.partNumber || '',
                 description: item.partName || item.description || '',
                 quantity: item.quantity || 1,
                 costPrice: costPrice,
+                salesClassId: defaultSc?.id || "",
                 selected: true
             };
         });
-
         setReviewParts(formattedParts);
         setShowCartReview(true);
         return;
     }
-
-    // Fallback to database polling if no extension data
+    
+    // DB polling fallback
     setIsPolling(true);
     setPollError(null);
     let found = false;
-
     try {
-      // Poll up to 5 times, waiting 1 second between each
       for (let i = 0; i < 5; i++) {
-        const { data, error } = await supabase
-          .from('PartsTechCart')
-          .select('*')
-          .eq('wo_id', roNumber)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1);
-
+        const { data, error } = await supabase.from('PartsTechCart').select('*').eq('wo_id', roNumber).eq('status', 'pending').order('created_at', { ascending: false }).limit(1);
         if (error) throw error;
-
         if (data && data.length > 0) {
           const cartRow = data[0];
-          
-          // Mark as processed
-          await supabase
-            .from('PartsTechCart')
-            .update({ status: 'processed' })
-            .eq('id', cartRow.id);
-
-          // We grabbed it from DB, so we map it and show the review cart too!
+          await supabase.from('PartsTechCart').update({ status: 'processed' }).eq('id', cartRow.id);
           const dbParts = cartRow.payload?.parts || [];
+          
+          const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
           const formattedDbParts = dbParts.map((p, idx) => ({
              id: idx,
              partNumber: p.part_number || p.partNumber || '',
              description: p.description || p.partName || '',
              quantity: p.qty || p.quantity || 1,
              costPrice: p.parts_ea || p.costPrice || 0,
+             salesClassId: defaultSc?.id || "",
              selected: true
           }));
-          
           setReviewParts(formattedDbParts);
           setShowCartReview(true);
-          
           found = true;
           break;
         }
-
-        // Wait before next poll
         await delay(1000);
       }
-
-      if (!found) {
-        setPollError("We haven't received the cart data yet. If you just clicked Transfer, please wait a few seconds and try again.");
-      }
+      if (!found) setPollError("We haven't received the cart data yet. Please wait a few seconds and try again.");
     } catch (err) {
-      console.error("Polling error:", err);
       setPollError("An error occurred while checking for the transferred parts.");
     } finally {
-      if (!found) {
-        setIsPolling(false);
-      }
+      if (!found) setIsPolling(false);
     }
   };
 
-  const handleConfirmTransfer = async () => {
+  const handleTransfer = async (actionType) => {
+    // actionType = 'ordered' | 'quoted'
     const selectedParts = reviewParts.filter(p => p.selected);
+    const cartIdStr = latestCartDataRef.current?.id || cartId || "unknown";
+    const supplierName = suppliers.find(s => s.id === globalSupplierId)?.name || 'PartsTech';
     
+    const processedParts = await Promise.all(selectedParts.map(async (part) => {
+        const listPrice = calculateListPrice(part.costPrice, part.salesClassId);
+        let inventoryId = null;
+        let finalQOO = actionType === 'ordered' ? part.quantity : 0;
+        
+        // 1. Check if item exists in InventoryItem
+        const { data: existing } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('part_number', part.partNumber)
+            .eq('supplier_id', globalSupplierId)
+            .limit(1);
+            
+        if (existing && existing.length > 0) {
+            const existingItem = existing[0];
+            inventoryId = existingItem.id;
+            
+            // Only update QOO if ordered
+            if (actionType === 'ordered') {
+                const currentQOO = existingItem.quantity_on_order || 0;
+                await supabase.rpc('update_inventory_with_audit', {
+                    p_item_id: existingItem.id,
+                    p_qoh: existingItem.quantity_on_hand || 0,
+                    p_qoo: currentQOO + part.quantity,
+                    p_ro_number: rawRoNumber,
+                    p_supplier_inv: null,
+                    p_source_action: 'PartsTechTransfer',
+                    p_tx_type: 'Ordered',
+                    p_description: `Ordered from PartsTech for WO ${rawRoNumber}`
+                });
+            }
+        } else {
+            // Create new inventory item
+            const newItemData = {
+                part_number: part.partNumber,
+                description: part.description,
+                cost: part.costPrice,
+                list: listPrice,
+                quantity_on_hand: 0,
+                quantity_on_order: finalQOO,
+                supplier_id: globalSupplierId || null,
+                sales_class: part.salesClassId || null,
+                is_active: true
+            };
+            const { data: createData } = await supabase.from('InventoryItem').insert([newItemData]).select();
+            if (createData && createData[0]) {
+                inventoryId = createData[0].id;
+                await supabase.from('InventoryAuditLog').insert([{
+                    inventory_item_id: inventoryId,
+                    part_num: part.partNumber,
+                    old_quantity: 0,
+                    new_quantity: 0,
+                    old_quantity_on_order: 0,
+                    new_quantity_on_order: finalQOO,
+                    supplier_name: supplierName,
+                    source_record_id: rawRoNumber,
+                    source_function: 'PartsTechTransfer',
+                    tx_type: actionType === 'ordered' ? 'Ordered' : 'Quoted',
+                    quantity_change: 0,
+                    quantity_ordered_change: finalQOO,
+                    notes: `Added from PartsTech cart transfer`
+                }]);
+            }
+        }
+        
+        return {
+            part_number: part.partNumber,
+            description: part.description,
+            parts_ea: listPrice,
+            cost_ea: part.costPrice,
+            qty: part.quantity,
+            inventory_processed: true,
+            not_ordered: actionType === 'quoted',
+            partstech_cart_id: cartIdStr,
+            inventory_item_id: inventoryId
+        };
+    }));
+
+    // Historical cart row
     try {
-        // Create the historical row in PartsTechCart
         await supabase.from('PartsTechCart').insert({
             wo_id: String(rawRoNumber || roNumber),
-            payload: { parts: selectedParts },
+            payload: { parts: processedParts },
             status: 'processed'
         });
     } catch (e) {
@@ -229,8 +335,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
     }
 
     if (onTransferComplete) {
-        // handlePartsTechSuccess expects 'parts' array
-        onTransferComplete({ parts: selectedParts });
+        onTransferComplete({ parts: processedParts });
     }
     
     setShowCartReview(false);
@@ -299,11 +404,25 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
       </DialogContent>
 
       <Dialog open={showCartReview} onOpenChange={setShowCartReview}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-6">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-6">
           <DialogHeader>
             <DialogTitle>Review Parts to Transfer</DialogTitle>
           </DialogHeader>
           
+          <div className="flex items-center gap-3 mt-2 bg-slate-50 p-3 rounded-md border">
+            <span className="font-medium text-sm text-slate-700">Supplier (Applies to all parts):</span>
+            <select 
+              className="flex-1 max-w-sm p-1.5 text-sm border rounded-md"
+              value={globalSupplierId}
+              onChange={(e) => setGlobalSupplierId(e.target.value)}
+            >
+              <option value="">-- Select Supplier --</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex-1 overflow-auto border rounded-md my-4">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-100 text-slate-700 sticky top-0 shadow-sm z-10">
@@ -321,32 +440,52 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
                   </th>
                   <th className="p-3 font-semibold">Part Number</th>
                   <th className="p-3 font-semibold">Description</th>
-                  <th className="p-3 font-semibold text-right">Qty</th>
+                  <th className="p-3 font-semibold">Sales Class</th>
                   <th className="p-3 font-semibold text-right">Cost</th>
+                  <th className="p-3 font-semibold text-right">List Price</th>
+                  <th className="p-3 font-semibold text-right">Qty</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {reviewParts.map(part => (
-                  <tr key={part.id} className={part.selected ? "bg-white" : "bg-slate-50 opacity-50"}>
-                    <td className="p-3 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-gray-300"
-                        checked={part.selected}
-                        onChange={(e) => {
-                          setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, selected: e.target.checked } : p));
-                        }}
-                      />
-                    </td>
-                    <td className="p-3 font-mono">{part.partNumber}</td>
-                    <td className="p-3 truncate max-w-[300px]">{part.description}</td>
-                    <td className="p-3 text-right">{part.quantity}</td>
-                    <td className="p-3 text-right">${Number(part.costPrice || 0).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {reviewParts.map(part => {
+                  const listPrice = calculateListPrice(part.costPrice, part.salesClassId);
+                  return (
+                    <tr key={part.id} className={part.selected ? "bg-white" : "bg-slate-50 opacity-50"}>
+                      <td className="p-3 text-center">
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-gray-300"
+                          checked={part.selected}
+                          onChange={(e) => {
+                            setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, selected: e.target.checked } : p));
+                          }}
+                        />
+                      </td>
+                      <td className="p-3 font-mono">{part.partNumber}</td>
+                      <td className="p-3 truncate max-w-[200px]">{part.description}</td>
+                      <td className="p-3">
+                        <select 
+                          className="p-1 text-sm border rounded w-full max-w-[140px]"
+                          value={part.salesClassId}
+                          onChange={(e) => {
+                            setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, salesClassId: e.target.value } : p));
+                          }}
+                        >
+                          <option value="">-- None --</option>
+                          {salesClasses.map(sc => (
+                            <option key={sc.id} value={sc.id}>{sc.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-3 text-right">${Number(part.costPrice || 0).toFixed(2)}</td>
+                      <td className="p-3 text-right font-medium text-green-700">${Number(listPrice || 0).toFixed(2)}</td>
+                      <td className="p-3 text-right font-bold">{part.quantity}</td>
+                    </tr>
+                  );
+                })}
                 {reviewParts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-500">
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
                       No parts found in the cart.
                     </td>
                   </tr>
@@ -355,15 +494,28 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             </table>
           </div>
           
-          <div className="flex justify-end gap-3 shrink-0">
-            <Button variant="outline" onClick={() => setShowCartReview(false)}>Cancel</Button>
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={handleConfirmTransfer}
-              disabled={reviewParts.filter(p => p.selected).length === 0}
-            >
-              Add {reviewParts.filter(p => p.selected).length} Parts to Work Order
-            </Button>
+          <div className="flex justify-between items-center shrink-0">
+            <span className="text-sm text-slate-500">{reviewParts.filter(p => p.selected).length} parts selected</span>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setShowCartReview(false)}>Cancel</Button>
+              <Button 
+                variant="outline"
+                className="border-slate-300 text-slate-700 hover:bg-slate-100"
+                onClick={() => handleTransfer('quoted')}
+                disabled={reviewParts.filter(p => p.selected).length === 0 || !globalSupplierId}
+                title={!globalSupplierId ? "Please select a Supplier first" : ""}
+              >
+                Mark as Quoted
+              </Button>
+              <Button 
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => handleTransfer('ordered')}
+                disabled={reviewParts.filter(p => p.selected).length === 0 || !globalSupplierId}
+                title={!globalSupplierId ? "Please select a Supplier first" : ""}
+              >
+                Mark On Order
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
