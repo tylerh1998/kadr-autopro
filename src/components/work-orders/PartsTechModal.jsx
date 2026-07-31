@@ -53,18 +53,23 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
       // Listen for messages from our custom Chrome Extension
       if (event.data && event.data.type === 'PARTSTECH_EXT_DATA') {
         const payload = event.data.payload;
-        let order = null;
         
-        // PartsTech uses different GraphQL queries for active cart vs saved quotes
-        if (payload?.data?.activeCart?.order) {
-            order = payload.data.activeCart.order;
-        } else if (payload?.data?.cart) {
-            order = payload.data.cart;
-        } else if (payload?.data?.quote) {
-            order = payload.data.quote;
-        } else if (payload?.data?.addItemsToCart?.cart?.order) {
-            order = payload.data.addItemsToCart.cart.order;
-        }
+        // Recursively search the payload for any object that looks like a PartsTech order/cart
+        // (Must be an object with an 'items' array and an 'id')
+        const findOrderWithItems = (obj, depth = 0) => {
+            if (depth > 10 || !obj || typeof obj !== 'object') return null;
+            if (Array.isArray(obj.items) && obj.id) return obj;
+            
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    const found = findOrderWithItems(obj[key], depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const order = findOrderWithItems(payload);
 
         if (order && order.items && order.items.length > 0) {
             console.log("🔥 WE HAVE THE CART DATA:", order);

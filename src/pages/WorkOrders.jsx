@@ -1165,20 +1165,25 @@ export default function WorkOrdersPage() {
   }, [noteCards, currentUser?.id, notesStatusFilter]);
 
   return (
-    <div className="bg-white dark:bg-slate-950 min-h-screen">
-      <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
-        {/* Section 1: Top Bar & Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-4 w-full sm:w-auto">
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Dashboard</h1>
-            <div className="relative w-full sm:w-64">
+    <div className="p-6 min-h-screen dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Section 1: Actions, Search, Sort */}
+        <div className="flex flex-col xl:flex-row gap-3 items-center justify-between">
+          {/* Search and Sort */}
+          <div className="flex flex-1 w-full gap-3">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input 
-                placeholder="Search by RO #, Name, Vehicle..." 
-                className="pl-9 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+              <Input
+                placeholder={
+                  activeTab === 'workpro' 
+                    ? "Search projects, customers, VIN..." 
+                    : "Search work orders, customers..."
+                }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-              />
+                className="pl-10 w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
             </div>
           </div>
 
@@ -1193,7 +1198,7 @@ export default function WorkOrdersPage() {
                 }
               }}
               disabled={loading || workPROLoading}
-              className="bg-white whitespace-nowrap"
+              className="bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 whitespace-nowrap"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
               Refresh
@@ -1302,34 +1307,34 @@ export default function WorkOrdersPage() {
             
             {/* Section 2: Main Tabs */}
             <div className="w-full">
-              <TabsList className="grid grid-cols-5 w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+              <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger 
                   value="estimates"
-                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all duration-200"
                 >
                   Estimates
                 </TabsTrigger>
                 <TabsTrigger 
                   value="work_in_progress"
-                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white transition-all duration-200"
                 >
                   Work In Progress
                 </TabsTrigger>
                 <TabsTrigger 
                   value="workpro"
-                  className="data-[state=active]:bg-black dark:data-[state=active]:bg-slate-900 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
+                  className="data-[state=active]:bg-black dark:data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all duration-200"
                 >
                   WorkPRO
                 </TabsTrigger>
                 <TabsTrigger 
                   value="board"
-                  className="data-[state=active]:bg-purple-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
+                  className="data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all duration-200"
                 >
                   Notes
                 </TabsTrigger>
                 <TabsTrigger 
                   value="invoices"
-                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white dark:text-slate-300 transition-all duration-200"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white transition-all duration-200"
                 >
                   Invoices
                 </TabsTrigger>
