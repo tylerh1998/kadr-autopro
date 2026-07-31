@@ -9,6 +9,7 @@ const proxyUrl = import.meta.env.VITE_BASE44_PROXY_URL;
 // Helper to synchronously read the Supabase JWT from the cookie
 const getSupabaseTokenFromCookie = () => {
   if (typeof document === 'undefined') return null;
+  console.log('[Base44 XHR Intercept] document.cookie raw:', document.cookie);
   const match = document.cookie.match(/(?:^|;\s*)supabase-auth-token=([^;]+)/);
   if (match) {
     try {
