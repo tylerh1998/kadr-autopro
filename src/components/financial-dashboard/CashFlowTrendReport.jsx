@@ -4,6 +4,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Respons
 import { formatCurrency, formatMonth, formatShortDate } from './financialDashboardUtils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function CashFlowTrendReport({ data }) {
   const [visibleSeries, setVisibleSeries] = useState({
@@ -13,55 +14,69 @@ export default function CashFlowTrendReport({ data }) {
   });
 
   const [excludeWeekends, setExcludeWeekends] = useState(false);
+  const [openingBalance, setOpeningBalance] = useState('');
 
   const processedData = useMemo(() => {
     if (!data || data.length === 0) return [];
     
+    let baseData = data;
     const isDaily = !!data[0].date;
-    if (!isDaily) return data;
+    
+    if (isDaily) {
+      let filtered = data;
+      if (excludeWeekends) {
+        filtered = data.filter(item => {
+          const d = new Date(item.date + 'T00:00:00');
+          const day = d.getDay();
+          return day !== 0 && day !== 6;
+        });
+      }
 
-    let filtered = data;
-    if (excludeWeekends) {
-      filtered = data.filter(item => {
-        const d = new Date(item.date + 'T00:00:00');
-        const day = d.getDay();
-        return day !== 0 && day !== 6;
-      });
+      if (data.length > 60) {
+        const weekly = [];
+        let currentWeek = null;
+
+        filtered.forEach(item => {
+          const d = new Date(item.date + 'T00:00:00');
+          const dayOfWeek = d.getDay();
+          const startOfWeek = new Date(d);
+          startOfWeek.setDate(d.getDate() - dayOfWeek);
+          const weekKey = startOfWeek.toISOString().split('T')[0];
+
+          if (!currentWeek || currentWeek.weekKey !== weekKey) {
+            if (currentWeek) weekly.push(currentWeek);
+            currentWeek = {
+              weekKey,
+              date: weekKey,
+              inflow: 0,
+              outflow: 0
+            };
+          }
+
+          currentWeek.inflow += (item.inflow || 0);
+          currentWeek.outflow += (item.outflow || 0);
+        });
+
+        if (currentWeek) weekly.push(currentWeek);
+        baseData = weekly;
+      } else {
+        baseData = filtered;
+      }
     }
 
-    if (data.length > 60) {
-      const weekly = [];
-      let currentWeek = null;
-
-      filtered.forEach(item => {
-        const d = new Date(item.date + 'T00:00:00');
-        const dayOfWeek = d.getDay();
-        const startOfWeek = new Date(d);
-        startOfWeek.setDate(d.getDate() - dayOfWeek);
-        const weekKey = startOfWeek.toISOString().split('T')[0];
-
-        if (!currentWeek || currentWeek.weekKey !== weekKey) {
-          if (currentWeek) weekly.push(currentWeek);
-          currentWeek = {
-            weekKey,
-            date: weekKey,
-            inflow: 0,
-            outflow: 0,
-            balance: item.balance
-          };
-        }
-
-        currentWeek.inflow += (item.inflow || 0);
-        currentWeek.outflow += (item.outflow || 0);
-        currentWeek.balance = item.balance; // Keep latest balance
-      });
-
-      if (currentWeek) weekly.push(currentWeek);
-      return weekly;
-    }
-
-    return filtered;
-  }, [data, excludeWeekends]);
+    // Now recalculate running balance for the final dataset to ensure math is perfectly correct
+    let currentBalance = parseFloat(openingBalance) || 0;
+    
+    return baseData.map(item => {
+      const inAmt = item.inflow || 0;
+      const outAmt = item.outflow || 0;
+      currentBalance = currentBalance + inAmt - outAmt;
+      return {
+        ...item,
+        balance: currentBalance
+      };
+    });
+  }, [data, excludeWeekends, openingBalance]);
 
   const chartData = useMemo(() => {
     return processedData.map((item) => ({
@@ -84,15 +99,30 @@ export default function CashFlowTrendReport({ data }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>Cash Flow Trend</CardTitle>
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="excludeWeekends" 
-            checked={excludeWeekends} 
-            onCheckedChange={setExcludeWeekends} 
-          />
-          <Label htmlFor="excludeWeekends" className="text-sm font-medium leading-none cursor-pointer">
-            Exclude Weekends
-          </Label>
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="openingBalance" className="text-sm font-medium">
+              Opening Balance:
+            </Label>
+            <Input
+              id="openingBalance"
+              type="number"
+              placeholder="$0.00"
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
+              className="w-32 h-8"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="excludeWeekends" 
+              checked={excludeWeekends} 
+              onCheckedChange={setExcludeWeekends} 
+            />
+            <Label htmlFor="excludeWeekends" className="text-sm font-medium leading-none cursor-pointer">
+              Exclude Weekends
+            </Label>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
