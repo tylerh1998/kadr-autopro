@@ -500,8 +500,19 @@ export default function FinancialDashboard() {
                   Last Year
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleRefresh} className="whitespace-nowrap">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button variant="outline" onClick={handlePrint} className="whitespace-nowrap">
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
           <div className="print-area">
             <div className="print-title" style={{ display: 'none' }}>
