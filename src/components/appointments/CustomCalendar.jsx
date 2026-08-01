@@ -1341,9 +1341,9 @@ export default function CustomCalendar({
 
         <div className="flex items-center gap-4">
           {(view === 'week' || view === 'day') && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Bays:</span>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 {bayOptions.map(bay => (
                   <div key={bay} className="flex items-center gap-1.5">
                     <div className={`w-3 h-3 rounded border-2 ${getBayColorClass(bay)}`}></div>
@@ -1354,10 +1354,10 @@ export default function CustomCalendar({
             </div>
           )}
 
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <button
               onClick={() => setView('month')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'month'
                   ? 'bg-black dark:bg-slate-700 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -1367,7 +1367,7 @@ export default function CustomCalendar({
             </button>
             <button
               onClick={() => setView('week')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'week'
                   ? 'bg-black dark:bg-slate-700 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -1377,7 +1377,7 @@ export default function CustomCalendar({
             </button>
             <button
               onClick={() => setView('day')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'day'
                   ? 'bg-black dark:bg-slate-700 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'

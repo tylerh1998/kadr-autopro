@@ -28,7 +28,9 @@ import {
   RefreshCw,
   X,
   ExternalLink,
-  ArrowRightCircle
+  ArrowRightCircle,
+  FolderPlus,
+  SquarePen
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -1604,27 +1606,27 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
                 <div className="flex items-center gap-3">
-                  <div
-                    onClick={() => openModal('workPRO')}
-                    className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
-                  >
-                    <div className={`w-3 h-3 rounded-full ${workPROProject ? 'bg-green-500' : 'bg-orange-400'}`}></div>
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">WorkPRO</span>
-                    {workPROProject ? (
-                      <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-orange-100 text-orange-700 text-xs">
-                        Connect
-                      </Badge>
-                    )}
-                  </div>
-
-                  {loadingWorkPRO && (
-                    <div className="flex items-center gap-2 text-slate-500">
+                  {loadingWorkPRO ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-100 dark:bg-slate-850 text-slate-500 text-sm font-semibold border border-slate-200 dark:border-slate-800">
                       <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>WorkPRO</span>
                     </div>
+                  ) : (
+                    <button
+                      onClick={() => openModal('workPRO')}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none ${
+                        workPROProject 
+                          ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white' 
+                          : 'bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white'
+                      }`}
+                    >
+                      {workPROProject ? (
+                        <SquarePen className="w-4 h-4" />
+                      ) : (
+                        <FolderPlus className="w-4 h-4" />
+                      )}
+                      <span>WorkPRO</span>
+                    </button>
                   )}
                 </div>
 

@@ -1362,7 +1362,7 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)} dark:text-slate-100`}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
                             <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
@@ -1391,7 +1391,7 @@ export default function WorkOrdersPage() {
                           <TabsTrigger 
                             key={status.id}
                             value={status.name}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)} dark:text-slate-100`}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
                             <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">

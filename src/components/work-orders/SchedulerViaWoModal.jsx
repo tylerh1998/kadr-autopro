@@ -230,12 +230,27 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
         onAppointmentUpdated();
       }
       
-      // Close the parent modal
-      onClose();
-      
+      if (selectedAppointment) {
+        await Appointment.update(selectedAppointment.id, appointmentData);
+      } else {
+        await Appointment.create(appointmentData);
+      }
+      onAppointmentUpdated();
+      setShowAppointmentForm(false);
+      loadData();
     } catch (error) {
-      console.error("Error deleting appointment in modal:", error);
-      alert("Failed to delete appointment.");
+      console.error('Failed to save appointment:', error);
+    }
+  };
+
+  const handleDelete = async (appointmentId) => {
+    try {
+      await Appointment.delete(appointmentId);
+      onAppointmentUpdated();
+      setShowAppointmentForm(false);
+      loadData();
+    } catch (error) {
+      console.error('Failed to delete appointment:', error);
     }
   };
 
@@ -256,7 +271,15 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-4 dark:bg-slate-950 dark:border-slate-800">
+      <DialogContent className="max-w-[100vw] w-screen h-screen max-h-screen flex flex-col p-6 rounded-none dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden relative">
+        <button
+          onClick={onClose}
+          className="absolute right-6 top-6 bg-red-600 hover:bg-red-700 text-white rounded p-1.5 transition-colors focus:outline-none z-50 flex items-center justify-center shadow-md border border-red-500"
+          aria-label="Close scheduler"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         <DialogHeader>
           <DialogTitle>Schedule for WO #{workOrder?.wo_number}</DialogTitle>
           <DialogDescription>
@@ -284,17 +307,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
                 />
             </div>
           ) : (
-            <div className="h-full flex flex-col p-4">
-                <Button 
-                    className="mb-4 self-start"
-                    onClick={() => {
-                        setSelectedAppointment(null);
-                        setSlotInfo({ start: new Date(), end: new Date(Date.now() + 3600000) });
-                        setShowAppointmentForm(true);
-                    }}
-                >
-                    <Plus className="w-4 h-4 mr-2" /> New Appointment
-                </Button>
+            <div className="h-full flex flex-col py-2">
               <CustomCalendar
                 events={events}
                 onSelectEvent={handleSelectEvent}
@@ -305,6 +318,11 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
                 techColors={techColors}
                 onOpenWorkOrder={handleOpenWorkOrder}
                 onDeleteAppointment={handleDeleteAppointment}
+                onNewAppointment={() => {
+                  setSelectedAppointment(null);
+                  setSlotInfo({ start: new Date(), end: new Date(Date.now() + 3600000) });
+                  setShowAppointmentForm(true);
+                }}
               />
             </div>
           )}
