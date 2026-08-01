@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Save, Droplet } from 'lucide-react';
+import { Loader2, Save, Droplet, X } from 'lucide-react';
 import { Employee } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 
@@ -191,9 +191,18 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden">
         <DialogHeader>
-          <DialogTitle>Create New WorkPRO Project</DialogTitle>
+          <DialogTitle className="flex items-center justify-between text-slate-950 dark:text-slate-50">
+            <span>Create New WorkPRO Project</span>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white rounded-none p-0 transition-colors focus:outline-none flex items-center justify-center border border-red-500 shadow-sm"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -226,7 +235,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 onChange={(e) => handleFieldChange('vin', e.target.value)}
                 placeholder="Enter VIN"
                 disabled={lockedFields.includes('vin')}
-                className={lockedFields.includes('vin') ? 'bg-slate-100 text-slate-500' : ''}
+                className={lockedFields.includes('vin') ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400' : ''}
               />
             </div>
             <div>
@@ -236,7 +245,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 onChange={(e) => handleFieldChange('work_order', e.target.value)}
                 placeholder="WO Number"
                 disabled={lockedFields.includes('work_order')}
-                className={lockedFields.includes('work_order') ? 'bg-slate-100 text-slate-500' : ''}
+                className={lockedFields.includes('work_order') ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400' : ''}
               />
             </div>
           </div>
@@ -280,11 +289,11 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
 
           {/* Oil Change Details Section - Only shown when project_type is 'oil_change' */}
           {formData.project_type === 'oil_change' && (
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Droplet className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">Oil Change Details</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Oil Change Details</h3>
                 </div>
                 
                 <div className="space-y-3">
@@ -417,7 +426,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
           {/* Employees Assigned */}
           <div>
             <Label className="text-sm font-medium">Employees Assigned</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 max-h-32 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2 mt-2 p-3 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50 max-h-32 overflow-y-auto">
               {employees.map((employee) => {
                 const employeeName = getEmployeeName(employee);
                 const isChecked = formData.assigned_employees.includes(employeeName);
@@ -439,7 +448,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 );
               })}
               {employees.length === 0 && (
-                <p className="text-slate-500 text-sm col-span-2">No employees found</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm col-span-2">No employees found</p>
               )}
             </div>
             <p className="text-xs text-slate-500 mt-1">

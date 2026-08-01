@@ -154,6 +154,22 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
+      // First try to use the dedicated getProjectTimeSessions function
+      try {
+        const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
+          projectId: projectId
+        });
+        if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
+          const logs = timeResponse.data.logs;
+          const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
+          setTechTimeTotal(totalHours);
+          return;
+        }
+      } catch (e) {
+        console.warn('autopro-getProjectTimeSessions failed, trying workProProxy fallback:', e);
+      }
+
+      // Fallback to proxy
       const response = await base44.functions.invoke('workProProxy', {
         entityName: 'ProjectTimeSession',
         method: 'filter',

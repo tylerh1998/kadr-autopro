@@ -437,7 +437,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             let success = false;
 
             try {
-              const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
+              const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
                 projectId: foundProject.id
               });
               if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs) && timeResponse.data.logs.length > 0) {
@@ -446,7 +446,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 success = true;
               }
             } catch (e) {
-              console.warn('getProjectTimeSessions edge function failed/empty, trying proxy:', e);
+              console.warn('autopro-getProjectTimeSessions edge function failed/empty, trying proxy:', e);
             }
 
             if (!success) {
@@ -1505,7 +1505,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       key: 'invoice',
       label: 'Invoice',
       activeColor: 'bg-green-600 text-white border-green-700',
-      inactiveColor: 'text-green-700 bg-green-50/50 hover:bg-green-100 border border-green-200 dark:text-green-400 dark:bg-green-950/20 dark:hover:bg-green-900/30 dark:border-green-800/50',
+      inactiveColor: 'text-green-700 bg-green-50/50 hover:bg-green-100 border border-green-200 dark:bg-green-600 dark:text-white dark:hover:bg-green-500 hover:scale-105 active:scale-95 transition-all dark:border-green-700',
       disabled: workOrder?.stage === 'estimate'
     },
   ];
@@ -1596,7 +1596,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                           ${workOrder?.stage === stage.key
                             ? stage.activeColor + ' shadow-sm'
                             : (stage.disabled && !stage.action)
-                              ? 'bg-transparent dark:bg-black text-slate-400 dark:text-slate-700 cursor-default pointer-events-none border-0'
+                              ? 'bg-transparent dark:bg-transparent text-slate-400 dark:text-slate-700/50 cursor-default pointer-events-none border-0'
                               : stage.inactiveColor
                           }
                           ${index < stages.length ? 'mr-1' : ''}

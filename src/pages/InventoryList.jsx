@@ -697,80 +697,51 @@ export default function InventoryListPage() {
         />
 
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6 no-print">
-            <div className="flex items-center">
-              <Package className="w-8 h-8 text-slate-700 dark:text-slate-300" />
-              <h1 className="text-3xl font-bold ml-3 text-slate-800 dark:text-slate-100">Inventory</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={() => navigate(createPageUrl('InventoryReturns'))} 
-                variant="outline"
-                className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 dark:bg-orange-700 dark:hover:bg-orange-800 dark:border-orange-700"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Returns
-              </Button>
-              <Button 
-                onClick={() => navigate(createPageUrl('InventoryAdd'))} 
-                variant="outline"
-                className="bg-green-600 hover:bg-green-700 text-white border-green-600 dark:bg-green-700 dark:hover:bg-green-800 dark:border-green-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Inventory
-              </Button>
-              <Button onClick={handlePrint} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
-                <Printer className="h-4 w-4 mr-2" />
-                Print
-              </Button>
-              <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
-              <Button onClick={fetchInventory} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-card border dark:border-slate-800 p-4 rounded-lg shadow-sm mb-6 no-print">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-              <div className="flex flex-col md:flex-row md:items-start gap-4 flex-1">
-                <div className="flex flex-col gap-2 w-full md:w-auto shrink-0">
-                  <div className="relative w-full md:w-80 lg:w-96 shrink-0">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
-                    <Input
-                      placeholder="Search by Part # or Description (Press Enter)"
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                      onKeyDown={handleSearchKeyDown}
-                      className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
-                      autoFocus
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={showInactiveInventory}
-                      onChange={(e) => {
-                        setShowInactiveInventory(e.target.checked);
-                        setCurrentPage(1);
-                      }}
-                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-600 dark:bg-slate-950"
-                    />
-                    Show Inactive Inventory
-                  </label>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                   <Filter className="h-5 w-5 text-gray-400 dark:text-slate-500 shrink-0" />
-                   <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">All</Button>
-                   <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Has Stock</Button>
-                   <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">No Location</Button>
-                   <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Inventory Count</Button>
-                </div>
+          <div className="bg-white dark:bg-card border dark:border-slate-800 p-4 rounded-lg shadow-sm mb-6 no-print mt-2">
+            {/* Top row: Search Bar and Action Buttons */}
+            <div className="flex flex-col xl:flex-row justify-between gap-4 mb-4">
+              {/* Left side: Search Bar */}
+              <div className="relative w-full xl:w-[400px] shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
+                <Input
+                  placeholder="Search by Part # or Description (Press Enter)"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
+                  className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+                  autoFocus
+                />
               </div>
-              
-              <div className="flex justify-start md:justify-end items-center gap-2 shrink-0">
+
+              {/* Right side: Action Buttons + Location Range + Customize */}
+              <div className="flex flex-wrap items-center gap-2 justify-start xl:justify-end shrink-0">
+                <Button 
+                  onClick={() => navigate(createPageUrl('InventoryReturns'))} 
+                  variant="outline"
+                  className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 dark:bg-orange-700 dark:hover:bg-orange-800 dark:border-orange-700"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Returns
+                </Button>
+                <Button 
+                  onClick={() => navigate(createPageUrl('InventoryAdd'))} 
+                  variant="outline"
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 dark:bg-green-700 dark:hover:bg-green-800 dark:border-green-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Inventory
+                </Button>
+                <Button onClick={handlePrint} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+                <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Item
+                </Button>
+                <Button onClick={fetchInventory} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
                 <Button variant={(filterLocationFrom || filterLocationTo) ? 'default' : 'outline'} onClick={() => setShowLocationFilterDialog(true)} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                   Location Range {(filterLocationFrom || filterLocationTo) && `(${filterLocationFrom || '*'} - ${filterLocationTo || '*'})`}
                 </Button>
@@ -796,6 +767,30 @@ export default function InventoryListPage() {
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Bottom row: Checkbox and Filters */}
+            <div className="flex flex-col md:flex-row md:items-center gap-4 flex-wrap">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={showInactiveInventory}
+                  onChange={(e) => {
+                    setShowInactiveInventory(e.target.checked);
+                    setCurrentPage(1);
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-blue-600 focus:ring-blue-600 dark:bg-slate-950"
+                />
+                Show Inactive Inventory
+              </label>
+
+              <div className="flex items-center gap-2 flex-wrap md:pl-4 md:border-l border-slate-200 dark:border-slate-800">
+                 <Filter className="h-5 w-5 text-gray-400 dark:text-slate-500 shrink-0" />
+                 <Button variant={filter === 'all' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('all')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">All</Button>
+                 <Button variant={filter === 'non-zero' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('non-zero')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Has Stock</Button>
+                 <Button variant={filter === 'no-location' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('no-location')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">No Location</Button>
+                 <Button variant={filter === 'inventory-count' ? 'secondary' : 'ghost'} onClick={() => handleFilterChange('inventory-count')} className="whitespace-nowrap dark:text-slate-300 dark:hover:text-slate-100">Inventory Count</Button>
               </div>
             </div>
           </div>
