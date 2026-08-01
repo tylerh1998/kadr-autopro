@@ -254,29 +254,25 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
       // PRIORITY 1: Try to fetch using workOrderIdentifier
       if (workOrderIdentifier) {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrderIdentifier
+        try {
+          const projects = await base44.entities.Project.filter({ work_order: workOrderIdentifier });
+          if (Array.isArray(projects)) {
+            foundProjects = projects;
           }
-        });
-
-        if (projectResponse.data.success) {
-          foundProjects = projectResponse.data.data || [];
+        } catch (e) {
+          console.warn('Project filter failed:', e);
         }
       }
 
       // FALLBACK: If no projects found and we have initialWorkPROProject.id, fetch by ID
       if (foundProjects.length === 0 && initialWorkPROProject?.id) {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'get',
-          id: initialWorkPROProject.id
-        });
-
-        if (projectResponse.data.success && projectResponse.data.data) {
-          foundProjects = [projectResponse.data.data];
+        try {
+          const project = await base44.entities.Project.get(initialWorkPROProject.id);
+          if (project) {
+            foundProjects = [project];
+          }
+        } catch (e) {
+          console.warn('Project get failed:', e);
         }
       }
 
@@ -320,15 +316,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const fetchAvailableProjectsForConnection = async () => {
     setIsFetchingProjectsForConnection(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'list',
-        limit: 1000
-      });
+      const projects = await base44.entities.Project.list(null, 1000);
 
-      if (response.data.success) {
-        const projects = response.data.data || [];
-        
+      if (Array.isArray(projects)) {
         // Filter out archived projects and those already connected to a work order
         const availableProjects = projects.filter(p => 
           p.status !== 'archived' && !p.work_order
@@ -372,14 +362,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         vin: vehicle?.vin || ''
       };
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: selectedWorkPROProject.id,
-        params: updatePayload
-      });
+      const updatedProject = await base44.entities.Project.update(selectedWorkPROProject.id, updatePayload);
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to connect project');
+      if (!updatedProject) throw new Error('Failed to connect project');
 
       // Reload the modal with the newly connected project
       await fetchWorkPROData();
@@ -457,16 +442,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         updateData.date_archived = null;
       }
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: project.id,
-        params: updateData
-      });
+      const savedProject = await base44.entities.Project.update(project.id, updateData);
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to update project');
-
-      const savedProject = response.data.data;
+      if (!savedProject) throw new Error('Failed to update project');
       setProject(savedProject);
       await loadProjectIntoForm(savedProject);
       setHasChanges(false);
