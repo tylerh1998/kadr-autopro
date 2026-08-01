@@ -142,6 +142,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const [workPROProjects, setWorkPROProjects] = useState([]);
   const [workPROComments, setWorkPROComments] = useState([]);
   const [loadingWorkPRO, setLoadingWorkPRO] = useState(false);
+  const [workPROTimeTotal, setWorkPROTimeTotal] = useState(0);
 
   // NEW: State to manage the invoice conversion flow
   const [invoiceConversionPhase, setInvoiceConversionPhase] = useState(0);
@@ -627,6 +628,26 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               const commentsArray = commentsResponse.data.data || [];
               setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
             }
+
+            // Fetch tech time sessions to compute total hours
+            try {
+              const timeResponse = await base44.functions.invoke('workProProxy', {
+                entityName: 'ProjectTimeSession',
+                method: 'filter',
+                params: {
+                  project_id: foundProject.id
+                }
+              });
+              if (timeResponse.data?.success) {
+                const sessions = timeResponse.data.data || [];
+                const totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
+                setWorkPROTimeTotal(totalHours);
+              }
+            } catch (err) {
+              console.error('Error fetching WorkPRO project time sessions:', err);
+            }
+          } else {
+            setWorkPROTimeTotal(0);
           }
         }
       } catch (error) {
@@ -1612,21 +1633,34 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                       <span>WorkPRO</span>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => openModal('workPRO')}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none ${
-                        workPROProject 
-                          ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white' 
-                          : 'bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white'
-                      }`}
-                    >
-                      {workPROProject ? (
-                        <SquarePen className="w-4 h-4" />
-                      ) : (
-                        <FolderPlus className="w-4 h-4" />
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => openModal('workPRO')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none ${
+                          workPROProject 
+                            ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white' 
+                            : 'bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white'
+                        }`}
+                      >
+                        <span>WorkPRO</span>
+                        {workPROProject ? (
+                          <SquarePen className="w-4 h-4" />
+                        ) : (
+                          <FolderPlus className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      {workPROProject && (
+                        <div className="flex flex-col items-start text-left leading-none text-black dark:text-white select-none">
+                          <span className="text-[11px] font-bold">
+                            {workPROTimeTotal.toFixed(2)} hrs
+                          </span>
+                          <span className="text-[9px] font-bold opacity-80 uppercase tracking-wide mt-0.5">
+                            {workPROProject.status?.replace(/_/g, ' ')}
+                          </span>
+                        </div>
                       )}
-                      <span>WorkPRO</span>
-                    </button>
+                    </div>
                   )}
                 </div>
 
