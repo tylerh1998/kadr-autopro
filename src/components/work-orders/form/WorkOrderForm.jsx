@@ -104,6 +104,8 @@ export default function WorkOrderForm({
     partsTech: false,
   });
 
+  const [partsTechCartId, setPartsTechCartId] = useState(null);
+
   // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
   const getNonBlankLines = useCallback((lines) => {
     return lines.filter(line => 
@@ -1177,11 +1179,15 @@ export default function WorkOrderForm({
       />
       <PartsTechModal
         open={modals.partsTech}
-        onClose={() => closeModal('partsTech')}
+        onClose={() => {
+          closeModal('partsTech');
+          setPartsTechCartId(null);
+        }}
         roNumber={initialWorkOrder?.ro_number}
         vehicleInfo={vehicle}
         userInfo={{ username: 'tech' }}
         onTransferComplete={handlePartsTechSuccess}
+        cartId={partsTechCartId}
       />
     </div>
   );
