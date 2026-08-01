@@ -395,6 +395,70 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const closeModal = useCallback((modalName) => setModals(prev => ({ ...prev, [modalName]: false })), [setModals]);
 
+  // Fetch WorkPRO project data
+  const fetchWorkPROData = useCallback(async () => {
+    if (!workOrder?.wo_number) return;
+
+    setLoadingWorkPRO(true);
+    try {
+      // Use backend proxy for project fetching
+      const projectResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'filter',
+        params: {
+          work_order: workOrder.wo_number
+        }
+      });
+
+      if (projectResponse.data.success) {
+        const projects = projectResponse.data.data || [];
+        const foundProject = projects.length > 0 ? projects[0] : null;
+        setWorkPROProject(foundProject);
+        setWorkPROProjects(projects);
+
+        if (foundProject) {
+          // Use backend proxy for comments fetching
+          const commentsResponse = await base44.functions.invoke('workProProxy', {
+            entityName: 'ProjectComment',
+            method: 'filter',
+            params: {
+              project_id: foundProject.id
+            }
+          });
+
+          if (commentsResponse.data.success) {
+            const commentsArray = commentsResponse.data.data || [];
+            setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+          }
+
+          // Fetch tech time sessions to compute total hours
+          try {
+            const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
+              projectId: foundProject.id
+            });
+            if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
+              const logs = timeResponse.data.logs;
+              const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
+              setWorkPROTimeTotal(totalHours);
+            }
+          } catch (err) {
+            console.error('Error fetching WorkPRO project logs:', err);
+          }
+        } else {
+          setWorkPROTimeTotal(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching WorkPRO data:', error);
+    } finally {
+      setLoadingWorkPRO(false);
+    }
+  }, [workOrder?.wo_number]);
+
+  useEffect(() => {
+    fetchWorkPROData();
+  }, [fetchWorkPROData]);
+
   const handleWorkPROConnectionChange = useCallback(() => {
     fetchWorkPROData();
   }, [fetchWorkPROData]);
@@ -593,69 +657,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     };
   }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
 
-  // Fetch WorkPRO project data
-  const fetchWorkPROData = useCallback(async () => {
-    if (!workOrder?.wo_number) return;
 
-    setLoadingWorkPRO(true);
-    try {
-      // Use backend proxy for project fetching
-      const projectResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'filter',
-        params: {
-          work_order: workOrder.wo_number
-        }
-      });
-
-      if (projectResponse.data.success) {
-        const projects = projectResponse.data.data || [];
-        const foundProject = projects.length > 0 ? projects[0] : null;
-        setWorkPROProject(foundProject);
-        setWorkPROProjects(projects);
-
-        if (foundProject) {
-          // Use backend proxy for comments fetching
-          const commentsResponse = await base44.functions.invoke('workProProxy', {
-            entityName: 'ProjectComment',
-            method: 'filter',
-            params: {
-              project_id: foundProject.id
-            }
-          });
-
-          if (commentsResponse.data.success) {
-            const commentsArray = commentsResponse.data.data || [];
-            setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-          }
-
-          // Fetch tech time sessions to compute total hours
-          try {
-            const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
-              projectId: foundProject.id
-            });
-            if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
-              const logs = timeResponse.data.logs;
-              const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
-              setWorkPROTimeTotal(totalHours);
-            }
-          } catch (err) {
-            console.error('Error fetching WorkPRO project logs:', err);
-          }
-        } else {
-          setWorkPROTimeTotal(0);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching WorkPRO data:', error);
-    } finally {
-      setLoadingWorkPRO(false);
-    }
-  }, [workOrder?.wo_number]);
-
-  useEffect(() => {
-    fetchWorkPROData();
-  }, [fetchWorkPROData]);
 
   const handleWorkPROUpdate = (field, value) => {
     setWorkPROProject(prev => prev ? { ...prev, [field]: value } : null);
@@ -1480,7 +1482,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       key: 'invoice',
       label: 'Invoice',
       activeColor: 'bg-green-600 text-white border-green-700',
-      inactiveColor: 'text-green-700 hover:bg-green-100',
+      inactiveColor: 'text-green-700 bg-green-50/50 hover:bg-green-100 border border-green-200 dark:text-green-400 dark:bg-green-950/20 dark:hover:bg-green-900/30 dark:border-green-800/50',
       disabled: workOrder?.stage === 'estimate'
     },
   ];
@@ -1571,8 +1573,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                           ${workOrder?.stage === stage.key
                             ? stage.activeColor + ' shadow-sm'
                             : (stage.disabled && !stage.action)
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : stage.inactiveColor + ' bg-transparent'
+                              ? 'bg-transparent dark:bg-black text-slate-400 dark:text-slate-700 cursor-default pointer-events-none border-0'
+                              : stage.inactiveColor
                           }
                           ${index < stages.length ? 'mr-1' : ''}
                         `}
@@ -1585,7 +1587,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     <button
                       onClick={handleHeaderSaveClick}
                       disabled={saving}
-                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 shadow-sm flex items-center gap-2 ml-1"
+                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white dark:bg-black dark:text-white dark:border dark:border-slate-800 dark:hover:bg-white dark:hover:text-black shadow-sm flex items-center gap-2 ml-1"
                     >
                       {saving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
