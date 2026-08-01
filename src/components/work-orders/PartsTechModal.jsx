@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, ExternalLink, CheckCircle, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, CheckCircle, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId }) {
@@ -14,6 +14,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   const latestCartDataRef = useRef(null);
   const [showCartReview, setShowCartReview] = useState(false);
   const [reviewParts, setReviewParts] = useState([]);
+  const [isCopied, setIsCopied] = useState(false);
   
   // New state for dropdowns
   const [salesClasses, setSalesClasses] = useState([]);
@@ -136,15 +137,18 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   const handleCopyToPO = () => {
     if (rawRoNumber) {
       navigator.clipboard.writeText(rawRoNumber)
-        .then(() => alert(`Copied ${rawRoNumber} to clipboard!`))
-        .catch(() => alert("Failed to copy to clipboard."));
+        .then(() => {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        })
+        .catch(console.error);
     }
   };
 
   const handleViewWorkOrder = () => {
     if (rawRoNumber) {
       const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
-      window.open(`/LankarWOView?woid=${rawRoNumber}`, '_blank', windowFeatures);
+      window.open(`/WorkOrderView?id=${rawRoNumber}`, '_blank', windowFeatures);
     }
   };
 
@@ -175,9 +179,16 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
         // Auto-match supplier based on PartsTech account name
         const accountName = order?.account?.name || '';
         let matchedSupplierId = "";
+        
+        // Default to Midway Distributors Limited (or find it in the list)
+        const midway = suppliers.find(s => s.name.toLowerCase().includes("midway distributors limited"));
+        
         if (accountName && suppliers.length > 0) {
             const match = suppliers.find(s => s.name.toLowerCase().includes(accountName.toLowerCase()) || accountName.toLowerCase().includes(s.name.toLowerCase()));
             if (match) matchedSupplierId = match.id;
+            else if (midway) matchedSupplierId = midway.id;
+        } else if (midway) {
+            matchedSupplierId = midway.id;
         }
         setGlobalSupplierId(matchedSupplierId);
 
@@ -367,18 +378,18 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen && !isPolling) onClose();
     }}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] flex flex-col p-4 gap-4">
+      <DialogContent className="max-w-[95vw] w-full h-[95vh] flex flex-col p-4 gap-4 [&>button.absolute]:hidden">
         <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b shrink-0">
           <DialogTitle className="text-xl">Online Order (PartsTech)</DialogTitle>
           
-          <div className="flex items-center gap-3 pr-8">
+          <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={handleCopyToPO} title="Copy Work Order number for PO">
-              <Copy className="w-4 h-4 mr-2" />
-              Copy to PO#
+              {isCopied ? <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
+              Copy PO#
             </Button>
             <Button variant="outline" size="sm" onClick={handleViewWorkOrder}>
               <ExternalLink className="w-4 h-4 mr-2" />
-              View Work Order
+              Work Order View
             </Button>
             <Button 
               variant="default" 
@@ -387,7 +398,17 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
               disabled={isPolling}
             >
               {isPolling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-              {isPolling ? "Waiting for Parts..." : "View Cart"}
+              {isPolling ? "Waiting for Parts..." : "Transfer Cart"}
+            </Button>
+            
+            <Button 
+              variant="destructive"
+              size="icon"
+              className="w-10 h-10 rounded-sm bg-red-600 hover:bg-red-700 text-white flex-shrink-0 ml-2"
+              onClick={onClose}
+              title="Close"
+            >
+              <X className="w-5 h-5" />
             </Button>
           </div>
         </DialogHeader>
@@ -425,15 +446,15 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
       </DialogContent>
 
       <Dialog open={showCartReview} onOpenChange={setShowCartReview}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-6">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-6 dark:bg-slate-900 dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle>Review Parts to Transfer</DialogTitle>
+            <DialogTitle className="dark:text-slate-100">Review Parts to Transfer</DialogTitle>
           </DialogHeader>
           
-          <div className="flex items-center gap-3 mt-2 bg-slate-50 p-3 rounded-md border">
-            <span className="font-medium text-sm text-slate-700">Supplier (Applies to all parts):</span>
+          <div className="flex items-center gap-3 mt-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-md border dark:border-slate-700">
+            <span className="font-medium text-sm text-slate-700 dark:text-slate-300">Supplier (Applies to all parts):</span>
             <select 
-              className="flex-1 max-w-sm p-1.5 text-sm border rounded-md"
+              className="flex-1 max-w-sm p-1.5 text-sm border rounded-md dark:bg-slate-950 dark:border-slate-700 dark:text-slate-200"
               value={globalSupplierId}
               onChange={(e) => setGlobalSupplierId(e.target.value)}
             >
@@ -444,9 +465,9 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             </select>
           </div>
 
-          <div className="flex-1 overflow-auto border rounded-md my-4">
+          <div className="flex-1 overflow-auto border dark:border-slate-700 rounded-md my-4">
             <table className="w-full text-sm text-left">
-              <thead className="bg-slate-100 text-slate-700 sticky top-0 shadow-sm z-10">
+              <thead className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 sticky top-0 shadow-sm z-10">
                 <tr>
                   <th className="p-3 w-12 text-center">
                     <input 
@@ -467,43 +488,42 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
                   <th className="p-3 font-semibold text-right">Qty</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {reviewParts.map(part => {
-                  const listPrice = calculateListPrice(part.costPrice, part.salesClassId);
-                  return (
-                    <tr key={part.id} className={part.selected ? "bg-white" : "bg-slate-50 opacity-50"}>
-                      <td className="p-3 text-center">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded border-gray-300"
-                          checked={part.selected}
-                          onChange={(e) => {
-                            setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, selected: e.target.checked } : p));
-                          }}
-                        />
-                      </td>
-                      <td className="p-3 font-mono">{part.partNumber}</td>
-                      <td className="p-3 truncate max-w-[200px]">{part.description}</td>
-                      <td className="p-3">
-                        <select 
-                          className="p-1 text-sm border rounded w-full max-w-[140px]"
-                          value={part.salesClassId}
-                          onChange={(e) => {
-                            setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, salesClassId: e.target.value } : p));
-                          }}
-                        >
-                          <option value="">-- None --</option>
-                          {salesClasses.map(sc => (
-                            <option key={sc.id} value={sc.id}>{sc.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-3 text-right">${Number(part.costPrice || 0).toFixed(2)}</td>
-                      <td className="p-3 text-right font-medium text-green-700">${Number(listPrice || 0).toFixed(2)}</td>
-                      <td className="p-3 text-right font-bold">{part.quantity}</td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y dark:divide-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900">
+                {reviewParts.map((part) => (
+                  <tr key={part.id} className={!part.selected ? "opacity-50 bg-slate-50 dark:bg-slate-950" : ""}>
+                    <td className="p-3 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-gray-300 dark:border-slate-600 dark:bg-slate-900"
+                        checked={part.selected}
+                        onChange={(e) => {
+                          setReviewParts(prev => prev.map(p => 
+                            p.id === part.id ? { ...p, selected: e.target.checked } : p
+                          ));
+                        }}
+                      />
+                    </td>
+                    <td className="p-3 font-mono">{part.partNumber}</td>
+                    <td className="p-3 truncate max-w-[200px]">{part.description}</td>
+                    <td className="p-3">
+                      <select 
+                        className="p-1 text-sm border rounded w-full max-w-[140px] dark:bg-slate-950 dark:border-slate-700"
+                        value={part.salesClassId}
+                        onChange={(e) => {
+                          setReviewParts(reviewParts.map(p => p.id === part.id ? { ...p, salesClassId: e.target.value } : p));
+                        }}
+                      >
+                        <option value="">-- None --</option>
+                        {salesClasses.map(sc => (
+                          <option key={sc.id} value={sc.id}>{sc.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 text-right">${Number(part.costPrice || 0).toFixed(2)}</td>
+                    <td className="p-3 text-right font-medium text-green-700 dark:text-green-400">${Number(calculateListPrice(part.costPrice, part.salesClassId) || 0).toFixed(2)}</td>
+                    <td className="p-3 text-right font-bold">{part.quantity}</td>
+                  </tr>
+                ))}
                 {reviewParts.length === 0 && (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-slate-500">
@@ -517,11 +537,11 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
           
           <div className="flex justify-between items-center shrink-0">
             <span className="text-sm text-slate-500">{reviewParts.filter(p => p.selected).length} parts selected</span>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setShowCartReview(false)}>Cancel</Button>
+            <div className="flex justify-end gap-3 mt-4 pt-4 border-t dark:border-slate-700">
+              <Button variant="outline" onClick={() => setShowCartReview(false)} className="dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700">Cancel</Button>
               <Button 
                 variant="outline"
-                className="border-slate-300 text-slate-700 hover:bg-slate-100"
+                className="border-slate-300 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600"
                 onClick={() => handleTransfer('quoted')}
                 disabled={reviewParts.filter(p => p.selected).length === 0 || !globalSupplierId}
                 title={!globalSupplierId ? "Please select a Supplier first" : ""}
