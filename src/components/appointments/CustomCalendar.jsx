@@ -609,20 +609,24 @@ export default function CustomCalendar({
             {totalCount} Appts
           </span>
         </div>
-        <div className="space-y-1 overflow-y-auto max-h-full px-1 scrollbar-hide">
+        <div className="space-y-1 overflow-y-auto max-h-full px-0.5 scrollbar-hide">
           {appointments.map((event) => {
             const customerName = event.customer 
               ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
               : event.displayTitle || 'Appointment';
             
             const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
+            const bayColorClass = getBayColorClass(event.bayId);
 
             return (
-              <div key={event.id} className={`flex flex-col border-b ${dividerClass} last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
-                <span className="truncate text-sm font-medium text-slate-900 dark:text-inherit">{customerName}</span>
-                <span className="text-xs text-slate-700 dark:text-inherit/80">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+              <div 
+                key={event.id} 
+                className={`p-1.5 mb-1 last:mb-0 rounded border flex flex-col justify-start items-stretch ${bayColorClass} ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}
+              >
+                <span className="truncate text-sm font-semibold text-slate-900 dark:text-white flex-shrink-0">{customerName}</span>
+                <span className="text-[11px] text-slate-700 dark:text-white flex-shrink-0 mt-0.5">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
                 {event.bayId && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border w-fit mt-0.5 ${getBayColorClass(event.bayId)} text-slate-800 dark:text-inherit/70`}>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-white flex-shrink-0">
                     {event.bayId}
                   </span>
                 )}
