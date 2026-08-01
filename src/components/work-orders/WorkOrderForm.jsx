@@ -11,7 +11,6 @@ import ReturnWOPartModal from './ReturnWOPartModal';
 import ReceivePartModal from './ReceivePartModal';
 import ROCoreModal from './ROCoreModal';
 import PartsTechModal from './PartsTechModal';
-import NapaProLinkModal from './NapaProLinkModal';
 
 function padLines(lines, minLines, defaultTaxable) {
   const blankLine = {
@@ -89,7 +88,6 @@ export default function WorkOrderForm({
     receivePart: false,
     cores: false,
     partsTech: false,
-    napaProLink: false,
   });
   
   const [partsTechCartId, setPartsTechCartId] = useState(null);
@@ -413,10 +411,6 @@ export default function WorkOrderForm({
     console.log('=== DEBUG: handlePartsTech called with index:', lineIndex, 'cartId:', cartId);
     setPartsTechCartId(cartId);
     openModal('partsTech', lineIndex);
-  }, [openModal]);
-
-  const handleNapaProLink = useCallback((lineIndex) => {
-    openModal('napaProLink', lineIndex);
   }, [openModal]);
 
   const handlePartsTechSuccess = useCallback((cartPayload) => {
@@ -883,7 +877,6 @@ export default function WorkOrderForm({
         onReceivePart={handleReceivePart}
         onCores={handleCores}
         onPartsTech={handlePartsTech}
-        onNapaProLink={handleNapaProLink}
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}
@@ -942,14 +935,10 @@ export default function WorkOrderForm({
             setPartsTechCartId(null);
         }}
         roNumber={initialWorkOrder?.ro_number}
-        vehicleInfo={initialWorkOrder?.vehicle_info}
-        userInfo={initialWorkOrder?.customer_info}
+        vehicleInfo={vehicle}
+        userInfo={{ username: 'tech' }}
         onTransferComplete={handlePartsTechSuccess}
         cartId={partsTechCartId}
-      />
-      <NapaProLinkModal
-        open={modals.napaProLink}
-        onClose={() => closeModal('napaProLink')}
       />
     </div>
   );
