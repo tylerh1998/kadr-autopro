@@ -431,16 +431,39 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
           }
 
-          // Fetch tech time sessions to compute total hours
+          // Fetch tech time sessions to compute total hours (with fallback)
           try {
-            const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
-              projectId: foundProject.id
-            });
-            if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
-              const logs = timeResponse.data.logs;
-              const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
-              setWorkPROTimeTotal(totalHours);
+            let totalHours = 0;
+            let success = false;
+
+            try {
+              const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
+                projectId: foundProject.id
+              });
+              if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs) && timeResponse.data.logs.length > 0) {
+                const logs = timeResponse.data.logs;
+                totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
+                success = true;
+              }
+            } catch (e) {
+              console.warn('getProjectTimeSessions edge function failed/empty, trying proxy:', e);
             }
+
+            if (!success) {
+              const timeResponse = await base44.functions.invoke('workProProxy', {
+                entityName: 'ProjectTimeSession',
+                method: 'filter',
+                params: {
+                  project_id: foundProject.id
+                }
+              });
+              if (timeResponse.data?.success) {
+                const sessions = timeResponse.data.data || [];
+                totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
+              }
+            }
+
+            setWorkPROTimeTotal(totalHours);
           } catch (err) {
             console.error('Error fetching WorkPRO project logs:', err);
           }

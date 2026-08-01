@@ -534,17 +534,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-slate-950 dark:text-slate-50">
                 <span>WorkPRO Project</span>
                 {projectsList.length > 1 ? (
                     <Select 
                         value={project?.id} 
                         onValueChange={(val) => handleProjectSwitch(val)}
                     >
-                        <SelectTrigger className="h-8 min-w-[300px] border-slate-300 bg-white">
+                        <SelectTrigger className="h-8 min-w-[300px] border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                             <SelectValue placeholder="Select project" />
                         </SelectTrigger>
                         <SelectContent>
@@ -556,7 +556,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         </SelectContent>
                     </Select>
                 ) : project && (
-                  <div className="flex items-center gap-3 text-sm font-normal text-slate-600">
+                  <div className="flex items-center gap-3 text-sm font-normal text-slate-600 dark:text-slate-400">
                     <span>{project.name}</span>
                     {project.work_order && (
                       <>
@@ -595,14 +595,13 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open in Window
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={onClose}
-                  className="h-8 w-8"
+                  className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white rounded-none p-0 transition-colors focus:outline-none flex items-center justify-center border border-red-500 shadow-sm"
+                  aria-label="Close"
                 >
                   <X className="w-5 h-5" />
-                </Button>
+                </button>
               </div>
             </DialogTitle>
           </DialogHeader>
@@ -809,7 +808,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
               <div>
                 <Label className="text-sm font-medium">Employees Assigned</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 max-h-32 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 dark:bg-slate-900/50 dark:border-slate-800 max-h-32 overflow-y-auto">
                   {employees.map((employee) => {
                     const employeeName = getEmployeeName(employee);
                     const isChecked = formData.assigned_employees.includes(employeeName);
@@ -1138,8 +1137,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
           )}
 
           {project && (
-            <DialogFooter className="flex items-center justify-between border-t pt-4 mt-4">
-              <div className="flex items-center gap-4 text-sm text-slate-600">
+            <DialogFooter className="flex items-center justify-between border-t dark:border-slate-800 pt-4 mt-4">
+              <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                 <button
                   onClick={() => setShowTechTimeModal(true)}
                   className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer"
