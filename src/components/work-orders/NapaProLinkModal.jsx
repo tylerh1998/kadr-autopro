@@ -33,9 +33,9 @@ export default function NapaProLinkModal({ open, onClose }) {
   }, [open]);
 
   // TekMetric spoofed ID
-  // https://pro.napaprolink.ca/prolinkca/integrators or some variation
-  // Often punchout URLs take query params like ?integratorId=TM577MT24J
-  const napaUrl = "https://pro.napaprolink.ca/prolinkca/?integratorId=TM577MT24J";
+  // Research shows the official Canadian punchout URL is often:
+  // https://www.napapunchout.ca/prolinkppse/punchout.aspx
+  const napaUrl = "https://www.napapunchout.ca/prolinkppse/punchout.aspx?integratorId=TM577MT24J";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
