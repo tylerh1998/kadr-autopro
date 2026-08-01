@@ -48,7 +48,8 @@ import {
   Sun,
   Moon,
   Shield,
-  User as UserIcon
+  User as UserIcon,
+  X
   } from 'lucide-react';
 import {
   DropdownMenu,

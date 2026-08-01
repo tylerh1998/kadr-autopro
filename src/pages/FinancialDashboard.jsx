@@ -348,24 +348,6 @@ export default function FinancialDashboard() {
 
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Financial Dashboard</h1>
-                <p className="text-slate-600 mt-1">Comprehensive overview of financial metrics</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={handleRefresh} variant="outline" disabled={loading || threeMonthPLLoading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${(loading || threeMonthPLLoading) ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button onClick={handlePrint} variant="outline">
-                <Printer className="w-4 h-4 mr-2" />
-                Print
-              </Button>
-            </div>
-          </div>
 
           <Card className="no-print">
             <CardContent className="p-6 space-y-4">
@@ -420,7 +402,8 @@ export default function FinancialDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"

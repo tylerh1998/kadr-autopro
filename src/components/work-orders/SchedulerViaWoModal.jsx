@@ -5,7 +5,7 @@ import { base44 } from '@/api/base44Client';
 import AppointmentForm from '../appointments/AppointmentForm';
 import CustomCalendar from '../appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAppointmentUpdated }) => {
   const [events, setEvents] = useState([]);

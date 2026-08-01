@@ -138,9 +138,9 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   };
 
   const handleViewWorkOrder = () => {
-    if (rawRoNumber) {
+    if (roNumber) {
       const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
-      window.open(`/WorkOrderView?id=${rawRoNumber}`, '_blank', windowFeatures);
+      window.open(`/WorkOrderView?id=${roNumber}`, '_blank', windowFeatures);
     }
   };
 
@@ -186,6 +186,21 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
 
         const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
         
+        const findValue = (obj, keys, depth = 0) => {
+            if (depth > 5 || !obj || typeof obj !== 'object') return null;
+            for (const key of keys) {
+                if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '' && typeof obj[key] !== 'object') return obj[key];
+            }
+            for (const key in obj) {
+                // Avoid searching through non-relevant arrays/objects if possible, but we'll allow it for shallow depth
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    const found = findValue(obj[key], keys, depth + 1);
+                    if (found !== null) return found;
+                }
+            }
+            return null;
+        };
+
         const formattedParts = order.items.map((rawItem, idx) => {
             // Support flat item or item wrapped in a node
             const item = rawItem.node || rawItem;
@@ -204,17 +219,27 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             if (!costPrice && item.product?.price) {
                 costPrice = item.product.price;
             }
+            if (!costPrice) {
+                costPrice = findValue(item, ['costPrice', 'cost', 'wholesaleCost', 'price', 'value']);
+            }
+            
             // Ensure costPrice is a number, handling string currencies like "$15.99"
             if (typeof costPrice === 'string') {
                 costPrice = parseFloat(costPrice.replace(/[^0-9.]/g, ''));
             }
             costPrice = Number(costPrice) || 0;
 
+            let partNumber = partInfo.partNumber || partInfo.part_number || item.builtItem?.product?.partNumberDisplay || item.product?.partNumberDisplay || '';
+            if (!partNumber) partNumber = findValue(item, ['partNumberDisplay', 'partNumber', 'part_number', 'sku', 'manufacturerPartNumber']) || 'Unknown';
+
+            let description = partInfo.partName || partInfo.description || partInfo.name || '';
+            if (!description) description = findValue(item, ['partName', 'description', 'name', 'title']) || 'Unknown Part';
+
             return {
                 id: idx,
-                partNumber: partInfo.partNumber || partInfo.part_number || '',
-                description: partInfo.partName || partInfo.description || partInfo.name || '',
-                quantity: item.quantity || item.qty || 1,
+                partNumber: partNumber,
+                description: description,
+                quantity: item.quantity || item.qty || findValue(item, ['quantity', 'qty']) || 1,
                 costPrice: costPrice,
                 salesClassId: defaultSc?.id || "",
                 selected: true
