@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { formatCurrency, formatMonth, formatShortDate } from './financialDashboardUtils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 export default function CashFlowTrendReport({ data }) {
   const [visibleSeries, setVisibleSeries] = useState({
@@ -10,23 +12,88 @@ export default function CashFlowTrendReport({ data }) {
     balance: true
   });
 
+  const [excludeWeekends, setExcludeWeekends] = useState(false);
+
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    const isDaily = !!data[0].date;
+    if (!isDaily) return data;
+
+    let filtered = data;
+    if (excludeWeekends) {
+      filtered = data.filter(item => {
+        const d = new Date(item.date + 'T00:00:00');
+        const day = d.getDay();
+        return day !== 0 && day !== 6;
+      });
+    }
+
+    if (data.length > 60) {
+      const weekly = [];
+      let currentWeek = null;
+
+      filtered.forEach(item => {
+        const d = new Date(item.date + 'T00:00:00');
+        const dayOfWeek = d.getDay();
+        const startOfWeek = new Date(d);
+        startOfWeek.setDate(d.getDate() - dayOfWeek);
+        const weekKey = startOfWeek.toISOString().split('T')[0];
+
+        if (!currentWeek || currentWeek.weekKey !== weekKey) {
+          if (currentWeek) weekly.push(currentWeek);
+          currentWeek = {
+            weekKey,
+            date: weekKey,
+            inflow: 0,
+            outflow: 0,
+            balance: item.balance
+          };
+        }
+
+        currentWeek.inflow += (item.inflow || 0);
+        currentWeek.outflow += (item.outflow || 0);
+        currentWeek.balance = item.balance; // Keep latest balance
+      });
+
+      if (currentWeek) weekly.push(currentWeek);
+      return weekly;
+    }
+
+    return filtered;
+  }, [data, excludeWeekends]);
+
   const chartData = useMemo(() => {
-    return (data || []).map((item) => ({
+    return processedData.map((item) => ({
       ...item,
       outflowNegative: -(item.outflow || 0)
     }));
-  }, [data]);
+  }, [processedData]);
 
   const handleLegendClick = (dataKey) => {
     setVisibleSeries((prev) => ({ ...prev, [dataKey]: !prev[dataKey] }));
   };
 
-  const labelFormatter = data?.[0]?.date ? formatShortDate : formatMonth;
+  const isWeekly = data?.[0]?.date && data.length > 60;
+  
+  const labelFormatter = data?.[0]?.date 
+    ? (isWeekly ? (val) => `Week of ${formatShortDate(val)}` : formatShortDate)
+    : formatMonth;
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle>Cash Flow Trend</CardTitle>
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="excludeWeekends" 
+            checked={excludeWeekends} 
+            onCheckedChange={setExcludeWeekends} 
+          />
+          <Label htmlFor="excludeWeekends" className="text-sm font-medium leading-none cursor-pointer">
+            Exclude Weekends
+          </Label>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-center gap-6 flex-wrap">
