@@ -14,6 +14,7 @@ import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
 import ROCoreModal from '../ROCoreModal';
 import PartsTechModal from '../PartsTechModal';
+import NapaProLinkModal from '../NapaProLinkModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
@@ -102,6 +103,7 @@ export default function WorkOrderForm({
     receivePart: false,
     cores: false,
     partsTech: false,
+    napaProLink: false,
   });
 
   // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
@@ -449,9 +451,14 @@ export default function WorkOrderForm({
     closeModal('getPart');
   }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
 
-  const handlePartsTech = useCallback((lineIndex) => {
-    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex);
+  const handlePartsTech = useCallback((lineIndex, cartId = null) => {
+    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex, 'cartId:', cartId);
+    setPartsTechCartId(cartId);
     openModal('partsTech', lineIndex);
+  }, [openModal]);
+
+  const handleNapaProLink = useCallback((lineIndex) => {
+    openModal('napaProLink', lineIndex);
   }, [openModal]);
 
   const handlePartsTechSuccess = useCallback((cartPayload) => {
@@ -1114,6 +1121,7 @@ export default function WorkOrderForm({
         onReceivePart={handleReceivePart}
         onCores={handleCores}
         onPartsTech={handlePartsTech}
+        onNapaProLink={handleNapaProLink}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         onInsertLine={handleInsertLine}
         workOrder={initialWorkOrder}
@@ -1181,6 +1189,10 @@ export default function WorkOrderForm({
         vehicleInfo={vehicle}
         userInfo={{ username: 'tech' }}
         onTransferComplete={handlePartsTechSuccess}
+      />
+      <NapaProLinkModal
+        open={modals.napaProLink}
+        onClose={() => closeModal('napaProLink')}
       />
     </div>
   );
