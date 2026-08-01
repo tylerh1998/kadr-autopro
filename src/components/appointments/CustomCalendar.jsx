@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users, Plus } from 'lucide-react';
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, differenceInMinutes, addMinutes } from 'date-fns';
 import CellAppointmentsModal from './CellAppointmentsModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
