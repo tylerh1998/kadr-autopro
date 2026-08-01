@@ -80,15 +80,15 @@ export default function CustomCalendar({
 
   const getBayColorClass = useCallback((bay) => {
     const bayColorMap = {
-      'Floor': 'bg-orange-100 border-orange-300 dark:bg-orange-950/40 dark:border-orange-800/60 dark:text-orange-300',
-      'Main Floor': 'bg-orange-100 border-orange-300 dark:bg-orange-950/40 dark:border-orange-800/60 dark:text-orange-300',
-      'Main Hoist': 'bg-green-100 border-green-300 dark:bg-green-950/40 dark:border-green-800/60 dark:text-green-300',
-      'North Floor': 'bg-purple-100 border-purple-300 dark:bg-purple-950/40 dark:border-purple-800/60 dark:text-purple-300',
-      'North Hoist': 'bg-yellow-100 border-yellow-300 dark:bg-yellow-950/40 dark:border-yellow-800/60 dark:text-yellow-300',
-      'Outside': 'bg-slate-100 border-slate-300 dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-slate-300',
-      'Other': 'bg-pink-100 border-pink-300 dark:bg-pink-950/40 dark:border-pink-800/60 dark:text-pink-300',
+      'Floor': 'bg-orange-200 border-orange-400 text-orange-950 dark:bg-orange-900 dark:border-orange-500 dark:text-orange-100',
+      'Main Floor': 'bg-orange-200 border-orange-400 text-orange-950 dark:bg-orange-900 dark:border-orange-500 dark:text-orange-100',
+      'Main Hoist': 'bg-green-200 border-green-400 text-green-950 dark:bg-green-900 dark:border-green-500 dark:text-green-100',
+      'North Floor': 'bg-purple-200 border-purple-400 text-purple-950 dark:bg-purple-900 dark:border-purple-500 dark:text-purple-100',
+      'North Hoist': 'bg-yellow-250 border-yellow-450 text-yellow-950 dark:bg-yellow-800 dark:border-yellow-500 dark:text-yellow-100',
+      'Outside': 'bg-slate-200 border-slate-400 text-slate-950 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100',
+      'Other': 'bg-pink-200 border-pink-400 text-pink-950 dark:bg-pink-900 dark:border-pink-500 dark:text-pink-100',
     };
-    return bayColorMap[bay] || 'bg-slate-100 border-slate-300 dark:bg-slate-900/50 dark:border-slate-700/50 dark:text-slate-300';
+    return bayColorMap[bay] || 'bg-slate-200 border-slate-400 text-slate-950 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100';
   }, []);
 
   const timeSlots = useMemo(() => {
@@ -515,15 +515,15 @@ export default function CustomCalendar({
         borderColor: techColor,
         borderWidth: '1px'
       };
-      cardClasses = `text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-center ${
+      cardClasses = `text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-start items-stretch ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     } else if (colorClass) {
-      cardClasses = `text-xs px-2 py-1 rounded border truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-center ${colorClass} ${
+      cardClasses = `text-xs px-2 py-1 rounded border truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-start items-stretch ${colorClass} ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     } else {
-      cardClasses = `text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 truncate hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-center ${
+      cardClasses = `text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 truncate hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-start items-stretch ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     }
@@ -549,7 +549,7 @@ export default function CustomCalendar({
         }}
         title={hoverText}
       >
-        <div className={`text-sm font-medium text-slate-900 dark:text-inherit truncate ${
+        <div className={`text-sm font-semibold text-slate-900 dark:text-inherit truncate ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {customerName}
@@ -560,7 +560,7 @@ export default function CustomCalendar({
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
         </div>
         {event.bayId && (
-          <div className={`text-xs text-slate-650 dark:text-inherit/60 ${
+          <div className={`text-[10px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1.5 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-inherit ${
             isCancelledOrNoShow ? 'line-through' : ''
           }`}>
             {event.bayId}
