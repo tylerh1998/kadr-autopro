@@ -527,6 +527,9 @@ export default function CustomCalendar({
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     }
+
+    const durationMinutes = differenceInMinutes(event.end, event.start);
+    const isShort = durationMinutes <= 30;
     
     return (
       <div
@@ -549,18 +552,18 @@ export default function CustomCalendar({
         }}
         title={hoverText}
       >
-        <div className={`text-sm font-semibold text-slate-900 dark:text-inherit truncate ${
+        <div className={`text-sm font-semibold text-slate-900 dark:text-white truncate flex-shrink-0 ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {customerName}
         </div>
-        <div className={`text-xs text-slate-700 dark:text-inherit/80 ${
+        <div className={`text-xs text-slate-700 dark:text-white flex-shrink-0 ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
         </div>
-        {event.bayId && (
-          <div className={`text-[10px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1.5 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-inherit ${
+        {event.bayId && !isShort && (
+          <div className={`text-[10px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-white flex-shrink-0 ${
             isCancelledOrNoShow ? 'line-through' : ''
           }`}>
             {event.bayId}

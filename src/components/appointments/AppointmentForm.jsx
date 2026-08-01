@@ -742,17 +742,6 @@ export default function AppointmentForm({
             <div className="grid grid-cols-2 gap-6">
               {/* Left Column - Form Fields */}
               <div className="space-y-4">
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Appointment title..."
-                  />
-                </div>
-
                 {/* Customer Selection */}
                 <div className="space-y-2">
                   <Label>Customer</Label>
