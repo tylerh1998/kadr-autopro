@@ -102,27 +102,19 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
     setLoadingSession(true);
     setSessionError(null);
     try {
-      const { data, error } = await supabase.functions.invoke('autopro-partstech-session', {
-        body: { 
-          ro_number: roNumber, 
-          vehicle: vehicleInfo,
-          userInfo: userInfo
-        }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      // PartsTech session response usually has a `url` field
-      let url = data?.data?.url; 
-      if (!url) {
-        console.error("Invalid session response:", data);
-        throw new Error("Did not receive a valid session URL from PartsTech.");
-      }
-
+      // Direct URL approach - bypassing the punchout API since the extension intercepts carts
+      let url = 'https://app.partstech.com/';
+      
       if (cartId) {
-        // Deep-link directly to the saved cart
-        url = url.replace('search/catalog', `saved-quotes/carts/${cartId}`);
+        url = `https://app.partstech.com/saved-quotes/carts/${cartId}`;
+      } else {
+        const params = new URLSearchParams();
+        if (vehicleInfo?.vin) params.append("vin", vehicleInfo.vin);
+        
+        const queryString = params.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
       }
 
       setSessionUrl(url);
