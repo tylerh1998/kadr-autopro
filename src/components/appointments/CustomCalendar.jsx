@@ -20,6 +20,7 @@ export default function CustomCalendar({
   bayColors,
   techColors,
   employees,
+  onNewAppointment,
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('week');
@@ -1379,6 +1380,15 @@ export default function CustomCalendar({
             </button>
 
           </div>
+          {onNewAppointment && (
+            <Button
+              onClick={onNewAppointment}
+              className="bg-black hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-black font-medium shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1456,6 +1466,17 @@ export default function CustomCalendar({
         employees={employees}
         getEventStyle={getEventStyle}
         handleAppointmentClick={handleAppointmentClick}
+        onNewAppointment={() => {
+          if (selectedCellSlotInfo) {
+            onSelectSlot({
+              start: selectedCellSlotInfo.start,
+              end: selectedCellSlotInfo.end,
+              bay: selectedCellSlotInfo.bay,
+              employee_id: selectedCellSlotInfo.techId
+            });
+            setShowCellAppointmentsModal(false);
+          }
+        }}
       />
 
       <WorkPROModal

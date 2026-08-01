@@ -374,20 +374,6 @@ export default function SchedulePage() {
   return (
     <div className="p-6 min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Scheduling</h1>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => {
-              setSelectedAppointment(null); // Clear selected appointment
-              setSlotInfo(null); // Clear slot info
-              setShowModal(true);
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Appointment
-            </Button>
-          </div>
-        </header>
-
         <AppointmentForm
           open={showModal}
           onClose={() => {
@@ -417,6 +403,11 @@ export default function SchedulePage() {
           bayColors={bayColors}
           techColors={techColors}
           employees={employees}
+          onNewAppointment={() => {
+            setSelectedAppointment(null);
+            setSlotInfo(null);
+            setShowModal(true);
+          }}
         />
       </div>
     </div>

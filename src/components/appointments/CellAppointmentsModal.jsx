@@ -1,9 +1,10 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Clock, MapPin, Wrench } from 'lucide-react';
+import { Clock, MapPin, Wrench, Plus } from 'lucide-react';
 
-export default function CellAppointmentsModal({ open, onClose, appointments, slotInfo, onSelectAppointment }) {
+export default function CellAppointmentsModal({ open, onClose, appointments, slotInfo, onSelectAppointment, onNewAppointment }) {
   if (!appointments || appointments.length === 0) return null;
 
   const getCustomerDisplayName = (customer) => {
@@ -21,11 +22,23 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            Appointments at {slotTimeDisplay}
-            {slotInfo?.bay && ` - ${slotInfo.bay}`}
-            {slotInfo?.techName && ` - ${slotInfo.techName}`}
-          </DialogTitle>
+          <div className="flex items-center justify-between pr-6">
+            <DialogTitle>
+              Appointments at {slotTimeDisplay}
+              {slotInfo?.bay && ` - ${slotInfo.bay}`}
+              {slotInfo?.techName && ` - ${slotInfo.techName}`}
+            </DialogTitle>
+            {onNewAppointment && (
+              <Button 
+                onClick={onNewAppointment}
+                size="sm"
+                className="bg-black hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-black font-medium shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Appointment
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
