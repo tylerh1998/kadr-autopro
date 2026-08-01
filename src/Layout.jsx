@@ -649,7 +649,7 @@ const navigationItems = [
                 className="flex items-center cursor-pointer"
               >
                 <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10 dark:hidden" />
-                <img src="/dark_logo.jpg" alt="Logo" className="h-10 hidden dark:block" />
+                <img src="/dark_logo.png" alt="Logo" className="h-10 hidden dark:block" />
               </div>
 
               <div
@@ -829,7 +829,7 @@ const navigationItems = [
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild className="focus:bg-slate-50 cursor-pointer !p-0">
+                  <DropdownMenuItem asChild className="focus:bg-slate-50 dark:focus:bg-slate-800 cursor-pointer !p-0">
                     <a href="https://my.kensauto.ca" className="flex items-center gap-3 w-full p-3 select-none">
                       <Avatar className="h-9 w-9 border border-slate-200">
                         <AvatarImage src={user?.avatar_url} />
