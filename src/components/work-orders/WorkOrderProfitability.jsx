@@ -60,7 +60,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         for (let i = 0; i < projectsToFetch.length; i += BATCH_SIZE) {
           const batch = projectsToFetch.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+            base44.functions.invoke('autopro-getProjectTimeSessions', { projectId: p.id })
           );
           
           const responses = await Promise.all(promises);

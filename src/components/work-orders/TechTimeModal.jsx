@@ -212,7 +212,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         for (let i = 0; i < projectsToLoad.length; i += BATCH_SIZE) {
           const batch = projectsToLoad.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+            base44.functions.invoke('autopro-getProjectTimeSessions', { projectId: p.id })
           );
           
           const responses = await Promise.all(promises);
