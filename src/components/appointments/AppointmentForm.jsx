@@ -761,7 +761,7 @@ export default function AppointmentForm({
                       value={selectedCustomer ? getCustomerDisplayName(selectedCustomer) : ''}
                       placeholder="No customer selected"
                       readOnly
-                      className="flex-1 bg-slate-50"
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
                     <Button
                       type="button"
@@ -838,7 +838,7 @@ export default function AppointmentForm({
                       value={selectedWorkOrder ? `${selectedWorkOrder.wo_number || selectedWorkOrder.est_number} - ${selectedWorkOrder.description}` : ''}
                       placeholder="No work order attached"
                       readOnly
-                      className="flex-1 bg-slate-50"
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
                     <Button
                       type="button"
@@ -854,7 +854,7 @@ export default function AppointmentForm({
                         <Button
                           type="button"
                           onClick={() => setShowWorkPROModal(true)}
-                          className="flex-1 bg-black hover:bg-slate-800 text-white"
+                          className="flex-1 bg-black hover:bg-slate-800 dark:bg-slate-750 dark:hover:bg-slate-700 dark:border-slate-600 text-white"
                         >
                           Open WorkPRO
                         </Button>
@@ -891,7 +891,7 @@ export default function AppointmentForm({
                     )}
                   </div>
                   {!formData.work_order_id && hasOpenWO && (
-                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-md text-sm flex items-center gap-2 mt-2">
+                    <div className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border border-orange-250 dark:border-orange-900/50 px-3 py-2 rounded-md text-sm flex items-center gap-2 mt-2">
                       <span className="font-semibold">⚠</span>
                       A work order or estimate is already open for this vehicle.
                     </div>
@@ -909,8 +909,8 @@ export default function AppointmentForm({
                         onClick={() => setFormData(prev => ({ ...prev, bay }))}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                           formData.bay === bay
-                            ? 'bg-slate-900 text-white shadow-md'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                         }`}
                       >
                         {bay}
@@ -1108,7 +1108,7 @@ export default function AppointmentForm({
                   </div>
                   
                   {/* Duration Links Below */}
-                  <div className="flex gap-3 text-sm text-blue-600">
+                  <div className="flex gap-3 text-sm text-blue-600 dark:text-blue-400">
                     <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
                     <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
                     <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
@@ -1169,7 +1169,7 @@ export default function AppointmentForm({
                     </Label>
                     {formData.reminders_text && (
                       <div className="flex items-center gap-1 flex-1">
-                        <span className="text-sm text-slate-500 font-medium">+1</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">+1</span>
                         <Input
                           id="reminders_phone"
                           value={formData.reminders_phone}
@@ -1202,17 +1202,17 @@ export default function AppointmentForm({
                         />
                         {reminderInfo && (
                           <div className="flex items-center gap-2 ml-2">
-                            <span className="text-sm text-gray-500">Send Date:</span>
+                            <span className="text-sm text-gray-500 dark:text-slate-400">Send Date:</span>
                             <Input 
                               readOnly 
                               value={reminderInfo.displayDate} 
-                              className={`h-8 w-40 ${reminderInfo.isPast ? 'text-red-600 border-red-300 bg-red-50' : 'bg-gray-50'}`}
+                              className={`h-8 w-40 ${reminderInfo.isPast ? 'text-red-600 dark:text-red-400 border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30' : 'bg-gray-50 dark:bg-slate-800'}`}
                             />
                           </div>
                         )}
                       </div>
                       {reminderInfo?.isPast && (
-                        <div className="flex items-start gap-2 p-2 bg-red-50 text-red-700 text-sm rounded border border-red-200">
+                        <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-900/50">
                           <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           <p>
                             The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.

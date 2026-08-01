@@ -372,10 +372,10 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
+    <div className="p-6 min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       <div className="max-w-7xl mx-auto">
         <header className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Scheduling</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Scheduling</h1>
           <div className="flex items-center gap-4">
             <Button onClick={() => {
               setSelectedAppointment(null); // Clear selected appointment
