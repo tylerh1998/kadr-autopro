@@ -52,6 +52,7 @@ export default function LineItemsTable({
   onOtherCharge,
   onAddPart,
   onPartsTech,
+  onNapaProLink,
   onReturnPart,
   onReceivePart,
   onCores,
@@ -356,6 +357,10 @@ export default function LineItemsTable({
           <ContextMenuItem onClick={() => onPartsTech(index)}>
             <Package className="mr-2 h-4 w-4" />
             <span>Online Order (PartsTech)</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onNapaProLink(index)}>
+            <Package className="mr-2 h-4 w-4" />
+            <span>Online Order (NAPA PROLink)</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>

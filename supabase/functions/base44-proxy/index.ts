@@ -78,7 +78,8 @@ serve(async (req) => {
         }
  
         autoproUserId = employee.autopro_user_id;
-      base44Headers.set("Authorization", `Bearer ${base44AccessToken}`);
+      // Use the non-expiring api_key as documented in Base44 LLM instructions
+      base44Headers.set("api_key", base44AccessToken);
       base44Headers.set("X-Act-As-User", employee.autopro_user_id);
     } else {
       log("No Authorization header provided. Blocking request.");
