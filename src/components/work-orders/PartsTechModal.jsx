@@ -202,10 +202,15 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             
             let costPrice = item.costPrice || item.cost || item.price || 0;
             if (item.builtItem) {
-                costPrice = item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || costPrice;
+                costPrice = item.builtItem.product?.price || item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || costPrice;
                 if (!costPrice && item.builtItem.price) {
-                   costPrice = item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || costPrice;
+                   costPrice = typeof item.builtItem.price === 'object'
+                     ? (item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || costPrice)
+                     : item.builtItem.price;
                 }
+            }
+            if (!costPrice && item.product?.price) {
+                costPrice = item.product.price;
             }
             // Ensure costPrice is a number, handling string currencies like "$15.99"
             if (typeof costPrice === 'string') {
