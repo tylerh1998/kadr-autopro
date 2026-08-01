@@ -396,7 +396,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const closeModal = useCallback((modalName) => setModals(prev => ({ ...prev, [modalName]: false })), [setModals]);
 
   const handleWorkPROConnectionChange = useCallback(() => {
-  }, []);
+    fetchWorkPROData();
+  }, [fetchWorkPROData]);
 
   // Fetch current user
   useEffect(() => {
@@ -593,72 +594,68 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
 
   // Fetch WorkPRO project data
-  useEffect(() => {
-    const fetchWorkPROData = async () => {
-      if (!workOrder?.wo_number) return;
+  const fetchWorkPROData = useCallback(async () => {
+    if (!workOrder?.wo_number) return;
 
-      setLoadingWorkPRO(true);
-      try {
-        // Use backend proxy for project fetching
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrder.wo_number
-          }
-        });
-
-        if (projectResponse.data.success) {
-          const projects = projectResponse.data.data || [];
-          const foundProject = projects.length > 0 ? projects[0] : null;
-          setWorkPROProject(foundProject);
-          setWorkPROProjects(projects);
-
-          if (foundProject) {
-            // Use backend proxy for comments fetching
-            const commentsResponse = await base44.functions.invoke('workProProxy', {
-              entityName: 'ProjectComment',
-              method: 'filter',
-              params: {
-                project_id: foundProject.id
-              }
-            });
-
-            if (commentsResponse.data.success) {
-              const commentsArray = commentsResponse.data.data || [];
-              setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-            }
-
-            // Fetch tech time sessions to compute total hours
-            try {
-              const timeResponse = await base44.functions.invoke('workProProxy', {
-                entityName: 'ProjectTimeSession',
-                method: 'filter',
-                params: {
-                  project_id: foundProject.id
-                }
-              });
-              if (timeResponse.data?.success) {
-                const sessions = timeResponse.data.data || [];
-                const totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
-                setWorkPROTimeTotal(totalHours);
-              }
-            } catch (err) {
-              console.error('Error fetching WorkPRO project time sessions:', err);
-            }
-          } else {
-            setWorkPROTimeTotal(0);
-          }
+    setLoadingWorkPRO(true);
+    try {
+      // Use backend proxy for project fetching
+      const projectResponse = await base44.functions.invoke('workProProxy', {
+        entityName: 'Project',
+        method: 'filter',
+        params: {
+          work_order: workOrder.wo_number
         }
-      } catch (error) {
-        console.error('Error fetching WorkPRO data:', error);
-      } finally {
-        setLoadingWorkPRO(false);
-      }
-    };
+      });
 
-    fetchWorkPROData();
+      if (projectResponse.data.success) {
+        const projects = projectResponse.data.data || [];
+        const foundProject = projects.length > 0 ? projects[0] : null;
+        setWorkPROProject(foundProject);
+        setWorkPROProjects(projects);
+
+        if (foundProject) {
+          // Use backend proxy for comments fetching
+          const commentsResponse = await base44.functions.invoke('workProProxy', {
+            entityName: 'ProjectComment',
+            method: 'filter',
+            params: {
+              project_id: foundProject.id
+            }
+          });
+
+          if (commentsResponse.data.success) {
+            const commentsArray = commentsResponse.data.data || [];
+            setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
+          }
+
+          // Fetch tech time sessions to compute total hours
+          try {
+            const timeResponse = await base44.functions.invoke('getProjectTimeSessions', {
+              projectId: foundProject.id
+            });
+            if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
+              const logs = timeResponse.data.logs;
+              const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
+              setWorkPROTimeTotal(totalHours);
+            }
+          } catch (err) {
+            console.error('Error fetching WorkPRO project logs:', err);
+          }
+        } else {
+          setWorkPROTimeTotal(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching WorkPRO data:', error);
+    } finally {
+      setLoadingWorkPRO(false);
+    }
   }, [workOrder?.wo_number]);
+
+  useEffect(() => {
+    fetchWorkPROData();
+  }, [fetchWorkPROData]);
 
   const handleWorkPROUpdate = (field, value) => {
     setWorkPROProject(prev => prev ? { ...prev, [field]: value } : null);
@@ -1633,13 +1630,15 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                       <span>WorkPRO</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2.5">
+                    <div 
+                      onClick={() => openModal('workPRO')}
+                      className="flex items-center gap-2.5 cursor-pointer group select-none"
+                    >
                       <button
-                        onClick={() => openModal('workPRO')}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none ${
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none pointer-events-none ${
                           workPROProject 
-                            ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white' 
-                            : 'bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 text-white'
+                            ? 'bg-green-600 group-hover:bg-green-700 dark:bg-green-700 dark:group-hover:bg-green-800 text-white' 
+                            : 'bg-orange-500 group-hover:bg-orange-600 dark:bg-orange-600 dark:group-hover:bg-orange-700 text-white'
                         }`}
                       >
                         <span>WorkPRO</span>
@@ -1651,7 +1650,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                       </button>
 
                       {workPROProject && (
-                        <div className="flex flex-col items-start text-left leading-none text-black dark:text-white select-none">
+                        <div className="flex flex-col items-start text-left leading-none text-black dark:text-white">
                           <span className="text-[11px] font-bold">
                             {workPROTimeTotal.toFixed(2)} hrs
                           </span>
@@ -1780,7 +1779,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           {modals.workPRO && workOrder && (
             <WorkPROModal
               open={modals.workPRO}
-              onClose={() => closeModal('workPRO')}
+              onClose={() => {
+                closeModal('workPRO');
+                fetchWorkPROData();
+              }}
               workOrder={workOrder}
               customer={customer}
               vehicles={vehicle ? [vehicle] : []}
