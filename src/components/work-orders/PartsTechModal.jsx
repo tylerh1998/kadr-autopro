@@ -56,26 +56,39 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
         const payload = event.data.payload;
         
         // Recursively search the payload for any object that looks like a PartsTech order/cart
-        // (Must be an object with an 'items' array and an 'id')
-        const findOrderWithItems = (obj, depth = 0) => {
-            if (depth > 10 || !obj || typeof obj !== 'object') return null;
-            if (Array.isArray(obj.items) && obj.id) return obj;
+        // We collect all matches and return the one with the largest items array 
+        // to avoid accidentally grabbing a partial update or a nested sub-items array.
+        const findAllOrders = (obj, depth = 0, matches = []) => {
+            if (depth > 10 || !obj || typeof obj !== 'object') return matches;
+            
+            if (Array.isArray(obj.items) && obj.id) {
+                matches.push(obj);
+            }
             
             for (const key in obj) {
                 if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    const found = findOrderWithItems(obj[key], depth + 1);
-                    if (found) return found;
+                    findAllOrders(obj[key], depth + 1, matches);
                 }
             }
-            return null;
+            return matches;
         };
 
-        const order = findOrderWithItems(payload);
+        const matches = findAllOrders(payload);
+        let order = null;
+        if (matches.length > 0) {
+            // Sort descending by items length, pick the largest
+            matches.sort((a, b) => b.items.length - a.items.length);
+            order = matches[0];
+        }
 
         if (order && order.items && order.items.length > 0) {
             console.log("🔥 WE HAVE THE CART DATA:", order);
             latestCartDataRef.current = order;
-            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'View Cart' to import.`);
+            try {
+                sessionStorage.setItem('partstech_latest_cart', JSON.stringify(order));
+            } catch (e) { console.warn("Could not save cart to session storage", e); }
+            
+            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'Transfer Cart' to import.`);
         }
         return;
       }
@@ -165,8 +178,16 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   };
 
   const handleViewCart = async () => {
-    if (latestCartDataRef.current) {
-        const order = latestCartDataRef.current;
+    let payload = latestCartDataRef.current;
+    if (!payload) {
+        try {
+            const saved = sessionStorage.getItem('partstech_latest_cart');
+            if (saved) payload = JSON.parse(saved);
+        } catch (e) { console.warn("Failed to parse sessionStorage cart", e); }
+    }
+
+    if (payload) {
+        const order = payload;
         
         // Auto-match supplier based on PartsTech account name
         const accountName = order?.account?.name || '';

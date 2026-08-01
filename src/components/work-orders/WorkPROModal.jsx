@@ -13,6 +13,7 @@ import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, Che
 import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
 import EditProjectDetailsModal from './EditProjectDetailsModal';
 import NewWorkPROModal from './NewWorkPROModal';
@@ -255,9 +256,11 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       // PRIORITY 1: Try to fetch using workOrderIdentifier
       if (workOrderIdentifier) {
         try {
-          const projects = await base44.entities.Project.filter({ work_order: workOrderIdentifier });
-          if (Array.isArray(projects)) {
+          const { data: projects, error } = await supabase.from('Project').select('*').eq('work_order', workOrderIdentifier);
+          if (!error && Array.isArray(projects)) {
             foundProjects = projects;
+          } else if (error) {
+            console.warn('Project filter failed:', error);
           }
         } catch (e) {
           console.warn('Project filter failed:', e);
@@ -267,9 +270,11 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       // FALLBACK: If no projects found and we have initialWorkPROProject.id, fetch by ID
       if (foundProjects.length === 0 && initialWorkPROProject?.id) {
         try {
-          const project = await base44.entities.Project.get(initialWorkPROProject.id);
-          if (project) {
+          const { data: project, error } = await supabase.from('Project').select('*').eq('id', initialWorkPROProject.id).single();
+          if (!error && project) {
             foundProjects = [project];
+          } else if (error) {
+             console.warn('Project get failed:', error);
           }
         } catch (e) {
           console.warn('Project get failed:', e);
@@ -316,9 +321,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const fetchAvailableProjectsForConnection = async () => {
     setIsFetchingProjectsForConnection(true);
     try {
-      const projects = await base44.entities.Project.list(null, 1000);
+      const { data: projects, error } = await supabase.from('Project').select('*').limit(1000);
 
-      if (Array.isArray(projects)) {
+      if (!error && Array.isArray(projects)) {
         // Filter out archived projects and those already connected to a work order
         const availableProjects = projects.filter(p => 
           p.status !== 'archived' && !p.work_order
@@ -362,9 +367,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         vin: vehicle?.vin || ''
       };
 
-      const updatedProject = await base44.entities.Project.update(selectedWorkPROProject.id, updatePayload);
+      const { data: updatedProject, error } = await supabase
+        .from('Project')
+        .update(updatePayload)
+        .eq('id', selectedWorkPROProject.id)
+        .select()
+        .single();
 
-      if (!updatedProject) throw new Error('Failed to connect project');
+      if (error || !updatedProject) throw new Error(error?.message || 'Failed to connect project');
 
       // Reload the modal with the newly connected project
       await fetchWorkPROData();
@@ -442,9 +452,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         updateData.date_archived = null;
       }
 
-      const savedProject = await base44.entities.Project.update(project.id, updateData);
+      const { data: savedProject, error } = await supabase
+        .from('Project')
+        .update(updateData)
+        .eq('id', project.id)
+        .select()
+        .single();
 
-      if (!savedProject) throw new Error('Failed to update project');
+      if (error || !savedProject) throw new Error(error?.message || 'Failed to update project');
       setProject(savedProject);
       await loadProjectIntoForm(savedProject);
       setHasChanges(false);
