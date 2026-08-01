@@ -230,27 +230,12 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
         onAppointmentUpdated();
       }
       
-      if (selectedAppointment) {
-        await Appointment.update(selectedAppointment.id, appointmentData);
-      } else {
-        await Appointment.create(appointmentData);
-      }
-      onAppointmentUpdated();
-      setShowAppointmentForm(false);
-      loadData();
-    } catch (error) {
-      console.error('Failed to save appointment:', error);
-    }
-  };
+      // Close the parent modal
+      onClose();
 
-  const handleDelete = async (appointmentId) => {
-    try {
-      await Appointment.delete(appointmentId);
-      onAppointmentUpdated();
-      setShowAppointmentForm(false);
-      loadData();
     } catch (error) {
-      console.error('Failed to delete appointment:', error);
+      console.error("Error deleting appointment in modal:", error);
+      alert("Failed to delete appointment.");
     }
   };
 
