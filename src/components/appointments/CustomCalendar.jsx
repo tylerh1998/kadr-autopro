@@ -522,7 +522,7 @@ export default function CustomCalendar({
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     } else {
-      cardClasses = `text-xs px-2 py-1 bg-slate-100 rounded border border-slate-200 truncate hover:bg-slate-200 transition-colors cursor-pointer flex flex-col justify-center ${
+      cardClasses = `text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 truncate hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-center ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     }
@@ -548,18 +548,18 @@ export default function CustomCalendar({
         }}
         title={hoverText}
       >
-        <div className={`text-sm font-medium text-slate-900 truncate ${
+        <div className={`text-sm font-medium text-slate-900 dark:text-inherit truncate ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {customerName}
         </div>
-        <div className={`text-xs text-black ${
+        <div className={`text-xs text-slate-700 dark:text-inherit/80 ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
         </div>
         {event.bayId && (
-          <div className={`text-xs text-black ${
+          <div className={`text-xs text-slate-650 dark:text-inherit/60 ${
             isCancelledOrNoShow ? 'line-through' : ''
           }`}>
             {event.bayId}
@@ -575,10 +575,10 @@ export default function CustomCalendar({
     
     // Extract border color for text/icon if possible, or default to slate/black
     // Default blue style
-    let containerClass = "w-full bg-blue-50 border-2 border-blue-300 hover:bg-blue-100";
-    let iconClass = "text-blue-600";
-    let titleClass = "text-blue-800";
-    let dividerClass = "border-blue-200";
+    let containerClass = "w-full bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30";
+    let iconClass = "text-blue-600 dark:text-blue-400";
+    let titleClass = "text-blue-800 dark:text-blue-300";
+    let dividerClass = "border-blue-200 dark:border-blue-800";
 
     if (colorClass) {
       // Assuming colorClass is like "bg-blue-100 border-blue-300"
@@ -587,9 +587,9 @@ export default function CustomCalendar({
       containerClass = `w-full border-2 rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden ${colorClass} hover:opacity-90`;
       
       // Attempt to derive text colors or just use slate-900
-      iconClass = "text-slate-700";
-      titleClass = "text-slate-900";
-      dividerClass = "border-slate-300";
+      iconClass = "text-slate-700 dark:text-inherit";
+      titleClass = "text-slate-905 dark:text-inherit";
+      dividerClass = "border-slate-300 dark:border-slate-700";
     } else {
       containerClass += " rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden";
     }
@@ -615,10 +615,10 @@ export default function CustomCalendar({
 
             return (
               <div key={event.id} className={`flex flex-col border-b ${dividerClass} last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
-                <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
-                <span className="text-xs text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+                <span className="truncate text-sm font-medium text-slate-900 dark:text-inherit">{customerName}</span>
+                <span className="text-xs text-slate-700 dark:text-inherit/80">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
                 {event.bayId && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border w-fit mt-0.5 ${getBayColorClass(event.bayId)} text-slate-800`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border w-fit mt-0.5 ${getBayColorClass(event.bayId)} text-slate-800 dark:text-inherit/70`}>
                     {event.bayId}
                   </span>
                 )}
@@ -969,17 +969,17 @@ export default function CustomCalendar({
     };
 
     return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
             <col style={{ width: '80px' }} />
             {days.map((day, index) => <col key={index} style={{ width: columnWidthPercent + '%' }} />)}
           </colgroup>
-          <thead className="sticky top-0 bg-white z-10">
+          <thead className="sticky top-0 bg-white dark:bg-slate-900 z-10">
             <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
+              <th className="border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 text-left font-semibold text-sm text-slate-700 dark:text-slate-300">Time</th>
               {days.map(day => (
-                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900' : 'text-slate-700'}`}>
+                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>
                   <div>{format(day, 'EEE')}</div>
                   <div className="text-lg">{format(day, 'd')}</div>
                 </th>
@@ -992,7 +992,7 @@ export default function CustomCalendar({
               const slotTime = parseTimeString(timeString, currentDate);
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {days.map(day => {
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
@@ -1052,14 +1052,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={dayKey} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -1071,11 +1071,11 @@ export default function CustomCalendar({
 
             {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
               {days.map(day => {
                 const dayKey = day.toISOString();
                 if (coveredCells[dayKey]['LUNCH']) return null;
-                return <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>;
+                return <td key={day.toISOString()} className="border border-slate-300 dark:border-slate-800 bg-black"></td>;
               })}
             </tr>
 
@@ -1084,7 +1084,7 @@ export default function CustomCalendar({
               const slotTime = parseTimeString(timeString, currentDate);
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {days.map(day => {
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
@@ -1144,14 +1144,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={dayKey} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -1231,7 +1231,7 @@ export default function CustomCalendar({
                     return (
                       <div
                         key={event.id}
-                        className={`text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 truncate hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer ${
+                        className={`text-xs px-2 py-1 rounded border truncate hover:opacity-90 transition-colors cursor-pointer ${getBayColorClass(event.bayId)} ${
                           isCancelledOrNoShow ? 'opacity-50' : ''
                         }`}
                         onClick={(e) => {
@@ -1249,12 +1249,12 @@ export default function CustomCalendar({
                         }}
                         title={hoverText}
                       >
-                        <div className={`font-medium text-slate-900 truncate ${
+                        <div className={`font-medium text-slate-900 dark:text-inherit truncate ${
                           isCancelledOrNoShow ? 'line-through' : ''
                         }`}>
                           {customerName}
                         </div>
-                        <div className={`text-[10px] text-slate-600 ${
+                        <div className={`text-[10px] text-slate-600 dark:text-inherit/80 ${
                           isCancelledOrNoShow ? 'line-through' : ''
                         }`}>
                           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
