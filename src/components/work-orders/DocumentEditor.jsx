@@ -414,21 +414,18 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         setWorkPROProjects(projects);
 
         if (foundProject) {
-          // Fetch tech time sessions to compute total hours (with fallback)
+          // Fetch tech time sessions to compute total hours
           try {
             let totalHours = 0;
-            let success = false;
 
-            try {
-              const { data: sessions, error: sessionError } = await supabase
-                .from('ProjectTimeSession')
-                .select('*')
-                .eq('project_id', foundProject.id);
+            const { data: sessions, error: sessionError } = await supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', foundProject.id);
 
-              if (!sessionError && sessions) {
-                totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
-              }
-
+            if (!sessionError && sessions) {
+              totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
+            }
 
             setWorkPROTimeTotal(totalHours);
           } catch (err) {
