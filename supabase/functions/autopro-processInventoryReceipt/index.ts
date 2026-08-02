@@ -478,20 +478,36 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
 
     if (invoice_gst && parseFloat(invoice_gst) > 0 && invoiceLinesToCreate.length > 0) {
       const targetGst = parseFloat(invoice_gst);
-      const calculatedGst = invoiceLinesToCreate.reduce((sum, line) => sum + line.gst_amount, 0);
-      let diff = Math.round((targetGst - calculatedGst) * 100) / 100;
       
-      let index = 0;
-      while (Math.abs(diff) >= 0.01 && index < invoiceLinesToCreate.length) {
-        const adjustment = diff > 0 ? 0.01 : -0.01;
-        invoiceLinesToCreate[index].gst_amount = Math.round((invoiceLinesToCreate[index].gst_amount + adjustment) * 100) / 100;
-        diff = Math.round((diff - adjustment) * 100) / 100;
+      // Calculate total purchase amount to find proportions
+      const totalPurchase = invoiceLinesToCreate.reduce((sum, line) => sum + Math.max(0, line.purchase_amount), 0);
+      
+      if (totalPurchase > 0) {
+        let allocatedGst = 0;
         
-        index++;
-        if (index >= invoiceLinesToCreate.length && Math.abs(diff) >= 0.01) {
-          // If we looped through all lines and still have a diff (very rare), just apply the rest to the first line
-          invoiceLinesToCreate[0].gst_amount = Math.round((invoiceLinesToCreate[0].gst_amount + diff) * 100) / 100;
-          diff = 0;
+        // Prorate GST to each line
+        for (let i = 0; i < invoiceLinesToCreate.length; i++) {
+          const line = invoiceLinesToCreate[i];
+          const proportion = Math.max(0, line.purchase_amount) / totalPurchase;
+          const proratedGst = Math.round(targetGst * proportion * 100) / 100;
+          line.gst_amount = proratedGst;
+          allocatedGst = Math.round((allocatedGst + proratedGst) * 100) / 100;
+        }
+        
+        // Amortize rounding difference
+        let diff = Math.round((targetGst - allocatedGst) * 100) / 100;
+        
+        // Sort indices by purchase amount descending to distribute pennies to largest items first
+        const indices = invoiceLinesToCreate.map((_, i) => i)
+          .sort((a, b) => invoiceLinesToCreate[b].purchase_amount - invoiceLinesToCreate[a].purchase_amount);
+          
+        let index = 0;
+        while (Math.abs(diff) >= 0.01 && index < indices.length) {
+          const adjustment = diff > 0 ? 0.01 : -0.01;
+          const actualIndex = indices[index];
+          invoiceLinesToCreate[actualIndex].gst_amount = Math.round((invoiceLinesToCreate[actualIndex].gst_amount + adjustment) * 100) / 100;
+          diff = Math.round((diff - adjustment) * 100) / 100;
+          index++;
         }
       }
     }

@@ -5,6 +5,7 @@ import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPaymen
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
 import { appParams } from '@/lib/app-params';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
@@ -401,36 +402,18 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
     setLoadingWorkPRO(true);
     try {
-      // Use backend proxy for project fetching
-      const projectResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'filter',
-        params: {
-          work_order: workOrder.wo_number
-        }
-      });
+      // Fetch project directly from Supabase
+      const { data: projects, error: projectError } = await supabase
+        .from('Project')
+        .select('*')
+        .eq('work_order', workOrder.wo_number);
 
-      if (projectResponse.data.success) {
-        const projects = projectResponse.data.data || [];
+      if (!projectError && projects) {
         const foundProject = projects.length > 0 ? projects[0] : null;
         setWorkPROProject(foundProject);
         setWorkPROProjects(projects);
 
         if (foundProject) {
-          // Use backend proxy for comments fetching
-          const commentsResponse = await base44.functions.invoke('workProProxy', {
-            entityName: 'ProjectComment',
-            method: 'filter',
-            params: {
-              project_id: foundProject.id
-            }
-          });
-
-          if (commentsResponse.data.success) {
-            const commentsArray = commentsResponse.data.data || [];
-            setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-          }
-
           // Fetch tech time sessions to compute total hours (with fallback)
           try {
             let totalHours = 0;
@@ -446,19 +429,16 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 success = true;
               }
             } catch (e) {
-              console.warn('autopro-getProjectTimeSessions edge function failed/empty, trying proxy:', e);
+              console.warn('autopro-getProjectTimeSessions edge function failed/empty, trying fallback:', e);
             }
 
             if (!success) {
-              const timeResponse = await base44.functions.invoke('workProProxy', {
-                entityName: 'ProjectTimeSession',
-                method: 'filter',
-                params: {
-                  project_id: foundProject.id
-                }
-              });
-              if (timeResponse.data?.success) {
-                const sessions = timeResponse.data.data || [];
+              const { data: sessions, error: sessionError } = await supabase
+                .from('ProjectTimeSession')
+                .select('*')
+                .eq('project_id', foundProject.id);
+
+              if (!sessionError && sessions) {
                 totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
               }
             }
