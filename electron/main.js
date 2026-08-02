@@ -60,10 +60,22 @@ function createWindow() {
     throw new Error("Could not find the supplier iframe or extract its text.");
   });
 
-  // Open DevTools if running in dev mode
-  // if (process.env.VITE_DEV_SERVER_URL) {
-  //   mainWindow.webContents.openDevTools();
-  // }
+  mainWindow.webContents.openDevTools();
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer Console] ${message}`);
+  });
+
+  mainWindow.webContents.on('did-finish-load', async () => {
+    try {
+      console.log(`[Main Process] __dirname is: ${__dirname}`);
+      console.log(`[Main Process] preload path is: ${path.join(__dirname, 'preload.cjs')}`);
+      
+      const hasAPI = await mainWindow.webContents.executeJavaScript('!!window.desktopAPI');
+      console.log(`[Main Process] window.desktopAPI exists: ${hasAPI}`);
+    } catch(e) {
+      console.log(`[Main Process] Error checking API:`, e);
+    }
+  });
 }
 
 app.whenReady().then(() => {

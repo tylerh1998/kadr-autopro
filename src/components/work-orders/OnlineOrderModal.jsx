@@ -133,9 +133,26 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
         if (window.desktopAPI && window.desktopAPI.getCartText) {
             rawText = await window.desktopAPI.getCartText();
         } else {
-            setPollError("Desktop API not found. Please restart the desktop app.");
-            setIsExtracting(false);
-            return;
+            // Fallback: request via postMessage
+            rawText = await new Promise((resolve, reject) => {
+                const handler = (event) => {
+                    if (event.data && event.data.type === 'CART_TEXT_RESULT') {
+                        window.removeEventListener('message', handler);
+                        resolve(event.data.text);
+                    } else if (event.data && event.data.type === 'CART_TEXT_ERROR') {
+                        window.removeEventListener('message', handler);
+                        reject(new Error(event.data.error));
+                    }
+                };
+                window.addEventListener('message', handler);
+                window.postMessage({ type: 'GET_CART_TEXT' }, '*');
+                
+                // Timeout after 3 seconds
+                setTimeout(() => {
+                    window.removeEventListener('message', handler);
+                    reject(new Error("Desktop API not found. Please restart the desktop app."));
+                }, 3000);
+            });
         }
         
         if (!rawText || rawText.trim().length === 0) {
