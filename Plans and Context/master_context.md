@@ -15,6 +15,8 @@ The all-in-one management solution for automotive repair shops, streamlining wor
 *   **Payroll:** Payroll transactions and ledger entries.
 *   **Setup:** Global system settings and configurations.
 
+**WorkPRO (Sister Application):** WorkPRO is a *separate* application from AutoPRO, not an AutoPRO module — it's the technician-facing side of the business: project tracking, pairing a Project to a Work Order, and time tracking (clock-in/out, tech time logs). It shares the same Supabase project as AutoPRO. AutoPRO reads/writes WorkPRO's tables (`Project`, `ProjectTimeSession`, `TimeRecord`, `UnassignedTime`, `Employee`, etc.) for features like tech time display and WO↔Project pairing. The integration flow is linear: `Appointment -> WorkOrder -> Project`.
+
 ## 3) Global Technical Rules & Conventions
 *   **Supabase Edge Functions:** 
     * Must always use the `autopro-[functionname]` naming format.
@@ -31,6 +33,7 @@ The all-in-one management solution for automotive repair shops, streamlining wor
 *   **UI/UX Standards:** 
     * Use accessible, soft UI patterns (Tailwind CSS, Radix primitives via `shadcn/ui`).
     * Implement robust error boundaries, loading skeletons, and graceful degradation.
+*   **Local Development:** Running the app on `localhost` is not viable — the authentication system requires same-origin. All development/testing happens against a real hosted deployment (the Vercel `development`-branch environment, `test.kensauto.ca`), never a local dev server.
 
 ## 4) Key Area Nuggets & Inner Workings
 *   *Sales/AR Integration:* Invoice posting mechanics trigger synchronous dual-entry GL transactions. When an RO converts to an Invoice, `autopro-handleInvoiceConversionGL` orchestrates moving funds from WIP/Inventory accounts to COGS, recognizing Revenue, tracking Tax liabilities, and debiting AR.
@@ -42,9 +45,7 @@ The all-in-one management solution for automotive repair shops, streamlining wor
     * `autopro-mergeInventoryItems`: Merges duplicate parts seamlessly, automatically cascading the new ID through historical `InventoryAuditLog` and `SupplierInvoiceLine` references to preserve history.
 
 ## 5) Long-Term Architectural Roadmap
-*   **Base44 Deprecation (Phase 3):** Clean up all frontend references to `InventoryTxs` and delete the legacy `inventoryUpdate` Edge Function.
-*   **Supabase Proxy Migration:** Migrate all remaining modules away from `base44.functions.invoke('SupabaseProxy')` directly to the `supabase` JS client for maximum performance and strict typing.
-*   **Complete Decommission of Base44:** Move all remaining business logic off the legacy API and sunset the server.
+*   **Base44 Deprecation:** The full, living, phase-by-phase roadmap for removing all remaining Base44 dependency (proxy functions, direct entity CRUD, auth, integrations) lives in `master_blueprint.md` at the repo root — refer there for current phase status rather than duplicating it here.
 
 ## 6) User Preferences & Constraints
 *   **Data Integrity First:** Double-entry accounting rules and exact inventory quantities are sacred. Prioritize backend constraints (RPCs, triggers) to guarantee data safety.
