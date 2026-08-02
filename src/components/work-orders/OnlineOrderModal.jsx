@@ -17,6 +17,18 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
   const [reviewParts, setReviewParts] = useState([]);
   const [isCopied, setIsCopied] = useState(false);
   
+  // Check if running in an Electron/desktop wrapper
+  // Many electron wrappers inject specific navigator or window properties.
+  // For now, we'll assume there's a window.__IS_DESKTOP__ flag or similar,
+  // or we can just use a placeholder that the desktop app will set.
+  const isDesktopApp = typeof window !== 'undefined' && (
+      window.isElectron || 
+      window.electron || 
+      navigator.userAgent.toLowerCase().includes('electron') ||
+      navigator.userAgent.toLowerCase().includes('tauri') ||
+      window.__IS_DESKTOP__
+  );
+  
   // New state for dropdowns
   const [salesClasses, setSalesClasses] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -409,13 +421,27 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
           )}
 
           {sessionUrl && !sessionError && (
-            <iframe 
-              id="partstech-iframe"
-              src={sessionUrl} 
-              className="w-full h-full border-0"
-              title="PartsTech Catalog"
-              allow="clipboard-write"
-            />
+            isDesktopApp ? (
+              <iframe 
+                id="partstech-iframe"
+                src={sessionUrl} 
+                className="w-full h-full border-0"
+                title="PartsTech Catalog"
+                allow="clipboard-write"
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-white z-10 border border-amber-200">
+                <div className="bg-amber-50 p-6 rounded-lg max-w-lg shadow-sm border border-amber-100">
+                  <h3 className="text-xl font-bold text-amber-800 mb-3">Desktop App Required</h3>
+                  <p className="text-slate-700 mb-4">
+                    Online ordering with this supplier requires the AutoPro Desktop App to properly handle secure authentication and cart transfers.
+                  </p>
+                  <p className="text-slate-600 text-sm">
+                    You are currently using a standard web browser. Please open the AutoPro Desktop application to use this feature.
+                  </p>
+                </div>
+              </div>
+            )
           )}
         </div>
 

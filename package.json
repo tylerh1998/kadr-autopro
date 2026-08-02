@@ -2,8 +2,13 @@
   "name": "base44-app",
   "private": true,
   "version": "0.0.0",
+  "description": "AutoPro Desktop Client",
+  "author": "Kens Auto",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
+    "start:desktop": "electron .",
+    "build:desktop": "electron-builder",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --quiet",
@@ -90,6 +95,9 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "baseline-browser-mapping": "^2.8.32",
+    "concurrently": "^10.0.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
@@ -100,5 +108,19 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "ca.kensauto.autopro",
+    "productName": "AutoPro Desktop",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ]
   }
 }
