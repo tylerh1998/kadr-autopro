@@ -51,7 +51,7 @@ serve(async (req) => {
             );
         }
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
         let supplierNamesContext = '';
         if (supplierNames && supplierNames.length > 0) {
