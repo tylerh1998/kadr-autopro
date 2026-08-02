@@ -119,8 +119,8 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
 
   const handleViewCart = async () => {
     setPollError(null);
-    const webview = document.getElementById('supplier-webview');
-    if (!webview) {
+    const iframe = document.getElementById('supplier-iframe');
+    if (!iframe) {
         setPollError("Supplier window is not loaded.");
         return;
     }
@@ -128,8 +128,15 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
     setIsExtracting(true);
     
     try {
-        // Use Electron's webview executeJavaScript to bypass all CORS/Site Isolation issues
-        const rawText = await webview.executeJavaScript('document.body.innerText');
+        // Use our secure desktop API to extract the text from the iframe via the main process
+        let rawText = '';
+        if (window.desktopAPI && window.desktopAPI.getCartText) {
+            rawText = await window.desktopAPI.getCartText();
+        } else {
+            setPollError("Desktop API not found. Please restart the desktop app.");
+            setIsExtracting(false);
+            return;
+        }
         
         if (!rawText || rawText.trim().length === 0) {
             setPollError("Could not extract text from the page.");
@@ -382,8 +389,8 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
 
           {sessionUrl && !sessionError && (
             isDesktopApp ? (
-              <webview 
-                id="supplier-webview"
+              <iframe 
+                id="supplier-iframe"
                 src={sessionUrl} 
                 className="w-full h-full border-0"
                 title="Supplier Catalog"

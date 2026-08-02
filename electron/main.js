@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, session, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,7 +15,6 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       // Important: Disable webSecurity to allow cross-origin requests and iframe embedding if needed
       webSecurity: false,
-      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -43,6 +42,23 @@ function createWindow() {
   const targetUrl = 'https://test.kensauto.ca';
   
   mainWindow.loadURL(targetUrl);
+
+  // Securely handle IPC requests from the frontend to extract text from the iframe
+  ipcMain.handle('get-cart-text', async (event) => {
+    // We search through all the frames in the main window
+    const frames = event.sender.mainFrame.frames;
+    for (const frame of frames) {
+      // Find the frame that has the NAPA Prolink URL
+      if (frame.url.includes('prolink.napacanada.com') || frame.url.includes('partstech.com')) {
+        try {
+          return await frame.executeJavaScript('document.body.innerText');
+        } catch (err) {
+          console.error("Failed to execute JS in frame:", err);
+        }
+      }
+    }
+    throw new Error("Could not find the supplier iframe or extract its text.");
+  });
 
   // Open DevTools if running in dev mode
   // if (process.env.VITE_DEV_SERVER_URL) {
