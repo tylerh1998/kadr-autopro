@@ -10,6 +10,7 @@ function createWindow() {
     width: 1400,
     height: 900,
     title: 'AutoPro Desktop',
+    icon: path.join(__dirname, '../public/icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       // Important: Disable webSecurity to allow cross-origin requests and iframe embedding if needed

@@ -61,112 +61,19 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
       setPollError(null);
       setIsPolling(false);
     }
-
-    // Listen for iframe postMessage events!
-    const handleMessage = (event) => {
-      // Listen for messages from our custom Chrome Extension
-      if (event.data && event.data.type === 'PARTSTECH_EXT_TEXT') {
-        const rawText = event.data.payload;
-        if (!rawText || rawText.trim().length === 0) {
-            setPollError("Could not extract text from the page.");
-            setIsExtracting(false);
-            return;
-        }
-
-        console.log("🔥 RECEIVED RAW TEXT, CALLING LLM");
-        
-        supabase.functions.invoke('autopro-extractCartTextLLM', {
-            body: { rawText }
-        }).then(({ data, error }) => {
-            setIsExtracting(false);
-            if (error) {
-                console.error("LLM Extraction error:", error);
-                setPollError("AI Extraction failed: " + error.message);
-                return;
-            }
-            if (data?.error) {
-                setPollError("AI Extraction failed: " + data.error);
-                return;
-            }
-
-            const extractedParts = data?.data || [];
-            if (extractedParts.length === 0) {
-                setPollError("No parts were found in the cart text.");
-                return;
-            }
-
-            // Default as requested by user
-            let matchedSupplierId = "69488ed2c61378ea58ffc215";
-            setGlobalSupplierId(matchedSupplierId);
-
-            const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
-
-            const formattedParts = extractedParts.map((item, idx) => {
-                let costPrice = Number(item.unitCost) || 0;
-                
-                return {
-                    id: idx,
-                    partNumber: item.partNumber || 'Unknown',
-                    description: item.description || 'Unknown Part',
-                    quantity: Number(item.quantity) || 1,
-                    costPrice: costPrice,
-                    salesClassId: defaultSc?.id || "",
-                    selected: true
-                };
-            });
-
-            setReviewParts(formattedParts);
-            setShowCartReview(true);
-        }).catch(err => {
-            console.error("Failed to call Edge Function", err);
-            setPollError("Failed to process with AI.");
-            setIsExtracting(false);
-        });
-
-        return;
-      }
-
-      // Allow specific origins or all for debugging standard PartsTech messages
-      if (event.origin.includes('partstech.com')) {
-        // Ignore rrweb session recording messages which fire constantly
-        if (event.data && event.data.type === 'rrweb') {
-          return;
-        }
-
-        console.log("PARTS TECH POST MESSAGE RECEIVED:", event.data);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-    
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
   }, [open, roNumber]);
 
   const loadSession = async () => {
     setLoadingSession(true);
     setSessionError(null);
     try {
-      // Direct URL approach - bypassing the punchout API since the extension intercepts carts
-      let url = supplierUrl || 'https://app.partstech.com/';
+      // Supplier URL or fallback
+      let url = supplierUrl || 'https://prolink.napacanada.com/';
       
-      if (cartId && url.includes("partstech.com")) {
-        url = `https://app.partstech.com/saved-quotes/carts/${cartId}`;
-      } else if (vehicleInfo?.vin) {
-        if (url.includes("partstech.com")) {
-            const params = new URLSearchParams();
-            params.append("vin", vehicleInfo.vin);
-            url += `?${params.toString()}`;
-        }
-        // NAPA Prolink usually doesn't accept a simple VIN query param without an active punchout session,
-        // so we just load the base URL and let the user copy/paste the VIN.
-      }
-
       setSessionUrl(url);
     } catch (err) {
-      console.error("Error loading PartsTech session:", err);
-      setSessionError(err.message || "Failed to initialize PartsTech session.");
+      console.error("Error loading session:", err);
+      setSessionError(err.message || "Failed to initialize session.");
     } finally {
       setLoadingSession(false);
     }
@@ -219,25 +126,77 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
     }
 
     setIsExtracting(true);
-    iframe.contentWindow.postMessage({ type: 'REQUEST_CART_TEXT' }, '*');
     
-    // Safety timeout in case extension isn't installed or doesn't respond
-    setTimeout(() => {
-        setIsExtracting((current) => {
-            if (current) {
-                setPollError("No response from extension. Please ensure it is installed and the page has loaded.");
-                return false;
-            }
-            return current;
+    try {
+        // Direct read via Desktop App bypasses cross-origin policy
+        const rawText = iframe.contentWindow.document.body.innerText;
+        
+        if (!rawText || rawText.trim().length === 0) {
+            setPollError("Could not extract text from the page.");
+            setIsExtracting(false);
+            return;
+        }
+
+        console.log("🔥 EXTRACTED RAW TEXT DIRECTLY, CALLING LLM");
+        
+        const { data, error } = await supabase.functions.invoke('autopro-extractCartTextLLM', {
+            body: { rawText }
         });
-    }, 5000);
+
+        if (error) {
+            console.error("LLM Extraction error:", error);
+            setPollError("AI Extraction failed: " + error.message);
+            setIsExtracting(false);
+            return;
+        }
+        if (data?.error) {
+            setPollError("AI Extraction failed: " + data.error);
+            setIsExtracting(false);
+            return;
+        }
+
+        const extractedParts = data?.data || [];
+        if (extractedParts.length === 0) {
+            setPollError("No parts were found in the cart text.");
+            setIsExtracting(false);
+            return;
+        }
+
+        // Default as requested by user
+        let matchedSupplierId = "69488ed2c61378ea58ffc215"; // NAPA
+        setGlobalSupplierId(matchedSupplierId);
+
+        const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
+
+        const formattedParts = extractedParts.map((item, idx) => {
+            let costPrice = Number(item.unitCost) || 0;
+            
+            return {
+                id: idx,
+                partNumber: item.partNumber || 'Unknown',
+                description: item.description || 'Unknown Part',
+                quantity: Number(item.quantity) || 1,
+                costPrice: costPrice,
+                salesClassId: defaultSc?.id || "",
+                selected: true
+            };
+        });
+
+        setReviewParts(formattedParts);
+        setShowCartReview(true);
+    } catch (err) {
+        console.error("Extraction error:", err);
+        setPollError("Failed to extract cart text. Please make sure the cart is open on the page.");
+    } finally {
+        setIsExtracting(false);
+    }
   };
 
   const handleTransfer = async (actionType) => {
     // actionType = 'ordered' | 'quoted'
     const selectedParts = reviewParts.filter(p => p.selected);
     const cartIdStr = latestCartDataRef.current?.id || cartId || "unknown";
-    const supplierName = suppliers.find(s => s.id === globalSupplierId)?.name || 'PartsTech';
+    const supplierName = suppliers.find(s => s.id === globalSupplierId)?.name || 'Supplier';
     
     const processedParts = await Promise.all(selectedParts.map(async (part) => {
         const listPrice = calculateListPrice(part.costPrice, part.salesClassId);
@@ -265,9 +224,9 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
                     p_qoo: currentQOO + part.quantity,
                     p_ro_number: rawRoNumber,
                     p_supplier_inv: null,
-                    p_source_action: 'PartsTechTransfer',
+                    p_source_action: 'OnlineOrderTransfer',
                     p_tx_type: 'Ordered',
-                    p_description: `Ordered from PartsTech for WO ${rawRoNumber}`
+                    p_description: `Ordered online for WO ${rawRoNumber}`
                 });
             }
         } else {
@@ -300,11 +259,11 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
                     new_quantity_on_order: finalQOO,
                     supplier_name: supplierName,
                     source_record_id: rawRoNumber,
-                    source_function: 'PartsTechTransfer',
+                    source_function: 'OnlineOrderTransfer',
                     tx_type: actionType === 'ordered' ? 'Ordered' : 'Quoted',
                     quantity_change: 0,
                     quantity_ordered_change: finalQOO,
-                    notes: `Added from PartsTech cart transfer`
+                    notes: `Added from online cart transfer`
                 }]);
             }
         }
@@ -349,26 +308,27 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
         <DialogHeader className="flex flex-row items-center justify-between border-b px-6 py-4">
           <div className="flex items-center space-x-4">
               <DialogTitle className="text-xl">
-                {supplierUrl && supplierUrl.includes("napaprolink") ? "NAPA Prolink Order" : "PartsTech Order"}
+                {supplierUrl && supplierUrl.includes("napaprolink") ? "NAPA Prolink Order" : "Online Supplier Order"}
               </DialogTitle>
-              {vehicleInfo?.vin && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {
-                        navigator.clipboard.writeText(vehicleInfo.vin);
-                        setIsCopied(true);
-                        setTimeout(() => setIsCopied(false), 2000);
-                    }}
-                    className="flex items-center space-x-1"
-                  >
-                      {isCopied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
-                      <span className="text-xs">{isCopied ? 'VIN Copied!' : 'Copy VIN'}</span>
-                  </Button>
-              )}
           </div>
           
           <div className="flex items-center gap-3">
+            {vehicleInfo?.vin && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                    navigator.clipboard.writeText(vehicleInfo.vin);
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                }}
+                className="flex items-center space-x-1 border-blue-200 hover:bg-blue-50 text-blue-700"
+                title="Copy VIN"
+              >
+                  {isCopied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  <span>{isCopied ? 'VIN Copied!' : 'Copy VIN'}</span>
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleCopyToPO} title="Copy Work Order number for PO">
               {isCopied ? <CheckCircle className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
               Copy PO#
@@ -409,7 +369,7 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
           {loadingSession && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-              <p>Connecting to PartsTech...</p>
+              <p>Connecting to Supplier...</p>
             </div>
           )}
           
@@ -426,7 +386,7 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
                 id="partstech-iframe"
                 src={sessionUrl} 
                 className="w-full h-full border-0"
-                title="PartsTech Catalog"
+                title="Supplier Catalog"
                 allow="clipboard-write"
               />
             ) : (
