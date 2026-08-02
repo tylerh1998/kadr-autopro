@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+import { supabase } from '@/lib/supabase';
+
 export default function AppointmentsListModal({ open, onClose, workOrderId, displayNumber, onAppointmentClick, onNewAppointment }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,10 +22,18 @@ export default function AppointmentsListModal({ open, onClose, workOrderId, disp
   const loadAppointments = async () => {
     setLoading(true);
     try {
-      const workOrderAppointments = await Appointment.filter({ work_order_id: workOrderId });
-      setAppointments(workOrderAppointments.sort((a, b) => 
-        new Date(a.start_time) - new Date(b.start_time)
-      ));
+      const { data, error } = await supabase
+        .from('Appointment')
+        .select('*')
+        .eq('work_order_id', workOrderId)
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('Supabase error loading appointments:', error);
+        setAppointments([]);
+      } else {
+        setAppointments(data || []);
+      }
     } catch (error) {
       console.error('Error loading appointments:', error);
       setAppointments([]);
