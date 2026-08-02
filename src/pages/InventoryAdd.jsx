@@ -21,7 +21,7 @@ import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
 import PartsInvoiceOCRModal from '../components/inventory/PartsInvoiceOCRModal';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlertCircle, Upload } from 'lucide-react';
+import { AlertCircle, Upload, TriangleAlert } from 'lucide-react';
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
@@ -194,6 +194,7 @@ export default function InventoryAddPage() {
     const [showBatchResultDialog, setShowBatchResultDialog] = useState(false);
     const [batchResult, setBatchResult] = useState({ successfulInvoices: [], failedInvoices: [] });
     const [ocrModalOpen, setOcrModalOpen] = useState(false);
+    const [duplicateInvoices, setDuplicateInvoices] = useState({});
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -480,6 +481,43 @@ export default function InventoryAddPage() {
         setDateError(null);
     };
 
+    useEffect(() => {
+        const checkDuplicates = async () => {
+            const newChecks = { ...duplicateInvoices };
+            let changed = false;
+            
+            for (const group of batchItems) {
+                if (group.supplier_id && group.invoice_number) {
+                    const key = `${group.supplier_id}-${group.invoice_number}`;
+                    if (newChecks[key] === undefined) {
+                        try {
+                            const { data, error } = await supabase
+                                .from('SupplierInvoiceLine')
+                                .select('id')
+                                .eq('supplier_id', group.supplier_id)
+                                .eq('invoice_number', group.invoice_number)
+                                .limit(1);
+                                
+                            if (!error) {
+                                newChecks[key] = data && data.length > 0;
+                                changed = true;
+                            }
+                        } catch (err) {
+                            console.error("Error checking duplicate invoice:", err);
+                        }
+                    }
+                }
+            }
+            if (changed) {
+                setDuplicateInvoices(newChecks);
+            }
+        };
+        
+        if (batchItems.length > 0) {
+            checkDuplicates();
+        }
+    }, [batchItems, duplicateInvoices]);
+
     const handleAddToBatch = async () => {
         setAddToBatchError('');
         setIsCategorySuggested(false);
@@ -729,6 +767,16 @@ export default function InventoryAddPage() {
 
         if (missingTireTaxItems.length > 0) {
             const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        const duplicateErrors = batchItems.filter(group => duplicateInvoices[`${group.supplier_id}-${group.invoice_number}`]);
+        if (duplicateErrors.length > 0) {
+            const supplierName = suppliers.find(s => String(s.id) === String(duplicateErrors[0].supplier_id))?.name || 'Unknown Supplier';
+            const proceed = window.confirm(`WARNING: Invoice #${duplicateErrors[0].invoice_number} for ${supplierName} (and potentially others) appears to be a duplicate already in the system. Are you sure you want to proceed and save duplicate invoices?`);
             if (!proceed) {
                 saveInProgressRef.current = false;
                 return;
@@ -1654,14 +1702,16 @@ export default function InventoryAddPage() {
                                     const calculatedGrandTotal = actualTotalForMismatch + (group.invoice_gst || 0);
                                     const totalMismatch = group.invoice_total !== undefined && group.invoice_total !== null && group.invoice_total > 0 && Math.abs(group.invoice_total - calculatedGrandTotal) > 0.01;
 
+                                    const isDuplicate = duplicateInvoices[`${group.supplier_id}-${group.invoice_number}`];
                                     const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
-                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors;
+                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors || isDuplicate;
                                     
                                     const errorMessages = [];
                                     if (isMissingGroupInfo) errorMessages.push("Missing Supplier, Invoice #, or Date");
                                     if (subtotalMismatch) errorMessages.push(`Subtotal mismatch (OCR Expected: $${group.ocr_expected_subtotal?.toFixed(2)}, Actual: $${actualTotalForMismatch.toFixed(2)})`);
                                     if (totalMismatch) errorMessages.push(`Total mismatch (OCR Expected: $${group.invoice_total?.toFixed(2)}, Actual: $${calculatedGrandTotal.toFixed(2)})`);
                                     if (hasRowErrors) errorMessages.push("One or more rows have missing information");
+                                    if (isDuplicate) errorMessages.push("Invoice appears to be a duplicate");
 
                                     return (
                                     <div key={groupIndex} className={`bg-slate-50 rounded-lg p-4 ${isMissingGroupInfo ? 'border-2 border-orange-400' : ''}`}>
@@ -1670,6 +1720,12 @@ export default function InventoryAddPage() {
                                                 <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">ERROR INVOICE</Badge>
                                             )}
                                             {getSupplierName(group.supplier_id)} - Invoice #{group.invoice_number || 'Missing'} - {group.invoice_date ? format(parseISO(group.invoice_date), 'MMM d, yyyy') : 'Missing Date'}
+                                            {isDuplicate && (
+                                                <Badge variant="outline" className="ml-2 border-orange-500 text-orange-500 bg-orange-50 flex items-center gap-1 text-xs px-2 py-0">
+                                                    <TriangleAlert className="w-3 h-3" />
+                                                    Duplicate Entry
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="space-y-2">
                                             {group.partItems.map((item) => {

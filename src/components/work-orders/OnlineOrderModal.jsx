@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink, CheckCircle, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId }) {
+export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId }) {
   const [sessionUrl, setSessionUrl] = useState(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [sessionError, setSessionError] = useState(null);
   
   const [isPolling, setIsPolling] = useState(false);
   const [pollError, setPollError] = useState(null);
+  const [isExtracting, setIsExtracting] = useState(false);
   const latestCartDataRef = useRef(null);
   const [showCartReview, setShowCartReview] = useState(false);
   const [reviewParts, setReviewParts] = useState([]);
@@ -52,44 +53,65 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
     // Listen for iframe postMessage events!
     const handleMessage = (event) => {
       // Listen for messages from our custom Chrome Extension
-      if (event.data && event.data.type === 'PARTSTECH_EXT_DATA') {
-        const payload = event.data.payload;
+      if (event.data && event.data.type === 'PARTSTECH_EXT_TEXT') {
+        const rawText = event.data.payload;
+        if (!rawText || rawText.trim().length === 0) {
+            setPollError("Could not extract text from the page.");
+            setIsExtracting(false);
+            return;
+        }
+
+        console.log("🔥 RECEIVED RAW TEXT, CALLING LLM");
         
-        // Recursively search the payload for any object that looks like a PartsTech order/cart
-        // We collect all matches and return the one with the largest items array 
-        // to avoid accidentally grabbing a partial update or a nested sub-items array.
-        const findAllOrders = (obj, depth = 0, matches = []) => {
-            if (depth > 10 || !obj || typeof obj !== 'object') return matches;
-            
-            if (Array.isArray(obj.items) && obj.id) {
-                matches.push(obj);
+        supabase.functions.invoke('autopro-extractCartTextLLM', {
+            body: { rawText }
+        }).then(({ data, error }) => {
+            setIsExtracting(false);
+            if (error) {
+                console.error("LLM Extraction error:", error);
+                setPollError("AI Extraction failed: " + error.message);
+                return;
             }
-            
-            for (const key in obj) {
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    findAllOrders(obj[key], depth + 1, matches);
-                }
+            if (data?.error) {
+                setPollError("AI Extraction failed: " + data.error);
+                return;
             }
-            return matches;
-        };
 
-        const matches = findAllOrders(payload);
-        let order = null;
-        if (matches.length > 0) {
-            // Sort descending by items length, pick the largest
-            matches.sort((a, b) => b.items.length - a.items.length);
-            order = matches[0];
-        }
+            const extractedParts = data?.data || [];
+            if (extractedParts.length === 0) {
+                setPollError("No parts were found in the cart text.");
+                return;
+            }
 
-        if (order && order.items && order.items.length > 0) {
-            console.log("🔥 WE HAVE THE CART DATA:", order);
-            latestCartDataRef.current = order;
-            try {
-                sessionStorage.setItem('partstech_latest_cart', JSON.stringify(order));
-            } catch (e) { console.warn("Could not save cart to session storage", e); }
-            
-            setPollError(`✅ Extension captured ${order.items.length} parts in cart! Click 'Transfer Cart' to import.`);
-        }
+            // Default to Midway Distributors Limited (or find it in the list)
+            const midway = suppliers.find(s => s.name.toLowerCase().includes("midway distributors limited"));
+            const matchedSupplierId = midway ? midway.id : (suppliers.length > 0 ? suppliers[0].id : "");
+            setGlobalSupplierId(matchedSupplierId);
+
+            const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
+
+            const formattedParts = extractedParts.map((item, idx) => {
+                let costPrice = Number(item.unitCost) || 0;
+                
+                return {
+                    id: idx,
+                    partNumber: item.partNumber || 'Unknown',
+                    description: item.description || 'Unknown Part',
+                    quantity: Number(item.quantity) || 1,
+                    costPrice: costPrice,
+                    salesClassId: defaultSc?.id || "",
+                    selected: true
+                };
+            });
+
+            setReviewParts(formattedParts);
+            setShowCartReview(true);
+        }).catch(err => {
+            console.error("Failed to call Edge Function", err);
+            setPollError("Failed to process with AI.");
+            setIsExtracting(false);
+        });
+
         return;
       }
 
@@ -178,135 +200,26 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
   };
 
   const handleViewCart = async () => {
-    let payload = latestCartDataRef.current;
-    if (!payload) {
-        try {
-            const saved = sessionStorage.getItem('partstech_latest_cart');
-            if (saved) payload = JSON.parse(saved);
-        } catch (e) { console.warn("Failed to parse sessionStorage cart", e); }
-    }
-
-    if (payload) {
-        const order = payload;
-        
-        // Auto-match supplier based on PartsTech account name
-        const accountName = order?.account?.name || '';
-        let matchedSupplierId = "";
-        
-        // Default to Midway Distributors Limited (or find it in the list)
-        const midway = suppliers.find(s => s.name.toLowerCase().includes("midway distributors limited"));
-        
-        if (accountName && suppliers.length > 0) {
-            const match = suppliers.find(s => s.name.toLowerCase().includes(accountName.toLowerCase()) || accountName.toLowerCase().includes(s.name.toLowerCase()));
-            if (match) matchedSupplierId = match.id;
-            else if (midway) matchedSupplierId = midway.id;
-        } else if (midway) {
-            matchedSupplierId = midway.id;
-        }
-        setGlobalSupplierId(matchedSupplierId);
-
-        const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
-        
-        const findValue = (obj, keys, depth = 0) => {
-            if (depth > 5 || !obj || typeof obj !== 'object') return null;
-            for (const key of keys) {
-                if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '' && typeof obj[key] !== 'object') return obj[key];
-            }
-            for (const key in obj) {
-                // Avoid searching through non-relevant arrays/objects if possible, but we'll allow it for shallow depth
-                if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                    const found = findValue(obj[key], keys, depth + 1);
-                    if (found !== null) return found;
-                }
-            }
-            return null;
-        };
-
-        const formattedParts = order.items.map((rawItem, idx) => {
-            // Support flat item or item wrapped in a node
-            const item = rawItem.node || rawItem;
-            // Sometimes parts details are nested under item.part
-            const partInfo = item.part || item;
-            
-            let costPrice = item.costPrice || item.cost || item.price || 0;
-            if (item.builtItem) {
-                costPrice = item.builtItem.product?.price || item.builtItem.costPrice || item.builtItem.cost || item.builtItem.wholesaleCost || costPrice;
-                if (!costPrice && item.builtItem.price) {
-                   costPrice = typeof item.builtItem.price === 'object'
-                     ? (item.builtItem.price.cost || item.builtItem.price.wholesale || item.builtItem.price.value || costPrice)
-                     : item.builtItem.price;
-                }
-            }
-            if (!costPrice && item.product?.price) {
-                costPrice = item.product.price;
-            }
-            if (!costPrice) {
-                costPrice = findValue(item, ['costPrice', 'cost', 'wholesaleCost', 'price', 'value']);
-            }
-            
-            // Ensure costPrice is a number, handling string currencies like "$15.99"
-            if (typeof costPrice === 'string') {
-                costPrice = parseFloat(costPrice.replace(/[^0-9.]/g, ''));
-            }
-            costPrice = Number(costPrice) || 0;
-
-            let partNumber = partInfo.partNumber || partInfo.part_number || item.builtItem?.product?.partNumberDisplay || item.product?.partNumberDisplay || '';
-            if (!partNumber) partNumber = findValue(item, ['partNumberDisplay', 'partNumber', 'part_number', 'sku', 'manufacturerPartNumber']) || 'Unknown';
-
-            let description = partInfo.partName || partInfo.description || partInfo.name || '';
-            if (!description) description = findValue(item, ['partName', 'description', 'name', 'title']) || 'Unknown Part';
-
-            return {
-                id: idx,
-                partNumber: partNumber,
-                description: description,
-                quantity: item.quantity || item.qty || findValue(item, ['quantity', 'qty']) || 1,
-                costPrice: costPrice,
-                salesClassId: defaultSc?.id || "",
-                selected: true
-            };
-        });
-        setReviewParts(formattedParts);
-        setShowCartReview(true);
+    setPollError(null);
+    const iframe = document.getElementById('partstech-iframe');
+    if (!iframe || !iframe.contentWindow) {
+        setPollError("Supplier window is not loaded.");
         return;
     }
+
+    setIsExtracting(true);
+    iframe.contentWindow.postMessage({ type: 'REQUEST_CART_TEXT' }, '*');
     
-    // DB polling fallback
-    setIsPolling(true);
-    setPollError(null);
-    let found = false;
-    try {
-      for (let i = 0; i < 5; i++) {
-        const { data, error } = await supabase.from('PartsTechCart').select('*').eq('wo_id', roNumber).eq('status', 'pending').order('created_at', { ascending: false }).limit(1);
-        if (error) throw error;
-        if (data && data.length > 0) {
-          const cartRow = data[0];
-          await supabase.from('PartsTechCart').update({ status: 'processed' }).eq('id', cartRow.id);
-          const dbParts = cartRow.payload?.parts || [];
-          
-          const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
-          const formattedDbParts = dbParts.map((p, idx) => ({
-             id: idx,
-             partNumber: p.part_number || p.partNumber || '',
-             description: p.description || p.partName || '',
-             quantity: p.qty || p.quantity || 1,
-             costPrice: p.parts_ea || p.costPrice || 0,
-             salesClassId: defaultSc?.id || "",
-             selected: true
-          }));
-          setReviewParts(formattedDbParts);
-          setShowCartReview(true);
-          found = true;
-          break;
-        }
-        await delay(1000);
-      }
-      if (!found) setPollError("We haven't received the cart data yet. Please wait a few seconds and try again.");
-    } catch (err) {
-      setPollError("An error occurred while checking for the transferred parts.");
-    } finally {
-      if (!found) setIsPolling(false);
-    }
+    // Safety timeout in case extension isn't installed or doesn't respond
+    setTimeout(() => {
+        setIsExtracting((current) => {
+            if (current) {
+                setPollError("No response from extension. Please ensure it is installed and the page has loaded.");
+                return false;
+            }
+            return current;
+        });
+    }, 5000);
   };
 
   const handleTransfer = async (actionType) => {
@@ -436,12 +349,18 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
             </Button>
             <Button 
               variant="default" 
-              className="bg-green-600 hover:bg-green-700 text-white" 
+              className="bg-red-600 hover:bg-red-700 text-white" 
               onClick={handleViewCart}
-              disabled={isPolling}
+              disabled={isExtracting}
             >
-              {isPolling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-              {isPolling ? "Waiting for Parts..." : "Transfer Cart"}
+              {isExtracting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Extracting AI Cart...
+                </>
+              ) : (
+                'Transfer Cart'
+              )}
             </Button>
             
             <Button 
@@ -473,6 +392,7 @@ export default function PartsTechModal({ open, onClose, roNumber, vehicleInfo, u
 
           {sessionUrl && !sessionError && (
             <iframe 
+              id="partstech-iframe"
               src={sessionUrl} 
               className="w-full h-full border-0"
               title="PartsTech Catalog"

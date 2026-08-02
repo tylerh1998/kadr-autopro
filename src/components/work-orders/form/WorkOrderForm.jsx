@@ -13,7 +13,7 @@ import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
 import ROCoreModal from '../ROCoreModal';
-import PartsTechModal from '../PartsTechModal';
+import OnlineOrderModal from '../OnlineOrderModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
@@ -1177,7 +1177,7 @@ export default function WorkOrderForm({
         onCoreProcessed={handleCoreProcessed}
         mode={mode} // Pass mode
       />
-      <PartsTechModal
+      <OnlineOrderModal
         open={modals.partsTech}
         onClose={() => {
           closeModal('partsTech');

@@ -25,3 +25,19 @@ window.addEventListener('message', function(e) {
         }, '*');
     }
 });
+
+// Listen for a direct request from the parent window to scrape the page text
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'REQUEST_CART_TEXT') {
+        console.log("🚀 [PartsTech Ext] Received request for page text. Extracting innerText...");
+        
+        // Grab the full visible text of the PartsTech page
+        const rawText = document.body.innerText || "";
+        
+        window.parent.postMessage({
+            type: 'PARTSTECH_EXT_TEXT',
+            payload: rawText,
+            url: window.location.href
+        }, '*');
+    }
+});

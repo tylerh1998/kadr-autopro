@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Appointment, Employee } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import AppointmentForm from '../appointments/AppointmentForm';
 import CustomCalendar from '../appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -50,18 +51,20 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     if (!open) return;
     setLoading(true);
     try {
-      const [allAppointments, employeesData, custRes, vehRes] = await Promise.all([
-        Appointment.list(),
-        Employee.filter({ position: ['technician', 'apprentice'] }),
-        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+      const [allAppointmentsRes, employeesDataRes, custRes, vehRes] = await Promise.all([
+        supabase.from('Appointment').select('*'),
+        supabase.from('Employee').select('*').in('position', ['technician', 'apprentice']),
+        supabase.from('Customer').select('*'),
+        supabase.from('Vehicle').select('*'),
       ]);
       
-      const customersList = custRes.data?.data || [];
+      const allAppointments = allAppointmentsRes.data || [];
+      const employeesData = employeesDataRes.data || [];
+      const customersList = custRes.data || [];
       if (customer && !customersList.some(c => c.id === customer.id)) {
         customersList.push(customer);
       }
-      const vehiclesList = vehRes.data?.data || [];
+      const vehiclesList = vehRes.data || [];
       if (vehicle && !vehiclesList.some(v => v.id === vehicle.id)) {
         vehiclesList.push(vehicle);
       }
@@ -192,9 +195,11 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       }
       
       if (isEditing) {
-        await Appointment.update(selectedAppointment.id, dataToSave);
+        const { error } = await supabase.from('Appointment').update(dataToSave).eq('id', selectedAppointment.id);
+        if (error) throw error;
       } else {
-        await Appointment.create(dataToSave);
+        const { error } = await supabase.from('Appointment').insert([dataToSave]);
+        if (error) throw error;
       }
       
       // Hide the form
@@ -218,7 +223,8 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   const handleDelete = async (id) => {
     try {
-      await Appointment.delete(id);
+      const { error } = await supabase.from('Appointment').delete().eq('id', id);
+      if (error) throw error;
 
       // Hide the form
       setShowAppointmentForm(false);
@@ -247,7 +253,12 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   const handleDeleteAppointment = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
-      await Appointment.delete(appointmentId);
+      const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+      if (error) {
+        console.error("Error deleting appointment:", error);
+        alert("Failed to delete appointment.");
+        return;
+      }
       loadData();
     }
   };
