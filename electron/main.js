@@ -15,6 +15,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       // Important: Disable webSecurity to allow cross-origin requests and iframe embedding if needed
       webSecurity: false,
+      webviewTag: true,
       contextIsolation: true,
       nodeIntegration: false
     }
@@ -39,10 +40,7 @@ function createWindow() {
   });
 
   // Load the live Vercel URL
-  const targetUrl = process.env.VITE_DEV_SERVER_URL || 'https://test.kensauto.ca';
-  
-  // You can also use a local dev server when running `start:desktop` locally
-  // In package.json we will define a script that passes VITE_DEV_SERVER_URL if needed
+  const targetUrl = 'https://test.kensauto.ca';
   
   mainWindow.loadURL(targetUrl);
 

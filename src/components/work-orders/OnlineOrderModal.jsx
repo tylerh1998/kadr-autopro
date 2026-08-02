@@ -119,8 +119,8 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
 
   const handleViewCart = async () => {
     setPollError(null);
-    const iframe = document.getElementById('partstech-iframe');
-    if (!iframe || !iframe.contentWindow) {
+    const webview = document.getElementById('supplier-webview');
+    if (!webview) {
         setPollError("Supplier window is not loaded.");
         return;
     }
@@ -128,8 +128,8 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
     setIsExtracting(true);
     
     try {
-        // Direct read via Desktop App bypasses cross-origin policy
-        const rawText = iframe.contentWindow.document.body.innerText;
+        // Use Electron's webview executeJavaScript to bypass all CORS/Site Isolation issues
+        const rawText = await webview.executeJavaScript('document.body.innerText');
         
         if (!rawText || rawText.trim().length === 0) {
             setPollError("Could not extract text from the page.");
@@ -382,12 +382,11 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
 
           {sessionUrl && !sessionError && (
             isDesktopApp ? (
-              <iframe 
-                id="partstech-iframe"
+              <webview 
+                id="supplier-webview"
                 src={sessionUrl} 
                 className="w-full h-full border-0"
                 title="Supplier Catalog"
-                allow="clipboard-write"
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-white z-10 border border-amber-200">
