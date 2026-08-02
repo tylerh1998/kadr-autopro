@@ -10,7 +10,7 @@ import AddPartToWOModal from './WOAddInventoryModal';
 import ReturnWOPartModal from './ReturnWOPartModal';
 import ReceivePartModal from './ReceivePartModal';
 import ROCoreModal from './ROCoreModal';
-import PartsTechModal from './PartsTechModal';
+import OnlineOrderModal from './OnlineOrderModal';
 
 function padLines(lines, minLines, defaultTaxable) {
   const blankLine = {
@@ -928,7 +928,7 @@ export default function WorkOrderForm({
         workOrder={initialWorkOrder}
         onCoreProcessed={handleCoreProcessed}
       />
-      <PartsTechModal
+      <OnlineOrderModal
         open={modals.partsTech}
         onClose={() => {
             closeModal('partsTech');
