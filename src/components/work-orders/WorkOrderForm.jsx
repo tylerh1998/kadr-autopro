@@ -91,6 +91,7 @@ export default function WorkOrderForm({
   });
   
   const [partsTechCartId, setPartsTechCartId] = useState(null);
+  const [supplierUrl, setSupplierUrl] = useState("https://app.partstech.com/");
   const isInternalUpdate = useRef(false);
 
   useEffect(() => {
@@ -407,9 +408,10 @@ export default function WorkOrderForm({
     closeModal('getPart');
   }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
 
-  const handlePartsTech = useCallback((lineIndex, cartId = null) => {
-    console.log('=== DEBUG: handlePartsTech called with index:', lineIndex, 'cartId:', cartId);
+  const handleOnlineOrder = useCallback((lineIndex, url, cartId = null) => {
+    console.log('=== DEBUG: handleOnlineOrder called with index:', lineIndex, 'url:', url, 'cartId:', cartId);
     setPartsTechCartId(cartId);
+    setSupplierUrl(url);
     openModal('partsTech', lineIndex);
   }, [openModal]);
 
@@ -876,7 +878,7 @@ export default function WorkOrderForm({
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
         onCores={handleCores}
-        onPartsTech={handlePartsTech}
+        onOnlineOrder={handleOnlineOrder}
         workOrder={initialWorkOrder}
         selectedLineIndex={selectedLineIndex}
         onSelectLine={handleSelectLine}
@@ -939,6 +941,7 @@ export default function WorkOrderForm({
         userInfo={{ username: 'tech' }}
         onTransferComplete={handlePartsTechSuccess}
         cartId={partsTechCartId}
+        supplierUrl={supplierUrl}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink, CheckCircle, Loader2, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId }) {
+export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo, userInfo, onTransferComplete, cartId, supplierUrl }) {
   const [sessionUrl, setSessionUrl] = useState(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [sessionError, setSessionError] = useState(null);
@@ -83,9 +83,8 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
                 return;
             }
 
-            // Default to Midway Distributors Limited (or find it in the list)
-            const midway = suppliers.find(s => s.name.toLowerCase().includes("midway distributors limited"));
-            const matchedSupplierId = midway ? midway.id : (suppliers.length > 0 ? suppliers[0].id : "");
+            // Default as requested by user
+            let matchedSupplierId = "69488ed2c61378ea58ffc215";
             setGlobalSupplierId(matchedSupplierId);
 
             const defaultSc = salesClasses.find(sc => sc.name === 'Regular') || salesClasses[0];
@@ -138,18 +137,18 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
     setSessionError(null);
     try {
       // Direct URL approach - bypassing the punchout API since the extension intercepts carts
-      let url = 'https://app.partstech.com/';
+      let url = supplierUrl || 'https://app.partstech.com/';
       
-      if (cartId) {
+      if (cartId && url.includes("partstech.com")) {
         url = `https://app.partstech.com/saved-quotes/carts/${cartId}`;
-      } else {
-        const params = new URLSearchParams();
-        if (vehicleInfo?.vin) params.append("vin", vehicleInfo.vin);
-        
-        const queryString = params.toString();
-        if (queryString) {
-          url += `?${queryString}`;
+      } else if (vehicleInfo?.vin) {
+        if (url.includes("partstech.com")) {
+            const params = new URLSearchParams();
+            params.append("vin", vehicleInfo.vin);
+            url += `?${params.toString()}`;
         }
+        // NAPA Prolink usually doesn't accept a simple VIN query param without an active punchout session,
+        // so we just load the base URL and let the user copy/paste the VIN.
       }
 
       setSessionUrl(url);
@@ -335,8 +334,27 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
       if (!isOpen && !isPolling) onClose();
     }}>
       <DialogContent className="max-w-[95vw] w-full h-[95vh] flex flex-col p-4 gap-4 [&>button.absolute]:hidden">
-        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b shrink-0">
-          <DialogTitle className="text-xl">Online Order (PartsTech)</DialogTitle>
+        <DialogHeader className="flex flex-row items-center justify-between border-b px-6 py-4">
+          <div className="flex items-center space-x-4">
+              <DialogTitle className="text-xl">
+                {supplierUrl && supplierUrl.includes("napaprolink") ? "NAPA Prolink Order" : "PartsTech Order"}
+              </DialogTitle>
+              {vehicleInfo?.vin && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                        navigator.clipboard.writeText(vehicleInfo.vin);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                    }}
+                    className="flex items-center space-x-1"
+                  >
+                      {isCopied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-slate-500" />}
+                      <span className="text-xs">{isCopied ? 'VIN Copied!' : 'Copy VIN'}</span>
+                  </Button>
+              )}
+          </div>
           
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={handleCopyToPO} title="Copy Work Order number for PO">
@@ -349,7 +367,7 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
             </Button>
             <Button 
               variant="default" 
-              className="bg-red-600 hover:bg-red-700 text-white" 
+              className="bg-green-600 hover:bg-green-700 text-white" 
               onClick={handleViewCart}
               disabled={isExtracting}
             >

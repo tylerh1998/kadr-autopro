@@ -51,7 +51,7 @@ export default function LineItemsTable({
   onGetPart,
   onOtherCharge,
   onAddPart,
-  onPartsTech,
+  onOnlineOrder,
   onReturnPart,
   onReceivePart,
   onCores,
@@ -353,9 +353,13 @@ export default function LineItemsTable({
             <Plus className="mr-2 h-4 w-4" />
             <span>Add New Part</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onPartsTech(index)}>
+          <ContextMenuItem onClick={() => onOnlineOrder(index, "https://app.partstech.com/")}>
             <Package className="mr-2 h-4 w-4" />
             <span>Online Order (PartsTech)</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onOnlineOrder(index, "https://www.napaprolink.ca/")}>
+            <Package className="mr-2 h-4 w-4" />
+            <span>Online Order (NAPA Prolink)</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -363,7 +367,7 @@ export default function LineItemsTable({
       {line.part_number && (
         <>
           {line.not_ordered && line.partstech_cart_id && (
-            <ContextMenuItem onClick={() => onPartsTech(index, line.partstech_cart_id)}>
+            <ContextMenuItem onClick={() => onOnlineOrder(index, "https://app.partstech.com/", line.partstech_cart_id)}>
               <Package className="mr-2 h-4 w-4" />
               <span>Finalize Order (PartsTech)</span>
             </ContextMenuItem>

@@ -4,11 +4,11 @@
   "version": "1.0",
   "description": "Bypasses the PartsTech B2B fee by bridging cart data directly to the Ken's Auto Work Order system.",
   "permissions": ["scripting"],
-  "host_permissions": ["*://*.partstech.com/*"],
+  "host_permissions": ["*://*.partstech.com/*", "*://*.napaprolink.ca/*"],
   "action": {},
   "content_scripts": [
     {
-      "matches": ["*://*.partstech.com/*"],
+      "matches": ["*://*.partstech.com/*", "*://*.napaprolink.ca/*"],
       "js": ["content.js"],
       "run_at": "document_start",
       "all_frames": true
@@ -17,7 +17,7 @@
   "web_accessible_resources": [
     {
       "resources": ["inject.js"],
-      "matches": ["*://*.partstech.com/*"]
+      "matches": ["*://*.partstech.com/*", "*://*.napaprolink.ca/*"]
     }
   ]
 }
