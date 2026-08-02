@@ -804,6 +804,38 @@ export default function InventoryAddPage() {
 
         setSaving(true);
         const results = []; // Array to store results of each invoice processing
+        
+        let digitalPdfMapping = {};
+        try {
+            const pdfGroups = batchItems.filter(g => g.storagePath && g.page_numbers && g.page_numbers.length > 0);
+            const storagePaths = [...new Set(pdfGroups.map(g => g.storagePath))];
+            
+            for (const path of storagePaths) {
+                const mappings = pdfGroups
+                    .filter(g => g.storagePath === path)
+                    .map(g => ({
+                        supplier_id: g.supplier_id,
+                        invoice_number: g.invoice_number,
+                        page_numbers: g.page_numbers
+                    }));
+                    
+                if (mappings.length > 0) {
+                    const response = await supabase.functions.invoke('autopro-splitInvoicePDF', {
+                        body: {
+                            storagePath: path,
+                            mappings: mappings
+                        }
+                    });
+                    
+                    if (response.data && response.data.success && response.data.mapping) {
+                        digitalPdfMapping = { ...digitalPdfMapping, ...response.data.mapping };
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error splitting PDFs", err);
+        }
+
         try {
             // Process each invoice group
             for (const invoiceGroup of batchItems) {
@@ -825,7 +857,8 @@ export default function InventoryAddPage() {
                             items: invoiceGroup.partItems,
                             action: 'create',
                             freight_amount: invoiceGroup.freight_amount,
-                            invoice_gst: invoiceGroup.invoice_gst
+                            invoice_gst: invoiceGroup.invoice_gst,
+                            digital_pdf: digitalPdfMapping[`${invoiceGroup.supplier_id}-${invoiceGroup.invoice_number}`] || null
                         }
                     });
                     console.log('Response from autopro-processInventoryReceipt:', response);
@@ -907,6 +940,7 @@ export default function InventoryAddPage() {
 
         ocrResults.forEach(result => {
             const data = result.data;
+            const storagePath = result.storagePath;
             
             // --- NEGATIVE AMOUNT CHECK (CREDIT INVOICES) ---
             const expectedSubtotal = parseFloat(data.subtotal) || 0;
@@ -1048,7 +1082,9 @@ export default function InventoryAddPage() {
                 ocr_expected_subtotal: expectedSubtotal,
                 freight_amount: parseFloat(data.freight) || 0,
                 invoice_gst: parseFloat(data.gst_amount) || 0,
-                invoice_total: parseFloat(data.invoice_total) || 0
+                invoice_total: parseFloat(data.invoice_total) || 0,
+                storagePath: storagePath,
+                page_numbers: data.page_numbers || []
             });
         });
 

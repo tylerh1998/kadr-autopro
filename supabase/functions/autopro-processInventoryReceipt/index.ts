@@ -142,7 +142,7 @@ serve(async (req) => {
     }
 
     if (action === 'create') {
-      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items, freight_amount, invoice_gst);
+      return await processInventoryReceiptCreate(supabase, user, supplier, invoice_number, invoice_date, items, freight_amount, invoice_gst, payload.digital_pdf);
     } else {
       return res({ success: false, error: 'Invalid action. Must be "create", "edit", or "reverse"' }, { status: 400 });
     }
@@ -238,7 +238,7 @@ async function checkFiscalPeriodStatus(supabase: any, dateString: string) {
   }
 }
 
-async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[], freight_amount: any = 0, invoice_gst: any = 0) {
+async function processInventoryReceiptCreate(supabase: any, user: any, supplier: any, invoice_number: string, invoice_date: string, items: any[], freight_amount: any = 0, invoice_gst: any = 0, digital_pdf: any = null) {
   const res = (data: any, options: any = {}) => {
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -404,7 +404,8 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
         gst_amount: lineGst,
         gl_account: '1200',
         inventory: true,
-        gst_override: isDefaultTaxable
+        gst_override: isDefaultTaxable,
+        digital_pdf: digital_pdf
       });
 
       if (item.core && parseFloat(item.core_cost || 0) > 0) {
@@ -421,7 +422,8 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
           gst_amount: coreGst,
           gl_account: '1200',
           inventory: true,
-          gst_override: isDefaultTaxable
+          gst_override: isDefaultTaxable,
+          digital_pdf: digital_pdf
         });
       }
 
@@ -439,7 +441,8 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
           gst_amount: enviroGst,
           gl_account: '5001',
           inventory: false,
-          gst_override: isDefaultTaxable
+          gst_override: isDefaultTaxable,
+          digital_pdf: digital_pdf
         });
       }
 
@@ -472,7 +475,8 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
         gst_amount: freightGst,
         gl_account: '5030',
         inventory: false,
-        gst_override: isDefaultTaxable
+        gst_override: isDefaultTaxable,
+        digital_pdf: digital_pdf
       });
     }
 

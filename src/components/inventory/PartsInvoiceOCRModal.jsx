@@ -50,7 +50,17 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess, su
                 const file = files[i];
                 setProgress(`Processing invoice ${i + 1} of ${files.length}: ${file.name}...`);
                 
-                const base64Data = await convertToBase64(file);
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const storagePath = `temp/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('kadr-digital_invoice_uploads')
+                    .upload(storagePath, file);
+
+                if (uploadError) {
+                    throw new Error(`Failed to upload ${file.name} to storage: ${uploadError.message}`);
+                }
 
                 // Use direct fetch to avoid potential cache/proxy issues
                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -78,7 +88,7 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess, su
                         'Authorization': `Bearer ${jwtToken}`
                     },
                     body: JSON.stringify({
-                        pdfData: base64Data,
+                        storagePath: storagePath,
                         mimeType: file.type || 'application/pdf',
                         supplierNames: supplierNames
                     })
@@ -100,9 +110,19 @@ export default function PartsInvoiceOCRModal({ open, onOpenChange, onSuccess, su
                     throw new Error(responseData?.error || `Failed to process ${file.name}`);
                 }
 
-                results.push({
-                    fileName: file.name,
-                    data: responseData.data
+                const invoices = responseData.data?.invoices || [];
+                
+                // If the old format was returned, fall back to it for safety
+                if (invoices.length === 0 && responseData.data?.items) {
+                    invoices.push(responseData.data);
+                }
+
+                invoices.forEach(inv => {
+                    results.push({
+                        fileName: file.name,
+                        storagePath: storagePath,
+                        data: inv
+                    });
                 });
             }
 
