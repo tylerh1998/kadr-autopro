@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Package, Wrench, Loader2, Clock } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { base44 } from '@/api/base44Client';
 import TechTimeModal from './TechTimeModal';
 
@@ -60,14 +61,23 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         for (let i = 0; i < projectsToFetch.length; i += BATCH_SIZE) {
           const batch = projectsToFetch.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('autopro-getProjectTimeSessions', { projectId: p.id })
+            supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', p.id)
           );
           
           const responses = await Promise.all(promises);
           
           responses.forEach(response => {
-            if (response.data?.success && Array.isArray(response.data.logs)) {
-              allLogs = [...allLogs, ...response.data.logs];
+            if (!response.error && response.data) {
+              const mappedLogs = response.data.map(session => ({
+                ...session,
+                hours: session.total_hours || 0,
+                workpro_user_name: session.user_name || session.user_email,
+                email: session.user_email
+              }));
+              allLogs = [...allLogs, ...mappedLogs];
             }
           });
 

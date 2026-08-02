@@ -213,16 +213,25 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         for (let i = 0; i < projectsToLoad.length; i += BATCH_SIZE) {
           const batch = projectsToLoad.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('autopro-getProjectTimeSessions', { projectId: p.id })
+            supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', p.id)
           );
           
           const responses = await Promise.all(promises);
           
           responses.forEach(response => {
-             if (response.data?.success && Array.isArray(response.data.logs)) {
-               fetchedLogs = [...fetchedLogs, ...response.data.logs];
+             if (!response.error && response.data) {
+               const mappedLogs = response.data.map(session => ({
+                 ...session,
+                 hours: session.total_hours || 0,
+                 workpro_user_name: session.user_name || session.user_email,
+                 email: session.user_email
+               }));
+               fetchedLogs = [...fetchedLogs, ...mappedLogs];
              } else {
-               console.error('Failed to fetch WorkPRO logs for a project:', response.data?.error);
+               console.error('Failed to fetch WorkPRO logs for a project:', response.error);
              }
           });
 

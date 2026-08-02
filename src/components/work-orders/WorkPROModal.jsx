@@ -163,16 +163,16 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
-      const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
-        projectId: projectId
-      });
-      if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
-        const logs = timeResponse.data.logs;
-        const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
+      const { data: sessions, error } = await supabase
+        .from('ProjectTimeSession')
+        .select('total_hours')
+        .eq('project_id', projectId);
+
+      if (!error && sessions) {
+        const totalHours = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
         setTechTimeTotal(totalHours);
         return;
       }
-      // If the edge function returned no success, default to 0
       setTechTimeTotal(0);
     } catch (error) {
       console.error('Error fetching tech time total:', error);

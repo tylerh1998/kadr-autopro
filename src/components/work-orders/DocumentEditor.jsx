@@ -420,19 +420,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             let success = false;
 
             try {
-              const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
-                projectId: foundProject.id
-              });
-              if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs) && timeResponse.data.logs.length > 0) {
-                const logs = timeResponse.data.logs;
-                totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
-                success = true;
-              }
-            } catch (e) {
-              console.warn('autopro-getProjectTimeSessions edge function failed/empty, trying fallback:', e);
-            }
-
-            if (!success) {
               const { data: sessions, error: sessionError } = await supabase
                 .from('ProjectTimeSession')
                 .select('*')
@@ -441,7 +428,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               if (!sessionError && sessions) {
                 totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
               }
-            }
+
 
             setWorkPROTimeTotal(totalHours);
           } catch (err) {

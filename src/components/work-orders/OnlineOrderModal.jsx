@@ -147,7 +147,7 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
             } catch (fetchErr) {
                 // If fetch fails entirely (not in desktop app), show the error
                 console.error('Desktop protocol fetch failed:', fetchErr);
-                setPollError("Desktop app not detected. Please open this page in the AutoPro Desktop application to use cart transfer.");
+                setPollError(`Desktop: ${fetchErr.message}`);
                 setIsExtracting(false);
                 return;
             }

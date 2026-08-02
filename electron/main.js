@@ -80,26 +80,46 @@ app.whenReady().then(() => {
       }
 
       try {
-        const frames = mainWindow.webContents.mainFrame.frames;
-        console.log(`[Main] Searching ${frames.length} frames for supplier content...`);
-
-        for (const frame of frames) {
-          console.log(`[Main] Frame URL: ${frame.url}`);
-          if (
-            frame.url.includes('prolink.napacanada.com') ||
-            frame.url.includes('napaprolink.ca') ||
-            frame.url.includes('partstech.com') ||
-            frame.url.includes('napa.ca')
-          ) {
-            const text = await frame.executeJavaScript('document.body.innerText');
-            console.log(`[Main] Extracted ${text.length} characters from supplier frame.`);
-            return new Response(JSON.stringify({ text }), {
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
+        // Recursive frame search function
+        function getAllFrames(frame) {
+          let result = [frame];
+          for (const child of frame.frames) {
+            result = result.concat(getAllFrames(child));
           }
+          return result;
         }
 
-        return new Response(JSON.stringify({ error: 'Could not find the supplier iframe. Make sure the supplier page is loaded.' }), {
+        const allFrames = getAllFrames(mainWindow.webContents.mainFrame);
+        console.log(`[Main] Total frames found (recursive): ${allFrames.length}`);
+        allFrames.forEach((f, i) => console.log(`[Main] Frame[${i}]: ${f.url}`));
+
+        const SUPPLIER_PATTERNS = [
+          'prolink.napacanada.com',
+          'napaprolink.ca',
+          'napa.ca',
+          'partstech.com',
+          'worldpac.com',
+          'stoneagle.com'
+        ];
+
+        const supplierFrame = allFrames.find(f =>
+          f.url && SUPPLIER_PATTERNS.some(p => f.url.includes(p))
+        );
+
+        if (supplierFrame) {
+          console.log(`[Main] Found supplier frame: ${supplierFrame.url}`);
+          const text = await supplierFrame.executeJavaScript('document.body.innerText');
+          console.log(`[Main] Extracted ${text.length} characters.`);
+          return new Response(JSON.stringify({ text }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        // If no supplier frame found, dump all frame URLs in the error so we know what to add
+        const frameUrls = allFrames.map(f => f.url).join(', ');
+        return new Response(JSON.stringify({
+          error: `Could not find supplier iframe. Frames found: [${frameUrls}]`
+        }), {
           status: 404,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
