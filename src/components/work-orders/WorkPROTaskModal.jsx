@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROTaskModal({ open, onClose, workOrder, project, onUpdate }) {
   const [task, setTask] = useState('');
@@ -36,14 +36,12 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
     try {
       if (project) {
         // Update existing project
-        const response = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'update',
-          id: project.id,
-          params: { task: task }
-        });
+        const { error } = await supabase
+          .from('Project')
+          .update({ task: task })
+          .eq('id', project.id);
 
-        if (!response.data.success) throw new Error(response.data.error || 'Failed to update WorkPRO task');
+        if (error) throw error;
         
         onUpdate('task', task);
       } else {
@@ -55,13 +53,11 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
           priority: workOrder.priority || 'medium',
         };
 
-        const response = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'create',
-          params: projectData
-        });
+        const { error } = await supabase
+          .from('Project')
+          .insert(projectData);
 
-        if (!response.data.success) throw new Error(response.data.error || 'Failed to create WorkPRO project');
+        if (error) throw error;
         
         // This will trigger a refresh of the parent component
         window.location.reload();

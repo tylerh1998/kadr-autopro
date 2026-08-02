@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Link, AlertCircle, Car, Calendar, FileText, Briefcase } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROConnectorModal({ open, onClose, project, workOrders, customers, vehicles, workPROProjects, onConnectionComplete }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,13 +21,15 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
     if (open) {
       const fetchSupabaseData = async () => {
         try {
-          const custRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' });
-          if (custRes.data?.data) setLocalCustomers(custRes.data.data);
-          
-          const vehRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle' });
-          if (vehRes.data?.data) setLocalVehicles(vehRes.data.data);
+          const { data: custData, error: custError } = await supabase.from('Customer').select('*');
+          if (custError) console.error('Error fetching Customers:', custError);
+          else if (custData) setLocalCustomers(custData);
+
+          const { data: vehData, error: vehError } = await supabase.from('Vehicle').select('*');
+          if (vehError) console.error('Error fetching Vehicles:', vehError);
+          else if (vehData) setLocalVehicles(vehData);
         } catch (error) {
-          console.error("Error fetching from SupabaseProxy:", error);
+          console.error('Error fetching Customer/Vehicle data:', error);
         }
       };
       fetchSupabaseData();
@@ -73,18 +75,12 @@ export default function WorkPROConnectorModal({ open, onClose, project, workOrde
 
     setLinking(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: project.id,
-        params: {
-          work_order: selectedWorkOrder.wo_number || selectedWorkOrder.est_number
-        }
-      });
+      const { error } = await supabase
+        .from('Project')
+        .update({ work_order: selectedWorkOrder.wo_number || selectedWorkOrder.est_number })
+        .eq('id', project.id);
 
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to link work order to project');
-      }
+      if (error) throw error;
 
       alert('Work order successfully linked to project!');
       onConnectionComplete();

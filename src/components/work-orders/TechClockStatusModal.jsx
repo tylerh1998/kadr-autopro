@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase, Play, Plus, ArrowRight } from 'lucide-react';
 import { Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import TechProjectClockInModal from './TechProjectClockInModal';
 import GlobalClockInModal from './GlobalClockInModal';
 import { useTechClockStatus } from '../context/TechClockStatusContext';
@@ -50,31 +50,25 @@ export default function TechClockStatusModal({ open, onClose }) {
       const employees = await Employee.filter({ employee_type: 'tech' });
       
       // Fetch WorkPRO TimeRecord (global clock in/out)
-      const timeRecordResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'TimeRecord',
-        method: 'list',
-        limit: 1000
-      });
-      const timeRecordData = timeRecordResponse.data.success ? timeRecordResponse.data.data : [];
-      const timeRecords = Array.isArray(timeRecordData) ? timeRecordData : (timeRecordData?.records || []);
+      const { data: timeRecords = [], error: trError } = await supabase
+        .from('TimeRecord')
+        .select('*')
+        .limit(1000);
+      if (trError) console.error('Error fetching TimeRecords:', trError);
 
       // Fetch WorkPRO ProjectTimeSession (project clock in)
-      const projectSessionResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'list',
-        limit: 1000
-      });
-      const projectSessionData = projectSessionResponse.data.success ? projectSessionResponse.data.data : [];
-      const projectSessions = Array.isArray(projectSessionData) ? projectSessionData : (projectSessionData?.records || []);
+      const { data: projectSessions = [], error: psError } = await supabase
+        .from('ProjectTimeSession')
+        .select('*')
+        .limit(1000);
+      if (psError) console.error('Error fetching ProjectTimeSessions:', psError);
 
       // Fetch WorkPRO Projects for names
-      const projectsResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'list',
-        limit: 1000
-      });
-      const projectsData = projectsResponse.data.success ? projectsResponse.data.data : [];
-      const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
+      const { data: projects = [], error: projError } = await supabase
+        .from('Project')
+        .select('id, customer, name')
+        .limit(1000);
+      if (projError) console.error('Error fetching Projects:', projError);
 
       // Build project lookup by ID
       const projectLookup = {};

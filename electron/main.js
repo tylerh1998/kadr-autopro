@@ -1,19 +1,33 @@
-import { app, BrowserWindow, session, ipcMain } from 'electron';
+import { app, BrowserWindow, session, protocol, net } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+let mainWindow = null;
+
+// Register custom protocol scheme BEFORE app is ready
+// This allows React to do fetch('desktop://api/...') to talk to the main process
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'desktop',
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+    allowServiceWorkers: false
+  }
+}]);
+
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     title: 'AutoPro Desktop',
-    icon: path.join(__dirname, '../public/icon.ico'),
+    icon: path.join(app.getAppPath(), 'public', 'icon.ico'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      // Important: Disable webSecurity to allow cross-origin requests and iframe embedding if needed
+      // No preload needed! We use custom protocol instead.
       webSecurity: false,
       contextIsolation: true,
       nodeIntegration: false
@@ -25,11 +39,9 @@ function createWindow() {
 
   // Allow all third-party cookies globally
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    // If the server sends Set-Cookie, modify it so it doesn't block due to SameSite/Secure policies in Electron
     let modifiedHeaders = details.responseHeaders;
     if (modifiedHeaders && modifiedHeaders['Set-Cookie']) {
       modifiedHeaders['Set-Cookie'] = modifiedHeaders['Set-Cookie'].map((cookie) => {
-        // Strip SameSite=Lax/Strict and add SameSite=None; Secure to ensure it works across origins
         return cookie.replace(/SameSite=(Lax|Strict)/gi, 'SameSite=None')
                      .replace(/;/g, '; ')
                      + (cookie.toLowerCase().includes('secure') ? '' : '; Secure');
@@ -39,46 +51,77 @@ function createWindow() {
   });
 
   // Load the live Vercel URL
-  const targetUrl = 'https://test.kensauto.ca';
-  
-  mainWindow.loadURL(targetUrl);
+  mainWindow.loadURL('https://test.kensauto.ca');
 
-  // Securely handle IPC requests from the frontend to extract text from the iframe
-  ipcMain.handle('get-cart-text', async (event) => {
-    // We search through all the frames in the main window
-    const frames = event.sender.mainFrame.frames;
-    for (const frame of frames) {
-      // Find the frame that has the NAPA Prolink URL
-      if (frame.url.includes('prolink.napacanada.com') || frame.url.includes('partstech.com')) {
-        try {
-          return await frame.executeJavaScript('document.body.innerText');
-        } catch (err) {
-          console.error("Failed to execute JS in frame:", err);
-        }
-      }
-    }
-    throw new Error("Could not find the supplier iframe or extract its text.");
+  // Pipe renderer console to main process stdout for debugging
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    console.log(`[Renderer] ${message}`);
   });
 
-  mainWindow.webContents.openDevTools();
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[Renderer Console] ${message}`);
-  });
-
-  mainWindow.webContents.on('did-finish-load', async () => {
-    try {
-      console.log(`[Main Process] __dirname is: ${__dirname}`);
-      console.log(`[Main Process] preload path is: ${path.join(__dirname, 'preload.cjs')}`);
-      
-      const hasAPI = await mainWindow.webContents.executeJavaScript('!!window.desktopAPI');
-      console.log(`[Main Process] window.desktopAPI exists: ${hasAPI}`);
-    } catch(e) {
-      console.log(`[Main Process] Error checking API:`, e);
-    }
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[Main] Page loaded successfully.');
   });
 }
 
 app.whenReady().then(() => {
+  // Register the custom protocol handler.
+  // React code can now do: fetch('desktop://api/get-cart-text')
+  // and get the iframe text content back as JSON.
+  protocol.handle('desktop', async (request) => {
+    const url = new URL(request.url);
+    console.log(`[Main] Protocol request: ${url.pathname}`);
+
+    if (url.pathname === '/get-cart-text' || url.pathname === '//api/get-cart-text') {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        return new Response(JSON.stringify({ error: 'Window not available' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      try {
+        const frames = mainWindow.webContents.mainFrame.frames;
+        console.log(`[Main] Searching ${frames.length} frames for supplier content...`);
+
+        for (const frame of frames) {
+          console.log(`[Main] Frame URL: ${frame.url}`);
+          if (
+            frame.url.includes('prolink.napacanada.com') ||
+            frame.url.includes('napaprolink.ca') ||
+            frame.url.includes('partstech.com') ||
+            frame.url.includes('napa.ca')
+          ) {
+            const text = await frame.executeJavaScript('document.body.innerText');
+            console.log(`[Main] Extracted ${text.length} characters from supplier frame.`);
+            return new Response(JSON.stringify({ text }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+
+        return new Response(JSON.stringify({ error: 'Could not find the supplier iframe. Make sure the supplier page is loaded.' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (err) {
+        console.error('[Main] Extraction error:', err);
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Health check endpoint — React can call this to verify desktop mode
+    if (url.pathname === '/ping' || url.pathname === '//api/ping') {
+      return new Response(JSON.stringify({ ok: true, version: app.getVersion() }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    return new Response('Not found', { status: 404 });
+  });
+
   createWindow();
 
   app.on('activate', function () {

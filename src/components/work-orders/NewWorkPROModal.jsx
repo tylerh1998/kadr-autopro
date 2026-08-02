@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Save, Droplet, X } from 'lucide-react';
 import { Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
   const [employees, setEmployees] = useState([]);
@@ -152,15 +152,13 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         projectData.oil_change_type = formData.oil_change_type;
       }
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'create',
-        params: projectData
-      });
+      const { data: newProject, error } = await supabase
+        .from('Project')
+        .insert(projectData)
+        .select()
+        .single();
 
-      if (!response.data?.success) throw new Error(response.data?.error || 'Failed to create project');
-
-      const newProject = response.data.data;
+      if (error) throw error;
       
       if (onProjectCreated) {
         onProjectCreated(newProject);

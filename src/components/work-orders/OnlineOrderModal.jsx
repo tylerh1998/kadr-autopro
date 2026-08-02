@@ -128,31 +128,29 @@ export default function OnlineOrderModal({ open, onClose, roNumber, vehicleInfo,
     setIsExtracting(true);
     
     try {
-        // Use our secure desktop API to extract the text from the iframe via the main process
+        // Use the custom desktop:// protocol to extract text from the supplier iframe.
+        // This works because the Electron main process registers a protocol handler
+        // that can read cross-origin iframe content directly.
         let rawText = '';
         if (window.desktopAPI && window.desktopAPI.getCartText) {
+            // Legacy path: preload-based API (kept for backwards compatibility)
             rawText = await window.desktopAPI.getCartText();
         } else {
-            // Fallback: request via postMessage
-            rawText = await new Promise((resolve, reject) => {
-                const handler = (event) => {
-                    if (event.data && event.data.type === 'CART_TEXT_RESULT') {
-                        window.removeEventListener('message', handler);
-                        resolve(event.data.text);
-                    } else if (event.data && event.data.type === 'CART_TEXT_ERROR') {
-                        window.removeEventListener('message', handler);
-                        reject(new Error(event.data.error));
-                    }
-                };
-                window.addEventListener('message', handler);
-                window.postMessage({ type: 'GET_CART_TEXT' }, '*');
-                
-                // Timeout after 3 seconds
-                setTimeout(() => {
-                    window.removeEventListener('message', handler);
-                    reject(new Error("Desktop API not found. Please restart the desktop app."));
-                }, 3000);
-            });
+            // Primary path: custom protocol fetch (no preload required)
+            try {
+                const response = await fetch('desktop://api/get-cart-text');
+                const result = await response.json();
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || 'Failed to extract cart text');
+                }
+                rawText = result.text;
+            } catch (fetchErr) {
+                // If fetch fails entirely (not in desktop app), show the error
+                console.error('Desktop protocol fetch failed:', fetchErr);
+                setPollError("Desktop app not detected. Please open this page in the AutoPro Desktop application to use cart transfer.");
+                setIsExtracting(false);
+                return;
+            }
         }
         
         if (!rawText || rawText.trim().length === 0) {

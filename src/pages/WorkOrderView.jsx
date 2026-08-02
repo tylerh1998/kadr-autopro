@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
 // Import hooks
@@ -109,20 +108,16 @@ export default function WorkOrderViewPage() {
       if (!workOrder?.wo_number) return;
 
       try {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrder.wo_number
-          }
-        });
+        const { data: projects, error } = await supabase
+          .from('Project')
+          .select('*')
+          .eq('work_order', workOrder.wo_number);
 
-        if (projectResponse.data.success) {
-          const projects = projectResponse.data.data || [];
-          const foundProject = projects.length > 0 ? projects[0] : null;
-          setWorkPROProject(foundProject);
-          setWorkPROProjects(projects);
-        }
+        if (error) throw error;
+
+        const foundProject = projects && projects.length > 0 ? projects[0] : null;
+        setWorkPROProject(foundProject);
+        setWorkPROProjects(projects || []);
       } catch (error) {
         console.error('Error fetching WorkPRO data:', error);
       }

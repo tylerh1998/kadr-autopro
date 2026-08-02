@@ -374,13 +374,6 @@ export default function PayrollPage() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
 
-              <Button 
-                onClick={() => window.location.href = createPageUrl("WorkPro")}
-                className="bg-indigo-600 hover:bg-indigo-700 ml-2"
-              >
-                <Briefcase className="w-4 h-4 mr-2" />
-                WorkPRO
-              </Button>
             </div>
           </div>
 

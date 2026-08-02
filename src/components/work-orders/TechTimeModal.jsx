@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
@@ -241,34 +242,36 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
 
       if (workOrder?.id) {
         try {
-           const response = await base44.functions.invoke('SupabaseProxy', {
-             action: 'read',
-             table: 'WorkOrder',
-             match: { id: workOrder.id }
-           });
-           const wos = response.data?.data || [];
-           targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
+          const { data: wos, error } = await supabase
+            .from('WorkOrder')
+            .select('*')
+            .eq('id', workOrder.id)
+            .limit(1);
+          if (error) throw error;
+          targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
         } catch (e) {
-           console.error("Error fetching latest WO:", e);
-           targetWO = workOrder;
+          console.error('Error fetching latest WO:', e);
+          targetWO = workOrder;
         }
       } else {
         const proj = projects.length > 0 ? projects[0] : project;
         if (proj?.work_order) {
-          let response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { wo_number: proj.work_order }
-          });
-          let wos = response.data?.data || [];
+          let { data: wos, error } = await supabase
+            .from('WorkOrder')
+            .select('*')
+            .eq('wo_number', proj.work_order)
+            .limit(1);
 
-          if ((!wos || wos.length === 0) && proj.work_order) {
-             response = await base44.functions.invoke('SupabaseProxy', {
-               action: 'read',
-               table: 'WorkOrder',
-               match: { ro_number: proj.work_order }
-             });
-             wos = response.data?.data || [];
+          if (error) console.error('WO lookup by wo_number error:', error);
+
+          if (!wos || wos.length === 0) {
+            const { data: wos2, error: error2 } = await supabase
+              .from('WorkOrder')
+              .select('*')
+              .eq('ro_number', proj.work_order)
+              .limit(1);
+            if (error2) console.error('WO lookup by ro_number error:', error2);
+            wos = wos2 || [];
           }
 
           if (wos && wos.length > 0) {
@@ -321,26 +324,23 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { id: targetId }
-          });
-          const wos = response.data?.data || [];
-          if (wos && wos.length > 0) {
-             const freshWO = wos[0];
-             if (freshWO.tech_time) {
-                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
-             }
-          } else {
-             throw new Error(`WorkOrder ${targetId} not found`);
+        const { data: wos, error } = await supabase
+          .from('WorkOrder')
+          .select('tech_time')
+          .eq('id', targetId)
+          .limit(1);
+        if (error) throw error;
+        if (wos && wos.length > 0) {
+          const freshWO = wos[0];
+          if (freshWO.tech_time) {
+            currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
           }
+        } else {
+          throw new Error(`WorkOrder ${targetId} not found`);
+        }
       } catch (e) {
-          console.error("Error fetching fresh WO for save:", e);
-          // Only fallback to local state if fetch failed (e.g. network)
-          // But safer to fail if we can't confirm state? 
-          // Let's assume empty if we can't fetch, or use existing manualLogs if array
-          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
+        console.error('Error fetching fresh WO for save:', e);
+        currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
 
       // Ensure array
@@ -350,14 +350,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
       
       // 2. Update DB
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetId,
-        data: {
-          tech_time: jsonString
-        }
-      });
+      const { error: updateError } = await supabase
+        .from('WorkOrder')
+        .update({ tech_time: jsonString })
+        .eq('id', targetId);
+      if (updateError) throw updateError;
 
       // 3. Update local state
       setManualLogs(updatedLogs);
@@ -389,23 +386,23 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { id: targetId }
-          });
-          const wos = response.data?.data || [];
-          if (wos && wos.length > 0) {
-             const freshWO = wos[0];
-             if (freshWO.tech_time) {
-                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
-             }
-          } else {
-             throw new Error("WorkOrder not found");
+        const { data: wos, error } = await supabase
+          .from('WorkOrder')
+          .select('tech_time')
+          .eq('id', targetId)
+          .limit(1);
+        if (error) throw error;
+        if (wos && wos.length > 0) {
+          const freshWO = wos[0];
+          if (freshWO.tech_time) {
+            currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
           }
+        } else {
+          throw new Error('WorkOrder not found');
+        }
       } catch (e) {
-          console.error("Error fetching fresh WO for delete:", e);
-          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
+        console.error('Error fetching fresh WO for delete:', e);
+        currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
 
       if (!Array.isArray(currentLogs)) currentLogs = [];
@@ -414,14 +411,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
 
       // 2. Update DB
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetId,
-        data: {
-          tech_time: jsonString
-        }
-      });
+      const { error: updateError } = await supabase
+        .from('WorkOrder')
+        .update({ tech_time: jsonString })
+        .eq('id', targetId);
+      if (updateError) throw updateError;
 
       // 3. Update local state
       setManualLogs(updatedLogs);
@@ -557,12 +551,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         params.notes = newNotes;
       }
 
-      await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'update',
-        id: log.id,
-        params: params
-      });
+      const { error } = await supabase
+        .from('ProjectTimeSession')
+        .update(params)
+        .eq('id', log.id);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating log:', error);
       alert(`Failed to update: ${error.message}`);

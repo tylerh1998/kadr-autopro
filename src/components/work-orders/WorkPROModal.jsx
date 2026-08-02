@@ -86,19 +86,27 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       const fetchSupabaseData = async () => {
         try {
           if (workOrder.customer_id) {
-            const custRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer', match: { id: workOrder.customer_id } });
-            if (custRes.data?.data && custRes.data.data.length > 0) {
-              setLocalCustomer(custRes.data.data[0]);
-            }
+            const { data, error } = await supabase
+              .from('Customer')
+              .select('*')
+              .eq('id', workOrder.customer_id)
+              .limit(1)
+              .single();
+            if (error) console.error('Error fetching Customer:', error);
+            else if (data) setLocalCustomer(data);
           }
           if (workOrder.vehicle_id) {
-            const vehRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle', match: { id: workOrder.vehicle_id } });
-            if (vehRes.data?.data && vehRes.data.data.length > 0) {
-              setLocalVehicle(vehRes.data.data[0]);
-            }
+            const { data, error } = await supabase
+              .from('Vehicle')
+              .select('*')
+              .eq('id', workOrder.vehicle_id)
+              .limit(1)
+              .single();
+            if (error) console.error('Error fetching Vehicle:', error);
+            else if (data) setLocalVehicle(data);
           }
         } catch (error) {
-          console.error("Error fetching from SupabaseProxy:", error);
+          console.error('Error fetching Customer/Vehicle data:', error);
         }
       };
       fetchSupabaseData();
@@ -155,35 +163,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
-      // First try to use the dedicated getProjectTimeSessions function
-      try {
-        const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
-          projectId: projectId
-        });
-        if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
-          const logs = timeResponse.data.logs;
-          const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
-          setTechTimeTotal(totalHours);
-          return;
-        }
-      } catch (e) {
-        console.warn('autopro-getProjectTimeSessions failed, trying workProProxy fallback:', e);
-      }
-
-      // Fallback to proxy
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'filter',
-        params: {
-          project_id: projectId
-        }
+      const timeResponse = await base44.functions.invoke('autopro-getProjectTimeSessions', {
+        projectId: projectId
       });
-
-      if (response.data.success) {
-        const sessions = response.data.data || [];
-        const totalHours = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
+      if (timeResponse.data?.success && Array.isArray(timeResponse.data.logs)) {
+        const logs = timeResponse.data.logs;
+        const totalHours = logs.reduce((sum, l) => sum + (parseFloat(l.hours) || 0), 0);
         setTechTimeTotal(totalHours);
+        return;
       }
+      // If the edge function returned no success, default to 0
+      setTechTimeTotal(0);
     } catch (error) {
       console.error('Error fetching tech time total:', error);
       setTechTimeTotal(0);

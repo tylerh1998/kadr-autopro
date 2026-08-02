@@ -282,9 +282,9 @@ function LayoutContent({ children, currentPageName }) {
       return;
     }
 
-    // If false or null/undefined, redirect to WorkPro
+    // If false or null/undefined, redirect to external WorkPRO TimeRecords
     e.preventDefault();
-    window.location.href = createPageUrl("WorkPro");
+    window.location.href = 'https://workpro.kensauto.ca/TimeRecords';
   };
 
   const handleClockToggle = async () => {

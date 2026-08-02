@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, AlertCircle, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROCommentsModal({ open, onClose, workOrder, project, comments, onUpdate }) {
   const [newComment, setNewComment] = useState('');
@@ -50,33 +50,26 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectComment',
-        method: 'create',
-        params: {
+      const { error: insertError } = await supabase
+        .from('ProjectComment')
+        .insert({
           project_id: project.id,
           comment: newComment,
           user: 'AutoShop User'
-        }
-      });
+        });
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to add comment');
+      if (insertError) throw insertError;
 
       // Refresh comments list
-      const commentsResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectComment',
-        method: 'filter',
-        params: {
-          project_id: project.id
-        }
-      });
-      
-      if (commentsResponse.data.success) {
-        const commentsArray = commentsResponse.data.data || [];
-        const sortedComments = commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-        onUpdate(sortedComments);
-      }
+      const { data: commentsArray, error: fetchError } = await supabase
+        .from('ProjectComment')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('created_date', { ascending: true });
 
+      if (fetchError) throw fetchError;
+
+      onUpdate(commentsArray || []);
       setNewComment('');
       alert('Comment added successfully');
     } catch (error) {
