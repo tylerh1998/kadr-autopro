@@ -25,7 +25,7 @@ import { supabase } from "@/lib/supabase";
 // Reuse your existing helper that already has the Supabase credentials configured!
 import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
 
-import WorkOrderForm from "../components/work-orders/WorkOrderForm";
+
 import WorkOrderList from "../components/work-orders/WorkOrderList";
 import NewWorkOrderModal from "../components/work-orders/NewWorkOrderModal";
 import WorkPROTaskModal from "../components/work-orders/WorkPROTaskModal";
@@ -47,7 +47,7 @@ export default function WorkOrdersPage() {
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [noteCards, setNoteCards] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+
   const [showNewWorkOrderModal, setShowNewWorkOrderModal] = useState(false);
   const [editingWorkOrder, setEditingWorkOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -814,26 +814,7 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleSubmit = async (workOrderData) => {
-    try {
-      if (editingWorkOrder && editingWorkOrder.ro_number) {
-        const { error } = await supabase
-          .from('WorkOrder')
-          .update(workOrderData)
-          .eq('id', editingWorkOrder.id);
-        if (error) throw error;
-      } else {
-        console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
-        return;
-      }
-      
-      setShowForm(false);
-      setEditingWorkOrder(null);
-      loadData();
-    } catch (error) {
-      console.error('Error saving work order:', error);
-    }
-  };
+
 
   const handleCreateNewWorkOrder = async (workOrderData) => {
     try {
@@ -1289,21 +1270,7 @@ export default function WorkOrdersPage() {
           onCreateWorkOrder={handleCreateNewWorkOrder}
         />
 
-        {showForm && (
-          <WorkOrderForm
-            workOrder={editingWorkOrder}
-            customers={customers}
-            vehicles={vehicles}
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingWorkOrder(null);
-            }}
-          />
-        )}
-
-        {!showForm && (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             
             {/* Section 2: Main Tabs */}
             <div className="w-full">
@@ -1864,7 +1831,6 @@ export default function WorkOrdersPage() {
             </TabsContent>
 
           </Tabs>
-        )}
       </div>
 
       {/* WorkPRO Modals */}
