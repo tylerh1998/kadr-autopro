@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { User, Car, Calendar, Phone, Mail, MapPin, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { base44 } from '@/api/base44Client';
 
 export default function WorkOrderViewHeaderInfo({
   workOrder,

@@ -58,7 +58,7 @@ export default function PreviousPaychequesModal({ open, onClose, employee }) {
           <DialogDescription>View and manage historical paycheque records.</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <div className="flex flex-wrap items-end gap-4 p-4 border rounded-lg bg-slate-50">
+          <div className="flex flex-wrap items-end gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
             <div className="space-y-1">
               <Label htmlFor="from-date">From</Label>
               <Input id="from-date" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} />
@@ -70,14 +70,14 @@ export default function PreviousPaychequesModal({ open, onClose, employee }) {
             <Button onClick={handleFilter}>Filter</Button>
             <Button onClick={handleClearFilter} variant="outline">Clear</Button>
           </div>
-          <div className="max-h-[50vh] overflow-y-auto border rounded-md">
+          <div className="max-h-[50vh] overflow-y-auto border rounded-md dark:border-slate-700">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100 sticky top-0">
+              <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
                 <tr>
-                  <th className="text-left p-3 font-semibold text-slate-700">Pay Date</th>
-                  <th className="text-left p-3 font-semibold text-slate-700">Gross Pay</th>
-                  <th className="text-left p-3 font-semibold text-slate-700">Net Pay</th>
-                  <th className="text-right p-3 font-semibold text-slate-700">Actions</th>
+                  <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Pay Date</th>
+                  <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Gross Pay</th>
+                  <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Net Pay</th>
+                  <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,10 +85,10 @@ export default function PreviousPaychequesModal({ open, onClose, employee }) {
                   <tr><td colSpan="4" className="text-center p-8">Loading...</td></tr>
                 ) : paycheques.length > 0 ? (
                   paycheques.map(pc => (
-                    <tr key={pc.id} className="border-b hover:bg-slate-50">
+                    <tr key={pc.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                       <td className="p-3">{format(new Date(pc.pay_date), 'MMM d, yyyy')}</td>
                       <td className="p-3 font-medium">${pc.gross_pay.toFixed(2)}</td>
-                      <td className="p-3 font-semibold text-green-700">${pc.net_pay.toFixed(2)}</td>
+                      <td className="p-3 font-semibold text-green-700 dark:text-green-400">${pc.net_pay.toFixed(2)}</td>
                       <td className="p-3 text-right">
                         <Button variant="ghost" size="sm" onClick={() => alert('View details for this paycheque.')}>View</Button>
                         <Button variant="ghost" size="sm" onClick={() => alert('Edit this paycheque.')}>Edit</Button>
@@ -96,7 +96,7 @@ export default function PreviousPaychequesModal({ open, onClose, employee }) {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="4" className="text-center p-8 text-slate-500">No paycheques found for the selected criteria.</td></tr>
+                  <tr><td colSpan="4" className="text-center p-8 text-slate-500 dark:text-slate-400">No paycheques found for the selected criteria.</td></tr>
                 )}
               </tbody>
             </table>

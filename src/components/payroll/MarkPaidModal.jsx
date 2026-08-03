@@ -512,8 +512,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <DialogTitle>Mark Transactions as Paid</DialogTitle>
@@ -525,8 +525,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-slate-50 p-4 rounded-lg">
-            <div className="text-sm text-slate-600 mb-2">Transactions to mark as paid:</div>
+          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+            <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">Transactions to mark as paid:</div>
             <ul className="space-y-2">
               {transactions.map((t) => (
                 <li key={t.id} className="flex justify-between items-center">
@@ -539,9 +539,9 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
                 </li>
               ))}
             </ul>
-            <div className="border-t mt-3 pt-3 flex justify-between items-center">
+            <div className="border-t dark:border-slate-700 mt-3 pt-3 flex justify-between items-center">
               <span className="font-semibold">Total Amount:</span>
-              <span className="text-lg font-bold text-green-600">
+              <span className="text-lg font-bold text-green-600 dark:text-green-400">
                 ${totalAmount.toFixed(2)}
               </span>
             </div>
@@ -564,7 +564,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded dark:bg-red-900/20 dark:border-red-900/40 dark:text-red-400">
               {error}
             </div>
           )}

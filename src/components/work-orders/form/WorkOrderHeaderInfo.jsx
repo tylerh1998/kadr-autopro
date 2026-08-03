@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { base44 } from '@/api/base44Client';
 import ChangeCustomerModal from '../ChangeCustomerModal';
 
 export default function WorkOrderHeaderInfo({

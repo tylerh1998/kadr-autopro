@@ -221,9 +221,9 @@ export default function TaxesPage() {
 
   const getStatusBadge = (status) => {
     const colors = {
-      draft: 'bg-slate-100 text-slate-800',
-      posted: 'bg-blue-100 text-blue-800',
-      paid: 'bg-green-100 text-green-800'
+      draft: 'bg-slate-100 text-slate-800 dark:bg-slate-700/60 dark:text-slate-300',
+      posted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      paid: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
     };
 
     return (
@@ -238,8 +238,8 @@ export default function TaxesPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">GST Returns</h1>
-          <p className="text-slate-600 mt-1">Calculate and manage your GST returns</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">GST Returns</h1>
+          <p className="text-slate-600 mt-1 dark:text-slate-400">Calculate and manage your GST returns</p>
         </div>
 
         {/* Generate Report Section */}
@@ -285,7 +285,7 @@ export default function TaxesPage() {
                   setStartDate(`${year}-01-01`);
                   setEndDate(`${year}-03-31`);
                 }}
-                className="bg-slate-50"
+                className="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
               >
                 First Quarter - Jan - Mar
               </Button>
@@ -297,7 +297,7 @@ export default function TaxesPage() {
                   setStartDate(`${year}-04-01`);
                   setEndDate(`${year}-06-30`);
                 }}
-                className="bg-slate-50"
+                className="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
               >
                 Second Quarter - Apr - Jun
               </Button>
@@ -309,7 +309,7 @@ export default function TaxesPage() {
                   setStartDate(`${year}-07-01`);
                   setEndDate(`${year}-09-30`);
                 }}
-                className="bg-slate-50"
+                className="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
               >
                 Third Quarter - Jul - Sep
               </Button>
@@ -321,7 +321,7 @@ export default function TaxesPage() {
                   setStartDate(`${year}-10-01`);
                   setEndDate(`${year}-12-31`);
                 }}
-                className="bg-slate-50"
+                className="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
               >
                 Fourth Quarter - Oct - Dec
               </Button>
@@ -331,56 +331,56 @@ export default function TaxesPage() {
 
         {/* Summary Display */}
         {summary && (
-          <Card className="border-2 border-blue-200 bg-blue-50">
+          <Card className="border-2 border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-900/10">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>GST Summary</span>
-                <Badge variant="outline" className="bg-white">
+                <Badge variant="outline" className="bg-white dark:bg-slate-800 dark:text-slate-100">
                   {format(parseISO(summary.period_start_date), 'MMM d, yyyy')} - {format(parseISO(summary.period_end_date), 'MMM d, yyyy')}
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
+                <div className="bg-white dark:bg-slate-900 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
                     <TrendingUp className="w-4 h-4" />
                     <span>GST Collected (Account {summary.gst_collected_account})</span>
                   </div>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                     ${summary.gst_collected.toFixed(2)}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Total Sales: ${summary.total_sales.toFixed(2)}
                   </p>
                 </div>
 
-                <div className="bg-white rounded-lg p-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
+                <div className="bg-white dark:bg-slate-900 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
                     <TrendingDown className="w-4 h-4" />
                     <span>GST Paid (Account {summary.gst_paid_account})</span>
                   </div>
-                  <p className="text-2xl font-bold text-slate-900">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                     ${summary.gst_paid.toFixed(2)}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Total Purchases: ${summary.total_purchases.toFixed(2)}
                   </p>
                 </div>
               </div>
 
-              <div className={`rounded-lg p-6 ${summary.net_gst_due >= 0 ? 'bg-red-100' : 'bg-green-100'}`}>
+              <div className={`rounded-lg p-6 ${summary.net_gst_due >= 0 ? 'bg-red-100 dark:bg-red-900/20' : 'bg-green-100 dark:bg-green-900/20'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-1">Net GST Due</p>
-                    <p className={`text-3xl font-bold ${summary.net_gst_due >= 0 ? 'text-red-700' : 'text-green-700'}`}>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Net GST Due</p>
+                    <p className={`text-3xl font-bold ${summary.net_gst_due >= 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
                       ${Math.abs(summary.net_gst_due).toFixed(2)}
                     </p>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                       {summary.net_gst_due >= 0 ? 'Amount Owed to Government' : 'Refund Due from Government'}
                     </p>
                   </div>
-                  <DollarSign className={`w-12 h-12 ${summary.net_gst_due >= 0 ? 'text-red-400' : 'text-green-400'}`} />
+                  <DollarSign className={`w-12 h-12 ${summary.net_gst_due >= 0 ? 'text-red-400 dark:text-red-500' : 'text-green-400 dark:text-green-500'}`} />
                 </div>
               </div>
 
@@ -408,7 +408,7 @@ export default function TaxesPage() {
                 <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
               </div>
             ) : history.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 <p>No GST returns found</p>
                 <p className="text-sm mt-1">Generate and post your first return above</p>
               </div>
@@ -416,18 +416,18 @@ export default function TaxesPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Period</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">GST Collected</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">GST Paid</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Net Due</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700">Action</th>
+                    <tr className="border-b border-slate-200 dark:border-slate-700">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Period</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">GST Collected</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">GST Paid</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Net Due</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((record) => (
-                      <tr key={record.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <tr key={record.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="py-3 px-4 text-sm">
                           {format(parseISO(record.period_start_date), 'MMM d, yyyy')} - {format(parseISO(record.period_end_date), 'MMM d, yyyy')}
                         </td>
@@ -437,7 +437,7 @@ export default function TaxesPage() {
                         <td className="py-3 px-4 text-sm text-right">
                           ${record.gst_paid.toFixed(2)}
                         </td>
-                        <td className={`py-3 px-4 text-sm text-right font-semibold ${record.net_gst_due >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <td className={`py-3 px-4 text-sm text-right font-semibold ${record.net_gst_due >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                           ${Math.abs(record.net_gst_due).toFixed(2)}
                           {record.net_gst_due >= 0 ? ' (Owe)' : ' (Refund)'}
                         </td>
@@ -451,13 +451,13 @@ export default function TaxesPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleMarkPaid(record)}
-                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/40 dark:text-green-400 dark:border-green-900/40"
                               >
                                 Mark Paid
                               </Button>
                             )}
                             {record.status === 'paid' && record.paid_date && (
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
                                 Paid: {format(parseISO(record.paid_date), 'MMM d, yyyy')}
                               </span>
                             )}
@@ -467,7 +467,7 @@ export default function TaxesPage() {
                               onClick={() => handlePrintReport(record)}
                               title="Print Report"
                             >
-                              <Printer className="w-4 h-4 text-slate-500 hover:text-slate-800" />
+                              <Printer className="w-4 h-4 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200" />
                             </Button>
                           </div>
                         </td>

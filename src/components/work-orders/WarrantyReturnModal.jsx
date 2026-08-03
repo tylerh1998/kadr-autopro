@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -192,9 +191,10 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // but since this is usually done in view mode or single user, we'll try to use current props or fetch.
       // Ideally we fetch the latest.
       try {
-        const freshWO = await WorkOrder.get(workOrder.id);
-        const currentLines = JSON.parse(freshWO.line_items || '[]');
-        
+        const { data: freshWO, error: freshWOError } = await supabase.from('WorkOrder').select('*').eq('id', workOrder.id).single();
+        if (freshWOError) throw freshWOError;
+        const currentLines = Array.isArray(freshWO.line_items) ? freshWO.line_items : [];
+
         // Find the matching line item. We try to match by properties since IDs might not be reliable or unique in all cases
         // But if lineItem has an ID, we use it.
         const lineIndex = currentLines.findIndex(l => {
@@ -209,9 +209,11 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
             const currentReturned = parseFloat(currentLines[lineIndex].warranty_returned) || 0;
             currentLines[lineIndex].warranty_returned = currentReturned + qty;
             
-            await WorkOrder.update(workOrder.id, {
-                line_items: JSON.stringify(currentLines)
-            });
+            const { error: updateError } = await supabase.from('WorkOrder').update({
+                line_items: currentLines,
+                last_updated: new Date().toISOString()
+            }).eq('id', workOrder.id);
+            if (updateError) throw updateError;
             console.log('Updated Work Order line item warranty_returned flag');
         } else {
             console.warn('Could not find matching line item to update warranty flag');

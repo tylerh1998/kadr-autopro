@@ -43,6 +43,8 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 
 **Pages (Partial):** CashDrawer.jsx | CustomerARSummary.jsx | CustomerARTransactions.jsx | Customers.jsx | FinancialDashboard.jsx | InventoryList.jsx | InventoryReturns.jsx | InvoiceConversion.jsx | Schedule.jsx | Vehicles.jsx | WorkOrders.jsx | WorkOrderView.jsx
 
+**Suppliers & AP (Phase 1 — Tested):** Suppliers.jsx ✅ | SupplierTx.jsx ✅ | SupplierTxView.jsx ✅ | LankarImport.jsx ✅ | LankarWOView.jsx ✅ | ChequeWriter.jsx ✅ | ChequeRegister.jsx ✅ | AddToSheetModal.jsx ✅ | APSummaryTable.jsx ✅ | GLAccountCombobox.jsx ✅ | LineEditModal.jsx ✅ | SupplierCombobox.jsx ✅ | SupplierForm.jsx ✅ | SupplierPaymentModal.jsx ✅ | SupplierTxInvoiceLinesTab.jsx ✅ | SupplierTxInvoiceSummaryTab.jsx ✅ | SupplierTxModals.jsx ✅ (pure composition wrapper, no markup of its own) | SupplierTxPaymentHistoryTab.jsx ✅
+
 ---
 
 ## 3. Risk Assessment
@@ -79,7 +81,7 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 ## 5. Roadmap & Progress
 
 ```
-Phase 1 ──► Phase 2 ──► Phase 3
+Phase 1 [Tested] ──► Phase 2 ──► Phase 3
                             │
                             ▼
                         Phase 4 ──► Phase 5 ──► Phase 6 ──► Phase 7 ──► Phase 8
@@ -87,7 +89,7 @@ Phase 1 ──► Phase 2 ──► Phase 3
 
 ---
 
-### Phase 1 — Supplier & AP Pages [Executed]
+### Phase 1 — Supplier & AP Pages [Tested]
 
 **TL;DR:** Supplier transaction views, AP summary, cheque pages, and payment modals are heavily table-driven. Systematic row/header dark mode application needed. No conflict risk with other agents.
 
@@ -365,3 +367,9 @@ Divider/separator:     dark:divide-slate-700
 
 ### Edge Function Naming Convention
 - All new Supabase edge functions must be named `autopro-[functionname]` (e.g., `autopro-getProjectTimeSessions`).
+
+### Phase 1 Rollup — Lessons Learned (Tested 2026-08-03)
+1. **Composition-only components need no direct `dark:` classes.** `SupplierTxModals.jsx` renders zero markup of its own — it only wires together already-converted child modals (`LineEditModal`, `EditInventoryTransactionModal`, `SupplierPaymentModal`). Files like this should be excluded from per-file dark-mode class counts; verify by checking whether the file returns raw JSX elements vs. only composed child components.
+2. **Verification method that worked:** grep each target file for `dark:` occurrence count post-edit as a fast sanity check before manual UI verification — a 0-count on a file with real markup is a red flag, a 0-count on a pure composer is expected and fine.
+3. **Table-heavy supplier/AP pages needed the most `dark:` classes** (`SupplierTxView.jsx` ~45, `LankarImport.jsx` ~25) — consistent with the risk table's prediction that table row striping/headers are the highest-touch surface area. Expect similarly high class counts in Phase 4 (GL/Bank/Reconcile), which is also table-dense.
+4. **No light-mode regressions or logic changes were introduced** — confirms the additive `dark:` class strategy (Section 7 Architecture Rule 3) is sufficient and should remain the approach for all remaining phases.

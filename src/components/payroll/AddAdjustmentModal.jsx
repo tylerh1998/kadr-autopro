@@ -116,8 +116,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/40 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <DialogTitle>Add Adjustment</DialogTitle>
@@ -149,7 +149,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
               onChange={(e) => handleChange('amount', e.target.value)}
               required
             />
-            <p className="text-xs text-slate-500">Enter a negative amount for deductions/reversals</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Enter a negative amount for deductions/reversals</p>
           </div>
 
           <div className="space-y-2">
@@ -186,8 +186,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
           </div>
 
           {error && (
-            <Alert className="bg-red-50 border-red-200">
-              <AlertDescription className="text-red-700">
+            <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900/40">
+              <AlertDescription className="text-red-700 dark:text-red-400">
                 {error}
               </AlertDescription>
             </Alert>

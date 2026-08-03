@@ -1,6 +1,6 @@
 # Phase 13 Implementation Plan: Work Orders Core (`DocumentEditor.jsx` and friends)
 
-**Status:** IN PROGRESS — 13A code-complete, deployed to dev branch. 13B fully code-complete (including SystemSettings/WorkOrderStatus/TagAlong/OtherChargeList, once those tables were created on dev mid-execution — see §0.8), deployed to dev branch (RPC + edge function + RLS policies). 13C mostly code-complete (3 of 4 business-logic functions + all small entity swaps) — `syncLevies` deferred, `Levies` table doesn't exist yet (see §0.8/§13C.4). **Live-tested 2026-08-03 against `test.kensauto.ca`** via a real authenticated session (not just service-role SQL) — `set_workorder_lock`, `search_work_orders`, `search_work_order_parts`, `SystemSettings`/`WorkOrderStatus`/`TagAlong`/`OtherChargeList` reads, and all 3 new `autopro-*` Edge Functions all confirmed working correctly. Two real bugs found and fixed live during this pass: a `Promise.all` base44-coupling regression in `WorkOrders.jsx` and a `search_inventory_ranked` overload-ambiguity bug in `GetPartModal.jsx` (see §0.9). `DocumentEditor.jsx` could not be fully UI-verified — blocked by the standing, pre-existing expired-`BASE44_ACCESS_TOKEN` issue (`useShopData()`/`useInventory.jsx`, Phase 7 domain, not Phase 13's code — see §0.9), not by anything this phase touched; everything `DocumentEditor.jsx` itself depends on was independently confirmed working via direct authenticated calls. **13D fully live-tested and verified 2026-08-03 against `test.kensauto.ca`** (see §13D.4) — all 6 functions confirmed working end-to-end via a real authenticated session with real linked Customer/Vehicle test data: `autopro-generateWorkOrderPdf` (PDF blob generated and rendered), `autopro-createPortalSnapshot` (3 real rows confirmed in `CustomerPortalWorkOrder`), `Approvals` thin read (correct empty state), `autopro-sendSms` (real Twilio SMS delivered, `SentEmailLog` status `pending→sent` with real Twilio SID), `autopro-sendEmailViaSMTP` (real Resend email delivered, `SentEmailLog` status `pending→sent` with real Resend ID), `autopro-getNotesBoardData` (correct empty state). One real bug found and fixed live: `autopro-sendSms` constructed its Twilio client at module top-level, so a bad/missing `TWILIO_ACCOUNT_SID` crashed the function's CORS `OPTIONS` preflight entirely (not just the POST) — moved inside the request handler; also fixed a real, unrelated user-side secrets typo (`TWILIO_ACCOUNT_SID` didn't start with `AC`). Three more real bugs found and fixed live in files this phase depends on but hadn't fully converted: `Layout.jsx` (app-wide settings fetch), `useInventory.jsx`/`useShopData()` (`InventoryItem`/`Employee`, was blocking `DocumentEditor.jsx`'s entire render), and `useWorkOrder.jsx` itself — its own `Customer.get()`/`Vehicle.get()` calls (explicitly 13B scope per the file inventory below) were still base44-routed and silently swallowed by a `.catch(() => null)`, which is why linked customer/vehicle data wasn't showing. `WorkOrderView.jsx` (a sibling read-only view not originally in this phase's file inventory, reached via "View Only (Last Save)") also had its own unconverted `SystemSettings.list()` — fixed too since it hosts the same `WorkOrderPdfModal`/`SESEmailModal` components. **Not yet [Tested]** at the phase level only because production hasn't been touched — production deploys (13A/13B/13C/13D RPCs, edge functions, tables, RLS policies) still pending, plus `Levies`/`syncLevies` remains deferred (§0.8/§13C.4, unrelated to 13D). Next: production replay, then continue into 13E.
+**Status:** **In Progress** — 13A code-complete/dev-deployed, 13B code-complete/dev-deployed, 13C mostly code-complete (`syncLevies` deferred — no `Levies` table yet, see §0.8/§13C.4), 13D **`[Tested]`** (2026-08-03, see "Phase Results and Final Context"), 13E **code-complete** (2026-08-03, not yet live-UI-tested — see §13E.4). Production untouched across the board — every sub-phase so far is dev-branch-only pending a deliberate production-replay pass.
 **Parent:** `master_blueprint.md`, Phase 13 (Work Orders Core)
 **Prepared:** 2026-08-03 · Initial scope research complete (full codebase footprint + all 17 legacy function sources read in full); Section 0 decisions confirmed 2026-08-03
 **Baseline commit:** `0282721a` ("Phase 7B & Phase 12 Cleanup", development branch — Phase 7A/7B code-complete pending UI validation, Phase 7C not started, Phase 8 still in Section 0 open-questions/not-approved; Phase 2 and Phase 4 both Tested/complete)
@@ -41,8 +41,8 @@ This phase has ~61 base44 call sites across 25 files, 17 distinct legacy named f
 | **13A — Locking Foundation & Dead-Code Removal** | New `set_workorder_lock` RPC replacing `manageWorkOrderLock`'s JS-side CAS logic; `flushWorkOrderLocks` thin-proxy swap; delete `KanbanBoard.jsx`/`KanbanColumn.jsx`/`KanbanCard.jsx`/`KanbanDisplaySettings.jsx` (645 lines) and its sole call site `updateWorkOrderStatus` (not ported); strip all confirmed-dead imports. | [x] Code-complete, dev-deployed — prod RPC deploy + UI verification pending (manual) | None — start here |
 | **13B — Core Data Backbone** | `getworkorderdata` → plain thin data-fetch (its dormant lock branch is dead code — see 0.7, dropped entirely, not ported); `getworkorderlist` → native `search_work_orders` RPC (redesigned, per 0.3); `createworkorderdata` → native insert; `changeWorkOrderCustomer` → native `autopro-changeWorkOrderCustomer`; `SystemSettings`/`WorkOrderStatus` swap. | [x] Fully code-complete, dev-deployed (RPC + edge function + RLS policies) — prod deploy + UI verification pending (manual) | **13A** (nothing lock-related actually, but sequenced second per dependency graph) |
 | **13C — Business Logic & Small Entity Swaps** | `convertEstimateToWorkOrder` → native `autopro-convertEstimateToWorkOrder`; `syncLevies` → native `autopro-syncLevies`; `ReturnCoretoWO` → native `autopro-returnCoreToWO`; `searchWorkOrderParts` → native `search_work_order_parts` RPC (redesigned, per 0.3); every small thin-proxy entity read across the "friend" modals. | [x] Mostly code-complete, dev-deployed — **`syncLevies` deferred**, `Levies` table still doesn't exist (see §0.8/§13C.4); prod deploy + UI verification pending (manual) | **13B** (several of these read `WorkOrder`/line_items shapes 13B establishes) |
-| **13D — Documents & Communications** | `generateWorkOrderPdf` → native `autopro-generateWorkOrderPdf` (jsPDF-in-Deno, confirmed go-ahead per 0.5); `createPortalSnapshot` → native `autopro-createPortalSnapshot`; `getPortalApprovals` → **thin direct call** to the now-native `Approvals` table (per 0.4, resolved); `sendSms` → native `autopro-sendSms` (Twilio); `sendEmailViaSMTP` → native `autopro-sendEmailViaSMTP` (Resend); `getNotesBoardData` → native `autopro-getNotesBoardData`, straight 1:1 port, **no RPC redesign** (per 0.3). | [x] Code-complete, dev-deployed (see §13D.4) — prod deploy + UI verification pending (manual) | **13B** (portal snapshot & PDF both read the same `WorkOrder`/`Customer`/`Vehicle` shape 13B's fetch establishes) |
-| **13E — `WOAddInventoryModal.jsx` Full Migration & Final Sweep** | Full native rewire of `WOAddInventoryModal.jsx` (the file Phase 7B explicitly left alone), reusing 7A/7B's already-live assets verbatim. `WarrantyReturnModal.jsx`'s lone `WorkOrder.get()`/`.update()` calls (deferred by Phase 7) swapped to direct calls. Repo-wide grep sweep + `npm run build` + full WO-lifecycle regression (phase-close gate). | [ ] Not Started | **13A** (InventoryCategory/suggestInventoryCategory/search_inventory_ranked assets, already satisfied today), **13B** (WarrantyReturnModal's WorkOrder shape) |
+| **13D — Documents & Communications** | `generateWorkOrderPdf` → native `autopro-generateWorkOrderPdf` (jsPDF-in-Deno, confirmed go-ahead per 0.5); `createPortalSnapshot` → native `autopro-createPortalSnapshot`; `getPortalApprovals` → **thin direct call** to the now-native `Approvals` table (per 0.4, resolved); `sendSms` → native `autopro-sendSms` (Twilio); `sendEmailViaSMTP` → native `autopro-sendEmailViaSMTP` (Resend); `getNotesBoardData` → native `autopro-getNotesBoardData`, straight 1:1 port, **no RPC redesign** (per 0.3). | **[Tested]** — dev-deployed and fully live-verified against `test.kensauto.ca` 2026-08-03, all 6 functions confirmed with real external side effects (real SMS/email delivered, all 4 PDF stages, real portal snapshots); see "Phase Results and Final Context" for the full rollup, 4 bugs fixed along the way (none in 13D's own new code), and the small handful of genuinely-untested items (Notes board fallback UI, Approvals non-empty path, email failure-path) | **13B** (portal snapshot & PDF both read the same `WorkOrder`/`Customer`/`Vehicle` shape 13B's fetch establishes) |
+| **13E — `WOAddInventoryModal.jsx` Full Migration & Final Sweep** | Full native rewire of `WOAddInventoryModal.jsx` (the file Phase 7B explicitly left alone), reusing 7A/7B's already-live assets verbatim. `WarrantyReturnModal.jsx`'s lone `WorkOrder.get()`/`.update()` calls (deferred by Phase 7) swapped to direct calls. Repo-wide grep sweep + `npm run build` + full WO-lifecycle regression (phase-close gate). | [x] Code-complete, dev-deployed — repo-wide sweep also caught and fixed 3 items missed by earlier sub-phases (see §13E.4); `npm run build` and targeted `npx eslint` both clean of new errors; **live UI regression not yet run** (needs `/dev-login` session per §0.9's base44-proxy caveat) | **13A** (InventoryCategory/suggestInventoryCategory/search_inventory_ranked assets, already satisfied today), **13B** (WarrantyReturnModal's WorkOrder shape) |
 
 **Update the checkboxes above as each sub-phase completes** — this is the first thing a fresh, context-cleared session should check to know where things stand.
 
@@ -837,11 +837,62 @@ With all of the above fixed and a real Customer (`tyler@kensauto.ca`, `+17808714
 
 **Third bug, in `autopro-sendSms` itself:** the Twilio client (`new twilio(accountSid, authToken)`) was constructed at module top-level, outside the request handler. When `TWILIO_ACCOUNT_SID` was invalid, the Twilio SDK's constructor threw, which crashed the *entire function* — including its `OPTIONS` handler, so the browser's CORS preflight itself returned `500` and the frontend never even got to send the real POST (surfacing as a generic `FunctionsFetchError: Failed to send a request to the Edge Function`, not a useful error message). Confirmed via `get_logs` (`OPTIONS | 500` entries) before fixing. Moved the credential check and client construction inside the try block, after the `OPTIONS` short-circuit — now a bad credential only fails the actual send, returned as a proper `{error}` JSON response, and CORS preflight always succeeds regardless of credential validity. This is a pattern worth checking in any *other* function that constructs a third-party SDK client at module scope. Once redeployed, the underlying secrets issue (`TWILIO_ACCOUNT_SID` didn't start with `AC` — a user-side typo/mix-up in the Supabase dashboard) was visible as a clear, actionable error message instead of a silent crash, and the user fixed it directly.
 
+**Second UI test pass — full stage coverage + notes board (2026-08-03, same day):**
+
+All 4 PDF stages verified: temporarily set `RO5001`'s `stage` to `estimate`/`invoice`/`credit_invoice` directly via SQL (safer than driving the app's real estimate→WO→invoice conversion flow just to get a stage value), reloaded `WorkOrderView.jsx`, clicked Print, and confirmed via `get_logs` that `autopro-generateWorkOrderPdf` returned `POST | 200` for all three additional stages (`work_order` was already covered in the first pass). Reverted the WorkOrder back to its original `stage='work_order'`/`wo_number='WO5001'` state afterward, clearing the temporary `est_number`/`inv_number`/`crinv_number` fields.
+
+Attempted to verify the `getNotesBoardData` fallback round-robin placement algorithm with real data: inserted two real `Note` rows directly via SQL (one with explicit `board_column`/`board_order`, one with both `null` to force the fallback path). Hit a genuine test-data mistake first (used `status: 'open'`, but `WorkOrders.jsx`'s Notes tab client-side filters on `status === 'shared'`/`'private'` — not a code bug, just wrong seed data; fixed by re-updating to `status: 'shared'`). After that fix, **could not get the browser automation to switch tabs on `WorkOrders.jsx` at all** — repeated attempts (single click, double click, keyboard arrow-key navigation, full page reloads) all failed to switch away from the default "Work In Progress" tab, including for unrelated tabs like "Estimates" — a browser-automation-session issue, not an app bug (tab-clicking had worked earlier in the same overall session on `DocumentEditor.jsx`/`WorkOrderView.jsx`). **The two test notes are still sitting in the `Note` table, unverified via UI** — `id`s `728e5818-ed31-4744-b8da-fa123eb74e4d` ("Explicit placement test", `column_2`/order `5`) and `4dcda2df-e5ec-4bdf-a1b3-6dbe9da17b32` ("Fallback placement test", `null`/`null`). Left in place for the user (or a future session) to check visually, or to delete if unwanted — genuinely unresolved, not silently dropped.
+
+**Explicitly not attempted, by design:** the `sendEmailViaSMTP` failure-path shop-notification email — triggering it live would mean deliberately sending a real email to `shop@kensauto.ca`, an address outside the explicit `tyler@kensauto.ca`/`+17808714320` test-recipient authorization given for this session. Held for a future explicit go-ahead rather than assumed. Similarly, the `Approvals` non-empty-state path and `createPortalSnapshot`'s `on_account` payment-exclusion logic remain untested against real data, since both need state that only exists on the far side of the separate customer-portal app or a WO with real payment history — neither was available this session.
+
+**Test data left in the dev branch, not cleaned up (deliberately, to keep it usable for future sessions):** a `Customer` row ("Tyler Haney (Test)", `tyler@kensauto.ca`, `+17808714320`) and a `Vehicle` row (2022 Ford F-150), both linked to the dev branch's one seeded `WorkOrder` row (`RO5001`/id `999999999999`) — this WorkOrder's `customer_id`/`vehicle_id` previously pointed to orphaned, non-existent rows (`"123"`/`"123"`, showing as "Customer Not Found" in the UI), so this is a net improvement to the dev seed data, not debt. 3 real `CustomerPortalWorkOrder` snapshot rows and 2 `SentEmailLog` rows (one `sent` SMS, one `sent` email) also remain from live testing. The 2 test `Note` rows above are the one piece of test data whose UI outcome is still unconfirmed.
+
+---
+
+## Phase Results and Final Context
+
+### 13D — **[Tested]**, verified complete 2026-08-03
+
+All 6 functions (`autopro-generateWorkOrderPdf`, `autopro-createPortalSnapshot`, the `Approvals` thin table read, `autopro-sendSms`, `autopro-sendEmailViaSMTP`, `autopro-getNotesBoardData`) ported and deployed to the dev branch (`sitihbdnuxifwibontcm`) only — matching the standing dev-first pattern from 13A–13C, production still untouched. Two new native tables created (`CustomerPortalWorkOrder`, `SentEmailLog` — both turned out to be Base44-hosted-only, same class of gap §0.8 first caught with `SystemSettings`/`TagAlong`), plus the missing RLS policy added to the already-existing-but-policy-less `Approvals` table (§0.4). All 5 frontend files converted (`ROApprovalsModal.jsx`, `WorkOrderPdfModal.jsx`, `SESEmailModal.jsx`, `InvoiceConversion.jsx`, `WorkOrders.jsx`) with zero remaining `base44`/legacy-function references confirmed via repo-wide grep. `npm run build` clean throughout.
+
+**Every one of the 6 features was live-tested end-to-end against `test.kensauto.ca` through a real authenticated session, with real external side effects confirmed**: PDF generation confirmed working for all 4 WO stages (estimate/work_order/invoice/credit_invoice); `createPortalSnapshot` confirmed via 3 real rows written to `CustomerPortalWorkOrder`; the `Approvals` empty state confirmed rendering correctly with zero errors; a real SMS was delivered via Twilio and a real email via Resend, both logged `pending`→`sent` in `SentEmailLog` with real provider tracking IDs (a Twilio `SM...` SID and a Resend UUID).
+
+**Getting to that point required fixing four real bugs that were blocking testing, none of which were 13D's own new code:**
+1. `useInventory.jsx`'s `useShopData()` hook (Phase 7 domain) was still calling `base44.functions.invoke('SupabaseProxy', ...)` and a legacy `Employee.list()` shim — this alone crashed `DocumentEditor.jsx`'s entire render before this session, and had previously been misdiagnosed (in §0.9, an earlier part of this same session) as requiring a `BASE44_ACCESS_TOKEN` rotation. It didn't — `InventoryItem`/`Employee` were both already genuinely native tables; the hook itself was just an unconverted leftover. Converted to direct `supabase.from()` calls.
+2. `Layout.jsx`'s app-wide `SystemSettings.list()` fetch and `WorkOrderView.jsx`'s own separate `SystemSettings.list()` call (`WorkOrderView.jsx` is a sibling read-only page reached via "View Only (Last Save)" on the lock-conflict screen — not in this phase's original file inventory, but load-bearing for testing since it hosts the same `WorkOrderPdfModal`/`SESEmailModal` components 13D converted) — both still base44-routed, both fixed to direct `supabase.from('SystemSettings')` calls.
+3. `useWorkOrder.jsx` — **explicitly listed as 13B's own scope in this phase's file inventory** — still had `Customer.get()`/`Vehicle.get()` routed through the `@/entities/all` base44 shim, wrapped in a silent `.catch(() => null)`. This meant 13B's conversion of this file was incomplete, and the bug was invisible (no console error) even after seeding real, correctly-linked `Customer`/`Vehicle` test data — it just silently rendered "No customer/vehicle information available". Fixed to direct `supabase.from()` calls with explicit error logging.
+4. `autopro-sendSms` constructed its Twilio client (`new twilio(accountSid, authToken)`) at module top-level, before the `OPTIONS` short-circuit. A bad `TWILIO_ACCOUNT_SID` value threw at construction time, crashing the entire function — including CORS preflight — so the browser never got past `OPTIONS | 500` to even attempt the real send, surfacing only as a generic, unhelpful `FunctionsFetchError`. Moved the credential check and client construction inside the request handler; confirmed via `get_logs` that `OPTIONS` now always returns `200` regardless of credential validity.
+
+### 13D.5) Explicitly out of scope / deferred (not forgotten, not blockers)
+
+- **Production deploy of everything above** — RLS policy, `CustomerPortalWorkOrder`/`SentEmailLog` table creation, all 5 edge functions, and confirmation that production Twilio/Resend secrets exist. Dev-only by design, matching 13A–13C's held-back pattern pending the user's own sign-off before touching production.
+- **`syncLevies`** — still 401ing, unrelated pre-existing 13C deferral (no `Levies` table yet, see §0.8/§13C.4). Not 13D's problem, not touched.
+- **The `sendEmailViaSMTP` failure-path shop-notification email** — deliberately not triggered live, since doing so means sending a real email to `shop@kensauto.ca`, outside this session's explicit test-recipient authorization (`tyler@kensauto.ca`/`+17808714320` only).
+- **`Approvals` non-empty-state path** — needs a real customer to approve/deny through the separate `portal.kensauto.ca` app, outside this session's reach.
+- **`createPortalSnapshot`'s `on_account` payment-exclusion calc** — untested against real data; the test WO has no payment history.
+- **A pre-existing, out-of-scope lint debt inventory** (unused imports in `WorkOrderPdfModal.jsx`, `InvoiceConversion.jsx`, `WorkOrders.jsx`) — confirmed via `git diff` to be untouched by any of 13D's edits, left alone.
+
+### 13D.6) Known gaps — genuinely untested, flagged for a future session
+
+- **The Notes board's fallback round-robin `board_column`/`board_order` placement algorithm, and the search filter, against real non-empty data** — two real test `Note` rows exist in the dev branch (`728e5818-ed31-4744-b8da-fa123eb74e4d`, `4dcda2df-e5ec-4bdf-a1b3-6dbe9da17b32`) but couldn't be visually confirmed due to a browser-automation tab-switching failure this session (not an app bug — tab-clicking worked fine earlier in the session on other pages). Check these manually, or re-attempt via automation next time.
+- **Any WO stage other than `work_order`/`estimate`/`invoice`/`credit_invoice`'s `Send` flow specifically for SMS/email content correctness per stage** — only the PDF was cycled through all 4 stages; the email/SMS body text (which references `stageTitle`) was only exercised in `work_order` stage.
+
+**Next step:** Phase 13D is closed. Proceeding to 13E (`WOAddInventoryModal.jsx`/`WarrantyReturnModal.jsx` final sweep) — see the freshly-verified execution section below. The original pre-execution draft of 13E (written before 13A–13D executed) undercounted how much of `WOAddInventoryModal.jsx` was already native by the time of this close-out; see the handoff note at the top of the 13E section for what changed.
+
 ---
 
 ## 13E) SUB-PHASE E: `WOAddInventoryModal.jsx` Full Migration & Final Sweep
 
-### 13E.1) Scope & Objectives
+> **Handoff note (2026-08-03, fresh research pass before starting 13E execution):** 13A–13D are all code-complete and dev-deployed; 13D is additionally fully live-tested (see "Phase Results and Final Context" above). Two things changed since 13E's original draft below was written:
+> 1. **`WOAddInventoryModal.jsx` is substantially further along than the original draft assumed.** Re-read fresh from disk (not from memory) — `Supplier`/`SalesClass` reads in `loadDropdownData()` are *already* direct `supabase.from()` calls, and the entire batch-processing flow (`InventoryItem` create/update, `InventoryAuditLog`, the `update_inventory_with_audit` RPC) is *already* fully native. Only `TagAlong.list()`/`OtherChargeList.list()`/`InventoryCategory.list()` (still `@/entities/all`), the `searchInventory` base44-function call, and the `suggestInventoryCategory` base44-function call remain — a much smaller surface than originally scoped. The original draft below is preserved in a `<details>` block for the audit trail; **the corrected, current-state plan follows it.**
+> 2. **The standing coordination check (re-grep `phase_7_implementation_plan.md`'s live status for "WOAddInventoryModal") was re-run**: Phase 7 (now fully `[Tested]`/complete) explicitly and repeatedly documented leaving this file untouched, on the grounds that it "needs its own full migration pass" — confirms zero collision, 13E is still the right and only owner of this file.
+>
+> `WarrantyReturnModal.jsx` was also re-read fresh: matches the original draft's description almost exactly (`WorkOrder.get()`/`.update()` are still the only base44 calls), **except for one thing the original draft didn't anticipate**: this file's `line_items` handling still assumes a JSON *string* (`JSON.parse(freshWO.line_items || '[]')` on read, `JSON.stringify(currentLines)` on write) — but per §0.6/§0.9's already-established finding, `WorkOrder.line_items` is a native `jsonb` column that decodes to an already-parsed array/object once the fetch goes through `supabase.from()`. Left as-is, this would throw (`JSON.parse` on a non-string) the moment the `WorkOrder.get()` call below is converted. This needs fixing as part of 13E, not just a mechanical `WorkOrder.get()` → `supabase.from()` swap.
+
+<details>
+<summary>13E — original pre-execution draft (written before 13A–13D executed), preserved for audit trail — superseded by the corrected plan below</summary>
+
+### 13E.1) Scope & Objectives (original draft)
 
 **In scope:**
 1. Full native rewire of `WOAddInventoryModal.jsx` — the file Phase 7B explicitly left alone, reusing Phase 7A/7B's already-live assets verbatim (`InventoryCategory` table, `autopro-suggestInventoryCategory` function, `search_inventory_ranked` RPC).
@@ -852,7 +903,7 @@ With all of the above fixed and a real Customer (`tyler@kensauto.ca`, `+17808714
 
 **Exit criteria (phase close):** grep sweep clean; `npm run build`/`npx eslint` clean; full WO-lifecycle regression passed; `master_blueprint.md` updated.
 
-### 13E.2) Detailed Execution Plan
+### 13E.2) Detailed Execution Plan (original draft)
 
 **Standing coordination check first:** re-grep `phase_7_implementation_plan.md`'s live status for "WOAddInventoryModal" before starting, per §0.1's protocol (confirm 7C hasn't grown to touch this file).
 
@@ -924,7 +975,7 @@ grep -rn "base44\|@/entities/all\|@/functions/" src/components/work-orders/ src/
 ```
 Expect zero hits once 13A-13E are all complete. Any remaining hit is either a missed call site or something that should have been explicitly flagged as out-of-scope in Section 1 — investigate before closing the phase.
 
-### 13E.3) Verification Checklist
+### 13E.3) Verification Checklist (original draft)
 
 **`WOAddInventoryModal.jsx` & `WarrantyReturnModal.jsx`:**
 - [ ] `WOAddInventoryModal.jsx` fully converted; supplier/sales-class/tag-along/other-charge/category dropdowns all tested live
@@ -932,6 +983,132 @@ Expect zero hits once 13A-13E are all complete. Any remaining hit is either a mi
 - [ ] `WarrantyReturnModal.jsx`'s `WorkOrder.get()`/`.update()` converted and tested — process a LANKAR-legacy-style warranty return, confirm the `line_items` warranty-counter stamp persists correctly
 - [ ] Repo-wide grep sweep returns zero `base44`/`@/entities/all`/`@/functions/` hits in this phase's file scope
 - [ ] `npm run build` and `npx eslint` both clean, zero new errors/warnings on touched files
+
+</details>
+
+---
+
+### 13E.1) Scope & Objectives (corrected, post-13D re-verification)
+
+**In scope — smaller than the original draft, confirmed against current on-disk state:**
+1. `WOAddInventoryModal.jsx` — only 3 remaining call sites, not a full-file rewire: `loadDropdownData()`'s `TagAlong.list()`/`OtherChargeList.list()`/`InventoryCategory.list()` (still `@/entities/all`), the `runInventorySearch()` `base44.functions.invoke('searchInventory', ...)` call, and the `fetchSuggestion()` `base44.functions.invoke('suggestInventoryCategory', ...)` call. **Already fully native, confirmed by direct file read — do not touch:** `Supplier`/`SalesClass` reads in `loadDropdownData()` (already `supabase.from()`), and the entire `handleProcessBatch()` flow (`InventoryItem` create/update via `supabase.rpc('update_inventory_with_audit', ...)` for existing parts, direct `supabase.from('InventoryItem').insert()`/`supabase.from('InventoryAuditLog').insert()` for new parts).
+2. `WarrantyReturnModal.jsx`'s `WorkOrder.get()`/`.update()` calls (lines 195, 212) — matches the original draft, **plus a `jsonb`-vs-string fix the original draft missed**: the current code does `JSON.parse(freshWO.line_items || '[]')` on read and `JSON.stringify(currentLines)` on write, both of which assume `line_items` is a string. Once `WorkOrder.get()` is converted to `supabase.from()`, `line_items` arrives already-parsed (native `jsonb` column, per §0.6/§0.9) — the `JSON.parse()` call would throw. Must drop both the parse and the stringify, using the array directly.
+3. Repo-wide grep sweep + build/lint clean + full WO-lifecycle regression (phase-close gate) — unchanged from the original draft.
+
+**Prerequisite:** 13A (assets already live, unaffected by anything above), 13B (`WarrantyReturnModal.jsx` needs the corrected `WorkOrder` fetch/update shape — now additionally needs the `jsonb` fix above, which 13B's own file list didn't cover since `WarrantyReturnModal.jsx` was always 13E's file, not 13B's).
+
+**Exit criteria (phase close):** grep sweep clean; `npm run build`/`npx eslint` clean; full WO-lifecycle regression passed; `master_blueprint.md` updated.
+
+### 13E.2) Detailed Execution Plan (corrected)
+
+**Standing coordination check — re-run 2026-08-03, confirmed clean:** `phase_7_implementation_plan.md` (now `[Tested]`/fully complete) explicitly and repeatedly documents leaving `WOAddInventoryModal.jsx` untouched throughout 7B/7C, on the stated grounds that "it needs its own full migration pass" — zero collision, 13E remains the sole owner of this file.
+
+**`WOAddInventoryModal.jsx` — targeted 3-call-site conversion (not a full rewire):**
+```diff
+- import { TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
+- import { base44 } from '@/api/base44Client';
++ import { supabase } from '@/lib/supabase';
+```
+(`supabase` is already imported today — this just drops the two base44-routed imports. Confirm nothing else in the file still needs `base44` before removing that import line.)
+
+`loadDropdownData()` — only the last 3 array entries change, `Supplier`/`SalesClass` stay exactly as they are today:
+```diff
+  const [suppliersData, salesClassesData, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
+    supabase.from('Supplier').select('*').eq('inventory_supplier', true).then(res => res.data || []),
+    supabase.from('SalesClass').select('*').then(res => res.data || []),
+-   TagAlong.list(),
+-   OtherChargeList.list(),
+-   InventoryCategory.list()
++   supabase.from('TagAlong').select('*').then(res => res.data || []),
++   supabase.from('OtherChargeList').select('*').then(res => res.data || []),
++   supabase.from('InventoryCategory').select('*').then(res => res.data || [])
+  ]);
+```
+(Kept the existing `.then(res => res.data || [])` unwrap-inline style already used in this exact `Promise.all` for `Supplier`/`SalesClass`, rather than introducing a different pattern — matches the file's own established convention.)
+
+`runInventorySearch()` (line ~167) — reuse `GetPartModal.jsx`'s exact `search_inventory_ranked` RPC shape (confirmed live 2026-08-03), noting the legacy `sortBy`/`sortDirection` params have no RPC equivalent (the RPC always returns its own ranked order, same as `GetPartModal.jsx` already accepts):
+```diff
+- const response = await base44.functions.invoke('searchInventory', {
+-   searchTerm: trimmedSearch,
+-   limit: 50,
+-   sortBy: 'part_number',
+-   sortDirection: 'asc'
+- });
+- setSearchResults(response.data?.records || []);
++ const { data, error } = await supabase.rpc('search_inventory_ranked', {
++   p_search_term: trimmedSearch,
++   p_limit: 50,
++   p_location_from: null,
++   p_location_to: null
++ });
++ if (error) throw error;
++ setSearchResults((data || []).map(({ total_count, match_rank, ...item }) => item));
+```
+
+`fetchSuggestion()` (line ~567) — **exact same conversion the original draft already had correct, unchanged:**
+```diff
+- const response = await base44.functions.invoke('suggestInventoryCategory', {
+-     part_number: formData.part_number,
+-     description: formData.description,
+-     supplier_name: supplierName
+- });
++ const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
++     body: {
++         part_number: formData.part_number,
++         description: formData.description,
++         supplier_name: supplierName
++     }
++ });
++ if (response.error) { console.error('Category suggestion error:', response.error); return; }
+```
+
+**`WarrantyReturnModal.jsx` — close out Phase 7's deferred item, with the `jsonb` fix:**
+```diff
+- import { WorkOrder } from '@/entities/all';
++ import { supabase } from '@/lib/supabase';
+  ...
+  // line 195
+- const freshWO = await WorkOrder.get(workOrder.id);
+- const currentLines = JSON.parse(freshWO.line_items || '[]');
++ const { data: freshWO, error: freshWOError } = await supabase.from('WorkOrder').select('*').eq('id', workOrder.id).single();
++ if (freshWOError) throw freshWOError;
++ const currentLines = Array.isArray(freshWO.line_items) ? freshWO.line_items : [];
+  ...
+  // line 212
+- await WorkOrder.update(workOrder.id, { line_items: JSON.stringify(currentLines) });
++ const { error: updateError } = await supabase.from('WorkOrder').update({ line_items: currentLines, last_updated: new Date().toISOString() }).eq('id', workOrder.id);
++ if (updateError) throw updateError;
+```
+
+**Final repo-wide sweep:**
+```bash
+grep -rn "base44\|@/entities/all\|@/functions/" src/components/work-orders/ src/pages/WorkOrders.jsx src/components/hooks/useWorkOrder.jsx src/pages/InvoiceConversion.jsx
+```
+Expect zero hits once 13A-13E are all complete. Any remaining hit is either a missed call site or something that should have been explicitly flagged as out-of-scope in Section 1 — investigate before closing the phase.
+
+### 13E.3) Verification Checklist (corrected)
+
+**`WOAddInventoryModal.jsx` & `WarrantyReturnModal.jsx`:**
+- [x] `WOAddInventoryModal.jsx`'s 3 remaining call sites converted; tag-along/other-charge/category dropdowns — **code done, not yet tested live** (supplier/sales-class dropdowns are already native, unchanged)
+- [x] `runInventorySearch()` converted to `search_inventory_ranked` RPC (exact `GetPartModal.jsx` shape); `fetchSuggestion()` converted to `autopro-suggestInventoryCategory` — **code done, not yet tested live**
+- [ ] The full batch-add-to-WO flow (`handleProcessBatch`) regression-tested end to end — unchanged code, still needs its first live verification (not done this session, no dev-login/browser pass performed)
+- [x] `WarrantyReturnModal.jsx`'s `WorkOrder.get()`/`.update()` converted, **including the `jsonb` fix** — code done; **live warranty-return test not yet performed**
+- [x] Repo-wide grep sweep returns zero real `base44`/`@/entities/all`/`@/functions/` hits in this phase's file scope — re-run 2026-08-03 after all fixes below, only false positives (string literals `@no-reply.base44.com`, a `base44-prod` storage-bucket path, WorkPRO's own third-party API constant) and the previously-documented `syncLevies` deferral remain; see §13E.4
+- [x] `npm run build` clean (exit 0, dist artifacts produced); targeted `npx eslint` run on every file touched this sub-phase — zero *new* errors traced to this session's edits (all reported errors/warnings pre-date this session and sit on lines never touched here — e.g. unrelated dead icon imports in `DocumentEditor.jsx`/`CreditInvoice.jsx`/`WorkOrderView.jsx`)
+
+### 13E.4) NEW FINDING (2026-08-03): repo-wide sweep caught 3 items earlier sub-phases missed — all fixed in this pass
+
+The corrected §13E.2 plan above only anticipated `WOAddInventoryModal.jsx` and `WarrantyReturnModal.jsx`. Running the mandated final sweep (§13E.2's `grep -rn "base44\|@/entities/all\|@/functions/" ...`) surfaced three additional real gaps, all now fixed:
+
+1. **`src/components/hooks/useWorkOrder.jsx`** — 13B's own file table (§1, row 3) explicitly scoped this file's `SupabaseProxy` read (`SupplierInvoiceLine`) and its dormant `getworkorderdata`-style `useFunctionData` fallback branch, but neither was actually finished. Fixed: `SupplierInvoiceLine` lookup in `parseLineItems()` converted to a direct `supabase.from('SupplierInvoiceLine').select('*').eq('id', ...)` call (matching `WorkOrderForm.jsx`'s already-native pattern). The `useFunctionData` option was confirmed dead via the same "grep every real call site" technique 13A established (§2's added-lessons) — all 3 live callers (`DocumentEditor.jsx`, `CreditInvoice.jsx`, `WorkOrderView.jsx`) always pass it truthy — so the base44 `else` branch, the `useFunctionData` destructure, and the now-pointless option object at each of the 3 call sites were all removed.
+2. **`src/components/work-orders/form/LineItemsTable.jsx`** — not listed in Phase 13's original 27-file inventory at all (a genuine blueprint gap, not a deliberate deferral), but squarely inside `work-orders/form/` alongside the already-native `WorkOrderForm.jsx`. Its `InventoryLocation.list()`/`InventoryCategory.list()` (both confirmed native tables, already used via `supabase.from()` elsewhere — `InventoryList.jsx`, `InventoryAdd.jsx`, `LocationModal.jsx`) converted to direct calls; its imported-but-never-used `InventoryTxs` symbol dropped as a dead import.
+3. **`src/components/work-orders/form/WorkOrderHeaderInfo.jsx`** and **`WorkOrderViewHeaderInfo.jsx`** — both had a dead `import { base44 } from '@/api/base44Client'` with zero live usage (only referenced inside a commented-out block and an unrelated `.endsWith('@no-reply.base44.com')` string check). Both import lines removed.
+
+**Confirmed correctly out-of-scope, left untouched (re-verified, not new findings):**
+- `WarrantyReturnModal.jsx`'s `import { searchSuppliers } from '@/functions/searchSuppliers'` — Phase 7's plan doc (§0.2 row 10, §7B.2, §7.3) explicitly and repeatedly defers `Supplier` CRUD/search to **Phase 9**, by name, more than once. Not this phase's job.
+- `useDocumentEditorSave.jsx`'s `base44.functions.invoke('syncLevies', ...)` — already-documented 13C deferral (§0.8/§13C.4), blocked on the `Levies` table not existing yet; needs the user's explicit go-ahead to create it, unchanged by this session.
+- `WorkPROEditProjectModal.jsx`, `WorkPROViewModal.jsx`, `TechProjectClockInModal.jsx`, `ROInspectionModal.jsx`, `EditProjectDetailsModal.jsx` — all call a **separate third-party SaaS product** ("WorkPRO"), which happens to also be hosted at `app.base44.com` but is a different vendor app, not this project's own legacy backend. This is the "tech time / WorkPRO project pairing" the phase-close regression checklist explicitly calls out as untouched by this phase. Confirmed by literal API key/app-ID constants in each file, not our own `@/api/base44Client` SDK.
+- `WorkOrderHistoryModal.jsx` (`@no-reply.base44.com` string check) and `WorkOrderReport.jsx` (a `base44-prod` Supabase-storage bucket path in an image `src`) — both plain string literals, no SDK dependency.
 
 **Full Lifecycle Regression (phase-close gate):**
 - [ ] Create a new WO (both "New Work Order" and "Counter Sale" paths)

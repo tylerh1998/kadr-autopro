@@ -97,21 +97,21 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
         <div className="space-y-4 py-4">
           {/* Summary */}
-          <div className={`rounded-lg p-4 ${isRefund ? 'bg-green-50' : 'bg-red-50'}`}>
+          <div className={`rounded-lg p-4 ${isRefund ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Period</p>
-                <p className="text-sm text-slate-900">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Period</p>
+                <p className="text-sm text-slate-900 dark:text-slate-100">
                   {format(parseISO(gstReturn.period_start_date), 'MMM d, yyyy')} - {format(parseISO(gstReturn.period_end_date), 'MMM d, yyyy')}
                 </p>
               </div>
-              <DollarSign className={`w-8 h-8 ${isRefund ? 'text-green-400' : 'text-red-400'}`} />
+              <DollarSign className={`w-8 h-8 ${isRefund ? 'text-green-400 dark:text-green-500' : 'text-red-400 dark:text-red-500'}`} />
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-200">
-              <p className="text-sm text-slate-600">
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 {isRefund ? 'Refund Amount' : 'Payment Amount'}
               </p>
-              <p className={`text-2xl font-bold ${isRefund ? 'text-green-700' : 'text-red-700'}`}>
+              <p className={`text-2xl font-bold ${isRefund ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                 ${Math.abs(gstReturn.net_gst_due).toFixed(2)}
               </p>
             </div>
@@ -131,7 +131,7 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
           <div>
             <Label>Bank Account</Label>
             {loadingAccounts ? (
-              <div className="flex items-center justify-center py-3 border rounded-md">
+              <div className="flex items-center justify-center py-3 border rounded-md dark:border-slate-700">
                 <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
               </div>
             ) : (

@@ -304,9 +304,9 @@ export default function AdminPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Shield className="w-16 h-16 mx-auto text-slate-300 mb-4" />
-          <h1 className="text-2xl font-bold text-slate-700">Access Denied</h1>
-          <p className="text-slate-500 mt-2">You do not have permission to view this page.</p>
+          <Shield className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+          <h1 className="text-2xl font-bold text-slate-700 dark:text-slate-300">Access Denied</h1>
+          <p className="text-slate-500 mt-2 dark:text-slate-400">You do not have permission to view this page.</p>
         </div>
       </div>
     );
@@ -320,8 +320,8 @@ export default function AdminPage() {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Admin Database Tools</h1>
-            <p className="text-slate-500">Extract and inspect database records for troubleshooting.</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Admin Database Tools</h1>
+            <p className="text-slate-500 dark:text-slate-400">Extract and inspect database records for troubleshooting.</p>
           </div>
         </div>
         <Button 
@@ -379,7 +379,7 @@ export default function AdminPage() {
                             <TabsTrigger value="search" className="gap-2"><Search className="w-4 h-4"/> Find Transaction</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="extract" className="space-y-4 border rounded-lg p-6 bg-slate-50">
+                        <TabsContent value="extract" className="space-y-4 border rounded-lg p-6 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
                             <div className="flex items-center space-x-2 mb-2">
                                 <Checkbox 
                                     id="allDates" 
@@ -430,7 +430,7 @@ export default function AdminPage() {
                             </Button>
                         </TabsContent>
 
-                        <TabsContent value="search" className="space-y-4 border rounded-lg p-6 bg-slate-50">
+                        <TabsContent value="search" className="space-y-4 border rounded-lg p-6 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <Label>Search Field</Label>
@@ -502,7 +502,7 @@ export default function AdminPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border max-h-[500px] overflow-auto">
+                    <div className="rounded-md border max-h-[500px] overflow-auto dark:border-slate-700">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -516,7 +516,7 @@ export default function AdminPage() {
                                     <TableRow 
                                         key={i} 
                                         onClick={() => setSelectedRecord(row)}
-                                        className="cursor-pointer hover:bg-slate-50 transition-colors"
+                                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                                     >
                                         {visibleColumns.map(key => (
                                             <TableCell key={key} className="max-w-[200px] truncate" title={String(row[key] ?? '')}>
@@ -529,7 +529,7 @@ export default function AdminPage() {
                         </Table>
                     </div>
                     {results.length > 0 && (
-                        <p className="text-xs text-slate-500 mt-2 italic text-center">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 italic text-center">
                             (Showing {visibleColumns.length} columns. Download to see full data.)
                         </p>
                     )}

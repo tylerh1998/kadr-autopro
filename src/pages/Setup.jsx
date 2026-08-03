@@ -65,14 +65,14 @@ export default function SetupPage() {
         {/* Header */}
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Setup</h1>
-            <p className="text-slate-600 mt-1">Configure your shop settings and manage users</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Setup</h1>
+            <p className="text-slate-600 mt-1 dark:text-slate-400">Configure your shop settings and manage users</p>
           </div>
           <div className="flex gap-2">
             <Button
               onClick={() => window.open('https://drive.google.com/uc?export=download&id=1-APT_Tt8xlAxBChlmvU1KftO5h83ViKP', '_blank')}
               variant="outline"
-              className="bg-white"
+              className="bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
             >
               <Download className="w-4 h-4 mr-2" />
               Download Template

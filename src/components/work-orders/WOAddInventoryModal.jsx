@@ -6,8 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
-import { TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -138,9 +136,9 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
           .from('SalesClass')
           .select('*')
           .then(res => res.data || []),
-        TagAlong.list(),
-        OtherChargeList.list(),
-        InventoryCategory.list()
+        supabase.from('TagAlong').select('*').then(res => res.data || []),
+        supabase.from('OtherChargeList').select('*').then(res => res.data || []),
+        supabase.from('InventoryCategory').select('*').then(res => res.data || [])
       ]);
       setSuppliers(suppliersData);
       setSalesClasses(salesClassesData || []);
@@ -164,13 +162,14 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
       setSearchingParts(true);
       try {
-        const response = await base44.functions.invoke('searchInventory', {
-          searchTerm: trimmedSearch,
-          limit: 50,
-          sortBy: 'part_number',
-          sortDirection: 'asc'
+        const { data, error } = await supabase.rpc('search_inventory_ranked', {
+          p_search_term: trimmedSearch,
+          p_limit: 50,
+          p_location_from: null,
+          p_location_to: null
         });
-        setSearchResults(response.data?.records || []);
+        if (error) throw error;
+        setSearchResults((data || []).map(({ total_count, match_rank, ...item }) => item));
       } catch (error) {
         console.error('Error searching inventory:', error);
         setSearchResults([]);
@@ -564,12 +563,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                   const supplier = suppliers.find(s => s.id === formData.supplier_id);
                   const supplierName = supplier ? supplier.name : '';
                   
-                  const response = await base44.functions.invoke('suggestInventoryCategory', {
-                      part_number: formData.part_number,
-                      description: formData.description,
-                      supplier_name: supplierName
+                  const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                      body: {
+                          part_number: formData.part_number,
+                          description: formData.description,
+                          supplier_name: supplierName
+                      }
                   });
-                  
+                  if (response.error) { console.error('Category suggestion error:', response.error); return; }
+
                   if (response.data && response.data.category) {
                       setFormData(prev => {
                           if (!prev.category) {

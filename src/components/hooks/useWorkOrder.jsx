@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 
 const parseLineItems = async (itemsString) => {
@@ -29,8 +28,12 @@ const parseLineItems = async (itemsString) => {
       // If this line item has a supplier_invoice_line_id, fetch the details
       if (item.supplier_invoice_line_id) {
         try {
-          const supplierInvoiceLineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: item.supplier_invoice_line_id } });
-          const supplierInvoiceLine = supplierInvoiceLineRes.data?.data?.[0];
+          const { data: supplierInvoiceLineRes, error: supplierInvoiceLineError } = await supabase
+            .from('SupplierInvoiceLine')
+            .select('*')
+            .eq('id', item.supplier_invoice_line_id);
+          if (supplierInvoiceLineError) throw supplierInvoiceLineError;
+          const supplierInvoiceLine = supplierInvoiceLineRes?.[0];
           if (!supplierInvoiceLine) throw new Error('Supplier invoice line not found');
           // Enrich the line item with supplier invoice line details
           return {
@@ -61,8 +64,7 @@ const parseLineItems = async (itemsString) => {
   }
 };
 
-export function useWorkOrder(roNumber, options = {}) {
-  const { useFunctionData = false } = options;
+export function useWorkOrder(roNumber) {
   const [workOrder, setWorkOrder] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -82,9 +84,7 @@ export function useWorkOrder(roNumber, options = {}) {
     setError('');
     try {
       const [workOrderResponse, tagAlongsResponse, otherChargesResponse] = await Promise.all([
-        useFunctionData
-          ? supabase.from('WorkOrder').select('*').eq('ro_number', roNumber).limit(1).maybeSingle()
-          : base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder', match: { ro_number: roNumber } }).then(res => res.data?.data || []),
+        supabase.from('WorkOrder').select('*').eq('ro_number', roNumber).limit(1).maybeSingle(),
         supabase.from('TagAlong').select('*'),
         supabase.from('OtherChargeList').select('*'),
       ]);
@@ -94,13 +94,11 @@ export function useWorkOrder(roNumber, options = {}) {
       setTagAlongs(tagAlongsResponse.data || []);
       setOtherCharges(otherChargesResponse.data || []);
 
-      if (useFunctionData && workOrderResponse?.error) {
+      if (workOrderResponse?.error) {
         console.error('Error fetching WorkOrder:', workOrderResponse.error);
       }
 
-      const wo = useFunctionData
-        ? (workOrderResponse?.data || null)
-        : (workOrderResponse.length > 0 ? workOrderResponse[0] : null);
+      const wo = workOrderResponse?.data || null;
 
       if (!wo) {
         throw new Error(`Work Order with RO Number ${roNumber} not found.`);
@@ -144,7 +142,7 @@ export function useWorkOrder(roNumber, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [roNumber, useFunctionData]);
+  }, [roNumber]);
 
   useEffect(() => {
     fetchData();

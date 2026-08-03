@@ -178,8 +178,8 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
               <DialogTitle>Add Government Remittance</DialogTitle>
@@ -202,21 +202,21 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
                 className="flex-1"
               />
               {parsing && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 dark:border-blue-400"></div>
                   Parsing...
                 </div>
               )}
             </div>
             {uploadedFileName && (
-              <Alert className="bg-blue-50 border-blue-200">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-800">
+              <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-900/40">
+                <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertDescription className="text-blue-800 dark:text-blue-300">
                   File uploaded: {uploadedFileName}
                 </AlertDescription>
               </Alert>
             )}
-            <p className="text-xs text-slate-500">Upload a .txt remittance file to automatically fill in all fields</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Upload a .txt remittance file to automatically fill in all fields</p>
           </div>
 
           {/* Date Fields */}
@@ -254,8 +254,8 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
           </div>
 
           {/* Deduction Breakdown */}
-          <div className="border rounded-lg p-4 space-y-3 bg-slate-50">
-            <h3 className="font-semibold text-sm text-slate-700">Remittance Breakdown</h3>
+          <div className="border rounded-lg p-4 space-y-3 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
+            <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-300">Remittance Breakdown</h3>
             
             <div className="space-y-2">
               <Label htmlFor="income_tax">Income Tax (Federal + Provincial)</Label>
@@ -323,7 +323,7 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
           </div>
 
           {/* Total Amount */}
-          <div className="space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-4 dark:bg-blue-900/20 dark:border-blue-900/40">
             <Label htmlFor="amount" className="text-lg font-semibold">Total Remittance Amount <span className="text-red-500">*</span></Label>
             <Input
               id="amount"
@@ -336,7 +336,7 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
               className="text-lg font-bold"
               readOnly
             />
-            <p className="text-xs text-slate-600">Auto-calculated from breakdown above</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Auto-calculated from breakdown above</p>
           </div>
 
           <div className="space-y-2">
@@ -347,7 +347,7 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
               value={formData.paycheque_numbers_included}
               onChange={(e) => handleChange('paycheque_numbers_included', e.target.value)}
             />
-            <p className="text-xs text-slate-500">Comma-separated list of paycheque numbers this remittance covers</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Comma-separated list of paycheque numbers this remittance covers</p>
           </div>
 
           <div className="space-y-2">
@@ -362,8 +362,8 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
           </div>
 
           {error && (
-            <Alert className="bg-red-50 border-red-200">
-              <AlertDescription className="text-red-700">
+            <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900/40">
+              <AlertDescription className="text-red-700 dark:text-red-400">
                 {error}
               </AlertDescription>
             </Alert>

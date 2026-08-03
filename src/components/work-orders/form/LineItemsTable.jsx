@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { InventoryTxs, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import {
   Table,
@@ -292,16 +291,16 @@ export default function LineItemsTable({
     try {
         // Fetch necessary data if not already loaded
         if (suppliers.length === 0 || inventoryCategories.length === 0) {
-            const [suppliersResponse, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
+            const [suppliersResponse, salesClassesResponse, locationsResponse, categoriesResponse] = await Promise.all([
                 supabase.from('Supplier').select('*'),
                 supabase.from('SalesClass').select('*'),
-                InventoryLocation.list(),
-                InventoryCategory.list()
+                supabase.from('InventoryLocation').select('*'),
+                supabase.from('InventoryCategory').select('*')
             ]);
             setSuppliers(suppliersResponse.data || []);
             setSalesClasses(salesClassesResponse.data || []);
-            setInventoryLocations(locationsData);
-            setInventoryCategories(categoriesData);
+            setInventoryLocations(locationsResponse.data || []);
+            setInventoryCategories(categoriesResponse.data || []);
         }
 
         // Fetch the item details from Supabase

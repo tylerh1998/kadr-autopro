@@ -99,7 +99,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     setWorkOrder: originalSetWorkOrder,
     setLineItems,
     refetch: refetchWorkOrder
-  } = useWorkOrder(roNumber, { useFunctionData });
+  } = useWorkOrder(roNumber);
   const [draftWorkOrder, setDraftWorkOrder] = useState(null);
 
   const setWorkOrder = useCallback((value) => {
