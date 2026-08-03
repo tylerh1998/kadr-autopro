@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, User, Clock, Briefcase, Play, Plus, ArrowRight } from 'lucide-react';
-import { Employee } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import TechProjectClockInModal from './TechProjectClockInModal';
 import GlobalClockInModal from './GlobalClockInModal';
@@ -47,8 +46,12 @@ export default function TechClockStatusModal({ open, onClose }) {
 
     try {
       // Fetch local employees (techs only)
-      const employees = await Employee.filter({ employee_type: 'tech' });
-      
+      const { data: employees = [], error: empError } = await supabase
+        .from('Employee')
+        .select('*')
+        .eq('employee_type', 'tech');
+      if (empError) throw empError;
+
       // Fetch WorkPRO TimeRecord (global clock in/out)
       const { data: timeRecords = [], error: trError } = await supabase
         .from('TimeRecord')
