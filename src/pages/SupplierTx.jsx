@@ -21,6 +21,7 @@ import SupplierTxPaymentHistoryTab from '../components/suppliers/SupplierTxPayme
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { toMountainTime } from '../components/utils/mountainTimeUtils';
 import { useSupplierLock } from '../components/context/SupplierLockContext';
+import { releaseSupplierLockKeepAlive } from '../components/utils/supplierLockUtils';
 
 const GST_RATE = 0.05;
 
@@ -351,10 +352,7 @@ export default function SupplierTxPage() {
   const releaseLock = useCallback(async (userToUnlock = currentUser) => {
     if (!supplierId || !userToUnlock) return;
     try {
-      const res = await retryWithBackoff(() => supabase.from('Supplier').select('LockedByUser').eq('id', supplierId));
-      if (res.data?.[0]?.LockedByUser === userToUnlock.email) {
-        await retryWithBackoff(() => supabase.from('Supplier').update({ LockedByUser: '' }).eq('id', supplierId));
-      }
+      await retryWithBackoff(() => supabase.functions.invoke('autopro-releaseSupplierLock', { body: { supplierId } }));
     } catch {}
   }, [supplierId, retryWithBackoff, currentUser]);
 
