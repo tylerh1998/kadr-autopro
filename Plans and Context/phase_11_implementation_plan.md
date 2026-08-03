@@ -1,6 +1,6 @@
 # Phase 11 Implementation Plan: Payroll
 
-**Status:** **Planning — Section 0 decisions confirmed 2026-08-03, ready for execution approval.**
+**Status:** **Complete. Executed and live-verified on dev 2026-08-03; `autopro-parsePayrollFile` deployed to production and curl-verified same day. Production frontend push is the user's own action (not yet confirmed done as of this doc update).**
 **Parent:** `master_blueprint.md`, Phase 11
 **Prepared:** 2026-08-03 (drafted as a lookahead while Phase 10C is being validated live and Phase 10D is queued up next — no code changes made, research/planning only)
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema/RPC changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -196,27 +196,44 @@ Repo-wide grep already confirmed zero importers for all three (done during this 
 
 ### Verification Checklist
 
-- [ ] `PayrollTransaction` RLS re-confirmed (1 policy, both branches) immediately before execution
-- [ ] `Payroll.jsx`: `loadTransactions()` converted, list renders, base44 import removed
-- [ ] `Payroll.jsx`: reversal-adjustment create converted, audit fields preserved
-- [ ] `MarkPaidModal.jsx`: `BankAccount` read converted (Phase 8 carry-forward resolved)
-- [ ] `MarkPaidModal.jsx`: `PayrollTransaction` update (mark paid) converted
-- [ ] `MarkPaidModal.jsx`: all 3 `BankTransaction` create branches (Paycheque/Remittance/Adjustment) converted
-- [ ] `MarkPaidModal.jsx`: bulk `GLTransaction` insert converted, array-insert shape confirmed working
-- [ ] `MarkPaidModal.jsx`: `calculateBankBalances` repointed to `autopro-calculateBankBalances`
-- [ ] `MarkPaidModal.jsx`: dead `GLTransaction`/`base44` imports removed
-- [ ] `autopro-parsePayrollFile` deployed to dev, curl-verified (success + failure-shaped `.txt` inputs), then production
-- [ ] `AddPaychequeModal.jsx`: both call sites converted (file-upload parse + manual create)
-- [ ] `AddRemittanceModal.jsx`: both call sites converted (file-upload parse + manual create)
-- [ ] `AddAdjustmentModal.jsx`: create call converted, audit fields preserved
-- [ ] Full live lifecycle (steps 1-12 above) executed against `test.kensauto.ca`, GL balances to the penny
-- [ ] Throwaway test data cleaned up, `BankAccount.current_balance` restored
-- [ ] 3 dead files deleted, `npm run build`/`npx eslint` clean
-- [ ] Repo-wide grep for `base44`/`@/entities/all`/`@/functions/` inside `src/pages/Payroll.jsx` and `src/components/payroll/**` (excluding any deliberately-untouched files, none expected) returns zero hits
-- [ ] Production deploy of `autopro-parsePayrollFile` + all frontend changes, after dev sign-off
+- [x] `PayrollTransaction` RLS re-confirmed (1 policy, both branches) immediately before execution
+- [x] `Payroll.jsx`: `loadTransactions()` converted, list renders, base44 import removed
+- [x] `Payroll.jsx`: reversal-adjustment create converted, audit fields preserved
+- [x] `MarkPaidModal.jsx`: `BankAccount` read converted (Phase 8 carry-forward resolved)
+- [x] `MarkPaidModal.jsx`: `PayrollTransaction` update (mark paid) converted
+- [x] `MarkPaidModal.jsx`: all 3 `BankTransaction` create branches (Paycheque/Remittance/Adjustment) converted
+- [x] `MarkPaidModal.jsx`: bulk `GLTransaction` insert converted, array-insert shape confirmed working
+- [x] `MarkPaidModal.jsx`: `calculateBankBalances` repointed to `autopro-calculateBankBalances`
+- [x] `MarkPaidModal.jsx`: dead `GLTransaction`/`base44` imports removed
+- [x] `autopro-parsePayrollFile` deployed to dev, curl-verified (success + failure-shaped `.txt` inputs) — **production deploy pending, see §5**
+- [x] `AddPaychequeModal.jsx`: both call sites converted (file-upload parse + manual create)
+- [x] `AddRemittanceModal.jsx`: both call sites converted (file-upload parse + manual create)
+- [x] `AddAdjustmentModal.jsx`: create call converted, audit fields preserved
+- [x] Full live lifecycle executed against `test.kensauto.ca` — steps 1, 2, 3, 5, 6, 7, 8, 9, 12 done live; step 4 (file-upload path) verified via direct curl instead of browser (no file-input automation available); step 10's reversal path code-reviewed only — native `window.confirm()` blocks browser automation, not click-driven live; step 11 (print view) not touched by this migration, skipped
+- [x] Throwaway test data cleaned up, `BankAccount.current_balance` restored to $0 baseline
+- [x] 3 dead files deleted, `npm run build` clean (twice, before and after the id-generation fix); `npx eslint` on touched files shows only pre-existing unrelated warnings (unused imports in `Payroll.jsx`, one unused `catch (e)` in `MarkPaidModal.jsx` — all present before this phase, not introduced by it)
+- [x] Repo-wide grep for `base44`/`@/entities/all`/`@/functions/` inside `src/pages/Payroll.jsx` and `src/components/payroll/**` returns zero hits
+- [x] Production deploy of `autopro-parsePayrollFile` — deployed to `hbcrwkmgsazqrvsrmxyr` with `verify_jwt: true`, curl-verified (success + failure-shaped inputs, both HTTP 200). Production frontend push is the user's own action via GitHub Desktop, same as dev.
 
 ---
 
 ## 5) Phase Results and Final Context
 
-*(Empty — to be filled in as execution/verification proceeds. Do not remove this section header.)*
+**Status: executed and live-verified on dev (`test.kensauto.ca`). Production edge function deploy pending explicit go-ahead.**
+
+**Critical correction to §2's own assumption — client-generated ids were required after all.** §2 stated "none of this phase's creates currently generate an id client-side... confirm this holds." That check was done for real during execution and the assumption was **wrong**: direct SQL inspection of `PayrollTransaction`, `BankTransaction`, `BankAccount`, and `GLTransaction` on dev showed **none of their `id` columns have a working default** (`GLTransaction.id` even has a fake `''::text` default). Every id in every existing row was generated by the legacy `SupabaseProxy` shim's `buildCreateRow()`, which silently does `crypto.randomUUID().replace(/-/g, '').substring(0, 24)` for every table except `Note`. This is also the same convention already used natively in ~15 other already-migrated files (`Bank.jsx`, `CashFlow.jsx`, `WorkOrders.jsx`, etc.). **All native `.insert()` calls added in this phase (`Payroll.jsx`'s reversal-create, `AddPaychequeModal.jsx`, `AddRemittanceModal.jsx`, `AddAdjustmentModal.jsx`, and all 4 insert sites in `MarkPaidModal.jsx` including the bulk `GLTransaction` array) now explicitly set `id: crypto.randomUUID().replace(/-/g, '').substring(0, 24)`.** Without this fix every create in this phase would have failed a NOT NULL constraint at the first live test. **Standing lesson for future phases: don't trust a plan's stated assumption about id generation — verify column defaults directly via SQL before writing the first native insert, every time,** regardless of what an earlier planning pass concluded.
+
+**Live verification results (dev, `sitihbdnuxifwibontcm` / `test.kensauto.ca`):**
+- List load, date/type filters: clean, zero rows initially as expected.
+- 3 SQL-seeded throwaway rows (Paycheque/Remittance/Adjustment) rendered correctly with correct badges/net-pay math.
+- Add Paycheque (manual entry) → Verify Net Pay dialog → Confirm & Add: worked end-to-end, correct net pay math ($1500 − $200 = $1300).
+- Add Remittance (manual entry): auto-calculated total updated live as deduction fields changed ($100 + $50 = $150), create succeeded.
+- Add Adjustment: `PayrollGLAccountCombobox` correctly populated from native `ChartOfAccount` ("5005 - Payroll Expenses"), create succeeded.
+- Mark Paid on the 3 SQL-seeded rows: bank-account dropdown populated from native `BankAccount` (Phase 8 carry-forward confirmed resolved), GL debit/credit pre-check passed, all 3 marked Paid with no errors.
+- GL correctness: queried `GLTransaction` directly — **debits = credits = $2934.00 to the penny**, correct account mapping (5008 wages, 2054 income tax, 2052 CPP, 2053 EI, 5006/5007 employer CPP/EI expense, 5005 adjustment).
+- `BankTransaction`: all 3 rows created with correct debit/credit/gl_account. `BankAccount.current_balance` recalculated to `-2202` via the repointed `autopro-calculateBankBalances` call — matches expected (1540 + 712 debit − 50 credit).
+- Cleanup: all throwaway `PayrollTransaction`/`BankTransaction`/`GLTransaction` rows deleted, balance recalculated back to `$0` baseline. Dev confirmed empty afterward.
+- Not exercised live: file-upload parse path (browser automation here has no file-input capability — covered instead by direct curl against the deployed `autopro-parsePayrollFile` with both a success-shaped and a failure-shaped `.txt` payload, both returned correctly-shaped HTTP 200 responses); reversal path (`handleDelete`) — blocked by a native `window.confirm()` that browser automation can't drive, code reviewed only, not click-tested.
+- `npm run build`: clean, twice (before and after the id-generation fix). `npx eslint` on touched files: only pre-existing, unrelated warnings (confirmed via `git show HEAD:...` that they predate this phase).
+
+**Deployment note:** frontend changes were pushed by the user and deployed live to `test.kensauto.ca` via the existing Vercel pipeline mid-session (this is how dev verification above became possible — the first attempt failed with a 401 against the still-live pre-migration build). `autopro-parsePayrollFile` is deployed to the dev Supabase project only; production Supabase deploy and the production frontend push are both still pending explicit go-ahead before this phase can be closed out.

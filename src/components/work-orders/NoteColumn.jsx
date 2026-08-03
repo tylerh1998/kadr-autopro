@@ -9,7 +9,7 @@ export default function NoteColumn({ columnKey, cards, onSelect, onColourChange,
         <div
           ref={dropProvided.innerRef}
           {...dropProvided.droppableProps}
-          className={`min-h-[520px] space-y-3 rounded-2xl transition-colors ${dropSnapshot.isDraggingOver ? 'bg-slate-100/80' : ''}`}
+          className={`min-h-[520px] space-y-3 rounded-2xl transition-colors ${dropSnapshot.isDraggingOver ? 'bg-slate-100/80 dark:bg-slate-800/60' : ''}`}
         >
           {cards.length > 0 ? (
             cards.map((card, index) => (
@@ -31,7 +31,7 @@ export default function NoteColumn({ columnKey, cards, onSelect, onColourChange,
               </Draggable>
             ))
           ) : (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
               No notes in this column yet.
             </div>
           )}

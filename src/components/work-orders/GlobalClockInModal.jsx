@@ -100,7 +100,7 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
               onChange={(e) => setClockInTime(e.target.value)}
               required
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Defaults to current time. You can backdate if needed.
             </p>
           </div>

@@ -47,14 +47,14 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 ## 3. Phase 3 Roadmap & Progress
 
 ```
-3A [Done — pending UI verify] ──► 3B [Pending] ──► 3C [Pending] ──► 3D [Pending] ──► 3E [Pending]
+3A [Done — pending UI verify] ──► 3B [Done — pending UI verify] ──► 3C [Done — pending UI verify] ──► 3D [Pending] ──► 3E [Pending]
 ```
 
 | Sub-Phase | Scope Summary | File Count | Approx. Lines | Status |
 |---|---|---|---|---|
 | **3A — Credit Invoice & RO Modals** | Confirmation/credit-invoice dialogs and repair-order approval/inspection modals. Mostly Shadcn-mixed, table-heavy line items. | 7 | ~1,340 | Done — pending UI verify |
-| **3B — Work Order Creation, Parts & Editing** | New WO creation, part lookup/search, project/WO detail editing, warranty returns. Includes `GetPartModal.jsx` (largest single file, 745 lines) and the known pre-existing Enter-key bug to avoid disturbing. | 6 | ~2,080 | Pending |
-| **3C — Notes, Communications & Documents** | Notes board/cards/columns, SES email modal, PDF modal. Includes the pure-wrapper `NoteBoard.jsx` (verify-only) and `NoteCard.jsx`'s share-button color-variant object. | 7 | ~810 | Pending |
+| **3B — Work Order Creation, Parts & Editing** | New WO creation, part lookup/search, project/WO detail editing, warranty returns. Includes `GetPartModal.jsx` (largest single file, 745 lines) and the known pre-existing Enter-key bug to avoid disturbing. | 6 | ~2,080 | Done — pending UI verify |
+| **3C — Notes, Communications & Documents** | Notes board/cards/columns, SES email modal, PDF modal. Includes the pure-wrapper `NoteBoard.jsx` (verify-only) and `NoteCard.jsx`'s share-button color-variant object. | 7 | ~810 | Done — pending UI verify |
 | **3D — Tech Time & Clock-In** | Global/tech clock-in modals, tech time logging, WorkPRO (third-party SaaS) view modal. Includes `TechTimeModal.jsx`'s `CATEGORIES` map + Shadcn `SelectTrigger` override gotcha. | 5 | ~1,875 | Pending |
 | **3E — Lists & Reports** | WO list (21-entry `colorMap`), profitability dashboard, printable report (`print:` variant to preserve). | 3 | ~1,205 | Pending |
 
@@ -96,14 +96,16 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - `NewWorkOrderModal.jsx`: has 2 badge instances — apply dark-safe badge pairs per the standard palette.
 
 **Task List:**
-- [ ] `NewWorkOrderModal.jsx` — dark: pass incl. 2 badges
-- [ ] `FindPartModal.jsx` — dark: pass
-- [ ] `GetPartModal.jsx` — full read, single-pass dark: mapping
-- [ ] `EditProjectDetailsModal.jsx` — confirm Shadcn-only, edit or verify-only
-- [ ] `form/WorkOrderDetailsEditModal.jsx` — confirm Shadcn-only, edit or verify-only
-- [ ] `WarrantyReturnModal.jsx` — dark: pass
+- [x] `NewWorkOrderModal.jsx` — dark: pass incl. 2 badges (17 `dark:` instances)
+- [x] `FindPartModal.jsx` — dark: pass (4 instances)
+- [x] `GetPartModal.jsx` — full read, single-pass dark: mapping (26 instances)
+- [x] `EditProjectDetailsModal.jsx` — confirmed Shadcn-only (0 raw color classes), verify-only, no edit made
+- [x] `form/WorkOrderDetailsEditModal.jsx` — confirmed Shadcn-only (0 raw color classes), verify-only, no edit made
+- [x] `WarrantyReturnModal.jsx` — dark: pass (16 instances)
 
 **Verification Plan:** Grep-audit all 6 files. UI: create a new work order, search/add a part, edit project details, process a warranty return — all in dark mode; confirm no regression in light mode. Explicitly confirm `GetPartModal.jsx`'s pre-existing search bug is neither fixed nor worsened (out of scope either way).
+
+**3B Execution Notes (2026-08-03):** All edits additive. Grep audit: 4 edited files show `dark:` count > 0 (63 total); `EditProjectDetailsModal.jsx` and `form/WorkOrderDetailsEditModal.jsx` both correctly show 0 — read in full and confirmed as genuinely Shadcn-only forms (`Dialog`/`Label`/`Input`/`Textarea`/`Checkbox`/`Button` primitives, zero raw `bg-*`/`text-*`/`border-*` color classes), matching the plan's prediction, not a red flag. `GetPartModal.jsx`'s search-related logic (`handleSearchKeyDown`, the Enter-key search flow) was read but not touched — styling-only changes applied around it. Two step-indicator "badges" in `NewWorkOrderModal.jsx` (`step >= 1`/`step >= 2` pill conditionals) each needed independent editing since their conditions differ, even though their class strings were textually identical — a `replace_all` on the first only caught one instance. Left several solid-fill buttons/badges unpaired throughout (`bg-blue-600`, `bg-green-600`, `bg-yellow-500` submit/action buttons) as already dark-safe saturated colors, consistent with 3A precedent.
 
 ---
 
@@ -118,15 +120,17 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - `SESEmailModal.jsx`: read fully to determine why 0 light-only classes were flagged despite having real markup — confirm whether it already uses `text-foreground`/`bg-card`-style CSS-variable classes (already dark-safe, Phase 6 precedent) or whether the grep pattern simply missed something; document the finding either way.
 
 **Task List:**
-- [ ] `NoteBoard.jsx` — confirm wrapper, verify-only
-- [ ] `NoteCard.jsx` — dark: pass incl. share-button color variants
-- [ ] `NoteColumn.jsx` — dark: pass (drag-over + empty state)
-- [ ] `NotesStatusBar.jsx` — dark: pass
-- [ ] `NoteWorkOrderLinkModal.jsx` — dark: pass
-- [ ] `SESEmailModal.jsx` — full read, determine actual dark-mode gap, edit or confirm already-safe
-- [ ] `WorkOrderPdfModal.jsx` — dark: pass
+- [x] `NoteBoard.jsx` — confirm wrapper, verify-only
+- [x] `NoteCard.jsx` — dark: pass incl. share-button color variants (95 instances across 5 color themes)
+- [x] `NoteColumn.jsx` — dark: pass (drag-over + empty state) (4 instances)
+- [x] `NotesStatusBar.jsx` — dark: pass (18 instances)
+- [x] `NoteWorkOrderLinkModal.jsx` — dark: pass (8 instances)
+- [x] `SESEmailModal.jsx` — full read, determine actual dark-mode gap, edit or confirm already-safe (8 instances)
+- [x] `WorkOrderPdfModal.jsx` — dark: pass (6 instances)
 
 **Verification Plan:** Grep-audit all 7 files. UI: open the notes board (drag a card between columns), link a note to a WO, send a test SES email preview, open a WO PDF preview — all in dark mode.
+
+**3C Execution Notes (2026-08-03):** All edits additive. Grep audit: `NoteBoard.jsx` correctly shows 0 (confirmed genuine pure wrapper — one grid `<div>`, delegates fully to `NoteColumn.jsx`, no edit made); all 6 remaining files show `dark:` count > 0 (139 total). `NoteCard.jsx`'s 5-entry `cardThemes` map (white/blue/green/yellow/pink, each with 10 sub-keys: wrapper/icon/body/bodyText/divider/utilityButton/shareActiveButton/utilityIcon/headerTitle/headerSubtitle/headerLink) was treated as one systematic pass per the color-map lesson — tinted themes (blue/green/yellow/pink) got `dark:bg-{color}-950/30` card surfaces with `dark:border-{color}-800` and `dark:text-{color}-300` accents, following the existing badge palette convention; muted `text-slate-400` icons were left unpaired as already dark-safe (Section 7 lesson 3). `NoteColumn.jsx` was **not** a pure wrapper as flagged in the detailed plan — its drag-over highlight and empty-state markup both needed `dark:` pairs. `SESEmailModal.jsx` investigation resolved: the file is overwhelmingly Shadcn primitives (`Dialog`/`Label`/`Input`/`Textarea`/`ToggleGroup`, already dark-safe), but the initial grep missed two conditionally-rendered blocks (`creatingSnapshot` and `snapshotError` notification banners, `bg-blue-50`/`bg-red-50` with `-200` borders and `-800` text) — these are real light-only markup and were paired. The outgoing HTML email template string (`htmlBody`, lines ~128–162) was correctly left untouched — it's rendered in the recipient's email client, not the app UI, so dark mode doesn't apply. `WorkOrderPdfModal.jsx`'s solid `text-red-500` error-state accent color was paired with `dark:text-red-400` for consistency with the rest of the pass (not a saturated Badge/Button fill, so not covered by the "already dark-safe" exception).
 
 ---
 
@@ -180,8 +184,8 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 
 ### Checklist
 - [x] 3A — Credit Invoice & RO Modals (7 files) — edits done 2026-08-03, UI dark-mode verification still pending
-- [ ] 3B — Work Order Creation, Parts & Editing (6 files)
-- [ ] 3C — Notes, Communications & Documents (7 files)
+- [x] 3B — Work Order Creation, Parts & Editing (6 files) — edits done 2026-08-03, UI dark-mode verification still pending
+- [x] 3C — Notes, Communications & Documents (7 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [ ] 3D — Tech Time & Clock-In (5 files)
 - [ ] 3E — Lists & Reports (3 files)
 - [ ] `TechTimeModal.jsx` Shadcn `SelectTrigger` override + `CATEGORIES` map fixed

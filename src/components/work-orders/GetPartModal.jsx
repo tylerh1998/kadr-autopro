@@ -496,7 +496,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           <div className="flex-1 overflow-hidden flex flex-col gap-4">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
               <Input
                 placeholder="Search by part number, description, or manufacturer (Press Enter)..."
                 value={searchTerm}
@@ -505,13 +505,13 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                 className="pl-10"
               />
               {searching && (
-                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-slate-400 dark:text-slate-500" />
               )}
             </div>
 
             {/* Error Message */}
             {searchError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md text-sm">
+              <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-2 rounded-md text-sm">
                 {searchError}
               </div>
             )}
@@ -520,10 +520,10 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden">
               {/* Left: Available Parts */}
               <div className="flex flex-col">
-                <h3 className="font-semibold mb-2 text-slate-700">Available Parts</h3>
+                <h3 className="font-semibold mb-2 text-slate-700 dark:text-slate-300">Available Parts</h3>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2" style={{ maxHeight: '400px' }}>
                   {activeSearchTerm.trim() === '' && !searching ? (
-                    <div className="flex items-center justify-center h-full text-slate-400">
+                    <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
                       <div className="text-center px-6">
                         <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>Enter a part # or description to view a part for selection.</p>
@@ -544,7 +544,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                         <Card
                           key={item.id}
                           className={`cursor-pointer transition-all hover:shadow-md ${
-                            selectedCount > 0 ? 'border-blue-500 bg-blue-50' : ''
+                            selectedCount > 0 ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40' : ''
                           }`}
                           onClick={() => handleSelectPart(item)}
                           tabIndex={0}
@@ -554,24 +554,24 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                             <div className="flex justify-between items-start mb-1">
                               <div className="flex-1">
                                 <p className="font-semibold text-sm">{item.part_number}</p>
-                                <p className="text-xs text-slate-600">{item.description}</p>
+                                <p className="text-xs text-slate-600 dark:text-slate-300">{item.description}</p>
                               </div>
                               <div className="ml-2 flex flex-col items-end gap-1">
                                 <Badge variant={item.quantity_on_hand > 0 ? 'default' : 'destructive'}>
                                   {item.quantity_on_hand || 0} {item.unit || 'ea'}
                                 </Badge>
                                 {selectedCount > 0 && (
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                  <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                                     Selected {selectedQtyDisplay}
                                   </Badge>
                                 )}
                               </div>
                             </div>
-                            <div className="flex justify-between items-center text-xs text-slate-500">
+                            <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
                               <span>${(item.selling_price || 0).toFixed(2)}</span>
                               <div className="flex items-center gap-2">
                                 {tagAlong && (
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                  <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                                     + {tagAlong.name}
                                   </Badge>
                                 )}
@@ -587,10 +587,10 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
 
               {/* Right: Selected Parts */}
               <div className="flex flex-col">
-                <h3 className="font-semibold mb-2 text-slate-700">Selected Parts ({selectedParts.length})</h3>
+                <h3 className="font-semibold mb-2 text-slate-700 dark:text-slate-300">Selected Parts ({selectedParts.length})</h3>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                   {selectedParts.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-slate-400">
+                    <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500">
                       <div className="text-center">
                         <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>No parts selected</p>
@@ -604,19 +604,19 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                       const tagAlongTotal = otherCharge ? (otherCharge.base_amount || 0) * part.selectedQuantity : 0;
                       
                       return (
-                        <Card key={part.selectionId} className="border-blue-200">
+                        <Card key={part.selectionId} className="border-blue-200 dark:border-blue-800">
                           <CardContent className="p-3">
                             <div className="flex justify-between items-start mb-2">
                               <div className="flex-1">
                                 <p className="font-semibold text-sm">{part.part_number}</p>
-                                <p className="text-xs text-slate-600">{part.description}</p>
+                                <p className="text-xs text-slate-600 dark:text-slate-300">{part.description}</p>
                               </div>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemovePart(part.selectionId)}
-                                className="h-10 w-10 rounded-full border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700"
+                                className="h-10 w-10 rounded-full border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300"
                               >
                                 <Trash2 className="w-5 h-5" />
                               </Button>
@@ -632,28 +632,28 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                                 onChange={(e) => handleQuantityChange(part.selectionId, e.target.value)}
                                 className="w-20 h-7 text-sm"
                               />
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
                                 @ ${part.calculatedPrice.toFixed(2)} ea
                               </span>
                             </div>
-                            
+
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-blue-600">
+                              <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
                                 Total: ${(part.calculatedPrice * part.selectedQuantity).toFixed(2)}
                               </p>
                             </div>
-                            
+
                             {tagAlong && otherCharge && (
-                              <div className="mt-2 pt-2 border-t border-slate-200">
+                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                                 <div className="flex justify-between items-center text-xs">
-                                  <span className="text-purple-700 font-medium">
+                                  <span className="text-purple-700 dark:text-purple-400 font-medium">
                                     + {tagAlong.name}
                                   </span>
-                                  <span className="text-purple-700 font-semibold">
+                                  <span className="text-purple-700 dark:text-purple-400 font-semibold">
                                     ${tagAlongTotal.toFixed(2)}
                                   </span>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                   {tagAlong.description}
                                 </p>
                               </div>
@@ -670,12 +670,12 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             {/* Footer */}
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-3">
-                <div className="text-sm text-slate-600">
+                <div className="text-sm text-slate-600 dark:text-slate-300">
                   {selectedParts.length} part{selectedParts.length !== 1 ? 's' : ''} selected
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-slate-600">Total Cost</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">Total Cost</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     <DollarSign className="inline w-5 h-5" />
                     {totalSelectedCost.toFixed(2)}
                   </p>
@@ -708,9 +708,9 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           </DialogHeader>
           <div className="py-4">
             {partForQuantityPrompt && (
-              <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+              <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <p className="font-semibold">{partForQuantityPrompt.part_number}</p>
-                <p className="text-sm text-slate-600">{partForQuantityPrompt.description}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">{partForQuantityPrompt.description}</p>
               </div>
             )}
             <Label htmlFor="quantity-input">Quantity</Label>

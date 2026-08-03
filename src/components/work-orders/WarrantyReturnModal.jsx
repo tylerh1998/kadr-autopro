@@ -255,28 +255,28 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-blue-600" />
+            <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Warranty Return
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Part Info */}
-          <div className="bg-slate-50 p-3 rounded-lg">
-            <p className="font-semibold text-slate-900">{lineItem.part_number}</p>
-            <p className="text-sm text-slate-600">{lineItem.description}</p>
+          <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{lineItem.part_number}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{lineItem.description}</p>
             <div className="flex gap-4 mt-2 text-xs">
-                <span className="text-slate-500">Original Qty: {lineItem.qty}</span>
-                <span className="text-orange-600">Already Returned: {alreadyReturnedQty}</span>
-                <span className="font-semibold text-green-600">Available: {availableQty}</span>
+                <span className="text-slate-500 dark:text-slate-400">Original Qty: {lineItem.qty}</span>
+                <span className="text-orange-600 dark:text-orange-400">Already Returned: {alreadyReturnedQty}</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">Available: {availableQty}</span>
             </div>
           </div>
 
           {/* Error if already credited */}
           {lineItem.credit_flag && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-red-800">
+            <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-red-800 dark:text-red-300">
                 <p className="font-medium">Already Credited</p>
                 <p>Already credited on {lineItem.credit_flag}</p>
               </div>
@@ -285,9 +285,9 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
 
           {/* Warning if not linked to inventory */}
           {inventoryLookupComplete && !inventoryItem && (
-            <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-yellow-800">
+            <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800 dark:text-yellow-300">
                 <p className="font-medium">Not linked to inventory</p>
                 <p>This line item is not linked to an inventory item. The return will be created but inventory tracking may be limited.</p>
               </div>
@@ -308,7 +308,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
               disabled={availableQty <= 0}
             />
             {availableQty <= 0 && (
-                <p className="text-xs text-red-500 mt-1">No quantity available for warranty return.</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">No quantity available for warranty return.</p>
             )}
           </div>
 
@@ -339,8 +339,8 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           </div>
 
           {/* Info message */}
-          <div className="text-xs text-slate-600 bg-blue-50 p-3 rounded-lg">
-            <p className="font-medium text-blue-900 mb-1">Note:</p>
+          <div className="text-xs text-slate-600 dark:text-slate-300 bg-blue-50 dark:bg-blue-950/40 p-3 rounded-lg">
+            <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Note:</p>
             <p>This will create a warranty return record but will NOT remove the part from the work order. The part will be marked for return to the supplier.</p>
           </div>
 

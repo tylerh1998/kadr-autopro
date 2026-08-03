@@ -107,7 +107,7 @@ export default function FindPartModal({ open, onClose, currentUser }) {
               <TableRow><TableCell colSpan={activeTab === 'serial_number' ? 6 : 5} className="text-center h-24">Searching...</TableCell></TableRow>
             ) : results.length > 0 ? (
               results.map((item, index) => (
-                <TableRow key={index} className="hover:bg-slate-50">
+                <TableRow key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <TableCell>
                     <button
                       onClick={() => {
@@ -122,7 +122,7 @@ export default function FindPartModal({ open, onClose, currentUser }) {
                           window.open(url, '_blank', windowFeatures);
                         }
                       }}
-                      className="text-blue-600 hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
+                      className="text-blue-600 dark:text-blue-400 hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
                     >
                       {item.ro_number}
                     </button>
@@ -151,12 +151,12 @@ export default function FindPartModal({ open, onClose, currentUser }) {
                   <TableCell className="font-mono text-sm">{item.part_number}</TableCell>
                   <TableCell>{item.description}</TableCell>
                   {activeTab === 'serial_number' && (
-                    <TableCell className="font-mono text-sm bg-yellow-50">{item.serial_num}</TableCell>
+                    <TableCell className="font-mono text-sm bg-yellow-50 dark:bg-yellow-950/40">{item.serial_num}</TableCell>
                   )}
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan={activeTab === 'serial_number' ? 6 : 5} className="text-center h-24 text-slate-500">
+              <TableRow><TableCell colSpan={activeTab === 'serial_number' ? 6 : 5} className="text-center h-24 text-slate-500 dark:text-slate-400">
                  {searchTerm ? 'No results found.' : 'Enter a search term to begin.'}
               </TableCell></TableRow>
             )}
