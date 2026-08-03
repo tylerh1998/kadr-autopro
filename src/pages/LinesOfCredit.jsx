@@ -692,69 +692,69 @@ export default function LinesOfCreditPage() {
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50 border-b">
+                      <thead className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-700">
                         <tr>
-                          <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                          <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                          <th className="text-right p-3 font-semibold text-slate-700">Charges</th>
-                          <th className="text-right p-3 font-semibold text-slate-700">Credits</th>
-                          <th className="text-right p-3 font-semibold text-slate-700">Payments</th>
-                          <th className="text-right p-3 font-semibold text-slate-700">Status</th>
+                          <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+                          <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                          <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Charges</th>
+                          <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Credits</th>
+                          <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Payments</th>
+                          <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         {loading ? (
                           Array(5).fill(0).map((_, i) => (
-                            <tr key={i} className="border-b animate-pulse">
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                              <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                            <tr key={i} className="border-b dark:border-slate-800 animate-pulse">
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                              <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
                             </tr>
                           ))
                         ) : displayedTransactions.length > 0 ? (
                           displayedTransactions.map((tx) => (
-                            <tr key={tx.id} className="border-b hover:bg-slate-50">
+                            <tr key={tx.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60">
                               <td className="p-3"><SafeDateFormat dateString={tx.transaction_date} /></td>
                               <td className="p-3">
                                 <div>
                                   {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) && (!tx.payment_amount || tx.payment_amount === 0) ? (
-                                    <span 
-                                      className="font-medium text-blue-600 hover:underline cursor-pointer"
+                                    <span
+                                      className="font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                                       onClick={() => handleEditTransaction(tx)}
                                     >
                                       {tx.description}
                                     </span>
                                   ) : (
-                                    <span className="font-medium text-slate-900">{tx.description}</span>
+                                    <span className="font-medium text-slate-900 dark:text-slate-100">{tx.description}</span>
                                   )}
                                 </div>
                               </td>
                               <td className="p-3 text-right">
                                 {tx.charge_amount > 0 && (
-                                  <span className="font-medium text-red-600">${tx.charge_amount.toFixed(2)}</span>
+                                  <span className="font-medium text-red-600 dark:text-red-400">${tx.charge_amount.toFixed(2)}</span>
                                 )}
                               </td>
                               <td className="p-3 text-right">
                                 {tx.credit_amount > 0 && (
-                                  <span className="font-medium text-blue-600">${tx.credit_amount.toFixed(2)}</span>
+                                  <span className="font-medium text-blue-600 dark:text-blue-400">${tx.credit_amount.toFixed(2)}</span>
                                 )}
                               </td>
                               <td className="p-3 text-right">
                                 {(tx.payment_amount || 0) !== 0 && (
-                                  <span className="font-medium text-green-600">${(tx.payment_amount || 0).toFixed(2)}</span>
+                                  <span className="font-medium text-green-600 dark:text-green-400">${(tx.payment_amount || 0).toFixed(2)}</span>
                                 )}
                               </td>
                               <td className="p-3 text-right">
                                 {tx.source_type !== 'payment_made' && (tx.charge_amount > 0 || tx.credit_amount > 0) && (
                                   (tx.payment_amount || 0) === 0 ? (
-                                    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-red-200">Unpaid</Badge>
+                                    <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 border-red-200 dark:border-red-800">Unpaid</Badge>
                                   ) : ((tx.charge_amount || tx.credit_amount || 0) - (tx.payment_amount || 0) <= 0.005) ? (
-                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">Paid</Badge>
+                                    <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800">Paid</Badge>
                                   ) : (
-                                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200">
+                                    <Badge className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800">
                                       ${((tx.charge_amount || tx.credit_amount || 0) - tx.payment_amount).toFixed(2)}
                                     </Badge>
                                   )
@@ -765,11 +765,11 @@ export default function LinesOfCreditPage() {
                         ) : (
                           <tr>
                             <td colSpan="6" className="p-12 text-center">
-                              <div className="text-slate-400 mb-4">
+                              <div className="text-slate-400 dark:text-slate-500 mb-4">
                                 <CreditCard className="w-12 h-12 mx-auto" />
                               </div>
-                              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                              <p className="text-slate-600">
+                              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions</h3>
+                              <p className="text-slate-600 dark:text-slate-400">
                                 {selectedAccount ? 'No transactions found for the selected date range.' : 'Select a line of credit account to view transactions.'}
                               </p>
                             </td>

@@ -1,6 +1,6 @@
 # Phase 7 Implementation Plan — Miscellaneous Pages (Dark Mode)
 
-**Status:** Draft — pending approval. No code changes made yet.
+**Status:** Executed — code changes complete, pending user visual verification (see Section 5).
 **Type:** Single-phase plan (small scope — 3 files need real edits, 1 is a no-op composition wrapper, 2 are dead/empty files excluded).
 
 ---
@@ -96,9 +96,7 @@ Read to confirm it's still a pure 5-line composition wrapper (no drift since res
 
 ## 5. Phase Results and Final Context
 
-*(Live section — to be filled in during/after execution.)*
-
-- What actually happened vs. planned:
-- Deviations/adjustments:
-- Unexpected learnings:
-- Key takeaways for rollup to Master Blueprint Section 7:
+- **What actually happened vs. planned:** Executed exactly as planned. `dark:` classes added to `PageNotFound.jsx`, `DevLogin.jsx`, and `LinesOfCredit.jsx` per the mapped instances. `APSummary.jsx` re-read and confirmed still a pure 5-line composition wrapper — no edit made.
+- **Deviations/adjustments:** None. All instance counts matched research (3 `bg-white`, slate backgrounds, 31-ish `text-slate-*`, borders, 6 badges in `LinesOfCredit.jsx`).
+- **Unexpected learnings:** Dev-server preview verification failed again with the same signature noted in Section 2 lesson 6 (browser pane navigation denied/timed out, "not displayed" for compositing) — third+ recurrence this session. Confirms this is a harness-level preview issue, not code-related. Fell back to grep-based audit: re-grepped all three edited files for `text-slate-|bg-slate-|bg-white|border-slate-|bg-orange-|border-amber|text-amber` and confirmed every matched light class has a paired `dark:` class alongside it. Also re-read the `@media print` block in `LinesOfCredit.jsx` (lines 425–454) and confirmed zero changes made inside it.
+- **Key takeaways for rollup to Master Blueprint Section 7:** Preview-based visual verification remains unreliable in this session/environment — treat grep-audit-plus-user-handoff as the standard fallback going forward rather than a one-off. Visual confirmation in dark mode for `LinesOfCredit.jsx` (badges, print preview), `PageNotFound.jsx` (admin note box, requires admin login), and `DevLogin.jsx` (requires `VITE_ENABLE_DEV_LOGIN=true`) is still owed from the user per the Section 4 checklist.

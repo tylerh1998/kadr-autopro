@@ -890,15 +890,6 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const generateRandomString = (length) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
-
   const handleCreateCounterSale = async () => {
     try {
       const counterSaleCustomerId = '695627c50887fec9ade1d9f7';
@@ -918,13 +909,11 @@ export default function WorkOrdersPage() {
         await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_ro_number: nextRo + 1 }]);
       }
       
-      const cp_id = generateRandomString(10);
       const numbers = {
         ro_number: `RO${nextRo}`,
         wo_number: `WO${nextRo}`,
-        cp_id: cp_id,
       };
-      
+
       const counterSaleDefaultLineItems = [
         { id: Date.now() + 1, qty: "", hrs: "", description: "", part_number: "", parts_ea: 0, tot_parts: 0, labour: 0, tx: "Y", total: 0, complete: false, bold: false },
         { id: Date.now() + 2, qty: "", hrs: "", description: "", part_number: "", parts_ea: 0, tot_parts: 0, labour: 0, tx: "Y", total: 0, complete: false, bold: false },
