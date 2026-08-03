@@ -13,10 +13,10 @@ serve(async (req) => {
   try {
     const { masterId, duplicateId } = await req.json();
     if (!masterId || !duplicateId) {
-      return new Response(JSON.stringify({ error: 'Master ID and Duplicate ID are required' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'Master ID and Duplicate ID are required' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (masterId === duplicateId) {
-      return new Response(JSON.stringify({ error: 'Cannot merge a vehicle into itself' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'Cannot merge a vehicle into itself' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
@@ -26,7 +26,7 @@ serve(async (req) => {
       supabase.from('Vehicle').select('*').eq('id', duplicateId).single()
     ]);
     if (!masterVehicle || !duplicateVehicle) {
-      return new Response(JSON.stringify({ error: 'One or both vehicles not found' }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'One or both vehicles not found' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const fieldsToMerge = ['year', 'make', 'model', 'trim', 'vin', 'license_plate', 'unit_number', 'color', 'engine', 'customer_id'];
@@ -85,6 +85,6 @@ serve(async (req) => {
       mergedCount: { workOrders: workOrdersData?.length || 0, appointments: appointments.length }
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

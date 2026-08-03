@@ -11,7 +11,7 @@ serve(async (req) => {
   try {
     const { vin } = await req.json();
     if (!vin || vin.length < 11) {
-      return new Response(JSON.stringify({ error: 'A valid VIN is required.' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'A valid VIN is required.' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/${vin}?format=json`);
@@ -19,7 +19,7 @@ serve(async (req) => {
     const data = await response.json();
     const results = data.Results;
     if (!results || results.length === 0) {
-      return new Response(JSON.stringify({ error: 'VIN could not be decoded.' }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'VIN could not be decoded.' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const getValue = (variableName) => {
@@ -47,11 +47,11 @@ serve(async (req) => {
 
     const decodedData = { year: year || '', make: make || '', model: model || '', trim: combinedTrim, engine: engineString.trim() || '' };
     if (!decodedData.year || !decodedData.make || !decodedData.model) {
-      return new Response(JSON.stringify({ error: 'VIN decoded, but essential data (Year, Make, Model) was not found.' }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: 'VIN decoded, but essential data (Year, Make, Model) was not found.' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify(decodedData), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: `An error occurred during VIN decoding: ${error.message}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: `An error occurred during VIN decoding: ${error.message}` }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
