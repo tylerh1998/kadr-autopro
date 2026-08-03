@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,16 +32,17 @@ export default function ReportableLeviesReport() {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getReportableLeviesReport', {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+      const { data: response, error: invokeError } = await supabase.functions.invoke('autopro-getReportableLeviesReport', {
+        body: { startDate: dateRange.startDate, endDate: dateRange.endDate }
       });
 
-      if (response.data.success) {
-        setData(response.data.data);
-        calculateSummary(response.data.data);
+      if (invokeError) throw invokeError;
+
+      if (response.success) {
+        setData(response.data);
+        calculateSummary(response.data);
       } else {
-        alert('Failed to fetch report: ' + response.data.error);
+        alert('Failed to fetch report: ' + response.error);
       }
     } catch (error) {
       console.error('Error fetching report:', error);
@@ -76,16 +77,17 @@ export default function ReportableLeviesReport() {
 
     setPosting(true);
     try {
-      const response = await base44.functions.invoke('postLeviesToAP', {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+      const { data: response, error: invokeError } = await supabase.functions.invoke('autopro-postLeviesToAP', {
+        body: { startDate: dateRange.startDate, endDate: dateRange.endDate }
       });
 
-      if (response.data.success) {
-        alert(response.data.message);
+      if (invokeError) throw invokeError;
+
+      if (response.success) {
+        alert(response.message);
         fetchReport(); // Refresh data
       } else {
-        alert('Failed to post to AP: ' + response.data.error);
+        alert('Failed to post to AP: ' + response.error);
       }
     } catch (error) {
       console.error('Error posting to AP:', error);

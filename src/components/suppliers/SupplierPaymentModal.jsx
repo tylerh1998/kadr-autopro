@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
+import { releaseSupplierLockKeepAlive } from '../utils/supplierLockUtils';
 import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
@@ -601,6 +602,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     clearInterval(pollInterval);
                     if (chequeNumber) {
                          const chequeUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumber)}`;
+                         // This is a hard page navigation (not a React Router route
+                         // change), so it bypasses SupplierTx's normal awaited lock
+                         // release entirely. Release via keepalive first so the
+                         // Supplier's lock doesn't get stuck.
+                         releaseSupplierLockKeepAlive(supplier?.id);
                          window.location.href = chequeUrl;
                     } else {
                          if (onPaymentComplete) onPaymentComplete();

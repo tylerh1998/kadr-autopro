@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
@@ -208,9 +207,11 @@ export default function useDocumentEditorSave({
       previousLineItemsRef.current = [...updatedLinesArray];
 
       try {
-        await base44.functions.invoke('syncLevies', {
-          workOrderId: workOrder.id,
-          lineItems: lineItemsToSave
+        await supabase.functions.invoke('autopro-syncLevies', {
+          body: {
+            workOrderId: workOrder.id,
+            lineItems: lineItemsToSave
+          }
         });
       } catch (levyError) {
         console.error('Failed to sync levies:', levyError);

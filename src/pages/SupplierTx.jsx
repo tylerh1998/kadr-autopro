@@ -365,7 +365,11 @@ export default function SupplierTxPage() {
         e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
         return e.returnValue;
       }
-      if (supplierId && currentUser) releaseLock(currentUser);
+      // A real page unload can't reliably wait on an awaited network call (the
+      // browser may tear the page down mid-request) — use the keepalive-backed
+      // release here instead of `releaseLock`, which is only safe for in-app
+      // (SPA) navigation where the JS runtime keeps running afterward.
+      if (supplierId && currentUser) releaseSupplierLockKeepAlive(supplierId);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
