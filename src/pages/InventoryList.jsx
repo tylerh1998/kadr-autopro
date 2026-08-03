@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { jsPDF } from "jspdf";
 import {
-  InventoryItem,
   SalesClass,
-  InventoryLocation,
-  InventoryCategory,
 } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 import { inventoryAdd } from "@/functions/inventoryAdd";
 import { Button } from "@/components/ui/button";
@@ -212,21 +210,33 @@ export default function InventoryListPage() {
   // Function to load data shared by modals
   const loadSharedData = async () => {
     try {
-      const [suppliersResponse, salesClassesResponse, locationsData, categoriesData] = await Promise.all([
+      const [suppliersResponse, salesClassesResponse] = await Promise.all([
         base44.functions.invoke('SupabaseProxy', {
           action: 'read',
           table: 'Supplier'
         }),
         base44.functions.invoke('SupabaseProxy', {}),
-        InventoryLocation.list(),
-        InventoryCategory.list(),
       ]);
       setSuppliers(suppliersResponse.data?.data || []);
       setSalesClasses(salesClassesResponse.data?.data || []);
-      setInventoryLocations(locationsData);
-      setInventoryCategories(categoriesData);
     } catch (error) {
       console.error("Error fetching shared data for modals:", error);
+    }
+
+    try {
+      const { data, error } = await supabase.from('InventoryLocation').select('*');
+      if (error) throw error;
+      setInventoryLocations(data || []);
+    } catch (error) {
+      console.error("Error fetching inventory locations:", error);
+    }
+
+    try {
+      const { data, error } = await supabase.from('InventoryCategory').select('*');
+      if (error) throw error;
+      setInventoryCategories(data || []);
+    } catch (error) {
+      console.error("Error fetching inventory categories:", error);
     }
   };
 
