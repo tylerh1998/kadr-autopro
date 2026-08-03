@@ -218,6 +218,9 @@ export default function WorkOrdersPage() {
         }),
         getNotesBoardData({
           searchTerm: debouncedSearchTerm.trim()
+        }).catch((error) => {
+          console.error('Error fetching notes board data:', error);
+          return { data: { data: [] } };
         })
       ]);
 
