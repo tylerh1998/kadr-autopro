@@ -387,15 +387,16 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 const freshItem = freshItemRes?.[0];
                 if (!freshItem) throw new Error("Could not find existing part in database.");
                 
-                const currentQOO = freshItem.quantity_on_order || 0;
-                oldQuantity = freshItem.quantity_on_hand || 0;
-                newQuantity = freshItem.quantity_on_hand || 0;
+                const currentQOH = Number(freshItem.quantity_on_hand) || 0;
+                const currentQOO = Number(freshItem.quantity_on_order) || 0;
+                oldQuantity = currentQOH;
+                newQuantity = currentQOH;
                 oldQuantityOnOrder = currentQOO;
                 newQuantityOnOrder = currentQOO + quantityToOrder;
-                
+
                 const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
                     p_item_id: freshItem.id,
-                    p_qoh: freshItem.quantity_on_hand || 0,
+                    p_qoh: currentQOH,
                     p_qoo: currentQOO + quantityToOrder,
                     p_ro_number: workOrder.ro_number,
                     p_supplier_inv: null,
