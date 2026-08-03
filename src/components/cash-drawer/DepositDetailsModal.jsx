@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder } from '@/entities/all';
+import { CashDrawerAdjustment, WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
@@ -68,9 +69,12 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
       setLoading(true);
       try {
         // Fetch payments for this deposit batch
-        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
-        const allPayments = allPaymentsRes?.data?.data || [];
-        const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
+        const { data: allPayments, error: paymentsError } = await supabase
+          .from('CustomerPayments')
+          .select('*')
+          .order('payment_date', { ascending: false });
+        if (paymentsError) throw paymentsError;
+        const batchPayments = (allPayments || []).filter(p => p.deposit_batch_id === batchId);
 
         // Fetch adjustments for this deposit batch
         const allAdjustments = await CashDrawerAdjustment.list();
@@ -79,7 +83,9 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         // Get customer names
         const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
         const customers = await Promise.all(
-          customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
+          customerIds.map(id =>
+            supabase.from('Customer').select('*').eq('id', id).maybeSingle().then(({ data }) => data).catch(() => null)
+          )
         );
         const customerMap = customers.reduce((acc, customer) => {
           if (customer) {

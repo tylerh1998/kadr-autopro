@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const { wo_number } = await req.json();
-    if (!wo_number) return new Response(JSON.stringify({ error: 'Missing wo_number' }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!wo_number) return new Response(JSON.stringify({ error: 'Missing wo_number' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
 
@@ -35,6 +35,6 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true, total_found: projects.length, archived_count: projects.length, date_archived: dateArchived }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: error.message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

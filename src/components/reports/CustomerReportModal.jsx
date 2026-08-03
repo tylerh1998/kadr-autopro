@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Users } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import CustomerHistoryModal from "@/components/customers/CustomerHistoryModal";
 
 export default function CustomerReportModal() {
@@ -80,12 +80,12 @@ export default function CustomerReportModal() {
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await base44.functions.invoke('getCustomerReportData', { 
-        dateFrom, 
-        dateTo 
+      const { data, error } = await supabase.functions.invoke('autopro-getCustomerReportData', {
+        body: { dateFrom, dateTo }
       });
 
-      if (error) throw new Error(error);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (data && data.data) {
         setReportData(data.data);

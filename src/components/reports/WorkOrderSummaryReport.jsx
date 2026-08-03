@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, DollarSign, Package, Clock, FileText, PieChart as PieIcon, RefreshCw } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import {
   BarChart,
   Bar,
@@ -27,9 +27,11 @@ export default function WorkOrderSummaryReport() {
   const fetchReport = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getWorkOrderSummaryReport');
-      if (response.data) {
+      const response = await supabase.functions.invoke('autopro-getWorkOrderSummaryReport');
+      if (response.data && !response.data.error) {
         setData(response.data);
+      } else {
+        console.error(response.data?.error || response.error);
       }
     } catch (error) {
       console.error('Failed to fetch WO summary report:', error);

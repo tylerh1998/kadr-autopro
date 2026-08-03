@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Car, Loader2, Merge, Search, Check } from "lucide-react";
-import { base44 } from '@/api/base44Client'; // Added base44 import
+import { supabase } from '@/lib/supabase';
 import MergeVehicleModal from './MergeVehicleModal';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -74,12 +74,31 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     const searchDb = async () => {
       setLoadingCustomers(true);
       try {
-        const response = await base44.functions.invoke('searchCustomers', { 
-          searchTerm: customerSearchTerm,
-          includeInactive: false 
-        });
-        if (response.data.success && isMounted) {
-          setLocalCustomers(response.data.customers || []);
+        const term = customerSearchTerm.trim();
+        let customersResult;
+        if (term) {
+          const { data, error } = await supabase.rpc('search_customers_ranked', {
+            p_search_term: term,
+            p_include_inactive: false,
+            p_limit: 50,
+            p_offset: 0
+          });
+          if (error) throw error;
+          customersResult = (data || []).map(({ total_count, match_rank, ...item }) => item);
+        } else {
+          const { data, error } = await supabase
+            .from('Customer')
+            .select('*')
+            .or('is_active.eq.true,is_active.is.null')
+            .order('org_name', { ascending: true, nullsLast: true })
+            .order('first_name', { ascending: true, nullsLast: true })
+            .order('last_name', { ascending: true, nullsLast: true })
+            .range(0, 49);
+          if (error) throw error;
+          customersResult = data || [];
+        }
+        if (isMounted) {
+          setLocalCustomers(customersResult);
         }
       } catch (error) {
         console.error("Failed to search customers:", error);
@@ -143,20 +162,20 @@ export default function VehicleForm({ vehicle, customers, onSubmit, onCancel, is
     
     setDecoding(true); // Changed from setIsDecodingVin
     try {
-      // Replaced decodeVin function call with base44.functions.invoke
-      // Assuming 'base44' is an available global or imported object/library as per the outline
-      const response = await base44.functions.invoke('decodeVin', { vin: formData.vin });
-      
-      if (response.data.error) {
-        alert(response.data.error);
+      const { data: decoded, error: decodeError } = await supabase.functions.invoke('autopro-decodeVin', { body: { vin: formData.vin } });
+
+      if (decodeError) {
+        alert(decodeError.message);
+      } else if (decoded?.error) {
+        alert(decoded.error);
       } else {
         setFormData(prev => ({
           ...prev,
-          year: response.data.year || prev.year,
-          make: response.data.make || prev.make,
-          model: response.data.model || prev.model,
-          trim: response.data.trim || prev.trim, // Update trim from decoded data
-          engine: response.data.engine || prev.engine,
+          year: decoded.year || prev.year,
+          make: decoded.make || prev.make,
+          model: decoded.model || prev.model,
+          trim: decoded.trim || prev.trim, // Update trim from decoded data
+          engine: decoded.engine || prev.engine,
         }));
       }
 

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, ArrowRight, AlertTriangle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function MergeCustomerModal({ open, onClose, onMergeComplete, masterCustomer }) {
   const [step, setStep] = useState(1); // 1: Select Duplicate, 2: Confirm
@@ -34,19 +34,17 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
 
       setSearching(true);
       try {
-        const response = await base44.functions.invoke('searchCustomers', {
-          searchTerm: searchTerm,
-          limit: 10,
-          page: 1,
-          includeInactive: true // Allow merging inactive into active? Yes, probably useful.
+        const { data, error } = await supabase.rpc('search_customers_ranked', {
+          p_search_term: searchTerm.trim(),
+          p_include_inactive: true, // Allow merging inactive into active? Yes, probably useful.
+          p_limit: 10,
+          p_offset: 0
         });
-        
-        if (response?.data?.customers) {
-          // Filter out the master customer from results
-          setSearchResults(response.data.customers.filter(c => c.id !== masterCustomer?.id));
-        } else {
-          setSearchResults([]);
-        }
+        if (error) throw error;
+        const customers = (data || []).map(({ total_count, match_rank, ...item }) => item);
+
+        // Filter out the master customer from results
+        setSearchResults(customers.filter(c => c.id !== masterCustomer?.id));
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -67,13 +65,18 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
 
     setMerging(true);
     try {
-      const response = await base44.functions.invoke('mergeCustomers', {
-        masterId: masterCustomer.id,
-        duplicateId: duplicateCustomer.id
+      const { data: response, error: mergeError } = await supabase.functions.invoke('autopro-mergeCustomers', {
+        body: {
+          masterId: masterCustomer.id,
+          duplicateId: duplicateCustomer.id
+        }
       });
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (mergeError) {
+        throw new Error(mergeError.message);
+      }
+      if (response?.error) {
+        throw new Error(response.error);
       }
 
       alert("Merge completed successfully!");

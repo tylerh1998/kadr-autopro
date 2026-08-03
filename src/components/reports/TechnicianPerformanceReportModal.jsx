@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, TrendingUp, Clock, Users, Loader2, BarChart3, Calculator } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { Progress } from "@/components/ui/progress";
 
 export default function TechnicianPerformanceReportModal() {
@@ -84,12 +84,12 @@ export default function TechnicianPerformanceReportModal() {
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await base44.functions.invoke('getTechnicianPerformanceReport', { 
-        dateFrom, 
-        dateTo 
+      const { data, error } = await supabase.functions.invoke('autopro-getTechnicianPerformanceReport', {
+        body: { dateFrom, dateTo }
       });
 
-      if (error) throw new Error(error);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (data) {
         setReportData(data);
@@ -135,7 +135,8 @@ export default function TechnicianPerformanceReportModal() {
             </Button>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar — hidden until Phase 10 migrates CashFlowSummary and target is populated */}
+          {reportData.progress.target > 0 && (
           <Card>
             <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-slate-500">
@@ -152,6 +153,7 @@ export default function TechnicianPerformanceReportModal() {
                 </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Utilization Report */}
           {/*

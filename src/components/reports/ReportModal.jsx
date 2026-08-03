@@ -231,7 +231,7 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
     } else if (report.reportKey === 'reportable_levies') {
       setShowReportableLevies(true);
     } else if (report.reportKey === 'sales_analysis') {
-      if (currentUser?.role === 'admin' || ['lvl2_user', 'lvl3_user'].includes(currentUser?.access_level)) {
+      if (currentUser?.admin || ['lvl2_user', 'lvl3_user'].includes(currentUser?.autopro_access_lvl)) {
         setShowSalesAnalysis(true);
       } else {
         alert("You do not have access to this report.");

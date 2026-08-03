@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppointmentForm from '../appointments/AppointmentForm';
-import { Employee, WorkOrder, Appointment } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { Employee, Appointment } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function EditApptViaWoModal({ open, onClose, appointment, workOrder, customer, vehicle, onAppointmentUpdated }) {
   const [employees, setEmployees] = useState([]);
@@ -17,18 +17,18 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
     try {
       const [employeesData, custRes, vehRes] = await Promise.all([
         Employee.list(),
-        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+        supabase.from('Customer').select('*').order('org_name', { ascending: true }),
+        supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
       setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
-      
-      const fetchedCustomers = [...(custRes.data?.data || [])];
+
+      const fetchedCustomers = [...(custRes.data || [])];
       if (customer && !fetchedCustomers.some(c => c.id === customer.id)) {
         fetchedCustomers.push(customer);
       }
       setCustomers(fetchedCustomers);
 
-      const fetchedVehicles = [...(vehRes.data?.data || [])];
+      const fetchedVehicles = [...(vehRes.data || [])];
       if (vehicle && !fetchedVehicles.some(v => v.id === vehicle.id)) {
         fetchedVehicles.push(vehicle);
       }

@@ -1,6 +1,6 @@
 # Phase 4 Follow-Up Plan: Closing Out-of-Scope Items
 
-**Status:** Draft — not yet executed.
+**Status:** Executed — 3C (code) and 3B (verified) complete; 3A's dev-branch migration applied and verified, production step deliberately on hold pending explicit go-ahead (user said "not yet, I'll say when" on 2026-08-03). 3C's live UI click-through still needs a deploy (push/build) before it can be fully confirmed in the browser — code review + matching an already-proven pattern (`TechDirectory.jsx`) is the current level of confidence.
 **Parent:** `master_blueprint.md`, Phase 4 (`phase_4_implementation_plan.md`).
 **Type:** Small, low-complexity follow-up (not a new numbered blueprint phase) — addresses three items Phase 4 explicitly deferred or surfaced as gaps during its own execution/verification.
 
@@ -113,3 +113,11 @@ No need to split across multiple sessions/days — each step is independently te
 - Once dev is confirmed clean, get your go-ahead, then apply the identical migration to production and re-run the same row-count/decimal-check query there (no UI write-test needed on production — schema-only change, already proven safe on dev with identical data shape).
 
 **Overall sign-off gate:** all three steps confirmed independently; update `master_blueprint.md` Section 7 (Lessons Learned) to note these three Phase 4 gaps are now closed, so they aren't re-flagged during Phase 13 or Phase 11 planning.
+
+---
+
+## 7) Execution Log (2026-08-03)
+
+- **3C:** Code changed — `TechClockStatusModal.jsx` now uses `supabase.from('Employee').select('*').eq('employee_type', 'tech')` in place of the base44-routed `Employee.filter()`. Confirmed dev branch RLS on `Employee` is fully permissive (`ALL` for `public`, `qual: true`), same policy `TechDirectory.jsx` already relies on successfully. **Not live-click-tested** — attempted via `/dev-login` on `test.kensauto.ca`, but the deployed bundle still runs the pre-edit code (no push/deploy has happened), so the modal still 401'd against base44 as expected for the *old* build. Needs a deploy, then a click-through re-test, to move from "code-reviewed + pattern-matched" to "live-confirmed."
+- **3B:** Fully verified. Seeded a throwaway `Project` row (`id: 'test-3b-verify-001'`, `work_order: 'WO99999'`, `status: 'active'`) on the dev branch, invoked `autopro-archiveWorkOrderProjects` directly via HTTPS with the dev branch's anon key and the exact `{ wo_number: 'WO99999' }` body shape `InvoiceConversion.jsx` sends. Response: `{"success":true,"total_found":1,"archived_count":1,"date_archived":"2026-08-03"}`. Confirmed via direct query the row now shows `status='archived'`, `date_archived='2026-08-03'`, `updated_date` bumped. Test row deleted afterward.
+- **3A:** Dev branch migration applied (`ALTER TABLE public."Employee" ALTER COLUMN pay_rate TYPE numeric(10,2) USING pay_rate::numeric(10,2)`). Verified: column is now `numeric(10,2)`; all 9 `Employee` rows survived (6 non-null `pay_rate` values, matching pre-migration count). Live-tested via a direct PostgREST `PATCH` (same write path the app uses) on a dev-only seeded test employee (`id: 9999999`, "Ryley Bates"): set `pay_rate: 27.50`, succeeded (previously would have thrown `22P02`), then reverted back to the original `35.00`. **Production step explicitly held** — asked the user directly; response was "Not yet — I'll say when." No production schema change has been made. Re-open this item and re-run the identical migration + row-count verification on production (`hbcrwkmgsazqrvsrmxyr`) once given the go-ahead.

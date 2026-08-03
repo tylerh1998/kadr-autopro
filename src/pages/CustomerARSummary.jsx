@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -39,15 +39,17 @@ export default function CustomerARSummaryPage() {
     setLoading(true);
     try {
       // Fetch AR summary data from backend
-      const response = await base44.functions.invoke('supabaseCustomerARSummary', { 
-        searchTerm: activeSearchTerm,
-        showOnlyWithBalance,
-        asOfDate
+      const { data: response, error: summaryError } = await supabase.functions.invoke('autopro-supabaseCustomerARSummary', {
+        body: {
+          searchTerm: activeSearchTerm,
+          showOnlyWithBalance,
+          asOfDate
+        }
       });
 
-      if (response.data.success) {
+      if (!summaryError && response?.success) {
         // Sort alphabetically
-        const sortedData = response.data.arSummaryData.sort((a, b) => {
+        const sortedData = response.arSummaryData.sort((a, b) => {
            const getName = (c) => {
                if (c.org_name) return c.org_name;
                return [c.first_name, c.last_name].filter(Boolean).join(' ');
@@ -58,7 +60,7 @@ export default function CustomerARSummaryPage() {
         });
         setArSummaryData(sortedData);
       } else {
-        console.error('Failed to load AR summary:', response.data.error);
+        console.error('Failed to load AR summary:', summaryError?.message || response?.error);
         setArSummaryData([]);
       }
 

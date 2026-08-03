@@ -297,8 +297,14 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           }
         });
 
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Bulk transaction failed');
+        if (response.error) {
+          throw new Error(response.error.message || 'Bulk transaction failed');
+        }
+        if (response.data?.error) {
+          throw new Error(response.data.error);
+        }
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Bulk transaction failed');
         }
 
         processedResults = response.data.items || response.data.results || [];

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Vehicle, Customer } from "@/entities/all";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,24 +55,58 @@ export default function VehiclesPage() {
   const loadData = async (pageToLoad = 1) => {
     setLoading(true);
     try {
-      // Use new backend search function
-      const response = await base44.functions.invoke('searchVehicles', { 
-        searchTerm: appliedSearchTerm,
-        page: pageToLoad,
-        limit: 50,
-        includeInactive
+      const limit = 50;
+      const skip = Math.max(0, (pageToLoad - 1) * limit);
+      let loadedVehicles, totalCount;
+
+      if (appliedSearchTerm.trim()) {
+        const { data, error } = await supabase.rpc('search_vehicles_ranked', {
+          p_search_term: appliedSearchTerm.trim(),
+          p_include_inactive: includeInactive,
+          p_limit: limit,
+          p_offset: skip
+        });
+        if (error) throw error;
+        totalCount = data?.length > 0 ? Number(data[0].total_count || 0) : 0;
+        loadedVehicles = (data || []).map(({ total_count, match_rank, ...item }) => item);
+      } else {
+        let query = supabase.from('Vehicle').select('*', { count: 'exact' });
+        if (!includeInactive) query = query.or('is_active.eq.true,is_active.is.null');
+        query = query.order('year', { ascending: false, nullsLast: true })
+                     .order('make', { ascending: true, nullsLast: true })
+                     .order('model', { ascending: true, nullsLast: true })
+                     .range(skip, skip + limit - 1);
+        const { data, error, count } = await query;
+        if (error) throw error;
+        loadedVehicles = data || [];
+        totalCount = count || 0;
+      }
+
+      // Hydrate customer names, same as searchVehicles used to do server-side
+      const customerIds = [...new Set(loadedVehicles.map(v => v.customer_id).filter(Boolean))];
+      let hydratedCustomers = [];
+      if (customerIds.length > 0) {
+        const { data: customerData, error: customerError } = await supabase
+          .from('Customer')
+          .select('*')
+          .in('id', customerIds);
+        if (!customerError) hydratedCustomers = customerData || [];
+      }
+      const customerMap = new Map(hydratedCustomers.map(c => [c.id, c]));
+      loadedVehicles = loadedVehicles.map(v => {
+        const c = customerMap.get(v.customer_id);
+        const customer_name = c ? (c.org_name || `${c.first_name || ''} ${c.last_name || ''}`.trim()) : 'Unknown';
+        return { ...v, customer_name };
       });
 
-      if (response.data.success) {
-        setVehicles(response.data.vehicles);
-        setCustomers(response.data.customers); // Customers are returned for name mapping
-        setPagination(response.data.pagination);
-      } else {
-        console.error('Search failed:', response.data.error);
-        // Fallback for customers if needed, though searchVehicles should handle it
-        const customersData = await Customer.list();
-        setCustomers(customersData);
-      }
+      setVehicles(loadedVehicles);
+      setCustomers(hydratedCustomers);
+      setPagination({
+        total: totalCount,
+        page: pageToLoad,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      });
     } catch (error) {
       console.error('Error loading vehicles:', error);
     } finally {
@@ -85,29 +118,24 @@ export default function VehiclesPage() {
     try {
       const user = employee;
       if (editingVehicle) {
-        const payload = {
-          ...vehicleData,
-          updated_date: new Date().toISOString(),
-        };
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'Vehicle',
-          id: editingVehicle.id,
-          data: payload
-        });
+        const { error } = await supabase
+          .from('Vehicle')
+          .update({ ...vehicleData, updated_date: new Date().toISOString() })
+          .eq('id', editingVehicle.id);
+        if (error) throw error;
       } else {
         const payload = {
           ...vehicleData,
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
           created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
           created_by: user?.email || '',
+          created_by_id: user?.autopro_user_id,
         };
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'Vehicle',
-          data: payload
-        });
+        const { error } = await supabase.from('Vehicle').insert(payload);
+        if (error) throw error;
       }
-      
+
       setShowForm(false);
       setEditingVehicle(null);
       loadData(pagination.page);

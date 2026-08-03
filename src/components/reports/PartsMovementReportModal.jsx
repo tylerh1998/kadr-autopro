@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Package, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function PartsMovementReportModal() {
   const [dateFrom, setDateFrom] = useState("");
@@ -84,20 +84,16 @@ export default function PartsMovementReportModal() {
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'rpc',
-        table: 'get_parts_movement_v2',
-        data: {
-          p_start_date: dateFrom,
-          p_end_date: dateTo,
-          p_search_term: debouncedSearch
-        }
+      const { data, error } = await supabase.rpc('get_parts_movement_v2', {
+        p_start_date: dateFrom,
+        p_end_date: dateTo,
+        p_search_term: debouncedSearch
       });
 
-      if (error) throw new Error(error);
+      if (error) throw error;
 
-      if (data && data.data) {
-        setReportData(data.data);
+      if (data) {
+        setReportData(data);
       }
     } catch (error) {
       console.error("Error loading parts movement report:", error);

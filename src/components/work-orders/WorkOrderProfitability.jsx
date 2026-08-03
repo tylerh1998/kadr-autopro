@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Package, Wrench, Loader2, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { base44 } from '@/api/base44Client';
 import TechTimeModal from './TechTimeModal';
 
 export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, workPROProjects = [], employees = [] }) {
@@ -32,7 +31,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
   const refreshWorkOrder = async () => {
     if (workOrder?.id) {
        try {
-           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
+           const { data: wos, error } = await supabase.from('WorkOrder').select('*').eq('id', workOrder.id);
+           if (error) throw error;
            if (wos && wos.length > 0) {
                setLocalWorkOrder(wos[0]);
            }

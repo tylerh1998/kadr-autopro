@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { AlertTriangle, Check, Loader2, Search } from 'lucide-react';
 
 const getCustomerDisplayName = (customer) => {
@@ -36,13 +36,31 @@ export default function ChangeCustomerModal({ open, onClose, currentCustomer, on
     const searchCustomers = async () => {
       setLoadingCustomers(true);
       try {
-        const response = await base44.functions.invoke('searchCustomers', {
-          searchTerm: customerSearchTerm,
-          includeInactive: false,
-        });
+        const term = customerSearchTerm.trim();
+        let customers;
+        if (term) {
+          const { data, error } = await supabase.rpc('search_customers_ranked', {
+            p_search_term: term,
+            p_include_inactive: false,
+            p_limit: 50,
+            p_offset: 0
+          });
+          if (error) throw error;
+          customers = (data || []).map(({ total_count, match_rank, ...item }) => item);
+        } else {
+          const { data, error } = await supabase
+            .from('Customer')
+            .select('*')
+            .or('is_active.eq.true,is_active.is.null')
+            .order('org_name', { ascending: true, nullsLast: true })
+            .order('first_name', { ascending: true, nullsLast: true })
+            .order('last_name', { ascending: true, nullsLast: true })
+            .range(0, 49);
+          if (error) throw error;
+          customers = data || [];
+        }
 
-        if (response.data?.success && isMounted) {
-          const customers = response.data.customers || [];
+        if (isMounted) {
           if (currentCustomer && !customers.some((customer) => customer.id === currentCustomer.id)) {
             setLocalCustomers([currentCustomer, ...customers]);
           } else {

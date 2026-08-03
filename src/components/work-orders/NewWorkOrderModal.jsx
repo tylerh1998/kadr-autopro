@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
 import { SystemSettings } from "@/entities/all";
-import { base44 } from "@/api/base44Client";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
 import { format } from "date-fns";

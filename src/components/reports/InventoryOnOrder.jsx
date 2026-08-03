@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { createPageUrl } from '../../utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,8 +19,10 @@ export default function InventoryOnOrder() {
       setError('');
       try {
         // Use backend function for real-time calculation from Work Orders
-        const response = await base44.functions.invoke('getRealTimeInventoryOnOrder');
-        
+        const response = await supabase.functions.invoke('autopro-getRealTimeInventoryOnOrder');
+
+        if (response.error) throw response.error;
+
         if (response.data && response.data.success) {
            setInventoryData(response.data.data);
         } else {

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 const paymentMethodOptions = [
   { value: 'cash', label: 'Cash' },
@@ -197,8 +197,12 @@ export default function InvoicePaymentModal({
       setLoading(true);
 
       // Validation: Check CustomerPayments entity
-      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: payment.id });
-      const cp = cpRes.data?.data;
+      const { data: cp, error: cpError } = await supabase
+        .from('CustomerPayments')
+        .select('*')
+        .eq('id', payment.id)
+        .maybeSingle();
+      if (cpError) throw cpError;
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");

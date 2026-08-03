@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, FileText, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import ARPaymentEmailModal from './ARPaymentEmailModal';
 import ARReceiptPDFViewerModal from './ARReceiptPDFViewerModal';
 
@@ -38,8 +39,12 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         // Fetch customer email
         if (paymentRecord.customer_id) {
           try {
-            const res = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: paymentRecord.customer_id });
-            const customer = res?.data?.data;
+            const { data: customer, error: customerError } = await supabase
+              .from('Customer')
+              .select('*')
+              .eq('id', paymentRecord.customer_id)
+              .maybeSingle();
+            if (customerError) throw customerError;
             setCustomerEmail(customer?.email || null);
           } catch (e) {
             console.warn('Could not fetch customer:', e);

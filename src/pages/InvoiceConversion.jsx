@@ -213,6 +213,9 @@ export default function InvoiceConversion() {
 
         supabase.functions.invoke('autopro-archiveWorkOrderProjects', {
           body: { wo_number: wo.wo_number }
+        }).then(({ error: invokeError, data: archiveData }) => {
+          if (invokeError) console.error('Error archiving related projects:', invokeError);
+          else if (archiveData?.error) console.error('Error archiving related projects:', archiveData.error);
         }).catch((archiveError) => {
           console.error('Error archiving related projects:', archiveError);
         });

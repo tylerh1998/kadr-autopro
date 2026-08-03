@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, ArrowRight, AlertTriangle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function MergeVehicleModal({ open, onClose, onMergeComplete, masterVehicle }) {
   const [step, setStep] = useState(1); // 1: Select Duplicate, 2: Confirm
@@ -33,22 +33,32 @@ export default function MergeVehicleModal({ open, onClose, onMergeComplete, mast
 
       setSearching(true);
       try {
-        const response = await base44.functions.invoke('searchVehicles', {
-          searchTerm: searchTerm,
-          limit: 10,
-          page: 1,
-          includeInactive: true
+        const { data, error } = await supabase.rpc('search_vehicles_ranked', {
+          p_search_term: searchTerm.trim(),
+          p_include_inactive: true,
+          p_limit: 10,
+          p_offset: 0
         });
-        
-        if (response?.data?.vehicles) {
-          // Filter out the master vehicle from results, and only keep vehicles from the SAME customer
-          setSearchResults(response.data.vehicles.filter(v => 
-            v.id !== masterVehicle?.id && 
-            v.customer_id === masterVehicle?.customer_id
-          ));
-        } else {
-          setSearchResults([]);
+        if (error) throw error;
+        const rawVehicles = (data || []).map(({ total_count, match_rank, ...item }) => item);
+
+        const customerIds = [...new Set(rawVehicles.map(v => v.customer_id).filter(Boolean))];
+        let customerMap = new Map();
+        if (customerIds.length > 0) {
+          const { data: customerData } = await supabase.from('Customer').select('*').in('id', customerIds);
+          customerMap = new Map((customerData || []).map(c => [c.id, c]));
         }
+        const vehicles = rawVehicles.map(v => {
+          const c = customerMap.get(v.customer_id);
+          const customer_name = c ? (c.org_name || `${c.first_name || ''} ${c.last_name || ''}`.trim()) : 'Unknown';
+          return { ...v, customer_name };
+        });
+
+        // Filter out the master vehicle from results, and only keep vehicles from the SAME customer
+        setSearchResults(vehicles.filter(v =>
+          v.id !== masterVehicle?.id &&
+          v.customer_id === masterVehicle?.customer_id
+        ));
       } catch (error) {
         console.error("Search error:", error);
       } finally {
@@ -69,13 +79,18 @@ export default function MergeVehicleModal({ open, onClose, onMergeComplete, mast
 
     setMerging(true);
     try {
-      const response = await base44.functions.invoke('mergeVehicles', {
-        masterId: masterVehicle.id,
-        duplicateId: duplicateVehicle.id
+      const { data: response, error: mergeError } = await supabase.functions.invoke('autopro-mergeVehicles', {
+        body: {
+          masterId: masterVehicle.id,
+          duplicateId: duplicateVehicle.id
+        }
       });
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (mergeError) {
+        throw new Error(mergeError.message);
+      }
+      if (response?.error) {
+        throw new Error(response.error);
       }
 
       alert("Merge completed successfully!");

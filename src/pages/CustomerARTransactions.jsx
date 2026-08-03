@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Customer } from '@/entities/all';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,14 +117,13 @@ export default function CustomerARTransactionsPage() {
     
     setLoading(true);
     try {
-      const customerRes = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: customerId });
-      if (customerRes.data && customerRes.data.data) {
-        setCustomer(customerRes.data.data);
-      } else {
-        // Fallback if supabase proxy fails or returns empty
-        const customerData = await Customer.get(customerId);
-        setCustomer(customerData);
-      }
+      const { data: customerData, error: customerError } = await supabase
+        .from('Customer')
+        .select('*')
+        .eq('id', customerId)
+        .maybeSingle();
+      if (customerError) throw customerError;
+      setCustomer(customerData);
 
       const response = await base44.functions.invoke('getCustomerARData', {
         customerId,
@@ -238,8 +237,12 @@ export default function CustomerARTransactionsPage() {
       // Fetch the actual CustomerPayments record to get ar_applyto
       // The transaction object constructed in useMemo might not have all details,
       // especially ar_applyto array, which is crucial for the details modal.
-      const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: transaction.sourceId });
-      const paymentRecord = res.data.data;
+      const { data: paymentRecord, error: paymentError } = await supabase
+        .from('CustomerPayments')
+        .select('*')
+        .eq('id', transaction.sourceId)
+        .maybeSingle();
+      if (paymentError) throw paymentError;
       setSelectedPaymentForDetails(paymentRecord);
       setShowPaymentDetailsModal(true);
     } catch (error) {
@@ -257,9 +260,13 @@ export default function CustomerARTransactionsPage() {
       }
       
       // Fetch the full payment record
-      const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: transaction.sourceId });
-      const paymentRecord = res.data.data;
-      
+      const { data: paymentRecord, error: paymentError } = await supabase
+        .from('CustomerPayments')
+        .select('*')
+        .eq('id', transaction.sourceId)
+        .maybeSingle();
+      if (paymentError) throw paymentError;
+
       // Validate that payment hasn't been deposited
       if (paymentRecord.deposited === true) {
         alert('Cannot delete a payment that has already been deposited.');
@@ -300,8 +307,12 @@ export default function CustomerARTransactionsPage() {
     }
 
     try {
-      const res = await base44.functions.invoke('supabaseCustomerARAdjustment', { action: 'get', id: transaction.sourceId });
-      const adjustment = res.data.data;
+      const { data: adjustment, error: adjustmentError } = await supabase
+        .from('CustomerARAdjustment')
+        .select('*')
+        .eq('id', transaction.sourceId)
+        .maybeSingle();
+      if (adjustmentError) throw adjustmentError;
       setAdjustmentToDelete(adjustment);
       setShowDeleteAdjustmentConfirm(true);
     } catch (error) {

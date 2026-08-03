@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
-import { searchCustomers } from "@/functions/searchCustomers";
-import { supabaseCustomerPayments } from "@/functions/supabaseCustomerPayments";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 import { Loader2, Upload, FileText, Check, ChevronsUpDown } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +18,7 @@ function cn(...inputs) {
 import { format } from "date-fns";
 
 export default function AddLegacyInvoiceModal({ open, onClose }) {
+    const { employee } = useAuth();
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -60,9 +61,15 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
     const loadCustomers = async (term) => {
         setLoading(true);
         try {
-            const response = await searchCustomers({ searchTerm: term, page: 1, limit: 50, includeInactive: false });
-            const data = response.data?.customers || [];
-            setCustomers(data);
+            const { data, error } = await supabase.rpc('search_customers_ranked', {
+                p_search_term: term.trim(),
+                p_include_inactive: false,
+                p_limit: 50,
+                p_offset: 0
+            });
+            if (error) throw error;
+            const cleaned = (data || []).map(({ total_count, match_rank, ...item }) => item);
+            setCustomers(cleaned);
         } catch (error) {
             console.error("Error loading customers:", error);
         } finally {
@@ -89,9 +96,14 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
                 fileUrl = file_url;
             }
 
-            const response = await supabaseCustomerPayments({
-                action: 'create',
-                data: {
+            const { data: createdPayment, error: createError } = await supabase
+                .from('CustomerPayments')
+                .insert({
+                    id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                    created_date: new Date().toISOString(),
+                    updated_date: new Date().toISOString(),
+                    created_by: employee?.email,
+                    created_by_id: employee?.autopro_user_id,
                     customer_id: formData.customer_id,
                     payment_date: formData.invoice_date,
                     invoice_number: formData.invoice_number,
@@ -103,14 +115,15 @@ export default function AddLegacyInvoiceModal({ open, onClose }) {
                     deposited: false,
                     advance_pmt: false,
                     gl_posted: false
-                }
-            });
+                })
+                .select()
+                .single();
 
-            if (response.data?.data) {
+            if (!createError && createdPayment) {
                 alert("Legacy invoice added successfully!");
                 onClose();
             } else {
-                alert("Error adding legacy invoice: " + (response.data?.error || "Unknown error"));
+                alert("Error adding legacy invoice: " + (createError?.message || "Unknown error"));
             }
         } catch (error) {
             console.error("Error submitting legacy invoice:", error);

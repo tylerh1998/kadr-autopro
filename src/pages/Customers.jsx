@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Customer } from "@/entities/all";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,18 +64,40 @@ export default function CustomersPage() {
   const loadCustomers = async (pageToLoad = 1) => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('searchCustomers', { 
-        searchTerm: activeSearchTerm,
-        page: pageToLoad,
-        limit: 50,
-        includeInactive
-      });
-      if (response.data.success) {
-        setCustomers(response.data.customers);
-        setPagination(response.data.pagination);
+      const limit = 50;
+      const skip = Math.max(0, (pageToLoad - 1) * limit);
+      let loadedCustomers, totalCount;
+
+      if (activeSearchTerm.trim()) {
+        const { data, error } = await supabase.rpc('search_customers_ranked', {
+          p_search_term: activeSearchTerm.trim(),
+          p_include_inactive: includeInactive,
+          p_limit: limit,
+          p_offset: skip
+        });
+        if (error) throw error;
+        totalCount = data?.length > 0 ? Number(data[0].total_count || 0) : 0;
+        loadedCustomers = (data || []).map(({ total_count, match_rank, ...item }) => item);
       } else {
-        console.error('Search failed:', response.data.error);
+        let query = supabase.from('Customer').select('*', { count: 'exact' });
+        if (!includeInactive) query = query.or('is_active.eq.true,is_active.is.null');
+        query = query.order('org_name', { ascending: true, nullsLast: true })
+                     .order('first_name', { ascending: true, nullsLast: true })
+                     .order('last_name', { ascending: true, nullsLast: true })
+                     .range(skip, skip + limit - 1);
+        const { data, error, count } = await query;
+        if (error) throw error;
+        loadedCustomers = data || [];
+        totalCount = count || 0;
       }
+
+      setCustomers(loadedCustomers);
+      setPagination({
+        total: totalCount,
+        page: pageToLoad,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      });
     } catch (error) {
       console.error('Error loading customers:', error);
     } finally {
@@ -87,22 +108,22 @@ export default function CustomersPage() {
   const handleSubmit = async (customerData) => {
     try {
       if (editingCustomer) {
-        await base44.functions.invoke('supabaseCustomer', { 
-          action: 'update', 
-          id: editingCustomer.id, 
-          data: customerData 
-        });
+        const { error } = await supabase
+          .from('Customer')
+          .update({ ...customerData, updated_date: new Date().toISOString() })
+          .eq('id', editingCustomer.id);
+        if (error) throw error;
       } else {
         const payload = {
           ...customerData,
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
           created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
           created_by: employee?.email || '',
+          created_by_id: employee?.autopro_user_id,
         };
-        await base44.functions.invoke('SupabaseProxy', { 
-          action: 'create', 
-          table: 'Customer',
-          data: payload 
-        });
+        const { error } = await supabase.from('Customer').insert(payload);
+        if (error) throw error;
       }
       setShowEditDialog(false);
       setEditingCustomer(null);
@@ -133,10 +154,8 @@ export default function CustomersPage() {
     e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete ${customer.org_name || customer.first_name + ' ' + customer.last_name}? This cannot be undone.`)) {
       try {
-        await base44.functions.invoke('supabaseCustomer', { 
-          action: 'delete', 
-          id: customer.id 
-        });
+        const { error } = await supabase.from('Customer').delete().eq('id', customer.id);
+        if (error) throw error;
         loadCustomers(pagination.page);
       } catch (error) {
         console.error('Error deleting customer:', error);

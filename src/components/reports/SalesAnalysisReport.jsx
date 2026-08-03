@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, DollarSign, TrendingUp, Users, Calendar, Download } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, subMonths, format, startOfYear, subDays } from 'date-fns';
 import {
   BarChart,
@@ -70,13 +70,14 @@ export default function SalesAnalysisReport() {
     
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getSalesAnalysisReport', {
-        startDate: customStart,
-        endDate: customEnd
+      const response = await supabase.functions.invoke('autopro-getSalesAnalysisReport', {
+        body: { startDate: customStart, endDate: customEnd }
       });
 
-      if (response.data) {
+      if (response.data && !response.data.error) {
         setData(response.data);
+      } else {
+        console.error(response.data?.error || response.error);
       }
     } catch (error) {
       console.error('Failed to fetch sales report:', error);

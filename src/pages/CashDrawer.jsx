@@ -24,6 +24,7 @@ import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBrea
 import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 
 const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
@@ -63,12 +64,24 @@ export default function CashDrawerPage() {
     try {
         console.log('Loading cash drawer data');
 
-        // Load non-deposited payments directly from Supabase via base44 edge function
-        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
-            action: 'filter', 
-            match: { deposited: false } 
-        });
-        const paymentsData = allPaymentsRes?.data?.data || [];
+        // Load non-deposited payments directly from Supabase
+        const { data: rawPaymentsData, error: paymentsError } = await supabase
+            .from('CustomerPayments')
+            .select('*')
+            .or('deposited.eq.false,deposited.is.null');
+        if (paymentsError) console.error('Error loading payments for cash drawer:', paymentsError);
+
+        // Hydrate customer names, same as supabaseCustomerPayments used to do server-side
+        const paymentCustomerIds = [...new Set((rawPaymentsData || []).map(p => p.customer_id).filter(Boolean))];
+        let paymentCustomerMap = {};
+        if (paymentCustomerIds.length > 0) {
+          const { data: paymentCustomers } = await supabase
+            .from('Customer')
+            .select('id, first_name, last_name, org_name')
+            .in('id', paymentCustomerIds);
+          paymentCustomerMap = Object.fromEntries((paymentCustomers || []).map(c => [c.id, c]));
+        }
+        const paymentsData = (rawPaymentsData || []).map(p => ({ ...p, customer: paymentCustomerMap[p.customer_id] || null }));
         console.log('Filtered payments for cash drawer:', paymentsData);
 
         // Load non-deposited adjustments directly
@@ -276,24 +289,24 @@ export default function CashDrawerPage() {
 
       const creatorName = currentUser.User_name || currentUser.full_name || currentUser.email || currentUser.id;
       const createGLTransaction = async (transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'GLTransaction',
-          data: {
-            ...transactionData,
+        const nowIso = new Date().toISOString();
+        const { data: record, error } = await supabase
+          .from('GLTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             created_by: creatorName,
-            created_by_id: currentUser.id
-          }
-        });
+            created_by_id: currentUser.id,
+            updated_by: creatorName,
+            ...transactionData
+          })
+          .select()
+          .single();
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
-
-        const record = Array.isArray(response?.data?.data)
-          ? response.data.data[0]
-          : response?.data?.data;
-
         if (!record?.id) {
           throw new Error('Failed to create GL transaction.');
         }
@@ -309,15 +322,16 @@ export default function CashDrawerPage() {
 
       // Update each CustomerPayment
       for (const item of paymentsToDeposit) {
-        await base44.functions.invoke('supabaseCustomerPayments', {
-          action: 'update',
-          id: item.customerPaymentId,
-          data: {
+        const { error: paymentUpdateError } = await supabase
+          .from('CustomerPayments')
+          .update({
             deposited: true,
             deposit_date: depositData.depositDate,
-            deposit_batch_id: depositBatchId
-          }
-        });
+            deposit_batch_id: depositBatchId,
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', item.customerPaymentId);
+        if (paymentUpdateError) throw new Error(paymentUpdateError.message);
       }
 
       // Update each CashDrawerAdjustment
@@ -464,24 +478,24 @@ export default function CashDrawerPage() {
       const glTransactionIds = [];
 
       const createGLTransaction = async (transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'GLTransaction',
-          data: {
-            ...transactionData,
+        const nowIso = new Date().toISOString();
+        const { data: record, error } = await supabase
+          .from('GLTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             created_by: creatorName,
-            created_by_id: currentUser.id
-          }
-        });
+            created_by_id: currentUser.id,
+            updated_by: creatorName,
+            ...transactionData
+          })
+          .select()
+          .single();
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
-
-        const record = Array.isArray(response?.data?.data)
-          ? response.data.data[0]
-          : response?.data?.data;
-
         if (!record?.id) {
           throw new Error('Failed to create GL transaction.');
         }
@@ -490,18 +504,17 @@ export default function CashDrawerPage() {
       };
 
       const updateGLTransaction = async (transactionId, transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'GLTransaction',
-          id: transactionId,
-          data: {
+        const { error } = await supabase
+          .from('GLTransaction')
+          .update({
             ...transactionData,
+            updated_date: new Date().toISOString(),
             updated_by: creatorName
-          }
-        });
+          })
+          .eq('id', transactionId);
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
       };
 
@@ -634,11 +647,22 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
-          action: 'filter', 
-          match: { deposit_batch_id: batchId } 
-      });
-      const batchPayments = allPaymentsRes?.data?.data || [];
+      const { data: rawBatchPayments, error: batchPaymentsError } = await supabase
+          .from('CustomerPayments')
+          .select('*')
+          .eq('deposit_batch_id', batchId);
+      if (batchPaymentsError) console.error('Error loading batch payments:', batchPaymentsError);
+
+      const batchCustomerIds = [...new Set((rawBatchPayments || []).map(p => p.customer_id).filter(Boolean))];
+      let batchCustomerMap = {};
+      if (batchCustomerIds.length > 0) {
+        const { data: batchCustomers } = await supabase
+          .from('Customer')
+          .select('id, first_name, last_name, org_name')
+          .in('id', batchCustomerIds);
+        batchCustomerMap = Object.fromEntries((batchCustomers || []).map(c => [c.id, c]));
+      }
+      const batchPayments = (rawBatchPayments || []).map(p => ({ ...p, customer: batchCustomerMap[p.customer_id] || null }));
       const batchAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
 
       const reconstructedForDeposit = {};
@@ -721,13 +745,11 @@ export default function CashDrawerPage() {
   const handleSavePaymentMethod = async (item, newMethod) => {
     try {
       setLoading(true);
-      await base44.functions.invoke('supabaseCustomerPayments', {
-        action: 'update',
-        id: item.customerPaymentId,
-        data: {
-          payment_method: newMethod
-        }
-      });
+      const { error: methodUpdateError } = await supabase
+        .from('CustomerPayments')
+        .update({ payment_method: newMethod, updated_date: new Date().toISOString() })
+        .eq('id', item.customerPaymentId);
+      if (methodUpdateError) throw new Error(methodUpdateError.message);
       
       setShowChangeMethodModal(false);
       setPaymentToChange(null);

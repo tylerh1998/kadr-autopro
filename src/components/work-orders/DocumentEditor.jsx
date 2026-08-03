@@ -693,8 +693,19 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           invoice_number: workOrder.inv_number || ''
         };
 
-        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
-        const createdPayment = res?.data?.data;
+        const { data: createdPayment, error: createPaymentError } = await supabase
+          .from('CustomerPayments')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            updated_date: new Date().toISOString(),
+            created_by: employee?.email,
+            created_by_id: employee?.autopro_user_id,
+            ...newCustomerPaymentData
+          })
+          .select()
+          .single();
+        if (createPaymentError) throw new Error(createPaymentError.message);
 
         let currentPayments = [];
         try {
@@ -724,7 +735,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
+        const { error: deletePaymentError } = await supabase.from('CustomerPayments').delete().eq('id', paymentIdToDelete);
+        if (deletePaymentError) throw new Error(deletePaymentError.message);
 
         let currentPayments = [];
         try {
@@ -840,8 +852,19 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           newCustomerPaymentData.cheque_number = payload.cheque_number || '';
         }
 
-        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
-        const createdPayment = res?.data?.data;
+        const { data: createdPayment, error: createPaymentError } = await supabase
+          .from('CustomerPayments')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            updated_date: new Date().toISOString(),
+            created_by: employee?.email,
+            created_by_id: employee?.autopro_user_id,
+            ...newCustomerPaymentData
+          })
+          .select()
+          .single();
+        if (createPaymentError) throw new Error(createPaymentError.message);
 
         let currentPayments = [];
         try {
@@ -911,7 +934,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           console.log("Removed Credit Card Fee line item:", lineIdToRemove);
         }
 
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
+        const { error: deletePaymentError } = await supabase.from('CustomerPayments').delete().eq('id', paymentIdToDelete);
+        if (deletePaymentError) throw new Error(deletePaymentError.message);
 
         const filteredPayments = currentPayments.filter(p => p.id !== paymentIdToDelete);
         const updatedPaymentsJson = JSON.stringify(filteredPayments);
@@ -1093,7 +1117,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (customer) {
         await handleSave({}, false);
-        await base44.functions.invoke('supabaseCustomer', { action: 'update', id: customer.id, data: customerData });
+        const { error: customerUpdateError } = await supabase
+          .from('Customer')
+          .update({ ...customerData, updated_date: new Date().toISOString() })
+          .eq('id', customer.id);
+        if (customerUpdateError) throw new Error(customerUpdateError.message);
         closeModal('editCustomer');
         alert('Customer updated successfully!');
       }
@@ -1107,7 +1135,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (vehicle) {
         await handleSave({}, false);
-        await base44.functions.invoke('supabaseVehicle', { action: 'update', id: vehicle.id, data: vehicleData });
+        const { error: vehicleUpdateError } = await supabase
+          .from('Vehicle')
+          .update({ ...vehicleData, updated_date: new Date().toISOString() })
+          .eq('id', vehicle.id);
+        if (vehicleUpdateError) throw new Error(vehicleUpdateError.message);
         closeModal('editVehicle');
         alert('Vehicle updated successfully!');
       }

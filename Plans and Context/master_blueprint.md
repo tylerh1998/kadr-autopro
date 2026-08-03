@@ -18,6 +18,8 @@
 
 4. **✅ Resolved.** `PARTSTECH_API_KEY` was unset from production by the user directly during Phase 2 execution. `PartsTechCart` was also dropped from production and the `partstech-extension.zip` deleted from Storage, all by the user. Phase 2 is fully complete and Tested.
 
+5b. **New (Phase 6 planning), resolved — deferred a small piece of Technician Performance Report to Phase 10.** `getTechnicianPerformanceReport`'s "Monthly Payroll Target vs Labour Sales" progress bar reads `CashFlowSummary` (confirmed no native table exists yet — bundled into Phase 10). Phase 6 migrates the report's utilization/efficiency data (fully native already) and hardcodes the progress bar's `target`/`current` to 0, hiding that card client-side until Phase 10 lands. **Action item for whoever scopes Phase 10's detailed plan:** restore the payroll-target progress bar in `TechnicianPerformanceReportModal.jsx` (unhide the card) and its backing logic in `autopro-getTechnicianPerformanceReport` (see the `TODO(Phase 10)` comment left in that function, referencing `base44/functions/getTechnicianPerformanceReport/entry.ts` lines 396–420 for the original calc) once `CashFlowSummary` has a native table. Verification of this specific card was explicitly skipped in Phase 6 since it's intentionally non-functional until then.
+
 5. **New — security finding, needs your call on timing/approach.** While restoring Phase 1's dev environment (see `phase_1_dev_environment_parity_plan.md`), found that two production triggers (`sync_customer_to_google` on `Customer`, `WorkOrder_Broadcast` on `WorkOrder`) have a **live service-role/anon JWT hardcoded in plaintext directly in the trigger definition**, visible to anyone with schema read access — not just in `.env`. Also found the `Google-Contacts-Sync` edge function that one of them calls isn't tracked in your local repo's `supabase/functions/` at all — it's a live, untracked deployment. Neither is blocking any current phase, but worth a decision: rotate the embedded token and move to a vault-based secret reference, and either pull `Google-Contacts-Sync`'s source into the repo or confirm it's intentionally managed outside git. Not scoped into any phase yet — let me know if you want it folded into Phase 14 (final sunset/cleanup) or handled as its own quick fix.
 
 ---
@@ -239,15 +241,19 @@ Tier F — Final
 
 **Scope decisions made during planning (see the plan doc's Section 0 for full reasoning):** (1) Deliberately scoped to these 21 files only — `SupabaseProxy` also touches `Customer`/`Vehicle`/`GLTransaction` from 15+ other files (`Bank.jsx`, `CreditInvoice.jsx`, `Admin.jsx`, etc.) that belong to later phases already covering those pages. (2) `searchCustomers`/`searchVehicles` get inlined as direct `supabase.rpc()`/`supabase.from()` calls rather than kept as functions — the underlying RPCs are already proven callable from the browser via `NewWorkOrderModal.jsx`. (3) `mergeCustomers`/`mergeVehicles`/`decodeVin`/`supabaseCustomerARSummary` become native `autopro-*` Edge Functions (real cross-table logic or third-party API calls, not simple CRUD). (4) A handful of confirmed-dead imports get cleaned up as a drive-by.
 
+**Carried over from present investigation (2026-08-03):** `autopro-mergeCustomers`, `autopro-mergeVehicles`, `autopro-decodeVin`, and `autopro-supabaseCustomerARSummary` (already built, not yet wired to these frontend call sites) currently return non-200 statuses on error, violating this doc's own Edge Function convention (Section 3 — always `200`, error in the body). Fix each function's error responses as part of wiring up its frontend call sites in this phase.
+
 ---
 
-### Phase 6 — Reports Module Migration [Pending]
+### Phase 6 — Reports Module Migration [Pending — detailed plan approved 2026-08-03, execution not started]
 
-**TL;DR:** 8 single-purpose, read-only report functions — isolated, low risk.
+**TL;DR:** 6 single-purpose, read-only report functions plus 1 already-native-but-base44-transported report — isolated, low risk, zero writes. Detailed planning (deep file-level research against all 6 base44 function sources, live RLS/schema checks, and a post-approval cross-check against `master_context.md`'s Edge Function conventions) is complete; execution has not started.
 
-**Impacted files:** `src/components/reports/*.jsx` (`getCustomerReportData`, `getOtherChargesBreakdown`, `getSalesAnalysisReport`, `getTechnicianPerformanceReport`, `getWorkOrderSummaryReport`), `InventoryOnOrder.jsx` (`getRealTimeInventoryOnOrder`), `PartsMovementReportModal.jsx` (already partially native via `get_parts_movement_v2` RPC — a good template).
+**Full plan:** `Plans and Context/phase_6_implementation_plan.md` (source of truth — full per-function migration detail, exact frontend diffs, and a verification checklist split between agent-owned output checks and user-owned live-UI checks).
 
-**Description:** Port each to a native Edge Function or direct RPC. No writes, no GL impact.
+**Impacted files/functions (supersedes the original 8-function estimate — confirmed actual is 6 Edge Functions + 1 direct-RPC swap):** `CustomerReportModal.jsx`, `OtherChargesBreakdownReport.jsx`, `SalesAnalysisReport.jsx`, `TechnicianPerformanceReportModal.jsx`, `WorkOrderSummaryReport.jsx`, `InventoryOnOrder.jsx`, `PartsMovementReportModal.jsx`, `ReportModal.jsx` (drive-by field-name bug fix, unrelated to the migration itself — see the phase plan's Section 0.6). Base44 functions replaced: `getCustomerReportData`, `getOtherChargesBreakdown`, `getSalesAnalysisReport`, `getTechnicianPerformanceReport`, `getWorkOrderSummaryReport`, `getRealTimeInventoryOnOrder`, plus `SupabaseProxy`'s one remaining caller in this file set (`get_parts_movement_v2`, already a native RPC — just switching transport).
+
+**Scope decisions made during planning (see the plan doc's Section 0 for full reasoning):** (1) `ReportableLeviesReport.jsx` excluded — belongs to Phase 10 (`GSTReturn`/Levies dependency). (2) `getWorkOrderSummaryReport`'s `WorkOrderStatus` entity lookup is dropped permanently, not deferred — confirmed `WorkOrder.status` already stores display text, not an opaque ID, so the lookup was already a no-op. (3) `getTechnicianPerformanceReport`'s payroll-progress-bar (`CashFlowSummary` dependency) is deferred to Phase 10 — see that phase's entry above. (4) Verification is split: the agent verifies each new function's output directly (no writes, so direct production reads are safe); the user verifies the live UI manually once `test.kensauto.ca` is repointed at the right Supabase project. (5) All 6 new Edge Functions follow this document's own documented error-handling convention (always `200`, error in the body) — a post-approval documentation cross-check caught that the plan's first draft had missed this already-established rule.
 
 ---
 
@@ -286,6 +292,8 @@ Tier F — Final
 **TL;DR:** GL/financial reporting reads, plus **confirmed** real schema/data migration for `GSTReturn`/`CashFlowEntry`/`CashFlowSummary`, and finishing the hybrid `FiscalPeriod` cutover.
 
 **Impacted files:** `pages/BalanceSheet.jsx`, `GLAcct.jsx`, `GLJournal.jsx`, `GeneralLedger.jsx`, `PLReport.jsx`, `FinancialDashboard.jsx`, `CashFlowTrendTab.jsx`, `pages/Taxes.jsx` (direct `GSTReturn`), `pages/CashFlow.jsx` (direct `CashFlowEntry`/`CashFlowSummary`), `ReportableLeviesReport.jsx`, `components/taxes/MarkPaidModal.jsx`.
+
+**Carried over from Phase 6:** once `CashFlowSummary` has a native table, restore the "Monthly Payroll Target vs Labour Sales" progress bar in `components/reports/TechnicianPerformanceReportModal.jsx` (currently hidden client-side) and its backing calc in `supabase/functions/autopro-getTechnicianPerformanceReport` (has a `TODO(Phase 10)` comment pointing at the original logic in `base44/functions/getTechnicianPerformanceReport/entry.ts` lines 396–420). Not verified as part of Phase 6 — needs its own verification pass here.
 
 **Description:** Migrate reporting reads first (lower risk), then design native schema for `GSTReturn`/`CashFlowEntry`/`CashFlowSummary` and migrate their CRUD. Finish the `FiscalPeriod` hybrid cutover alongside. **Do not modify** the already-native GL posting functions.
 
@@ -344,7 +352,7 @@ You can use the webview accessing the dev-login with the Test Employee. Username
 | 3 | Session/role behavior identical pre/post across 5+ spot-checked pages; existing users' preference values migrated correctly — spot-check several Employee records before/after. |
 | 4 | Tech time logging and WO↔Project pairing behave identically; `archiveWorkOrderProjects` output matches pre-migration behavior. |
 | 5 | Create/edit/merge Customer and Vehicle; `searchCustomers`/`searchVehicles` results match pre-migration output for identical queries. |
-| 6 | Run each report before/after with identical filters; diff output row-for-row. |
+| 6 | Zero writes, so agent verifies each new Edge Function's output directly (invoke with identical inputs, diff JSON against the pre-migration base44 response) without needing the UI; user separately verifies the live UI once `test.kensauto.ca` is repointed at the right Supabase project. See `phase_6_implementation_plan.md` Section 4 for the full split. |
 | 7 | Full inventory receive → adjust QOH → return → merge cycle; Category/Location/Return CRUD confirmed hitting native tables; OCR/upload tested with a real sample file. |
 | 8 | New `CashDrawerAdjustment`/`DepositSlipBreakdown` tables validated in dev first; bank reconciliation run twice (old vs. new path) — totals match to the cent; deposit slip/cheque PDFs generate identically. |
 | 9 | New `LinesOfCredit`/`LinesOfCreditTransaction`/`CashFlowEntry` tables validated in dev first; process a real supplier payment and LOC payment in dev; GL postings unaffected; ChartOfAccount reads confirmed native. |
