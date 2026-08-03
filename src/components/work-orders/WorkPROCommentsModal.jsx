@@ -6,7 +6,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, AlertCircle, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { Employee } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 
 export default function WorkPROCommentsModal({ open, onClose, workOrder, project, comments, onUpdate }) {
@@ -17,8 +16,9 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
-        setEmployees(allEmployees);
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
+        setEmployees(allEmployees || []);
       } catch (error) {
         console.error('Error loading employees:', error);
       }

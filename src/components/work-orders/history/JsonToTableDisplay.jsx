@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -137,7 +137,8 @@ export default function JsonToTableDisplay({ data, compareData }) {
 
   useEffect(() => {
     const loadChartOfAccounts = async () => {
-      const accounts = await ChartOfAccount.list();
+      const { data: accounts, error } = await supabase.from('ChartOfAccount').select('*');
+      if (error) console.error('Error loading chart of accounts:', error);
       setChartOfAccounts(accounts || []);
     };
 

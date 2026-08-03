@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save } from 'lucide-react';
-import { Employee } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
 const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018'; // This line has been updated
@@ -26,7 +26,8 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { OtherChargeList, ChartOfAccount } from '@/entities/all';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
@@ -48,14 +47,14 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [typesData, suppliersResponse, accountsData] = await Promise.all([
-          OtherChargeList.filter({ is_active: true }),
+        const [typesResponse, suppliersResponse, accountsResponse] = await Promise.all([
+          supabase.from('OtherChargeList').select('*').eq('is_active', true),
           supabase.from('Supplier').select('*'),
-          ChartOfAccount.list('account_number')
+          supabase.from('ChartOfAccount').select('*').order('account_number')
         ]);
-        setChargeTypes((typesData || []).map(unwrapEntityData));
+        setChargeTypes((typesResponse.data || []).map(unwrapEntityData));
         setSuppliers((suppliersResponse.data || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-        setGlAccounts((accountsData || []).map(unwrapEntityData));
+        setGlAccounts((accountsResponse.data || []).map(unwrapEntityData));
       } catch (error) {
         console.error('Failed to fetch data:', error);
         setChargeTypes([]);

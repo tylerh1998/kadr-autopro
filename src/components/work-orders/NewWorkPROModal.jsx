@@ -8,7 +8,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Save, Droplet, X } from 'lucide-react';
-import { Employee } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 
 export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
@@ -45,7 +44,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||

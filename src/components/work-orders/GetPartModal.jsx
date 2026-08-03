@@ -6,8 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Search, Plus, Trash2, Package, DollarSign, ShoppingCart, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TagAlong, OtherChargeList } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 
 
@@ -36,15 +34,15 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
         setSearching(true);
         setSearchError('');
         
-        const [salesClassesResponse, tagAlongsData, otherChargesData] = await Promise.all([
-          base44.functions.invoke('SupabaseProxy', { action: 'read' }),
-          TagAlong.list(null, 1000),
-          OtherChargeList.list(null, 1000)
+        const [salesClassesResponse, tagAlongsResponse, otherChargesResponse] = await Promise.all([
+          supabase.from('SalesClass').select('*'),
+          supabase.from('TagAlong').select('*').limit(1000),
+          supabase.from('OtherChargeList').select('*').limit(1000)
         ]);
-        
-        setSalesClasses(salesClassesResponse.data?.data || []);
-        setTagAlongs(tagAlongsData || []);
-        setOtherCharges(otherChargesData || []);
+
+        setSalesClasses(salesClassesResponse.data || []);
+        setTagAlongs(tagAlongsResponse.data || []);
+        setOtherCharges(otherChargesResponse.data || []);
         setInventoryResults([]);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -73,13 +71,15 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       if (open && contextLineItem && contextLineItem.part_number && !showQuantityPrompt && !contextPromptHandled) {
         try {
           setSearching(true);
-          const response = await base44.functions.invoke('searchInventory', {
-            searchTerm: contextLineItem.part_number,
-            limit: 50
+          const { data, error } = await supabase.rpc('search_inventory_ranked', {
+            p_search_term: contextLineItem.part_number,
+            p_limit: 50
           });
-          
-          if (response?.data?.records && response.data.records.length > 0) {
-            const matchingItem = response.data.records.find(
+          if (error) console.error('Error searching for context item:', error);
+          const records = (data || []).map(({ total_count, match_rank, ...item }) => item);
+
+          if (records.length > 0) {
+            const matchingItem = records.find(
               item => item.part_number === contextLineItem.part_number
             );
             
@@ -114,16 +114,13 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       setSearching(true);
       setSearchError('');
       try {
-        const response = await base44.functions.invoke('searchInventory', {
-          searchTerm: activeSearchTerm,
-          limit: 100
+        const { data, error } = await supabase.rpc('search_inventory_ranked', {
+          p_search_term: activeSearchTerm,
+          p_limit: 100
         });
-        
-        if (response?.data?.records) {
-          setInventoryResults(response.data.records);
-        } else {
-          setInventoryResults([]);
-        }
+
+        if (error) throw error;
+        setInventoryResults((data || []).map(({ total_count, match_rank, ...item }) => item));
       } catch (error) {
         console.error('Search error:', error);
         setSearchError('Search failed. Please try again.');

@@ -567,6 +567,7 @@ export default function ReconcilePage() {
                               <Checkbox
                                 checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
                                 onCheckedChange={toggleAll}
+                                onClick={(e) => e.stopPropagation()}
                               />
                               <span className="text-sm font-medium">Select All</span>
                             </div>
@@ -589,6 +590,7 @@ export default function ReconcilePage() {
                               <Checkbox
                                 checked={selectedTransactions.has(tx.id)}
                                 onCheckedChange={() => toggleTransaction(tx.id)}
+                                onClick={(e) => e.stopPropagation()}
                               />
                             </td>
                             <td className="p-3">

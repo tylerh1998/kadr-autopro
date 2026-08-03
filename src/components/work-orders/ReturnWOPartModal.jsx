@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ReturnReason } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 
@@ -19,8 +18,9 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     if (open) {
       const fetchReasons = async () => {
         try {
-          const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
-          setReasons(reasonData);
+          const { data: reasonData, error } = await supabase.from('ReturnReason').select('*').eq('is_active', true).eq('hide', false);
+          if (error) throw error;
+          setReasons(reasonData || []);
         } catch (error) {
           console.error("Failed to fetch return reasons:", error);
         }

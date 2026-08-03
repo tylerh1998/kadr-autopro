@@ -10,9 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
-import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
 import EditProjectDetailsModal from './EditProjectDetailsModal';
@@ -147,7 +145,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||

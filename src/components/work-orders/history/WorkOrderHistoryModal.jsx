@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import ModalCloseButton from '@/components/ui/modal-close-button';
 import { format } from 'date-fns';
@@ -55,13 +54,13 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
 
     const loadHistory = async () => {
       setLoading(true);
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'workorderversionhistory',
-        match: { workorder_id: workOrderId },
-        orderBy: { column: 'changed_at', ascending: false }
-      });
-      const rawRecords = response.data?.data || [];
+      const { data: rawRecordsData, error } = await supabase
+        .from('workorderversionhistory')
+        .select('*')
+        .eq('workorder_id', workOrderId)
+        .order('changed_at', { ascending: false });
+      if (error) console.error('Error loading work order history:', error);
+      const rawRecords = rawRecordsData || [];
       const enriched = await Promise.all(
         rawRecords.map(async (record) => ({
           ...record,
