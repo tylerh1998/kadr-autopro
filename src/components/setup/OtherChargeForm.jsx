@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Save, X } from 'lucide-react';
-import { Supplier } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAccounts }) {
   const [formData, setFormData] = useState({
@@ -27,8 +27,8 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
     const fetchSuppliers = async () => {
       setLoadingSuppliers(true);
       try {
-        const suppliersData = await Supplier.list('name');
-        setSuppliers(suppliersData);
+        const { data: suppliersData } = await supabase.from('Supplier').select('*').order('name');
+        setSuppliers(suppliersData || []);
       } catch (error) {
         console.error('Error fetching suppliers:', error);
       } finally {

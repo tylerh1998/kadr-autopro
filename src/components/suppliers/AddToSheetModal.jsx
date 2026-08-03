@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -40,14 +40,19 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
 
     setSubmitting(true);
     try {
-      await base44.entities.CashFlowEntry.create({
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('CashFlowEntry').insert([{
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         supplier: formData.supplierName,
         supplier_id: initialValues?.supplierId,
         loc_id: initialValues?.locId,
         amount: parseFloat(formData.amount),
         due_date: formData.dueDate,
-        amount_paid: 0
-      });
+        amount_paid: 0,
+        created_date: now,
+        updated_date: now
+      }]);
+      if (error) throw error;
 
       toast.success("Successfully added to Cash Flow");
       onClose();

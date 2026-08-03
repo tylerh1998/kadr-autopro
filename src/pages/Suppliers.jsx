@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
@@ -55,10 +55,10 @@ export default function SuppliersPage() {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
-      if (response.data && response.data.data) {
-        let allSuppliers = response.data.data;
-        
+      const { data: allSuppliersData, error: loadError } = await supabase.from('Supplier').select('*');
+      if (!loadError && allSuppliersData) {
+        let allSuppliers = allSuppliersData;
+
         if (!activeSearchTerm || activeSearchTerm.trim() === '') {
           const sorted = allSuppliers.sort((a, b) => {
             if (a.pin_to_top && !b.pin_to_top) return -1;
@@ -93,7 +93,7 @@ export default function SuppliersPage() {
           setSuppliers(scoredSuppliers);
         }
       } else {
-        console.error('Search failed:', response.data?.error);
+        console.error('Search failed:', loadError?.message);
       }
     } catch (error) {
       console.error('Error loading suppliers:', error);
@@ -104,10 +104,12 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (formData) => {
     try {
+      const now = new Date().toISOString();
       if (editingSupplier) {
-        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: editingSupplier.id, data: formData });
+        await supabase.from('Supplier').update({ ...formData, updated_date: now }).eq('id', editingSupplier.id);
       } else {
-        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'Supplier', data: formData });
+        const id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        await supabase.from('Supplier').insert([{ id, ...formData, created_date: now, updated_date: now }]);
       }
       setShowForm(false);
       setEditingSupplier(null);
@@ -121,10 +123,10 @@ export default function SuppliersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
-      const allSuppliers = response.data?.data || [];
+      const { data: allSuppliersData } = await supabase.from('Supplier').select('*');
+      const allSuppliers = allSuppliersData || [];
       const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
-      
+
       if (lockedSuppliers.length === 0) {
         alert('No locked suppliers found.');
         setShowFlushConfirm(false);
@@ -132,8 +134,8 @@ export default function SuppliersPage() {
         return;
       }
 
-      const updatePromises = lockedSuppliers.map(supplier => 
-        base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: { LockedByUser: null } })
+      const updatePromises = lockedSuppliers.map(supplier =>
+        supabase.from('Supplier').update({ LockedByUser: null }).eq('id', supplier.id)
       );
 
       await Promise.all(updatePromises);

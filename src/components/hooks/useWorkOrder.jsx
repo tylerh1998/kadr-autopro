@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Customer, Vehicle } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 
@@ -114,12 +113,14 @@ export function useWorkOrder(roNumber, options = {}) {
 
       if (wo.customer_id && wo.vehicle_id) {
         const [customerResult, vehicleResult, appointmentsResult] = await Promise.all([
-          Customer.get(wo.customer_id).catch(() => null),
-          Vehicle.get(wo.vehicle_id).catch(() => null),
+          supabase.from('Customer').select('*').eq('id', wo.customer_id).maybeSingle(),
+          supabase.from('Vehicle').select('*').eq('id', wo.vehicle_id).maybeSingle(),
           supabase.from('Appointment').select('*').eq('work_order_id', wo.id),
         ]);
-        const customerData = customerResult;
-        const vehicleData = vehicleResult;
+        if (customerResult.error) console.error('Error fetching Customer:', customerResult.error);
+        if (vehicleResult.error) console.error('Error fetching Vehicle:', vehicleResult.error);
+        const customerData = customerResult.data || null;
+        const vehicleData = vehicleResult.data || null;
         const appointmentsData = appointmentsResult.data || [];
 
         setCustomer(customerData);

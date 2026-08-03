@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,11 +96,13 @@ export default function SupplierTxViewPage() {
 
         setLoading(true);
         try {
-            const response = await base44.functions.invoke('getSupplierTransactions', {
-                supplierId,
-                dateRange: {
-                    from: dateRange.from.toISOString(),
-                    to: dateRange.to.toISOString()
+            const response = await supabase.functions.invoke('autopro-getSupplierTransactions', {
+                body: {
+                    supplierId,
+                    dateRange: {
+                        from: dateRange.from.toISOString(),
+                        to: dateRange.to.toISOString()
+                    }
                 }
             });
 

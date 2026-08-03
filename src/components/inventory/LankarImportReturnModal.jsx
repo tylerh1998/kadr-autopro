@@ -9,7 +9,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { InventoryItem, InventoryReturn, Supplier } from '@/entities/all';
+import { InventoryItem, InventoryReturn } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { searchInventory } from '@/functions/searchInventory';
 
 // Helper function to safely parse and format dates
@@ -180,8 +181,8 @@ export default function LankarImportReturnModal({ open, onClose, onUpdate }) {
 
   const loadData = async () => {
     try {
-      const suppliersData = await Supplier.filter({ inventory_supplier: true }, 'name');
-      setSuppliers(suppliersData);
+      const { data: suppliersData } = await supabase.from('Supplier').select('*').eq('inventory_supplier', true).order('name');
+      setSuppliers(suppliersData || []);
       setSearchResults([]);
     } catch (error) {
       console.error('Error loading data:', error);

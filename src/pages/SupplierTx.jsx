@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -232,9 +232,9 @@ export default function SupplierTxPage() {
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        const locs = await base44.entities.LinesOfCredit.list();
+        const { data: locs } = await supabase.from('LinesOfCredit').select('*');
         const map = {};
-        locs.forEach(loc => map[loc.id] = loc.name);
+        (locs || []).forEach(loc => map[loc.id] = loc.name);
         setSourceMap(map);
       } catch (err) {
         console.error('Error fetching sources', err);
@@ -331,7 +331,7 @@ export default function SupplierTxPage() {
   const acquireLock = useCallback(async () => {
     if (!supplierId) return false;
     try {
-      const response = await retryWithBackoff(() => base44.functions.invoke('acquireSupplierLock', { supplierId }));
+      const response = await retryWithBackoff(() => supabase.functions.invoke('autopro-acquireSupplierLock', { body: { supplierId } }));
       if (response.data?.success) {
         setLockAcquired(true);
         return true;
@@ -351,9 +351,9 @@ export default function SupplierTxPage() {
   const releaseLock = useCallback(async (userToUnlock = currentUser) => {
     if (!supplierId || !userToUnlock) return;
     try {
-      const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
-      if (res.data?.data?.[0]?.LockedByUser === userToUnlock.email) {
-        await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: '' } }));
+      const res = await retryWithBackoff(() => supabase.from('Supplier').select('LockedByUser').eq('id', supplierId));
+      if (res.data?.[0]?.LockedByUser === userToUnlock.email) {
+        await retryWithBackoff(() => supabase.from('Supplier').update({ LockedByUser: '' }).eq('id', supplierId));
       }
     } catch {}
   }, [supplierId, retryWithBackoff, currentUser]);
@@ -382,8 +382,8 @@ export default function SupplierTxPage() {
     try {
       const user = employee;
       const [response, suppliersResponse] = await Promise.all([
-        base44.functions.invoke('getSupplierTransactions', { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } }),
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' })
+        supabase.functions.invoke('autopro-getSupplierTransactions', { body: { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } } }),
+        supabase.from('Supplier').select('*')
       ]);
       setCurrentUser(user);
       if (!response.data.success) throw new Error(response.data.error || 'Failed to fetch supplier transactions');
@@ -399,7 +399,7 @@ export default function SupplierTxPage() {
       setLockedByUserName('');
       setSupplier(supplierData);
       setChartOfAccounts(chartOfAccountsData);
-      setSupplierOptions((suppliersResponse.data?.data || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })));
+      setSupplierOptions((suppliersResponse.data || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })));
       setPayments(paymentsData.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date)));
       setCurrentBalance(totalBalance);
       const mapLine = (line) => {
@@ -725,7 +725,7 @@ export default function SupplierTxPage() {
       }
       const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
       const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
-      const response = await base44.functions.invoke('saveSupplierInvoiceTransactions', { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) });
+      const response = await supabase.functions.invoke('autopro-saveSupplierInvoiceTransactions', { body: { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) } });
       if (response.data.success) {
         await loadData();
         return true;
@@ -792,7 +792,7 @@ export default function SupplierTxPage() {
     setLoading(true);
     try {
       console.log('Cancel supplier payment payload:', payment, 'payment.id:', payment?.id);
-      const response = await base44.functions.invoke('cancelSupplierPayment', { paymentId: payment.id });
+      const response = await supabase.functions.invoke('autopro-cancelSupplierPayment', { body: { paymentId: payment.id } });
       if (response.data.success) {
         alert('Payment cancelled successfully.');
         loadData();
@@ -967,10 +967,10 @@ export default function SupplierTxPage() {
   const handleSupplierUpdate = async (updatedSupplierData) => {
     try {
       if (!supplier?.id) return alert('Missing supplier ID.');
-      await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: updatedSupplierData });
+      await supabase.from('Supplier').update({ ...updatedSupplierData, updated_date: new Date().toISOString() }).eq('id', supplier.id);
       setShowEditSupplierModal(false);
-      const res = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplier.id } });
-      setSupplier(res.data?.data?.[0] || supplier);
+      const res = await supabase.from('Supplier').select('*').eq('id', supplier.id);
+      setSupplier(res.data?.[0] || supplier);
       alert('Supplier updated successfully');
     } catch {
       alert('Failed to update supplier.');

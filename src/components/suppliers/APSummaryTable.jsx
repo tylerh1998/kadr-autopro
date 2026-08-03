@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -76,16 +76,20 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
     try {
       const currentMountainDate = getMountainToday();
 
-      const [response, cfEntries, locs] = await Promise.all([
-        base44.functions.invoke('getAPSummary', {
-          asOfDate: formatDateForApi(selectedAsOfDate),
-          startDate: '1900-01-01',
-          endDate: formatDateForApi(currentMountainDate),
-          supplierIdFilter: null
+      const [response, cfEntriesResponse, locsResponse] = await Promise.all([
+        supabase.functions.invoke('autopro-getAPSummary', {
+          body: {
+            asOfDate: formatDateForApi(selectedAsOfDate),
+            startDate: '1900-01-01',
+            endDate: formatDateForApi(currentMountainDate),
+            supplierIdFilter: null
+          }
         }),
-        base44.entities.CashFlowEntry.list(),
-        base44.entities.LinesOfCredit.filter({ is_active: true })
+        supabase.from('CashFlowEntry').select('*'),
+        supabase.from('LinesOfCredit').select('*').eq('is_active', true)
       ]);
+      const cfEntries = cfEntriesResponse.data;
+      const locs = locsResponse.data;
 
       if (response.data.success) {
         const rows = response.data.data || [];
@@ -250,7 +254,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
   const handleCashFlowAdded = async () => {
     // Refresh local cash flow entries
     try {
-      const cfEntries = await base44.entities.CashFlowEntry.list();
+      const { data: cfEntries } = await supabase.from('CashFlowEntry').select('*');
       setCashFlowEntries(cfEntries || []);
     } catch (error) {
       console.error("Failed to refresh cash flow entries:", error);

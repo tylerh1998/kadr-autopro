@@ -13,12 +13,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, Loader2, X } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
-import { LinesOfCredit } from '@/entities/all';
 import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
@@ -192,11 +191,13 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         let entries = [];
 
         if (supplier.id) {
-          entries = await base44.entities.CashFlowEntry.filter({ supplier_id: supplier.id }, '-updated_date', 20);
+          const { data } = await supabase.from('CashFlowEntry').select('*').eq('supplier_id', supplier.id).order('updated_date', { ascending: false }).limit(20);
+          entries = data || [];
         }
 
         if ((!entries || entries.length === 0) && supplier.name) {
-          entries = await base44.entities.CashFlowEntry.filter({ supplier: supplier.name }, '-updated_date', 20);
+          const { data } = await supabase.from('CashFlowEntry').select('*').eq('supplier', supplier.name).order('updated_date', { ascending: false }).limit(20);
+          entries = data || [];
         }
 
         if (!cancelled) {
@@ -229,17 +230,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const loadData = async () => {
     setLoading(true);
     try {
-      const [banksResponse, locs] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        }),
-        base44.entities.LinesOfCredit.filter({ is_active: true })
+      const [banksResponse, locsResponse] = await Promise.all([
+        supabase.from('BankAccount').select('*'),
+        supabase.from('LinesOfCredit').select('*').eq('is_active', true)
       ]);
 
-      const banks = (banksResponse.data?.data || []).filter(acc => acc.is_active !== false);
+      const banks = (banksResponse.data || []).filter(acc => acc.is_active !== false);
       setBankAccounts(banks);
-      setLinesOfCredit(locs || []);
+      setLinesOfCredit(locsResponse.data || []);
 
       if (invoiceLines && Array.isArray(invoiceLines)) {
         // Create a unique key for each invoice since conceptual invoices might not have unique IDs
@@ -440,8 +438,10 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         
         if (paymentData.payment_method === 'Line of Credit') {
           // For LOC, check LOC lock
-          accountToCheck = await LinesOfCredit.get(paymentData.from_account_id);
-          
+          const locResponse = await supabase.from('LinesOfCredit').select('*').eq('id', paymentData.from_account_id).single();
+          if (locResponse.error || !locResponse.data) throw new Error(locResponse.error?.message || 'Line of credit not found');
+          accountToCheck = locResponse.data;
+
           if (accountToCheck.locked_by_user && accountToCheck.locked_timestamp) {
             const lockStatus = checkEntityLock(accountToCheck, currentUser?.email || '');
             
@@ -453,12 +453,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           }
         } else {
           // For Bank Account or Cheque, check the bank account lock
-          const bankAccountResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'BankAccount',
-            match: { id: paymentData.from_account_id }
-          });
-          accountToCheck = bankAccountResponse.data?.data?.[0];
+          const bankAccountResponse = await supabase.from('BankAccount').select('*').eq('id', paymentData.from_account_id);
+          accountToCheck = bankAccountResponse.data?.[0];
 
           if (!accountToCheck) {
             setLoading(false);
@@ -556,15 +552,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       }
 
       // Call backend function to process payment
-      const response = await base44.functions.invoke('processSupplierPayment', {
-        supplierId: supplier.id,
-        paymentDate: paymentData.payment_date,
-        paymentMethod: paymentData.payment_method,
-        fromAccountId: paymentData.from_account_id,
-        totalPaymentAmount: paymentAmount,
-        chequeNumber: chequeNumber || null,
-        notes: paymentData.notes || null,
-        appliedInvoices: appliedInvoicesDetails
+      const response = await supabase.functions.invoke('autopro-processSupplierPayment', {
+        body: {
+          supplierId: supplier.id,
+          paymentDate: paymentData.payment_date,
+          paymentMethod: paymentData.payment_method,
+          fromAccountId: paymentData.from_account_id,
+          totalPaymentAmount: paymentAmount,
+          chequeNumber: chequeNumber || null,
+          notes: paymentData.notes || null,
+          appliedInvoices: appliedInvoicesDetails
+        }
       });
 
       // Handle response
@@ -574,9 +572,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         const paymentId = result.payment_id;
 
         if (chequeNumber && addChequeToCashFlow) {
-          const existingRows = await base44.entities.CashFlowEntry.list('-sort_order', 1);
+          const { data: existingRows } = await supabase.from('CashFlowEntry').select('*').order('sort_order', { ascending: false }).limit(1);
           const nextSortOrder = (existingRows?.[0]?.sort_order || 0) + 1;
-          await base44.entities.CashFlowEntry.create({
+          const nowIso = new Date().toISOString();
+          await supabase.from('CashFlowEntry').insert([{
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
             supplier_id: supplier.id,
             supplier: supplier.name,
             amount: paymentAmount,
@@ -584,19 +584,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             date_paid: paymentData.payment_date,
             chq_number: chequeNumber,
             method: 'Cheque',
-            sort_order: nextSortOrder
-          });
+            sort_order: nextSortOrder,
+            created_date: nowIso,
+            updated_date: nowIso
+          }]);
         }
-        
+
         // Start polling for status
         const pollInterval = setInterval(async () => {
             try {
-                const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'SupplierPayment',
-                    match: { id: paymentId }
-                });
-                const payment = paymentResponse.data?.data?.[0];
+                const paymentResponse = await supabase.from('SupplierPayment').select('*').eq('id', paymentId);
+                const payment = paymentResponse.data?.[0];
                 if (!payment) return;
 
                 if (payment.status === 'completed') {
@@ -788,9 +786,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                                 setCalculating(true);
                                 setCalculationResult(null);
                                 try {
-                                    const res = await base44.functions.invoke('calculateSupplierPaymentBreakdown', {
-                                        supplierId: supplier.id,
-                                        paymentAmount: amount
+                                    const res = await supabase.functions.invoke('autopro-calculateSupplierPaymentBreakdown', {
+                                        body: {
+                                            supplierId: supplier.id,
+                                            paymentAmount: amount
+                                        }
                                     });
                                     if (res.data.success) {
                                         setCalculationResult(res.data.breakdown);

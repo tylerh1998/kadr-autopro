@@ -324,12 +324,12 @@ All 8 legacy sources read in full from `base44/functions/<name>/entry.ts` 2026-0
 
 ### 9B.3) Task List
 
-- [ ] All 8 functions ported, deployed to dev, verified via curl (success + `200+{error}` paths) — `autopro-getAPSummary`, `autopro-acquireSupplierLock`, `autopro-calculateSupplierPaymentBreakdown`, `autopro-saveSupplierInvoiceTransactions`, `autopro-cancelSupplierPayment`, `autopro-getSupplierTransactions`, `autopro-processSupplierPayment`, `autopro-executeSupplierPayment`.
-- [ ] All frontend call sites converted per the 9B.1 table (7 files) + the 3 drive-by `Supplier` reads.
-- [ ] Every `Promise.all` flagged in 9B.1 (`SupplierTx.jsx` `loadData`, `APSummaryTable.jsx` `loadData`, `SupplierPaymentModal.jsx` `loadData`, `IssuedChequesTable.jsx` `loadData`) converted as a single atomic edit, not split across separate passes.
-- [ ] Repo-wide grep: zero remaining `SupabaseProxy`/base44 references for `Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` in 9B-scoped files.
-- [ ] `npx vite build` clean.
-- [ ] Apply same functions to production after dev verification.
+- [x] All 8 functions ported, deployed to dev, verified via curl (success + `200+{error}` paths) — `autopro-getAPSummary`, `autopro-acquireSupplierLock`, `autopro-calculateSupplierPaymentBreakdown`, `autopro-saveSupplierInvoiceTransactions`, `autopro-cancelSupplierPayment`, `autopro-getSupplierTransactions`, `autopro-processSupplierPayment`, `autopro-executeSupplierPayment`.
+- [x] All frontend call sites converted per the 9B.1 table (7 files) + the 3 drive-by `Supplier` reads.
+- [x] Every `Promise.all` flagged in 9B.1 (`SupplierTx.jsx` `loadData`, `APSummaryTable.jsx` `loadData`, `SupplierPaymentModal.jsx` `loadData`, `IssuedChequesTable.jsx` `loadData`) converted as a single atomic edit, not split across separate passes.
+- [x] Repo-wide grep: zero remaining `SupabaseProxy`/base44 references for `Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` in 9B-scoped files.
+- [x] `npx vite build` clean.
+- [x] Apply same functions to production after dev verification. — All 8 deployed to `hbcrwkmgsazqrvsrmxyr`, confirmed `status: ACTIVE`.
 
 ### 9B.4) Verification Checklist
 
@@ -461,7 +461,22 @@ Once all 4 sub-phases are individually held-and-cleared, run this end-to-end pas
 
 ---
 
-### 9B — pre-execution research complete 2026-08-03, detailed plan below not yet executed
+### 9B — execution complete 2026-08-03, HOLD FOR TESTING (webview verification pending)
+
+All 8 functions ported byte-faithful to the researched legacy sources below, deployed to dev (`sitihbdnuxifwibontcm`) and verified via curl against both the error paths and the real seeded `Test Supplier` row (id `999999999`) — `getSupplierTransactions` confirmed returning joined `ChartOfAccount`/`SupplierPayment`/`BankAccount` data correctly, `calculateSupplierPaymentBreakdown` confirmed producing correct FIFO output, `acquireSupplierLock` confirmed round-tripping the lock (released again after the test). All 8 then deployed to production (`hbcrwkmgsazqrvsrmxyr`), confirmed `status: ACTIVE`.
+
+All 7 files in the 9B.1 table converted (`Suppliers.jsx`, `SupplierTx.jsx`, `SupplierTxView.jsx`, `APSummaryTable.jsx`, `AddToSheetModal.jsx`, `SupplierPaymentModal.jsx`, `IssuedChequesTable.jsx`) plus the 3 drive-by `Supplier` reads (`InventoryPartsReturnModal.jsx`, `LankarImportReturnModal.jsx`, `OtherChargeForm.jsx`). Every flagged `Promise.all` (`SupplierTx.jsx` `loadData`, `APSummaryTable.jsx` `loadData`, `SupplierPaymentModal.jsx` `loadData`, `IssuedChequesTable.jsx` `loadData`) converted atomically in one edit each, per Section 2's standing lesson. `SupplierTx.jsx`'s `handleSupplierUpdate` (Supplier read/update, not explicitly enumerated in the original 9B.1 table but same in-scope entity) converted alongside the rest while the file was already being touched.
+
+Repo-wide grep confirmed zero remaining `SupabaseProxy`/`base44.functions`/`base44.entities`/`@/entities/all` references for `Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` across all 10 touched files. `npx vite build` passed clean (exit 0, no errors, `dist/` regenerated).
+
+**Not yet done — needs you, per your "hold for webview testing" instruction:** the full 9B.4 manual verification checklist below (live click-through against `test.kensauto.ca` under `/dev-login`, plus a full throwaway payment lifecycle verified via SQL). Nothing has been tested end-to-end in the actual UI yet — only via curl against the raw functions and a clean `vite build`.
+
+---
+
+<details>
+<summary>9B — original pre-execution research (2026-08-03), preserved for audit trail</summary>
+
+Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) re-verified every assumption in 9B's original draft against current reality rather than trusting the pre-9A draft at face value:
 
 Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) re-verified every assumption in 9B's original draft against current reality rather than trusting the pre-9A draft at face value:
 
@@ -473,3 +488,5 @@ Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) r
 - **All frontend files in the 9B.1 table re-read against their current on-disk state** (not the pre-9A draft's memory of them) — confirmed the call patterns match what's documented below, including the exact `Promise.all` at `SupplierTx.jsx`'s `loadData()` (still mixes `getSupplierTransactions` with a `SupabaseProxy` Supplier read — both still base44 today, so no decoupling failure *yet*, but 9B's port order matters here, see 9B.1 below).
 - **`Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` all confirmed 1 RLS policy each on production** via direct `pg_policies` query — no RLS gap on any of 9B's 4 entities.
 - Nothing out of scope was encountered or deferred in this research pass — the file list and function list from the original blueprint held up under verification, only the details underneath needed correcting.
+
+</details>

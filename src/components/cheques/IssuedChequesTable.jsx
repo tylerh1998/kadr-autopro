@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -73,25 +73,15 @@ export default function IssuedChequesTable() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [paymentsResponse, suppliersResponse, bankAccountsData] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierPayment',
-          match: { payment_method: 'Cheque' }
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier'
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        })
+      const [paymentsResponse, suppliersResponse, bankAccountsResponse] = await Promise.all([
+        supabase.from('SupplierPayment').select('*').eq('payment_method', 'Cheque'),
+        supabase.from('Supplier').select('*'),
+        supabase.from('BankAccount').select('*')
       ]);
 
-      const paymentsData = paymentsResponse.data?.data || [];
-      const suppliersData = suppliersResponse.data?.data || [];
-      const bankAccountsList = bankAccountsData.data?.data || [];
+      const paymentsData = paymentsResponse.data || [];
+      const suppliersData = suppliersResponse.data || [];
+      const bankAccountsList = bankAccountsResponse.data || [];
 
       // Sort by cheque number (numeric if possible, otherwise alphabetic)
       const sortedPayments = paymentsData.sort((a, b) => {
@@ -132,12 +122,7 @@ export default function IssuedChequesTable() {
     // Optimistic UI update
     setCheques(prev => prev.map(c => c.id === id ? { ...c, notes: newNote } : c));
     try {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'SupplierPayment',
-          id,
-          data: { notes: newNote }
-        });
+        await supabase.from('SupplierPayment').update({ notes: newNote }).eq('id', id);
     } catch (error) {
         console.error("Failed to update note:", error);
         // Could reload data or revert optimistic update here if needed
