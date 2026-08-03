@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Customer, Vehicle, TagAlong, Appointment, OtherChargeList } from '@/entities/all';
+import { Customer, Vehicle, TagAlong, OtherChargeList } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { getworkorderdata } from '@/functions/getworkorderdata';
 
 const parseLineItems = async (itemsString) => {
@@ -118,13 +119,17 @@ export function useWorkOrder(roNumber, options = {}) {
         if (useFunctionData) {
             customerData = wo.customer_details || await Customer.get(wo.customer_id).catch(() => null);
             vehicleData = wo.vehicle_details || await Vehicle.get(wo.vehicle_id).catch(() => null);
-            appointmentsData = await Appointment.filter({ work_order_id: wo.id });
+            const { data } = await supabase.from('Appointment').select('*').eq('work_order_id', wo.id);
+            appointmentsData = data || [];
         } else {
-            [customerData, vehicleData, appointmentsData] = await Promise.all([
+            const [customerResult, vehicleResult, appointmentsResult] = await Promise.all([
               Customer.get(wo.customer_id).catch(() => null),
               Vehicle.get(wo.vehicle_id).catch(() => null),
-              Appointment.filter({ work_order_id: wo.id }),
+              supabase.from('Appointment').select('*').eq('work_order_id', wo.id),
             ]);
+            customerData = customerResult;
+            vehicleData = vehicleResult;
+            appointmentsData = appointmentsResult.data || [];
         }
 
         setCustomer(customerData);

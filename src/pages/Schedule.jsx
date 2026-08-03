@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Appointment, Employee } from '@/entities/all';
 import { getworkorderlist } from '@/functions/getworkorderlist';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import AppointmentForm from '../components/appointments/AppointmentForm';
 import CustomCalendar from '../components/appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
 export default function SchedulePage() {
+  const { employee: currentEmployee } = useAuth();
   const [events, setEvents] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
@@ -81,13 +82,17 @@ export default function SchedulePage() {
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
     setLoading(true);
     try {
-      const [appointmentsData, employeesData, workOrdersResponse, custRes, vehRes] = await Promise.all([
-        Appointment.list(),
-        Employee.list(),
+      const [apptRes, empRes, workOrdersResponse, custRes, vehRes] = await Promise.all([
+        supabase.from('Appointment').select('*'),
+        supabase.from('Employee').select('*'),
         getworkorderlist({}),
         supabase.from('Customer').select('*').order('org_name', { ascending: true }),
         supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
+      if (apptRes.error) throw apptRes.error;
+      if (empRes.error) throw empRes.error;
+      const appointmentsData = apptRes.data || [];
+      const employeesData = empRes.data || [];
       const workOrdersData = workOrdersResponse?.data?.data || [];
       const customersList = custRes.data || [];
       const vehiclesList = vehRes.data || [];
@@ -256,8 +261,12 @@ export default function SchedulePage() {
         updatedAppointment.employee_id = newSlot.employee_id;
       }
 
-      await Appointment.update(event.id, updatedAppointment);
-      
+      const { error } = await supabase
+        .from('Appointment')
+        .update({ ...updatedAppointment, updated_date: new Date().toISOString() })
+        .eq('id', event.id);
+      if (error) throw error;
+
     } catch (error) {
       console.error('Error updating appointment:', error);
       alert('Failed to move appointment. Please try again.');
@@ -327,9 +336,18 @@ export default function SchedulePage() {
       }
 
       if (selectedAppointment) {
-        await Appointment.update(selectedAppointment.id, formData);
+        const { error } = await supabase
+          .from('Appointment')
+          .update({ ...formData, updated_date: new Date().toISOString() })
+          .eq('id', selectedAppointment.id);
+        if (error) throw error;
       } else {
-        await Appointment.create(formData);
+        const { error } = await supabase.from('Appointment').insert({
+          ...formData,
+          created_by: currentEmployee?.email || '',
+          created_by_id: currentEmployee?.autopro_user_id,
+        });
+        if (error) throw error;
       }
       setShowModal(false);
       loadData();
@@ -342,7 +360,8 @@ export default function SchedulePage() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(id);
+        const { error } = await supabase.from('Appointment').delete().eq('id', id);
+        if (error) throw error;
         setShowModal(false);
         loadData();
       } catch (error) {
@@ -362,7 +381,8 @@ export default function SchedulePage() {
   const handleDeleteAppointment = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(appointmentId);
+        const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+        if (error) throw error;
         loadData();
       } catch (error) {
         console.error('Error deleting appointment:', error);

@@ -7,8 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TagAlong } from "@/entities/TagAlong";
-import { InventoryCategory } from "@/entities/InventoryCategory";
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check } from "lucide-react";
 
 export default function InventoryAddModal({ open, onClose, onAdd, suppliers, salesClasses, inventoryLocations }) {
@@ -86,12 +86,15 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
 
     const loadData = async () => {
         try {
-            const [tagAlongsData, categoriesData] = await Promise.all([
+            const [tagAlongsData, categoriesResult] = await Promise.all([
                 TagAlong.list(),
-                InventoryCategory.list()
+                supabase.from('InventoryCategory').select('*').order('name')
             ]);
+            if (categoriesResult.error) {
+                console.error('Error loading categories:', categoriesResult.error);
+            }
             setTagAlongs(tagAlongsData);
-            setInternalCategories(categoriesData);
+            setInternalCategories(categoriesResult.data || []);
         } catch (error) {
             console.error('Error loading data:', error);
         }

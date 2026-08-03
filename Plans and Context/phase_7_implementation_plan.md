@@ -170,7 +170,7 @@ Phase 7 grew substantially during planning: 3 new tables requiring schema design
 
 | Sub-Phase | Scope Summary | Status | Depends On |
 |-----------|---------------|--------|------------|
-| **7A** | Foundation: 3 schema migrations + CSV data imports (dev→prod), plus the simple entity swaps that depend only on that: `InventoryAddModal.jsx` (category dropdown), `LocationModal.jsx` (full), `InventoryPartsReturnModal.jsx` (ReturnReason read only), `EditReturnInfoModal.jsx` (full) | [ ] Not Started | None — start here |
+| **7A** | Foundation: 3 schema migrations + CSV data imports (dev→prod), plus the simple entity swaps that depend only on that: `InventoryAddModal.jsx` (category dropdown), `LocationModal.jsx` (full), `InventoryPartsReturnModal.jsx` (ReturnReason read only), `EditReturnInfoModal.jsx` (full) | [x] Complete (executed 2026-08-03, pending your UI validation) | None — start here |
 | **7B** | Complex rewire + new Edge Function: `LegacyWarrantyReturnModal.jsx` full native rewire, `searchInventory` thin-proxy swap, new `autopro-suggestInventoryCategory` Gemini function + both its frontend call sites (`InventoryAddModal.jsx`'s suggestion call, `InventoryAdd.jsx`'s suggestion call) | [ ] Not Started | **7A** (needs `InventoryCategory`/`InventoryReturn` tables to exist) |
 | **7C** | `InventoryAdd.jsx`'s remaining Base44 calls (Supplier/SalesClass/Location/Category reads, lock management) + GL/audit work: `autopro-processQOHAdjustment` rounding fix, `autopro-processInventoryReceipt` audit (verify-only), `autopro-processPartsInvoiceOCR` deploy-check (verify-only) | [ ] Not Started | **7A** (needs `InventoryLocation`/`InventoryCategory` tables), **7B** (needs the suggestion call already wired so 7C doesn't re-touch it) |
 
@@ -500,45 +500,47 @@ Line 112-113: already uses `reason.reason` — **no change needed**, confirms th
 
 ### 7A.3) Verification Checklist
 
-- [ ] **7A.1: Dev-branch schema migrations**
-  - [ ] `InventoryCategory`, `InventoryLocation`, `ReturnReason` `CREATE TABLE` migrations applied to the **dev branch** first
-  - [ ] All three new tables have the `"Enable all operations for all users"` RLS policy applied
-  - [ ] `information_schema.columns` query confirms expected columns on the dev branch match each CSV's header exactly
+**Execution note (2026-08-03):** All code and database steps below were executed via the Supabase MCP tools and direct file edits. Everything marked `[x]` was verified programmatically (row counts, `information_schema`, build output, grep). Items still marked `[ ]` require manual click-through in the actual UI (`test.kensauto.ca`), which only you can do — **please run through these before we move to 7B.**
 
-- [ ] **7A.2: CSV data import (dev branch, then production)**
-  - [ ] CSVs read from `Plans and Context/InventoryCategory_export.csv`, `InventoryLocation_export.csv`, `ReturnReason_export.csv`
-  - [ ] Data imported into dev-branch tables first via Supabase Table Editor CSV import; row counts match source CSVs
-  - [ ] A few sample rows manually verified for correctness (especially `reason` field on `ReturnReason`, not `name`; `is_active`/`hide` booleans imported correctly from `TRUE`/`FALSE` text)
-  - [ ] Same import repeated against production once dev-branch import is verified correct
+- [x] **7A.1: Dev-branch schema migrations**
+  - [x] `InventoryCategory`, `InventoryLocation`, `ReturnReason` `CREATE TABLE` migrations applied to the **dev branch** (`sitihbdnuxifwibontcm`) first — via `apply_migration`, migration name `create_inventory_category_location_returnreason_tables`
+  - [x] All three new tables have the `"Enable all operations for all users"` RLS policy applied (included in the same migration)
+  - [x] Row counts confirmed matching CSV source exactly: InventoryCategory=16, InventoryLocation=263, ReturnReason=11
 
-- [ ] **7A.3: Production schema migrations**
-  - [ ] Same three `CREATE TABLE` migrations applied to production after dev-branch verification
-  - [ ] Production RLS policies confirmed matching dev branch
+- [x] **7A.2: CSV data import (dev branch, then production)**
+  - [x] CSVs read from `Plans and Context/InventoryCategory_export.csv`, `InventoryLocation_export.csv`, `ReturnReason_export.csv` — converted to SQL `INSERT` statements (preserving exact IDs/timestamps/audit fields) rather than the Table Editor CSV importer, since this pass was executed via MCP tool calls, not the Studio UI
+  - [x] Data imported into dev-branch tables first; row counts match source CSVs exactly
+  - [x] Sample rows spot-checked (`ReturnReason.reason` values confirmed correct — "Not Ours", "Data Entry Error", etc.; `is_active`/`hide` booleans imported correctly)
+  - [x] Same import repeated against production (`hbcrwkmgsazqrvsrmxyr`) — row counts re-verified matching (16/263/11)
 
-- [ ] **7A.4: `InventoryAddModal.jsx` — `InventoryCategory` swap (dropdown only)**
-  - [ ] `InventoryCategory` import removed, direct `supabase.from('InventoryCategory')` call in place
-  - [ ] `npm run build` passes with no new errors
+- [x] **7A.3: Production schema migrations**
+  - [x] Same three `CREATE TABLE` migrations applied to production after dev-branch verification
+  - [x] Production RLS policies confirmed matching dev branch (same migration SQL used for both)
+
+- [x] **7A.4: `InventoryAddModal.jsx` — `InventoryCategory` swap (dropdown only)**
+  - [x] `InventoryCategory` import removed, direct `supabase.from('InventoryCategory')` call in place
+  - [x] `npm run build` passes with no new errors
   - [ ] Test in UI: open "Add Inventory Item", confirm category dropdown populates from the new native table
-  - [ ] Confirm the `suggestInventoryCategory` call (~line 113) was **not** touched — still calls Base44 (expected until 7B)
+  - [x] Confirmed the `suggestInventoryCategory` call (~line 113) was **not** touched — still calls Base44 (expected until 7B)
 
-- [ ] **7A.5: `LocationModal.jsx` — `InventoryLocation` + critical `inventoryUpdate` fix**
-  - [ ] `base44`/`InventoryLocation` (from `@/entities/all`) imports removed, `supabase` imported
-  - [ ] `loadLocations`, `handleAddLocation`, `handleEditLocation` all use direct `supabase.from('InventoryLocation')` calls
-  - [ ] `handleLocationChange` no longer calls `base44.functions.invoke('inventoryUpdate', ...)` — uses direct `.from('InventoryItem').update()` instead, **without** `updated_by`/`updated_by_id`
+- [x] **7A.5: `LocationModal.jsx` — `InventoryLocation` + critical `inventoryUpdate` fix**
+  - [x] `base44`/`InventoryLocation` (from `@/entities/all`) imports removed, `supabase` imported
+  - [x] `loadLocations`, `handleAddLocation`, `handleEditLocation` all use direct `supabase.from('InventoryLocation')` calls
+  - [x] `handleLocationChange` no longer calls `base44.functions.invoke('inventoryUpdate', ...)` — uses direct `.from('InventoryItem').update()` instead, **without** `updated_by`/`updated_by_id`
   - [ ] Test in UI: open an inventory item, click "Change Location", select a different location, confirm it saves
   - [ ] Test in UI: add a new location via the modal, confirm it appears in the location list
   - [ ] Test in UI: edit an existing location's name, confirm it updates
 
-- [ ] **7A.6: `InventoryReturn` — `InventoryPartsReturnModal.jsx` / `EditReturnInfoModal.jsx`**
-  - [ ] `InventoryPartsReturnModal.jsx` — only its `ReturnReason.filter()` call changed; return-creation logic untouched (already native)
-  - [ ] `EditReturnInfoModal.jsx` — `InventoryReturn.update()`/`ReturnReason.list()` swapped to direct queries
+- [x] **7A.6: `InventoryReturn` — `InventoryPartsReturnModal.jsx` / `EditReturnInfoModal.jsx`**
+  - [x] `InventoryPartsReturnModal.jsx` — only its `ReturnReason.filter()` call changed (now direct `supabase.from('ReturnReason')`); return-creation logic untouched (already native); `Supplier` import from `@/entities/all` left as-is
+  - [x] `EditReturnInfoModal.jsx` — `InventoryReturn.update()`/`ReturnReason.list()` swapped to direct queries
   - [ ] Test in UI: process a parts return from inventory (non-work-order path), confirm `InventoryReturn` row created with `return_type: 'return'` (and a second `'core'` row if the item has a core)
   - [ ] Test in UI: edit an existing return's info (reason/date/notes), confirm it saves
 
-- [ ] **7A.7: Build and dev-server smoke test**
-  - [ ] `npm run build` completes successfully, zero errors
-  - [ ] `grep -rn "InventoryCategory\|InventoryLocation\|ReturnReason" src/components/inventory/InventoryAddModal.jsx src/components/inventory/LocationModal.jsx src/components/inventory/InventoryPartsReturnModal.jsx src/components/inventory/EditReturnInfoModal.jsx` shows only `supabase.from()` calls, no `@/entities/*` imports for these 3 symbols in these 4 files
-  - [ ] Mark **7A: Complete** in the status tracker table above before starting 7B
+- [x] **7A.7: Build and dev-server smoke test**
+  - [x] `npm run build` completes successfully, zero errors (verified via `dist/` output timestamp + exit code 0)
+  - [x] `grep` for `InventoryCategory`/`InventoryLocation`/`ReturnReason`/`InventoryReturn` across all 4 files shows only `supabase.from()` calls, no `@/entities/*` imports for these symbols (the one remaining `base44.functions.invoke('suggestInventoryCategory', ...)` in `InventoryAddModal.jsx` is expected — that's 7B's job)
+  - [x] Marking **7A: Complete** in the status tracker table above — **pending your manual UI click-through of the `[ ]` items above before we start 7B**
 
 ---
 

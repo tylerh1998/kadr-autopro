@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppointmentForm from '../appointments/AppointmentForm';
-import { Employee, Appointment } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function EditApptViaWoModal({ open, onClose, appointment, workOrder, customer, vehicle, onAppointmentUpdated }) {
+  const { employee: currentEmployee } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -15,11 +16,12 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const loadPrerequisites = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeesData, custRes, vehRes] = await Promise.all([
-        Employee.list(),
+      const [empRes, custRes, vehRes] = await Promise.all([
+        supabase.from('Employee').select('*'),
         supabase.from('Customer').select('*').order('org_name', { ascending: true }),
         supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
+      const employeesData = empRes.data || [];
       setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
 
       const fetchedCustomers = [...(custRes.data || [])];
@@ -70,11 +72,20 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
       const appointmentId = appointmentData.id || formattedAppointment?.id;
       
       if (isEditing) {
-        await Appointment.update(appointmentId, appointmentData);
+        const { error } = await supabase
+          .from('Appointment')
+          .update({ ...appointmentData, updated_date: new Date().toISOString() })
+          .eq('id', appointmentId);
+        if (error) throw error;
       } else {
-        await Appointment.create(appointmentData);
+        const { error } = await supabase.from('Appointment').insert({
+          ...appointmentData,
+          created_by: currentEmployee?.email || '',
+          created_by_id: currentEmployee?.autopro_user_id,
+        });
+        if (error) throw error;
       }
-      
+
       onAppointmentUpdated();
       onClose();
     } catch (error) {
@@ -86,7 +97,8 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const handleDelete = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(appointmentId);
+        const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+        if (error) throw error;
         onAppointmentUpdated();
         onClose();
       } catch (error) {

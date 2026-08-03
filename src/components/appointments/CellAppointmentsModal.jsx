@@ -62,9 +62,9 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
                       <div className="font-semibold text-slate-900 dark:text-slate-100 text-lg">
                         {customerName}
                       </div>
-                      {appointment.title && appointment.title !== customerName && (
+                      {appointment.notes && !appointment.customer && (
                         <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                          {appointment.title}
+                          {appointment.notes.length > 60 ? `${appointment.notes.substring(0, 57)}...` : appointment.notes}
                         </div>
                       )}
                     </div>

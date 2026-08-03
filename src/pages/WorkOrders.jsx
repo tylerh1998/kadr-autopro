@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
-import { Appointment } from "@/entities/Appointment";
 import { useAuth } from '@/lib/AuthContext';
 import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
 import { SystemSettings } from "@/entities/SystemSettings";
@@ -299,8 +298,9 @@ export default function WorkOrdersPage() {
   const loadAppointmentsForProjects = async () => {
     try {
       // Load all appointments
-      const allAppointments = await Appointment.list();
-      
+      const { data: allAppointments, error } = await supabase.from('Appointment').select('*');
+      if (error) throw error;
+
       // Group appointments by work_order_id
       const appointmentMap = {};
       

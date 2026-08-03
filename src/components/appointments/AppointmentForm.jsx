@@ -668,7 +668,7 @@ export default function AppointmentForm({
         status: 'Open',
         priority: 'medium',
         stage: stage,
-        description: '',
+        description: formData.notes || '',
         customer_complaint: '',
         internal_notes: '',
         estimated_hours: null,

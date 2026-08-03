@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar, Clock, Plus } from 'lucide-react';
-import { Appointment } from '@/entities/all';
 import { format } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +108,7 @@ export default function AppointmentsListModal({ open, onClose, workOrderId, disp
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-1">
-                          {appointment.title}
+                          {format(startDate, 'EEE, MMM d')} Appointment
                         </h4>
                         <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-2">
                           <Calendar className="w-4 h-4" />

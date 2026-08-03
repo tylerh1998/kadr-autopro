@@ -18,9 +18,30 @@ Deno.serve(async (req) => {
              throw new Error('Missing Twilio configuration (SID, Token, or Phone Number)');
         }
 
-        // Use service role to fetch all appointments
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (!supabaseUrl || !supabaseServiceKey) {
+            throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variable');
+        }
+        const supabaseHeaders = { apikey: supabaseServiceKey, Authorization: `Bearer ${supabaseServiceKey}` };
+
+        const fetchAll = async (table) => {
+            const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*`, { headers: supabaseHeaders });
+            if (!res.ok) throw new Error(`Failed to fetch ${table} from Supabase: ${res.status}`);
+            return res.json();
+        };
+
+        const fetchByIds = async (table, ids) => {
+            if (ids.length === 0) return [];
+            const idList = ids.map(id => encodeURIComponent(id)).join(',');
+            const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*&id=in.(${idList})`, { headers: supabaseHeaders });
+            if (!res.ok) throw new Error(`Failed to fetch ${table} from Supabase: ${res.status}`);
+            return res.json();
+        };
+
+        // Fetch all appointments from Supabase
         console.log('Fetching all appointments...');
-        const appointments = await base44.asServiceRole.entities.Appointment.list();
+        const appointments = await fetchAll('Appointment');
         console.log(`Found ${appointments.length} total appointments.`);
 
         // MST/MDT timezone offset (-7 hours, -6 hours during DST)
@@ -59,7 +80,7 @@ Deno.serve(async (req) => {
         
         // Fetch necessary vehicle data in batches
         const vehicleIds = [...new Set(remindersToSend.map(r => r.vehicle_id).filter(Boolean))];
-        const vehicles = vehicleIds.length > 0 ? await base44.asServiceRole.entities.Vehicle.filter({ id: { $in: vehicleIds } }) : [];
+        const vehicles = await fetchByIds('Vehicle', vehicleIds);
         const vehicleMap = new Map(vehicles.map(v => [v.id, v]));
 
         // Helper function to format date/time in MST

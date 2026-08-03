@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ReturnReason, Supplier } from '@/entities/all';
+import { Supplier } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -21,8 +21,13 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
     if (open) {
       const fetchReasonsAndSuppliers = async () => {
         try {
-          const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
-          setReasons(reasonData);
+          const { data: reasonData, error: reasonError } = await supabase
+            .from('ReturnReason')
+            .select('*')
+            .eq('is_active', true)
+            .eq('hide', false);
+          if (reasonError) { console.error('Error loading return reasons:', reasonError); setReasons([]); }
+          else setReasons(reasonData || []);
 
           // Fetch suppliers to get their names for transaction records
           const supplierData = await Supplier.filter({ is_active: true });

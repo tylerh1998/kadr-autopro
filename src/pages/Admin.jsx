@@ -22,17 +22,17 @@ import {
 import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
 const SUPABASE_TABLES = [
-  "ChartOfAccount", "Customer", "CustomerARAdjustment", "CustomerPayments", "InventoryItem", "SalesClass", "Supplier", 
+  "Appointment", "ChartOfAccount", "Customer", "CustomerARAdjustment", "CustomerPayments", "InventoryItem", "SalesClass", "Supplier",
   "SupplierInvoiceLine", "SupplierPayment", "Vehicle", "WorkOrder"
 ].sort();
 
 const LOCAL_ENTITIES = [
-  "Appointment", "BankAccount", "BankReconciliation", "BankTransaction", "CashDrawerAdjustment",
-  "CashFlowEntry", "CashFlowSummary", "ChartOfAccount", "CustomerPortalWorkOrder", 
-  "DepositSlipBreakdown", "Employee", "FiscalPeriod", "GLTransaction", "GSTReturn", 
-  "InventoryCategory", "InventoryLocation", "InventoryReturn", "InventoryTxs", "Levies", 
-  "LinesOfCredit", "LinesOfCreditTransaction", "OtherChargeList", "PayrollTransaction", 
-  "ReturnReason", "SentEmailLog", "Statement", "SystemSettings", "TagAlong", "User", 
+  "BankAccount", "BankReconciliation", "BankTransaction", "CashDrawerAdjustment",
+  "CashFlowEntry", "CashFlowSummary", "ChartOfAccount", "CustomerPortalWorkOrder",
+  "DepositSlipBreakdown", "Employee", "FiscalPeriod", "GLTransaction", "GSTReturn",
+  "InventoryCategory", "InventoryLocation", "InventoryReturn", "InventoryTxs", "Levies",
+  "LinesOfCredit", "LinesOfCreditTransaction", "OtherChargeList", "PayrollTransaction",
+  "ReturnReason", "SentEmailLog", "Statement", "SystemSettings", "TagAlong", "User",
   "WorkOrderStatus"
 ].sort();
 

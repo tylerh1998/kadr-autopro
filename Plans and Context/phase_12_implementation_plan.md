@@ -11,9 +11,20 @@
 
 ## 0) Open Questions, Info Requirements & Suggestions
 
-**This phase has real open questions — please review 0.1–0.4 and answer before I execute anything.** Nothing in Sections 1–4 below has been built yet.
+**0.1–0.4 below are RESOLVED (2026-08-03) — decisions recorded inline, execution proceeding per Sections 1-4.**
+
+**Decisions summary:**
+- **0.1** — Proceed with schema fix, adjusted per your note: `created_at`→`created_date` rename (matches the export CSV/project convention), `title` column stays for now (not dropped this phase — you'll drop it at go-live when the CSV import happens).
+- **0.2** — You provided `Plans and Context/Appointment_export.csv` (510 records) **for reference only, not for import now**. Real data migration is deferred to go-live, at which point you'll do Option B (manual export → I write the import). Nothing in Sections 3.2 executes this phase.
+- **0.3** — Option A (surgical patch, both reminder functions stay on Base44) is **in scope now**. Option B (full native port, secret migration to Supabase, cron repoint) is deferred to Phase 14/go-live — noting this for that phase's future plan. You'll add the two new Base44 secrets needed for the patch (see Section 3.5).
+- **0.4** — Title→notes migration script confirmed deferred to go-live, folded into whatever Option B's import script does then.
+- **New:** `SchedulerViaWoModal.jsx`, `EditApptViaWoModal.jsx`, and `AppointmentsListModal.jsx` **cannot be meaningfully click-tested this phase** — there's no real appointment data in Postgres until the go-live import. Code changes for these three still happen now (Section 3.3), but full end-to-end validation is **deferred to Phase 13** (Work Orders Core), where they'll be tested alongside the rest of the WO-integration surface. Flagged in Section 4's checklist and will be carried into Phase 13's scope note at rollup.
+
+Original open-question writeups kept below for context/audit trail.
 
 ### 0.1 — CORRECTED via direct production query: the native `Appointment` table is not "hybrid," it's an empty, incomplete stub
+
+**RESOLVED (2026-08-03):** Proceed with the schema fix. Adjustment based on your feedback: the export CSV (`Appointment_export.csv`, see 0.2) confirms the project's live audit-field convention is `created_date`/`updated_date`/`created_by`/`created_by_id` (matching every other native table), not the `created_at` the original stub table used — Section 3.1 now renames `created_at`→`created_date` instead of adding a redundant `updated_at`. `title` stays in the schema for this phase (not dropped) — you'll drop it at go-live when the CSV import happens and title is no longer needed. `employee_id bigint` still stands (matches native `Employee.id`'s actual type) — see 0.2 for a new wrinkle the CSV surfaced on that front.
 
 `master_blueprint.md` Section 1/2 classifies `Appointment` as **"Hybrid (table + data migrated, CRUD not fully cut over)"** — grouped with `ChartOfAccount`, `InventoryReturn`, `FiscalPeriod`. Direct SQL against production (`hbcrwkmgsazqrvsrmxyr`) shows this is **not accurate**:
 
@@ -46,6 +57,13 @@ No `updated_at`, `created_by`, or `created_by_id` columns either (every other na
 
 ### 0.2 — NEEDS YOUR DECISION: how do we get real, live appointment data out of Base44?
 
+**RESOLVED (2026-08-03):** Option B, deferred to go-live — you'll do a manual Base44 export at that time and I'll write the import then, since this is dynamic/live data and doing it now would just go stale before go-live anyway. **Not executing any data migration this phase.**
+
+You provided `Plans and Context/Appointment_export.csv` now as a reference/shape check (510 records; the raw file has 941 data lines because several `notes` values contain embedded newlines inside quoted CSV fields). Read the header + a sample of rows — worth recording two findings for whoever runs the real import at go-live:
+
+- **`title` is already blank/unused in the sample rows I checked** — real appointment text already lives in `notes` (e.g. `"O/C"`, `"TIRE ROTATION"`, `"PLUGS & WIRES"`). This suggests the title→notes merge logic from `appointment_implementation_plan.md` may turn out to be a no-op or near-no-op in practice — worth a quick `COUNT(*) WHERE title IS NOT NULL AND title != ''` against the real export at import time before assuming the merge logic needs to run at all.
+- **`employee_id` remapping problem (new finding, needs resolving at go-live, not now):** the CSV's `employee_id` column holds Base44 ObjectId-style strings (e.g. `69ce06bd2006168cdacc9f14`). I cross-checked this against the native `Employee` table's `autopro_user_id` column (confirmed to be the correct Base44↔native crosswalk — e.g. `694c38a40784e9f2cd147a29` in the CSV's `created_by_id` matches Elisa Haney's `autopro_user_id` exactly) and the sampled `employee_id` values **don't match any `autopro_user_id` in the native table.** They also don't cleanly match `workpro_user_id` either, though the prefix pattern looked closer. This likely means Base44's `Appointment.employee_id` points at a *different* Base44 "Employee" entity than the Base44 "User" account `autopro_user_id` crosswalks to (technician assignment vs. login identity may be two separate Base44 records). **This needs to be figured out before the go-live import can correctly populate the new `employee_id bigint` column** — flagging now so it's not a surprise later, not attempting to solve it this phase since you've deferred the import itself.
+
 Since the native table is empty, cutting the frontend over to `supabase.from('Appointment')` as-is means **every existing customer appointment currently visible on the schedule disappears** the moment the code ships — this is a real data migration, not just a transport swap (same category of work as Phase 8–11's confirmed-Base44-only entities, per the blueprint's own migration policy).
 
 I see two ways to pull the live data out of Base44:
@@ -58,6 +76,14 @@ I see two ways to pull the live data out of Base44:
 **Also needed regardless of option:** How many live appointments currently exist in Base44 (rough order of magnitude — dozens? hundreds?), and is there a cutoff point (e.g. "only migrate appointments from today forward, don't bother with historical ones") or should this be a full historical migration? This affects both the script and how carefully the title→notes merge needs to be spot-checked.
 
 ### 0.3 — NEEDS YOUR DECISION: appointment reminder emails/texts will silently stop firing after cutover unless the reminder functions are re-pointed
+
+**RESOLVED (2026-08-03):** Option A **is in scope for this phase** — surgical patch, both functions stay on Base44 exactly where they are (same cron trigger, same `SentEmailLog` logging). Option B (full native `autopro-*` port, moving `RESEND_API_KEY`/`TWILIO_*` secrets to Supabase, standing up a `pg_cron` schedule) is **deferred to Phase 14/go-live** — this will be carried forward into that phase's scope when this phase rolls up.
+
+**Action needed from you for Option A to work:** add two new secrets to the **Base44** platform (not Supabase) so the patched functions in Section 3.5 can read `Appointment`/`Customer`/`Vehicle` directly from Postgres:
+- `SUPABASE_URL` → `https://hbcrwkmgsazqrvsrmxyr.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` → the project's service-role key (Supabase Dashboard → Project Settings → API — treat this like any other service-role key, it bypasses RLS)
+
+You mentioned you can add these for testing — once they're in place on the dev/testing side I can verify the patched functions actually reach Postgres before we touch production's Base44 secrets.
 
 Two live Base44-hosted functions — `base44/functions/sendAppointmentReminders/entry.ts` (email via Resend) and `base44/functions/sendTextReminders/entry.ts` (SMS via Twilio) — read appointment data via `base44.asServiceRole.entities.Appointment.list()` (and `Customer`/`Vehicle` via the same pattern). Once the frontend stops writing appointments into Base44 (this phase's whole point), **these two functions will see zero/stale appointments and reminder emails/texts will stop going out with no error anywhere** — customers just silently stop getting reminded. Neither function is tracked as a `supabase/functions/autopro-*` Edge Function; both are pure legacy Base44-platform code, and there's no cron config for them anywhere in this repo — whatever triggers them daily is configured entirely on Base44's side, outside git.
 
@@ -72,6 +98,8 @@ Three ways to handle it, in order of my preference:
 **Which option do you want?** (I can also revisit this if you'd rather confirm Base44's current cron trigger/schedule first before deciding.)
 
 ### 0.4 — Housekeeping items folded into scope (no decision needed, just flagging)
+
+**RESOLVED (2026-08-03):** Title→notes migration script confirmed deferred to go-live (folds into 0.2's Option B import work then). Everything else below still applies as scoped.
 
 - **`appointment_implementation_plan.md` Open Question #1 (title→notes migration script) was never executed.** Confirmed via full repo/git-history search — no such script exists, no commit runs it. Moot as a standalone item now since it folds into 0.2's data migration (the transform happens at import time instead of as a separate backfill).
 - **`appointment_implementation_plan.md` Open Question #2 (do any calendar-adjacent views still show `title`?) — answered: yes, two.** `src/components/appointments/CellAppointmentsModal.jsx:65-69` and `src/components/work-orders/AppointmentsListModal.jsx:111-113` both still render the raw `appointment.title` field directly (the main `CustomCalendar.jsx` itself never did — it already uses a computed `displayTitle`). Both get fixed in this phase (Section 3.4).
@@ -101,7 +129,11 @@ Three ways to handle it, in order of my preference:
 - The Kanban board, PartsTech/Online Ordering surfaces — unrelated, already handled by other phases.
 - No visible end-user behavior change beyond what's explicitly listed above (per blueprint Goal #6) — this is a plumbing + data-integrity migration, not a feature project.
 
-**Target outcome:** Zero `base44.*` calls remaining for the `Appointment` entity anywhere in `src/`; all real historical/live appointment data present and correct in the native table; reminders continue to fire; no regression to any of the appointment-adjacent Work Order UI (`AppointmentsListModal`, `SchedulerViaWoModal`, the "upcoming appointment" card on `DocumentEditor.jsx`).
+**Target outcome:** Zero `base44.*` calls remaining for the `Appointment` entity anywhere in `src/` (except the two reminder functions' `SentEmailLog` usage, intentionally retained per 0.3); the reminder functions reading live appointment data from Postgres instead of Base44; no regression to any of the appointment-adjacent Work Order UI code paths. **Note:** since real appointment data migration is deferred to go-live (0.2), this phase does not produce a fully populated, end-user-verifiable `/Schedule` page — that validation happens at go-live. What *is* fully verifiable now: schema correctness, code-level cutover (no more base44 imports), and the reminder function patch.
+
+**Deferred to Phase 13 (Work Orders Core):** Full click-through validation of `SchedulerViaWoModal.jsx`, `EditApptViaWoModal.jsx`, and `AppointmentsListModal.jsx` — these are all WO-context appointment surfaces that need real linked Work Order + appointment data to test meaningfully, which won't exist until go-live. Code changes still happen this phase (Section 3.3); validation is a Phase 13 carry-forward item (Section 4).
+
+**Deferred to Phase 14/go-live (per 0.3):** Full native port of `sendAppointmentReminders`/`sendTextReminders` to `autopro-*` Edge Functions, migrating `RESEND_API_KEY`/`TWILIO_*` secrets to Supabase, standing up their `pg_cron` schedule, and dropping the `Appointment.title` column once the go-live CSV import lands.
 
 ---
 
@@ -125,9 +157,11 @@ Pulled from `master_blueprint.md` Section 7, filtered to what's actually load-be
 
 ### 3.1 — Schema fix: `ALTER TABLE "Appointment"`
 
-New migration file (pending confirmation of 0.1): `supabase/migrations/20260804000000_appointment_add_missing_columns.sql`
+New migration file: `supabase/migrations/20260804000000_appointment_add_missing_columns.sql`
 
 ```sql
+ALTER TABLE "Appointment" RENAME COLUMN created_at TO created_date;
+
 ALTER TABLE "Appointment"
   ADD COLUMN employee_id bigint,
   ADD COLUMN status text DEFAULT 'Scheduled',
@@ -136,27 +170,27 @@ ALTER TABLE "Appointment"
   ADD COLUMN reminder_email_address text,
   ADD COLUMN reminders_phone text,
   ADD COLUMN reminder_days_before integer DEFAULT 1,
-  ADD COLUMN updated_at timestamp with time zone DEFAULT now(),
+  ADD COLUMN updated_date timestamp with time zone DEFAULT now(),
   ADD COLUMN created_by text,
   ADD COLUMN created_by_id text;
 ```
 
-- `employee_id bigint` — matches `Employee.id`'s actual type (confirmed via `information_schema.columns`); no FK constraint added, consistent with every other table in this schema (confirmed via `pg_constraint` — the project has zero FK constraints anywhere, all referential integrity is app-level).
+- `created_at` → `created_date`: aligns with the audit-field naming every other native table in this project uses (`Customer`, `Vehicle`, `InventoryReturn`, etc.) and matches the export CSV's own column names (`created_date`/`updated_date`/`created_by`/`created_by_id`) — confirmed safe since the table has zero rows, no data affected by the rename.
+- `title` is intentionally **left untouched** — stays in the schema this phase; you'll drop it in a follow-up migration at go-live once the CSV import (with title merged into notes beforehand, per 0.2) lands.
+- `employee_id bigint` — matches native `Employee.id`'s actual type (confirmed via `information_schema.columns`); no FK constraint added, consistent with every other table in this schema (confirmed via `pg_constraint` — the project has zero FK constraints anywhere, all referential integrity is app-level). **Note per 0.2:** the CSV's raw `employee_id` values won't map directly to this column at import time — that's a go-live problem, not this phase's.
 - `status`/`reminders_email`/`reminders_text`/`reminder_days_before` defaults mirror the base44 `.jsonc` spec's declared defaults exactly.
 - Apply to the **dev branch (`sitihbdnuxifwibontcm`) first**, verify with `information_schema.columns`, then apply to production (`hbcrwkmgsazqrvsrmxyr`).
 - No RLS changes needed — existing policies (`Enable all for authenticated users`, `Enable read for public`, `Enable all operations for all users`) already permit full CRUD; they're redundant/overlapping (three permissive policies doing overlapping things) but functionally harmless — not touching them this phase, out of scope.
 
-### 3.2 — Data migration (pending 0.2 decision)
+### 3.2 — Data migration: DEFERRED TO GO-LIVE, not executed this phase
 
-If **Option A** is confirmed:
-1. Write a one-off Node/Deno script using the existing `BASE44_ACCESS_TOKEN` pattern (same auth approach already used by `base44/functions/*`) to call `base44.asServiceRole.entities.Appointment.list()` and dump raw JSON to a local file for inspection.
-2. Transform each row: apply the title→notes merge from the original `appointment_implementation_plan.md` (`title`-only → becomes `notes`; both present → `[Title]\nNotes...`; neither → leave `notes` as-is), map remaining fields 1:1 (they already match the now-fixed native schema from 3.1), generate `created_by`/`created_by_id` from whatever audit info Base44 rows carry (or leave null if none exists there either — Base44's own schema doesn't define these fields, so likely null across the board).
-3. Insert into the **dev branch** first; spot-check row count and a handful of individual rows against the live Base44 UI (dates/times/customer linkage/status).
-4. Repeat against production once verified.
+Per 0.2, real appointment data migration happens at go-live via Option B (you export from Base44 manually, I write the import against that export). **Nothing in this section executes as part of Phase 12.** Keeping this section as a placeholder/checklist for that future work so it isn't lost:
 
-If **Option B** is confirmed: swap step 1 for a walkthrough of exporting via the Base44 admin UI; steps 2-4 unchanged.
-
-*(This section will be filled in with the actual script/row counts/verification results once 0.2 is answered and execution begins — placeholder until then.)*
+- [ ] At go-live: confirm whether the title→notes merge logic is actually needed (0.2's finding suggests `title` may already be universally blank in practice — verify with a `COUNT(*)` against the real export before writing merge logic that might be a no-op).
+- [ ] At go-live: resolve the `employee_id` remapping problem (0.2) — figure out what Base44 entity the CSV's `employee_id` values actually reference and how to cross-walk them to native `Employee.id` (bigint).
+- [ ] At go-live: `customer_id`/`vehicle_id`/`work_order_id` likely copy across as-is (same 24-char text ID space already used natively for `Customer`/`Vehicle`/`WorkOrder` per Phase 5) — confirm this assumption with a spot-check against real data before trusting it wholesale.
+- [ ] At go-live: import to dev branch first, spot-check, then production, per the project's standard verify-on-dev-first policy.
+- [ ] At go-live: drop the `title` column (3.1) once its data is confirmed merged/no longer needed.
 
 ### 3.3 — Frontend CRUD cutover
 
@@ -164,8 +198,8 @@ If **Option B** is confirmed: swap step 1 for a walkthrough of exporting via the
 - Line 2: `import { Appointment, Employee } from '@/entities/all';` → remove entirely (no longer needed once every call below is direct).
 - Line 85: `Appointment.list()` → `supabase.from('Appointment').select('*')` (destructure `{ data, error }`, throw on `error` to preserve existing `try/catch` behavior in `loadData`).
 - Line 86: `Employee.list()` → `supabase.from('Employee').select('*')`.
-- Line 259: `await Appointment.update(event.id, updatedAppointment)` → `await supabase.from('Appointment').update({ ...updatedAppointment, updated_at: new Date().toISOString() }).eq('id', event.id)`, check `error`.
-- Line 330/332: `Appointment.update(...)`/`Appointment.create(...)` inside `handleSubmit` → same direct-call pattern; `create` needs explicit `id: crypto.randomUUID()`, `created_at`/`created_by`/`created_by_id` set from `currentEmployee` (matching the pattern already used in this same file's `handleCreateCustomer`/`handleCreateVehicle` in `AppointmentForm.jsx`) — **note:** `Schedule.jsx` doesn't currently import `useAuth`; will need to add it to get `currentEmployee` for `created_by`.
+- Line 259: `await Appointment.update(event.id, updatedAppointment)` → `await supabase.from('Appointment').update({ ...updatedAppointment, updated_date: new Date().toISOString() }).eq('id', event.id)`, check `error`.
+- Line 330/332: `Appointment.update(...)`/`Appointment.create(...)` inside `handleSubmit` → same direct-call pattern. **Unlike `Customer`/`Vehicle`, `Appointment.id` has a `gen_random_uuid()` default (3.1) — no client-side `id` generation needed on create.** `create` still needs `created_by`/`created_by_id` set explicitly from `currentEmployee` (matching the audit-field pattern already used in this same file's `handleCreateCustomer`/`handleCreateVehicle` in `AppointmentForm.jsx`; `created_date` can rely on its own `now()` default) — **note:** `Schedule.jsx` doesn't currently import `useAuth`; will need to add it to get `currentEmployee` for `created_by`. `update` calls should set `updated_date: new Date().toISOString()` explicitly (no trigger auto-updates it).
 - Line 345/365: `Appointment.delete(id)` → `supabase.from('Appointment').delete().eq('id', id)`.
 
 **`src/components/work-orders/EditApptViaWoModal.jsx`**
@@ -216,9 +250,50 @@ If **Option B** is confirmed: swap step 1 for a walkthrough of exporting via the
 ```
 Also drop the dead `import { Appointment } from '@/entities/all';` (line 5, confirmed unused — this file already queries via `supabase.from('Appointment')` directly).
 
-### 3.5 — Reminder function re-point (pending 0.3 decision)
+### 3.5 — Reminder function re-point (Option A, confirmed in scope)
 
-*(Full diff will be written once 0.3 is answered — placeholder for now.)* If Option A: patch the ~3 `base44.asServiceRole.entities.X` read calls per function (`Appointment.list()`, `Customer.filter()`, `Vehicle.filter()`) to `fetch()` calls against Supabase PostgREST, leaving the Resend/Twilio send logic and `SentEmailLog` logging completely untouched.
+Both files stay in `base44/functions/` (still Base44-platform-hosted, still triggered by whatever schedules them today, still logging to `SentEmailLog` via `base44.asServiceRole` — none of that changes). Only the `Appointment`/`Customer`/`Vehicle` **reads** move to direct Supabase REST calls. New Base44 secrets required: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (see 0.3).
+
+**`base44/functions/sendAppointmentReminders/entry.ts`**
+
+Add near the top of the handler (after `const base44 = createClientFromRequest(req);`):
+```ts
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variable');
+}
+const supabaseHeaders = { apikey: supabaseServiceKey, Authorization: `Bearer ${supabaseServiceKey}` };
+
+const fetchAll = async (table) => {
+    const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*`, { headers: supabaseHeaders });
+    if (!res.ok) throw new Error(`Failed to fetch ${table} from Supabase: ${res.status}`);
+    return res.json();
+};
+
+const fetchByIds = async (table, ids) => {
+    if (ids.length === 0) return [];
+    const idList = ids.map(id => encodeURIComponent(id)).join(',');
+    const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*&id=in.(${idList})`, { headers: supabaseHeaders });
+    if (!res.ok) throw new Error(`Failed to fetch ${table} from Supabase: ${res.status}`);
+    return res.json();
+};
+```
+
+Then replace:
+- Line 17: `const appointments = await base44.asServiceRole.entities.Appointment.list();` → `const appointments = await fetchAll('Appointment');`
+- Line 57: `const customers = customerIds.length > 0 ? await base44.asServiceRole.entities.Customer.filter({ id: { $in: customerIds } }) : [];` → `const customers = await fetchByIds('Customer', customerIds);`
+- Line 58: `const vehicles = vehicleIds.length > 0 ? await base44.asServiceRole.entities.Vehicle.filter({ id: { $in: vehicleIds } }) : [];` → `const vehicles = await fetchByIds('Vehicle', vehicleIds);`
+
+All `base44.asServiceRole.entities.SentEmailLog.create/update(...)` calls (lines 106, 212, 230) are **left exactly as-is**.
+
+**`base44/functions/sendTextReminders/entry.ts`** — same `fetchAll`/`fetchByIds` helpers added, same pattern:
+- Line 23: `const appointments = await base44.asServiceRole.entities.Appointment.list();` → `const appointments = await fetchAll('Appointment');`
+- Line 62: `const vehicles = vehicleIds.length > 0 ? await base44.asServiceRole.entities.Vehicle.filter({ id: { $in: vehicleIds } }) : [];` → `const vehicles = await fetchByIds('Vehicle', vehicleIds);`
+
+`SentEmailLog.create/update(...)` calls (lines 106, 132, 145) left as-is.
+
+**Testing note:** since the native `Appointment` table has zero rows until go-live (0.2), meaningful end-to-end testing of these patched functions this phase means creating a throwaway test appointment via the (now-migrated) `/Schedule` UI with `reminders_email`/`reminders_text` on and `reminder_days_before: 0`, then manually invoking the Base44 function URL directly and confirming it (a) reaches Postgres via the new `fetchAll` path and (b) finds that test row — not a real reminder-delivery test with production data.
 
 ### 3.6 — `Admin.jsx` debug-tool list update
 
@@ -228,43 +303,60 @@ Line 24-27 (`SUPABASE_TABLES`) and line 30 (`LOCAL_ENTITIES`): move `"Appointmen
 
 ## 4) Verification Plan
 
+> **Scope note:** since real appointment data migration is deferred to go-live (0.2), steps 3, 5-8 below are tested with **throwaway test appointments only**, not real customer data. Steps 5-7 specifically (`SchedulerViaWoModal`, `EditApptViaWoModal`, `AppointmentsListModal`) are WO-context surfaces best validated with real linked data — full sign-off on those three is **deferred to Phase 13**; this phase confirms the code compiles/runs and the obvious happy path doesn't error, not full production-representative testing.
+
 ### Step-by-step verification narrative
 
-1. **Schema:** After 3.1's migration, query `information_schema.columns` on both dev and prod to confirm all 10 new/existing columns are present with correct types/defaults.
-2. **Data migration:** Row-count check (native table count should match Base44's live count, or the agreed-upon subset per 0.2). Spot-check 5-10 individual appointments (mix of past/future, with/without title, with/without reminders) against what's visible in the current live `/Schedule` page pre-cutover, confirming date/time, customer/vehicle linkage, and the title→notes merge produced sensible text.
-3. **`/Schedule` page (main calendar):** Load the page, confirm all migrated appointments render on the calendar in the correct bay/day/time slots with correct tech colors. Create a new appointment end-to-end (customer → vehicle → bay → tech → status → notes → reminders), confirm it lands in `"Appointment"` via direct DB check (not just UI reload). Edit an existing appointment's time via drag-and-drop, confirm the `update` call succeeds and persists on reload. Delete an appointment, confirm it's gone from both UI and DB.
-4. **Reminders sanity check (non-destructive):** Create a test appointment dated for "today" in dev with `reminders_email`/`reminders_text` enabled and `reminder_days_before: 0`; manually invoke whichever reminder function/endpoint results from 0.3's decision against the dev environment; confirm it finds the appointment (proves the re-pointed read path works) without needing to actually verify email/SMS delivery in this step.
-5. **`SchedulerViaWoModal` (Schedule button on a Work Order):** Open from `WorkOrders.jsx`, create a new appointment linked to that WO, confirm no "Failed to save appointment" error (this is the currently-broken path per 0.1) and the appointment persists with `work_order_id` set correctly.
-6. **`EditApptViaWoModal`:** Edit an appointment from within a Work Order's context, confirm changes persist.
-7. **`AppointmentsListModal`:** Open from a Work Order card, confirm the appointment list loads (no more `appointment.title` reference errors/blanks) and the new heading format reads sensibly.
-8. **`CellAppointmentsModal`:** Trigger the overlapping-appointments view (multiple appointments same bay/time), confirm the secondary notes line renders correctly and doesn't duplicate the customer name.
-9. **"Create Work Order" from `AppointmentForm`:** Create an appointment with notes filled in, click "Create Estimate"/"Create Work Order," confirm the resulting WO's `description` field is pre-filled with those notes.
+1. **Schema:** After 3.1's migration, query `information_schema.columns` on both dev and prod to confirm `created_date` rename and all 7 new columns are present with correct types/defaults, and `title` is still present (intentionally not dropped this phase).
+2. **Data migration:** N/A this phase — deferred to go-live per 0.2 (see 3.2's checklist for that future work).
+3. **`/Schedule` page (main calendar):** Load the page (will show empty/near-empty until go-live's import — that's expected, not a bug). Create a throwaway test appointment end-to-end (customer → vehicle → bay → tech → status → notes → reminders), confirm it lands in `"Appointment"` via direct DB check (not just UI reload). Edit its time via drag-and-drop, confirm the `update` call succeeds, `updated_date` changes, and it persists on reload. Delete it, confirm it's gone from both UI and DB.
+4. **Reminders sanity check (non-destructive):** Using the same throwaway test appointment (dated "today," `reminders_email`/`reminders_text` on, `reminder_days_before: 0`), manually invoke `sendAppointmentReminders`/`sendTextReminders` directly against Base44 with the new `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` secrets in place (0.3); confirm it finds the appointment via the new `fetchAll('Appointment')` path (Section 3.5) — proves the read-path patch works, not a real reminder-delivery test.
+5. **`SchedulerViaWoModal` (Schedule button on a Work Order) — code-path smoke test only, full validation deferred to Phase 13:** Open from `WorkOrders.jsx`, create a throwaway test appointment linked to a real WO, confirm no "Failed to save appointment" error (this is the currently-broken path per 0.1) and it persists with `work_order_id` set correctly.
+6. **`EditApptViaWoModal` — code-path smoke test only, deferred to Phase 13:** Edit the throwaway appointment from within the WO's context, confirm changes persist.
+7. **`AppointmentsListModal` — code-path smoke test only, deferred to Phase 13:** Open from a Work Order card, confirm the list loads (no more `appointment.title` reference errors/blanks) and the new heading format reads sensibly for the throwaway appointment.
+8. **`CellAppointmentsModal`:** Trigger the overlapping-appointments view (create 2+ throwaway appointments, same bay/time), confirm the secondary notes line renders correctly and doesn't duplicate the customer name.
+9. **"Create Work Order" from `AppointmentForm`:** Create a test appointment with notes filled in, click "Create Estimate"/"Create Work Order," confirm the resulting WO's `description` field is pre-filled with those notes.
 10. **`Admin.jsx` debug tool:** Confirm `Appointment` now appears under the Supabase-table dropdown, not the local-entity one.
-11. **Repo-wide grep:** `base44` / `@/entities/all` / `@/entities/Appointment` return zero hits for anything Appointment-related outside `base44/functions/sendAppointmentReminders`/`sendTextReminders` (and only those two if Option A from 0.3 is chosen — zero hits at all if Option B).
+11. **Repo-wide grep:** `base44` / `@/entities/all` / `@/entities/Appointment` return zero hits for anything Appointment-related in `src/`. `base44/functions/sendAppointmentReminders`/`sendTextReminders` retain exactly the `SentEmailLog`-related `base44.asServiceRole` calls per 3.5, nothing else.
 12. **Regression check on adjacent, out-of-scope flows:** Confirm the "Create Estimate"/"Create Work Order" buttons in `AppointmentForm.jsx` still work exactly as before (they're intentionally untouched, still hitting Base44 — just confirming this phase didn't accidentally break them).
 
-### Verification checklist
+### Verification checklist — Phase 12 (this phase)
 
-- [ ] Dev branch: `ALTER TABLE` applied, all 10 columns confirmed present via `information_schema.columns`
-- [ ] Production: `ALTER TABLE` applied, same confirmation
-- [ ] Data migration approach confirmed (0.2) and executed against dev branch
-- [ ] Dev-branch data spot-check: row count matches expected; 5-10 sampled rows verified correct (title→notes merge, dates, linkage)
-- [ ] Data migration executed against production
-- [ ] Production data spot-check repeated
-- [ ] `Schedule.jsx`: base44 imports removed; `Appointment`/`Employee` calls converted to direct `supabase.from()`
-- [ ] `Schedule.jsx`: calendar renders all migrated appointments correctly (bay/day/time/tech color)
-- [ ] `Schedule.jsx`: create new appointment end-to-end, verified in DB
-- [ ] `Schedule.jsx`: drag-and-drop time update persists
+**Code-complete as of 2026-08-03. Items below marked `[x]` are code-verified (schema confirmed via `information_schema.columns`, repo-wide grep confirms zero remaining base44 `Appointment` references). Items requiring a live click-through in the browser are marked `[ ]` — still need you/a follow-up session to run through the UI, since this session did not launch the app.**
+
+- [x] Dev branch: `ALTER TABLE` applied (`created_at`→`created_date` rename + 7 new columns), confirmed via `information_schema.columns`
+- [x] Production: `ALTER TABLE` applied, same confirmation
+- [x] `Schedule.jsx`: base44 imports removed; `Appointment`/`Employee` calls converted to direct `supabase.from()`; `useAuth`/`currentEmployee` added for `created_by`/`created_by_id` on create
+- [ ] `Schedule.jsx`: create throwaway test appointment end-to-end, verified in DB (no client-side `id`, relies on `gen_random_uuid()` default)
+- [ ] `Schedule.jsx`: drag-and-drop time update persists, `updated_date` changes
 - [ ] `Schedule.jsx`: delete appointment removes from DB
-- [ ] `EditApptViaWoModal.jsx`: base44 imports removed; create/update/delete verified from WO context
-- [ ] `WorkOrders.jsx`: `Appointment.list()` converted; appointment badges on WO cards still populate correctly
-- [ ] `useWorkOrder.jsx`: `Appointment.filter()` converted; "upcoming appointment" card on `DocumentEditor.jsx`/`WorkOrderView.jsx` still populates
-- [ ] `AppointmentForm.jsx`: `handleCreateWorkOrder` now passes `description: formData.notes`; verified on a real created WO
-- [ ] `SchedulerViaWoModal.jsx`: dead base44 imports removed; create/update/delete confirmed working (previously-broken path)
-- [ ] `CellAppointmentsModal.jsx`: title reference replaced with notes preview; verified visually with overlapping appointments
-- [ ] `AppointmentsListModal.jsx`: title reference replaced; dead `Appointment` import removed; verified visually
-- [ ] Reminder function(s) re-pointed per 0.3's chosen option; test appointment confirmed reachable via the new read path
-- [ ] `Admin.jsx`: `Appointment` moved from `LOCAL_ENTITIES` to `SUPABASE_TABLES`
-- [ ] Repo-wide grep confirms no remaining base44 references for `Appointment` (outside the reminder functions, if Option A chosen)
+- [x] `EditApptViaWoModal.jsx`: base44 imports removed; `useAuth` added for create audit fields — code-path smoke test still needed (full validation deferred to Phase 13)
+- [x] `WorkOrders.jsx`: `Appointment.list()` converted to `supabase.from()`; appointment badges on WO cards still need a manual check with whatever test data exists
+- [x] `useWorkOrder.jsx`: `Appointment.filter()` converted to `supabase.from().eq()`; "upcoming appointment" card on `DocumentEditor.jsx`/`WorkOrderView.jsx` still needs a manual check with a linked test appointment
+- [x] `AppointmentForm.jsx`: `handleCreateWorkOrder` now passes `description: formData.notes || ''`; still needs verification on a real created WO
+- [x] `SchedulerViaWoModal.jsx`: dead base44/base44Client imports removed; code-path smoke test still needed (full validation deferred to Phase 13; this is the path suspected broken per 0.1)
+- [x] `CellAppointmentsModal.jsx`: title reference replaced with truncated notes preview (`appointment.notes && !appointment.customer`); still needs visual verification with overlapping test appointments
+- [x] `AppointmentsListModal.jsx`: title reference replaced with date-based heading (`{format(startDate, 'EEE, MMM d')} Appointment`); dead `Appointment` import removed; code-path smoke test still needed
+- [x] `sendAppointmentReminders`/`sendTextReminders`: `fetchAll`/`fetchByIds` helpers added, `Appointment`/`Customer`/`Vehicle` reads re-pointed to Supabase REST; `SentEmailLog` calls confirmed untouched (grep-verified — only `SentEmailLog` `base44.asServiceRole` calls remain in both files)
+- [ ] Base44 secrets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` added (you), patched functions confirmed reaching Postgres with a test appointment — **not yet done, blocking live verification of 3.5**
+- [x] `Admin.jsx`: `Appointment` moved from `LOCAL_ENTITIES` to `SUPABASE_TABLES`
+- [x] Repo-wide grep confirms no remaining base44 references for `Appointment` in `src/` — also caught and fixed one dead `Appointment` import in `DocumentEditor.jsx` (not in original Section 3.3 file list; it only re-exported the unused entity, `upcomingAppointment` already flows in via the migrated `useWorkOrder` hook)
 - [ ] Regression: "Create Estimate"/"Create Work Order" buttons in `AppointmentForm.jsx` still function (untouched Base44 path)
-- [ ] `master_blueprint.md` Section 1/2 "Hybrid" classification for `Appointment` corrected at phase close
+- [ ] `master_blueprint.md` Section 1/2 "Hybrid" classification for `Appointment` corrected at phase close; Phase 14 scope note added for deferred reminder-function native port + secret migration + `title` column drop
+
+**Note:** `npx eslint` was run against every file touched this phase — zero new lint errors introduced. All pre-existing unused-import warnings in `Schedule.jsx`, `WorkOrders.jsx`, `DocumentEditor.jsx`, `SchedulerViaWoModal.jsx`, `AppointmentForm.jsx` predate this phase (confirmed via `git diff`, none on lines this phase touched) — not fixed, out of scope.
+
+### Deferred checklist — Phase 13 (Work Orders Core), carry forward at that phase's planning
+
+- [ ] `SchedulerViaWoModal.jsx` full validation with real linked WO + appointment data
+- [ ] `EditApptViaWoModal.jsx` full validation with real linked WO + appointment data
+- [ ] `AppointmentsListModal.jsx` full validation with real linked WO + appointment data
+
+### Deferred checklist — Phase 14 / go-live, carry forward at that phase's planning
+
+- [ ] Real appointment data migration from Base44 (Option B, per 0.2) — including the `title`→`notes` no-op check and `employee_id` remapping resolution
+- [ ] Drop `Appointment.title` column
+- [ ] Full native port of `sendAppointmentReminders`/`sendTextReminders` to `autopro-*` Edge Functions
+- [ ] Migrate `RESEND_API_KEY`/`SES_FROM_EMAIL`/`TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_PHONE_NUMBER` secrets to Supabase
+- [ ] Stand up `pg_cron`/`pg_net` schedule replicating Base44's current reminder-function trigger cadence
+- [ ] Retire the Base44-hosted originals once the native replacements are verified

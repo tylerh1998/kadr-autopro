@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { WorkOrder, Customer, Vehicle, InventoryTxs, CustomerPayments, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
