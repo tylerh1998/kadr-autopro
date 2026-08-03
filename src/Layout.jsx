@@ -982,7 +982,7 @@ const navigationItems = [
       <FindPartModal
         open={showFindPartModal}
         onClose={() => setShowFindPartModal(false)}
-        currentUser={user}
+        currentUser={employee}
       />
 
       <NewCustomerModal
@@ -999,7 +999,7 @@ const navigationItems = [
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
         reportType={reportType}
-        currentUser={user}
+        currentUser={employee}
       />
 
       <OpenROModal
