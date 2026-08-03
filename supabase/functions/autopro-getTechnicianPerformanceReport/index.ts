@@ -362,13 +362,41 @@ serve(async (req) => {
       };
     }).sort((a, b) => b.revPerHour - a.revPerHour);
 
-    // TODO(Phase 10): CashFlowSummary isn't natively migrated yet — target/current are
-    // hardcoded to 0 until that phase lands. Restore the original payroll-target logic
-    // (base44/functions/getTechnicianPerformanceReport/entry.ts lines 396-420) then.
+    // Progress Bar Logic
+    const { data: cashFlowSummaryRows, error: cfsError } = await supabase
+      .from('CashFlowSummary')
+      .select('est_first_payroll, est_second_payroll, est_payroll_remit')
+      .limit(1);
+    if (cfsError) throw cfsError;
+
+    const cf = (cashFlowSummaryRows && cashFlowSummaryRows[0]) || {};
+    const payrollTarget = (cf.est_first_payroll || 0) + (cf.est_second_payroll || 0) + (cf.est_payroll_remit || 0);
+
+    const currentMonthStart = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Edmonton', year: 'numeric', month: '2-digit'
+    }).format(new Date());
+    // Note: format returns YYYY-MM
+
+    const currentMonthLabourSales = workOrders.reduce((sum, wo) => {
+      if (wo.wo_date && wo.wo_date.startsWith(currentMonthStart)) {
+        let val = 0;
+        if (typeof wo.labor_total === 'number') {
+          val = wo.labor_total;
+        } else if (typeof wo.labor_total === 'string') {
+          val = parseFloat(wo.labor_total.replace(/[$,]/g, '')) || 0;
+        }
+        return sum + val;
+      }
+      return sum;
+    }, 0);
+
     return new Response(JSON.stringify({
       utilization: utilizationList,
       efficiency: efficiencyList,
-      progress: { target: 0, current: 0 }
+      progress: {
+        target: payrollTarget,
+        current: currentMonthLabourSales
+      }
     }), { status: 200, headers: jsonHeaders });
 
   } catch (error) {

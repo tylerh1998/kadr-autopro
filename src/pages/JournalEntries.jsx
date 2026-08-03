@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { postJournalEntries } from '@/functions/postJournalEntries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,10 +107,12 @@ export default function JournalEntriesPage() {
 
     setSaving(true);
     try {
-      await postJournalEntries({
-        transactionDate,
-        journalLines
+      const { data, error } = await supabase.functions.invoke('autopro-postJournalEntries', {
+        body: { transactionDate, journalLines }
       });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       alert('Journal entry posted successfully!');
       handleClear();

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,9 +25,8 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getGeneralLedgerData', {
-        startDate,
-        endDate
+      const response = await supabase.functions.invoke('autopro-getGeneralLedgerData', {
+        body: { startDate, endDate }
       });
 
       if (!response.data?.success) {

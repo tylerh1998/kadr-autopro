@@ -1,6 +1,6 @@
 # Phase 10 Implementation Plan: Accounting, GL Reporting, Taxes & Fiscal Periods
 
-**Status:** **In Progress.** 10A code-complete and **confirmed live** on `test.kensauto.ca` (pushed via commit `2b21dccaf` "Phase 10A"). 10B (the 7-function RPC-transition subset) is code-complete and backend-verified against real production data, but **not yet confirmed live** — 4 of 7 new edge functions are pushed (commit `f594728a` "Partial Phase 10"), the other 3 plus **all 6 frontend page repoints are still uncommitted in the working tree**. See "Current Status & Next Steps" at the bottom of this doc for the exact resume point.
+**Status:** **In Progress.** 10A code-complete and **confirmed live** on `test.kensauto.ca` (pushed via commit `2b21dccaf` "Phase 10A"). 10B is **fully code-complete**: the original 7-function RPC-transition subset landed via commit `edd03df7` ("Dark Mode phase 6" — bundled in, confirmed via `git log` 2026-08-03) plus its 6 frontend repoints. **10B's remaining original scope (`getGeneralLedgerData`, `getThreeMonthAPReport`, `GeneralLedger.jsx`, `JournalEntries.jsx`'s `postJournalEntries` repoint, `TechnicianPerformanceReport` progress-bar restoration) is now also done** — 3 new edge functions (`autopro-getGeneralLedgerData`, `autopro-getThreeMonthAPReport`, `autopro-postJournalEntries`) plus the updated `autopro-getTechnicianPerformanceReport` are deployed to **both dev and production**, backend-verified (curl against real data on both branches, including a throwaway balanced JE posted+cross-validated+cleaned up on dev), and all 3 frontend files (`GeneralLedger.jsx`, `FinancialDashboard.jsx`, `JournalEntries.jsx`) are repointed. **Still uncommitted in the working tree as of 2026-08-03** — you need to commit + push via GitHub Desktop, then live-verify on `test.kensauto.ca` before 10B's hold is cleared.
 **Parent:** `master_blueprint.md`, Phase 10
 **Prepared:** 2026-08-03
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -111,8 +111,8 @@ Confirmed scope (9 report functions + GST domain + FiscalPeriod cutover + CashFl
 
 | Sub-phase | Scope | Status | Depends on |
 |---|---|---|---|
-| **10A** | Foundation: `FiscalPeriod` full cutover, `CashFlowSummary` RLS fix, production replay of `SystemSettings`/`CashFlowSummary`/`OtherChargeList`, new `GSTReturn` schema (both branches) | Not Started | None — start here |
-| **10B** | GL Reporting: 9 native function ports + 6 frontend pages + `JournalEntries.jsx`'s `postJournalEntries` port + `TechnicianPerformanceReport` progress-bar restoration | Not Started | **10A** (needs `FiscalPeriod`/`CashFlowSummary` for clean live testing; progress-bar restoration needs `CashFlowSummary`) |
+| ~~**10A**~~ | ~~Foundation: `FiscalPeriod` full cutover, `CashFlowSummary` RLS fix, production replay of `SystemSettings`/`CashFlowSummary`/`OtherChargeList`, new `GSTReturn` schema (both branches)~~ | [Completed] | ~~None — start here~~ |
+| **10B** | GL Reporting: 9 native function ports + 6 frontend pages + `JournalEntries.jsx`'s `postJournalEntries` port + `TechnicianPerformanceReport` progress-bar restoration | In Progress | **10A** (needs `FiscalPeriod`/`CashFlowSummary` for clean live testing; progress-bar restoration needs `CashFlowSummary`) |
 | **10C** | GST & Taxes: `GSTReturn` CRUD, 3 native functions, `Taxes.jsx`, `MarkPaidModal.jsx` (both fixes) | Not Started | **10A** (needs `GSTReturn`/`SystemSettings` schema); benefits from 10B's patterns |
 | **10D** | Cash Flow & Bank Transfer: `CashFlow.jsx` full cutover, `CashFlowTrendTab.jsx` repoint, `transferFunds` full native rewrite, `Bank.jsx` `handleTransfer` | Not Started | **10A** (`CashFlowSummary`); **10B** (`getFinancialDashboardData`) |
 | **10E** | *(conditional on §0.1)* Levies: new schema, 3 native functions, 2 frontend call sites | Pending your decision | **10A**-adjacent (own schema, low interdependency) |
@@ -223,26 +223,27 @@ No frontend change needed — `TechnicianPerformanceReportModal.jsx:138` already
 
 ### 10B.4) Task List
 
-- [x] 7 of 9 functions ported, deployed to **both** dev and production, verified via curl against real production data (`getGLJournalData`, `getGLAccountTransactions`, `getBalanceSheetData`, `getPLReportData`, `getFinancialDashboardData`, `findGLImbalances`, `getThreeMonthPLReport`). **Uncommitted status:** `autopro-getBalanceSheetData`, `autopro-getGLAccountTransactions`, `autopro-getGLJournalData`, `autopro-getPLReportData` are committed (`f594728a` "Partial Phase 10"); `autopro-findGLImbalances`, `autopro-getFinancialDashboardData`, `autopro-getThreeMonthPLReport` are still **untracked in the working tree** (confirmed via `git status`, 2026-08-03).
-- [ ] `getGeneralLedgerData`/`getThreeMonthAPReport` — not started (original 10B scope, not part of the 7-function RPC-transition request).
-- [x] 6 of 7 frontend files converted: `GLAcct.jsx`, `GLJournal.jsx`, `PLReport.jsx`, `BalanceSheet.jsx`, `FinancialDashboard.jsx`, `CashFlowTrendTab.jsx`. **All 6 are still uncommitted/modified in the working tree** (confirmed via `git status`, 2026-08-03) — code-complete but not yet live-testable.
-- [ ] `GeneralLedger.jsx` conversion — not started.
-- [ ] `JournalEntries.jsx`'s `postJournalEntries` repoint — not started.
-- [ ] `TechnicianPerformanceReport` progress bar restoration — not started.
-- [x] Repo-wide grep confirmed zero remaining invokes of the 7 legacy function names; `npx vite build` clean (both checked pre-summary).
-- [x] All 7 new/changed RPCs and 7 edge functions applied to **both** dev and production already (schema/backend work carries low live-behavior risk on its own, same reasoning as 10A's schema-first approach).
+- [x] 7 of 9 functions ported, deployed to **both** dev and production, verified via curl against real production data (`getGLJournalData`, `getGLAccountTransactions`, `getBalanceSheetData`, `getPLReportData`, `getFinancialDashboardData`, `findGLImbalances`, `getThreeMonthPLReport`). Committed via `edd03df7` ("Dark Mode phase 6" — confirmed via `git log`, all 7 function directories present and tracked).
+- [x] `getGeneralLedgerData`/`getThreeMonthAPReport` ported (`autopro-getGeneralLedgerData`, `autopro-getThreeMonthAPReport`) — thin RPC passthroughs matching the established pattern (`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, no auth gate, `verify_jwt: false`). Deployed to **both** dev and production, verified via curl on both — dev returns the expected zero-balance shape (dev has no `GLTransaction` rows), production returns real account balances and 66 real AP supplier rows with correct 3-month math.
+- [x] 6 of 7 frontend files converted: `GLAcct.jsx`, `GLJournal.jsx`, `PLReport.jsx`, `BalanceSheet.jsx`, `FinancialDashboard.jsx`, `CashFlowTrendTab.jsx` (already done, per above). `FinancialDashboard.jsx`'s `getThreeMonthAPReport` call site now also repointed from `base44.functions.invoke` to `supabase.functions.invoke('autopro-getThreeMonthAPReport', ...)`; the now-unused `base44` import removed.
+- [x] `GeneralLedger.jsx` conversion — repointed to `autopro-getGeneralLedgerData`; unused `GLTransaction`/`base44` imports removed.
+- [x] `JournalEntries.jsx`'s `postJournalEntries` repoint — new `autopro-postJournalEntries` function (JWT-resolved audit identity via `Authorization` header + `supabase.auth.getUser(token)`, falling back to `{ email: 'System', id: null }`, matching the `autopro-processLineOfCreditPayment` pattern) ported byte-for-byte from the legacy logic (balance validation, per-line `GLTransaction` insert, rollback-on-failure). `JournalEntries.jsx` repointed from the `@/functions/postJournalEntries` legacy alias to `supabase.functions.invoke('autopro-postJournalEntries', ...)`.
+- [x] `TechnicianPerformanceReport` progress bar restoration — `autopro-getTechnicianPerformanceReport/index.ts` now reads `CashFlowSummary` (`est_first_payroll`/`est_second_payroll`/`est_payroll_remit`) and computes `currentMonthLabourSales` from the function's own `workOrders` array, byte-for-byte matching the legacy logic (`base44/functions/getTechnicianPerformanceReport/entry.ts` lines 396-420). No frontend change needed (`TechnicianPerformanceReportModal.jsx:138` already un-hides once `target > 0`).
+- [x] Repo-wide grep confirmed zero remaining invokes of all 9 legacy function names and zero remaining `@/functions/postJournalEntries` references; `npx vite build` clean.
+- [x] All 3 new edge functions + the updated `autopro-getTechnicianPerformanceReport` deployed to **both** dev and production. Backend-verified: `autopro-getGeneralLedgerData`/`autopro-getThreeMonthAPReport` curl-checked on both branches; `autopro-postJournalEntries` curl-verified on dev with a real throwaway balanced 2-line JE (account 1001 debit $50 / account 4001 credit $50) — confirmed correct `GLTransaction` rows via direct SQL (correct `created_by: 'System'` fallback since no real user JWT was sent), cross-validated the balance showed up correctly in `autopro-getGeneralLedgerData`'s own balances, then cleaned up via `DELETE`. `autopro-getTechnicianPerformanceReport`'s new `CashFlowSummary` read confirmed wired correctly (dev has real data: $6,500 × 3 = $19,500 target) — full live verification (via UI with a real auth session) deferred to the live-testing pass below, same as the rest of this checklist.
 
-**Resume point:** commit + push the 3 untracked edge functions and 6 modified frontend files, then re-run the verification checklist below live on `test.kensauto.ca`.
+**Resume point:** commit + push everything above (4 new/changed edge functions already deployed to both branches ahead of push, matching this phase's established schema/backend-first pattern; 9 modified/new frontend and function source files in the working tree), then run the verification checklist below live on `test.kensauto.ca`.
 
 ### 10B.5) Verification Checklist
 
-- [ ] Each of the 6 report pages loads real/throwaway GL data correctly, figures match a manual spot-check against `GLTransaction`.
-- [ ] `JournalEntries.jsx`: post a throwaway manual JE, confirm it balances and appears in `GeneralLedger.jsx`.
-- [ ] `findGLImbalances` email trigger fires correctly (or is safely skippable in test).
-- [ ] `TechnicianPerformanceReportModal.jsx`: payroll-target progress bar visible and correct against real `CashFlowSummary`/`WorkOrder` data.
-- [ ] Repo-wide grep clean; `npx vite build` clean.
+- [x] Backend-only verification (curl against real production data): `getBalanceSheetData` returned `isBalanced: true` (Assets = Liabilities + Equity); `getGLAccountTransactions`'s opening balance matched a manual SQL sum exactly; `getFinancialDashboardData`'s cash position matched the exact sum of `BankAccount.current_balance`; its June+July revenue total matched the independently-computed `getThreeMonthPLReport` sum to the cent; `getGeneralLedgerData`/`getThreeMonthAPReport` return real, correctly-shaped data from production; `postJournalEntries` correctly posts/balances/rolls-back-cleanly (verified on dev with a throwaway entry, see 10B.4).
+- [ ] **Live UI verification — next step once you push.** Each of the 6 report pages plus `GeneralLedger.jsx` loads real GL data correctly in-browser, figures match the already-verified backend output.
+- [ ] `JournalEntries.jsx`: post a throwaway manual JE from the actual UI (not curl), confirm it balances and appears in `GeneralLedger.jsx`, confirm `created_by`/`created_by_id` reflect your real logged-in user (curl testing above only exercised the `System` fallback path).
+- [ ] `findGLImbalances` email trigger fires correctly (or is safely skippable in test). Not yet checked live.
+- [ ] `TechnicianPerformanceReportModal.jsx`: payroll-target progress bar renders and shows a real, non-zero target/current split (backend logic confirmed wired correctly against real dev data, see 10B.4 — this is the UI-rendering check).
+- [x] Repo-wide grep clean; `npx vite build` clean.
 
-**🛑 HOLD FOR TESTING — do not start 10C until you've confirmed the above and given the go-ahead.**
+**🛑 HOLD FOR TESTING — do not start 10C until: (1) the working tree is committed + pushed, (2) the 6 report pages + `GeneralLedger.jsx` are live-verified, (3) `JournalEntries.jsx`'s post-and-verify round-trip is done from the real UI, (4) the `TechnicianPerformanceReport` progress bar is visually confirmed.**
 
 ---
 
@@ -362,3 +363,27 @@ Convert `Bank.jsx`'s `handleTransfer` (line ~703) to call `autopro-transferFunds
 ## Phase Results and Final Context
 
 *(Empty — filled in as each sub-phase executes and closes out.)*
+
+---
+
+## Current Status & Next Steps (written 2026-08-03, for context-clear handoff)
+
+**Answering "are we on 10B validation now?": not yet — close, but there's a push step in between.**
+
+### Where things actually stand
+
+**10A — done and confirmed live.** Pushed via commit `2b21dccaf` ("Phase 10A"). Directly verified in-browser on `test.kensauto.ca/FiscalPeriods`: all 6 real fiscal periods load correctly, which is the exact bug this sub-phase fixed (confirmed broken pre-push, confirmed fixed post-push). A couple of secondary checklist items (create/edit/close-period round-trip, re-verifying 3 other previously-blocked flows) are still open but low-risk — safe to fold into 10B's live-testing pass rather than treat as a separate blocker.
+
+**10B — fully code-complete, backend deployed + verified on both branches, not yet pushed/live-tested.** The original 7-function RPC-transition subset (`getGLJournalData`, `getGLAccountTransactions`, `getBalanceSheetData`, `getPLReportData`, `getFinancialDashboardData`, `findGLImbalances`, `getThreeMonthPLReport`) landed via commit `edd03df7` ("Dark Mode phase 6" — confirmed via `git log`, all 7 function dirs tracked). **The remaining original 10B scope (this session's work, 2026-08-03) is now also done:** `autopro-getGeneralLedgerData` and `autopro-getThreeMonthAPReport` (new thin RPC-passthrough edge functions), `autopro-postJournalEntries` (new, with JWT-resolved audit identity matching the `autopro-processLineOfCreditPayment` pattern), and the `TechnicianPerformanceReport` payroll-target progress-bar restoration (`autopro-getTechnicianPerformanceReport` now reads real `CashFlowSummary` data instead of hardcoded zeros). All 4 are deployed to **both dev and production** and backend-verified: the two report functions via curl against real production data (real account balances, 66 real AP supplier rows); `postJournalEntries` via a real throwaway balanced JE posted on dev, cross-validated against `autopro-getGeneralLedgerData`'s own output, then cleaned up; the progress-bar restoration confirmed wired to real dev `CashFlowSummary` data ($19,500 target). 3 frontend files repointed: `GeneralLedger.jsx`, `FinancialDashboard.jsx` (its `getThreeMonthAPReport` call site), `JournalEntries.jsx` (its `postJournalEntries` call site, off the `@/functions/postJournalEntries` legacy alias). Repo-wide grep clean of all 9 legacy function names; `npx vite build` clean.
+
+**What's uncommitted right now** (confirmed via `git status`, 2026-08-03):
+- Untracked: `supabase/functions/autopro-getGeneralLedgerData/`, `supabase/functions/autopro-getThreeMonthAPReport/`, `supabase/functions/autopro-postJournalEntries/`
+- Modified: `src/pages/FinancialDashboard.jsx`, `src/pages/GeneralLedger.jsx`, `src/pages/JournalEntries.jsx`, `supabase/functions/autopro-getTechnicianPerformanceReport/index.ts`
+
+**Note:** the working tree also currently has unrelated modified/untracked files (`Antigravity-context-plans/master_blueprint.md`, `Antigravity-context-plans/phase_6_implementation_plan.md`, `Antigravity-context-plans/phase_7_implementation_plan.md`, `Plans and Context/UI_Changes_List.md`) — these are **not** part of this Phase 10 session's work and weren't touched here. Worth clarifying with the user before any bulk commit/push so nothing unrelated gets swept in.
+
+### Exact resume steps for the next session
+
+1. **You push** the 3 untracked edge functions + 4 modified files above (via GitHub Desktop, as usual) — leave the unrelated files noted above out unless you want them included too.
+2. Live-verify on `test.kensauto.ca`: the 6 original report pages plus `GeneralLedger.jsx` load real GL data correctly; post a real throwaway manual JE from `JournalEntries.jsx`'s actual UI (not curl) and confirm it appears correctly in `GeneralLedger.jsx` with your real user as `created_by`; confirm `TechnicianPerformanceReportModal.jsx`'s payroll-target progress bar now renders with a real, non-zero split.
+3. Once all of 10B.5's checklist is live-confirmed, proceed to 10C (GST & Taxes) per the sub-phase order above.

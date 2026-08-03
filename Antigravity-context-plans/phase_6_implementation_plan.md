@@ -87,17 +87,17 @@ Badge colors:          per Section 7 pairs
 6. Toggle back to light mode and confirm zero regression.
 
 ### Checklist
-- [ ] `InventoryValuation.jsx` — page background, table, print output unaffected
-- [ ] `StockReorderReport.jsx` — page background, print output unaffected
-- [ ] `CustomerReportModal.jsx` — modal legible
-- [ ] `InventoryOnOrder.jsx` — modal/table legible
-- [ ] `OtherChargesBreakdownReport.jsx` — modal legible, 4 badges, print output unaffected
-- [ ] `PartsMovementReportModal.jsx` — modal legible, 4 badges
-- [ ] `ReportModal.jsx` — modal legible
-- [ ] `SalesAnalysisReport.jsx` — surrounding chrome + chart axes/gridlines/tooltip/legend all legible in dark mode
-- [ ] `WorkOrderSummaryReport.jsx` — surrounding chrome + chart axes/gridlines/tooltip/legend all legible in dark mode
-- [ ] Light-mode regression pass across all 9 files
-- [ ] No console errors introduced
+- [x] `InventoryValuation.jsx` — page background, table, print output unaffected
+- [x] `StockReorderReport.jsx` — page background, print output unaffected
+- [x] `CustomerReportModal.jsx` — modal legible
+- [x] `InventoryOnOrder.jsx` — modal/table legible
+- [x] `OtherChargesBreakdownReport.jsx` — modal legible, 4 badges, print output unaffected
+- [x] `PartsMovementReportModal.jsx` — modal legible, 4 badges
+- [x] `ReportModal.jsx` — modal legible
+- [x] `SalesAnalysisReport.jsx` — surrounding chrome + chart axes/gridlines/tooltip/legend all legible in dark mode
+- [x] `WorkOrderSummaryReport.jsx` — surrounding chrome + chart axes/gridlines/tooltip/legend all legible in dark mode
+- [x] Light-mode regression pass across all 9 files
+- [x] No console errors introduced
 
 ---
 

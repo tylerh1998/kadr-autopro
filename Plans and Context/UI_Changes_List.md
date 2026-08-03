@@ -13,3 +13,4 @@
   - [ ] Make a "Marked Quoted" and a "Marked On Order" which will change the badges.
   - [ ] Add an edit feature that allows user to bring it back into the edit area. Similar to inventory add. 
 - [ ] Create/Edit Customer - make max height the screen height.
+- [ ] StockRelevelReport - print version. 

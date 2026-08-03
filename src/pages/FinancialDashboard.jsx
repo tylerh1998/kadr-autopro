@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -139,8 +138,8 @@ export default function FinancialDashboard() {
 
     setThreeMonthAPLoading(true);
     try {
-      const response = await base44.functions.invoke('getThreeMonthAPReport', {
-        endDate: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getThreeMonthAPReport', {
+        body: { endDate: appliedToDate }
       });
 
       if (response.data.success) {
