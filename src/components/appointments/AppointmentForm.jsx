@@ -464,6 +464,10 @@ export default function AppointmentForm({
 
     // Format phone number with +1 prefix if it exists
     const submissionData = { ...formData };
+    // employee_id is a bigint column; an empty string (unassigned) must be null, not ''
+    if (submissionData.employee_id === '') {
+      submissionData.employee_id = null;
+    }
     if (submissionData.reminders_phone) {
       // Ensure only digits are kept and prepend +1
       const digitsOnly = submissionData.reminders_phone.replace(/[^0-9]/g, '');

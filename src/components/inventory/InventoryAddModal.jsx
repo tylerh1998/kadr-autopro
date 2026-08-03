@@ -86,17 +86,20 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
 
     const loadData = async () => {
         try {
-            const [tagAlongsData, categoriesResult] = await Promise.all([
-                TagAlong.list(),
-                supabase.from('InventoryCategory').select('*').order('name')
-            ]);
+            const categoriesResult = await supabase.from('InventoryCategory').select('*').order('name');
             if (categoriesResult.error) {
                 console.error('Error loading categories:', categoriesResult.error);
             }
-            setTagAlongs(tagAlongsData);
             setInternalCategories(categoriesResult.data || []);
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('Error loading categories:', error);
+        }
+
+        try {
+            const tagAlongsData = await TagAlong.list();
+            setTagAlongs(tagAlongsData);
+        } catch (error) {
+            console.error('Error loading tag alongs:', error);
         }
     };
 
