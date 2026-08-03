@@ -47,7 +47,7 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 ## 3. Phase 3 Roadmap & Progress
 
 ```
-3A [Done — pending UI verify] ──► 3B [Done — pending UI verify] ──► 3C [Done — pending UI verify] ──► 3D [Pending] ──► 3E [Pending]
+3A [Done — pending UI verify] ──► 3B [Done — pending UI verify] ──► 3C [Done — pending UI verify] ──► 3D [Done — pending UI verify] ──► 3E [Pending]
 ```
 
 | Sub-Phase | Scope Summary | File Count | Approx. Lines | Status |
@@ -55,7 +55,7 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 | **3A — Credit Invoice & RO Modals** | Confirmation/credit-invoice dialogs and repair-order approval/inspection modals. Mostly Shadcn-mixed, table-heavy line items. | 7 | ~1,340 | Done — pending UI verify |
 | **3B — Work Order Creation, Parts & Editing** | New WO creation, part lookup/search, project/WO detail editing, warranty returns. Includes `GetPartModal.jsx` (largest single file, 745 lines) and the known pre-existing Enter-key bug to avoid disturbing. | 6 | ~2,080 | Done — pending UI verify |
 | **3C — Notes, Communications & Documents** | Notes board/cards/columns, SES email modal, PDF modal. Includes the pure-wrapper `NoteBoard.jsx` (verify-only) and `NoteCard.jsx`'s share-button color-variant object. | 7 | ~810 | Done — pending UI verify |
-| **3D — Tech Time & Clock-In** | Global/tech clock-in modals, tech time logging, WorkPRO (third-party SaaS) view modal. Includes `TechTimeModal.jsx`'s `CATEGORIES` map + Shadcn `SelectTrigger` override gotcha. | 5 | ~1,875 | Pending |
+| **3D — Tech Time & Clock-In** | Global/tech clock-in modals, tech time logging, WorkPRO (third-party SaaS) view modal. Includes `TechTimeModal.jsx`'s `CATEGORIES` map + Shadcn `SelectTrigger` override gotcha. | 5 | ~1,875 | Done — pending UI verify |
 | **3E — Lists & Reports** | WO list (21-entry `colorMap`), profitability dashboard, printable report (`print:` variant to preserve). | 3 | ~1,205 | Pending |
 
 ---
@@ -144,13 +144,15 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - `GlobalClockInModal.jsx`: confirm Shadcn-only (0 hits, 0 flagged classes) before treating as verify-only.
 
 **Task List:**
-- [ ] `GlobalClockInModal.jsx` — confirm Shadcn-only, edit or verify-only
-- [ ] `TechClockStatusModal.jsx` — dark: pass incl. 5 badges
-- [ ] `TechProjectClockInModal.jsx` — dark: pass
-- [ ] `TechTimeModal.jsx` — full read; fix `SelectTrigger` override + `CATEGORIES` map as one pass; dark: pass on remaining 23 instances/11 badges
-- [ ] `WorkPROViewModal.jsx` — dark: pass incl. 4 badges
+- [x] `GlobalClockInModal.jsx` — confirm Shadcn-only, edit or verify-only (1 instance found + fixed, not purely Shadcn)
+- [x] `TechClockStatusModal.jsx` — dark: pass incl. 5 badges (41 instances)
+- [x] `TechProjectClockInModal.jsx` — dark: pass (13 instances)
+- [x] `TechTimeModal.jsx` — full read; fix `SelectTrigger` override + `CATEGORIES` map as one pass; dark: pass on remaining 23 instances/11 badges (60 instances total)
+- [x] `WorkPROViewModal.jsx` — dark: pass incl. 4 badges (49 instances)
 
 **Verification Plan:** Grep-audit all 5 files. UI: clock in globally, clock into a tech project, open tech time log (confirm the category `SelectTrigger` dropdown is legible in dark mode, not a jarring light box), open a WorkPRO view modal — all in dark mode.
+
+**3D Execution Notes (2026-08-03):** All edits additive. Grep audit: all 5 files show `dark:` count > 0 (164 total). `GlobalClockInModal.jsx` was **not** genuinely Shadcn-only as predicted — it had one real light-only hint text (`text-xs text-slate-500` on line 103), consistent with the established codebase convention (`dark:text-slate-400`) seen across many already-completed files; fixed. `TechTimeModal.jsx`'s `CATEGORIES` map (7 entries, lines 14-22) got a `dark:` pair added to each `color` value in one systematic pass — since `config.color` is consumed both as a `Badge` className (in the nested `SplitTimeDialog`) and as the flagged `SelectTrigger` override, the single map edit covered both consumers. The confirmed gotcha at the `SelectTrigger` override (`bg-gray-100 text-gray-800` for manual entries) was paired with `dark:bg-slate-700/60 dark:text-slate-300`. `TechTimeModal.jsx`'s nested `SplitTimeDialog` component (not called out by name in the file-list line count but part of the same file) also needed its own dark: pass — total/remaining hours display, allocation input active-state border, and the allocation-mismatch error banner. Two hardcoded third-party WorkPRO API key constants were noticed in passing (`TechProjectClockInModal.jsx` lines 8-9 and `WorkPROViewModal.jsx` lines 20-21) — a pre-existing client-side credential exposure unrelated to this styling phase; flagged as a separate background task rather than fixed here (out of scope, data/security concern not styling). Confirmed via `src/index.css:152-155` that bare `border`/`border-t` classes (no explicit color utility) already resolve through the theme-aware `--border` CSS variable set at the `@layer base` level, so unqualified border utilities across all 5 files were correctly left unpaired — not an oversight. Saturated solid badge fills in `WorkPROViewModal.jsx`'s `getApprovalBadge` (`bg-green-600`/`bg-red-600`/`bg-yellow-600`) were left unpaired, consistent with 3A/3B/3C precedent for already dark-safe solid fills.
 
 ---
 
@@ -186,9 +188,9 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - [x] 3A — Credit Invoice & RO Modals (7 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [x] 3B — Work Order Creation, Parts & Editing (6 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [x] 3C — Notes, Communications & Documents (7 files) — edits done 2026-08-03, UI dark-mode verification still pending
-- [ ] 3D — Tech Time & Clock-In (5 files)
+- [x] 3D — Tech Time & Clock-In (5 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [ ] 3E — Lists & Reports (3 files)
-- [ ] `TechTimeModal.jsx` Shadcn `SelectTrigger` override + `CATEGORIES` map fixed
+- [x] `TechTimeModal.jsx` Shadcn `SelectTrigger` override + `CATEGORIES` map fixed
 - [ ] `WorkOrderList.jsx` `colorMap` fully paired
 - [ ] `WorkOrderReport.jsx` print output unaffected
 - [ ] Light-mode regression pass across all 28 edited files

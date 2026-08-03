@@ -94,7 +94,7 @@ export default function WorkPRODescriptionModal({ open, onClose, workOrder, proj
             <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
               <p><strong>Task:</strong> {project.name || 'No task name'}</p>
               <p><strong>Status:</strong> {project.status}</p>
-              <p><strong>Assigned:</strong> {project.employee_assigned || 'Not assigned'}</p>
+              <p><strong>Assigned:</strong> {Array.isArray(project.employees_assigned) && project.employees_assigned.length > 0 ? project.employees_assigned.join(', ') : (project.employee_assigned || 'Not assigned')}</p>
             </div>
           )}
         </div>

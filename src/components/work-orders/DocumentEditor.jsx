@@ -50,7 +50,6 @@ import WorkOrderReport from './WorkOrderReport';
 import WorkOrderPdfModal from './WorkOrderPdfModal';
 import SESEmailModal from './SESEmailModal';
 import WorkPROModal from './WorkPROModal';
-import ROInspectionModal from './ROInspectionModal';
 import ROApprovalsModal from './ROApprovalsModal';
 import AdvancePaymentModal from './AdvancePaymentModal';
 import SchedulerViaWoModal from './SchedulerViaWoModal';
@@ -200,7 +199,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     print: false,
     send: false,
     workPRO: false,
-    inspections: false,
     approvals: false,
     payments: false,
     scheduler: false,
@@ -1828,7 +1826,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             />
           )}
 
-          <ROInspectionModal open={modals.inspections} onClose={() => closeModal('inspections')} roNumber={workOrder.ro_number} />
           <ROApprovalsModal open={modals.approvals} onClose={() => closeModal('approvals')} workOrderId={workOrder.id} />
           <AdvancePaymentModal
             open={modals.payments}

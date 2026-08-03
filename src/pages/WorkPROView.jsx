@@ -11,10 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Clock, Gauge, X, CheckCircle2, Droplet, Pencil } from 'lucide-react';
 import TechTimeModal from '../components/work-orders/TechTimeModal';
 import EditProjectDetailsModal from '../components/work-orders/EditProjectDetailsModal';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { supabase } from '@/lib/supabase';
 
 const INSPECTION_SECTIONS = [
   {
@@ -127,26 +124,25 @@ export default function WorkPROViewPage() {
 
           // Load WorkPRO project by work order
           const workOrderIdentifier = wo.wo_number || wo.ro_number;
-          const projectResponse = await fetch(`${API_BASE_URL}/Project?work_order=${workOrderIdentifier}`, {
-            headers: { 'api_key': WORKPRO_API_KEY }
-          });
+          const { data: projects, error: projectsError } = await supabase
+            .from('Project')
+            .select('*')
+            .eq('work_order', workOrderIdentifier);
 
-          if (projectResponse.ok) {
-            const projectsData = await projectResponse.json();
-            const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
-            foundProject = projects.length > 0 ? projects[0] : null;
-          }
+          if (projectsError) console.error('Error fetching WorkPRO project:', projectsError);
+          foundProject = (projects && projects.length > 0) ? projects[0] : null;
         }
-        
+
         // If no project found by work order, or projectId is provided directly, fetch by project ID
         if (!foundProject && projectId) {
-          const projectResponse = await fetch(`${API_BASE_URL}/Project/${projectId}`, {
-            headers: { 'api_key': WORKPRO_API_KEY }
-          });
+          const { data: projectById, error: projectByIdError } = await supabase
+            .from('Project')
+            .select('*')
+            .eq('id', projectId)
+            .single();
 
-          if (projectResponse.ok) {
-            foundProject = await projectResponse.json();
-          }
+          if (projectByIdError) console.error('Error fetching WorkPRO project by id:', projectByIdError);
+          else foundProject = projectById;
         }
 
         // Load employees
@@ -161,16 +157,19 @@ export default function WorkPROViewPage() {
         if (foundProject) {
           setProject(foundProject);
 
-          const assignedEmployeesList = foundProject.employee_assigned 
-            ? foundProject.employee_assigned.split(',').map(name => name.trim())
-            : [];
-          
+          let assignedEmployeesList = [];
+          if (Array.isArray(foundProject.employees_assigned) && foundProject.employees_assigned.length > 0) {
+            assignedEmployeesList = foundProject.employees_assigned;
+          } else if (foundProject.employee_assigned) {
+            assignedEmployeesList = foundProject.employee_assigned.split(',').map(name => name.trim());
+          }
+
           setFormData({
             priority: foundProject.priority || '',
             task: foundProject.task || '',
             assigned_employees: assignedEmployeesList,
             time_estimate: foundProject.time_estimate || '',
-            promised_by: foundProject.promised_by || '',
+            promised_by: foundProject.due_date || '',
             status: foundProject.status || '',
             description: foundProject.description || '',
             filter: foundProject.filter || '',
@@ -230,9 +229,9 @@ export default function WorkPROViewPage() {
       const updateData = {
         priority: formData.priority,
         task: formData.task,
-        employee_assigned: formData.assigned_employees.join(', '),
+        employees_assigned: formData.assigned_employees,
         time_estimate: parseFloat(formData.time_estimate) || 0,
-        promised_by: formData.promised_by,
+        due_date: formData.promised_by || null,
         status: formData.status,
         description: formData.description,
         filter: formData.filter,
@@ -248,13 +247,12 @@ export default function WorkPROViewPage() {
         next_oil_change_odometer: formData.next_oil_change_odometer ? parseFloat(formData.next_oil_change_odometer) : null
       };
 
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
+      const { error } = await supabase
+        .from('Project')
+        .update(updateData)
+        .eq('id', project.id);
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (error) throw error;
 
       setProject(prev => ({
         ...prev,

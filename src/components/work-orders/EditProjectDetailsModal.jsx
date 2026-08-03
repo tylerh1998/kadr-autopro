@@ -4,10 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { supabase } from '@/lib/supabase';
 
 export default function EditProjectDetailsModal({ open, onClose, project, onProjectUpdated }) {
   const [formData, setFormData] = useState({
@@ -34,13 +31,12 @@ export default function EditProjectDetailsModal({ open, onClose, project, onProj
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const { error } = await supabase
+        .from('Project')
+        .update(formData)
+        .eq('id', project.id);
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (error) throw error;
 
       if (onProjectUpdated) {
         onProjectUpdated();

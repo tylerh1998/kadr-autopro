@@ -4,10 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, Briefcase, Clock, AlertTriangle, LogOut } from 'lucide-react';
-
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { supabase } from '@/lib/supabase';
 
 export default function TechProjectClockInModal({ open, onClose, tech, initialProjectId, onSuccess }) {
   const [projects, setProjects] = useState([]);
@@ -24,15 +21,13 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
   const loadActiveProjects = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/Project`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
-      });
-      const data = await response.json();
-      const allProjects = Array.isArray(data) ? data : (data?.records || []);
-      
+      const { data, error } = await supabase.from('Project').select('*').limit(1000);
+      if (error) throw error;
+      const allProjects = data || [];
+
       // Filter active (not archived)
       const activeProjects = allProjects.filter(p => p.status !== 'archived');
-      
+
       // Sort: if initialProjectId matches, put it first. Then newest created.
       activeProjects.sort((a, b) => {
         if (initialProjectId) {
@@ -61,76 +56,65 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
 
       // 1. Find and end current active ProjectTimeSession
       // Using user_name for filtering as per schema
-      const sessionsRes = await fetch(`${API_BASE_URL}/ProjectTimeSession?user_name=${encodeURIComponent(empName)}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
-      });
-      
-      if (sessionsRes.ok) {
-        const sessionsData = await sessionsRes.json();
-        const sessions = Array.isArray(sessionsData) ? sessionsData : (sessionsData?.records || []);
-        
-        // Find session that has start_time but NO end_time
-        const activeSession = sessions.find(s => s.start_time && !s.end_time);
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('ProjectTimeSession')
+        .select('*')
+        .eq('user_name', empName);
+      if (sessionsError) console.error('Error fetching ProjectTimeSessions:', sessionsError);
 
-        if (activeSession) {
-          console.log("Ending active ProjectTimeSession:", activeSession.id);
-          // End it
-          const startTime = new Date(activeSession.start_time);
-          const endTime = new Date();
-          const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+      // Find session that has start_time but NO end_time
+      const activeSession = (sessions || []).find(s => s.start_time && !s.end_time);
 
-          await fetch(`${API_BASE_URL}/ProjectTimeSession/${activeSession.id}`, {
-            method: 'PUT',
-            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              end_time: now,
-              total_hours: Math.round(totalHours * 100) / 100,
-              status: 'completed'
-            })
-          });
-        }
+      if (activeSession) {
+        console.log("Ending active ProjectTimeSession:", activeSession.id);
+        // End it
+        const startTime = new Date(activeSession.start_time);
+        const endTime = new Date();
+        const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+
+        await supabase
+          .from('ProjectTimeSession')
+          .update({
+            end_time: now,
+            total_hours: Math.round(totalHours * 100) / 100,
+            status: 'completed'
+          })
+          .eq('id', activeSession.id);
       }
 
       // 2. Find and end current active UnassignedTime
-      // Changed from UnassignedTimeRecord to UnassignedTime
       // Using user_name for filtering
-      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTime?user_name=${encodeURIComponent(empName)}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
-      });
-      
-      if (unassignedRes.ok) {
-        const unassignedData = await unassignedRes.json();
-        const unassignedRecs = Array.isArray(unassignedData) ? unassignedData : (unassignedData?.records || []);
-        
-        // Filter for active
-        const activeUnassigned = unassignedRecs.find(r => 
-          r.start_time && !r.end_time
-        );
+      const { data: unassignedRecs, error: unassignedError } = await supabase
+        .from('UnassignedTime')
+        .select('*')
+        .eq('user_name', empName);
+      if (unassignedError) console.error('Error fetching UnassignedTime:', unassignedError);
 
-        if (activeUnassigned) {
-          console.log("Ending active UnassignedTime:", activeUnassigned.id);
-          const startTime = new Date(activeUnassigned.start_time);
-          const endTime = new Date();
-          const duration = (endTime - startTime) / (1000 * 60 * 60);
+      // Filter for active
+      const activeUnassigned = (unassignedRecs || []).find(r => r.start_time && !r.end_time);
 
-          await fetch(`${API_BASE_URL}/UnassignedTime/${activeUnassigned.id}`, {
-            method: 'PUT',
-            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              end_time: now,
-              total_hours: Math.round(duration * 100) / 100, // Changed duration to total_hours to match user instructions
-              status: 'completed'
-            })
-          });
-        }
+      if (activeUnassigned) {
+        console.log("Ending active UnassignedTime:", activeUnassigned.id);
+        const startTime = new Date(activeUnassigned.start_time);
+        const endTime = new Date();
+        const duration = (endTime - startTime) / (1000 * 60 * 60);
+
+        await supabase
+          .from('UnassignedTime')
+          .update({
+            end_time: now,
+            total_hours: Math.round(duration * 100) / 100,
+            status: 'completed'
+          })
+          .eq('id', activeUnassigned.id);
       }
 
       // 3. Create NEW ProjectTimeSession
       console.log("Creating new ProjectTimeSession for project:", project.id, project.name);
-      const createRes = await fetch(`${API_BASE_URL}/ProjectTimeSession`, {
-        method: 'POST',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { error: createError } = await supabase
+        .from('ProjectTimeSession')
+        .insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
           project_id: project.id,
           project_name: project.name,
           user_name: empName,
@@ -138,17 +122,14 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
           start_time: now,
           total_hours: 0,
           status: 'active'
-        })
-      });
+        });
 
-      if (!createRes.ok) {
-        const errorText = await createRes.text();
-        console.error("Failed to create ProjectTimeSession:", errorText);
-        throw new Error(`Failed to create session: ${createRes.status} ${createRes.statusText}`);
+      if (createError) {
+        console.error("Failed to create ProjectTimeSession:", createError);
+        throw new Error(`Failed to create session: ${createError.message}`);
       }
 
-      const createdSession = await createRes.json();
-      console.log("Created ProjectTimeSession:", createdSession);
+      console.log("Created ProjectTimeSession for project:", project.id);
 
       if (onSuccess) onSuccess();
       onClose();
@@ -170,87 +151,78 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
       const empName = tech.name || tech.full_name;
 
       // 1. End active ProjectTimeSession
-      const sessionsRes = await fetch(`${API_BASE_URL}/ProjectTimeSession?user_name=${encodeURIComponent(empName)}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
-      });
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('ProjectTimeSession')
+        .select('*')
+        .eq('user_name', empName);
+      if (sessionsError) console.error('Error fetching ProjectTimeSessions:', sessionsError);
 
-      if (sessionsRes.ok) {
-        const sessionsData = await sessionsRes.json();
-        const sessions = Array.isArray(sessionsData) ? sessionsData : (sessionsData?.records || []);
-        const activeSession = sessions.find(s => s.start_time && !s.end_time);
+      const activeSession = (sessions || []).find(s => s.start_time && !s.end_time);
 
-        if (activeSession) {
-          console.log("Ending active ProjectTimeSession for Clock Out:", activeSession.id);
-          const startTime = new Date(activeSession.start_time);
-          const endTime = new Date();
-          const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+      if (activeSession) {
+        console.log("Ending active ProjectTimeSession for Clock Out:", activeSession.id);
+        const startTime = new Date(activeSession.start_time);
+        const endTime = new Date();
+        const totalHours = (endTime - startTime) / (1000 * 60 * 60);
 
-          await fetch(`${API_BASE_URL}/ProjectTimeSession/${activeSession.id}`, {
-            method: 'PUT',
-            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              end_time: now,
-              total_hours: Math.round(totalHours * 100) / 100,
-              status: 'completed'
-            })
-          });
-        }
+        await supabase
+          .from('ProjectTimeSession')
+          .update({
+            end_time: now,
+            total_hours: Math.round(totalHours * 100) / 100,
+            status: 'completed'
+          })
+          .eq('id', activeSession.id);
       }
 
       // 2. End active UnassignedTime
-      const unassignedRes = await fetch(`${API_BASE_URL}/UnassignedTime?user_name=${encodeURIComponent(empName)}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
-      });
+      const { data: unassignedRecs, error: unassignedError } = await supabase
+        .from('UnassignedTime')
+        .select('*')
+        .eq('user_name', empName);
+      if (unassignedError) console.error('Error fetching UnassignedTime:', unassignedError);
 
-      if (unassignedRes.ok) {
-        const unassignedData = await unassignedRes.json();
-        const unassignedRecs = Array.isArray(unassignedData) ? unassignedData : (unassignedData?.records || []);
-        const activeUnassigned = unassignedRecs.find(r => r.start_time && !r.end_time);
+      const activeUnassigned = (unassignedRecs || []).find(r => r.start_time && !r.end_time);
 
-        if (activeUnassigned) {
-          console.log("Ending active UnassignedTime for Clock Out:", activeUnassigned.id);
-          const startTime = new Date(activeUnassigned.start_time);
-          const endTime = new Date();
-          const duration = (endTime - startTime) / (1000 * 60 * 60);
+      if (activeUnassigned) {
+        console.log("Ending active UnassignedTime for Clock Out:", activeUnassigned.id);
+        const startTime = new Date(activeUnassigned.start_time);
+        const endTime = new Date();
+        const duration = (endTime - startTime) / (1000 * 60 * 60);
 
-          await fetch(`${API_BASE_URL}/UnassignedTime/${activeUnassigned.id}`, {
-            method: 'PUT',
-            headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              end_time: now,
-              total_hours: Math.round(duration * 100) / 100,
-              status: 'completed'
-            })
-          });
-        }
+        await supabase
+          .from('UnassignedTime')
+          .update({
+            end_time: now,
+            total_hours: Math.round(duration * 100) / 100,
+            status: 'completed'
+          })
+          .eq('id', activeUnassigned.id);
       }
 
       // 3. End TimeRecord (Clock Out)
-      const timeRecordsRes = await fetch(`${API_BASE_URL}/TimeRecord?employee_name=${encodeURIComponent(empName)}`, {
-          headers: { 'api_key': WORKPRO_API_KEY }
-      });
+      const { data: timeRecords, error: timeRecordsError } = await supabase
+        .from('TimeRecord')
+        .select('*')
+        .eq('employee_name', empName);
+      if (timeRecordsError) console.error('Error fetching TimeRecords:', timeRecordsError);
 
-      if (timeRecordsRes.ok) {
-        const timeData = await timeRecordsRes.json();
-        const timeRecords = Array.isArray(timeData) ? timeData : (timeData?.records || []);
-        const activeTimeRecord = timeRecords.find(tr => !tr.clock_out_time);
+      const activeTimeRecord = (timeRecords || []).find(tr => !tr.clock_out_time);
 
-        if (activeTimeRecord) {
-           console.log("Ending active TimeRecord for Clock Out:", activeTimeRecord.id);
-           const startTime = new Date(activeTimeRecord.clock_in_time);
-           const endTime = new Date();
-           const totalHours = (endTime - startTime) / (1000 * 60 * 60);
+      if (activeTimeRecord) {
+         console.log("Ending active TimeRecord for Clock Out:", activeTimeRecord.id);
+         const startTime = new Date(activeTimeRecord.clock_in_time);
+         const endTime = new Date();
+         const totalHours = (endTime - startTime) / (1000 * 60 * 60);
 
-           await fetch(`${API_BASE_URL}/TimeRecord/${activeTimeRecord.id}`, {
-             method: 'PUT',
-             headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-             body: JSON.stringify({
-               clock_out_time: now,
-               total_hours: Math.round(totalHours * 100) / 100,
-               status: 'clocked_out'
-             })
-           });
-        }
+         await supabase
+           .from('TimeRecord')
+           .update({
+             clock_out_time: now,
+             total_hours: Math.round(totalHours * 100) / 100,
+             status: 'clocked_out'
+           })
+           .eq('id', activeTimeRecord.id);
       }
 
       if (onSuccess) onSuccess();
@@ -264,7 +236,7 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
     }
   };
 
-  const filteredProjects = projects.filter(p => 
+  const filteredProjects = projects.filter(p =>
     p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.customer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.work_order?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -275,8 +247,8 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Clock {tech?.name} into Project</DialogTitle>
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             size="sm"
             onClick={handleClockOut}
             disabled={processing}
@@ -288,8 +260,8 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
 
         <div className="relative mb-4 mt-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
-          <Input 
-            placeholder="Search projects..." 
+          <Input
+            placeholder="Search projects..."
             className="pl-9"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -325,8 +297,8 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
                     {project.work_order && <span>{project.work_order}</span>}
                   </div>
                 </div>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="bg-green-600 hover:bg-green-700 ml-4"
                   disabled={processing}
                   onClick={() => handleClockInToProject(project)}

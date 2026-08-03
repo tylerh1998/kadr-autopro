@@ -9,10 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018'; // This line has been updated
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
-
 export default function WorkPROEditProjectModal({ open, onClose, project, onUpdate, onRefresh }) {
   const [formData, setFormData] = useState({
     status: '',
@@ -43,10 +39,13 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
 
   useEffect(() => {
     if (project && open) {
-      const assignedEmployeesList = project.employee_assigned 
-        ? project.employee_assigned.split(',').map(name => name.trim())
-        : [];
-      
+      let assignedEmployeesList = [];
+      if (Array.isArray(project.employees_assigned) && project.employees_assigned.length > 0) {
+        assignedEmployeesList = project.employees_assigned;
+      } else if (project.employee_assigned) {
+        assignedEmployeesList = project.employee_assigned.split(',').map(name => name.trim());
+      }
+
       setFormData({
         status: project.status || '',
         time_estimate: project.time_estimate || '',
@@ -84,21 +83,20 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
       const updateData = {
         status: formData.status,
         time_estimate: parseFloat(formData.time_estimate) || 0,
-        employee_assigned: formData.assigned_employees.join(', ')
+        employees_assigned: formData.assigned_employees
       };
 
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
+      const { error } = await supabase
+        .from('Project')
+        .update(updateData)
+        .eq('id', project.id);
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (error) throw error;
 
       // Update local state
       onUpdate('status', formData.status);
       onUpdate('time_estimate', formData.time_estimate);
-      onUpdate('employee_assigned', formData.assigned_employees.join(', '));
+      onUpdate('employees_assigned', formData.assigned_employees);
       
       setHasChanges(false);
       alert('Project updated successfully!');

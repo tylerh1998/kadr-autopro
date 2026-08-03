@@ -4,27 +4,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Briefcase, 
-  FileText, 
-  MessageSquare, 
-  CheckCircle, 
-  Clock, 
+import {
+  Briefcase,
+  FileText,
+  CheckCircle,
+  CheckCircle2,
+  Clock,
   AlertTriangle,
-  User,
-  Calendar,
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/lib/supabase';
 
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018';
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+// Inspection sections data (mirrors WorkPROModal.jsx's inline checklist)
+const INSPECTION_SECTIONS = [
+  {
+    section_name: "Fluids",
+    display_order: 1,
+    inspection_items: ["Differential Fluid", "Transfer Case Fluid", "Brake Fluid", "Coolant", "Power Steering Fluid", "Windshield Wash", "Transmission Fluid"]
+  },
+  {
+    section_name: "Tires (Visual Only)",
+    display_order: 2,
+    inspection_items: ["Tread Depth", "Tires/Rims"]
+  },
+  {
+    section_name: "Electrical & Misc",
+    display_order: 3,
+    inspection_items: ["Battery", "Lights & Signals", "Shock/Strut (visual)", "Brakes (visual)", "Ball Joints", "Air/Cabin Filter", "Drive Belt(s)", "Wiper Blades", "Driveline (visual)", "Exhaust (visual)", "Block Heater"]
+  }
+];
 
 export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const [project, setProject] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [inspections, setInspections] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,40 +46,14 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
     setLoading(true);
     try {
       // Fetch project
-      const projectResponse = await fetch(`${API_BASE_URL}/Project?work_order=${workOrder.wo_number}`, {
-        headers: { 'api_key': WORKPRO_API_KEY }
-      });
+      const { data: projects, error: projectError } = await supabase
+        .from('Project')
+        .select('*')
+        .eq('work_order', workOrder.wo_number);
 
-      if (projectResponse.ok) {
-        const projectsData = await projectResponse.json();
-        const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.records || []);
-        const foundProject = projects.length > 0 ? projects[0] : null;
-        setProject(foundProject);
-
-        if (foundProject) {
-          // Fetch comments
-          const commentsResponse = await fetch(`${API_BASE_URL}/ProjectComment?project_id=${foundProject.id}`, {
-            headers: { 'api_key': WORKPRO_API_KEY }
-          });
-          
-          if (commentsResponse.ok) {
-            const commentsData = await commentsResponse.json();
-            const commentsArray = Array.isArray(commentsData) ? commentsData : (commentsData?.records || []);
-            setComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-          }
-
-          // Fetch inspections
-          const inspectionsResponse = await fetch(`${API_BASE_URL}/Inspection?project_id=${foundProject.id}`, {
-            headers: { 'api_key': WORKPRO_API_KEY }
-          });
-          
-          if (inspectionsResponse.ok) {
-            const inspectionsData = await inspectionsResponse.json();
-            const inspectionsArray = Array.isArray(inspectionsData) ? inspectionsData : (inspectionsData?.records || []);
-            setInspections(inspectionsArray);
-          }
-        }
-      }
+      if (projectError) console.error('Error fetching WorkPRO project:', projectError);
+      const foundProject = (projects && projects.length > 0) ? projects[0] : null;
+      setProject(foundProject);
 
       // Fetch approvals (using cp_id)
       if (workOrder.cp_id) {
@@ -104,18 +90,45 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const getApprovalBadge = (type) => {
     const isApproved = type?.toLowerCase() === 'approved';
     const isDenied = type?.toLowerCase() === 'denied';
-    
+
     return (
-      <Badge 
-        variant={isApproved ? 'default' : isDenied ? 'destructive' : 'outline'} 
+      <Badge
+        variant={isApproved ? 'default' : isDenied ? 'destructive' : 'outline'}
         className={isApproved ? 'bg-green-600' : isDenied ? 'bg-red-600' : 'bg-yellow-600'}
       >
-        {isApproved ? <CheckCircle className="w-3 h-3 mr-1" /> : 
-         isDenied ? <X className="w-3 h-3 mr-1" /> : 
+        {isApproved ? <CheckCircle className="w-3 h-3 mr-1" /> :
+         isDenied ? <X className="w-3 h-3 mr-1" /> :
          <AlertTriangle className="w-3 h-3 mr-1" />}
         {type || 'Unknown'}
       </Badge>
     );
+  };
+
+  const getAssignedEmployeesDisplay = () => {
+    if (Array.isArray(project?.employees_assigned) && project.employees_assigned.length > 0) {
+      return project.employees_assigned.join(', ');
+    }
+    return project?.employee_assigned || 'Not assigned';
+  };
+
+  // Get inspection result for a specific item
+  const getInspectionResult = (sectionName, itemName) => {
+    if (!project?.inspection_results) return null;
+    const key = `${sectionName}-${itemName}`;
+    return project.inspection_results[key] || null;
+  };
+
+  // Parse inspection comments from JSON string
+  const getInspectionComments = () => {
+    if (!project?.inspection_comments) return {};
+    try {
+      return typeof project.inspection_comments === 'string'
+        ? JSON.parse(project.inspection_comments)
+        : project.inspection_comments;
+    } catch (error) {
+      console.error('Error parsing inspection comments:', error);
+      return {};
+    }
   };
 
   return (
@@ -175,7 +188,7 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Assigned Employees</label>
-                      <p>{project.employee_assigned || 'Not assigned'}</p>
+                      <p>{getAssignedEmployeesDisplay()}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Time Estimate</label>
@@ -231,81 +244,64 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                 </Card>
               )}
 
-              {/* Comments */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    Project Comments
-                    {comments.length > 0 && (
-                      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                        {comments.length}
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {comments.length > 0 ? (
+              {/* Inspection Results */}
+              {project.inspection_results && Object.keys(project.inspection_results).length > 0 && (
+                <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                  <CardContent className="p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 dark:text-slate-100">Inspection Results</h3>
+
                     <div className="space-y-4">
-                      {comments.map((comment) => (
-                        <div key={comment.id} className="bg-slate-50 p-4 rounded-lg dark:bg-slate-800">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                              <span className="font-medium text-slate-900 dark:text-slate-100">
-                                {comment.author_name || 'Unknown'}
-                              </span>
+                      {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => {
+                        const comments = getInspectionComments();
+                        const sectionComment = comments[section.section_name];
+
+                        return (
+                          <div key={section.section_name}>
+                            <h4 className="text-xs font-semibold text-slate-700 mb-2 dark:text-slate-300">{section.section_name}</h4>
+                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-700">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="bg-slate-100 border-b border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                                    <th className="text-left p-2 font-medium text-slate-700 dark:text-slate-300">Item</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Good</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Fair</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Poor</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">N/A</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {section.inspection_items.map((item) => {
+                                    const result = getInspectionResult(section.section_name, item);
+                                    return (
+                                      <tr key={item} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                                        <td className="p-2 text-slate-900 dark:text-slate-100">{item}</td>
+                                        <td className="p-2 text-center">
+                                          {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />}
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mx-auto" />}
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />}
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
                             </div>
-                            {comment.created_date && (
-                              <span className="text-sm text-slate-500 dark:text-slate-400">
-                                {format(new Date(comment.created_date), 'MMM d, yyyy h:mm a')}
-                              </span>
+                            {sectionComment && (
+                              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-slate-300">
+                                <span className="font-medium">Comments: </span>
+                                {sectionComment}
+                              </div>
                             )}
                           </div>
-                          <p className="text-slate-700 whitespace-pre-wrap dark:text-slate-300">{comment.comment}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-slate-600 dark:text-slate-400">No comments yet.</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Inspections */}
-              {inspections.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-indigo-600" />
-                      Digital Inspections
-                      <Badge variant="outline" className="bg-indigo-100 text-indigo-800">
-                        {inspections.length}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {inspections.map((inspection) => (
-                        <div key={inspection.id} className="bg-slate-50 p-4 rounded-lg">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {inspection.inspection_name || inspection.title || `Inspection #${inspection.id}`}
-                              </p>
-                              {inspection.inspection_date && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <Calendar className="w-3 h-3 text-slate-500" />
-                                  <span className="text-sm text-slate-600">
-                                    {format(new Date(inspection.inspection_date), 'MMM d, yyyy')}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <Badge variant="outline">{inspection.status || 'Unknown'}</Badge>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
@@ -316,9 +312,9 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                       Customer Approvals
-                      <Badge variant="outline" className="bg-green-100 text-green-800">
+                      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
                         {approvals.length}
                       </Badge>
                     </CardTitle>
@@ -326,25 +322,25 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                   <CardContent>
                     <div className="space-y-4">
                       {approvals.map((approval) => (
-                        <div key={approval.id} className="bg-slate-50 p-4 rounded-lg">
+                        <div key={approval.id} className="bg-slate-50 p-4 rounded-lg dark:bg-slate-800">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
                               {getApprovalBadge(approval.type)}
                               <span className="font-semibold">{approval.customer_name || 'Customer'}</span>
                             </div>
                             {approval.date_approved && (
-                              <span className="text-sm text-slate-500">
+                              <span className="text-sm text-slate-500 dark:text-slate-400">
                                 {format(new Date(approval.date_approved), 'MMM d, yyyy')}
                               </span>
                             )}
                           </div>
                           {approval.approval_amount && (
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
                               Amount: <span className="font-medium">${approval.approval_amount.toFixed(2)}</span>
                             </p>
                           )}
                           {approval.customer_comments && (
-                            <p className="text-sm text-slate-700 mt-2 p-2 bg-white rounded border">
+                            <p className="text-sm text-slate-700 mt-2 p-2 bg-white rounded border dark:text-slate-300 dark:bg-slate-900 dark:border-slate-700">
                               {approval.customer_comments}
                             </p>
                           )}
