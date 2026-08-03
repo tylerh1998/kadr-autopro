@@ -3,7 +3,6 @@ create or replace function public.search_inventory_ranked(
     p_filter text default 'all',
     p_sort_by text default 'part_number',
     p_sort_direction text default 'asc',
-    p_include_inactive boolean default false,
     p_limit integer default 50,
     p_offset integer default 0,
     p_location_from text default null,
@@ -83,7 +82,7 @@ with filtered as (
             else 999
         end as match_rank
     from public."InventoryItem" i
-    where (p_include_inactive = true or i.is_active = true)
+    where i.is_active = true
       and (
         lower(btrim(coalesce(i.part_number, ''))) like '%' || lower(btrim(p_search_term)) || '%'
         or lower(btrim(coalesce(i.description, ''))) like '%' || lower(btrim(p_search_term)) || '%'
