@@ -91,11 +91,11 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
       case 'done':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />;
       case 'in_progress':
-        return <Clock className="w-5 h-5 text-blue-500" />;
+        return <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />;
       case 'on_hold':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />;
       default:
         return <Clock className="w-5 h-5 text-slate-400" />;
     }
@@ -123,10 +123,10 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Briefcase className="w-6 h-6 text-blue-600" />
+            <Briefcase className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             WorkPRO Details - View Only
             {project && (
-              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+              <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800">
                 Connected
               </Badge>
             )}
@@ -136,17 +136,17 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
         <div className="py-4 space-y-6">
           {loading && (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-slate-600">Loading WorkPRO data...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto dark:border-blue-400"></div>
+              <p className="mt-2 text-slate-600 dark:text-slate-400">Loading WorkPRO data...</p>
             </div>
           )}
 
           {!loading && !project && (
-            <Card className="border-2 border-dashed border-slate-300">
+            <Card className="border-2 border-dashed border-slate-300 dark:border-slate-700">
               <CardContent className="text-center py-8">
-                <AlertTriangle className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">No WorkPRO Project Connected</h3>
-                <p className="text-slate-600">
+                <AlertTriangle className="w-12 h-12 text-slate-400 mx-auto mb-4 dark:text-slate-500" />
+                <h3 className="text-lg font-semibold text-slate-700 mb-2 dark:text-slate-300">No WorkPRO Project Connected</h3>
+                <p className="text-slate-600 dark:text-slate-400">
                   This work order is not currently linked to a WorkPRO project.
                 </p>
               </CardContent>
@@ -166,19 +166,19 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-slate-600">Project Name</label>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Project Name</label>
                       <p className="font-semibold">{project.name}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-600">Status</label>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Status</label>
                       <p className="font-semibold capitalize">{project.status?.replace('_', ' ')}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-600">Assigned Employees</label>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Assigned Employees</label>
                       <p>{project.employee_assigned || 'Not assigned'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-600">Time Estimate</label>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Time Estimate</label>
                       <p>{project.time_estimate ? `${project.time_estimate} hours` : 'Not set'}</p>
                     </div>
                   </div>
@@ -189,12 +189,12 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                    <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     Task
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-700">{project.name || 'No task defined'}</p>
+                  <p className="text-slate-700 dark:text-slate-300">{project.name || 'No task defined'}</p>
                 </CardContent>
               </Card>
 
@@ -202,12 +202,12 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-amber-600" />
+                    <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                     Description
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-700 whitespace-pre-wrap">{project.description || 'No description provided'}</p>
+                  <p className="text-slate-700 whitespace-pre-wrap dark:text-slate-300">{project.description || 'No description provided'}</p>
                 </CardContent>
               </Card>
 
@@ -216,15 +216,15 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-purple-600" />
+                      <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                       Tech Time
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-4">
                       <div>
-                        <p className="text-sm text-slate-600">Estimated Time</p>
-                        <p className="text-2xl font-bold text-slate-900">{project.time_estimate} hours</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Estimated Time</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.time_estimate} hours</p>
                       </div>
                     </div>
                   </CardContent>
@@ -235,10 +235,10 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-green-600" />
+                    <MessageSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
                     Project Comments
                     {comments.length > 0 && (
-                      <Badge variant="outline" className="bg-green-100 text-green-800">
+                      <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
                         {comments.length}
                       </Badge>
                     )}
@@ -248,26 +248,26 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                   {comments.length > 0 ? (
                     <div className="space-y-4">
                       {comments.map((comment) => (
-                        <div key={comment.id} className="bg-slate-50 p-4 rounded-lg">
+                        <div key={comment.id} className="bg-slate-50 p-4 rounded-lg dark:bg-slate-800">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-slate-500" />
-                              <span className="font-medium text-slate-900">
+                              <User className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                              <span className="font-medium text-slate-900 dark:text-slate-100">
                                 {comment.author_name || 'Unknown'}
                               </span>
                             </div>
                             {comment.created_date && (
-                              <span className="text-sm text-slate-500">
+                              <span className="text-sm text-slate-500 dark:text-slate-400">
                                 {format(new Date(comment.created_date), 'MMM d, yyyy h:mm a')}
                               </span>
                             )}
                           </div>
-                          <p className="text-slate-700 whitespace-pre-wrap">{comment.comment}</p>
+                          <p className="text-slate-700 whitespace-pre-wrap dark:text-slate-300">{comment.comment}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-slate-600">No comments yet.</p>
+                    <p className="text-slate-600 dark:text-slate-400">No comments yet.</p>
                   )}
                 </CardContent>
               </Card>

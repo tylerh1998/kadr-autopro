@@ -287,7 +287,7 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
         </DialogHeader>
 
         <div className="relative mb-4 mt-2">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
           <Input 
             placeholder="Search projects..." 
             className="pl-9"
@@ -299,28 +299,28 @@ export default function TechProjectClockInModal({ open, onClose, tech, initialPr
         <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
             </div>
           ) : filteredProjects.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-slate-500 dark:text-slate-400">
               No active projects found.
             </div>
           ) : (
             filteredProjects.map(project => (
-              <div 
-                key={project.id} 
+              <div
+                key={project.id}
                 className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                  project.id === initialProjectId ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:bg-slate-50'
+                  project.id === initialProjectId ? 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800' : 'bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:hover:bg-slate-800'
                 }`}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-slate-900">{project.name}</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">{project.name}</h4>
                     {project.id === initialProjectId && (
-                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Current Context</Badge>
+                      <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/40">Current Context</Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-slate-600 mt-1">
+                  <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mt-1">
                     {project.customer && <span>{project.customer}</span>}
                     {project.work_order && <span>{project.work_order}</span>}
                   </div>

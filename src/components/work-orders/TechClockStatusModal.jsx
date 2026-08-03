@@ -157,12 +157,12 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 group-hover:hidden dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800">
               <Briefcase className="w-3 h-3 mr-1" />
               {projectName}
             </Badge>
             {/* Hover State */}
-            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200 hidden group-hover:flex items-center dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800">
               <ArrowRight className="w-3 h-3 mr-1" />
               Re-Assign/Clock Out
             </Badge>
@@ -172,12 +172,12 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 group-hover:hidden dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800">
               <Clock className="w-3 h-3 mr-1" />
               Unassigned
             </Badge>
             {/* Hover State */}
-            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center dark:bg-green-900/40 dark:text-green-300 dark:border-green-800">
               <Plus className="w-3 h-3 mr-1" />
               Assign
             </Badge>
@@ -187,11 +187,11 @@ export default function TechClockStatusModal({ open, onClose }) {
         return (
           <>
             {/* Default State */}
-            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 group-hover:hidden">
+            <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 group-hover:hidden dark:bg-slate-700/60 dark:text-slate-300 dark:border-slate-600">
               Clocked Out
             </Badge>
             {/* Hover State */}
-            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center">
+            <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 hidden group-hover:flex items-center dark:bg-green-900/40 dark:text-green-300 dark:border-green-800">
               <Play className="w-3 h-3 mr-1" />
               Clock In
             </Badge>
@@ -207,21 +207,21 @@ export default function TechClockStatusModal({ open, onClose }) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-500" />
+            <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
             Tech Clock Status
           </DialogTitle>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-red-600">
+          <div className="text-center py-8 text-red-600 dark:text-red-400">
             {error}
           </div>
         ) : techStatuses.length === 0 ? (
-          <div className="text-center py-8 text-slate-500">
+          <div className="text-center py-8 text-slate-500 dark:text-slate-400">
             No technicians found
           </div>
         ) : (
@@ -231,14 +231,14 @@ export default function TechClockStatusModal({ open, onClose }) {
                 key={tech.id} 
                 onClick={() => handleTechClick(tech)}
                 className={`group flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer shadow-sm
-                  ${tech.status === 'clocked_out' ? 'bg-slate-50 border-slate-200 hover:bg-green-50 hover:border-green-200' : ''}
-                  ${tech.status === 'unassigned' ? 'bg-white border-slate-200 hover:bg-green-50 hover:border-green-200' : ''}
-                  ${tech.status === 'project' ? 'bg-white border-slate-200 hover:bg-orange-50 hover:border-orange-200' : ''}
+                  ${tech.status === 'clocked_out' ? 'bg-slate-50 border-slate-200 hover:bg-green-50 hover:border-green-200 dark:bg-slate-800/40 dark:border-slate-700 dark:hover:bg-green-900/20 dark:hover:border-green-800' : ''}
+                  ${tech.status === 'unassigned' ? 'bg-white border-slate-200 hover:bg-green-50 hover:border-green-200 dark:bg-slate-900 dark:border-slate-700 dark:hover:bg-green-900/20 dark:hover:border-green-800' : ''}
+                  ${tech.status === 'project' ? 'bg-white border-slate-200 hover:bg-orange-50 hover:border-orange-200 dark:bg-slate-900 dark:border-slate-700 dark:hover:bg-orange-900/20 dark:hover:border-orange-800' : ''}
                 `}
               >
                 <div className="flex items-center gap-2">
-                  <User className={`w-4 h-4 ${tech.status === 'clocked_out' ? 'text-slate-400 group-hover:text-green-600' : 'text-slate-600 group-hover:text-slate-900'}`} />
-                  <span className={`font-medium ${tech.status === 'clocked_out' ? 'text-slate-500 group-hover:text-green-700' : 'text-slate-900'}`}>
+                  <User className={`w-4 h-4 ${tech.status === 'clocked_out' ? 'text-slate-400 group-hover:text-green-600 dark:text-slate-500 dark:group-hover:text-green-400' : 'text-slate-600 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-slate-100'}`} />
+                  <span className={`font-medium ${tech.status === 'clocked_out' ? 'text-slate-500 group-hover:text-green-700 dark:text-slate-400 dark:group-hover:text-green-400' : 'text-slate-900 dark:text-slate-100'}`}>
                     {tech.name}
                   </span>
                 </div>

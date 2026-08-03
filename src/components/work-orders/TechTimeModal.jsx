@@ -12,13 +12,13 @@ import { useAuth } from '@/lib/AuthContext';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
-  billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800' },
-  rework: { label: 'Rework', color: 'bg-red-100 text-red-800' },
-  warranty: { label: 'Warranty', color: 'bg-orange-100 text-orange-800' },
-  training: { label: 'Training', color: 'bg-purple-100 text-purple-800' },
-  internal: { label: 'Internal', color: 'bg-slate-100 text-slate-800' },
-  shop_work: { label: 'Shop Work', color: 'bg-green-100 text-green-800' },
-  split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800' }
+  billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  rework: { label: 'Rework', color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+  warranty: { label: 'Warranty', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
+  training: { label: 'Training', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' },
+  internal: { label: 'Internal', color: 'bg-slate-100 text-slate-800 dark:bg-slate-700/60 dark:text-slate-300' },
+  shop_work: { label: 'Shop Work', color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' },
+  split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' }
 };
 
 function SplitTimeDialog({ open, onClose, onSave, log }) {
@@ -83,14 +83,14 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
         </DialogHeader>
         
         <div className="py-4 space-y-4">
-          <div className="bg-slate-50 p-3 rounded-md mb-4 flex justify-between items-center">
+          <div className="bg-slate-50 p-3 rounded-md mb-4 flex justify-between items-center dark:bg-slate-800">
              <div>
-               <p className="text-sm font-medium text-slate-500">Total Time</p>
+               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Time</p>
                <p className="text-xl font-bold">{totalHours.toFixed(2)} hrs</p>
              </div>
              <div className="text-right">
-               <p className="text-sm font-medium text-slate-500">Remaining</p>
-               <p className={`text-xl font-bold ${Math.abs(remaining) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Remaining</p>
+               <p className={`text-xl font-bold ${Math.abs(remaining) < 0.01 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                  {remaining.toFixed(2)} hrs
                </p>
              </div>
@@ -119,16 +119,16 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
                     placeholder="0.0"
                     value={allocations[key] || ''}
                     onChange={(e) => handleAllocationChange(key, e.target.value)}
-                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50 font-medium" : ""}
+                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50 font-medium dark:border-blue-600 dark:bg-blue-950/30" : ""}
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">hrs</span>
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 dark:text-slate-500">hrs</span>
                 </div>
               </div>
             ))}
           </div>
-          
+
           {!isValid && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded dark:bg-red-950/30 dark:text-red-400">
               <AlertCircle className="w-4 h-4" />
               <span>Total allocation must equal {totalHours.toFixed(2)} hrs</span>
             </div>
@@ -603,14 +603,14 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
             </div>
           </DialogTitle>
           {project && (
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1 dark:text-slate-400">
               {project.name || project.customer}
             </p>
           )}
         </DialogHeader>
 
         {showManualAdd && (
-          <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200">
+          <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
             <h3 className="font-semibold mb-3 text-sm">Add Manual Time Record</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
@@ -655,30 +655,30 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         )}
 
         {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 text-sm">{error}</p>
-            <p className="text-yellow-600 text-xs mt-1">Showing cached data if available.</p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 dark:bg-yellow-950/30 dark:border-yellow-800">
+            <p className="text-yellow-800 text-sm dark:text-yellow-300">{error}</p>
+            <p className="text-yellow-600 text-xs mt-1 dark:text-yellow-400">Showing cached data if available.</p>
           </div>
         )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : allLogs.length === 0 ? (
           <div className="text-center py-12">
-            <Clock className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-600">No tech time sessions recorded yet.</p>
+            <Clock className="w-12 h-12 mx-auto text-slate-300 mb-3 dark:text-slate-600" />
+            <p className="text-slate-600 dark:text-slate-400">No tech time sessions recorded yet.</p>
           </div>
         ) : (
           <div className="space-y-3 py-4">
             {showBreakdown && (
-              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Technician Breakdown</h3>
+              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2 dark:text-slate-300">Technician Breakdown</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {techBreakdown.map(([name, hours]) => (
-                    <div key={name} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100">
-                      <span className="text-sm text-slate-600 truncate mr-2" title={name}>{name}</span>
+                    <div key={name} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100 dark:bg-slate-900 dark:border-slate-700">
+                      <span className="text-sm text-slate-600 truncate mr-2 dark:text-slate-400" title={name}>{name}</span>
                       <Badge variant="secondary" className="font-mono">
                         {hours.toFixed(1)}h
                       </Badge>
@@ -693,15 +693,15 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-600" />
-                        <span className="font-semibold text-slate-900">
+                        <User className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">
                           {log.workpro_user_name || 'Unknown User'}
                         </span>
                         {log.source === 'manual' && (
-                          <Badge variant="outline" className="text-[10px] h-5 px-1 bg-gray-50">Manual</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5 px-1 bg-gray-50 dark:bg-slate-700/60">Manual</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-slate-600">
+                      <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                         <span>{formatDate(log.date)}</span>
                         {log.workpro_start_time && (
                           <span>
@@ -716,7 +716,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
                           onClick={() => handleDeleteManualTime(log)}
                           title="Delete manual entry"
                         >
@@ -729,7 +729,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                           onValueChange={(val) => handleCategoryChange(log, val)}
                           disabled={log.source === 'manual'}
                         >
-                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${log.source === 'manual' ? 'bg-gray-100 text-gray-800' : CATEGORIES[getCategory(log)]?.color}`}>
+                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${log.source === 'manual' ? 'bg-gray-100 text-gray-800 dark:bg-slate-700/60 dark:text-slate-300' : CATEGORIES[getCategory(log)]?.color}`}>
                             <SelectValue>
                                 {log.source === 'manual' ? 'Manual' : undefined}
                             </SelectValue>
@@ -747,17 +747,17 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                         </Select>
                       )}
                       
-                      <Badge className={`font-bold ${log.isRunning ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                      <Badge className={`font-bold ${log.isRunning ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'}`}>
                         {getDisplayHours(log)} hrs
                       </Badge>
-                      <Badge className={log.isRunning ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}>
+                      <Badge className={log.isRunning ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300"}>
                         {log.isRunning ? "Running" : "Completed"}
                       </Badge>
                     </div>
                   </div>
                   {log.notes && (
-                    <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200">
-                      <p className="text-sm text-slate-700">{log.notes}</p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{log.notes}</p>
                     </div>
                   )}
                 </CardContent>
