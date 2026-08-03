@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,8 +46,12 @@ export default function GLAcctPage() {
       console.log('Date range:', appliedStartDate, 'to', appliedEndDate);
       
       // Fetch account details
-      const accountData = await ChartOfAccount.filter({ account_number: accountNumber });
-      setAccount(accountData[0] || null);
+      const { data: accountData, error: accountError } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('account_number', accountNumber);
+      if (accountError) throw accountError;
+      setAccount(accountData?.[0] || null);
 
       // Fetch transactions via backend function
       const response = await base44.functions.invoke('getGLAccountTransactions', {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -46,7 +46,11 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
 
   const loadChartOfAccounts = async () => {
     try {
-      const accountsData = await ChartOfAccount.list('account_number');
+      const { data: accountsData, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .order('account_number');
+      if (error) throw error;
       setChartOfAccounts((accountsData || []).filter((account) => account.is_active !== false));
     } catch (err) {
       console.error('Error loading GL accounts:', err);

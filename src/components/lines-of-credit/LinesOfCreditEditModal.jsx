@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount, LinesOfCredit } from '@/entities/all';
+import { LinesOfCredit } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -59,8 +60,13 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
         }
         
         // Load GL accounts
-        const accountsData = await ChartOfAccount.filter({ account_type: 'Liability' }, 'account_number');
-        setAccounts(accountsData);
+        const { data: accountsData, error: accountsError } = await supabase
+          .from('ChartOfAccount')
+          .select('*')
+          .eq('account_type', 'Liability')
+          .order('account_number');
+        if (accountsError) throw accountsError;
+        setAccounts(accountsData || []);
       }
     };
 

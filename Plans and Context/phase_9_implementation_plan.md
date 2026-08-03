@@ -110,7 +110,7 @@ Real financial/ledger logic (AP payments, LOC charges/payments/reversals, GL pos
 
 | Sub-phase | Scope | Status | Depends on |
 |---|---|---|---|
-| **9A** | Schema (`LinesOfCredit`/`LinesOfCreditTransaction`/`CashFlowEntry`) + project-wide `ChartOfAccount` transport cutover | Not Started | None — start here |
+| **9A** | Schema (`LinesOfCredit`/`LinesOfCreditTransaction`/`CashFlowEntry`) + project-wide `ChartOfAccount` transport cutover | Code-complete, awaiting your HOLD FOR TESTING sign-off | None — start here |
 | **9B** | Suppliers & AP core: `Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` transport cutover + 6 native functions | Not Started | **9A** (needs `CashFlowEntry` schema + `ChartOfAccount` cutover for `SupplierForm.jsx`) |
 | **9C** | Lines of Credit: `LinesOfCredit`/`LinesOfCreditTransaction` transport cutover + 4 native functions + `ReceiveCreditModal.jsx` | Not Started | **9A** (needs LOC schema); benefits from **9B** (shared payment-breakdown pattern) |
 | **9D** | Cheques: `IssuedChequesTable.jsx`, `ChequeWriter.jsx` + `generateChequePDF` port | Not Started | **9B** (reads `SupplierPayment` data created there) |
@@ -257,23 +257,23 @@ Every file below has **exactly one concern to fix**: swap `ChartOfAccount.method
 
 ### 9A.3) Task List
 
-- [ ] Apply the RLS `ENABLE`/`CREATE POLICY` statements to the dev branch (tables/columns/FK already exist there — confirmed 2026-08-03 — only the policy gap needs fixing); verify `pg_policies` count > 0 for all 3 tables.
-- [ ] Apply the full `supabase/migrations/<timestamp>_loc_cashflow_tables.sql` (tables + FK + RLS) to production as a genuinely fresh `CREATE TABLE`; verify columns + FK + RLS policy count via SQL match dev exactly.
-- [ ] Convert all 16 files in the 9A.2 table — `ChartOfAccount` lines only.
-- [ ] Repo-wide grep confirms zero remaining `ChartOfAccount` references via `base44.entities`/`@/entities/all` anywhere in `src/`.
-- [ ] `npx vite build` passes clean.
+- [x] Apply the RLS `ENABLE`/`CREATE POLICY` statements to the dev branch (tables/columns/FK already exist there — confirmed 2026-08-03 — only the policy gap needs fixing); verify `pg_policies` count > 0 for all 3 tables.
+- [x] Apply the full `supabase/migrations/<timestamp>_loc_cashflow_tables.sql` (tables + FK + RLS) to production as a genuinely fresh `CREATE TABLE`; verify columns + FK + RLS policy count via SQL match dev exactly. — Tracked as `supabase/migrations/20260806000000_loc_cashflow_tables.sql`.
+- [x] Convert all 16 files in the 9A.2 table — `ChartOfAccount` lines only. — `OtherChargesManager.jsx` additionally required decoupling its `Promise.all` (was mixing native `ChartOfAccount` with still-base44 `OtherChargeList`, per Section 2's standing lesson) into two independent try/catch blocks.
+- [x] Repo-wide grep confirms zero remaining `ChartOfAccount` references via `base44.entities`/`@/entities/all` anywhere in `src/`.
+- [x] `npx vite build` passes clean.
 
 ### 9A.4) Verification Checklist
 
-- [ ] Dev branch: `pg_policies` shows 1 policy per table (schema itself already confirmed matching, 2026-08-03 — this checklist item is really just confirming the RLS fix landed).
-- [ ] Production: fresh `CREATE TABLE` + FK + RLS applied; columns/FK/policy count all verified matching dev exactly.
-- [ ] Dev's existing real data (3 `LinesOfCredit`, 303 `LinesOfCreditTransaction`, 5 `CashFlowEntry` rows) survived the RLS-policy migration untouched — spot-check row counts before/after.
-- [ ] `ChartOfAccounts.jsx` page: list loads, create/edit an account round-trips correctly against the native table (verify via direct SQL read, not just UI success toast).
-- [ ] Spot-check 3–4 of the read-only dropdown files (`BankTransactionModal.jsx`, `SupplierForm.jsx`, `LinesOfCreditEditModal.jsx`) via `/dev-login` on `test.kensauto.ca` — GL Account dropdowns populate (this was previously blocked under dev-login per Phase 8's noted gap; confirms the fix).
-- [ ] Repo-wide grep: zero remaining `ChartOfAccount` base44/`@/entities/all` references.
-- [ ] `npx vite build` clean.
+- [x] Dev branch: `pg_policies` shows 1 policy per table (schema itself already confirmed matching, 2026-08-03 — this checklist item is really just confirming the RLS fix landed).
+- [x] Production: fresh `CREATE TABLE` + FK + RLS applied; columns/FK/policy count all verified matching dev exactly (57 columns each side, FK confirmed via `pg_constraint`, 1 policy per table each side).
+- [x] Dev's existing real data (3 `LinesOfCredit`, 303 `LinesOfCreditTransaction`, 5 `CashFlowEntry` rows) survived the RLS-policy migration untouched — spot-check row counts before/after. — Confirmed identical row counts post-migration.
+- [ ] `ChartOfAccounts.jsx` page: list loads, create/edit an account round-trips correctly against the native table (verify via direct SQL read, not just UI success toast). — **Needs your live click-through on `test.kensauto.ca`**, not verifiable headlessly.
+- [ ] Spot-check 3–4 of the read-only dropdown files (`BankTransactionModal.jsx`, `SupplierForm.jsx`, `LinesOfCreditEditModal.jsx`) via `/dev-login` on `test.kensauto.ca` — GL Account dropdowns populate (this was previously blocked under dev-login per Phase 8's noted gap; confirms the fix). — **Needs your live click-through.**
+- [x] Repo-wide grep: zero remaining `ChartOfAccount` base44/`@/entities/all` references.
+- [x] `npx vite build` clean.
 
-**🛑 HOLD FOR TESTING — do not start 9B until you've confirmed the above and given the go-ahead.**
+**🛑 HOLD FOR TESTING — do not start 9B until you've confirmed the above (the two live click-through items) and given the go-ahead.**
 
 ---
 
@@ -436,4 +436,9 @@ Once all 4 sub-phases are individually held-and-cleared, run this end-to-end pas
 
 ## Phase Results and Final Context
 
-*(Empty — filled in as each sub-phase executes and clears its hold-for-testing gate.)*
+**9A (2026-08-03) — code-complete, awaiting your live click-through sign-off:**
+- Dev branch (`sitihbdnuxifwibontcm`): RLS policies applied to `LinesOfCredit`/`LinesOfCreditTransaction`/`CashFlowEntry` (were enabled with zero policies — the recurring trap). Pre-existing seeded data (3/303/5 rows) confirmed untouched.
+- Production (`hbcrwkmgsazqrvsrmxyr`): all 3 tables created fresh (they didn't exist there) via `supabase/migrations/20260806000000_loc_cashflow_tables.sql` — 57 columns, FK, and RLS policy all verified matching dev exactly.
+- All 16 files in the 9A.2 table converted from `ChartOfAccount` (base44/`@/entities/all`) to direct `supabase.from('ChartOfAccount')` calls, touching only the `ChartOfAccount` lines in each file. `OtherChargesManager.jsx` needed its `Promise.all` decoupled (was mixing the now-native `ChartOfAccount` call with the still-base44 `OtherChargeList.list()` — would have failed the whole batch under a dev-native session per the standing lesson in Section 2).
+- Repo-wide grep confirms zero remaining `ChartOfAccount` base44/`@/entities/all` references anywhere in `src/`. `npx vite build` passes clean.
+- Not yet done (needs your hands-on verification, not headlessly checkable): live click-through of `ChartOfAccounts.jsx` CRUD and the `/dev-login` GL-Account-dropdown spot-checks on `test.kensauto.ca`.

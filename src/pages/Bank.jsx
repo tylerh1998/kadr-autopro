@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
@@ -142,8 +141,9 @@ export default function BankPage() {
         setSelectedAccountId(primaryAccount.id);
       }
       
-      const chartData = await ChartOfAccount.list();
-      setChartOfAccounts(chartData);
+      const { data: chartData, error: chartError } = await supabase.from('ChartOfAccount').select('*');
+      if (chartError) throw chartError;
+      setChartOfAccounts(chartData || []);
 
     } catch (error) {
       console.error('Error loading bank data:', error);

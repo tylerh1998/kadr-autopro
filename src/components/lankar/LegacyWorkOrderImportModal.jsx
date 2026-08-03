@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
+import { Customer, Vehicle, InventoryItem } from "@/entities/all";
+import { supabase } from "@/lib/supabase";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,8 +57,13 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     React.useEffect(() => {
         if (open) {
             const loadData = async () => {
-                const accounts = await ChartOfAccount.list();
-                const filtered = accounts
+                const { data: accounts, error } = await supabase.from('ChartOfAccount').select('*');
+                if (error) {
+                    console.error('Error loading chart of accounts:', error);
+                    setGlAccounts([]);
+                    return;
+                }
+                const filtered = (accounts || [])
                     .filter(a => a.is_active && !a.controlled)
                     .sort((a, b) => (a.account_number || '').localeCompare(b.account_number || '', undefined, { numeric: true }));
                 setGlAccounts(filtered);

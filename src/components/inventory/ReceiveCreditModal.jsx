@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
+import { LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
@@ -40,9 +40,13 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       try {
         console.log('Loading credit modal data...');
 
-        const accountsData = await ChartOfAccount.list('account_number');
+        const { data: accountsData, error: accountsError } = await supabase
+          .from('ChartOfAccount')
+          .select('*')
+          .order('account_number');
+        if (accountsError) throw accountsError;
         console.log('Chart of accounts loaded:', accountsData);
-        setAccounts(accountsData);
+        setAccounts(accountsData || []);
 
         let linesOfCreditData = [];
         try {

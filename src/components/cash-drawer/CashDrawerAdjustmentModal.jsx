@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, TrendingUp, TrendingDown, DollarSign, CreditCard, Banknote, ArrowLeftRight, Calendar, FileText } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adjustments = [] }) {
   const [formData, setFormData] = useState({
@@ -41,9 +41,13 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
 
   const loadGLAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true });
+      const { data: accounts, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true);
+      if (error) throw error;
       // Filter for Expense and Revenue accounts that would typically be used for cash over/short
-      const relevantAccounts = accounts.filter(acc => 
+      const relevantAccounts = (accounts || []).filter(acc =>
         acc.account_type === 'Expense' || acc.account_type === 'Revenue'
       );
       setGlAccounts(relevantAccounts);

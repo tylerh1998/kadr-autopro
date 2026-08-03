@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash2, MoreHorizontal, Loader2 } from "lucide-react";
-import { OtherChargeList, ChartOfAccount } from "@/entities/all";
+import { OtherChargeList } from "@/entities/all";
+import { supabase } from "@/lib/supabase";
 import {
   Table,
   TableBody,
@@ -30,14 +31,17 @@ export default function OtherChargesManager() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [chargesData, accountsData] = await Promise.all([
-        OtherChargeList.list('-created_date'),
-        ChartOfAccount.list(),
-      ]);
+      const chargesData = await OtherChargeList.list('-created_date');
       setCharges(chargesData);
-      setGlAccounts(accountsData);
     } catch (error) {
-      console.error("Failed to fetch data:", error);
+      console.error("Failed to fetch other charges:", error);
+    }
+    try {
+      const { data: accountsData, error } = await supabase.from('ChartOfAccount').select('*');
+      if (error) throw error;
+      setGlAccounts(accountsData || []);
+    } catch (error) {
+      console.error("Failed to fetch GL accounts:", error);
     } finally {
       setLoading(false);
     }

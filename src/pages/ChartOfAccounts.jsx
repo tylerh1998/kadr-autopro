@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import AccountForm from '../components/accounts/AccountForm';
 import { Link } from 'react-router-dom';
 
 export default function ChartOfAccountsPage({ isEmbedded = false }) {
+  const { employee } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,8 +44,12 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
   const loadAccounts = async () => {
     setLoading(true);
     try {
-      const accountsData = await ChartOfAccount.list('account_number');
-      setAccounts(accountsData);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .order('account_number');
+      if (error) throw error;
+      setAccounts(data || []);
     } catch (error) {
       console.error('Error loading accounts:', error);
     } finally {
@@ -53,10 +59,30 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
 
   const handleSubmit = async (accountData) => {
     try {
+      const submitData = {
+        ...accountData,
+        parent_account: accountData.parent_account || null
+      };
       if (editingAccount) {
-        await ChartOfAccount.update(editingAccount.id, accountData);
+        const { error } = await supabase
+          .from('ChartOfAccount')
+          .update({ ...submitData, updated_date: new Date().toISOString() })
+          .eq('id', editingAccount.id);
+        if (error) throw error;
       } else {
-        await ChartOfAccount.create(accountData);
+        const userDisplay = employee?.full_name || employee?.email || employee?.id;
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase
+          .from('ChartOfAccount')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: employee?.id,
+            ...submitData
+          });
+        if (error) throw error;
       }
       setShowForm(false);
       setEditingAccount(null);

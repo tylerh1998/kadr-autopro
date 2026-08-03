@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function BankAccountEditModal({ open, onClose, bankAccount, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -24,8 +24,17 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
   useEffect(() => {
     const loadAccounts = async () => {
       // Fetch only 'Asset' type accounts for GL Account selection
-      const accountsData = await ChartOfAccount.filter({ account_type: 'Asset' }, 'account_number');
-      setAccounts(accountsData);
+      const { data: accountsData, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('account_type', 'Asset')
+        .order('account_number');
+      if (error) {
+        console.error('Error loading GL accounts:', error);
+        setAccounts([]);
+        return;
+      }
+      setAccounts(accountsData || []);
     };
     if (open) {
       loadAccounts();

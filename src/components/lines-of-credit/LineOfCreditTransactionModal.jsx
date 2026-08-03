@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, LinesOfCredit, GLTransaction } from '@/entities/all';
+import { LinesOfCredit, GLTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import GLAccountCombobox from '@/components/suppliers/GLAccountCombobox';
@@ -140,8 +141,13 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
   const loadChartOfAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setChartOfAccounts(accounts);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setChartOfAccounts(data || []);
     } catch (error) {
       console.error('Error loading chart of accounts:', error);
       setChartOfAccounts([]);

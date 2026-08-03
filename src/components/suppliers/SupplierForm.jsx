@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function SupplierForm({ supplier, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
@@ -30,7 +30,12 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
   useEffect(() => {
     const loadGLAccounts = async () => {
       try {
-        const accounts = await base44.entities.ChartOfAccount.list('account_number', 1000);
+        const { data: accounts, error } = await supabase
+          .from('ChartOfAccount')
+          .select('*')
+          .order('account_number')
+          .limit(1000);
+        if (error) throw error;
         // Sort accounts by account_number (smallest to largest)
         const sortedAccounts = (accounts || []).sort((a, b) => {
           const numA = parseInt(a.account_number);

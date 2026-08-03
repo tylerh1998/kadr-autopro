@@ -10,7 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
 export default function BankTransactionModal({ open, onClose, bankAccountId, bankAccount, transaction, onSubmit, onDelete, currentUser }) {
@@ -135,8 +134,13 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
 
   const loadChartOfAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setChartOfAccounts(accounts);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setChartOfAccounts(data || []);
     } catch (error) {
       console.error('Error loading chart of accounts:', error);
       setChartOfAccounts([]);

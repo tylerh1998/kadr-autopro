@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { postJournalEntries } from '@/functions/postJournalEntries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,8 +37,13 @@ export default function JournalEntriesPage() {
   const loadAccounts = async () => {
     setLoading(true);
     try {
-      const accountsData = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setAccounts(accountsData);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setAccounts(data || []);
     } catch (error) {
       console.error('Error loading accounts:', error);
     } finally {

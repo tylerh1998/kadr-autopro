@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { AlertTriangle } from 'lucide-react';
 
@@ -129,8 +129,13 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
 
   const loadGLAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setGlAccounts(accounts.filter(acc => !acc.controlled));
+      const { data: accounts, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setGlAccounts((accounts || []).filter(acc => !acc.controlled));
     } catch (error) {
       console.error('Error loading GL accounts:', error);
       setGlAccounts([]);

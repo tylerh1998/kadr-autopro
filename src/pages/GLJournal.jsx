@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,9 +43,10 @@ export default function GLJournalPage() {
       console.log('Date range:', appliedStartDate, 'to', appliedEndDate);
       
       // Fetch chart of accounts for tooltips
-      const accounts = await base44.entities.ChartOfAccount.list();
+      const { data: accounts, error: accountsError } = await supabase.from('ChartOfAccount').select('*');
+      if (accountsError) throw accountsError;
       const accountMap = {};
-      accounts.forEach(acc => {
+      (accounts || []).forEach(acc => {
         accountMap[acc.account_number] = acc.account_name;
       });
       setAccountsMap(accountMap);
