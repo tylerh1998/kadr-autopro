@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiscalPeriod } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,8 +21,12 @@ export default function FiscalPeriodsPage() {
   const loadPeriods = async () => {
     setLoading(true);
     try {
-      const periodsData = await FiscalPeriod.list('-start_date');
-      setPeriods(periodsData);
+      const { data: periodsData, error } = await supabase
+        .from('FiscalPeriod')
+        .select('*')
+        .order('start_date', { ascending: false });
+      if (error) throw error;
+      setPeriods(periodsData || []);
     } catch (error) {
       console.error('Error loading fiscal periods:', error);
     } finally {
@@ -32,7 +36,7 @@ export default function FiscalPeriodsPage() {
 
   const handleToggleStatus = async (period) => {
     try {
-      await FiscalPeriod.update(period.id, { is_closed: !period.is_closed });
+      await supabase.from('FiscalPeriod').update({ is_closed: !period.is_closed, updated_date: new Date().toISOString() }).eq('id', period.id);
       loadPeriods();
     } catch (error) {
       console.error('Error updating period status:', error);
@@ -42,10 +46,12 @@ export default function FiscalPeriodsPage() {
 
   const handleSubmit = async (periodData) => {
     try {
+      const now = new Date().toISOString();
       if (editingPeriod) {
-        await FiscalPeriod.update(editingPeriod.id, periodData);
+        await supabase.from('FiscalPeriod').update({ ...periodData, updated_date: now }).eq('id', editingPeriod.id);
       } else {
-        await FiscalPeriod.create(periodData);
+        const id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        await supabase.from('FiscalPeriod').insert([{ id, ...periodData, created_date: now, updated_date: now }]);
       }
       setShowForm(false);
       setEditingPeriod(null);

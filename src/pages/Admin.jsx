@@ -22,14 +22,14 @@ import {
 import RecordDetailsModal from "@/components/admin/RecordDetailsModal";
 
 const SUPABASE_TABLES = [
-  "Appointment", "ChartOfAccount", "Customer", "CustomerARAdjustment", "CustomerPayments", "InventoryItem", "SalesClass", "Supplier",
+  "Appointment", "ChartOfAccount", "Customer", "CustomerARAdjustment", "CustomerPayments", "FiscalPeriod", "InventoryItem", "SalesClass", "Supplier",
   "SupplierInvoiceLine", "SupplierPayment", "Vehicle", "WorkOrder"
 ].sort();
 
 const LOCAL_ENTITIES = [
   "BankAccount", "BankReconciliation", "BankTransaction", "CashDrawerAdjustment",
   "CashFlowEntry", "CashFlowSummary", "ChartOfAccount", "CustomerPortalWorkOrder",
-  "DepositSlipBreakdown", "Employee", "FiscalPeriod", "GLTransaction", "GSTReturn",
+  "DepositSlipBreakdown", "Employee", "GLTransaction", "GSTReturn",
   "InventoryCategory", "InventoryLocation", "InventoryReturn", "InventoryTxs", "Levies",
   "LinesOfCredit", "LinesOfCreditTransaction", "OtherChargeList", "PayrollTransaction",
   "ReturnReason", "SentEmailLog", "Statement", "SystemSettings", "TagAlong", "User",

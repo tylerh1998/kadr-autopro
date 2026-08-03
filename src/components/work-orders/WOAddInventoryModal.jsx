@@ -413,6 +413,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             } else {
                 // Create new item
                 const newInventoryItemData = {
+                    id: crypto.randomUUID(),
                     part_number: item.part_number,
                     description: item.description,
                     unit: item.unit || null,
@@ -433,6 +434,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     tag_along_id: item.tag_along_id || null,
                     stocked_item: item.stocked_item,
                     is_active: item.is_active,
+                    created_date: nowStr,
+                    updated_date: nowStr,
+                    created_by: userDisplay,
+                    created_by_id: userId,
                 };
                 
                 const { data: createData, error: createError } = await supabase

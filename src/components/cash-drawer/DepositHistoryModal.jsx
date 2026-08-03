@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FiscalPeriod } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
@@ -22,7 +21,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const [bankTransactionsResult, fiscalPeriods] = await Promise.all([
+      const [bankTransactionsResult, fiscalPeriodsResult] = await Promise.all([
         supabase.functions.invoke('autopro-getBankTransactions', {
           body: {
             sourceType: 'deposit',
@@ -31,11 +30,14 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
             sortDirection: 'desc'
           }
         }),
-        FiscalPeriod.list()
+        supabase.from('FiscalPeriod').select('*')
       ]);
 
       if (bankTransactionsResult.error) throw bankTransactionsResult.error;
       if (bankTransactionsResult.data?.error) throw new Error(bankTransactionsResult.data.error);
+      if (fiscalPeriodsResult.error) throw fiscalPeriodsResult.error;
+
+      const fiscalPeriods = fiscalPeriodsResult.data || [];
 
       const recentDeposits = bankTransactionsResult.data?.transactions || [];
 
