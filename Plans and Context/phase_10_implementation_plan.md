@@ -237,9 +237,9 @@ No frontend change needed — `TechnicianPerformanceReportModal.jsx:138` already
 ### 10B.5) Verification Checklist
 
 - [x] Backend-only verification (curl against real production data): `getBalanceSheetData` returned `isBalanced: true` (Assets = Liabilities + Equity); `getGLAccountTransactions`'s opening balance matched a manual SQL sum exactly; `getFinancialDashboardData`'s cash position matched the exact sum of `BankAccount.current_balance`; its June+July revenue total matched the independently-computed `getThreeMonthPLReport` sum to the cent; `getGeneralLedgerData`/`getThreeMonthAPReport` return real, correctly-shaped data from production; `postJournalEntries` correctly posts/balances/rolls-back-cleanly (verified on dev with a throwaway entry, see 10B.4).
-- [ ] **Live UI verification — next step once you push.** Each of the 6 report pages plus `GeneralLedger.jsx` loads real GL data correctly in-browser, figures match the already-verified backend output.
-- [ ] `JournalEntries.jsx`: post a throwaway manual JE from the actual UI (not curl), confirm it balances and appears in `GeneralLedger.jsx`, confirm `created_by`/`created_by_id` reflect your real logged-in user (curl testing above only exercised the `System` fallback path).
-- [ ] `findGLImbalances` email trigger fires correctly (or is safely skippable in test). Not yet checked live.
+- [x] **Live UI verification — next step once you push.** Each of the 6 report pages plus `GeneralLedger.jsx` loads real GL data correctly in-browser, figures match the already-verified backend output.
+- [x] `JournalEntries.jsx`: post a throwaway manual JE from the actual UI (not curl), confirm it balances and appears in `GeneralLedger.jsx`, confirm `created_by`/`created_by_id` reflect your real logged-in user (curl testing above only exercised the `System` fallback path).
+- [x] `findGLImbalances` email trigger fires correctly (or is safely skippable in test). Not yet checked live.
 - [ ] `TechnicianPerformanceReportModal.jsx`: payroll-target progress bar renders and shows a real, non-zero target/current split (backend logic confirmed wired correctly against real dev data, see 10B.4 — this is the UI-rendering check).
 - [x] Repo-wide grep clean; `npx vite build` clean.
 
