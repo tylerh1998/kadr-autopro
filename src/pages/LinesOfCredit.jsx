@@ -459,8 +459,8 @@ export default function LinesOfCreditPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Lines of Credit</h1>
-              <p className="text-slate-600 mt-1">Manage credit card and line of credit accounts</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Lines of Credit</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Manage credit card and line of credit accounts</p>
             </div>
             <div className="flex gap-3">
               {!selectedAccountId && (
@@ -552,20 +552,20 @@ export default function LinesOfCreditPage() {
                       Apply
                     </Button>
                     
-                    <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
-                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                    <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => {
                           const start = format(startOfMonth(new Date()), 'yyyy-MM-dd');
                           const end = format(new Date(), 'yyyy-MM-dd');
                           setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
                       }}>This Month</Button>
-                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => {
                           const prevMonth = subMonths(new Date(), 1);
                           const start = format(startOfMonth(prevMonth), 'yyyy-MM-dd');
                           const end = format(new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0), 'yyyy-MM-dd');
                           setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
                       }}>Last Month</Button>
-                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => handleDaysBackChange(90)}>Last 90 Days</Button>
-                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 hover:text-slate-900" onClick={() => {
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => handleDaysBackChange(90)}>Last 90 Days</Button>
+                      <Button variant="outline" size="sm" className="h-9 text-xs rounded-full px-3 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100" onClick={() => {
                           const start = format(new Date(new Date().getFullYear(), 0, 1), 'yyyy-MM-dd');
                           const end = format(new Date(), 'yyyy-MM-dd');
                           setFromDate(start); setToDate(end); setAppliedFromDate(start); setAppliedToDate(end); setFilterMode('custom_date');
@@ -594,13 +594,13 @@ export default function LinesOfCreditPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-4 flex-1">
                     {/* Toggle Bar */}
-                    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1">
+                    <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1">
                       <button
                         onClick={() => setViewMode('transactions')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                           viewMode === 'transactions'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                         }`}
                       >
                         Transactions
@@ -609,8 +609,8 @@ export default function LinesOfCreditPage() {
                         onClick={() => setViewMode('all')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                           viewMode === 'all'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                         }`}
                       >
                         All
@@ -619,14 +619,14 @@ export default function LinesOfCreditPage() {
                         onClick={() => setViewMode('payments')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                           viewMode === 'payments'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                         }`}
                       >
                         Payments
                       </button>
                     </div>
-                    <span className="text-slate-600 text-sm">
+                    <span className="text-slate-600 dark:text-slate-400 text-sm">
                       ({displayedTransactions.length} {viewMode === 'payments' ? 'payments' : 'transactions'})
                     </span>
                   </div>
@@ -662,28 +662,28 @@ export default function LinesOfCreditPage() {
                         <Card key={i} className="mb-2 border">
                           <div className="p-4 flex items-center justify-between">
                             <div className="flex gap-6 w-full">
-                              <div className="h-4 bg-slate-200 rounded w-32 animate-pulse"></div>
-                              <div className="h-4 bg-slate-200 rounded w-1/2 animate-pulse"></div>
+                              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32 animate-pulse"></div>
+                              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2 animate-pulse"></div>
                             </div>
                           </div>
                         </Card>
                       ))
                     ) : displayedTransactions.length > 0 ? (
                       displayedTransactions.map((tx) => (
-                        <PaymentTransactionItem 
-                          key={tx.id} 
-                          payment={tx} 
+                        <PaymentTransactionItem
+                          key={tx.id}
+                          payment={tx}
                           allTransactions={allTransactions}
                           onPaymentCancelled={handlePaymentCancelled}
                         />
                       ))
                     ) : (
-                       <div className="p-12 text-center bg-slate-50 rounded-lg border border-dashed border-slate-300">
-                        <div className="text-slate-400 mb-4">
+                       <div className="p-12 text-center bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+                        <div className="text-slate-400 dark:text-slate-500 mb-4">
                           <DollarSign className="w-12 h-12 mx-auto" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Payments</h3>
-                        <p className="text-slate-600">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Payments</h3>
+                        <p className="text-slate-600 dark:text-slate-400">
                           {selectedAccount ? 'No payments found for the selected date range.' : 'Select a line of credit account to view payments.'}
                         </p>
                       </div>
