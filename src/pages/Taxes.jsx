@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import MarkPaidModal from '../components/taxes/MarkPaidModal';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
@@ -30,8 +30,12 @@ export default function TaxesPage() {
   const loadHistory = async () => {
     setLoadingHistory(true);
     try {
-      const returns = await base44.entities.GSTReturn.list('-created_date');
-      setHistory(returns);
+      const { data: returns, error } = await supabase
+        .from('GSTReturn')
+        .select('*')
+        .order('created_date', { ascending: false });
+      if (error) throw error;
+      setHistory(returns || []);
     } catch (error) {
       console.error('Error loading GST return history:', error);
     } finally {
@@ -47,17 +51,20 @@ export default function TaxesPage() {
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('calculateGSTReturn', {
-        period_start_date: startDate,
-        period_end_date: endDate
+      const { data, error } = await supabase.functions.invoke('autopro-calculateGSTReturn', {
+        body: {
+          period_start_date: startDate,
+          period_end_date: endDate
+        }
       });
 
-      if (response.data.error) {
-        alert(`Error: ${response.data.error}`);
+      if (error) throw error;
+      if (data.error) {
+        alert(`Error: ${data.error}`);
         return;
       }
 
-      setSummary(response.data);
+      setSummary(data);
     } catch (error) {
       console.error('Error generating GST report:', error);
       alert('Failed to generate GST report. Please try again.');
@@ -80,33 +87,48 @@ export default function TaxesPage() {
       const user = employee;
 
       // Create the return record
-      const newReturn = await base44.entities.GSTReturn.create({
-        period_start_date: summary.period_start_date,
-        period_end_date: summary.period_end_date,
-        total_sales: summary.total_sales,
-        total_purchases: summary.total_purchases,
-        gst_collected: summary.gst_collected,
-        gst_paid: summary.gst_paid,
-        net_gst_due: summary.net_gst_due,
-        status: 'posted',
-        posted_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
-        posted_by: user.email
-      });
+      const newReturnId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+      const nowIso = new Date().toISOString();
+      const { data: newReturn, error: createError } = await supabase
+        .from('GSTReturn')
+        .insert([{
+          id: newReturnId,
+          period_start_date: summary.period_start_date,
+          period_end_date: summary.period_end_date,
+          total_sales: summary.total_sales,
+          total_purchases: summary.total_purchases,
+          gst_collected: summary.gst_collected,
+          gst_paid: summary.gst_paid,
+          net_gst_due: summary.net_gst_due,
+          status: 'posted',
+          posted_date: format(getMountainTimeNow(), 'yyyy-MM-dd'),
+          posted_by: user.email,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: user.email
+        }])
+        .select()
+        .single();
+
+      if (createError) throw createError;
 
       // Post consolidating GL entries
-      const response = await base44.functions.invoke('postGSTJournalEntries', {
-        gst_return_id: newReturn.id,
-        gst_collected: summary.gst_collected,
-        gst_paid: summary.gst_paid,
-        period_end_date: summary.period_end_date
+      const { data, error } = await supabase.functions.invoke('autopro-postGSTJournalEntries', {
+        body: {
+          gst_return_id: newReturn.id,
+          gst_collected: summary.gst_collected,
+          gst_paid: summary.gst_paid,
+          period_end_date: summary.period_end_date
+        }
       });
 
-      if (response.data.error) {
-        console.error("Error from postGSTJournalEntries:", response.data.error);
-        // Note: The return is already created, but GL entries failed. 
+      if (error) throw error;
+      if (data.error) {
+        console.error("Error from postGSTJournalEntries:", data.error);
+        // Note: The return is already created, but GL entries failed.
         // We alert the user but don't rollback the return creation for now to avoid complexity,
         // or we could delete it. For safety, we'll just warn.
-        alert(`GST return created, but failed to post accounting entries: ${response.data.error}`);
+        alert(`GST return created, but failed to post accounting entries: ${data.error}`);
       } else {
         alert('GST return posted and accounting entries created successfully!');
       }

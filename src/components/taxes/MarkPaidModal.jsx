@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) {
@@ -31,13 +31,12 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
   const loadBankAccounts = async () => {
     setLoadingAccounts(true);
     try {
-      const accountsResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'list',
-        table: 'BankAccount'
-      });
-      const accounts = accountsResponse.data?.data || [];
-      const activeAccounts = accounts.filter(acc => acc.is_active);
-      setBankAccounts(activeAccounts);
+      const { data: accounts, error } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('is_active', true);
+      if (error) throw error;
+      setBankAccounts(accounts || []);
     } catch (error) {
       console.error('Error loading bank accounts:', error);
     } finally {
@@ -61,18 +60,21 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('processGSTPayment', {
-        gst_return_id: gstReturn.id,
-        payment_date: paymentDate,
-        bank_account_id: bankAccountId
+      const { data, error } = await supabase.functions.invoke('autopro-processGSTPayment', {
+        body: {
+          gst_return_id: gstReturn.id,
+          payment_date: paymentDate,
+          bank_account_id: bankAccountId
+        }
       });
 
-      if (response.data.error) {
-        alert(`Error: ${response.data.error}`);
+      if (error) throw error;
+      if (data.error) {
+        alert(`Error: ${data.error}`);
         return;
       }
 
-      alert(response.data.message || 'GST payment processed successfully!');
+      alert(data.message || 'GST payment processed successfully!');
       onComplete();
     } catch (error) {
       console.error('Error processing GST payment:', error);
