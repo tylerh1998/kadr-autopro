@@ -45,6 +45,8 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 
 **Suppliers & AP (Phase 1 — Tested):** Suppliers.jsx ✅ | SupplierTx.jsx ✅ | SupplierTxView.jsx ✅ | LankarImport.jsx ✅ | LankarWOView.jsx ✅ | ChequeWriter.jsx ✅ | ChequeRegister.jsx ✅ | AddToSheetModal.jsx ✅ | APSummaryTable.jsx ✅ | GLAccountCombobox.jsx ✅ | LineEditModal.jsx ✅ | SupplierCombobox.jsx ✅ | SupplierForm.jsx ✅ | SupplierPaymentModal.jsx ✅ | SupplierTxInvoiceLinesTab.jsx ✅ | SupplierTxInvoiceSummaryTab.jsx ✅ | SupplierTxModals.jsx ✅ (pure composition wrapper, no markup of its own) | SupplierTxPaymentHistoryTab.jsx ✅
 
+**Payroll, Taxes, Admin, Setup, Email (Phase 2 — Tested):** Payroll.jsx ✅ | Taxes.jsx ✅ | Admin.jsx ✅ | Setup.jsx ✅ | EmailLog.jsx ✅ | AddAdjustmentModal.jsx ✅ | AddPaychequeModal.jsx ✅ | AddRemittanceModal.jsx ✅ | EmployeeDetailsForm.jsx ✅ (pure Shadcn form, no raw colors, no changes needed) | payroll/MarkPaidModal.jsx ✅ | PayrollEmployeeForm.jsx ✅ (pure Shadcn form, no raw colors, no changes needed) | PayrollGLAccountCombobox.jsx ✅ | PreviousPaychequesModal.jsx ✅ | taxes/MarkPaidModal.jsx ✅
+
 ---
 
 ## 3. Risk Assessment
@@ -81,10 +83,10 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 ## 5. Roadmap & Progress
 
 ```
-Phase 1 [Tested] ──► Phase 2 ──► Phase 3
-                            │
-                            ▼
-                        Phase 4 ──► Phase 5 ──► Phase 6 ──► Phase 7 ──► Phase 8
+Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
+                                                │
+                                                ▼
+                                            Phase 4 ──► Phase 5 ──► Phase 6 ──► Phase 7 ──► Phase 8
 ```
 
 ---
@@ -119,7 +121,7 @@ Phase 1 [Tested] ──► Phase 2 ──► Phase 3
 
 ---
 
-### Phase 2 — Payroll, Taxes, Admin, Setup, Email [Pending]
+### Phase 2 — Payroll, Taxes, Admin, Setup, Email [Tested]
 
 **TL;DR:** Administrative and payroll sections are used by managers/admins. These have form-heavy layouts with many input fields and data tables.
 
@@ -373,3 +375,9 @@ Divider/separator:     dark:divide-slate-700
 2. **Verification method that worked:** grep each target file for `dark:` occurrence count post-edit as a fast sanity check before manual UI verification — a 0-count on a file with real markup is a red flag, a 0-count on a pure composer is expected and fine.
 3. **Table-heavy supplier/AP pages needed the most `dark:` classes** (`SupplierTxView.jsx` ~45, `LankarImport.jsx` ~25) — consistent with the risk table's prediction that table row striping/headers are the highest-touch surface area. Expect similarly high class counts in Phase 4 (GL/Bank/Reconcile), which is also table-dense.
 4. **No light-mode regressions or logic changes were introduced** — confirms the additive `dark:` class strategy (Section 7 Architecture Rule 3) is sufficient and should remain the approach for all remaining phases.
+
+### Phase 2 Rollup — Lessons Learned (Tested 2026-08-03)
+1. **New architecture gotcha found: hardcoded `bg-white`/`bg-slate-50` overrides on Shadcn primitives silently break dark mode.** Several components pass a className like `bg-white` or `bg-slate-50` directly onto a Shadcn `Input`, `Button`, or `SelectTrigger`. Those primitives already default to `bg-transparent` (Input) or `bg-card`/CSS-variable-driven backgrounds (Button outline variant, SelectTrigger) which are dark-safe on their own — but a hardcoded override className defeats that and forces a light background in dark mode regardless of theme. Found and fixed in `Setup.jsx`, `Taxes.jsx`, `Payroll.jsx`, `AddPaychequeModal.jsx`, and `PayrollGLAccountCombobox.jsx`. **Action for future phases:** whenever a Shadcn primitive has a custom `className` with a `bg-*` value, check the primitive's own source (`src/components/ui/`) to see if it's overriding an already-dark-safe default — if so, add an explicit `dark:` pair rather than assuming the primitive handles it.
+2. **`slate-*` shades used for light-mode text are not automatically dark-safe, but "muted" ones often are.** Confirms the Phase 1 rollup observation: `text-slate-600/700/900` and `bg-slate-50/100` need distinct `dark:` pairs. However `text-slate-400`/`text-slate-500` used for already-muted/secondary text frequently matches the Section 7 dark palette's own muted-text value, so it's sometimes (not always) safe to leave unchanged — verify per-instance rather than assuming either way.
+3. **Pure Shadcn-component forms need zero edits.** `EmployeeDetailsForm.jsx` and `PayrollEmployeeForm.jsx` had 0 raw color classes — entirely composed of `Dialog`/`Input`/`Label`/`Select`/`Checkbox` with no custom `div`/`span` styling. Grep for `dark:` count of 0 on a file is not automatically a red flag — first check whether the file has any raw JSX markup with hardcoded colors at all before treating a 0-count as missed work.
+4. **Dev server preview verification was blocked in-session** — the local Vite dev server (`kadr-autopro-dev`, port 5173) reported "running" and the port was listening, but returned empty HTTP replies to both the Browser pane and direct `curl` requests. Root cause not identified (possibly Electron-specific dev setup or an environment/sandboxing quirk unrelated to the code changes). Visual verification for Phase 2 was ultimately done outside this tool session. **Action for future phases:** if the same dev-server connectivity issue recurs, don't spend excessive cycles retrying — do the code-level grep audit, flag the blocker clearly, and let the user verify visually themselves.

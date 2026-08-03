@@ -165,22 +165,32 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const totalCost = (inventoryItem.cost || 0) * qty;
       const { error: glError } = await supabase.from('GLTransaction').insert([
         {
+          id: crypto.randomUUID(),
           account_number: "5000",
           transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           credit_amount: totalCost,
           debit_amount: 0,
           source_type: "adjustment",
-          source_id: returnId
+          source_id: returnId,
+          created_date: nowStr,
+          updated_date: nowStr,
+          created_by: userDisplay,
+          created_by_id: userId
         },
         {
+          id: crypto.randomUUID(),
           account_number: "1200",
           transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           debit_amount: totalCost,
           credit_amount: 0,
           source_type: "adjustment",
-          source_id: returnId
+          source_id: returnId,
+          created_date: nowStr,
+          updated_date: nowStr,
+          created_by: userDisplay,
+          created_by_id: userId
         }
       ]);
       if (glError) console.error('Error creating GL transactions:', glError);
