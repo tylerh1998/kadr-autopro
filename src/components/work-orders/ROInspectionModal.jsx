@@ -109,7 +109,7 @@ export default function ROInspectionModal({ open, onClose, workOrder, onInspecti
             );
         } else if (statusLower.includes('pending') || statusLower.includes('scheduled')) {
             return (
-                <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                <Badge variant="outline" className="border-yellow-500 dark:border-yellow-600 text-yellow-700 dark:text-yellow-400">
                     <AlertCircle className="w-3 h-3 mr-1" />
                     Pending
                 </Badge>
@@ -154,13 +154,13 @@ export default function ROInspectionModal({ open, onClose, workOrder, onInspecti
                             <Skeleton className="h-24 w-full" />
                         </div>
                     ) : error ? (
-                        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                            <AlertCircle className="w-5 h-5 text-red-500" />
-                            <span className="text-red-700">{error}</span>
+                        <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+                            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+                            <span className="text-red-700 dark:text-red-300">{error}</span>
                         </div>
                     ) : inspections.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                             <p className="text-lg font-medium mb-2">No Digital Inspections Found</p>
                             <p>No inspections have been created for this work order yet.</p>
                             <p className="text-sm mt-2">Inspections will appear here when created through the WorkPRO platform.</p>
@@ -176,7 +176,7 @@ export default function ROInspectionModal({ open, onClose, workOrder, onInspecti
                                                     <FileText className="w-5 h-5" />
                                                     {inspection.inspection_name || inspection.title || `Inspection #${inspection.id}`}
                                                 </CardTitle>
-                                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
                                                     {inspection.inspection_date && (
                                                         <div className="flex items-center gap-1">
                                                             <Calendar className="w-4 h-4" />
@@ -206,7 +206,7 @@ export default function ROInspectionModal({ open, onClose, workOrder, onInspecti
                                     </CardHeader>
                                     {(inspection.description || inspection.notes) && (
                                         <CardContent className="pt-0">
-                                            <p className="text-gray-700 text-sm">
+                                            <p className="text-gray-700 dark:text-gray-300 text-sm">
                                                 {inspection.description || inspection.notes}
                                             </p>
                                         </CardContent>
@@ -218,7 +218,7 @@ export default function ROInspectionModal({ open, onClose, workOrder, onInspecti
                 </div>
 
                 <DialogFooter className="flex justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                         {inspections.length > 0 && (
                             <span>{inspections.length} inspection{inspections.length !== 1 ? 's' : ''} found</span>
                         )}

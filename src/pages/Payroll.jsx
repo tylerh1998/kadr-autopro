@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,12 +56,13 @@ export default function PayrollPage() {
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'list',
-        table: 'PayrollTransaction'
-      });
+      const { data, error } = await supabase.from('PayrollTransaction').select('*');
+      if (error) {
+        console.error('Error loading payroll transactions:', error);
+        return;
+      }
 
-      const allTransactions = (response.data?.data || []).map((transaction) => ({
+      const allTransactions = (data || []).map((transaction) => ({
         ...transaction,
         amount: transaction.amount === null || transaction.amount === undefined || transaction.amount === '' ? 0 : parseFloat(transaction.amount) || 0,
         gross_pay: transaction.gross_pay || 0,
@@ -129,23 +130,21 @@ export default function PayrollPage() {
         const currentTimestamp = getCurrentMountainTimestamp();
 
         // Create reversal adjustment
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'PayrollTransaction',
-          data: {
-            transaction_type: 'Adjustment',
-            pay_date: format(new Date(), 'yyyy-MM-dd'),
-            amount: String(reversalAmount),
-            adjustment_reason: reversalDescription,
-            gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
-            notes: `Original transaction ID: ${transaction.id}`,
-            is_paid: false,
-            created_date: currentTimestamp,
-            updated_date: currentTimestamp,
-            created_by_id: currentUser?.id || null,
-            created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
-          }
+        const { error: reversalError } = await supabase.from('PayrollTransaction').insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          transaction_type: 'Adjustment',
+          pay_date: format(new Date(), 'yyyy-MM-dd'),
+          amount: String(reversalAmount),
+          adjustment_reason: reversalDescription,
+          gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
+          notes: `Original transaction ID: ${transaction.id}`,
+          is_paid: false,
+          created_date: currentTimestamp,
+          updated_date: currentTimestamp,
+          created_by_id: currentUser?.id || null,
+          created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
         });
+        if (reversalError) throw reversalError;
 
         alert('Reversal adjustment created successfully. The original transaction remains for audit purposes.');
         

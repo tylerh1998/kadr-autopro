@@ -54,7 +54,7 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
           <DollarSign className="w-5 h-5" />
           Credit Amount Summary
         </CardTitle>
-        <p className="text-sm text-slate-600 mt-1">
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
           Customer will be refunded the following amount
         </p>
       </CardHeader>
@@ -62,56 +62,56 @@ export default function CreditInvoiceFinancialSummary({ lineItems, selectedLines
         <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
           {/* Parts Total */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">Parts Total</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Parts Total</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               ${partsTotal.toFixed(2)}
             </p>
           </div>
 
           {/* Labor Total */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">Labor Total</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Labor Total</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               ${laborTotal.toFixed(2)}
             </p>
           </div>
 
           {/* Other Charges */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">Other Charges</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Other Charges</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               ${otherChargesTotal.toFixed(2)}
             </p>
           </div>
 
           {/* Shop Supplies */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">Shop Supplies ({(shopSupplyRate * 100).toFixed(0)}%)</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Shop Supplies ({(shopSupplyRate * 100).toFixed(0)}%)</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               ${shopSupplyTotal.toFixed(2)}
             </p>
           </div>
 
           {/* Tax */}
           <div className="space-y-1">
-            <p className="text-sm text-slate-600">GST (5%)</p>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-sm text-slate-600 dark:text-slate-300">GST (5%)</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
               ${taxAmount.toFixed(2)}
             </p>
           </div>
 
           {/* Grand Total */}
-          <div className="space-y-1 border-l-2 border-red-500 pl-6">
-            <p className="text-sm text-slate-600 font-semibold">Credit Amount</p>
-            <p className="text-3xl font-bold text-red-600">
+          <div className="space-y-1 border-l-2 border-red-500 dark:border-red-600 pl-6">
+            <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold">Credit Amount</p>
+            <p className="text-3xl font-bold text-red-600 dark:text-red-400">
               -${grandTotal.toFixed(2)}
             </p>
           </div>
         </div>
 
         {/* Additional Info */}
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <p className="text-xs text-slate-500">
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             * This amount represents the total credit that will be issued to the customer. 
             The negative sign indicates this is a refund.
           </p>

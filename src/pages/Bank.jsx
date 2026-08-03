@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -702,7 +701,7 @@ export default function BankPage() {
 
   const handleTransfer = async (transferData) => {
     try {
-      const response = await base44.functions.invoke('transferFunds', transferData);
+      const response = await supabase.functions.invoke('autopro-transferFunds', { body: transferData });
       
       // Handle both possible response structures
       const result = response.data || response;

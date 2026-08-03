@@ -111,26 +111,26 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                             <Skeleton className="h-16 w-full" />
                         </div>
                     ) : error ? (
-                        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                            <AlertCircle className="w-5 h-5 text-red-500" />
-                            <span className="text-red-700">{error}</span>
+                        <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+                            <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+                            <span className="text-red-700 dark:text-red-300">{error}</span>
                         </div>
                     ) : approvals.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                             <p>No approval decisions found for this work order.</p>
                             <p className="text-sm mt-2">Approvals will appear here when customers respond via the portal.</p>
                         </div>
                     ) : (
                         <div className="space-y-4 max-h-96 overflow-y-auto">
                             {approvals.map((approval, index) => (
-                                <div key={approval.id || index} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                <div key={approval.id || index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-3">
                                             {getStatusBadge(approval.type)}
                                             <span className="font-semibold">{approval.customer_name || 'Customer'}</span>
                                         </div>
-                                        <div className="text-sm text-gray-500">
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
                                             {(() => {
                                                 const dateStr = approval.date_approved || approval.created_date;
                                                 if (!dateStr) return 'No date';
@@ -147,13 +147,13 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                     <div className="flex justify-between items-start">
                                         <div>
                                             {approval.approval_amount && (
-                                                <div className="text-sm text-gray-600 mb-1">
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                                                     Amount: <span className="font-medium">${approval.approval_amount.toFixed(2)}</span>
                                                 </div>
                                             )}
-                                            
+
                                             {approval.method_approved && (
-                                                <div className="text-sm text-gray-600 mb-1">
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                                                     Method: <span className="font-medium">{approval.method_approved}</span>
                                                 </div>
                                             )}
@@ -174,13 +174,13 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                     </div>
                                     
                                     {approval.customer_comments && (
-                                        <div className="text-sm text-gray-700 mt-2 p-2 bg-white rounded border">
+                                        <div className="text-sm text-gray-700 dark:text-gray-300 mt-2 p-2 bg-white dark:bg-gray-900 rounded border dark:border-gray-700">
                                             <strong>Comments:</strong> {approval.customer_comments}
                                         </div>
                                     )}
-                                    
+
                                     {approval.customer_email && (
-                                        <div className="text-xs text-gray-500 mt-2">
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                             Email: {approval.customer_email}
                                         </div>
                                     )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import moment from 'moment';
 import { debounce } from 'lodash';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CashFlowTable from '@/components/cash-flow/CashFlowTable';
@@ -81,8 +81,13 @@ export default function CashFlow() {
 
     try {
       // Fetch Entries - sorted by sort_order
-      const entries = await base44.entities.CashFlowEntry.list('sort_order', 100);
-      
+      const { data: entries, error: entriesError } = await supabase
+        .from('CashFlowEntry')
+        .select('*')
+        .order('sort_order')
+        .limit(100);
+      if (entriesError) throw entriesError;
+
       const loadedRows = entries.map(entry => ({
           id: entry.id,
           due: false, // Calculated on frontend usually, but keeping consistent structure
@@ -111,19 +116,30 @@ export default function CashFlow() {
       setRows(loadedRows);
 
       // Fetch Summary
-      const summaries = await base44.entities.CashFlowSummary.list();
+      const { data: summaries, error: summariesError } = await supabase
+        .from('CashFlowSummary')
+        .select('*');
+      if (summariesError) throw summariesError;
+
       let summary;
       if (summaries.length > 0) {
           summary = summaries[0];
       } else {
-          summary = await base44.entities.CashFlowSummary.create({
-              last_updated: new Date().toISOString(),
-              month_end: moment().endOf('month').toISOString(),
-              current_bank_balance: 0,
-              fiscal_cushion: 1000,
-              pad_registries_details: JSON.stringify(Array(10).fill({ name: '', amount: '' })),
-              overhead_items: JSON.stringify(Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false }))
-          });
+          const { data: newSummary, error: createSummaryError } = await supabase
+            .from('CashFlowSummary')
+            .insert([{
+                id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+                last_updated: new Date().toISOString(),
+                month_end: moment().endOf('month').toISOString(),
+                current_bank_balance: 0,
+                fiscal_cushion: 1000,
+                pad_registries_details: Array(10).fill({ name: '', amount: '' }),
+                overhead_items: Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false })
+            }])
+            .select()
+            .single();
+          if (createSummaryError) throw createSummaryError;
+          summary = newSummary;
       }
       setSummaryId(summary.id);
 
@@ -136,16 +152,16 @@ export default function CashFlow() {
 
       let padDetails = [];
       try {
-          padDetails = summary.pad_registries_details ? JSON.parse(summary.pad_registries_details) : Array(10).fill({ name: '', amount: '' });
+          padDetails = summary.pad_registries_details && summary.pad_registries_details.length ? summary.pad_registries_details : Array(10).fill({ name: '', amount: '' });
           // Format amounts in padDetails
           padDetails = padDetails.map(item => ({ ...item, amount: safeFormat(item.amount) }));
       } catch (e) { padDetails = Array(10).fill({ name: '', amount: '' }); }
-      
+
       while (padDetails.length < 10) padDetails.push({ name: '', amount: '' });
 
       let overheadItems = [];
       try {
-          overheadItems = summary.overhead_items ? JSON.parse(summary.overhead_items) : Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false });
+          overheadItems = summary.overhead_items && summary.overhead_items.length ? summary.overhead_items : Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false });
           // Format amounts in overheadItems
           overheadItems = overheadItems.map(item => ({ ...item, amount: safeFormat(item.amount), included: item?.included === true }));
       } catch (e) { overheadItems = Array(35).fill({ description: '', amount: '', dateOption: '', method: '', included: false }); }
@@ -193,7 +209,7 @@ export default function CashFlow() {
     try {
         await Promise.all(sortedRows.map((row, index) => {
             if (!row.id) return Promise.resolve();
-            return base44.entities.CashFlowEntry.update(row.id, { sort_order: index });
+            return supabase.from('CashFlowEntry').update({ sort_order: index }).eq('id', row.id);
         }));
     } catch (e) {
         console.error("Error persisting row order:", e);
@@ -233,9 +249,14 @@ export default function CashFlow() {
 
     try {
         if (row.id) {
-            await base44.entities.CashFlowEntry.update(row.id, payload);
+            await supabase.from('CashFlowEntry').update(payload).eq('id', row.id);
         } else {
-            const newRec = await base44.entities.CashFlowEntry.create(payload);
+            const { data: newRec, error: createError } = await supabase
+                .from('CashFlowEntry')
+                .insert([{ id: crypto.randomUUID().replace(/-/g, '').substring(0, 24), ...payload }])
+                .select()
+                .single();
+            if (createError) throw createError;
             // We need to update the state with the new ID to prevent duplicate creates
             // This is handled by a specialized update function calling this
             return newRec.id;
@@ -280,7 +301,7 @@ export default function CashFlow() {
     // Delete from DB if it exists
     if (row.id) {
         try {
-            await base44.entities.CashFlowEntry.delete(row.id);
+            await supabase.from('CashFlowEntry').delete().eq('id', row.id);
         } catch (e) {
             console.error("Failed to delete row:", e);
         }
@@ -309,22 +330,22 @@ export default function CashFlow() {
         etransfer_weekly: parseFloat(data.etransferWeekly.toString().replace(/[^0-9.-]+/g,"")) || 0,
         etransfer_monthly: parseFloat(data.etransferMonthly.toString().replace(/[^0-9.-]+/g,"")) || 0,
 
-        pad_registries_details: JSON.stringify(data.padRegistriesDetails.map(item => ({
+        pad_registries_details: data.padRegistriesDetails.map(item => ({
             ...item,
             amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : ''
-        }))),
-        overhead_items: JSON.stringify(overhead.map(item => ({
+        })),
+        overhead_items: overhead.map(item => ({
             ...item,
             amount: item.amount ? (parseFloat(item.amount.toString().replace(/[^0-9.-]+/g,"")) || 0) : '',
             included: item?.included === true
-        }))),
-        
+        })),
+
         last_updated: header.lastUpdated ? moment(header.lastUpdated, ["MMM D, YYYY", "MMM D"]).toISOString() : null,
         month_end: header.monthEnd ? moment(header.monthEnd, ["MMM D, YYYY", "MMM D"]).toISOString() : null
     };
 
     try {
-        await base44.entities.CashFlowSummary.update(id, payload);
+        await supabase.from('CashFlowSummary').update(payload).eq('id', id);
     } catch (e) {
         console.error("Error saving summary:", e);
     }

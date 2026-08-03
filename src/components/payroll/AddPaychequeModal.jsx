@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -53,14 +53,15 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
 
     try {
       const fileContent = await file.text();
-      
-      const response = await base44.functions.invoke('parsePayrollFile', {
-        fileContent,
-        fileName: file.name
+
+      const { data: responseData, error: parseError } = await supabase.functions.invoke('autopro-parsePayrollFile', {
+        body: { fileContent, fileName: file.name }
       });
 
-      if (response.data?.success && response.data?.data) {
-        const parsedData = response.data.data;
+      if (parseError) throw parseError;
+
+      if (responseData?.success && responseData?.data) {
+        const parsedData = responseData.data;
         
         if (parsedData.transaction_type !== 'Paycheque') {
           setUploadedFileName('');
@@ -89,7 +90,7 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
         setError(null);
       } else {
         setUploadedFileName('');
-        throw new Error(response.data?.error || 'Failed to parse file');
+        throw new Error(responseData?.error || 'Failed to parse file');
       }
     } catch (err) {
       console.error('Error parsing file:', err);
@@ -122,30 +123,28 @@ export default function AddPaychequeModal({ open, onClose, onSuccess }) {
     setError(null);
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'PayrollTransaction',
-        data: {
-          transaction_type: 'Paycheque',
-          paycheque_number: formData.paycheque_number || null,
-          pay_date: formData.pay_date,
-          gross_pay: parseFloat(formData.gross_pay),
-          income_tax: parseFloat(formData.income_tax) || 0,
-          cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
-          cpp2_contribution: parseFloat(formData.cpp2_contribution) || 0,
-          ei_premium: parseFloat(formData.ei_premium) || 0,
-          cpp_employer: parseFloat(formData.cpp_employer) || 0,
-          cpp2_employer: parseFloat(formData.cpp2_employer) || 0,
-          ei_employer: parseFloat(formData.ei_employer) || 0,
-          notes: formData.notes || null,
-          employee_reference: formData.employee_reference || null,
-          import_file_name: formData.import_file_name || null,
-          import_date: formData.import_file_name ? new Date().toISOString() : null,
-          is_paid: false,
-          is_bus_driver_wages: formData.is_bus_driver_wages === 'yes',
-          additional_deductions: JSON.stringify(formData.additional_deductions || [])
-        }
+      const { error: createError } = await supabase.from('PayrollTransaction').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        transaction_type: 'Paycheque',
+        paycheque_number: formData.paycheque_number || null,
+        pay_date: formData.pay_date,
+        gross_pay: parseFloat(formData.gross_pay),
+        income_tax: parseFloat(formData.income_tax) || 0,
+        cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
+        cpp2_contribution: parseFloat(formData.cpp2_contribution) || 0,
+        ei_premium: parseFloat(formData.ei_premium) || 0,
+        cpp_employer: parseFloat(formData.cpp_employer) || 0,
+        cpp2_employer: parseFloat(formData.cpp2_employer) || 0,
+        ei_employer: parseFloat(formData.ei_employer) || 0,
+        notes: formData.notes || null,
+        employee_reference: formData.employee_reference || null,
+        import_file_name: formData.import_file_name || null,
+        import_date: formData.import_file_name ? new Date().toISOString() : null,
+        is_paid: false,
+        is_bus_driver_wages: formData.is_bus_driver_wages === 'yes',
+        additional_deductions: JSON.stringify(formData.additional_deductions || [])
       });
+      if (createError) throw createError;
 
       setFormData({
         paycheque_number: '',

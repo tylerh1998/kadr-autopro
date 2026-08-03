@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/lib/supabase';
 import {
@@ -73,23 +72,21 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
       const currentTimestamp = getCurrentMountainTimestamp();
 
       // Create the transaction
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'PayrollTransaction',
-        data: {
-          transaction_type: 'Adjustment',
-          pay_date: formData.pay_date,
-          amount: String(parseFloat(formData.amount) || 0),
-          adjustment_reason: formData.adjustment_reason,
-          gl_account: formData.gl_account,
-          notes: formData.notes || null,
-          is_paid: false,
-          created_date: currentTimestamp,
-          updated_date: currentTimestamp,
-          created_by_id: currentUser?.id || null,
-          created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
-        }
+      const { error: createError } = await supabase.from('PayrollTransaction').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        transaction_type: 'Adjustment',
+        pay_date: formData.pay_date,
+        amount: String(parseFloat(formData.amount) || 0),
+        adjustment_reason: formData.adjustment_reason,
+        gl_account: formData.gl_account,
+        notes: formData.notes || null,
+        is_paid: false,
+        created_date: currentTimestamp,
+        updated_date: currentTimestamp,
+        created_by_id: currentUser?.id || null,
+        created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
       });
+      if (createError) throw createError;
 
       // Reset form
       setFormData({

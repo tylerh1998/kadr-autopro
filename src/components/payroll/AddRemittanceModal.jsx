@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -67,13 +67,14 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
       const fileContent = await file.text();
 
       // Call backend function to parse the file
-      const response = await base44.functions.invoke('parsePayrollFile', {
-        fileContent,
-        fileName: file.name
+      const { data: responseData, error: parseError } = await supabase.functions.invoke('autopro-parsePayrollFile', {
+        body: { fileContent, fileName: file.name }
       });
 
-      if (response.data?.success && response.data?.data) {
-        const parsedData = response.data.data;
+      if (parseError) throw parseError;
+
+      if (responseData?.success && responseData?.data) {
+        const parsedData = responseData.data;
         
         // Verify it's a remittance
         if (parsedData.transaction_type !== 'Remittance') {
@@ -100,7 +101,7 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
         setError(null);
       } else {
         setUploadedFileName('');
-        throw new Error(response.data?.error || 'Failed to parse file');
+        throw new Error(responseData?.error || 'Failed to parse file');
       }
     } catch (err) {
       console.error('Error parsing file:', err);
@@ -123,27 +124,25 @@ export default function AddRemittanceModal({ open, onClose, onSuccess }) {
       }
 
       // Create the transaction
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'PayrollTransaction',
-        data: {
-          transaction_type: 'Remittance',
-          pay_date: formData.pay_date,
-          remittance_period_start: formData.remittance_period_start || null,
-          remittance_period_end: formData.remittance_period_end || null,
-          income_tax: parseFloat(formData.income_tax) || 0,
-          cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
-          cpp_employer: parseFloat(formData.cpp_employer) || 0,
-          ei_premium: parseFloat(formData.ei_premium) || 0,
-          ei_employer: parseFloat(formData.ei_employer) || 0,
-          amount: String(parseFloat(formData.amount) || 0),
-          paycheque_numbers_included: formData.paycheque_numbers_included || null,
-          notes: formData.notes || null,
-          import_file_name: formData.import_file_name || null,
-          import_date: formData.import_file_name ? new Date().toISOString() : null,
-          is_paid: false
-        }
+      const { error: createError } = await supabase.from('PayrollTransaction').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        transaction_type: 'Remittance',
+        pay_date: formData.pay_date,
+        remittance_period_start: formData.remittance_period_start || null,
+        remittance_period_end: formData.remittance_period_end || null,
+        income_tax: parseFloat(formData.income_tax) || 0,
+        cpp_contribution: parseFloat(formData.cpp_contribution) || 0,
+        cpp_employer: parseFloat(formData.cpp_employer) || 0,
+        ei_premium: parseFloat(formData.ei_premium) || 0,
+        ei_employer: parseFloat(formData.ei_employer) || 0,
+        amount: String(parseFloat(formData.amount) || 0),
+        paycheque_numbers_included: formData.paycheque_numbers_included || null,
+        notes: formData.notes || null,
+        import_file_name: formData.import_file_name || null,
+        import_date: formData.import_file_name ? new Date().toISOString() : null,
+        is_paid: false
       });
+      if (createError) throw createError;
 
       // Reset form
       setFormData({

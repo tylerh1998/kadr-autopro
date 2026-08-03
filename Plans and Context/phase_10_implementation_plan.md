@@ -1,6 +1,6 @@
 # Phase 10 Implementation Plan: Accounting, GL Reporting, Taxes & Fiscal Periods
 
-**Status:** **In Progress.** 10A and 10B are both **done and confirmed live** on `test.kensauto.ca` (10A via commit `2b21dccaf`; 10B via `edd03df7` + `fdaff904` + `8429b218`/`9e6c1d3b`, confirmed via `git log` 2026-08-03; 10B.5's full verification checklist confirmed by you directly in the plan). **10C (GST & Taxes) backend + frontend code is now complete (2026-08-03) — all 3 functions ported, deployed, and backend-verified on both dev and production; `Taxes.jsx`/`MarkPaidModal.jsx` converted. Not yet committed/pushed — holding per your instruction until you're ready to test on `test.kensauto.ca`.** The critical pre-flight finding from research (production `SystemSettings`/`CashFlowSummary`/`OtherChargeList` all had zero rows) has been resolved for `SystemSettings`: the exact dev row was seeded to production before any function was deployed there (see 10C.0/10C.5 notes below). `CashFlowSummary`/`OtherChargeList` remain empty on production — still 10D/10E's problem, as originally flagged.
+**Status:** **In Progress.** 10A, 10B, and 10C are all **done and confirmed live** on `test.kensauto.ca` (10A via commit `2b21dccaf`; 10B via `edd03df7` + `fdaff904` + `8429b218`/`9e6c1d3b`; 10C frontend via commit `46c86e2b` "Phase 10C", backend functions deployed directly to both branches ahead of that push — confirmed via `git log` 2026-08-03). See "Phase Results and Final Context" below for the full rollup of all three. **10D (Cash Flow & Bank Transfer): code complete and backend-verified as of 2026-08-03 (see 10D below).** The fiscal-period-check open question (10D.0) was resolved by adding the guard, per the plan's own recommendation (15-line copy-paste from `autopro-processLineOfCreditPayment`'s pattern, matching the other 5 GL-posting functions this phase). **Not yet done: commit + push (held per standing project rule — code changes only, user pushes manually via GitHub Desktop), and the live-UI portion of 10D.5's checklist** (needs the push first, same as every prior sub-phase this project).
 **Parent:** `master_blueprint.md`, Phase 10
 **Prepared:** 2026-08-03
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -113,8 +113,8 @@ Confirmed scope (9 report functions + GST domain + FiscalPeriod cutover + CashFl
 |---|---|---|---|
 | ~~**10A**~~ | ~~Foundation: `FiscalPeriod` full cutover, `CashFlowSummary` RLS fix, production replay of `SystemSettings`/`CashFlowSummary`/`OtherChargeList`, new `GSTReturn` schema (both branches)~~ | **Completed & Tested** | ~~None — start here~~ |
 | ~~**10B**~~ | ~~GL Reporting: 9 native function ports + 6 frontend pages + `JournalEntries.jsx`'s `postJournalEntries` port + `TechnicianPerformanceReport` progress-bar restoration~~ | **Completed & Tested** | ~~**10A** (needs `FiscalPeriod`/`CashFlowSummary` for clean live testing; progress-bar restoration needs `CashFlowSummary`)~~ |
-| **10C** | GST & Taxes: `GSTReturn` CRUD, 3 native functions, `Taxes.jsx`, `MarkPaidModal.jsx` (both fixes) | **Code complete, backend-verified on dev+production, not yet pushed** | **10A** (needs `GSTReturn`/`SystemSettings` schema — done); benefits from 10B's patterns |
-| **10D** | Cash Flow & Bank Transfer: `CashFlow.jsx` full cutover, `CashFlowTrendTab.jsx` repoint, `transferFunds` full native rewrite, `Bank.jsx` `handleTransfer` | Not Started | **10A** (`CashFlowSummary`); **10B** (`getFinancialDashboardData`) |
+| ~~**10C**~~ | ~~GST & Taxes: `GSTReturn` CRUD, 3 native functions, `Taxes.jsx`, `MarkPaidModal.jsx` (both fixes)~~ | **Completed & Tested** | ~~**10A** (needs `GSTReturn`/`SystemSettings` schema — done); benefits from 10B's patterns~~ |
+| **10D** | Cash Flow & Bank Transfer: `CashFlow.jsx` full cutover (incl. a `jsonb`/`JSON.parse` bug fix), `transferFunds` full native rewrite, `Bank.jsx` `handleTransfer`, `Admin.jsx` table-list move | **Code complete, backend-verified — holding for push + live UI testing** | **10A** (`CashFlowSummary`); **10B** (`getFinancialDashboardData` — `CashFlowTrendTab.jsx` already native, confirmed, not part of this sub-phase's remaining work) |
 | **10E** | *(conditional on §0.1)* Levies: new schema, 3 native functions, 2 frontend call sites | Pending your decision | **10A**-adjacent (own schema, low interdependency) |
 
 ---
@@ -316,46 +316,89 @@ Note: **this is `src/components/taxes/MarkPaidModal.jsx`, not `src/components/pa
 
 ### 10C.6) Verification Checklist
 
-- [x] `Taxes.jsx`'s underlying calculation logic: verified against a real period's manually-computed `GLTransaction` sums on production (see task list above) — the live-UI portion of this (actually clicking through `Taxes.jsx` itself) is still open, pending push.
-- [ ] Post a throwaway GST return (Jul-Sep 2026, real dev data) → journal entries → mark paid via `MarkPaidModal.jsx` → confirm `BankTransaction`/GL/`GSTReturn.status` all update correctly. **Still open** — the backend logic itself was proven via a *different* disposable test period (2099 Q1, not Jul-Sep 2026) since dev's GL data is empty and Jul-Sep 2026 no longer carries real transactional context to reconcile against. Once pushed, decide whether to exercise this via the real Jul-Sep 2026 return from the live UI, or accept the throwaway-period backend proof as sufficient.
-- [x] Confirm the bigint-vs-text account-number comparison (10C.2) actually works against real data — confirmed non-zero, exactly-matching `gst_collected`/`gst_paid` via the production SQL cross-check above.
+- [x] `Taxes.jsx`: live-verified in-browser on `test.kensauto.ca` (2026-08-03) with a real logged-in session (`test@kensauto.ca`). History correctly loaded the 2 real historical rows (Apr-Jun 2026 $4,610.61 owed, Jan-Mar 2026 $3,952.64 owed, both PAID). Generate Report for Jul-Sep 2026 correctly returned $0.00 across the board (matches dev's confirmed-empty `GLTransaction` table — this is correct behavior, not a bug).
+- [x] Full live post → mark-paid cycle exercised through the real UI (not curl): clicked "Post Return" on the Jul-Sep 2026 $0.00 summary → created a real `GSTReturn` row + invoked `autopro-postGSTJournalEntries` (0 GL lines, correctly skipped since both amounts were 0) → clicked "Mark Paid" in `MarkPaidModal.jsx` → bank account dropdown loaded correctly (confirms the native `BankAccount` query replaced the old `SupabaseProxy` call) → confirmed payment → `GSTReturn.status` → `paid`, `paid_by`/`created_by` correctly attributed to the real user (not the `System` fallback seen in earlier curl tests), `bank_account_id` set correctly, `BankTransaction` created with correctly-zeroed amounts matching the legacy net-zero-due branch. Since this was a $0.00 placeholder (no real GL data behind it) rather than meaningful accounting data, cleaned it up afterward (deleted the test `GSTReturn`/`BankTransaction` rows, re-ran `calculateBankBalances` to restore $0) — dev's real 2 historical rows are the only ones left in history, confirmed via reload. Zero console errors throughout.
+- [x] Confirm the bigint-vs-text account-number comparison (10C.2) actually works against real data — confirmed non-zero, exactly-matching `gst_collected`/`gst_paid` via the production SQL cross-check (task list above).
 - [x] Repo-wide grep clean; `npx vite build` clean.
 
-**🛑 HOLD FOR TESTING — code complete, not yet committed/pushed per your explicit instruction to hold until you're ready to test on `test.kensauto.ca`. Once pushed: run `Taxes.jsx`/`MarkPaidModal.jsx` live in-browser, then give the go-ahead before starting 10D.**
+**10C fully complete and verified — both backend (production SQL cross-check) and live UI (real browser session on `test.kensauto.ca`) confirmed working correctly, zero errors, no leftover test data. Ready to proceed to 10D on your go-ahead.**
 
 ---
 
 ## 10D) SUB-PHASE D: Cash Flow & Bank Transfer
 
+> **Handoff from 10C (2026-08-03):** 10A/10B/10C are all done, pushed, and live-verified on `test.kensauto.ca` — see "Phase Results and Final Context" above for the full rollup. Two things carried forward specifically for 10D: **(1)** production's `CashFlowSummary`/`OtherChargeList` were flagged back in 10C.0 as empty (schema-only replay, same gap `SystemSettings` had) — re-confirmed fresh this session: production `CashFlowSummary` = **0 rows**, `CashFlowEntry` = **0 rows** (vs. dev's 1 and 5 real rows respectively). Unlike `SystemSettings`, this is **not a hard blocker** — `CashFlow.jsx`'s existing `loadData()` already auto-`create()`s a fresh `CashFlowSummary` row if `.list()` returns empty (see current source, lines 116–127), so production will self-heal on first native load rather than erroring. **(2)** dev's `GLTransaction`/`BankTransaction` situation has **changed since 10C**: `BankTransaction` is back to 0 rows on dev (confirmed fresh — consistent with 10C's own cleanup leaving it that way), while production has 1,187 real `BankTransaction` rows. Same "verify on production, throwaway-test on dev" approach from 10C will likely apply here too.
+>
+> Research below is freshly re-verified this session (not reused from 10C's context) — full file reads of `CashFlow.jsx`, `Bank.jsx`'s `handleTransfer`, `BankTransferModal.jsx`, `CashFlowTrendTab.jsx`, the legacy `transferFunds` source, and fresh DB queries against both branches.
+
+### 10D.0) Pre-flight findings
+
+- **`CashFlowTrendTab.jsx` is already fully native** (confirmed via grep — imports `@/lib/supabase`, calls `autopro-getFinancialDashboardData` directly). 10B's claim holds; no work needed here, it's not actually part of 10D's remaining scope despite being listed in the roadmap.
+- **`CashFlowEntry` already has 3 native call sites outside `CashFlow.jsx`** — `SupplierPaymentModal.jsx`, `AddToSheetModal.jsx`, and `APSummaryTable.jsx` all already use `supabase.from('CashFlowEntry')` (Phase 9's work). The 10D.4 checklist item "add-to-sheet still works from the Supplier/LOC side" is about **re-verifying**, not converting — nothing to port there. `CashFlow.jsx` itself is the only remaining base44-routed file for both `CashFlowEntry` and `CashFlowSummary`.
+- **A real `jsonb`-vs-`JSON.parse()` bug to fix during the port** (same class of bug as the Phase 9 lesson in Section 2): `CashFlowSummary.pad_registries_details` and `.overhead_items` are confirmed **`jsonb`** columns via `information_schema.columns` (not `text`) — and a live query confirms `supabase-js` returns them **already parsed** as JS arrays/objects. `CashFlow.jsx`'s current code (lines 139, 148 for reads; 124–125, 312, 316 for writes) does `JSON.parse(summary.pad_registries_details)` / `JSON.stringify(...)` — both must be **dropped** when porting: read the field directly as an array, write the array/object directly (no stringify) to a native `.insert()`/`.update()` call.
+- **`Admin.jsx`'s `LOCAL_ENTITIES` → `SUPABASE_TABLES` move**: `CashFlowEntry`/`CashFlowSummary` are currently both in `LOCAL_ENTITIES` (line 31). Per 10A's established precedent ("moving the list entry alone would be misleading" until the real frontend CRUD is converted), move both to `SUPABASE_TABLES` (line 25) as part of this sub-phase, now that `CashFlow.jsx` itself is being converted.
+- **`TechnicianPerformanceReportModal.jsx` has a stale comment** (line 138: "hidden until Phase 10 migrates CashFlowSummary") — the actual migration already happened in 10B (the backend function reads `CashFlowSummary` natively). Cosmetic only; harmless to leave or clean up in passing.
+- **Legacy `transferFunds` does NOT check `FiscalPeriod` status** before posting (confirmed via full source read) — unlike 5 other GL-posting functions this project has ported (`autopro-processLineOfCreditPayment`, `autopro-cancelLineOfCreditPayment`, `autopro-processLineOfCreditTransaction`, `autopro-reverseDeposit`, `autopro-processInventoryReceipt`, all of which do). This is inconsistent within the legacy codebase itself, not a hard rule. **Resolved (2026-08-03): went with the plan's own recommendation — added the guard.** `autopro-transferFunds` now calls `checkFiscalPeriodStatus()` (copy-pasted from `autopro-processLineOfCreditPayment`'s pattern) before any writes; a closed-period `transferDate` is rejected with `{ success: false, error: 'Fiscal period closed', message }`. Curl-verified directly on dev (2026-08-03): a transfer dated in the closed Jan-Mar 2026 period was correctly rejected before any rows were written.
+- **`BankTransferModal.jsx`'s submit payload already matches the legacy `transferFunds` body signature exactly** (`{ fromAccountId, toAccountId, amount, transferDate, description }`, confirmed via full read of `handleSubmit`) — no frontend payload-shape changes needed, only the transport call itself.
+- **`Bank.jsx` imports both `base44` and `supabase` already** — `base44` is used **only** for the one `handleTransfer` call (confirmed via grep, single match at line 705), so the import can be dropped entirely once converted.
+
 ### 10D.1) `CashFlow.jsx` — closing the Phase 9 gap
 
-Full cutover: `CashFlowSummary.{list,create,update}` and `CashFlowEntry` CRUD, both currently still base44-routed despite `CashFlowEntry`'s table being native since Phase 9. Convert every call site to `supabase.from()`.
+Full cutover of `CashFlowSummary.{list,create,update}` and `CashFlowEntry.{list,update,create,delete}` (currently `base44.entities.*`, lines 84, 114, 119, 196, 236, 238, 283, 327) to `supabase.from()`. Specific conversion notes:
+
+| Current call | Native replacement | Notes |
+|---|---|---|
+| `base44.entities.CashFlowEntry.list('sort_order', 100)` (line 84) | `supabase.from('CashFlowEntry').select('*').order('sort_order').limit(100)` | |
+| `base44.entities.CashFlowSummary.list()` (line 114) | `supabase.from('CashFlowSummary').select('*')` | Falls through to the existing create-if-empty logic below — no change needed to that fallback behavior. |
+| `base44.entities.CashFlowSummary.create({...})` (line 119) | `supabase.from('CashFlowSummary').insert([{ id: crypto.randomUUID().replace(/-/g,'').substring(0,24), ...fields }]).select().single()` | Established id-generation pattern from `FiscalPeriods.jsx`/`Taxes.jsx`. `pad_registries_details`/`overhead_items` pass the array directly, **not** `JSON.stringify(...)` (see 10D.0). |
+| `JSON.parse(summary.pad_registries_details)` (line 139) | `summary.pad_registries_details \|\| Array(10).fill(...)` | Drop the `JSON.parse` — already an array. |
+| `JSON.parse(summary.overhead_items)` (line 148) | `summary.overhead_items \|\| Array(35).fill(...)` | Same. |
+| `base44.entities.CashFlowEntry.update(row.id, { sort_order: index })` (line 196) | `supabase.from('CashFlowEntry').update({ sort_order: index }).eq('id', row.id)` | Inside `persistRowOrder`'s debounced `Promise.all`. |
+| `base44.entities.CashFlowEntry.update(row.id, payload)` (line 236) | `supabase.from('CashFlowEntry').update(payload).eq('id', row.id)` | Inside `saveRowToDb`. |
+| `base44.entities.CashFlowEntry.create(payload)` (line 238) | `supabase.from('CashFlowEntry').insert([{ id: crypto.randomUUID().replace(/-/g,'').substring(0,24), ...payload }]).select().single()` | Same id-gen pattern; `newRec.id` usage below unchanged. |
+| `base44.entities.CashFlowEntry.delete(row.id)` (line 283) | `supabase.from('CashFlowEntry').delete().eq('id', row.id)` | |
+| `base44.entities.CashFlowSummary.update(id, payload)` (line 327) | `supabase.from('CashFlowSummary').update(payload).eq('id', id)` | `pad_registries_details`/`overhead_items` in `payload` (built at lines 312/316) must **drop** their `JSON.stringify(...)` wrapping — pass the mapped array directly. |
+
+Drop the `base44` import and add `import { supabase } from '@/lib/supabase';` once all 9 call sites above are converted (grep the file first to confirm no other `base44` usage — none found in this session's full read).
 
 ### 10D.2) `transferFunds` — full native rewrite
 
-Legacy source is entirely `SupabaseProxy`/raw-`fetch`-routed (no reusable native code, unlike most of this phase's other ports). New `autopro-transferFunds`:
-1. Fetch both `BankAccount` rows natively, validate active + `gl_account` set.
-2. Insert 2 `BankTransaction` rows (native).
-3. Insert 2 `GLTransaction` rows — credit source GL, debit destination GL (native, matching the established dual-entry pattern from `autopro-processLineOfCreditPayment`/`autopro-executeSupplierPayment`).
-4. Invoke already-native `autopro-calculateBankBalances` for both accounts.
+Legacy source (`base44/functions/transferFunds/entry.ts`) is entirely `SupabaseProxy`/raw-`fetch`-routed — no reusable native code, unlike most of this phase's other ports. Full legacy logic (already read in full, ported here for the record):
 
-Convert `Bank.jsx`'s `handleTransfer` (line ~703) to call `autopro-transferFunds`.
+Body: `{ fromAccountId, toAccountId, amount, transferDate, description }`.
+1. Validate: both IDs present and different, `amount` is a positive number, `transferDate` present.
+2. Fetch both `BankAccount` rows natively (`supabase.from('BankAccount').select('*').eq('id', ...)`), reject if either missing, either `is_active === false`, or either missing `gl_account`.
+3. **(Open question — see 10D.0)** optionally check `FiscalPeriod` status for `transferDate` via the same `checkFiscalPeriodStatus()` helper used in `autopro-processLineOfCreditPayment`/etc.
+4. Insert 2 `BankTransaction` rows: source account debited (`debit_amount: transferAmount, credit_amount: 0`, `reference: toAccount.name`), destination account credited (`credit_amount: transferAmount, debit_amount: 0`, `reference: fromAccount.name`) — both `source_type: 'transfer'`, `source_id` cross-referencing the other account's id, `cleared: false, reconciled: false`, matching legacy exactly.
+5. Insert 2 `GLTransaction` rows: credit source account's `gl_account` (decreases asset), debit destination account's `gl_account` (increases asset) — `source_type: 'transfer'`, `source_id` = the corresponding `BankTransaction` id just created. Resolve audit identity via JWT (`Authorization` header + `supabase.auth.getUser(token)`, fallback `{ email: 'System', id: null }`) matching this phase's established pattern — legacy used `base44.auth.me()` for this.
+6. Invoke `autopro-calculateBankBalances` for **both** accounts (legacy already does this, via `base44.asServiceRole.functions.invoke('calculateBankBalances', ...)` — repoint to `supabase.functions.invoke('autopro-calculateBankBalances', { body: { bankAccountId } })`, matching the signature already confirmed working in 10C). Legacy wraps this in a try/catch that continues on failure ("transactions are already recorded") — preserve that behavior, don't let a balance-recalc failure roll back the transfer itself.
+7. Return `{ success: true, message, transfer: { reference, from: {...}, to: {...}, amount, date, description } }` matching the legacy response shape exactly, since `Bank.jsx`'s `handleTransfer` reads `result.transfer.reference` for its success alert.
 
-### 10D.3) Task List
+### 10D.3) `Bank.jsx` frontend transport cutover
 
-- [ ] `autopro-transferFunds` ported, deployed to dev, verified via curl (a real throwaway transfer between two dev `BankAccount` rows, balances confirmed correct, then reversed/cleaned up).
-- [ ] `CashFlow.jsx` fully converted; `CashFlowTrendTab.jsx` already covered by 10B.
-- [ ] `Bank.jsx`'s `handleTransfer` converted.
-- [ ] Repo-wide grep clean; `npx vite build` clean.
-- [ ] Apply function to production after dev verification.
+Convert `handleTransfer` (line 703) from `base44.functions.invoke('transferFunds', transferData)` to `supabase.functions.invoke('autopro-transferFunds', { body: transferData })`. Response-shape handling (`response.data || response`, `result.success`/`result.transfer.reference`/`result.error`) stays as-is — the new function returns the same shape. Drop the `base44` import (only usage in the file, confirmed via grep).
 
-### 10D.4) Verification Checklist
+### 10D.4) Task List
 
-- [ ] `CashFlow.jsx`: summary/overhead/header debounced saves round-trip against native tables; add-to-sheet still works from the Supplier/LOC side (Phase 9 precedent).
-- [ ] `Bank.jsx`: a real throwaway transfer between two accounts, GL entries balance, both `BankAccount.current_balance` update correctly.
-- [ ] Repo-wide grep clean; `npx vite build` clean.
+- [x] Get your call on the fiscal-period-check question (10D.0) before writing `autopro-transferFunds`. **Resolved:** guard added, per plan recommendation.
+- [x] `autopro-transferFunds` ported, deployed to dev (`verify_jwt: false`, matching this phase's pattern), curl-verified with a real throwaway $50 transfer between the two real dev `BankAccount` rows (Primary - Servus → Bus - Servus). Verified via direct SQL: 2 `BankTransaction` rows (source_type `transfer`, correctly cross-referencing each other's id as `source_id`), 2 balanced `GLTransaction` rows (credit 1001 $50 / debit 1002 $50, correct sign-aware branching, `created_by: 'System'` fallback since no real JWT sent via curl), both `BankAccount.current_balance` correctly updated (-$50 / +$50) via the `autopro-calculateBankBalances` invoke. Also curl-verified the new fiscal-period guard: a transfer dated in the closed Jan-Mar 2026 period was correctly rejected with no rows written. All test rows deleted and both balances re-recalculated back to $0 afterward — dev left exactly as found.
+- [x] `CashFlow.jsx` fully converted per 10D.1's table; `base44` import dropped, `supabase` import added. The `jsonb`/`JSON.parse()` bug (10D.0) fixed on both the read side (`summary.pad_registries_details`/`summary.overhead_items` read directly as arrays, no `JSON.parse`) and the write side (`saveSummaryToDb`'s payload passes the mapped arrays directly, no `JSON.stringify`). Id-generation for new `CashFlowEntry`/`CashFlowSummary` rows follows the established `crypto.randomUUID().replace(/-/g,'').substring(0,24)` pattern.
+- [x] `Bank.jsx`'s `handleTransfer` converted per 10D.3 — repointed to `supabase.functions.invoke('autopro-transferFunds', { body: transferData })`; `base44` import dropped (was only used for this one call site).
+- [x] `Admin.jsx`: moved `CashFlowEntry`/`CashFlowSummary` from `LOCAL_ENTITIES` to `SUPABASE_TABLES`.
+- [x] Repo-wide grep clean of `base44.entities.CashFlowEntry`, `base44.entities.CashFlowSummary`, `base44.functions.invoke('transferFunds'`; `npx vite build` clean (fresh `dist/` output confirmed, zero errors).
+- [x] Applied `autopro-transferFunds` to production (`verify_jwt: false`) after dev verification passed. Production's `CashFlowSummary`/`CashFlowEntry` being empty (10D.0) needed **no pre-seed action**, per plan — not independently re-verified this session (10D.0's finding already confirmed `CashFlow.jsx`'s auto-create-if-empty fallback handles it). No throwaway transfer was run directly against production (same standing caution as 10C's production curl avoidance) — production's `autopro-transferFunds` will get its first real exercise via the live-UI test below, once pushed.
 
-**🛑 HOLD FOR TESTING — do not start 10E (if in scope) until you've confirmed the above and given the go-ahead.**
+**Not yet done: commit + push** (held per standing project rule — user pushes manually via GitHub Desktop, `main` never touched).
+
+### 10D.5) Verification Checklist
+
+- [ ] `CashFlow.jsx`: summary/overhead/header debounced saves round-trip correctly against native tables (watch specifically for the `jsonb` fields — confirm `pad_registries_details`/`overhead_items` round-trip without double-encoding, i.e. don't end up as a JSON-string-inside-jsonb after a save-then-reload cycle). **Needs live UI — not yet checked.**
+- [ ] Add-to-sheet still works from the Supplier/LOC side (`SupplierPaymentModal.jsx`/`AddToSheetModal.jsx`/`APSummaryTable.jsx` — Phase 9 precedent, these are already native, just re-verify the round-trip still shows up correctly in `CashFlow.jsx`'s own table once *it's* also native). **Needs live UI — not yet checked.**
+- [x] `Bank.jsx`/`transferFunds` backend logic: throwaway transfer via curl on dev — GL entries balance, both `BankAccount.current_balance` update correctly, fiscal-period guard correctly rejects a closed-period date. (Curl only, not the real UI — see below.)
+- [ ] `Bank.jsx`: a real throwaway transfer between two accounts via the actual UI (not curl) — success alert shows the right reference, `BankTransferModal.jsx`'s lock-acquire/release flow works end-to-end. **Needs live UI — not yet checked.**
+- [x] Repo-wide grep clean; `npx vite build` clean.
+
+**🛑 HOLD FOR TESTING — do not start 10E (if in scope) until you push the code, the live-UI checklist items above are confirmed on `test.kensauto.ca`, and you give the go-ahead.**
 
 ---
 
@@ -408,7 +451,33 @@ Convert `Bank.jsx`'s `handleTransfer` (line ~703) to call `autopro-transferFunds
 
 ## Phase Results and Final Context
 
-*(Empty — filled in as each sub-phase executes and closes out.)*
+### 10A — Foundation: FiscalPeriod Cutover & Schema/RLS Fixes (Completed & Tested)
+
+**Delivered:** `FiscalPeriod` fully native across all call sites (`fiscalPeriodUtils.jsx`'s `checkFiscalPeriodStatus()` chokepoint, `FiscalPeriods.jsx` admin CRUD, `DepositHistoryModal.jsx`, `Admin.jsx`'s table browser). RLS zero-policy trap fixed on dev for `CashFlowSummary`/`GSTReturn`/`Levies`. `SystemSettings`/`CashFlowSummary`/`OtherChargeList`/`GSTReturn` schemas replayed to production (empty-schema only — **not** the data rows, which became 10C.0's critical pre-flight finding). Pushed via commit `2b21dccaf`.
+
+**Left incomplete (never circled back):** 10A.4's "re-verify 3 previously-blocked flows" (`SupplierTx.jsx`, `SupplierPaymentModal.jsx`, `DepositHistoryModal.jsx`) and the `FiscalPeriods.jsx` create/edit/close-period round-trip were explicitly deferred to "pick up alongside 10B's live testing" but were never explicitly re-checked and closed out in either 10B or 10C's verification passes. Still open — worth a deliberate check before Phase 10 closes entirely.
+
+**Key learning carried forward:** production schema replay ≠ production data replay — a distinction that directly caused 10C.0's pre-flight blocker. Any future "replay to production" task must explicitly confirm row counts, not just table existence.
+
+### 10B — GL Reporting (Completed & Tested)
+
+**Delivered:** 9 read-only GL/financial-report functions ported and deployed to both branches (4 already had production RPCs the legacy code called defensively; 3 needed genuinely new RPCs including a full SQL rewrite of a reverse-chronological balance walk). All 6 frontend report pages + `GeneralLedger.jsx` repointed. `JournalEntries.jsx`'s `postJournalEntries` ported off its legacy `@/functions/` alias. `TechnicianPerformanceReport`'s payroll-target progress bar restored (was hardcoded to 0 since Phase 6). Pushed via `edd03df7`/`fdaff904`/`8429b218`/`9e6c1d3b`.
+
+**Key learning carried forward:** dev's `GLTransaction`/`BankTransaction` tables were discovered empty during this sub-phase (a schema-only reseed at some point wiped transactional data while reference tables survived) — this became the standing constraint for all subsequent live-data verification in 10C, and will affect 10D/10E too.
+
+**Minor inconsistency flagged, not yet resolved:** 10B.5's checklist marks "`findGLImbalances` email trigger fires correctly" as checked, but the checklist's own prose says "Not yet checked live" — never reconciled. Worth a real check if the email-trigger path matters before Phase 10 closes.
+
+### 10C — GST & Taxes (Completed & Tested)
+
+**Delivered:** 3 native functions (`autopro-calculateGSTReturn`, `autopro-postGSTJournalEntries`, `autopro-processGSTPayment`) ported byte-for-byte including the sign-aware debit/credit branching, deployed to both dev and production. `Taxes.jsx`/`MarkPaidModal.jsx` fully converted off `base44`/`SupabaseProxy`. Production `SystemSettings` seeded with dev's real row (was empty — 10C.0's pre-flight finding, now resolved). Pushed via commit `46c86e2b`.
+
+**Verification approach deviated from the original plan** (documented in detail in the 10C section's update note and 10C.5/10C.6 above): dev's `GLTransaction` being empty (10B's finding) meant the planned "curl dev against known figures" cross-check wasn't possible, so backend logic was instead validated via direct SQL against production's real data (matched known-correct historical GST figures to the cent), and the write-path functions (`postGSTJournalEntries`/`processGSTPayment`) were proven via a synthetic throwaway period (`2099-01-01`/`2099-03-31`, non-zero amounts) rather than real transactional data.
+
+**Testing gap worth flagging:** the *live UI* click-through (as opposed to backend curl/SQL) only ever exercised a **$0.00** case — the real Jul-Sep 2026 quarter has no GL data behind it on dev, so posting it through the actual `Taxes.jsx`/`MarkPaidModal.jsx` UI produced an all-zero, no-op-GL-lines return (correctly, per the code's own `!== 0` guards, but it means the sign-aware debit/credit branching itself was never exercised via a real logged-in browser session — only via curl on a synthetic period). If dev's GL data ever gets reseeded with real transactions, it would be worth re-running the live-UI test with genuinely non-zero figures.
+
+**Out of scope / no action needed:** `CashFlowSummary`/`OtherChargeList` remain empty on production — explicitly not 10C's problem (only `SystemSettings` was in scope there), flagged forward to 10D/10E who will hit the same gap for their own tables.
+
+**Nothing was left in an ambiguous "real vs. disposable" state** — the original concern in 10C.1 (whether to leave a real Jul-Sep 2026 posting on dev or treat it as disposable) was resolved cleanly: the $0.00 test posting was deleted and the bank balance recalculated back to baseline, so dev's only real `GSTReturn` history remains the 2 pre-existing paid rows (Jan-Mar and Apr-Jun 2026).
 
 ---
 
@@ -420,10 +489,12 @@ Convert `Bank.jsx`'s `handleTransfer` (line ~703) to call `autopro-transferFunds
 
 **10B — done, pushed, confirmed live.** Backend commits `edd03df7`/`fdaff904`; the remaining frontend + 3-new-function work from this session pushed via `8429b218`/`9e6c1d3b`. **You've confirmed all of 10B.5's verification checklist directly in this plan (all boxes checked)** — including the `TechnicianPerformanceReport` progress bar, using the test data generated on dev (`WorkOrder RO5001` given a real `labor_total`/`tech_time`, still sitting on dev — harmless to leave, or clean up later, your call). 10B is closed.
 
-**10C — code complete, backend-verified on dev+production, held before push (2026-08-03).** All 3 functions ported/deployed/verified (see 10C.5/10C.6 and the update note atop the 10C section for the full verification trail — note dev's `GLTransaction` was found empty this session, so verification leaned on direct SQL against production's real data plus a throwaway end-to-end test on dev, rather than the originally-planned dev-curl-against-known-figures approach). `Taxes.jsx`/`MarkPaidModal.jsx` converted, `base44` imports dropped, repo-wide grep clean, `npx vite build` clean. **Not committed or pushed** — held per explicit instruction pending the go-ahead to test on `test.kensauto.ca`.
+**10C — done, pushed, confirmed live.** Frontend via commit `46c86e2b` "Phase 10C" (`Taxes.jsx`/`MarkPaidModal.jsx`); the 3 new edge functions were deployed directly to both dev and production ahead of that push, per this phase's established schema/backend-first pattern. **Full verification complete**: backend logic cross-checked against real production `GLTransaction` data via direct SQL (dev's own GL data was found empty this session — the same wipe noted in 10B — so the originally-planned dev-curl-against-known-figures approach was swapped for production SQL cross-validation plus a full throwaway post→pay cycle on dev), and then **live-verified end-to-end in-browser on `test.kensauto.ca`** with a real logged-in session: `Taxes.jsx`'s history/calculate/post flow and `MarkPaidModal.jsx`'s bank-account-load/confirm flow all worked correctly, correct real-user attribution (not the `System` fallback), zero console errors. Test data (a disposable $0.00 Jul-Sep 2026 posting, since dev has no real GL data to back a meaningful test) was cleaned up afterward — dev's real GST history is untouched. 10C is closed.
+
+**10D — code complete, backend-verified, holding for push + live UI testing.** Executed 2026-08-03: `autopro-transferFunds` ported (full native rewrite, with the `checkFiscalPeriodStatus()` guard added per the plan's own recommendation) and deployed to **both** dev and production. Curl-verified on dev with a real throwaway $50 transfer (balanced GL entries, correct bank-balance recalc, correct fiscal-period-closed rejection on a second test) — all test data cleaned up afterward. `CashFlow.jsx` fully converted off `base44` (including the `jsonb`/`JSON.parse()` double-encoding bug fix from 10D.0 — both the read and write sides). `Bank.jsx`'s `handleTransfer` repointed; `base44` import dropped from both files. `Admin.jsx`'s `CashFlowEntry`/`CashFlowSummary` moved from `LOCAL_ENTITIES` to `SUPABASE_TABLES`. Repo-wide grep clean; `npx vite build` clean (fresh `dist/` confirmed). **Not done: commit + push** (held per standing project rule), and the live-UI portion of 10D.5's checklist (`CashFlow.jsx`'s debounced saves, a real transfer through `Bank.jsx`'s actual UI) — both need the push first.
 
 ### Exact resume steps for the next session
 
-1. **If resuming to push/test 10C**: commit + push the working tree (7 new/changed files: 3 new edge functions already deployed to both dev+production ahead of push, `Taxes.jsx`, `MarkPaidModal.jsx`, plus this plan doc), then run 10C.6's still-open live-UI checklist item on `test.kensauto.ca` (`Taxes.jsx` full flow, `MarkPaidModal.jsx`, and decide whether to exercise the real Jul-Sep 2026 GST return or accept the throwaway-period backend proof as sufficient). Once confirmed, proceed to 10D.
-2. **If resuming to start 10D** (Cash Flow & Bank Transfer) after 10C is confirmed: re-read 10D above in full — note it will hit the same "`CashFlowSummary` empty on production" gap flagged in 10C.0, worth a fresh direct-SQL check before assuming it's been fixed in the meantime.
+1. Push the working tree (user does this manually via GitHub Desktop) — `autopro-transferFunds` is already live on both dev and production ahead of the push, matching this phase's established schema/backend-first pattern.
+2. Once pushed, run 10D.5's remaining live-UI checklist items on `test.kensauto.ca`: `CashFlow.jsx` save/reload round-trip (watch the `jsonb` fields specifically for double-encoding), a real throwaway transfer through `Bank.jsx`'s actual UI, and re-verify the Supplier/LOC add-to-sheet round-trip still shows up in `CashFlow.jsx`'s table.
 3. Per standing project rules: make code changes only, don't commit/push (the user pushes manually via GitHub Desktop), never touch `main`.

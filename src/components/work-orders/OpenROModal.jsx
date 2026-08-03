@@ -205,13 +205,13 @@ export default function OpenROModal({ open, onClose }) {
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger 
                 value="est_wo"
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:hover:bg-blue-700 transition-colors"
               >
                 Est / Work Order
               </TabsTrigger>
               <TabsTrigger 
                 value="invoice"
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:hover:bg-blue-700 transition-colors"
               >
                 Invoice
               </TabsTrigger>
@@ -219,13 +219,13 @@ export default function OpenROModal({ open, onClose }) {
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger 
                 value="credit_invoice"
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:hover:bg-blue-700 transition-colors"
               >
                 Credit Invoice
               </TabsTrigger>
               <TabsTrigger 
                 value="lankar_invoice"
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 data-[state=active]:hover:bg-blue-700 transition-colors"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:hover:bg-blue-700 transition-colors"
               >
                 Lankar Invoice
               </TabsTrigger>
@@ -233,7 +233,7 @@ export default function OpenROModal({ open, onClose }) {
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <Icon className="w-5 h-5 text-slate-600" />
+                <Icon className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                 <Label className="text-sm font-medium">
                   {currentTabInfo.label} Number
                 </Label>
@@ -241,7 +241,7 @@ export default function OpenROModal({ open, onClose }) {
               
               <div className="flex items-center gap-2">
                 {currentTabInfo.prefix && (
-                  <span className="text-sm font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                  <span className="text-sm font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
                     {currentTabInfo.prefix}
                   </span>
                 )}
@@ -257,7 +257,7 @@ export default function OpenROModal({ open, onClose }) {
                 />
               </div>
               
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 dark:text-slate-400">
                 Enter the full number or just the digits. Press Enter to search.
               </div>
             </div>
