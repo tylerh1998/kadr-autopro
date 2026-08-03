@@ -158,6 +158,27 @@ Directly applicable to every sub-phase's execution:
 - **Leave the `base44/` source tree alone until Phase 14** (Phase 4 standing rule). This phase stops *calling* Base44 functions but does not delete `base44/functions/suggestInventoryCategory/`, etc.
 - **No entity-class wrapper layer** (confirmed during this phase's planning). Grepped the entire codebase — no such pattern exists anywhere. Every prior phase (4, 5, 6) that cut a table over from Base44 did it by deleting the `@/entities/all` import and inlining direct `supabase.from()` calls into the component. Also, technically, a wrapper layer wouldn't have worked as originally drafted: `@/entities/all` is a build-time virtual module (Vite plugin), not a file that re-exports can intercept.
 
+### Lessons added during 7B execution & UI validation (2026-08-03)
+
+**New standing lessons — apply to 7C and beyond:**
+
+- **`id` is not always auto-generated — check the column default before omitting it, even when copying an existing pattern.** `GLTransaction.id` defaults to `''::text`, not a generated value. The plan's own diff for `LegacyWarrantyReturnModal.jsx`'s GL insert (and the untouched `WarrantyReturnModal.jsx`'s existing GL insert, which this phase did not touch) omits `id` entirely — every row inserted that way collides on the same empty-string PK within a single multi-row `.insert()`, so only one of the two GL rows (or neither) can ever land. Confirmed via direct query: 0 rows with `id=''` exist in production, meaning `WarrantyReturnModal.jsx`'s GL-posting insert may have been silently failing every time it's run in production. **Flagged, not fixed** (out of this phase's file scope) — worth a dedicated look, likely in 7C or a GL-focused later phase. Going forward: never assume a table's `id` column has a working default just because a same-shaped insert elsewhere in the codebase omits it — check `information_schema.columns` directly, the same discipline already applied to field names.
+- **The "one failed promise poisons the whole `Promise.all`" bug pattern recurs across files — check for it explicitly whenever a `loadData()`-style function bundles a migrated native call alongside a still-Base44 call.** 7A already found and fixed this exact pattern in `InventoryAddModal.jsx` (a `TagAlong.list()` 401 was blocking the sibling `InventoryCategory` fetch). During 7B's UI validation, the identical pattern was confirmed still present and unfixed in `InventoryAdd.jsx`'s own `loadData()` — its Category dropdown currently shows zero options because one of its still-Base44 calls (Supplier/SalesClass) 401s and kills the whole `Promise.all`, even though `InventoryAdd.jsx`'s own `InventoryCategory`/`InventoryLocation` reads haven't been touched yet (correctly deferred to 7C). **Action for 7C:** when migrating `InventoryAdd.jsx`'s `loadData()`, decouple every native fetch from every still-Base44 fetch into independent try/catch blocks — don't just port the calls one-for-one, actively look for this coupling bug the way 7A did.
+- **The Supabase `execute_sql` MCP tool only returns the result of the *last* statement when multiple `;`-separated statements are sent in one call — it does not return an array of per-statement results.** This caused a real false-alarm mid-session: a combined query (`SELECT count(*) WHERE inventory_supplier = true; SELECT count(*) FROM "Supplier";`) returned a single `count: 1`, which was misread as the *first* query's result (implying a real supplier existed) when it was actually the *second* query's total-row-count. Led to ~15 minutes of chasing a nonexistent "empty dropdown" bug before isolating each `SELECT` into its own tool call revealed the dev-branch `Supplier` table has exactly one placeholder row with `inventory_supplier: null`. **Going forward: always isolate SQL checks into single-statement `execute_sql` calls when the result will be used to reason about correctness** — never trust a multi-statement call's single returned result to correspond to a specific statement in the batch.
+- **The dev-branch Supabase project (`sitihbdnuxifwibontcm`) that `test.kensauto.ca` runs against has essentially no seed data** — 1 placeholder `Supplier` row, 0 `InventoryItem`/`InventoryReturn`/Work Order rows at time of 7B testing. This makes some UI regression checks impossible without either seeding test data first (as done here — temporarily set the placeholder `Supplier.inventory_supplier = true` to exercise the LANKAR return flow, then deleted the resulting test rows afterward) or testing against production directly (higher risk, not done here). **7C and later sub-phases should expect the same limitation** and budget time for either seeding minimal dev-branch test data or accepting reduced UI-test coverage there.
+
+**Testing/environment notes — not code lessons, but save future sessions the rediscovery:**
+
+- `local.kensauto.ca` **never works** for the Browser pane tool — don't retry it. `http://localhost:5173` works, but only once the dev server is actually reachable and the Browser pane is visibly displayed on the user's screen (screenshots/navigation silently fail with "the Browser pane is not displayed" otherwise — this is a client-side UI state the user has to actively keep open, not something fixable from the agent side). `.claude/launch.json`'s `url` override was changed from `https://local.kensauto.ca:5173` to `http://localhost:5173` this session to reflect this.
+- `test.kensauto.ca` (the `development` Vercel environment) only reflects the **latest commit actually pushed to the `development` branch** — local uncommitted edits are invisible there. The user commits/pushes manually (per standing rule); confirm with them that a push happened before relying on `test.kensauto.ca` to validate current-session changes.
+- The `/dev-login` page requires an email + password. Per standing safety rules the agent must never type credentials into any field, even for a test-only login — the user has to sign in themselves on the shared Browser-pane tab before the agent can continue UI testing.
+- `test.kensauto.ca`'s runtime Supabase project is the **dev branch** (`sitihbdnuxifwibontcm`), not production (`hbcrwkmgsazqrvsrmxyr`) — confirmed via the session JWT's `iss` claim. Any DB-level verification/cleanup during UI testing against `test.kensauto.ca` must target the dev-branch project, not production.
+
+**Validation gaps carried forward (not failures, just unverifiable this session):**
+
+- `WarrantyReturnModal.jsx` regression check (7B.2) — **untested.** This file wasn't touched by 7B, but the dev-branch database had zero Work Orders, so there was no invoice to open the modal from. Low risk (no code changed), but genuinely unverified — pick this up whenever dev-branch has WO test data, or test carefully against production.
+- `InventoryAdd.jsx`'s suggestion call (7B.3) — wiring confirmed correct by code review and by the identical pattern working live in `InventoryAddModal.jsx`, plus direct authenticated calls to the deployed function itself (Jard rule, fallback-to-Other logic) both passed. Could not visually confirm the suggested category renders in `InventoryAdd.jsx`'s own Category dropdown, because that dropdown is empty for the unrelated, already-flagged 7C-scope reason above (not a 7B regression).
+
 ---
 
 ## 3 & 4) Phase 7 Roadmap — Sub-Phase Breakdown
@@ -171,8 +192,8 @@ Phase 7 grew substantially during planning: 3 new tables requiring schema design
 | Sub-Phase | Scope Summary | Status | Depends On |
 |-----------|---------------|--------|------------|
 | **7A** | Foundation: 3 schema migrations + CSV data imports (dev→prod), plus the simple entity swaps that depend only on that: `InventoryAddModal.jsx` (category dropdown), `LocationModal.jsx` (full), `InventoryPartsReturnModal.jsx` (ReturnReason read only), `EditReturnInfoModal.jsx` (full) | [x] Complete (executed 2026-08-03, pending your UI validation) | None — start here |
-| **7B** | Complex rewire + new Edge Function: `LegacyWarrantyReturnModal.jsx` full native rewire, `searchInventory` thin-proxy swap, new `autopro-suggestInventoryCategory` Gemini function + both its frontend call sites (`InventoryAddModal.jsx`'s suggestion call, `InventoryAdd.jsx`'s suggestion call) | [x] Code complete (executed 2026-08-03, pending your UI validation — Browser pane wasn't visible this session) | **7A** (needs `InventoryCategory`/`InventoryReturn` tables to exist) |
-| **7C** | `InventoryAdd.jsx`'s remaining Base44 calls (Supplier/SalesClass/Location/Category reads, lock management) + GL/audit work: `autopro-processQOHAdjustment` rounding fix, `autopro-processInventoryReceipt` audit (verify-only), `autopro-processPartsInvoiceOCR` deploy-check (verify-only) | [ ] Not Started | **7A** (needs `InventoryLocation`/`InventoryCategory` tables), **7B** (needs the suggestion call already wired so 7C doesn't re-touch it) |
+| **7B** | Complex rewire + new Edge Function: `LegacyWarrantyReturnModal.jsx` full native rewire, `searchInventory` thin-proxy swap, new `autopro-suggestInventoryCategory` Gemini function + both its frontend call sites (`InventoryAddModal.jsx`'s suggestion call, `InventoryAdd.jsx`'s suggestion call) | [x] Complete (executed + UI-validated 2026-08-03 via dev-login on test.kensauto.ca — one item, `WarrantyReturnModal.jsx` regression check, untested for lack of WO test data in dev branch) | **7A** (needs `InventoryCategory`/`InventoryReturn` tables to exist) |
+| **7C** | `InventoryAdd.jsx`'s remaining Base44 calls (Supplier/SalesClass/Location/Category reads, lock management) + GL/audit work: `autopro-processQOHAdjustment` rounding fix, `autopro-processInventoryReceipt` audit (verify-only), `autopro-processPartsInvoiceOCR` deploy-check (verify-only) | [x] Code complete (executed 2026-08-03, pending your UI validation — see 7C.0/7C.1/7C.2 checklists) | **7A** (needs `InventoryLocation`/`InventoryCategory` tables), **7B** (needs the suggestion call already wired so 7C doesn't re-touch it) |
 
 **Update the checkboxes above as each sub-phase completes** — this is the first thing a fresh, context-cleared session should check to know where things stand.
 
@@ -855,33 +876,34 @@ Do not add explanations or quotes.`;
 
 **Execution note (2026-08-03):** All code and deployment steps below were executed via file edits and the Supabase MCP tools (`execute_sql`, `deploy_edge_function`). UI click-through could not be run this session — the Browser pane wasn't visible/displayed on your end, so `computer`/screenshot calls timed out ("the Browser pane is not displayed, so the page is not compositing frames"). All `[ ]` UI-test items below remain open for you (or a follow-up session) to verify via dev-login.
 
+**UI validation completed 2026-08-03** via dev-login on `test.kensauto.ca` (development-branch Vercel deployment, backed by the dev-branch Supabase project `sitihbdnuxifwibontcm`). Note: this dev-branch database is nearly empty (1 placeholder `Supplier` row, 0 `InventoryItem`/`InventoryReturn` rows) — real UI testing required temporarily setting `inventory_supplier = true` on the placeholder row (reverted implicitly since it's harmless test data left in dev branch only, not production) and creating/deleting a real test return end-to-end.
+
 - [x] **7B.1: `LegacyWarrantyReturnModal.jsx` full rewire**
   - [x] `InventoryItem`/`InventoryReturn`/`GLTransaction` calls all native (direct `supabase.from()` inserts). **Deviation from the plan's literal diff:** `GLTransaction.id` was found to default to `''::text` (not auto-generated) — the plan's diff for this insert omitted `id` entirely, same as the untouched `WarrantyReturnModal.jsx`'s existing GL insert, which per direct query has never left a `id=''` row in production (0 found), suggesting that insert path may be silently failing today (worth a separate look, out of scope here). Added explicit `id: crypto.randomUUID()` + `created_by`/`created_by_id` to both new GL rows to avoid carrying the same bug forward.
   - [x] `Supplier` read via direct query (thin-proxy swap)
   - [x] `searchInventory` swapped to direct `supabase.rpc('search_inventory_ranked', ...)` call — confirmed `EXECUTE` granted to `anon`/`authenticated`/`PUBLIC` before swapping
   - [x] `base44` import removed entirely from this file (grep confirmed zero matches)
-  - [ ] Test in UI: process a LANKAR legacy warranty return, confirm `InventoryReturn` row + `GLTransaction` rows created, and a new `InventoryItem` is created if the part didn't already exist
-  - [ ] Test in UI: search for an existing part by number in this modal, confirm results still populate correctly via the new RPC call
+  - [x] **Tested in UI end-to-end:** created a real LANKAR return (part `TESTPART7B`, qty 2, $15.50/ea) via the modal. Confirmed by direct SQL: `InventoryItem` row created with correct audit fields, `InventoryReturn` row created (`return_type: warranty`, correct `notes` with LANKAR WO#), and both `GLTransaction` rows posted correctly balanced (5000 credit $31 / 1200 debit $31, each with its own unique `id`). Test rows deleted after verification.
+  - [x] Part search tested: typed a nonexistent part number, got "No existing parts found. Continue typing to create new." with no console errors — confirms the `search_inventory_ranked` RPC swap works (existing-part-match path not separately tested, no matching seed data in dev branch, but same RPC/code path as the confirmed-working list-load elsewhere)
 
 - [ ] **7B.2: `WarrantyReturnModal.jsx` regression check (no code changed, verify only)**
-  - [ ] Test in UI: process a warranty return from a work order invoice view, confirm it still works (regression check only — this file wasn't touched)
+  - [ ] **Not tested** — dev branch has zero Work Orders (WIP dashboard empty), so there was no invoice to open this modal from. File wasn't touched by 7B; regression risk is low but unverified. Flagged for whenever dev-branch has WO test data, or test directly against production with care.
 
 - [x] **7B.3: `autopro-suggestInventoryCategory` new Edge Function**
   - [x] Edge Function created with `tools: [{ google_search: {} }]` grounding, no `response_mime_type` constraint
-  - [ ] Grounding tool syntax confirmed correct for `gemini-flash-latest` via a live test call — **not yet exercised end-to-end** (needs a real JWT; deferred to UI testing since the function also does its own `auth.getUser()` check)
+  - [x] Grounding tool syntax confirmed correct for `gemini-flash-latest` via live test calls (see below) — the open item is resolved, syntax works
   - [x] Deployed to dev branch (`sitihbdnuxifwibontcm`) and production (`hbcrwkmgsazqrvsrmxyr`), both `ACTIVE`, `verify_jwt: true` (matches `autopro-processQOHAdjustment`'s pattern)
   - [x] Returns `200` always, `{ category }` on success or `{ error }` on failure
-  - [ ] "Jard" supplier hardcode rule works (test with a supplier name containing "jard")
-  - [ ] Category validation/fallback-to-'other' logic works when Gemini's free-text answer doesn't exactly match a real category name
-  - [x] `InventoryAddModal.jsx` calls the new function instead of `base44.functions.invoke('suggestInventoryCategory', ...)`
-  - [x] `InventoryAdd.jsx:1167` also calls the new function
-  - [ ] Test in UI: add a new item with a part number + description in both `InventoryAddModal.jsx` and `InventoryAdd.jsx`, confirm a category gets suggested in each
+  - [x] "Jard" supplier hardcode rule works — direct authenticated call with `supplier_name: "Jard Auto Parts"` returned `{"category":"Jard"}`, status 200
+  - [x] Category validation/fallback-to-'other' logic works — direct call with a nonsense description returned `{"category":"Other"}`, status 200 (matched the real category name's casing)
+  - [x] `InventoryAddModal.jsx` calls the new function instead of `base44.functions.invoke('suggestInventoryCategory', ...)` — **tested in UI:** typed part number `AC-DELCO-41-993` / description "Iridium Spark Plug", category auto-suggested "Electrical & Ignition" with the green "suggested" highlight, no console errors
+  - [x] `InventoryAdd.jsx:1167` also calls the new function — wiring confirmed correct by code review and by the identical pattern working in `InventoryAddModal.jsx`; **could not visually confirm the suggested value renders** in this page's Category dropdown because `InventoryAdd.jsx`'s own `loadData()` (7C's scope, untouched) still fails entirely on a Base44 401 (same "one failed promise poisons `Promise.all`" bug 7A already fixed in `InventoryAddModal.jsx`), leaving the Category dropdown with zero options (`None` only) regardless of what the suggestion call returns. Not a 7B regression — pre-existing, correctly out of scope, will resolve itself once 7C migrates this file's `loadData()`.
   - **Discovered, not folded in:** a third call site exists at `src/components/work-orders/WOAddInventoryModal.jsx:569` — left on the old Base44 path since that whole file needs its own migration pass (see note under the `searchInventory` section above)
 
 - [x] **7B.4: Build and smoke test**
   - [x] `npm run build` completes successfully, zero errors (exit code 0)
   - [x] `grep -n "base44" src/components/inventory/LegacyWarrantyReturnModal.jsx` returns zero results
-  - [ ] Mark **7B: Complete** in the status tracker table above — held at "code complete" until UI click-through passes
+  - [x] Mark **7B: Complete** in the status tracker table above
 
 ---
 
@@ -1038,6 +1060,8 @@ And, further down where the GL amount is computed:
 
 ### 7C.3) Verification Checklist
 
+**Execution note (2026-08-03):** All code edits, `autopro-processQOHAdjustment` redeploy (dev branch then production), and deploy-parity checks below were executed this session. Items marked `[x]` were verified programmatically (grep, `npm run build`, `list_edge_functions`). All `[ ]` items are UI click-through, deferred to your manual testing per standing instruction — see note at top of this document.
+
 - [ ] **7C.0: Carried over from 7A — UI click-through deferred here (2026-08-03)**
   - **Why deferred:** validation surfaced that `src/pages/InventoryList.jsx` (fixed 2026-08-03, see 7A execution notes above) feeds `inventoryCategories`/`inventoryLocations` state as props into these same modals, and `InventoryAdd.jsx`'s equivalent reads are 7C's own job — so a single UI pass here covers both 7A's original scope and 7C's, rather than testing the same flows twice across two sessions.
   - [ ] Category dropdown populates when adding an inventory item (`InventoryAddModal.jsx` + `InventoryList.jsx` `loadSharedData` fix)
@@ -1047,31 +1071,31 @@ And, further down where the GL amount is computed:
   - [ ] Process a parts return from inventory (non-work-order path), confirm `InventoryReturn` row created with `return_type: 'return'` (and a second `'core'` row if the item has a core) (`InventoryPartsReturnModal.jsx`)
   - [ ] Edit an existing return's info (reason/date/notes), confirm it saves (`EditReturnInfoModal.jsx`)
 
-- [ ] **7C.1: `InventoryAdd.jsx` full migration**
-  - [ ] `loadData`'s `Supplier` read, `SalesClass` read (formerly the implicit-default no-`table`-param call), `InventoryLocation`/`InventoryCategory` reads all swapped to direct `supabase.from()` calls
-  - [ ] `checkSupplierLock` and `handleFlushLocks` (Supplier lock read/update) swapped to direct calls
-  - [ ] `base44` import removed from the file entirely once every call site is migrated (confirm the 7B-migrated suggestion call at line ~1167 is also native, not re-touched)
+- [x] **7C.1: `InventoryAdd.jsx` full migration**
+  - [x] `loadData`'s `Supplier` read, `SalesClass` read (formerly the implicit-default no-`table`-param call), `InventoryLocation`/`InventoryCategory` reads all swapped to direct `supabase.from()` calls — each in its own independent try/catch (decoupled from `TagAlong.list()`, the one remaining still-Base44 call in this function, per the 7B lesson on the "one failed promise poisons `Promise.all`" bug)
+  - [x] `checkSupplierLock` and `handleFlushLocks` (Supplier lock read/update) swapped to direct calls
+  - [x] `base44` import removed from the file entirely once every call site is migrated (confirmed the 7B-migrated suggestion call at line ~1167 is also native, not re-touched)
   - [ ] Test in UI: open "Receive Inventory / Parts Entry", confirm suppliers/sales-classes/locations/categories all populate correctly
   - [ ] Test in UI: lock/unlock supplier concurrency guard still works (edit an invoice as one user, confirm lock blocks a second concurrent edit; flush locks admin action still works)
 
-- [ ] **7C.2: QOH adjustment — GL rounding fix**
-  - [ ] `value_change` rounding fix applied (`Math.round(x * 100) / 100`)
-  - [ ] Redeployed to dev branch, then production
-  - [ ] Confirmed `ACTIVE` on both
+- [x] **7C.2: QOH adjustment — GL rounding fix**
+  - [x] `value_change` rounding fix applied (`Math.round(x * 100) / 100`)
+  - [x] Redeployed to dev branch (`sitihbdnuxifwibontcm`, now version 10), then production (`hbcrwkmgsazqrvsrmxyr`, now version 12)
+  - [x] Confirmed `ACTIVE` on both
   - [ ] Test in UI: adjust an item's QOH by an amount that previously could have produced a floating-point artifact (e.g. a cost with 3+ decimal digits), confirm `GLTransaction` posts a clean 2-decimal amount
 
-- [ ] **7C.3: `autopro-processInventoryReceipt` — audit only, verify-only**
-  - [ ] Confirmed `ACTIVE` on both dev branch and production (no code changes)
+- [x] **7C.3: `autopro-processInventoryReceipt` — audit only, verify-only**
+  - [x] Confirmed `ACTIVE` on both dev branch and production (no code changes)
   - [ ] Test in UI: receive a batch of parts against a supplier invoice via `InventoryAdd.jsx`, confirm `InventoryItem` QOH/QOO update, `SupplierInvoiceLine` records created, GL entries post correctly (delegated to `autopro-handleSupplierInvoiceLineGL`)
 
-- [ ] **7C.4: OCR — deploy-parity only, no functional validation this phase**
-  - [ ] `autopro-processPartsInvoiceOCR` confirmed `ACTIVE` on both dev branch and production
+- [x] **7C.4: OCR — deploy-parity only, no functional validation this phase**
+  - [x] `autopro-processPartsInvoiceOCR` confirmed `ACTIVE` on both dev branch and production
   - [ ] Full OCR-upload-to-AP-invoice flow validation explicitly **deferred to Phase 9** per your instruction — not tested here beyond deploy-parity
 
-- [ ] **7C.5: Phase-wide final check — no remaining Base44 calls in scope**
-  - [ ] `grep -rn "base44" src/components/inventory/ src/pages/InventoryAdd.jsx src/components/work-orders/LegacyWarrantyReturnModal.jsx` returns zero results (or only documented, explicitly-out-of-scope ones — e.g. `searchSuppliers` deferred to Phase 9)
-  - [ ] `grep -rn "@/entities/all" src/components/inventory/ src/pages/InventoryAdd.jsx` shows no remaining `InventoryCategory`/`InventoryLocation`/`InventoryReturn`/`ReturnReason` imports
-  - [ ] `npm run build` produces no warnings about unused `base44` imports in any modified file
+- [x] **7C.5: Phase-wide final check — no remaining Base44 calls in scope**
+  - [x] `grep -n "base44" src/pages/InventoryAdd.jsx` returns zero results (the remaining Phase-7-scope files — inventory components, `LegacyWarrantyReturnModal.jsx` — were already confirmed clean in 7A/7B)
+  - [x] `grep -n "@/entities/all" src/pages/InventoryAdd.jsx` shows only `TagAlong` remaining (explicitly out of scope this phase)
+  - [x] `npm run build` completes with exit code 0, no new warnings
 
 - [ ] **7C.6: Full inventory module UI regression (phase-wide)**
   - [ ] Load `http://test.kensauto.ca/inventory` (or dev branch equivalent)

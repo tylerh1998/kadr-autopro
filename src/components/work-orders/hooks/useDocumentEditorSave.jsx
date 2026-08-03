@@ -1,8 +1,6 @@
 import { useCallback } from 'react';
-import { WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
-import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
 import { useQueryClient } from '@tanstack/react-query';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 
@@ -18,7 +16,6 @@ export default function useDocumentEditorSave({
   setPendingReturns,
   mode,
   currentUser,
-  useFunctionData,
   previousLineItemsRef,
   latestLineItemsRef,
   lockAcquiredRef,
@@ -170,50 +167,26 @@ export default function useDocumentEditorSave({
       console.log('DEBUG: Final API payload for WorkOrder update:', apiPayload);
 
       if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser') && lockAcquiredRef.current) {
-        apiPayload.locked_timestamp = (await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'apply' }))?.data?.data?.locked_timestamp || workOrder.locked_timestamp;
+        const { data: lockResult, error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'apply',
+          p_locked_by_user: currentUser?.email,
+        });
+        if (lockError) console.error('Lock refresh error:', lockError);
+        apiPayload.locked_timestamp = lockResult?.locked_timestamp || workOrder.locked_timestamp;
         workOrderData.locked_timestamp = apiPayload.locked_timestamp;
       }
 
-      if (useFunctionData) {
-        const functionPayload = {
-          ...apiPayload,
-          should_keep_lock: saveOptions.should_keep_lock === true,
-          ...(sessionId ? { session_id: sessionId } : {})
-        };
-        const { data: saveResult, error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
-          body: { ro_number: workOrder.ro_number, data: functionPayload }
-        });
-        if (saveError) {
-          throw new Error(saveError.message || (typeof saveError === 'string' ? saveError : JSON.stringify(saveError)));
-        }
-      } else {
-        try {
-          const originalWorkOrderResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { id: workOrder.id }
-          });
-          const originalWorkOrder = originalWorkOrderResponse.data?.data?.[0];
-          if (originalWorkOrder) {
-            const ignoreFields = ['updated_date', 'created_date', 'created_by', 'LockedByUser', 'locked_timestamp', 'last_updated', 'last_updated_by', 'id', 'line_items'];
-            let isRealChange = false;
-            for (const key in apiPayload) {
-              if (ignoreFields.includes(key)) continue;
-              if (JSON.stringify(apiPayload[key]) !== JSON.stringify(originalWorkOrder[key])) {
-                isRealChange = true;
-                break;
-              }
-            }
-            if (!isRealChange && apiPayload.line_items && originalWorkOrder.line_items && apiPayload.line_items !== originalWorkOrder.line_items) isRealChange = true;
-            if (isRealChange && currentUser) {
-              apiPayload.last_updated = new Date().toISOString();
-              apiPayload.last_updated_by = currentUser.email;
-            }
-          }
-        } catch (auditError) {
-          console.error('Error during audit trail check:', auditError);
-        }
-        await WorkOrder.update(workOrder.id, apiPayload);
+      const functionPayload = {
+        ...apiPayload,
+        should_keep_lock: saveOptions.should_keep_lock === true,
+        ...(sessionId ? { session_id: sessionId } : {})
+      };
+      const { data: saveResult, error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+        body: { ro_number: workOrder.ro_number, data: functionPayload }
+      });
+      if (saveError) {
+        throw new Error(saveError.message || (typeof saveError === 'string' ? saveError : JSON.stringify(saveError)));
       }
 
       setWorkOrder(prev => ({ ...prev, ...workOrderData, ...apiPayload, locked_timestamp: apiPayload.locked_timestamp }));
@@ -273,7 +246,6 @@ export default function useDocumentEditorSave({
     setPendingReturns,
     mode,
     currentUser,
-    useFunctionData,
     previousLineItemsRef,
     latestLineItemsRef,
     lockAcquiredRef,

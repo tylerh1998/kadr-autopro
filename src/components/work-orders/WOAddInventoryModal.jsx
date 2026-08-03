@@ -8,8 +8,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
 import { TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
-import { inventoryAdd } from '@/functions/inventoryAdd';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';

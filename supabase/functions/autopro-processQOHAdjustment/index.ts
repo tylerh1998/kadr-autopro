@@ -73,7 +73,7 @@ serve(async (req) => {
     const newQoh = parseFloat(new_quantity_on_hand);
     const quantity_change = newQoh - old_quantity_on_hand;
     const item_cost = parseFloat(inventoryItem.cost || 0);
-    const value_change = quantity_change * item_cost;
+    const value_change = Math.round(quantity_change * item_cost * 100) / 100;
 
     const descriptionMsg = notes || `Manual QOH adjustment from ${old_quantity_on_hand} to ${new_quantity_on_hand}.`;
 
@@ -148,7 +148,7 @@ serve(async (req) => {
     // Create GL transactions only if there is a value change
     let glPosted = false;
     if (value_change !== 0) {
-      const absoluteValueChange = Math.abs(value_change);
+      const absoluteValueChange = Math.round(Math.abs(value_change) * 100) / 100;
       const adjustmentDescription = `Inventory QOH Adjustment - ${inventoryItem.part_number}`;
       const transactionDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 

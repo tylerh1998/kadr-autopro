@@ -1,13 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, InventoryTxs, CustomerPayments, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { WorkOrder, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
-import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
 import { appParams } from '@/lib/app-params';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 import {
@@ -552,8 +551,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setIsAlreadyOpenByMe(true);
           setLockCheckComplete(true);
         } else {
-          const lockResult = await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'apply' });
-          const lockedTimestamp = lockResult?.data?.data?.locked_timestamp || freshWorkOrder.locked_timestamp || null;
+          const { data: lockResult, error: lockError } = await supabase.rpc('set_workorder_lock', {
+            p_ro_number: freshWorkOrder.ro_number,
+            p_action: 'apply',
+            p_locked_by_user: currentUser.email,
+          });
+          if (lockError) console.error('Lock error:', lockError);
+          const lockedTimestamp = lockResult?.locked_timestamp || freshWorkOrder.locked_timestamp || null;
           setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: lockedTimestamp }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
@@ -627,7 +631,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
-          await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'release' });
+          const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+            p_ro_number: freshWorkOrder.ro_number,
+            p_action: 'release',
+            p_locked_by_user: currentUserEmail,
+          });
+          if (lockError) console.error('Lock release error:', lockError);
         }
         lockAcquiredRef.current = false;
       } catch (error) {
@@ -1030,7 +1039,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false, null, { throwOnError: true, silentError: true, should_keep_lock: false });
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
-        await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
+        const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'release',
+          p_locked_by_user: currentUser.email,
+        });
+        if (lockError) console.error('Lock release error:', lockError);
         lockAcquiredRef.current = false;
       }
 
@@ -1244,7 +1258,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleViewOnlyMode = async () => {
     try {
       if (workOrder && workOrder.id && currentUser && lockAcquiredRef.current) {
-        await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
+        const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'release',
+          p_locked_by_user: currentUser.email,
+        });
+        if (lockError) console.error('Lock release error:', lockError);
         lockAcquiredRef.current = false;
       }
       navigate(createPageUrl(`WorkOrderView?id=${roNumber}`));

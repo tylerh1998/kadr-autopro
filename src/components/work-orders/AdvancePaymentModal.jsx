@@ -7,8 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Lock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { WorkOrder, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 

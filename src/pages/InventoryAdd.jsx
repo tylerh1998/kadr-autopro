@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
+import { TagAlong } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import { searchInventory } from '@/functions/searchInventory';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
@@ -209,23 +208,45 @@ export default function InventoryAddPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [suppliersData, salesClassesData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
-                    base44.functions.invoke('SupabaseProxy', {
-                        action: 'read',
-                        table: 'Supplier',
-                        match: { inventory_supplier: true }
-                    }).then(res => res.data.data || []),
-                    base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
-                    TagAlong.list(),
-                    InventoryLocation.list(),
-                    InventoryCategory.list()
-                ]);
-                setSuppliers(suppliersData);
-                setSalesClasses(salesClassesData);
-                setTagAlongs(tagAlongsData);
-                setInventoryLocations(locationsData);
-                setInventoryCategories(categoriesData);
-                
+                try {
+                    const { data, error } = await supabase.from('Supplier').select('*').eq('inventory_supplier', true);
+                    if (error) throw error;
+                    setSuppliers(data || []);
+                } catch (error) {
+                    console.error('Error loading suppliers:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('SalesClass').select('*');
+                    if (error) throw error;
+                    setSalesClasses(data || []);
+                } catch (error) {
+                    console.error('Error loading sales classes:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('InventoryLocation').select('*');
+                    if (error) throw error;
+                    setInventoryLocations(data || []);
+                } catch (error) {
+                    console.error('Error loading inventory locations:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('InventoryCategory').select('*');
+                    if (error) throw error;
+                    setInventoryCategories(data || []);
+                } catch (error) {
+                    console.error('Error loading inventory categories:', error);
+                }
+
+                try {
+                    const tagAlongsData = await TagAlong.list();
+                    setTagAlongs(tagAlongsData);
+                } catch (error) {
+                    console.error('Error loading tag alongs:', error);
+                }
+
                 setTimeout(() => {
                     supplierTriggerRef.current?.focus();
                 }, 100);
@@ -310,13 +331,10 @@ export default function InventoryAddPage() {
         setSupplierLockStatus({ checking: true, locked: false, lockedBy: null });
         
         try {
-            const response = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier',
-                match: { id: supplierId }
-            });
-            const supplierData = (response.data.data || [])[0];
-            
+            const { data, error } = await supabase.from('Supplier').select('*').eq('id', supplierId);
+            if (error) throw error;
+            const supplierData = (data || [])[0];
+
             if (supplierData?.LockedByUser) {
                 setSupplierLockStatus({ checking: false, locked: true, lockedBy: supplierData.LockedByUser });
                 return { locked: true, lockedBy: supplierData.LockedByUser };
@@ -1228,13 +1246,10 @@ export default function InventoryAddPage() {
     const handleFlushLocks = async () => {
         setFlushing(true);
         try {
-            const response = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier'
-            });
-            const allSuppliers = response.data.data || [];
-            const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
-            
+            const { data: allSuppliers, error: readError } = await supabase.from('Supplier').select('*');
+            if (readError) throw readError;
+            const lockedSuppliers = (allSuppliers || []).filter(s => s.LockedByUser);
+
             if (lockedSuppliers.length === 0) {
                 alert('No locked suppliers found.');
                 setShowFlushConfirm(false);
@@ -1242,26 +1257,21 @@ export default function InventoryAddPage() {
                 return;
             }
 
-            const updatePromises = lockedSuppliers.map(supplier => 
-                base44.functions.invoke('SupabaseProxy', {
-                    action: 'update',
-                    table: 'Supplier',
-                    id: supplier.id,
-                    data: { LockedByUser: null }
-                })
+            const updatePromises = lockedSuppliers.map(supplier =>
+                supabase.from('Supplier').update({ LockedByUser: null }).eq('id', supplier.id)
             );
 
             await Promise.all(updatePromises);
-            
+
             alert(`Successfully unlocked ${lockedSuppliers.length} supplier(s).`);
-            
+
             // Refresh suppliers list
-            const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier',
-                match: { inventory_supplier: true }
-            });
-            setSuppliers(suppliersResponse.data.data || []);
+            const { data: refreshedSuppliers, error: refreshError } = await supabase
+                .from('Supplier')
+                .select('*')
+                .eq('inventory_supplier', true);
+            if (refreshError) throw refreshError;
+            setSuppliers(refreshedSuppliers || []);
             
             // Re-check current supplier lock status
             if (selectedSupplier) {

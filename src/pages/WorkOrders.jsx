@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
-import { TagAlong } from "@/entities/TagAlong";
 import { useAuth } from '@/lib/AuthContext';
 import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
 import { SystemSettings } from "@/entities/SystemSettings";
@@ -15,7 +14,6 @@ import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, Refres
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { base44 } from "@/api/base44Client";
 import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { createworkorderdata } from "@/functions/createworkorderdata";
@@ -977,14 +975,15 @@ export default function WorkOrdersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('flushWorkOrderLocks');
-      
-      if (response.data && response.data.success) {
-        alert(`All work order locks have been flushed. (${response.data.flushedCount} flushed)`);
-        loadData();
-      } else {
-        throw new Error(response.data?.error || 'Failed to flush locks');
-      }
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .update({ LockedByUser: null, locked_timestamp: null })
+        .not('LockedByUser', 'is', null)
+        .select('id');
+
+      if (error) throw new Error(error.message);
+      alert(`All work order locks have been flushed. (${data?.length || 0} flushed)`);
+      loadData();
     } catch (error) {
       console.error('Error flushing locks:', error);
       alert('Failed to flush locks. Please try again.');
