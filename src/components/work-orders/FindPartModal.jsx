@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createPageUrl } from '@/utils';
 import { Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 
@@ -36,17 +36,17 @@ export default function FindPartModal({ open, onClose, currentUser }) {
     setResults([]);
 
     try {
-      const response = await base44.functions.invoke('searchWorkOrderParts', {
-        searchTerm,
-        searchType: activeTab,
-        filterType: searchFilter
+      const { data: records, error } = await supabase.rpc('search_work_order_parts', {
+        p_search_term: searchTerm,
+        p_search_type: activeTab,
+        p_filter_type: searchFilter
       });
 
-      if (response.data && response.data.records) {
-        setResults(response.data.records);
-      } else if (response.data && response.data.error) {
-        console.error('Search error:', response.data.error);
-        alert('Search failed: ' + response.data.error);
+      if (error) {
+        console.error('Search error:', error);
+        alert('Search failed: ' + error.message);
+      } else {
+        setResults(records || []);
       }
     } catch (error) {
       console.error('Error searching:', error);

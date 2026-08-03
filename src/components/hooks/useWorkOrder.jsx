@@ -82,16 +82,18 @@ export function useWorkOrder(roNumber, options = {}) {
     setLoading(true);
     setError('');
     try {
-      const [workOrderResponse, tagAlongsData, otherChargesData] = await Promise.all([
+      const [workOrderResponse, tagAlongsResponse, otherChargesResponse] = await Promise.all([
         useFunctionData
           ? supabase.from('WorkOrder').select('*').eq('ro_number', roNumber).limit(1).maybeSingle()
           : base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder', match: { ro_number: roNumber } }).then(res => res.data?.data || []),
-        TagAlong.list(),
-        OtherChargeList.list(),
+        supabase.from('TagAlong').select('*'),
+        supabase.from('OtherChargeList').select('*'),
       ]);
 
-      setTagAlongs(tagAlongsData);
-      setOtherCharges(otherChargesData);
+      if (tagAlongsResponse.error) console.error('Error fetching TagAlong:', tagAlongsResponse.error);
+      if (otherChargesResponse.error) console.error('Error fetching OtherChargeList:', otherChargesResponse.error);
+      setTagAlongs(tagAlongsResponse.data || []);
+      setOtherCharges(otherChargesResponse.data || []);
 
       if (useFunctionData && workOrderResponse?.error) {
         console.error('Error fetching WorkOrder:', workOrderResponse.error);

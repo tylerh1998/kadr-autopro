@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer } from 'lucide-react';
 
 export default function AutoReconcileModal({ open, onClose, bankAccountId, periodEnd, onApplyMatches }) {
@@ -27,17 +28,22 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
       // 2. Process Reconciliation
-      const response = await base44.functions.invoke('processBankReconciliation', {
-        fileUrl: file_url,
-        bankAccountId: bankAccountId,
-        periodEnd
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-processBankReconciliation', {
+        body: {
+          fileUrl: file_url,
+          bankAccountId: bankAccountId,
+          periodEnd
+        }
       });
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (invokeError) {
+        throw new Error(invokeError.message);
+      }
+      if (data.error) {
+        throw new Error(data.error);
       }
 
-      setResults(response.data);
+      setResults(data);
       setStep('review');
     } catch (error) {
       console.error("Reconciliation failed", error);

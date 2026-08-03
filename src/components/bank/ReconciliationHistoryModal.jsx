@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { 
   History, 
@@ -34,19 +34,23 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
     try {
       console.log('Loading reconciliation history for bank account:', bankAccountId);
       
-      const response = await base44.functions.invoke('getReconciliationHistory', {
-        bankAccountId: bankAccountId
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-getReconciliationHistory', {
+        body: { bankAccountId: bankAccountId }
       });
 
-      console.log('Backend response:', response);
+      console.log('Backend response:', data);
 
-      if (response.data?.success) {
-        setHistoryRecords(response.data.data.reconciliations || []);
-        setBankAccount(response.data.data.bank_account);
-        console.log('Loaded', response.data.data.reconciliations?.length, 'reconciliation records');
+      if (invokeError) {
+        throw invokeError;
+      }
+
+      if (data?.success) {
+        setHistoryRecords(data.data.reconciliations || []);
+        setBankAccount(data.data.bank_account);
+        console.log('Loaded', data.data.reconciliations?.length, 'reconciliation records');
       } else {
-        console.error('Backend error:', response.data?.error);
-        setError(response.data?.error || 'Failed to load reconciliation history');
+        console.error('Backend error:', data?.error);
+        setError(data?.error || 'Failed to load reconciliation history');
         setHistoryRecords([]);
         setBankAccount(null);
       }

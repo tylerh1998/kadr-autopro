@@ -4,14 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { ReturnCoretoWO } from '@/functions/ReturnCoretoWO';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCoreProcessed }) {
+  const { employee } = useAuth();
   const [qty, setQty] = useState('');
   const [coreAction, setCoreAction] = useState('received');
   const [loading, setLoading] = useState(false);
@@ -58,14 +57,16 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
     setLoading(true);
     try {
       if (coreAction === 'return_to_work_order') {
-        const response = await ReturnCoretoWO({
-          part_number: lineItem.part_number || 'N/A',
-          work_order_id: workOrder.id,
-          quantity: qtyProcessed
+        const { data: response, error: returnError } = await supabase.functions.invoke('autopro-returnCoreToWO', {
+          body: {
+            part_number: lineItem.part_number || 'N/A',
+            work_order_id: workOrder.id,
+            quantity: qtyProcessed
+          }
         });
 
-        if (!response.data?.success) {
-          alert(response.data?.error || 'Failed to return core to work order.');
+        if (returnError || !response?.success) {
+          alert(response?.error || returnError?.message || 'Failed to return core to work order.');
           return;
         }
 
@@ -95,7 +96,9 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         }
       }
 
+      const now = new Date().toISOString();
       const returnRecord = {
+        id: crypto.randomUUID(),
         inventory_item_id: lineItem.inventory_item_id || null,
         part_number: lineItem.part_number || 'N/A',
         description: `${lineItem.description || 'Core'} (Core Return)`,
@@ -108,10 +111,15 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
         work_order_id: workOrder?.id || null,
         status: 'On-site',
-        notes: 'Core received from customer, awaiting return to supplier.'
+        notes: 'Core received from customer, awaiting return to supplier.',
+        created_date: now,
+        updated_date: now,
+        created_by: employee?.email || null,
+        created_by_id: employee?.id || null,
       };
 
-      await InventoryReturn.create(returnRecord);
+      const { error: createError } = await supabase.from('InventoryReturn').insert([returnRecord]);
+      if (createError) throw createError;
 
       const newCoreRet = coreRet + qtyProcessed;
       onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);

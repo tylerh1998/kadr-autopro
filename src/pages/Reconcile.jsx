@@ -257,13 +257,18 @@ export default function ReconcilePage() {
       const reconciliationDate = getCurrentMountainTimestamp();
       const metadataTimestamp = getCurrentMountainTimestamp();
 
-      const updateResponse = await base44.functions.invoke('batchReconcileTransactions', {
-        transactionIds: Array.from(selectedTransactions),
-        reconciliationId
+      const { data: updateData, error: updateInvokeError } = await supabase.functions.invoke('autopro-batchReconcileTransactions', {
+        body: {
+          transactionIds: Array.from(selectedTransactions),
+          reconciliationId
+        }
       });
 
-      if (!updateResponse.data.success) {
-        throw new Error(updateResponse.data.message || 'Failed to update some transactions');
+      if (updateInvokeError) {
+        throw new Error(updateInvokeError.message);
+      }
+      if (!updateData.success) {
+        throw new Error(updateData.message || updateData.error || 'Failed to update some transactions');
       }
 
       const reconciliationRecord = {

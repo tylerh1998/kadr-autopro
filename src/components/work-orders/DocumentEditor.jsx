@@ -4,7 +4,6 @@ import { useShopData } from '../hooks/useInventory';
 import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { appParams } from '@/lib/app-params';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
@@ -1285,17 +1284,17 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false, null, { should_keep_lock: true });
 
       // Call backend to convert and process inventory
-      const response = await base44.functions.invoke('convertEstimateToWorkOrder', {
-        workOrderId: workOrder.id
+      const { data: response, error: convertError } = await supabase.functions.invoke('autopro-convertEstimateToWorkOrder', {
+        body: { workOrderId: workOrder.id }
       });
-      
-      if (response.data.success) {
+
+      if (!convertError && response?.success) {
         //alert("Estimate successfully converted to Work Order!"); // Optional: remove alert for smoother flow
-        
+
         isClosingAfterSaveRef.current = true;
         navigate(createPageUrl(`WorkOrderEdit?id=${workOrder.ro_number}`));
       } else {
-        alert(`Conversion failed: ${response.data.error}`);
+        alert(`Conversion failed: ${response?.error || convertError?.message}`);
       }
     } catch (err) {
       console.error("Conversion error:", err);

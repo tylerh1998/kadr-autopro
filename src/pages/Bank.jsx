@@ -354,10 +354,12 @@ export default function BankPage() {
 
     setFlushingLocks(true);
     try {
-      const response = await base44.functions.invoke('flushBankLocks');
-      const result = response.data || response;
-      
-      alert(result.message || 'Locks flushed successfully!');
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-flushBankLocks');
+      if (invokeError) {
+        throw new Error(invokeError.message);
+      }
+
+      alert(data?.message || 'Locks flushed successfully!');
       
       // Reload bank accounts to reflect unlocked status
       await loadBankAccounts();
