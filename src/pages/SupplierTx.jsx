@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -178,6 +179,7 @@ const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range)
 };
 
 export default function SupplierTxPage() {
+  const { employee } = useAuth();
   const [supplier, setSupplier] = useState(null);
   const [invoiceLines, setInvoiceLines] = useState([]);
   const [allInvoiceLines, setAllInvoiceLines] = useState([]);
@@ -378,15 +380,15 @@ export default function SupplierTxPage() {
     if (!supplierId) return;
     setLoading(true);
     try {
-      const [user, response, suppliersResponse] = await Promise.all([
-        base44.auth.me(),
+      const user = employee;
+      const [response, suppliersResponse] = await Promise.all([
         base44.functions.invoke('getSupplierTransactions', { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } }),
         base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' })
       ]);
       setCurrentUser(user);
       if (!response.data.success) throw new Error(response.data.error || 'Failed to fetch supplier transactions');
       const { supplier: supplierData, chartOfAccounts: chartOfAccountsData, payments: paymentsData, conceptualInvoices: invoicesInRange, invoiceLines: enrichedLines, allInvoiceLines: allEnrichedLines, currentBalance: totalBalance, allConceptualInvoices: allInvoicesData } = response.data.data;
-      if (supplierData?.LockedByUser && supplierData.LockedByUser !== user.email) {
+      if (supplierData?.LockedByUser && supplierData.LockedByUser !== user?.email) {
         setSupplier(supplierData);
         setIsLockedByOtherUser(true);
         setLockedByUserName(supplierData.LockedByUser);
@@ -425,7 +427,7 @@ export default function SupplierTxPage() {
       setAllInvoiceLines(allEnrichedLines.map(mapLine));
       setModifiedLineIds(new Set());
       setDeletedLineIds(new Set());
-      setLockAcquired(supplierData?.LockedByUser === user.email);
+      setLockAcquired(supplierData?.LockedByUser === user?.email);
       if (!supplierData?.LockedByUser) setTimeout(() => acquireLock(), 0);
     } catch (error) {
       console.error('Error loading supplier data:', error);
@@ -434,7 +436,7 @@ export default function SupplierTxPage() {
       setLoading(false);
       setHasUnsavedChanges(false);
     }
-  }, [supplierId, dateRange, ensureEmptyLine, acquireLock]);
+  }, [supplierId, dateRange, ensureEmptyLine, acquireLock, employee]);
 
   useEffect(() => { if (supplierId) loadData(); }, [supplierId, dateRange, loadData]);
 

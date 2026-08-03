@@ -3,7 +3,7 @@ import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { TagAlong } from "@/entities/TagAlong";
 import { Appointment } from "@/entities/Appointment";
-import { User } from "@/entities/User";
+import { useAuth } from '@/lib/AuthContext';
 import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
 import { SystemSettings } from "@/entities/SystemSettings";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 export default function WorkOrdersPage() {
+  const { employee } = useAuth();
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -122,9 +123,12 @@ export default function WorkOrdersPage() {
 
   useEffect(() => {
     loadData(true);
-    loadCurrentUser();
     loadWorkOrderStatuses();
   }, [invoicePage, invoicesSort, debouncedSearchTerm]);
+
+  useEffect(() => {
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     setInvoicePage(1);
@@ -203,15 +207,6 @@ export default function WorkOrdersPage() {
       loadTechTimeForProjects();
     }
   }, [activeTab, workPROLoaded, workPROProjects, techTimeLoaded]);
-
-  const loadCurrentUser = async () => {
-    try {
-      const user = await User.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
 
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);

@@ -24,6 +24,7 @@ import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBrea
 import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
 
@@ -37,6 +38,7 @@ const displayMethods = [
 const CASH_DRAWER_GL_ACCOUNT = '1010'; // Cash Drawer GL Account
 
 export default function CashDrawerPage() {
+  const { employee } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [cashDrawerItems, setCashDrawerItems] = useState({});
   const [forDepositItems, setForDepositItems] = useState({});
@@ -252,7 +254,7 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       if (!currentUser) {
         alert('You must be logged in to make a deposit.');
         return;
@@ -444,7 +446,7 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       if (!currentUser) {
         alert('You must be logged in to record an adjustment.');
         return;

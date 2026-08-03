@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,7 @@ import AddAdjustmentModal from '../components/payroll/AddAdjustmentModal';
 import MarkPaidModal from '../components/payroll/MarkPaidModal';
 
 export default function PayrollPage() {
+  const { employee } = useAuth();
   const [dateRange, setDateRange] = useState({
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date())
@@ -123,7 +125,7 @@ export default function PayrollPage() {
           reversalDescription = `Reversal of Adjustment: ${transaction.adjustment_reason || ''} dated ${formatMountainDate(transaction.pay_date)}`;
         }
 
-        const currentUser = await base44.auth.me();
+        const currentUser = employee;
         const currentTimestamp = getCurrentMountainTimestamp();
 
         // Create reversal adjustment

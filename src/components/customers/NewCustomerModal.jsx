@@ -2,12 +2,13 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CustomerForm from './CustomerForm';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
-  
+  const { employee: user } = useAuth();
+
   const handleSubmit = async (customerData) => {
     try {
-      const user = await base44.auth.me();
       const payload = {
         ...customerData,
         created_date: new Date().toISOString(),

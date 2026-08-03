@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, SystemSettings } from '@/entities/all';
+import { SystemSettings } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/context-menu";
 
 export default function WorkOrderViewPage() {
+  const { employee } = useAuth();
   const urlParams = new URLSearchParams(window.location.search);
   const navigate = useNavigate();
   const roNumber = urlParams.get('id');
@@ -71,18 +73,9 @@ export default function WorkOrderViewPage() {
   const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setUserLoading(false);
-      }
-    };
-    loadUser();
-  }, []);
+    setUser(employee);
+    setUserLoading(false);
+  }, [employee]);
 
   useEffect(() => {
     const loadSystemSettings = async () => {

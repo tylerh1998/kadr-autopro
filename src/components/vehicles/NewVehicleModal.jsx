@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import VehicleForm from './VehicleForm';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
+  const { employee } = useAuth();
   const [customers, setCustomers] = useState([]);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
 
   const handleSubmit = async (vehicleData) => {
     try {
-      const user = await base44.auth.me();
+      const user = employee;
       const payload = {
         ...vehicleData,
         created_date: new Date().toISOString(),

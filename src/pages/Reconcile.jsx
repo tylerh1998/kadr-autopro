@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +39,7 @@ const generateEntityId = () => crypto.randomUUID().replace(/-/g, '').substring(0
 const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').format();
 
 export default function ReconcilePage() {
+  const { employee } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const bankAccountId = searchParams.get('bank_account_id');
@@ -58,16 +60,8 @@ export default function ReconcilePage() {
 
   // Fetch current user on mount
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   // Fetch last reconciliation to auto-populate dates
   useEffect(() => {
@@ -251,7 +245,7 @@ export default function ReconcilePage() {
 
     setSaving(true);
     try {
-      const activeUser = currentUser || await base44.auth.me();
+      const activeUser = currentUser || employee;
       if (!activeUser) {
         throw new Error('User not found');
       }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import {
 import SupplierForm from '../components/suppliers/SupplierForm';
 
 export default function SuppliersPage() {
+  const { employee } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,8 +39,8 @@ export default function SuppliersPage() {
   const searchInputRef = React.useRef(null);
 
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     loadSuppliers();
@@ -49,15 +51,6 @@ export default function SuppliersPage() {
       searchInputRef.current.focus();
     }
   }, [loading]);
-
-  const loadCurrentUser = async () => {
-    try {
-      const user = await base44.auth.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
 
   const loadSuppliers = async () => {
     setLoading(true);

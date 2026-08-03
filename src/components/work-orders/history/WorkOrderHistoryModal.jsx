@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import ModalCloseButton from '@/components/ui/modal-close-button';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -38,9 +39,9 @@ async function resolveUserName(email, employees) {
   if (email.endsWith('@no-reply.base44.com')) return 'System';
   const employee = (employees || []).find((item) => item.email === email);
   if (employee) return employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || email;
-  const users = await base44.entities.User.filter({ email });
-  const user = users?.[0];
-  return user?.User_name || user?.full_name || email;
+  const { data: matchedEmployees } = await supabase.from('Employee').select('full_name').eq('email', email);
+  const matched = matchedEmployees?.[0];
+  return matched?.full_name || email;
 }
 
 export default function WorkOrderHistoryModal({ open, onClose, workOrderId, employees = [] }) {

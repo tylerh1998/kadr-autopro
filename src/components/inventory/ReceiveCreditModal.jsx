@@ -12,9 +12,11 @@ import { format } from 'date-fns';
 import { ChartOfAccount, LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 
 export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate }) {
+  const { employee } = useAuth();
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [adjustmentAmount, setAdjustmentAmount] = useState(0);
@@ -30,16 +32,8 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     const loadData = async () => {

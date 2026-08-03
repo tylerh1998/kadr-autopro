@@ -14,6 +14,7 @@ import { CalendarIcon, Loader2, X } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
@@ -126,6 +127,7 @@ const parseAndValidateDateInput = (inputDate) => {
 };
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
+  const { employee } = useAuth();
   const [loading, setLoading] = useState(false);
   const [actionLocked, setActionLocked] = useState(false);
   const [activeTab, setActiveTab] = useState('pay_invoices');
@@ -148,16 +150,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [cashFlowLoading, setCashFlowLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   const [paymentData, setPaymentData] = useState({
     payment_date: format(new Date(), 'yyyy-MM-dd'),

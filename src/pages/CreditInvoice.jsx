@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User } from "@/entities/User";
 import { SystemSettings } from "@/entities/SystemSettings";
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText, ArrowLeft } from 'lucide-react';
@@ -23,6 +23,7 @@ import WorkPROViewModal from '../components/work-orders/WorkPROViewModal';
 import ConfirmCreditInvoiceModal from '../components/work-orders/ConfirmCreditInvoiceModal';
 
 export default function CreditInvoicePage() {
+  const { employee } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const roNumber = searchParams.get('id');
@@ -93,18 +94,9 @@ export default function CreditInvoicePage() {
   }, [lineItems]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setUserLoading(false);
-      }
-    };
-    loadUser();
-  }, []);
+    setUser(employee);
+    setUserLoading(false);
+  }, [employee]);
 
   useEffect(() => {
     const loadSystemSettings = async () => {

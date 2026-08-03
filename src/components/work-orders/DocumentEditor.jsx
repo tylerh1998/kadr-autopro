@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
@@ -83,6 +84,7 @@ import WorkOrderHistoryModal from './history/WorkOrderHistoryModal';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function DocumentEditor({ mode = 'work_order', useFunctionData = false }) {
+  const { employee } = useAuth();
   const urlParams = new URLSearchParams(window.location.search);
   const roNumber = urlParams.get('id');
 
@@ -450,19 +452,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     fetchWorkPROData();
   }, [fetchWorkPROData]);
 
-  // Fetch current user
+  // Current user, sourced from Employee via AuthContext
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const user = await UserEntity.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('=== LOCK: Failed to fetch current user:', error);
-        setCurrentUser(null);
-      }
-    };
-    fetchCurrentUser();
-  }, []);
+    setCurrentUser(employee || null);
+  }, [employee]);
 
   // Load SystemSettings
   useEffect(() => {
@@ -539,9 +532,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
         if (freshWorkOrder.LockedByUser && freshWorkOrder.LockedByUser !== currentUser.email) {
           try {
-            const lockingUsers = await UserEntity.filter({ email: freshWorkOrder.LockedByUser });
-            if (lockingUsers.length > 0) {
-              setLockedByUserName(lockingUsers[0].User_name || lockingUsers[0].full_name || freshWorkOrder.LockedByUser);
+            const { data: lockingEmployees } = await supabase
+              .from('Employee')
+              .select('full_name')
+              .eq('email', freshWorkOrder.LockedByUser);
+            if (lockingEmployees && lockingEmployees.length > 0) {
+              setLockedByUserName(lockingEmployees[0].full_name || freshWorkOrder.LockedByUser);
             } else {
               setLockedByUserName(freshWorkOrder.LockedByUser);
             }

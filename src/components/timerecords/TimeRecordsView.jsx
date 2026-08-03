@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { User } from "@/entities/User";
 import { Employee } from "@/entities/Employee";
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { FileDown, LogIn, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -12,6 +12,7 @@ import { base44 } from '@/api/base44Client';
 import TimeRecordsList from "./TimeRecordsList";
 
 export default function TimeRecordsView() {
+  const { employee: authEmployee } = useAuth();
   const [records, setRecords] = useState([]);
   const [allRecords, setAllRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +66,7 @@ export default function TimeRecordsView() {
       let uniqueEmployeeNames = [];
 
       // Use workProProxy to fetch TimeRecords
-      if (currentUser.access_level === 'lvl3_user') {
+      if (currentUser.autopro_access_lvl === 'lvl3_user') {
         // Admin users can see all records
         const response = await base44.functions.invoke('workProProxy', { 
             entityName: 'TimeRecord', 
@@ -76,20 +77,16 @@ export default function TimeRecordsView() {
         uniqueEmployeeNames = [...new Set(recordsData.map(r => r.employee_name))].sort();
       } else {
         // For non-admin users
-        // Priority 1: Use User_name from User entity (matches WorkPRO data)
-        let employeeName = currentUser.User_name;
-        console.log("TimeRecordsView: Determining employee name. User:", currentUser, "User_name:", currentUser.User_name);
-        
+        // Priority 1: Use full_name directly off the current Employee record
+        let employeeName = currentUser.full_name;
+        console.log("TimeRecordsView: Determining employee name. User:", currentUser, "full_name:", currentUser.full_name);
+
         if (!employeeName) {
             // Priority 2: Try to find matching Employee entity by email
             const employeeData = await Employee.filter({ email: currentUser.email, is_active: true });
-            
+
             if (employeeData.length > 0) {
                 employeeName = employeeData[0].full_name;
-            } else if (currentUser.full_name) {
-                // Priority 3: Fallback to User's full name
-                console.log("No User_name or linked Employee record found, using User full_name:", currentUser.full_name);
-                employeeName = currentUser.full_name;
             }
         }
 
@@ -179,9 +176,8 @@ export default function TimeRecordsView() {
     const fetchUserAndRecords = async () => {
       setIsLoading(true);
       try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-        await loadRecords(currentUser);
+        setUser(authEmployee);
+        await loadRecords(authEmployee);
       } catch (error) {
         console.error("Error fetching user or initial records:", error);
         setUser(null);
@@ -194,7 +190,7 @@ export default function TimeRecordsView() {
       }
     };
     fetchUserAndRecords();
-  }, [loadRecords]);
+  }, [loadRecords, authEmployee]);
 
   const applyFilters = useCallback((recordsToFilter, employee, fromDate, toDate) => {
     let filtered = recordsToFilter;

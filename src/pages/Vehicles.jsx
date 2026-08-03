@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Vehicle, Customer } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import VehicleForm from "../components/vehicles/VehicleForm";
 import VehicleDetails from "../components/vehicles/VehicleDetails";
 
 export default function VehiclesPage() {
+  const { employee } = useAuth();
   const [vehicles, setVehicles] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -81,7 +83,7 @@ export default function VehiclesPage() {
 
   const handleSubmit = async (vehicleData) => {
     try {
-      const user = await base44.auth.me();
+      const user = employee;
       if (editingVehicle) {
         const payload = {
           ...vehicleData,

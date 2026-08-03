@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, FileText, DollarSign, TrendingUp, TrendingDown, Printer } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import MarkPaidModal from '../components/taxes/MarkPaidModal';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function TaxesPage() {
+  const { employee } = useAuth();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [summary, setSummary] = useState(null);
@@ -75,7 +77,7 @@ export default function TaxesPage() {
 
     setPosting(true);
     try {
-      const user = await base44.auth.me();
+      const user = employee;
 
       // Create the return record
       const newReturn = await base44.entities.GSTReturn.create({

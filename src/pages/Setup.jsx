@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Employee, User } from "@/entities/Employee";
+import { Employee } from "@/entities/Employee";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,23 +20,15 @@ import WIPSettings from "../components/setup/WIPSettings";
 import RestoreBackupModal from "../components/setup/RestoreBackupModal";
 
 export default function SetupPage() {
+  const { employee } = useAuth();
   const [activeTab, setActiveTab] = useState("sales");
   const [currentUser, setCurrentUser] = useState(null);
   const [backupLoading, setBackupLoading] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
 
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
-
-  const loadCurrentUser = async () => {
-    try {
-      const user = await User.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
+    setCurrentUser(employee);
+  }, [employee]);
 
   const handleBackup = async () => {
     setBackupLoading(true);
@@ -64,7 +57,7 @@ export default function SetupPage() {
     }
   };
 
-  const isLvl3User = currentUser?.access_level === 'lvl3_user';
+  const isLvl3User = currentUser?.autopro_access_lvl === 'lvl3_user';
 
   return (
     <div className="min-h-screen p-6">
@@ -84,7 +77,7 @@ export default function SetupPage() {
               <Download className="w-4 h-4 mr-2" />
               Download Template
             </Button>
-            {currentUser?.role === 'admin' && (
+            {currentUser?.admin === true && (
               <>
 
                 <Button 

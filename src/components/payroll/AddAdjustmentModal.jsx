@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { ChartOfAccount } from '@/entities/all';
 import {
   Dialog,
@@ -19,6 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import PayrollGLAccountCombobox from '@/components/payroll/PayrollGLAccountCombobox';
 
 export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
+  const { employee } = useAuth();
   const [formData, setFormData] = useState({
     pay_date: '',
     amount: '',
@@ -63,7 +65,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
         throw new Error('Date, amount, reason, and GL account are required');
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       const currentTimestamp = getCurrentMountainTimestamp();
 
       // Create the transaction

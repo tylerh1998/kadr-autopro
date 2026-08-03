@@ -9,22 +9,16 @@ import { format } from 'date-fns';
 
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function DepositModal({ open, onClose, bankAccounts, totalAmount, forDepositItems, onSubmit }) {
+  const { employee } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
   const [formData, setFormData] = useState({
     bankAccountId: '',
     depositDate: format(new Date(), 'yyyy-MM-dd'),

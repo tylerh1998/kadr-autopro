@@ -6,6 +6,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const [employee, setEmployee] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
@@ -14,6 +15,18 @@ export const AuthProvider = ({ children }) => {
       window.__SUPABASE_JWT__ = session?.access_token || null;
       setSession(session);
       setUser(session?.user || null);
+
+      if (session?.user?.id) {
+        const { data: employeeData } = await supabase
+          .from('Employee')
+          .select('*')
+          .eq('mykadr_user_id', session.user.id)
+          .maybeSingle();
+        setEmployee(employeeData || null);
+      } else {
+        setEmployee(null);
+      }
+
       if (session) {
         try {
           const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -59,14 +72,28 @@ export const AuthProvider = ({ children }) => {
     window.location.href = `https://my.kensauto.ca/login?redirect=${currentUrl}&app=autopro`;
   };
 
+  const updateEmployeePrefs = async (updates) => {
+    if (!employee?.id) return { data: null, error: new Error('No employee record for current user') };
+    const { data, error } = await supabase
+      .from('Employee')
+      .update(updates)
+      .eq('id', employee.id)
+      .select()
+      .single();
+    if (!error) setEmployee(data);
+    return { data, error };
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
+      user,
       session,
-      isAuthenticated, 
+      employee,
+      isAuthenticated,
       isLoadingAuth,
       logout,
-      navigateToLogin
+      navigateToLogin,
+      updateEmployeePrefs
     }}>
       {children}
     </AuthContext.Provider>

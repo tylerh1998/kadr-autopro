@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
-import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { 
@@ -84,11 +83,10 @@ function LayoutContent({ children, currentPageName }) {
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { lockState, clearSupplierLock } = useSupplierLock();
-  const { logout } = useAuth();
+  const { logout, employee, updateEmployeePrefs } = useAuth();
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -125,26 +123,25 @@ function LayoutContent({ children, currentPageName }) {
   const [isTraining, setIsTraining] = useState(false);
 
   useEffect(() => {
-    const fetchUserAndSettings = async () => {
+    const fetchSettings = async () => {
       try {
-        const currentUser = await UserEntity.me();
-        setUser(currentUser);
-        // Load dark mode preference from user data
-        if (currentUser?.dark_mode) {
-          setDarkMode(true);
-        }
-
         // Fetch System Settings to check for training environment
         const settings = await base44.entities.SystemSettings.list();
         if (settings && settings.length > 0 && settings[0].training_enviro) {
           setIsTraining(true);
         }
       } catch (error) {
-        console.error("Failed to fetch user or settings", error);
+        console.error("Failed to fetch settings", error);
       }
     };
-    fetchUserAndSettings();
+    fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (employee?.dark_mode) {
+      setDarkMode(true);
+    }
+  }, [employee]);
 
   useEffect(() => {
     if (darkMode) {
@@ -157,34 +154,8 @@ function LayoutContent({ children, currentPageName }) {
   const handleToggleDarkMode = async () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    try {
-      await base44.auth.updateMe({ dark_mode: newDarkMode });
-    } catch (error) {
-      console.error("Failed to save dark mode preference", error);
-    }
-  };
-
-  const handleToggleOpenNewWindow = async () => {
-    const newOpenNewWindow = !user?.OpenNewWindow;
-    try {
-      await base44.auth.updateMe({ OpenNewWindow: newOpenNewWindow });
-      setUser({ ...user, OpenNewWindow: newOpenNewWindow });
-    } catch (error) {
-      console.error("Failed to save OpenNewWindow preference", error);
-    }
-  };
-
-  const handleToggleWOCards = async () => {
-    const currentVal = user?.wo_cards === true;
-    const newVal = !currentVal;
-
-    try {
-      await base44.auth.updateMe({ wo_cards: newVal });
-      setUser({ ...user, wo_cards: newVal });
-      window.location.reload(); 
-    } catch (error) {
-      console.error("Failed to save WO Cards preference", error);
-    }
+    const { error } = await updateEmployeePrefs({ dark_mode: newDarkMode });
+    if (error) console.error("Failed to save dark mode preference", error);
   };
 
   useEffect(() => {
@@ -197,31 +168,31 @@ function LayoutContent({ children, currentPageName }) {
 
   useEffect(() => {
     const checkClockStatus = async () => {
-      if (!user) return;
+      if (!employee) return;
       setClockLoading(true);
 
       try {
-        let employee = null;
+        let workproEmployeeRecord = null;
 
-        if (user?.id) {
+        if (employee?.autopro_user_id) {
           const byUserId = await sbCall('filter', 'Employee', {
-            params: { autopro_user_id: user.id }
+            params: { autopro_user_id: employee.autopro_user_id }
           });
-          employee = Array.isArray(byUserId) ? byUserId[0] : null;
+          workproEmployeeRecord = Array.isArray(byUserId) ? byUserId[0] : null;
         }
 
-        if (!employee && user?.email) {
+        if (!workproEmployeeRecord && employee?.email) {
           const byEmail = await sbCall('filter', 'Employee', {
-            params: { email: user.email }
+            params: { email: employee.email }
           });
-          employee = Array.isArray(byEmail) ? byEmail[0] : null;
+          workproEmployeeRecord = Array.isArray(byEmail) ? byEmail[0] : null;
         }
 
-        const employeeName = employee?.full_name || null;
+        const employeeName = workproEmployeeRecord?.full_name || null;
         const employeeExists = !!employeeName;
 
         setIsEmployee(employeeExists);
-        setWorkProEmployee(employee || null);
+        setWorkProEmployee(workproEmployeeRecord || null);
 
         if (!employeeExists) {
           setIsClockedIn(false);
@@ -253,10 +224,10 @@ function LayoutContent({ children, currentPageName }) {
       }
     };
 
-    if (user) {
+    if (employee) {
       checkClockStatus();
     }
-  }, [user]);
+  }, [employee]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -277,8 +248,8 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   const handlePayrollClick = (e) => {
-    // If Paypro_user is true, allow default navigation to /Payroll
-    if (user?.Paypro_user === true) {
+    // If paypro_user is true, allow default navigation to /Payroll
+    if (employee?.paypro_user === true) {
       return;
     }
 
@@ -288,7 +259,7 @@ function LayoutContent({ children, currentPageName }) {
   };
 
   const handleClockToggle = async () => {
-    if (!user || !isEmployee || clockLoading || !workProEmployee?.full_name) return;
+    if (!employee || !isEmployee || clockLoading || !workProEmployee?.full_name) return;
 
     setClockLoading(true);
 
@@ -327,7 +298,7 @@ function LayoutContent({ children, currentPageName }) {
 
         const newRecord = await sbCall('create', 'TimeRecord', {
           params: {
-            created_by_id: user.id,
+            created_by_id: employee?.autopro_user_id,
             employee_name: workProEmployee.full_name,
             clock_in_time: clockInTime,
             status: 'clocked_in',
@@ -538,7 +509,7 @@ const navigationItems = [
       activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
     };
 
-    if (user?.access_level === 'lvl3_user') {
+    if (employee?.autopro_access_lvl === 'lvl3_user') {
       return {
         ...accountingBase,
         dropdown: [
@@ -549,7 +520,7 @@ const navigationItems = [
           { title: "Reports", action: "openFinancialDashboard", icon: BarChart3 },
         ]
       };
-    } else if (user?.AcctsPayAccess === true) {
+    } else if (employee?.accts_pay_access === true) {
       return {
         ...accountingBase,
         dropdown: [
@@ -589,8 +560,12 @@ const navigationItems = [
     }
   };
 
-  const getUserInitials = (user) => {
-    return user?.Initials || "?";
+  const getUserInitials = (fullName) => {
+    if (!fullName) return "?";
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
   const toggleMobileDropdown = (itemTitle) => {
@@ -821,9 +796,8 @@ const navigationItems = [
                 <DropdownMenuTrigger asChild>
                   <button className="focus:outline-none">
                     <Avatar>
-                      <AvatarImage src={user?.avatar_url} />
                       <AvatarFallback className="bg-slate-200 text-slate-700 font-bold">
-                        {getUserInitials(user)}
+                        {getUserInitials(employee?.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   </button>
@@ -832,19 +806,18 @@ const navigationItems = [
                   <DropdownMenuItem asChild className="focus:bg-slate-50 dark:focus:bg-slate-800 cursor-pointer !p-0">
                     <a href="https://my.kensauto.ca" className="flex items-center gap-3 w-full p-3 select-none">
                       <Avatar className="h-9 w-9 border border-slate-200">
-                        <AvatarImage src={user?.avatar_url} />
                         <AvatarFallback className="bg-[#1c2c54] text-white">
                           <UserIcon className="w-5 h-5" />
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col text-left gap-1">
                         <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-none">
-                          {user?.User_name || user?.full_name || 'User Profile'}
+                          {employee?.full_name || 'User Profile'}
                         </span>
                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400 leading-none">
-                          {user?.role === 'admin' ? "Program Administrator" :
-                           user?.access_level === 'lvl3_user' ? "Executive Access" :
-                           user?.access_level === 'lvl2_user' ? "Supervisor Access" :
+                          {employee?.admin === true ? "Program Administrator" :
+                           employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
+                           employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
                            "Standard Access"}
                         </span>
                         <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
@@ -883,7 +856,7 @@ const navigationItems = [
                       {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                       <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                       </DropdownMenuItem>
-                      {user?.role === 'admin' && (
+                      {employee?.admin === true && (
                         <>
                           <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
                             <Shield className="mr-2 h-4 w-4" />
@@ -1044,7 +1017,7 @@ const navigationItems = [
             const pageName = newWorkOrder?.stage === 'estimate' ? "EstimateEdit" : "WorkOrderEdit";
             const url = createPageUrl(pageName) + "?id=" + newWorkOrder.ro_number;
             
-            if (user?.OpenNewWindow === false) {
+            if (employee?.OpenNewWindow === false) {
               window.location.href = url;
             } else {
               const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
@@ -1065,7 +1038,7 @@ const navigationItems = [
       <GlobalClockInModal
         open={showGlobalClockInModal}
         onClose={() => setShowGlobalClockInModal(false)}
-        user={user}
+        user={employee}
         onClockIn={handleGlobalClockInSuccess}
       />
     </div>

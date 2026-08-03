@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Customer } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import CustomerHistoryModal from "../components/customers/CustomerHistoryModal";
 import CustomerWorkOrderHistoryModal from "../components/customers/CustomerWorkOrderHistoryModal";
 
 export default function CustomersPage() {
+  const { employee } = useAuth();
   const [customers, setCustomers] = useState([]);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -36,16 +38,8 @@ export default function CustomersPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error("Failed to fetch user", error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on search
@@ -99,11 +93,10 @@ export default function CustomersPage() {
           data: customerData 
         });
       } else {
-        const currentUser = await base44.auth.me();
         const payload = {
           ...customerData,
           created_date: new Date().toISOString(),
-          created_by: currentUser?.email || '',
+          created_by: employee?.email || '',
         };
         await base44.functions.invoke('SupabaseProxy', { 
           action: 'create', 

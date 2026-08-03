@@ -7,6 +7,7 @@ import {
   InventoryCategory,
 } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { inventoryAdd } from "@/functions/inventoryAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ import InventoryTransactionsModal from "@/components/inventory/InventoryTransact
 import LocationFilterDialog from "@/components/inventory/LocationFilterDialog";
 
 export default function InventoryListPage() {
+  const { employee } = useAuth();
   const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -234,17 +236,11 @@ export default function InventoryListPage() {
 
   useEffect(() => {
     loadSharedData(); // Fetch shared data on initial load
-    
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-      }
-    };
-    fetchUser();
   }, []);
+
+  useEffect(() => {
+    setCurrentUser(employee);
+  }, [employee]);
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);

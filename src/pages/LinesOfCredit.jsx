@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,6 +74,7 @@ const SafeDateFormat = ({ dateString }) => {
 };
 
 export default function LinesOfCreditPage() {
+  const { employee } = useAuth();
   const [linesOfCredit, setLinesOfCredit] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -97,16 +99,8 @@ export default function LinesOfCreditPage() {
   const [flushing, setFlushing] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   // New function to load all initial data, including balance recalculation
   const loadData = useCallback(async () => {

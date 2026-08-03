@@ -20,6 +20,7 @@ import { WorkOrder, SystemSettings } from '@/entities/all';
 import { createworkorderdata } from '@/functions/createworkorderdata';
 import { getworkorderlist } from '@/functions/getworkorderlist';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function AppointmentForm({
   open,
@@ -37,6 +38,7 @@ export default function AppointmentForm({
   customerForNew,   // New prop
   vehicleForNew,    // New prop
 }) {
+  const { employee: currentEmployee } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     notes: '',
@@ -491,7 +493,7 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     setIsCreatingCustomer(true);
     try {
-      const user = await base44.auth.me();
+      const user = currentEmployee;
       const payload = {
         ...customerData,
         created_date: new Date().toISOString(),
@@ -540,7 +542,7 @@ export default function AppointmentForm({
   const handleCreateVehicle = async (vehicleData) => {
     setIsCreatingVehicle(true);
     try {
-      const user = await base44.auth.me();
+      const user = currentEmployee;
       const payload = {
         ...vehicleData,
         created_date: new Date().toISOString(),

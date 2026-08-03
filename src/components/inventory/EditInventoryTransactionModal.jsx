@@ -9,6 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Save, X, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 
 // Helper function to format date for input field (MM/DD/YYYY)
@@ -129,6 +130,7 @@ const extractQuantityFromDescription = (description) => {
 };
 
 export default function EditInventoryTransactionModal({ isOpen, onClose, transaction, onUpdate }) {
+  const { employee } = useAuth();
   const [formData, setFormData] = useState({
     invoice_number: '',
     invoice_date: '',
@@ -149,16 +151,13 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     const checkLock = async () => {
       if (transaction?.supplier_id) {
         try {
-          const [currentUser, response] = await Promise.all([
-            base44.auth.me(),
-            base44.functions.invoke('SupabaseProxy', {
-              action: 'read',
-              table: 'Supplier',
-              match: { id: transaction.supplier_id }
-            })
-          ]);
+          const response = await base44.functions.invoke('SupabaseProxy', {
+            action: 'read',
+            table: 'Supplier',
+            match: { id: transaction.supplier_id }
+          });
           const supplier = response.data?.data?.[0];
-          const userEmail = currentUser?.email || null;
+          const userEmail = employee?.email || null;
           setCurrentUserEmail(userEmail);
 
           if (supplier?.LockedByUser && supplier.LockedByUser !== userEmail) {

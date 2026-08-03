@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
@@ -145,6 +146,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
 }
 
 export default function TechTimeModal({ open, onClose, project, projects = [], workOrder, onTimeChange }) {
+  const { employee } = useAuth();
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -156,16 +158,8 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Failed to load user", e);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   // Manual Add Form State
   const [manualDate, setManualDate] = useState(() => {

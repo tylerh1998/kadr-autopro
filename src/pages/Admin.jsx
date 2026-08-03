@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { User as UserEntity } from '@/entities/User';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Shield, Database, Search, Download, Loader2, Table as TableIcon, Columns, Upload } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,6 +37,7 @@ const LOCAL_ENTITIES = [
 ].sort();
 
 export default function AdminPage() {
+  const { employee } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -103,20 +104,11 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      try {
-        const user = await UserEntity.me();
-        if (user?.role === 'admin') {
-          setIsAdmin(true);
-        }
-      } catch (error) {
-        console.error("Failed to check admin status", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkAdmin();
-  }, []);
+    if (employee?.admin === true) {
+      setIsAdmin(true);
+    }
+    setLoading(false);
+  }, [employee]);
 
   // Fetch schema when entity changes
   useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ const parseLocalDate = (dateString) => {
 };
 
 export default function BankPage() {
+  const { employee } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -96,18 +98,10 @@ export default function BankPage() {
     });
   };
 
-  // Fetch current user
+  // Current user, sourced from Employee via AuthContext
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   const fetchBankAccountsFromSupabase = useCallback(async () => {
     const response = await base44.functions.invoke('SupabaseProxy', {
