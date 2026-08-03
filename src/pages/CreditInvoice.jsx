@@ -477,9 +477,9 @@ export default function CreditInvoicePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
-          <h2 className="mt-4 text-xl font-semibold text-slate-900">Error Loading Work Order</h2>
-          <p className="mt-2 text-slate-600">{woError || 'Work Order not found'}</p>
+          <AlertTriangle className="w-12 h-12 mx-auto text-red-600 dark:text-red-400" />
+          <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">Error Loading Work Order</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">{woError || 'Work Order not found'}</p>
           <Button onClick={() => navigate(createPageUrl('WorkOrders'))} className="mt-4">
             Back to Work Orders
           </Button>
@@ -522,8 +522,8 @@ export default function CreditInvoicePage() {
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between no-print">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Create Credit Invoice</h1>
-                <p className="text-slate-600 mt-1">Refund or credit customer for work order {workOrder?.wo_number}</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Create Credit Invoice</h1>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">Refund or credit customer for work order {workOrder?.wo_number}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button 
@@ -543,18 +543,18 @@ export default function CreditInvoicePage() {
                     </>
                   )}
                 </Button>
-                <Button 
+                <Button
                   onClick={() => navigate(createPageUrl('WorkOrderView') + `?id=${roNumber}`)}
                   variant="outline"
-                  className="bg-white"
+                  className="bg-white dark:bg-slate-900"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Return to Invoice
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => window.close()}
-                  className="bg-white"
+                  className="bg-white dark:bg-slate-900"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -576,26 +576,26 @@ export default function CreditInvoicePage() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Invoice Date</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Invoice Date</p>
                         <p className="font-semibold">{workOrder?.invoice_date ? format(parseLocalDate(workOrder.invoice_date), 'MMM d, yyyy') : 'Not set'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Work Order #</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Order #</p>
                         <p className="font-semibold">{workOrder?.wo_number || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Work Order Date</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Order Date</p>
                         <p className="font-semibold">{workOrder?.wo_date ? format(parseLocalDate(workOrder.wo_date), 'MMM d, yyyy') : 'Not set'}</p>
                       </div>
                       {workOrder?.po_number && (
                         <div>
-                          <p className="text-sm text-slate-600 mb-1">PO Number</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">PO Number</p>
                           <p className="font-semibold">{workOrder.po_number}</p>
                         </div>
                       )}
                       {workOrder?.description && (
                         <div className="md:col-span-3">
-                          <p className="text-sm text-slate-600 mb-1">Work Description</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Description</p>
                           <p className="font-semibold">{workOrder.description}</p>
                         </div>
                       )}
@@ -618,13 +618,13 @@ export default function CreditInvoicePage() {
                             <>
                               <p className="font-semibold text-lg">{customer.org_name}</p>
                               {(customer.first_name || customer.last_name) && (
-                                <p className="text-sm text-slate-600">Contact: {customer.first_name} {customer.last_name}</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">Contact: {customer.first_name} {customer.last_name}</p>
                               )}
                             </>
                           ) : (
                             <p className="font-semibold text-lg">{customer.first_name} {customer.last_name}</p>
                           )}
-                          <div className="text-sm text-slate-600 space-y-1">
+                          <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
                             <p className="flex items-center gap-2">
                               <Phone className="w-4 h-4" />
                               {customer.phone}
@@ -644,7 +644,7 @@ export default function CreditInvoicePage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-slate-500">No customer information available</p>
+                        <p className="text-slate-500 dark:text-slate-400">No customer information available</p>
                       )}
                     </CardContent>
                   </Card>
@@ -660,7 +660,7 @@ export default function CreditInvoicePage() {
                       {vehicle ? (
                         <div className="space-y-2">
                           <p className="font-semibold text-lg">{vehicle.year} {vehicle.make} {vehicle.model}</p>
-                          <div className="text-sm text-slate-600 space-y-1">
+                          <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
                             <p><span className="font-medium">VIN:</span> {vehicle.vin || 'N/A'}</p>
                             <p><span className="font-medium">License:</span> {vehicle.license_plate || 'N/A'}</p>
                             {vehicle.unit_number && <p><span className="font-medium">Unit #:</span> {vehicle.unit_number}</p>}
@@ -670,7 +670,7 @@ export default function CreditInvoicePage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-slate-500">No vehicle information available</p>
+                        <p className="text-slate-500 dark:text-slate-400">No vehicle information available</p>
                       )}
                     </CardContent>
                   </Card>

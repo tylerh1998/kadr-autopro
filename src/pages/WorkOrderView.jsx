@@ -247,7 +247,7 @@ export default function WorkOrderViewPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600" />
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600 dark:text-blue-400" />
           <p className="mt-4 text-slate-600 dark:text-slate-400">Loading work order...</p>
         </div>
       </div>
@@ -258,7 +258,7 @@ export default function WorkOrderViewPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
+          <AlertTriangle className="w-12 h-12 mx-auto text-red-600 dark:text-red-400" />
           <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">Error Loading Work Order</h2>
           <p className="mt-2 text-slate-600 dark:text-slate-400">{workOrderError || 'Work order not found'}</p>
           <Button onClick={() => navigate(createPageUrl('WorkOrders'))} className="mt-4">

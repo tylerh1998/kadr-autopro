@@ -282,12 +282,12 @@ export default function WorkPROViewPage() {
 
   const getStatusBadge = (status) => {
     const colors = {
-      'to_do': 'bg-slate-100 text-slate-800',
-      'in_progress': 'bg-blue-100 text-blue-800',
-      'parts_needed': 'bg-red-100 text-red-800',
-      'on_hold': 'bg-orange-100 text-orange-800',
-      'done': 'bg-green-100 text-green-800',
-      'archived': 'bg-gray-100 text-gray-800'
+      'to_do': 'bg-slate-100 text-slate-800 dark:bg-slate-700/60 dark:text-slate-300',
+      'in_progress': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      'parts_needed': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+      'on_hold': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+      'done': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      'archived': 'bg-gray-100 text-gray-800 dark:bg-gray-700/60 dark:text-gray-300'
     };
     
     return (
@@ -298,12 +298,12 @@ export default function WorkPROViewPage() {
   };
 
   const statusButtons = [
-    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300' },
-    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300' },
-    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300' },
-    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300' },
-    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300' },
-    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300' }
+    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-100 dark:border-slate-700' },
+    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 dark:bg-slate-900 dark:hover:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800' },
+    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300 dark:bg-slate-900 dark:hover:bg-red-950/30 dark:text-red-400 dark:border-red-800' },
+    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300 dark:bg-slate-900 dark:hover:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800' },
+    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300 dark:bg-slate-900 dark:hover:bg-green-950/30 dark:text-green-400 dark:border-green-800' },
+    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300 dark:bg-slate-900 dark:hover:bg-gray-800/50 dark:text-gray-400 dark:border-gray-700' }
   ];
 
   const isOilChangeProject = project?.task?.toLowerCase().includes('oil change') || 
@@ -321,8 +321,8 @@ export default function WorkPROViewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading WorkPRO project...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+          <p className="text-slate-600 dark:text-slate-400">Loading WorkPRO project...</p>
         </div>
       </div>
     );
@@ -332,7 +332,7 @@ export default function WorkPROViewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 text-lg font-semibold mb-4">{error}</p>
+          <p className="text-red-600 dark:text-red-400 text-lg font-semibold mb-4">{error}</p>
           <Button onClick={() => window.close()} variant="outline">
             <X className="w-4 h-4 mr-2" />
             Close Window
@@ -346,16 +346,16 @@ export default function WorkPROViewPage() {
     <>
       <div className="min-h-screen">
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 sticky top-0 z-10 shadow-sm">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">WorkPRO Project</h1>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">WorkPRO Project</h1>
               {project && (
-                <div className="flex items-center gap-3 text-sm text-slate-600 mt-1">
+                <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400 mt-1">
                   <span>{project.name}</span>
                   {project.work_order && (
                     <>
-                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-400 dark:text-slate-600">•</span>
                       <span>{project.work_order}</span>
                     </>
                   )}
@@ -364,10 +364,10 @@ export default function WorkPROViewPage() {
             </div>
             <div className="flex items-center gap-2">
               {project && !project.work_order && (
-                <Button 
-                  onClick={() => setShowEditProjectModal(true)} 
+                <Button
+                  onClick={() => setShowEditProjectModal(true)}
                   variant="outline"
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 dark:border-blue-800"
                 >
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit Project
@@ -383,7 +383,7 @@ export default function WorkPROViewPage() {
 
         {/* Content */}
         <div className="max-w-5xl mx-auto p-6 pb-24">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-6 space-y-4">
             <div>
               <Label className="text-sm font-medium">Task</Label>
               <Input
@@ -395,7 +395,7 @@ export default function WorkPROViewPage() {
 
             <div>
               <Label className="text-sm font-medium">Employees Assigned</Label>
-              <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 max-h-32 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 dark:bg-slate-800 max-h-32 overflow-y-auto">
                 {employees.map((employee) => {
                   const employeeName = getEmployeeName(employee);
                   const isChecked = formData.assigned_employees.includes(employeeName);
@@ -417,10 +417,10 @@ export default function WorkPROViewPage() {
                   );
                 })}
                 {employees.length === 0 && (
-                  <p className="text-slate-500 text-sm col-span-2">No employees found</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm col-span-2">No employees found</p>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Optional: Leave unassigned for auto-assignment when clocking in
               </p>
             </div>
@@ -491,16 +491,16 @@ export default function WorkPROViewPage() {
             {/* Oil Change Details Section */}
             {isOilChangeProject && (
               <>
-                <Card className="bg-blue-50 border-blue-200">
+                <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3">
-                      <Droplet className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-sm font-semibold text-slate-900">Oil Change Details</h3>
+                      <Droplet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Oil Change Details</h3>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div>
-                        <Label className="text-xs font-medium text-slate-700 mb-2 block">Oil Change Type</Label>
+                        <Label className="text-xs font-medium text-slate-700 dark:text-slate-400 mb-2 block">Oil Change Type</Label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -509,9 +509,9 @@ export default function WorkPROViewPage() {
                               value="regular"
                               checked={formData.oil_change_type === 'regular'}
                               onChange={(e) => handleFieldChange('oil_change_type', e.target.value)}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-blue-600 dark:text-blue-400"
                             />
-                            <span className="text-sm text-slate-900">Regular</span>
+                            <span className="text-sm text-slate-900 dark:text-slate-100">Regular</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -520,16 +520,16 @@ export default function WorkPROViewPage() {
                               value="winter"
                               checked={formData.oil_change_type === 'winter'}
                               onChange={(e) => handleFieldChange('oil_change_type', e.target.value)}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-blue-600 dark:text-blue-400"
                             />
-                            <span className="text-sm text-slate-900">Winter</span>
+                            <span className="text-sm text-slate-900 dark:text-slate-100">Winter</span>
                           </label>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-4 gap-3">
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Filter</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Filter</Label>
                           <Input
                             value={formData.filter}
                             onChange={(e) => handleFieldChange('filter', e.target.value)}
@@ -538,7 +538,7 @@ export default function WorkPROViewPage() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Oil Qty</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Oil Qty</Label>
                           <Input
                             value={formData.oil_qty}
                             onChange={(e) => handleFieldChange('oil_qty', e.target.value)}
@@ -547,7 +547,7 @@ export default function WorkPROViewPage() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Oil Grade</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Oil Grade</Label>
                           <Input
                             value={formData.oil}
                             onChange={(e) => handleFieldChange('oil', e.target.value)}
@@ -556,7 +556,7 @@ export default function WorkPROViewPage() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Oil Type</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Oil Type</Label>
                           <Select value={formData.oil_type} onValueChange={(val) => handleFieldChange('oil_type', val)}>
                             <SelectTrigger className="text-sm">
                               <SelectValue placeholder="Select" />
@@ -571,7 +571,7 @@ export default function WorkPROViewPage() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Air Filter</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Air Filter</Label>
                           <Input
                             value={formData.air}
                             onChange={(e) => handleFieldChange('air', e.target.value)}
@@ -580,7 +580,7 @@ export default function WorkPROViewPage() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Cabin Filter</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Cabin Filter</Label>
                           <Input
                             value={formData.cabin}
                             onChange={(e) => handleFieldChange('cabin', e.target.value)}
@@ -592,7 +592,7 @@ export default function WorkPROViewPage() {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">Tire Rotation</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">Tire Rotation</Label>
                           <Select value={formData.tire_rotation} onValueChange={(val) => handleFieldChange('tire_rotation', val)}>
                             <SelectTrigger className="text-sm">
                               <SelectValue placeholder="Select" />
@@ -604,7 +604,7 @@ export default function WorkPROViewPage() {
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-xs font-medium text-slate-700">TPMS Reset</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-400">TPMS Reset</Label>
                           <Select value={formData.tpms_reset} onValueChange={(val) => handleFieldChange('tpms_reset', val)}>
                             <SelectTrigger className="text-sm">
                               <SelectValue placeholder="Select" />
@@ -617,18 +617,18 @@ export default function WorkPROViewPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-blue-200">
+                      <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-blue-200 dark:border-blue-800">
                         {formData.reset_oil_light && (
                           <div>
-                            <span className="text-slate-600 font-medium">Reset Oil Light:</span>
-                            <p className="text-slate-900 capitalize">{formData.reset_oil_light.replace(/_/g, ' ')}</p>
+                            <span className="text-slate-600 dark:text-slate-400 font-medium">Reset Oil Light:</span>
+                            <p className="text-slate-900 dark:text-slate-100 capitalize">{formData.reset_oil_light.replace(/_/g, ' ')}</p>
                           </div>
                         )}
-                        
+
                         {formData.next_oil_change_odometer && (
                           <div>
-                            <span className="text-slate-600 font-medium">Next Oil Change:</span>
-                            <p className="text-slate-900">{parseFloat(formData.next_oil_change_odometer).toLocaleString()} km</p>
+                            <span className="text-slate-600 dark:text-slate-400 font-medium">Next Oil Change:</span>
+                            <p className="text-slate-900 dark:text-slate-100">{parseFloat(formData.next_oil_change_odometer).toLocaleString()} km</p>
                           </div>
                         )}
                       </div>
@@ -638,39 +638,39 @@ export default function WorkPROViewPage() {
 
                 {/* Inspection Results Table */}
                 {project.inspection_results && Object.keys(project.inspection_results).length > 0 && (
-                  <Card className="bg-slate-50 border-slate-200">
+                  <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                     <CardContent className="p-4">
-                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Inspection Results</h3>
-                      
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>
+
                       <div className="space-y-4">
                         {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => (
                           <div key={section.section_name}>
-                            <h4 className="text-xs font-semibold text-slate-700 mb-2">{section.section_name}</h4>
-                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">{section.section_name}</h4>
+                            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                               <table className="w-full text-xs">
                                 <thead>
-                                  <tr className="bg-slate-100 border-b border-slate-200">
-                                    <th className="text-left p-2 font-medium text-slate-700">Item</th>
-                                    <th className="text-center p-2 font-medium text-slate-700 w-16">Good</th>
-                                    <th className="text-center p-2 font-medium text-slate-700 w-16">Fair</th>
-                                    <th className="text-center p-2 font-medium text-slate-700 w-16">Poor</th>
-                                    <th className="text-center p-2 font-medium text-slate-700 w-16">N/A</th>
+                                  <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                                    <th className="text-left p-2 font-medium text-slate-700 dark:text-slate-300">Item</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Good</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Fair</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Poor</th>
+                                    <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">N/A</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {section.inspection_items.map((item) => {
                                     const result = getInspectionResult(section.section_name, item);
                                     return (
-                                      <tr key={item} className="border-b border-slate-100 last:border-0">
-                                        <td className="p-2 text-slate-900">{item}</td>
+                                      <tr key={item} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+                                        <td className="p-2 text-slate-900 dark:text-slate-100">{item}</td>
                                         <td className="p-2 text-center">
-                                          {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
+                                          {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />}
                                         </td>
                                         <td className="p-2 text-center">
-                                          {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 mx-auto" />}
+                                          {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mx-auto" />}
                                         </td>
                                         <td className="p-2 text-center">
-                                          {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
+                                          {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />}
                                         </td>
                                         <td className="p-2 text-center">
                                           {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
@@ -693,12 +693,12 @@ export default function WorkPROViewPage() {
         </div>
 
         {/* Footer */}
-        <div className="bg-white border-t border-slate-200 px-6 py-4 fixed bottom-0 left-0 right-0 shadow-sm z-10">
+        <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-4 fixed bottom-0 left-0 right-0 shadow-sm z-10">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm text-slate-600">
+            <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
               <button
                 onClick={() => setShowTechTimeModal(true)}
-                className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
               >
                 <Clock className="w-4 h-4" />
                 <span>Tech Time {techTimeTotal.toFixed(1)}hrs</span>
