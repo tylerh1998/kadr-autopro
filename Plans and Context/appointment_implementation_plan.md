@@ -57,12 +57,7 @@ CREATE TABLE "Appointment" (
 );
 ```
 
-#### The UI/Workflow Impact for Service Advisors (AutoPro)
-Because AutoPro is designed solely for the front desk/Service Writer, the UI workflows should focus entirely on closing the gap between Scheduling and Billing:
 
-1. **The "Unbilled Appointments" Queue:** A sidebar or view for the Service Advisor showing past appointments that do *not* have a linked `work_order_id`. This instantly tells the Advisor: "This vehicle came in, but we never generated a billing ticket for it."
-2. **Project Visibility (Read-Only):** If an Appointment is linked to a Work Order, and that Work Order spawned a Project, the AutoPro calendar UI can do a fast SQL join `Appointment -> WorkOrder -> Project`. On the calendar, it can show a tiny colored indicator (e.g., green dot) if a technician in WorkPro is currently clocked into the associated Project. This gives the Service Advisor real-time status updates to relay to the customer without having to shout into the shop.
-3. **Automated Status Updates:** If a technician marks a Project as "Completed" in WorkPro, the backend can automatically mark the parent Work Order as "Ready for Billing", and the grandparent Appointment as "Completed".
 
 ## Open Questions
 

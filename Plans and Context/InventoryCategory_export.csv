@@ -1,0 +1,17 @@
+name,description,lankar_categories,id,created_date,updated_date,created_by_id,created_by
+Nuts and Bolts,Nuts and Bolts,NUTS BOLTS,6950d1f7944876186429a9f3,2025-12-28T06:45:11.486000,2025-12-28T06:53:59.812000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Tire Tubes,Tires Tubes,TIRE TUBES,6950d108f2107ab3df0ff831,2025-12-28T06:41:12.827000,2025-12-28T06:53:58.092000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Wipers,Windshield Wipers,WIPERS,6950c77aafafcf3e26e3b958,2025-12-28T06:00:26.602000,2025-12-28T06:53:55.473000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Other,Other,,6950c42916531195fe695033,2025-12-28T05:46:17.493000,2025-12-28T05:46:17.493000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Batteries,Batteries,BATTERY,6950c3e3b841ae5200edfdb0,2025-12-28T05:45:07.915000,2025-12-28T06:54:14.117000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Filters,"Oil, Air, Fuel Filters","FILTERS, FILTER",6950c004d5e66fe0b38228f2,2025-12-28T05:28:36.381000,2025-12-28T06:54:01.305000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Suspension and Chassis,"Shocks, struts, control arms","UJOINTS, DRIVETRAIN, CHASSIS",6950c004d5e66fe0b38228f9,2025-12-28T05:28:36.381000,2025-12-28T06:53:59.035000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Belts and Hoses,Belts and Hoses,BELTS HOSE,6950c004d5e66fe0b38228f8,2025-12-28T05:28:36.381000,2025-12-28T06:54:10.753000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Electrical & Ignition,"Electrical components, sensors, starters, alternators",ELECTRICAL,6950c004d5e66fe0b38228f6,2025-12-28T05:28:36.381000,2025-12-28T06:54:07.193000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Tires,Tires and wheels,"WHEELS, WHELL NUTS/BOLT, TIRES, TIRE SENSOR, TIRE",6950c004d5e66fe0b38228f7,2025-12-28T05:28:36.381000,2025-12-28T06:53:57.081000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Oils and Fluids,Oils and Fluids,"FLUIDS, BOSS OIL, AMSOIL, ANTIFREEZE",6950c004d5e66fe0b38228f1,2025-12-28T05:28:36.381000,2025-12-28T06:54:00.542000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Engine,Engine components,ENGINE,6950c004d5e66fe0b38228f4,2025-12-28T05:28:36.381000,2025-12-28T06:54:03.174000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Exhaust,Exhaust system components,EXHAUST,6950c004d5e66fe0b38228fa,2025-12-28T05:28:36.381000,2025-12-28T06:54:02.196000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Jard,Parts from Jard Industrial Supply,,6950c004d5e66fe0b38228fc,2025-12-28T05:28:36.381000,2025-12-28T05:28:36.381000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Brakes,"Brake pads, rotors, calipers",BRAKES,6950c004d5e66fe0b38228f3,2025-12-28T05:28:36.381000,2025-12-28T06:54:08.812000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
+Transmission,Transmission parts,,6950c004d5e66fe0b38228f5,2025-12-28T05:28:36.381000,2025-12-28T05:44:45.205000,68b90236f4d7e6ac0de4a263,tyler.haney.1998@gmail.com
