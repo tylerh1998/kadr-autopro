@@ -12,7 +12,6 @@ import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, Refres
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getNotesBoardData } from "@/functions/getNotesBoardData";
 import { supabase } from "@/lib/supabase";
 
 // Reuse your existing helper that already has the Supabase credentials configured!
@@ -216,8 +215,8 @@ export default function WorkOrdersPage() {
           p_offset: invoiceOffset,
           p_search_term: debouncedSearchTerm.trim()
         }),
-        getNotesBoardData({
-          searchTerm: debouncedSearchTerm.trim()
+        supabase.functions.invoke('autopro-getNotesBoardData', {
+          body: { searchTerm: debouncedSearchTerm.trim() }
         }).catch((error) => {
           console.error('Error fetching notes board data:', error);
           return { data: { data: [] } };
@@ -226,6 +225,8 @@ export default function WorkOrdersPage() {
 
       if (generalResponse.error) console.error('Error fetching work orders:', generalResponse.error);
       if (invoicePageResponse.error) console.error('Error fetching invoice work orders:', invoicePageResponse.error);
+      if (notesResponse.error) console.error('Error fetching notes board data:', notesResponse.error);
+      if (notesResponse?.data?.error) console.error('Error fetching notes board data:', notesResponse.data.error);
 
       const generalWorkOrders = (generalResponse?.data || []).filter(
         wo => wo.stage !== 'invoice' && wo.stage !== 'credit_invoice'

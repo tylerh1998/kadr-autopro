@@ -23,7 +23,6 @@ import DepositHistoryModal from '../components/cash-drawer/DepositHistoryModal';
 import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBreakdownModal';
 import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -797,18 +796,23 @@ export default function CashDrawerPage() {
 
   const handleGenerateDepositSlip = async (slipData) => {
     try {
-      const response = await base44.functions.invoke('generateDepositSlipPDF', {
-        cashBreakdown: slipData.cashBreakdown,
-        cheques: slipData.cheques,
-        bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
-        bankAccountName: slipData.selectedBankAccount?.name || '',
-        depositDate: slipData.depositDate,
-        totalCash: slipData.totalCash,
-        totalCheques: slipData.totalCheques,
-        depositAmount: slipData.depositAmount
+      const { data, error } = await supabase.functions.invoke('autopro-generateDepositSlipPDF', {
+        body: {
+          cashBreakdown: slipData.cashBreakdown,
+          cheques: slipData.cheques,
+          bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
+          bankAccountName: slipData.selectedBankAccount?.name || '',
+          depositDate: slipData.depositDate,
+          totalCash: slipData.totalCash,
+          totalCheques: slipData.totalCheques,
+          depositAmount: slipData.depositAmount
+        }
       });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      const blob = new Blob([data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
       

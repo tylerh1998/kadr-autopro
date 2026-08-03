@@ -6,9 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Send, Copy, AlertCircle, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { createPortalSnapshot } from "@/functions/createPortalSnapshot";
-// Email sent via Resend API through sendEmailViaSMTP function
+import { supabase } from '@/lib/supabase';
+// Email sent via Resend API through the autopro-sendEmailViaSMTP edge function
 
 export default function SESEmailModal({ open, onClose, workOrder, customer, vehicle, lineItems }) {
   const [sendMode, setSendMode] = useState('email');
@@ -75,12 +74,16 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
     setSnapshotError('');
     
     try {
-      const response = await createPortalSnapshot({ work_order_id: workOrder.id });
-      
-      if (response.data?.success) {
-        setPortalUrl(`portal.kensauto.ca/WorkOrder?cp_id=${response.data.cp_id}`);
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+        body: { work_order_id: workOrder.id }
+      });
+
+      if (invokeError) throw invokeError;
+
+      if (data?.success) {
+        setPortalUrl(`portal.kensauto.ca/WorkOrder?cp_id=${data.cp_id}`);
       } else {
-        throw new Error(response.data?.error || 'Failed to create portal snapshot');
+        throw new Error(data?.error || 'Failed to create portal snapshot');
       }
     } catch (error) {
       console.error('Error creating portal snapshot:', error);
@@ -99,20 +102,24 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
       if (sendMode === 'text') {
         const textMessage = `Ken's Auto ${data.stageTitle}# ${data.referenceNumber}:\n\nHello ${data.customerName},\n\n${customMessage || ''}${customMessage ? '\n\n' : ''}Please find your ${data.stageTitle} at https://${portalUrl}\n\nCall or text us at 7808473002 if you have any questions or concerns.\n\nThank you.`;
 
-        const response = await base44.functions.invoke('sendSms', {
-          to: phoneNumber,
-          message: textMessage,
-          subject: `${data.stageTitle} #${data.referenceNumber} from Ken's Auto & Diesel Repair`,
-          customer_id: customer?.id || null,
-          work_order_id: workOrder?.id || null,
-          portal_url: portalUrl ? `https://${portalUrl}` : null
+        const { data: smsData, error: smsError } = await supabase.functions.invoke('autopro-sendSms', {
+          body: {
+            to: phoneNumber,
+            message: textMessage,
+            subject: `${data.stageTitle} #${data.referenceNumber} from Ken's Auto & Diesel Repair`,
+            customer_id: customer?.id || null,
+            work_order_id: workOrder?.id || null,
+            portal_url: portalUrl ? `https://${portalUrl}` : null
+          }
         });
 
-        if (response.data?.success) {
+        if (smsError) throw smsError;
+
+        if (smsData?.success) {
           alert('Text message sent successfully!');
           onClose();
         } else {
-          throw new Error(response.data?.error || 'Failed to send text message');
+          throw new Error(smsData?.error || 'Failed to send text message');
         }
 
         return;
@@ -154,21 +161,25 @@ export default function SESEmailModal({ open, onClose, workOrder, customer, vehi
         </div>
       `;
 
-      const response = await base44.functions.invoke('sendEmailViaSMTP', {
-        to: emailData.to,
-        subject: emailData.subject,
-        body: htmlBody,
-        from_name: "Ken's Auto & Diesel Repair",
-        work_order_id: workOrder?.id || null,
-        customer_id: customer?.id || null,
-        portal_url: portalUrl ? `https://${portalUrl}` : null
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('autopro-sendEmailViaSMTP', {
+        body: {
+          to: emailData.to,
+          subject: emailData.subject,
+          body: htmlBody,
+          from_name: "Ken's Auto & Diesel Repair",
+          work_order_id: workOrder?.id || null,
+          customer_id: customer?.id || null,
+          portal_url: portalUrl ? `https://${portalUrl}` : null
+        }
       });
 
-      if (response.data?.status === 'success') {
+      if (emailError) throw emailError;
+
+      if (emailResult?.status === 'success') {
         alert('Email sent successfully!');
         onClose();
       } else {
-        throw new Error(response.data?.error || 'Failed to send email');
+        throw new Error(emailResult?.error || 'Failed to send email');
       }
     } catch (error) {
       console.error("Message sending failed:", error);

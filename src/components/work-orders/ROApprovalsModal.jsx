@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 
 export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusSync, onRefreshComplete }) {
@@ -25,16 +25,19 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
         
         try {
             console.log(`Fetching approvals for work_order_id: ${workOrderId}`);
-            
-            // Fetch approvals from Customer Portal via proxy
-            const response = await base44.functions.invoke('getPortalApprovals', { work_order_id: workOrderId });
-            
-            if (!response.data.success) {
-                throw new Error(response.data.error || 'Failed to fetch approvals from portal');
+
+            // Approvals is a native table now (per §0.4) — thin direct read
+            const { data: records, error: fetchError } = await supabase
+                .from('Approvals')
+                .select('*')
+                .eq('work_order_id', workOrderId)
+                .order('created_date', { ascending: false })
+                .limit(100);
+
+            if (fetchError) {
+                throw new Error(fetchError.message || 'Failed to fetch approvals');
             }
-            
-            const records = response.data.data;
-            
+
             console.log('Fetched approvals:', records);
             setApprovals(records);
 

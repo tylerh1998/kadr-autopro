@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WorkOrderPdfModal from '../components/work-orders/WorkOrderPdfModal';
@@ -90,25 +89,26 @@ export default function InvoiceConversion() {
           } else {
             console.log('=== Creating missing customer portal snapshot ===');
             try {
-              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
-                work_order_id: currentWo.id
+              const { data: snapshotData, error: snapshotInvokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+                body: { work_order_id: currentWo.id }
               });
-              
-              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
-                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
-                const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+              if (snapshotInvokeError) throw snapshotInvokeError;
+
+              if (snapshotData && snapshotData.cp_id) {
+                console.log('Portal snapshot created:', snapshotData.cp_id);
+                const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotData.cp_id}`;
                 setPortalUrl(newPortalUrl);
-                
+
                 const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
                   body: {
                     ro_number: currentWo.ro_number,
-                    data: { cp_id: snapshotResponse.data.cp_id }
+                    data: { cp_id: snapshotData.cp_id }
                   }
                 });
                 if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
-                currentWo.cp_id = snapshotResponse.data.cp_id;
+                currentWo.cp_id = snapshotData.cp_id;
               } else {
-                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+                console.error('Portal snapshot creation failed:', snapshotData?.error);
               }
             } catch (snapshotError) {
               console.error('Error creating portal snapshot:', snapshotError);
@@ -278,26 +278,27 @@ export default function InvoiceConversion() {
             // Create portal snapshot after GL conversion
             console.log('=== Creating customer portal snapshot ===');
             try {
-              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
-                work_order_id: wo.id
+              const { data: snapshotData, error: snapshotInvokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+                body: { work_order_id: wo.id }
               });
-              
-              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
-                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
-                const portalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+              if (snapshotInvokeError) throw snapshotInvokeError;
+
+              if (snapshotData && snapshotData.cp_id) {
+                console.log('Portal snapshot created:', snapshotData.cp_id);
+                const portalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotData.cp_id}`;
                 setPortalUrl(portalUrl);
-                
+
                 // Update work order with cp_id
                 const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
                   body: {
                     ro_number: wo.ro_number,
-                    data: { cp_id: snapshotResponse.data.cp_id }
+                    data: { cp_id: snapshotData.cp_id }
                   }
                 });
                 if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
-                updatedWorkOrder.cp_id = snapshotResponse.data.cp_id;
+                updatedWorkOrder.cp_id = snapshotData.cp_id;
               } else {
-                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+                console.error('Portal snapshot creation failed:', snapshotData?.error);
               }
             } catch (snapshotError) {
               console.error('Error creating portal snapshot:', snapshotError);

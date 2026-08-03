@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { WorkOrder } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
@@ -196,8 +195,9 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
     setProcessingReverse(true);
     try {
-      const response = await base44.functions.invoke('reverseDeposit', { bankTransactionId: deposit.id });
-      if (response.data.success) {
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-reverseDeposit', { body: { bankTransactionId: deposit.id } });
+      if (invokeError) throw new Error(invokeError.message);
+      if (data.success) {
         alert('Deposit reversed successfully!');
         if (onReverseSuccess) {
           onReverseSuccess();
@@ -205,7 +205,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
           onClose();
         }
       } else {
-        alert(`Failed to reverse deposit: ${response.data.error || 'Unknown error'}`);
+        alert(`Failed to reverse deposit: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error reversing deposit:', error);
@@ -218,14 +218,18 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
   const handlePrintReport = async () => {
     setGeneratingPdf(true);
     try {
-      const response = await base44.functions.invoke('generateDepositDetailReport', {
-        payments,
-        adjustments,
-        depositDate: deposit?.transaction_date
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateDepositDetailReport', {
+        body: {
+          payments,
+          adjustments,
+          depositDate: deposit?.transaction_date
+        }
       });
 
-      if (response.data instanceof Blob || response.headers?.['content-type'] === 'application/pdf' || response.data?.type === 'application/pdf') {
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (invokeError) throw new Error(invokeError.message);
+
+      if (data instanceof Blob) {
+        const blob = new Blob([data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -233,11 +237,11 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         document.body.appendChild(link);
         link.click();
         link.parentNode.removeChild(link);
-      } else if (response.data && response.data.error) {
-        alert(`Failed to generate report: ${response.data.error}`);
+      } else if (data && data.error) {
+        alert(`Failed to generate report: ${data.error}`);
       } else {
         // Fallback for arraybuffer/blob response without explicit blob wrapping
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const blob = new Blob([data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
       }

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FiscalPeriod } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
@@ -126,13 +125,14 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('reverseDeposit', { bankTransactionId: depositId });
-      if (response.data.success) {
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-reverseDeposit', { body: { bankTransactionId: depositId } });
+      if (invokeError) throw new Error(invokeError.message);
+      if (data.success) {
         alert('Deposit reversed successfully!');
         onDepositReversed();
         loadDeposits();
       } else {
-        alert(`Failed to reverse deposit: ${response.data.error || 'Unknown error'}`);
+        alert(`Failed to reverse deposit: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error reversing deposit:', error);

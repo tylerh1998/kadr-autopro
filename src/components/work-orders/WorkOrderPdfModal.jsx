@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, AlertTriangle, Printer, X, Download } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { base44 } from "@/api/base44Client";
+import { supabase } from '@/lib/supabase';
 
 export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
     const [blobUrl, setBlobUrl] = useState(null);
@@ -33,18 +33,23 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
             setLoading(true);
             setError(null);
             try {
-                // Call backend function using SDK - expecting JSON response with Data URI
-                const response = await base44.functions.invoke('generateWorkOrderPdf', {
-                    workOrder,
-                    customer,
-                    vehicle,
-                    lineItems,
-                    wipLegal,
-                    defaultMessage
+                // Call native edge function - expecting JSON response with Data URI
+                const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateWorkOrderPdf', {
+                    body: {
+                        workOrder,
+                        customer,
+                        vehicle,
+                        lineItems,
+                        wipLegal,
+                        defaultMessage
+                    }
                 });
 
-                const { pdfDataUri, filename } = response.data;
-                
+                if (invokeError) throw invokeError;
+                if (data?.error) throw new Error(data.error);
+
+                const { pdfDataUri, filename } = data;
+
                 if (filename) setPdfFilename(filename);
 
                 if (!pdfDataUri) {
