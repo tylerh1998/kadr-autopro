@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ChartOfAccount } from '@/entities/all';
@@ -41,12 +41,12 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
       if (open && currentUser && bankAccountId) {
         try {
           // Always fetch the latest account data to check lock status
-          const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'filter',
-            table: 'BankAccount',
-            params: { id: bankAccountId }
-          });
-          const account = accountResponse.data?.data?.[0];
+          const { data: accountData, error: accountError } = await supabase
+            .from('BankAccount')
+            .select('*')
+            .eq('id', bankAccountId);
+          if (accountError) throw accountError;
+          const account = accountData?.[0];
           const lockStatus = checkBankAccountLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -56,15 +56,13 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
           }
 
           // Acquire lock
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'update',
-            table: 'BankAccount',
-            id: bankAccountId,
-            data: {
+          await supabase
+            .from('BankAccount')
+            .update({
               locked_by_user: currentUser.email,
               locked_timestamp: new Date().toISOString()
-            }
-          });
+            })
+            .eq('id', bankAccountId);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -121,17 +119,16 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   useEffect(() => {
     if (!open && lockAcquired && currentUser && bankAccountId) {
       // Release lock when modal closes
-      base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: bankAccountId,
-        data: {
+      supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: null,
           locked_timestamp: null
-        }
-      }).catch(error => {
-        console.error('Error releasing lock:', error);
-      });
+        })
+        .eq('id', bankAccountId)
+        .then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
+        });
       setLockAcquired(false);
     }
   }, [open, lockAcquired, currentUser, bankAccountId]);
@@ -226,17 +223,16 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && bankAccountId) {
-      base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: bankAccountId,
-        data: {
+      supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: null,
           locked_timestamp: null
-        }
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
-      });
+        })
+        .eq('id', bankAccountId)
+        .then(({ error }) => {
+          if (error) console.error('Error releasing lock on close:', error);
+        });
       setLockAcquired(false);
     }
     onClose();

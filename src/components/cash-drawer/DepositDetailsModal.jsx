@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { CashDrawerAdjustment, WorkOrder } from '@/entities/all';
+import { WorkOrder } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
@@ -77,8 +77,11 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         const batchPayments = (allPayments || []).filter(p => p.deposit_batch_id === batchId);
 
         // Fetch adjustments for this deposit batch
-        const allAdjustments = await CashDrawerAdjustment.list();
-        const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === batchId);
+        const { data: batchAdjustments, error: adjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .eq('deposit_batch_id', batchId);
+        if (adjustmentsError) throw adjustmentsError;
 
         // Get customer names
         const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
@@ -125,7 +128,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         });
 
         setPayments(enrichedPayments);
-        setAdjustments(batchAdjustments);
+        setAdjustments(batchAdjustments || []);
       } catch (error) {
         console.error('Error loading deposit details:', error);
       } finally {
@@ -164,13 +167,13 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
     // Check if bank account is locked before confirming
     try {
-      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankAccount',
-        params: { id: deposit.bank_account_id }
-      });
-      const account = accountResponse.data?.data?.[0];
-      
+      const { data: accountData, error: accountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', deposit.bank_account_id);
+      if (accountError) throw accountError;
+      const account = accountData?.[0];
+
       // Check if any lock exists that is not expired
       if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');

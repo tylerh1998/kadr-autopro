@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DollarSign, Banknote, Receipt, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { DepositSlipBreakdown } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function DepositSlipBreakdownModal({
   open,
@@ -18,6 +19,7 @@ export default function DepositSlipBreakdownModal({
   onGenerateSlip,
   existingBreakdown,
 }) {
+  const { employee } = useAuth();
   const [cashBreakdown, setCashBreakdown] = useState({
     bills_100: 0,
     bills_50: 0,
@@ -99,7 +101,16 @@ export default function DepositSlipBreakdownModal({
     try {
       // Save breakdown to entity (only if we have a depositBatchId - new deposits)
       if (depositBatchId) {
+        const parsedAccountNumber = Number(selectedBankAccount?.account_number);
+        const currentUser = employee;
+        const creatorName = currentUser?.User_name || currentUser?.full_name || currentUser?.email || currentUser?.id;
+        const nowIso = new Date().toISOString();
         const breakdownData = {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: creatorName,
+          created_by_id: currentUser?.id,
           deposit_batch_id: depositBatchId,
           bank_transaction_id: bankTransactionId || '',
           deposit_date: depositDate,
@@ -107,15 +118,16 @@ export default function DepositSlipBreakdownModal({
           total_cash: calculateCashTotals.total,
           total_cheques: totalCheques,
           deposit_amount: depositAmount,
-          cheques_data: JSON.stringify(cheques.map(c => ({ 
+          cheques_data: JSON.stringify(cheques.map(c => ({
             customerName: c.displayName, // Use displayName which prefers cheque_name
             amount: c.amount,
             cheque_number: c.cheque_number || ''
           }))),
-          bank_account_number: selectedBankAccount?.account_number || '',
+          bank_account_number: Number.isFinite(parsedAccountNumber) ? parsedAccountNumber : null,
           bank_account_name: selectedBankAccount?.name || '',
         };
-        await DepositSlipBreakdown.create(breakdownData);
+        const { error: breakdownError } = await supabase.from('DepositSlipBreakdown').insert(breakdownData);
+        if (breakdownError) throw new Error(breakdownError.message);
       }
 
       // Map cheques to use displayName (cheque_name or customerName) for the slip

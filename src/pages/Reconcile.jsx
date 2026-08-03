@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
-import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -68,13 +68,13 @@ export default function ReconcilePage() {
     const fetchLastRecon = async () => {
       if (!bankAccountId) return;
       try {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankReconciliation',
-          params: { bank_account_id: bankAccountId }
-        });
+        const { data: reconData, error: reconError } = await supabase
+          .from('BankReconciliation')
+          .select('*')
+          .eq('bank_account_id', bankAccountId);
+        if (reconError) throw reconError;
 
-        const lastRecons = (response.data?.data || []).sort((a, b) =>
+        const lastRecons = (reconData || []).sort((a, b) =>
           String(b.period_end_date || '').localeCompare(String(a.period_end_date || ''))
         );
 
@@ -106,21 +106,25 @@ export default function ReconcilePage() {
 
       setLoading(true);
       try {
-        const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankAccount',
-          params: { id: bankAccountId }
-        });
+        const { data: accountData, error: accountError } = await supabase
+          .from('BankAccount')
+          .select('*')
+          .eq('id', bankAccountId);
+        if (accountError) throw accountError;
 
-        const account = accountResponse.data?.data?.[0] || null;
+        const account = accountData?.[0] || null;
         setBankAccount(account);
 
-        const transactionsResponse = await getBankTransactions({
-          bankAccountId,
-          isReconciled: false
+        const { data: txResponse, error: txError } = await supabase.functions.invoke('autopro-getBankTransactions', {
+          body: {
+            bankAccountId,
+            isReconciled: false
+          }
         });
+        if (txError) throw txError;
+        if (txResponse?.error) throw new Error(txResponse.error);
 
-        const accountTransactions = (transactionsResponse.data?.transactions || []).map((tx) => ({
+        const accountTransactions = (txResponse?.transactions || []).map((tx) => ({
           ...tx,
           debit_amount: parseFloat(tx.debit_amount) || 0,
           credit_amount: parseFloat(tx.credit_amount) || 0,
@@ -146,15 +150,13 @@ export default function ReconcilePage() {
     if (!bankAccountId || !currentUser) return;
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: bankAccountId,
-        data: {
+      await supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: null,
           locked_timestamp: null
-        }
-      });
+        })
+        .eq('id', bankAccountId);
     } catch (error) {
       console.error('Error releasing lock:', error);
     }
@@ -285,11 +287,10 @@ export default function ReconcilePage() {
         is_sample: false
       };
 
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'BankReconciliation',
-        data: reconciliationRecord
-      });
+      const { error: reconciliationInsertError } = await supabase
+        .from('BankReconciliation')
+        .insert(reconciliationRecord);
+      if (reconciliationInsertError) throw new Error(reconciliationInsertError.message);
 
       alert('Reconciliation saved successfully!');
       navigate(`${createPageUrl('ReconcileReport')}?id=${reconciliationId}`);

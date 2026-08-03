@@ -85,21 +85,30 @@ export default function CashDrawerPage() {
         console.log('Filtered payments for cash drawer:', paymentsData);
 
         // Load non-deposited adjustments directly
-        const adjustmentsData = await base44.entities.CashDrawerAdjustment.filter({ deposited: false });
+        const { data: adjustmentsData, error: adjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .eq('deposited', false);
+        if (adjustmentsError) console.error('Error loading adjustments for cash drawer:', adjustmentsError);
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
-        // Fetch Bank Accounts via existing backend proxy
-        const bankAccountsResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        });
-        const bankAccountsData = (bankAccountsResponse?.data?.data || []).filter(acc => acc.is_active !== false);
-        
+        // Fetch Bank Accounts directly
+        const { data: rawBankAccountsData, error: bankAccountsError } = await supabase
+          .from('BankAccount')
+          .select('*');
+        if (bankAccountsError) console.error('Error loading bank accounts for cash drawer:', bankAccountsError);
+        const bankAccountsData = (rawBankAccountsData || []).filter(acc => acc.is_active !== false);
+
         // Load recent adjustments (last 10 for the modal history)
-        const recentAdjustments = await base44.entities.CashDrawerAdjustment.list('-created_date', 10);
+        const { data: recentAdjustments, error: recentAdjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .order('created_date', { ascending: false })
+          .limit(10);
+        if (recentAdjustmentsError) console.error('Error loading recent adjustments:', recentAdjustmentsError);
 
         setBankAccounts(bankAccountsData || []);
-        setAdjustments(recentAdjustments);
+        setAdjustments(recentAdjustments || []);
 
         // Initialize cash drawer with both payments and adjustments
         const initialCashDrawer = {};
@@ -139,7 +148,7 @@ export default function CashDrawerPage() {
         });
 
         // Add CashDrawerAdjustments to cash drawer
-        adjustmentsData.forEach(adjustment => {
+        (adjustmentsData || []).forEach(adjustment => {
           const method = adjustment.payment_method;
           if (initialCashDrawer[method]) {
             initialCashDrawer[method].push({
@@ -336,12 +345,17 @@ export default function CashDrawerPage() {
 
       // Update each CashDrawerAdjustment
       for (const item of adjustmentsToDeposit) {
-        await base44.entities.CashDrawerAdjustment.update(item.adjustmentId, {
-          deposited: true,
-          deposit_date: depositData.depositDate,
-          deposit_batch_id: depositBatchId,
-          status: 'deposited'
-        });
+        const { error: adjustmentUpdateError } = await supabase
+          .from('CashDrawerAdjustment')
+          .update({
+            deposited: true,
+            deposit_date: depositData.depositDate,
+            deposit_batch_id: depositBatchId,
+            status: 'deposited',
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', item.adjustmentId);
+        if (adjustmentUpdateError) throw new Error(adjustmentUpdateError.message);
       }
 
       // GL Transactions
@@ -388,10 +402,9 @@ export default function CashDrawerPage() {
 
       const newTransactionId = `btx-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
 
-      const bankTransactionResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'BankTransaction',
-        data: {
+      const { data: bankTransaction, error: bankTransactionError } = await supabase
+        .from('BankTransaction')
+        .insert({
           id: newTransactionId,
           bank_account_id: selectedBankAccount.id,
           transaction_date: depositData.depositDate,
@@ -403,17 +416,13 @@ export default function CashDrawerPage() {
           source_id: depositBatchId,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString()
-        }
-      });
+        })
+        .select()
+        .single();
 
-      const bankTransactionError = bankTransactionResponse?.data?.error;
       if (bankTransactionError) {
-        throw new Error(bankTransactionError);
+        throw new Error(bankTransactionError.message);
       }
-
-      const bankTransaction = Array.isArray(bankTransactionResponse?.data?.data)
-        ? bankTransactionResponse.data.data[0]
-        : bankTransactionResponse?.data?.data;
 
       const hasCashOrCheques = (forDepositItems.cash?.length > 0) || (forDepositItems.cheque?.length > 0);
 
@@ -542,17 +551,30 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(adjustmentGL.id);
 
-      const adjustmentRecord = await base44.entities.CashDrawerAdjustment.create({
-        adjustment_date: adjustmentData.adjustmentDate,
-        amount: adjustedAmount,
-        type: adjustmentData.type,
-        payment_method: adjustmentData.paymentMethod,
-        description: adjustmentData.description,
-        reference: reference,
-        gl_transactions: JSON.stringify(glTransactionIds),
-        status: 'posted_to_gl',
-        deposited: false
-      });
+      const nowIsoAdjustment = new Date().toISOString();
+      const { data: adjustmentRecord, error: adjustmentCreateError } = await supabase
+        .from('CashDrawerAdjustment')
+        .insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          created_date: nowIsoAdjustment,
+          updated_date: nowIsoAdjustment,
+          created_by: creatorName,
+          created_by_id: currentUser.id,
+          adjustment_date: adjustmentData.adjustmentDate,
+          amount: adjustedAmount,
+          type: adjustmentData.type,
+          payment_method: adjustmentData.paymentMethod,
+          description: adjustmentData.description,
+          reference: reference,
+          gl_transactions: JSON.stringify(glTransactionIds),
+          status: 'posted_to_gl',
+          deposited: false
+        })
+        .select()
+        .single();
+      if (adjustmentCreateError) {
+        throw new Error(adjustmentCreateError.message);
+      }
 
       await updateGLTransaction(cashDrawerGL.id, { source_id: adjustmentRecord.id });
       await updateGLTransaction(adjustmentGL.id, { source_id: adjustmentRecord.id });
@@ -602,8 +624,12 @@ export default function CashDrawerPage() {
       const selectedBankAccount = bankAccounts.find(acc => acc.id === deposit.bank_account_id);
       const batchId = deposit.source_id || deposit.reference;
       
-      const existingBreakdowns = await base44.entities.DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
-      const savedBreakdown = existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
+      const { data: existingBreakdowns, error: breakdownError } = await supabase
+        .from('DepositSlipBreakdown')
+        .select('*')
+        .eq('deposit_batch_id', batchId);
+      if (breakdownError) console.error('Error loading deposit slip breakdown:', breakdownError);
+      const savedBreakdown = existingBreakdowns && existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
 
       if (savedBreakdown) {
         let savedCheques = [];
@@ -663,7 +689,11 @@ export default function CashDrawerPage() {
         batchCustomerMap = Object.fromEntries((batchCustomers || []).map(c => [c.id, c]));
       }
       const batchPayments = (rawBatchPayments || []).map(p => ({ ...p, customer: batchCustomerMap[p.customer_id] || null }));
-      const batchAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
+      const { data: batchAdjustments, error: batchAdjustmentsError } = await supabase
+        .from('CashDrawerAdjustment')
+        .select('*')
+        .eq('deposit_batch_id', batchId);
+      if (batchAdjustmentsError) console.error('Error loading batch adjustments:', batchAdjustmentsError);
 
       const reconstructedForDeposit = {};
       paymentMethods.forEach(method => {
@@ -699,7 +729,7 @@ export default function CashDrawerPage() {
         }
       });
 
-      batchAdjustments.forEach(adjustment => {
+      (batchAdjustments || []).forEach(adjustment => {
         const method = adjustment.payment_method;
         if (reconstructedForDeposit[method]) {
           reconstructedForDeposit[method].push({

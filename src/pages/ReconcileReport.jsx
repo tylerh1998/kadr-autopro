@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -46,13 +47,13 @@ export default function ReconcileReportPage() {
   const loadReconciliationData = async () => {
     setLoading(true);
     try {
-      const reconciliationResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankReconciliation',
-        params: { reconciliation_id: reconciliationId }
-      });
+      const { data: reconciliationData, error: reconciliationError } = await supabase
+        .from('BankReconciliation')
+        .select('*')
+        .eq('reconciliation_id', reconciliationId);
+      if (reconciliationError) throw reconciliationError;
 
-      const reconRecord = reconciliationResponse.data?.data?.[0] || null;
+      const reconRecord = reconciliationData?.[0] || null;
 
       if (!reconRecord) {
         alert('No reconciliation record found for this reconciliation');
@@ -63,23 +64,17 @@ export default function ReconcileReportPage() {
       setReconciliationRecord(reconRecord);
       setStartingBalance(parseFloat(reconRecord.starting_balance) || 0);
 
-      const [accountResponse, transactionsResponse] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankAccount',
-          params: { id: reconRecord.bank_account_id }
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankTransaction',
-          params: { reconciliation_id: reconciliationId }
-        })
+      const [accountResult, transactionsResult] = await Promise.all([
+        supabase.from('BankAccount').select('*').eq('id', reconRecord.bank_account_id),
+        supabase.from('BankTransaction').select('*').eq('reconciliation_id', reconciliationId)
       ]);
+      if (accountResult.error) throw accountResult.error;
+      if (transactionsResult.error) throw transactionsResult.error;
 
-      const account = accountResponse.data?.data?.[0] || null;
+      const account = accountResult.data?.[0] || null;
       setBankAccount(account);
 
-      const reconTransactions = (transactionsResponse.data?.data || [])
+      const reconTransactions = (transactionsResult.data || [])
         .map((tx) => ({
           ...tx,
           debit_amount: parseFloat(tx.debit_amount) || 0,

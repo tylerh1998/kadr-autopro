@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { FiscalPeriod } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,17 +23,22 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const [bankTransactionsResponse, fiscalPeriods] = await Promise.all([
-        base44.functions.invoke('getBankTransactions', {
-          sourceType: 'deposit',
-          fromDate: '1900-01-01',
-          sortField: 'transaction_date',
-          sortDirection: 'desc'
+      const [bankTransactionsResult, fiscalPeriods] = await Promise.all([
+        supabase.functions.invoke('autopro-getBankTransactions', {
+          body: {
+            sourceType: 'deposit',
+            fromDate: '1900-01-01',
+            sortField: 'transaction_date',
+            sortDirection: 'desc'
+          }
         }),
         FiscalPeriod.list()
       ]);
 
-      const recentDeposits = bankTransactionsResponse?.data?.transactions || [];
+      if (bankTransactionsResult.error) throw bankTransactionsResult.error;
+      if (bankTransactionsResult.data?.error) throw new Error(bankTransactionsResult.data.error);
+
+      const recentDeposits = bankTransactionsResult.data?.transactions || [];
 
       const depositsWithStatus = recentDeposits.map((dep) => {
         let canReverse = true;
@@ -91,13 +97,13 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const handleReverseDeposit = useCallback(async (depositId, bankAccountId) => {
     // Check if bank account is locked before confirming
     try {
-      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankAccount',
-        params: { id: bankAccountId }
-      });
-      const account = accountResponse.data?.data?.[0];
-      
+      const { data: accountData, error: accountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', bankAccountId);
+      if (accountError) throw accountError;
+      const account = accountData?.[0];
+
       // Check if any lock exists that is not expired
       if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');

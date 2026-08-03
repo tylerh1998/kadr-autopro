@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeftRight, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
 export default function BankTransferModal({ open, onClose, bankAccounts, onSubmit, currentUser }) {
@@ -27,21 +27,19 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getBankAccount = async (accountId) => {
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'filter',
-      table: 'BankAccount',
-      params: { id: accountId }
-    });
-    return response.data?.data?.[0] || null;
+    const { data, error } = await supabase
+      .from('BankAccount')
+      .select('*')
+      .eq('id', accountId);
+    if (error) throw error;
+    return data?.[0] || null;
   };
 
   const updateBankAccount = async (accountId, data) => {
-    await base44.functions.invoke('SupabaseProxy', {
-      action: 'update',
-      table: 'BankAccount',
-      id: accountId,
-      data
-    });
+    await supabase
+      .from('BankAccount')
+      .update(data)
+      .eq('id', accountId);
   };
 
   const releaseLock = async (accountId) => {

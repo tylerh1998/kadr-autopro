@@ -105,7 +105,7 @@ Same rationale as Phase 7: this is real financial/money-movement logic (reconcil
 
 | Sub-phase | Scope | Status | Depends on |
 |---|---|---|---|
-| **8A** | Schema (prod migration for `CashDrawerAdjustment`/`DepositSlipBreakdown`) + transport-layer cutover of all 5 entities across every in-scope file, plus `getBankTransactions`/`calculateBankBalances` ports | [ ] Not Started | None — start here |
+| **8A** | Schema (prod migration for `CashDrawerAdjustment`/`DepositSlipBreakdown`) + transport-layer cutover of all 5 entities across every in-scope file, plus `getBankTransactions`/`calculateBankBalances` ports | [x] Code complete 2026-08-03 — **holding for manual browser verification (user, via `/dev-login`) before marking 8A fully Complete** | None — start here |
 | **8B** | `processBankReconciliation`, `batchReconcileTransactions`, `getReconciliationHistory`, `flushBankLocks` native ports | [ ] Not Started | **8A** (needs `BankTransaction`/`BankReconciliation` on direct calls first) |
 | **8C** | `generateDepositSlipPDF`, `generateDepositDetailReport`, `reverseDeposit` native ports | [ ] Not Started | **8A** (needs `CashDrawerAdjustment`/`DepositSlipBreakdown` schema + direct calls first) |
 
@@ -243,19 +243,23 @@ Both already do their real work via direct Postgres access (no `base44.entities.
 
 ### 8A.4) Verification Checklist
 
-- [ ] Dev branch: confirm `CashDrawerAdjustment`/`DepositSlipBreakdown` schema matches this plan's DDL exactly (already created by user — spot check, don't blindly re-apply the `CREATE TABLE`)
-- [ ] **Dev branch: RLS policy statements applied — CONFIRMED MISSING as of 2026-08-03 (RLS enabled, zero policies, silently blocking all access).** Run this first, before any frontend testing against these tables.
-- [ ] Production: full migration (`CREATE TABLE` + RLS enable + policy) applied, confirmed via `information_schema.columns` AND `pg_policies` (not just column match)
-- [ ] `Bank.jsx`: all `BankAccount`/`BankTransaction` SupabaseProxy calls converted; `createGLTransaction` now a direct insert; `calculateBankBalances` calls hit the new `autopro-calculateBankBalances`; page loads and balances display correctly via `/dev-login`
-- [ ] `CashDrawer.jsx`: `CashDrawerAdjustment`/`DepositSlipBreakdown`/`BankAccount`/`BankTransaction` all converted to direct calls; create/edit/list a throwaway test adjustment, verify in DB
-- [ ] `Reconcile.jsx`: `BankReconciliation`/`BankAccount` converted; `getBankTransactions` calls hit the new native function
-- [ ] `ReconcileReport.jsx`: converted, read-only report still renders correctly
-- [ ] `bank/BankTransactionModal.jsx`, `BankTransferModal.jsx`, `cash-drawer/CashDrawerAdjustmentModal.jsx`, `DepositHistoryModal.jsx`, `DepositModal.jsx`, `DepositSlipBreakdownModal.jsx`, `cash-drawer/DepositDetailsModal.jsx` (`CashDrawerAdjustment`/`BankAccount` portions only) — all converted, code-path smoke tested
-- [ ] New `autopro-getBankTransactions`/`autopro-calculateBankBalances` functions deployed, return `200 + {error}` on failure, verified by direct invocation
-- [ ] Client-generated `id` pattern confirmed working for `CashDrawerAdjustment`/`DepositSlipBreakdown` inserts (no `gen_random_uuid()` default)
-- [ ] `bigint` denomination fields confirmed handling `0`/`null` correctly, not `''` (Section 2 lesson)
-- [ ] Repo-wide grep: zero remaining `SupabaseProxy`/`base44.entities` references for the 5 entities across all 8A-scoped files
-- [ ] Mark **8A: Complete** before starting 8B or 8C
+- [x] Dev branch: confirmed `CashDrawerAdjustment`/`DepositSlipBreakdown` schema matches this plan's DDL exactly (spot-checked via `information_schema.columns`, 2026-08-03)
+- [x] **Dev branch: RLS policy statements applied** — confirmed missing (RLS enabled, zero policies), then applied via migration `cashdrawer_depositslip_rls_policies`/`cashdrawer_depositslip_tables`; `pg_policies` now shows 1 policy per table.
+- [x] Production: full migration (`CREATE TABLE` + RLS enable + policy) applied via `supabase/migrations/20260805000000_cashdrawer_depositslip_tables.sql`; confirmed via `information_schema.tables` (didn't exist before) and `pg_policies` (1 policy per table after)
+- [x] `Bank.jsx`: all `BankAccount`/`BankTransaction` SupabaseProxy calls converted to direct `supabase.from()`; `createGLTransaction` now a direct insert with client-generated id; all 5 `calculateBankBalances` call sites → `autopro-calculateBankBalances`; `getBankTransactions` import/call → `autopro-getBankTransactions`. **Not yet verified in browser** (see hold note below).
+- [x] `CashDrawer.jsx`: `CashDrawerAdjustment`/`DepositSlipBreakdown`/`BankAccount`/`BankTransaction` all converted to direct calls (load, create adjustment, make deposit, reprint slip paths). **Not yet verified in browser.**
+- [x] `Reconcile.jsx`: `BankReconciliation`/`BankAccount` converted; `getBankTransactions` calls → `autopro-getBankTransactions`. **Not yet verified in browser.**
+- [x] `ReconcileReport.jsx`: converted to direct reads. **Not yet verified in browser.**
+- [x] `bank/BankTransactionModal.jsx`, `BankTransferModal.jsx`, `cash-drawer/DepositHistoryModal.jsx`, `DepositModal.jsx`, `DepositSlipBreakdownModal.jsx`, `cash-drawer/DepositDetailsModal.jsx` (`CashDrawerAdjustment`/`BankAccount` portions only) — all converted. (`CashDrawerAdjustmentModal.jsx` had no entity calls to convert — form-only, ChartOfAccount read is Phase 9 territory.) **Not yet smoke-tested in browser.**
+- [x] New `autopro-getBankTransactions`/`autopro-calculateBankBalances` functions deployed to dev and production; both verified by direct `curl` invocation against dev (success path + `200 + {error}` failure path for `calculateBankBalances`'s missing-`bankAccountId` case)
+- [x] Client-generated `id` pattern (`crypto.randomUUID().replace(/-/g,'').substring(0,24)`) applied for every new `CashDrawerAdjustment`/`DepositSlipBreakdown`/`BankAccount`/`BankTransaction`/`GLTransaction`/`BankReconciliation` insert added in this sub-phase
+- [x] `bigint` denomination fields in `DepositSlipBreakdownModal.jsx` already defaulted to `0` (not `''`) in existing form state — no change needed there; additionally fixed `bank_account_number` (bigint) which previously defaulted to `''` — now parses to `Number(...)` or `null`
+- [x] Repo-wide grep: zero remaining `SupabaseProxy`/`base44.entities` references for the 5 entities across all 8A-scoped files (confirmed 2026-08-03)
+- [x] `npx vite build` passes clean with all 8A changes — confirms no syntax errors introduced across the 9 edited files
+- [ ] **HOLD: manual browser verification via `/dev-login`** — user will drive this (webview auto-testing requires manual intervention per user instruction). Covers: Bank page loads/balances, new/edit/delete bank transaction + GL posting, transfer funds (unchanged, see gap note below), cash drawer adjustment + deposit + slip breakdown + reprint, reconcile page load + save reconciliation (note: `batchReconcileTransactions` call itself is still base44-routed, deferred to 8B — reconciliation save will fail end-to-end until 8B lands; can still verify the page loads and lists unreconciled transactions correctly).
+- [ ] Mark **8A: Complete** before starting 8B or 8C (pending the manual verification above)
+
+**Scope gap found during 8A execution (2026-08-03):** `Bank.jsx`'s `handleTransfer` still calls `base44.functions.invoke('transferFunds', transferData)` — a legacy Base44 function (`base44/functions/transferFunds/entry.ts` exists) that was not among the 9 legacy functions enumerated in Section 0.3/1, and not listed in 8A.2's file-by-file target list. Left untouched pending user direction — flagging here rather than silently expanding this sub-phase's scope. Needs a decision: fold into 8A/8B/8C, or add as a 10th tracked function/new sub-phase.
 
 ---
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChartOfAccount } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
-import { getBankTransactions } from '@/functions/getBankTransactions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,22 +71,26 @@ export default function BankPage() {
 
   const createGLTransaction = useCallback(async (transactionData) => {
     const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'create',
-      table: 'GLTransaction',
-      data: {
-        ...transactionData,
+    const nowIso = new Date().toISOString();
+    const { data: record, error } = await supabase
+      .from('GLTransaction')
+      .insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        created_date: nowIso,
+        updated_date: nowIso,
         created_by: userDisplay,
         created_by_id: currentUser?.id,
-        updated_by: userDisplay
-      }
-    });
+        updated_by: userDisplay,
+        ...transactionData
+      })
+      .select()
+      .single();
 
-    if (response.data?.error) {
-      throw new Error(response.data.error);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return response.data?.data?.[0] || null;
+    return record || null;
   }, [currentUser]);
 
   const handleSort = (key) => {
@@ -104,12 +108,10 @@ export default function BankPage() {
   }, [employee]);
 
   const fetchBankAccountsFromSupabase = useCallback(async () => {
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'list',
-      table: 'BankAccount'
-    });
+    const { data, error } = await supabase.from('BankAccount').select('*');
+    if (error) throw new Error(error.message);
 
-    return (response.data?.data || []).filter(acc => acc.is_active !== false);
+    return (data || []).filter(acc => acc.is_active !== false);
   }, []);
 
   // New function to load all initial data, including balance recalculation
@@ -121,8 +123,8 @@ export default function BankPage() {
 
       console.log('Recalculating balances for all bank accounts...');
       const recalculationPromises = activeAccounts.map(account =>
-        base44.functions.invoke('calculateBankBalances', {
-          bankAccountId: account.id
+        supabase.functions.invoke('autopro-calculateBankBalances', {
+          body: { bankAccountId: account.id }
         }).catch(error => {
           console.error(`Failed to recalculate balances for account ${account.name}:`, error);
           return null;
@@ -179,13 +181,17 @@ export default function BankPage() {
         return;
       }
 
-      const response = await getBankTransactions({
-        bankAccountId: selectedAccountId,
-        fromDate: appliedFromDate,
-        toDate: appliedToDate
+      const { data: response, error: getTxError } = await supabase.functions.invoke('autopro-getBankTransactions', {
+        body: {
+          bankAccountId: selectedAccountId,
+          fromDate: appliedFromDate,
+          toDate: appliedToDate
+        }
       });
+      if (getTxError) throw getTxError;
+      if (response?.error) throw new Error(response.error);
 
-      const transactionsData = (response.data?.transactions || []).map(tx => ({
+      const transactionsData = (response?.transactions || []).map(tx => ({
         ...tx,
         debit_amount: parseFloat(tx.debit_amount) || 0,
         credit_amount: parseFloat(tx.credit_amount) || 0,
@@ -287,18 +293,25 @@ export default function BankPage() {
   const handleSaveAccount = async (accountData) => {
     try {
       if (editingAccount && editingAccount.id) {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'BankAccount',
-          id: editingAccount.id,
-          data: accountData
-        });
+        const { error } = await supabase
+          .from('BankAccount')
+          .update({ ...accountData, updated_date: new Date().toISOString() })
+          .eq('id', editingAccount.id);
+        if (error) throw new Error(error.message);
       } else {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'BankAccount',
-          data: accountData
-        });
+        const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase
+          .from('BankAccount')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: currentUser?.id,
+            ...accountData
+          });
+        if (error) throw new Error(error.message);
       }
       setShowEditModal(false);
       setEditingAccount(null);
@@ -316,10 +329,10 @@ export default function BankPage() {
     
     setRefreshing(true);
     try {
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
-      
+
       // Reload accounts to get updated current_balance and last_recalculated_date
       const updatedAccountsData = await fetchBankAccountsFromSupabase();
       const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
@@ -374,33 +387,35 @@ export default function BankPage() {
       if (editingTransaction) {
         // Store old transaction data for GL reversal
         oldTransactionData = { ...editingTransaction };
-        
+
         // Update existing transaction
-        const updateResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'BankTransaction',
-          id: editingTransaction.id,
-          data: transactionData
-        });
-        if (updateResponse.data?.error) {
-          throw new Error(updateResponse.data.error);
+        const { error: updateError } = await supabase
+          .from('BankTransaction')
+          .update({ ...transactionData, updated_date: new Date().toISOString() })
+          .eq('id', editingTransaction.id);
+        if (updateError) {
+          throw new Error(updateError.message);
         }
         savedTransaction = { ...transactionData, id: editingTransaction.id };
       } else {
         // Create new transaction with banktx flag
-        const createResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'BankTransaction',
-          data: {
+        const nowIso = new Date().toISOString();
+        const { data: createdTransaction, error: createError } = await supabase
+          .from('BankTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             ...transactionData,
             bank_account_id: selectedAccountId,
             banktx: true
-          }
-        });
-        if (createResponse.data?.error) {
-          throw new Error(createResponse.data.error);
+          })
+          .select()
+          .single();
+        if (createError) {
+          throw new Error(createError.message);
         }
-        savedTransaction = createResponse.data?.data?.[0] || {
+        savedTransaction = createdTransaction || {
           ...transactionData,
           bank_account_id: selectedAccountId,
           banktx: true
@@ -417,10 +432,10 @@ export default function BankPage() {
         setEditingTransaction(null);
         
         // Trigger balance recalculation even without GL posting for the bank account balance
-        await base44.functions.invoke('calculateBankBalances', {
-          bankAccountId: selectedAccountId
+        await supabase.functions.invoke('autopro-calculateBankBalances', {
+          body: { bankAccountId: selectedAccountId }
         });
-        
+
         loadTransactions();
         return;
       }
@@ -548,8 +563,8 @@ export default function BankPage() {
       }
 
       // Trigger balance recalculation after transaction save
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
 
       setShowTransactionModal(false);
@@ -620,18 +635,17 @@ export default function BankPage() {
         }
       }
 
-      const deleteResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'delete',
-        table: 'BankTransaction',
-        id: transaction.id
-      });
-      if (deleteResponse.data?.error) {
-        throw new Error(deleteResponse.data.error);
+      const { error: deleteError } = await supabase
+        .from('BankTransaction')
+        .delete()
+        .eq('id', transaction.id);
+      if (deleteError) {
+        throw new Error(deleteError.message);
       }
 
       // Trigger balance recalculation
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
 
       setShowTransactionModal(false);
@@ -668,15 +682,13 @@ export default function BankPage() {
       }
 
       // Acquire lock
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: selectedAccountId,
-        data: {
+      await supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: currentUser.email,
           locked_timestamp: new Date().toISOString()
-        }
-      });
+        })
+        .eq('id', selectedAccountId);
 
       // Navigate to reconcile page
       navigate(`${createPageUrl('Reconcile')}?bank_account_id=${selectedAccountId}`);
