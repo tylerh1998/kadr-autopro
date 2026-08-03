@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrder, SystemSettings } from '@/entities/all';
-import { getworkorderdata } from '@/functions/getworkorderdata';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,19 +40,39 @@ export default function InvoiceConversion() {
         console.log('RO Number:', roNumber);
 
         // Fetch work order
-        const workOrderResponse = await getworkorderdata({ ro_number: roNumber });
-        const wo = workOrderResponse?.data?.data;
+        const { data: workOrderData, error: workOrderError } = await supabase
+          .from('WorkOrder')
+          .select('*')
+          .eq('ro_number', roNumber)
+          .limit(1)
+          .maybeSingle();
+        if (workOrderError) console.error('Error fetching WorkOrder:', workOrderError);
+
+        let wo = workOrderData;
         if (!wo) {
           setError(`Work order with RO number ${roNumber} not found.`);
           setLoading(false);
           return;
+        }
+
+        if (wo.customer_id) {
+          const { data: customerData, error: customerError } = await supabase
+            .from('Customer').select('*').eq('id', wo.customer_id).limit(1).maybeSingle();
+          if (customerError) console.error('Error fetching Customer:', customerError);
+          wo = { ...wo, customer_details: customerData };
+        }
+        if (wo.vehicle_id) {
+          const { data: vehicleData, error: vehicleError } = await supabase
+            .from('Vehicle').select('*').eq('id', wo.vehicle_id).limit(1).maybeSingle();
+          if (vehicleError) console.error('Error fetching Vehicle:', vehicleError);
+          wo = { ...wo, vehicle_details: vehicleData };
         }
         console.log('Work Order fetched:', wo);
 
         // Parse line items early and store in state
         let parsedLineItems = [];
         try {
-          parsedLineItems = wo.line_items ? JSON.parse(wo.line_items) : [];
+          parsedLineItems = wo.line_items ? (typeof wo.line_items === 'string' ? JSON.parse(wo.line_items) : wo.line_items) : [];
           console.log('Parsed line items:', parsedLineItems.length);
         } catch (e) {
           console.error('Error parsing line_items:', e);
@@ -103,7 +121,9 @@ export default function InvoiceConversion() {
           
           // Parse and display accounting summary if available
           try {
-            const accountingDetails = JSON.parse(currentWo.accounting_details);
+            const accountingDetails = typeof currentWo.accounting_details === 'string'
+              ? JSON.parse(currentWo.accounting_details)
+              : currentWo.accounting_details;
             const summary = {
               total_transactions: accountingDetails.length,
               message: 'Accounting entries already posted'
@@ -124,7 +144,8 @@ export default function InvoiceConversion() {
 
         // Fetch system settings
         console.log('Fetching system settings');
-        const systemSettingsList = await SystemSettings.list();
+        const { data: systemSettingsList, error: systemSettingsError } = await supabase.from('SystemSettings').select('*');
+        if (systemSettingsError) console.error('Error fetching SystemSettings:', systemSettingsError);
         const systemSettings = systemSettingsList && systemSettingsList.length > 0 ? systemSettingsList[0] : {};
         setWipLegal(systemSettings?.wip_legal || '');
         setDefaultMessage(systemSettings?.default_message || '');
@@ -134,7 +155,7 @@ export default function InvoiceConversion() {
         let payments = [];
         
         try {
-          payments = wo.payments ? JSON.parse(wo.payments) : [];
+          payments = wo.payments ? (typeof wo.payments === 'string' ? JSON.parse(wo.payments) : wo.payments) : [];
           console.log('Parsed payments:', payments.length);
         } catch (e) {
           console.error('Error parsing payments:', e);
@@ -175,14 +196,10 @@ export default function InvoiceConversion() {
           
           // Increment and save next_inv_number
           if (systemSettingsList && systemSettingsList.length > 0) {
-            await SystemSettings.update(systemSettingsList[0].id, {
-              next_inv_number: nextInv + 1
-            });
+            await supabase.from('SystemSettings').update({ next_inv_number: nextInv + 1 }).eq('id', systemSettingsList[0].id);
             console.log('Incremented next_inv_number to:', nextInv + 1);
           } else {
-            await SystemSettings.create({
-              next_inv_number: nextInv + 1
-            });
+            await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_inv_number: nextInv + 1 }]);
             console.log('Created SystemSettings with next_inv_number:', nextInv + 1);
           }
         }

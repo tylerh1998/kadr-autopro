@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { SystemSettings } from '@/entities/all';
 
 export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
 

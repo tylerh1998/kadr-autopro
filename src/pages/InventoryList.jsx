@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { jsPDF } from "jspdf";
-import {
-  SalesClass,
-} from "@/entities/all";
-import { base44 } from "@/api/base44Client";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
-import { inventoryAdd } from "@/functions/inventoryAdd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -62,6 +57,95 @@ import InventoryHistoryModal from "@/components/inventory/InventoryHistoryModal"
 import LocationModal from "@/components/inventory/LocationModal";
 import InventoryTransactionsModal from "@/components/inventory/InventoryTransactionsModal";
 import LocationFilterDialog from "@/components/inventory/LocationFilterDialog";
+
+const ALLOWED_INVENTORY_SORT_FIELDS = new Set([
+  'part_number',
+  'description',
+  'manufacturer',
+  'category',
+  'location',
+  'cost',
+  'selling_price',
+  'quantity_on_hand',
+  'quantity_on_order',
+  'minimum_quantity',
+  'maximum_quantity',
+  'created_date',
+  'updated_date'
+]);
+
+function applyInventoryFilter(query, filter) {
+  if (filter === 'stocked') return query.eq('stocked_item', true);
+  if (filter === 'non-stocked') return query.eq('stocked_item', false);
+  if (filter === 'non-zero') return query.gt('quantity_on_hand', 0);
+  if (filter === 'inventory-count') return query.not('location', 'is', null).neq('location', '');
+  if (filter === 'no-location') return query.or('location.is.null,location.eq.').gt('quantity_on_hand', 0);
+  return query;
+}
+
+async function fetchInventoryRecords({
+  searchTerm,
+  filter,
+  sortBy,
+  sortDirection,
+  includeInactive,
+  limit,
+  offset,
+  locationFrom,
+  locationTo,
+}) {
+  const normalizedSearchTerm = (searchTerm || '').trim();
+  const safeSortBy = ALLOWED_INVENTORY_SORT_FIELDS.has(sortBy) ? sortBy : 'part_number';
+  const ascending = sortDirection !== 'desc';
+  const safeLimit = Math.max(1, limit);
+  const safeOffset = Math.max(0, offset);
+
+  if (normalizedSearchTerm || locationFrom || locationTo) {
+    if (!includeInactive) {
+      const { data, error } = await supabase.rpc('search_inventory_ranked', {
+        p_search_term: normalizedSearchTerm,
+        p_filter: filter,
+        p_sort_by: safeSortBy,
+        p_sort_direction: ascending ? 'asc' : 'desc',
+        p_limit: safeLimit,
+        p_offset: safeOffset,
+        p_location_from: locationFrom || null,
+        p_location_to: locationTo || null,
+      });
+      if (error) throw error;
+      const records = data || [];
+      const totalCount = records.length > 0 ? Number(records[0].total_count || 0) : 0;
+      const cleanedRecords = records.map(({ total_count, match_rank, ...item }) => item);
+      return { records: cleanedRecords, totalCount };
+    }
+
+    let query = supabase
+      .from('InventoryItem')
+      .select('*', { count: 'exact' })
+      .or(`part_number.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%,manufacturer.ilike.%${normalizedSearchTerm}%`);
+    query = applyInventoryFilter(query, filter);
+    if (locationFrom) query = query.gte('location', locationFrom);
+    if (locationTo) query = query.lte('location', locationTo);
+    query = query.order(safeSortBy, { ascending, nullsFirst: false });
+    query = query.range(safeOffset, safeOffset + safeLimit - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { records: data || [], totalCount: count || 0 };
+  }
+
+  let query = supabase.from('InventoryItem').select('*', { count: 'exact' });
+  if (!includeInactive) query = query.eq('is_active', true);
+  query = applyInventoryFilter(query, filter);
+  if (locationFrom) query = query.gte('location', locationFrom);
+  if (locationTo) query = query.lte('location', locationTo);
+  query = query.order(safeSortBy, { ascending, nullsFirst: false });
+  query = query.range(safeOffset, safeOffset + safeLimit - 1);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return { records: data || [], totalCount: count || 0 };
+}
 
 export default function InventoryListPage() {
   const { employee } = useAuth();
@@ -141,36 +225,37 @@ export default function InventoryListPage() {
       const isInventoryCount = filter === 'inventory-count';
       const isUnlimitedView = filter === 'inventory-count' || filter === 'non-zero';
       
-      let response;
+      let records;
+      let totalCount;
       if (isInventoryCount && !activeSearchTerm) {
-        response = await base44.functions.invoke('getPopulatedInventory', {});
+        const { data, error } = await supabase.rpc('get_populated_inventory');
+        if (error) throw error;
+        records = data || [];
+
         // Apply location filter in memory if present
-        if (response?.data?.records) {
-            if (filterLocationFrom || filterLocationTo) {
-                response.data.records = response.data.records.filter(r => {
-                    const loc = r.location || '';
-                    if (filterLocationFrom && loc < filterLocationFrom) return false;
-                    if (filterLocationTo && loc > filterLocationTo) return false;
-                    return true;
-                });
-            }
-        }
-        // Sort the results in memory since the RPC doesn't sort
-        if (response?.data?.records) {
-          const { key, direction } = sortConfig;
-          const sortMultiplier = direction === 'ascending' ? 1 : -1;
-          const sortKey = isInventoryCount && key === 'part_number' ? 'location' : key; // Default sort for inventory count is location
-          
-          response.data.records.sort((a, b) => {
-            const valA = a[sortKey] || '';
-            const valB = b[sortKey] || '';
-            if (valA < valB) return -1 * sortMultiplier;
-            if (valA > valB) return 1 * sortMultiplier;
-            return 0;
+        if (filterLocationFrom || filterLocationTo) {
+          records = records.filter(r => {
+            const loc = r.location || '';
+            if (filterLocationFrom && loc < filterLocationFrom) return false;
+            if (filterLocationTo && loc > filterLocationTo) return false;
+            return true;
           });
         }
+        // Sort the results in memory since the RPC doesn't sort
+        const { key, direction } = sortConfig;
+        const sortMultiplier = direction === 'ascending' ? 1 : -1;
+        const sortKey = isInventoryCount && key === 'part_number' ? 'location' : key; // Default sort for inventory count is location
+
+        records = [...records].sort((a, b) => {
+          const valA = a[sortKey] || '';
+          const valB = b[sortKey] || '';
+          if (valA < valB) return -1 * sortMultiplier;
+          if (valA > valB) return 1 * sortMultiplier;
+          return 0;
+        });
+        totalCount = records.length;
       } else {
-        response = await base44.functions.invoke('searchInventory', {
+        const result = await fetchInventoryRecords({
           searchTerm: activeSearchTerm,
           filter: filter,
           includeInactive: showInactiveInventory,
@@ -181,15 +266,12 @@ export default function InventoryListPage() {
           locationFrom: filterLocationFrom,
           locationTo: filterLocationTo
         });
+        records = result.records;
+        totalCount = result.totalCount;
       }
-      
-      if (response?.data?.records) {
-        setInventory(response.data.records);
-        setTotalCount(response.data.totalCount);
-      } else {
-        setInventory([]);
-        setTotalCount(0);
-      }
+
+      setInventory(records || []);
+      setTotalCount(totalCount || 0);
     } catch (error) {
       console.error("Error fetching inventory:", error);
       setInventory([]);
@@ -210,17 +292,19 @@ export default function InventoryListPage() {
   // Function to load data shared by modals
   const loadSharedData = async () => {
     try {
-      const [suppliersResponse, salesClassesResponse] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier'
-        }),
-        base44.functions.invoke('SupabaseProxy', {}),
-      ]);
-      setSuppliers(suppliersResponse.data?.data || []);
-      setSalesClasses(salesClassesResponse.data?.data || []);
+      const { data, error } = await supabase.from('Supplier').select('*');
+      if (error) throw error;
+      setSuppliers(data || []);
     } catch (error) {
-      console.error("Error fetching shared data for modals:", error);
+      console.error("Error fetching suppliers:", error);
+    }
+
+    try {
+      const { data, error } = await supabase.from('SalesClass').select('*');
+      if (error) throw error;
+      setSalesClasses(data || []);
+    } catch (error) {
+      console.error("Error fetching sales classes:", error);
     }
 
     try {
@@ -303,7 +387,8 @@ export default function InventoryListPage() {
   const handleDelete = async (itemId) => {
     if (confirm("Are you sure you want to delete this inventory item? This cannot be undone.")) {
       try {
-        await base44.functions.invoke('inventoryDelete', { itemId });
+        const { error } = await supabase.from('InventoryItem').delete().eq('id', itemId);
+        if (error) throw error;
         fetchInventory();
       } catch (error) {
         console.error("Error deleting item:", error);
@@ -326,8 +411,20 @@ export default function InventoryListPage() {
 
   const handleAdd = async (itemData) => {
     try {
-      const response = await inventoryAdd({ itemData });
-      const newItem = response.data?.data;
+      const now = new Date().toISOString();
+      const { data: newItem, error } = await supabase
+        .from('InventoryItem')
+        .insert({
+          id: crypto.randomUUID(),
+          ...itemData,
+          created_date: now,
+          updated_date: now,
+          created_by: employee?.email || null,
+          created_by_id: employee?.autopro_user_id || null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
 
       if (newItem?.id) {
         setInventory(prev => [newItem, ...prev]);
@@ -353,8 +450,9 @@ export default function InventoryListPage() {
       const isUnlimitedView = filter === 'inventory-count' || filter === 'non-zero';
       
       if (isInventoryCount && !activeSearchTerm) {
-        const response = await base44.functions.invoke('getPopulatedInventory', {});
-        records = response?.data?.records || [];
+        const { data, error } = await supabase.rpc('get_populated_inventory');
+        if (error) throw error;
+        records = data || [];
         if (filterLocationFrom || filterLocationTo) {
             records = records.filter(r => {
                 const loc = r.location || '';
@@ -364,7 +462,7 @@ export default function InventoryListPage() {
             });
         }
       } else {
-        const response = await base44.functions.invoke('searchInventory', {
+        const result = await fetchInventoryRecords({
           searchTerm: activeSearchTerm,
           filter: filter,
           sortBy: 'location',
@@ -374,7 +472,7 @@ export default function InventoryListPage() {
           locationFrom: filterLocationFrom,
           locationTo: filterLocationTo
         });
-        records = response?.data?.records || [];
+        records = result.records;
       }
 
       // Sort records by location ascending for the report

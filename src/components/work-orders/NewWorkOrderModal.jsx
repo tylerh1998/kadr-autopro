@@ -6,7 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
-import { SystemSettings } from "@/entities/all";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
 import { format } from "date-fns";
@@ -142,20 +141,17 @@ export default function NewWorkOrderModal({
 
   const generateNumbers = async (stage) => {
     // Fetch next RO number from SystemSettings
-    const settings = await SystemSettings.list();
+    const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+    if (settingsError) console.error('Error loading system settings:', settingsError);
     const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-    
+
     const nextRo = systemSettings?.next_ro_number || 1001;
-    
+
     // Increment and save back to SystemSettings
     if (systemSettings) {
-      await SystemSettings.update(systemSettings.id, {
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
     } else {
-      await SystemSettings.create({
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_ro_number: nextRo + 1 }]);
     }
 
     const numbers = {
@@ -208,10 +204,10 @@ export default function NewWorkOrderModal({
       internal_notes: "",
       labor_rate: 120,
       total_amount: 0,
-      line_items: "[]",
+      line_items: [],
       notes_to_customer: "",
       amount_paid: 0,
-      payments: "[]",
+      payments: [],
       approval: 'pending',
       est_date: stage === 'estimate' ? format(new Date(), 'yyyy-MM-dd') : null,
       wo_date: stage === 'work_order' ? format(new Date(), 'yyyy-MM-dd') : null,

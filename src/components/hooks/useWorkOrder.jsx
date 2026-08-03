@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Customer, Vehicle, TagAlong, OtherChargeList } from '@/entities/all';
+import { Customer, Vehicle } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
-import { getworkorderdata } from '@/functions/getworkorderdata';
 
 const parseLineItems = async (itemsString) => {
   if (!itemsString) return [];
   try {
-    const parsed = JSON.parse(itemsString);
+    const parsed = typeof itemsString === 'string' ? JSON.parse(itemsString) : itemsString;
     if (!Array.isArray(parsed)) return [];
     
     // Process each line item and enrich with SupplierInvoiceLine data if needed
@@ -64,7 +63,7 @@ const parseLineItems = async (itemsString) => {
 };
 
 export function useWorkOrder(roNumber, options = {}) {
-  const { useFunctionData = false, lockAction, lockedByUser } = options;
+  const { useFunctionData = false } = options;
   const [workOrder, setWorkOrder] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -85,52 +84,41 @@ export function useWorkOrder(roNumber, options = {}) {
     try {
       const [workOrderResponse, tagAlongsData, otherChargesData] = await Promise.all([
         useFunctionData
-          ? getworkorderdata({
-              ro_number: roNumber,
-              ...(lockAction ? { lockAction } : {}),
-              ...(lockedByUser ? { lockedByUser } : {})
-            })
+          ? supabase.from('WorkOrder').select('*').eq('ro_number', roNumber).limit(1).maybeSingle()
           : base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder', match: { ro_number: roNumber } }).then(res => res.data?.data || []),
         TagAlong.list(),
         OtherChargeList.list(),
       ]);
-      
+
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
 
+      if (useFunctionData && workOrderResponse?.error) {
+        console.error('Error fetching WorkOrder:', workOrderResponse.error);
+      }
+
       const wo = useFunctionData
-        ? (workOrderResponse?.data?.data || null)
+        ? (workOrderResponse?.data || null)
         : (workOrderResponse.length > 0 ? workOrderResponse[0] : null);
 
       if (!wo) {
         throw new Error(`Work Order with RO Number ${roNumber} not found.`);
       }
       setWorkOrder(wo);
-      
+
       // Parse line items with enrichment
       const parsedLineItems = await parseLineItems(wo.line_items);
       setLineItems(parsedLineItems);
 
       if (wo.customer_id && wo.vehicle_id) {
-        let customerData = null;
-        let vehicleData = null;
-        let appointmentsData = [];
-
-        if (useFunctionData) {
-            customerData = wo.customer_details || await Customer.get(wo.customer_id).catch(() => null);
-            vehicleData = wo.vehicle_details || await Vehicle.get(wo.vehicle_id).catch(() => null);
-            const { data } = await supabase.from('Appointment').select('*').eq('work_order_id', wo.id);
-            appointmentsData = data || [];
-        } else {
-            const [customerResult, vehicleResult, appointmentsResult] = await Promise.all([
-              Customer.get(wo.customer_id).catch(() => null),
-              Vehicle.get(wo.vehicle_id).catch(() => null),
-              supabase.from('Appointment').select('*').eq('work_order_id', wo.id),
-            ]);
-            customerData = customerResult;
-            vehicleData = vehicleResult;
-            appointmentsData = appointmentsResult.data || [];
-        }
+        const [customerResult, vehicleResult, appointmentsResult] = await Promise.all([
+          Customer.get(wo.customer_id).catch(() => null),
+          Vehicle.get(wo.vehicle_id).catch(() => null),
+          supabase.from('Appointment').select('*').eq('work_order_id', wo.id),
+        ]);
+        const customerData = customerResult;
+        const vehicleData = vehicleResult;
+        const appointmentsData = appointmentsResult.data || [];
 
         setCustomer(customerData);
         setVehicle(vehicleData);
@@ -153,7 +141,7 @@ export function useWorkOrder(roNumber, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [roNumber, useFunctionData, lockAction, lockedByUser]);
+  }, [roNumber, useFunctionData]);
 
   useEffect(() => {
     fetchData();

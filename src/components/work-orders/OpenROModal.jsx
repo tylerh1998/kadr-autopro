@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Search, FileText, DollarSign, CreditCard } from "lucide-react";
-import { getworkorderlist } from "@/functions/getworkorderlist";
+import { supabase } from "@/lib/supabase";
 
 export default function OpenROModal({ open, onClose }) {
   const [activeTab, setActiveTab] = useState("est_wo");
@@ -105,9 +105,12 @@ export default function OpenROModal({ open, onClose }) {
 
       // Try each search attempt until we find a match
       for (const attempt of searchAttempts) {
-        const response = await getworkorderlist({ match: { [attempt.field]: attempt.value }, limit: 1 });
-        const workOrders = response?.data?.data || [];
-        if (workOrders.length > 0) {
+        const { data: workOrders, error } = await supabase.rpc('search_work_orders', {
+          p_match: { [attempt.field]: attempt.value },
+          p_limit: 1
+        });
+        if (error) console.error('Error searching work orders:', error);
+        if (workOrders && workOrders.length > 0) {
           workOrder = workOrders[0];
           console.log(`Found match with ${attempt.field}: ${attempt.value}`);
           break;

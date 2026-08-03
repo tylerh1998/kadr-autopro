@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { useAuth } from '@/lib/AuthContext';
-import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
-import { SystemSettings } from "@/entities/SystemSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,9 +12,7 @@ import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, Refres
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getworkorderlist } from "@/functions/getworkorderlist";
 import { getNotesBoardData } from "@/functions/getNotesBoardData";
-import { createworkorderdata } from "@/functions/createworkorderdata";
 import { supabase } from "@/lib/supabase";
 
 // Reuse your existing helper that already has the Supabase credentials configured!
@@ -133,8 +129,9 @@ export default function WorkOrdersPage() {
 
   const loadWorkOrderStatuses = async () => {
     try {
-      const statuses = await WorkOrderStatus.filter({ is_active: true });
-      const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      const { data: statuses, error: statusesError } = await supabase.from('WorkOrderStatus').select('*').eq('is_active', true);
+      if (statusesError) throw statusesError;
+      const sortedStatuses = (statuses || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
       setWorkOrderStatuses(sortedStatuses);
     } catch (error) {
       console.error('Error loading work order statuses:', error);
@@ -211,27 +208,30 @@ export default function WorkOrdersPage() {
       const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
       const [generalResponse, invoicePageResponse, notesResponse] = await Promise.all([
-        getworkorderlist({}),
-        getworkorderlist({
-          orMatch: 'stage.eq.invoice,stage.eq.credit_invoice',
-          sort: invoicesSort,
-          limit: INVOICES_PER_PAGE,
-          offset: invoiceOffset,
-          searchTerm: debouncedSearchTerm.trim()
+        supabase.rpc('search_work_orders', {}),
+        supabase.rpc('search_work_orders', {
+          p_stages: ['invoice', 'credit_invoice'],
+          p_sort: invoicesSort,
+          p_limit: INVOICES_PER_PAGE,
+          p_offset: invoiceOffset,
+          p_search_term: debouncedSearchTerm.trim()
         }),
         getNotesBoardData({
           searchTerm: debouncedSearchTerm.trim()
         })
       ]);
 
-      const generalWorkOrders = (generalResponse?.data?.data || []).filter(
+      if (generalResponse.error) console.error('Error fetching work orders:', generalResponse.error);
+      if (invoicePageResponse.error) console.error('Error fetching invoice work orders:', invoicePageResponse.error);
+
+      const generalWorkOrders = (generalResponse?.data || []).filter(
         wo => wo.stage !== 'invoice' && wo.stage !== 'credit_invoice'
       );
-      const invoicePageData = invoicePageResponse?.data?.data || [];
+      const invoicePageData = invoicePageResponse?.data || [];
       const mergedWorkOrders = [...generalWorkOrders, ...invoicePageData];
 
       setInvoicePageData(invoicePageData);
-      setInvoiceTotalCount(invoicePageResponse?.data?.totalCount || 0);
+      setInvoiceTotalCount(invoicePageData?.[0]?.total_count || 0);
       setWorkOrders(mergedWorkOrders);
       setNoteCards(notesResponse?.data?.data || []);
       
@@ -809,11 +809,24 @@ export default function WorkOrdersPage() {
   const handleCreateNewWorkOrder = async (workOrderData) => {
     try {
       console.log('Creating work order with data:', workOrderData);
-      
-      const response = await createworkorderdata({ data: workOrderData });
-      const createdWorkOrder = response.data?.data;
+
+      if (!workOrderData.ro_number || !workOrderData.customer_id || !workOrderData.vehicle_id) {
+        throw new Error('ro_number, customer_id, and vehicle_id are required');
+      }
+
+      const { data: createdWorkOrder, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...workOrderData,
+          created_date: new Date().toISOString(),
+          created_by: currentUser?.email || null,
+        }])
+        .select('*')
+        .single();
+      if (createError) throw createError;
       console.log('Created work order:', createdWorkOrder);
-      
+
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
         throw new Error('Work order creation failed - no RO number returned');
       }
@@ -888,20 +901,17 @@ export default function WorkOrdersPage() {
       const counterSaleVehicleId = '69562a182efce2529204db01';
       
       // Fetch next RO number from SystemSettings
-      const settings = await SystemSettings.list();
+      const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+      if (settingsError) console.error('Error loading system settings:', settingsError);
       const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-      
+
       const nextRo = systemSettings?.next_ro_number || 1001;
-      
+
       // Increment and save back to SystemSettings
       if (systemSettings) {
-        await SystemSettings.update(systemSettings.id, {
-          next_ro_number: nextRo + 1
-        });
+        await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
       } else {
-        await SystemSettings.create({
-          next_ro_number: nextRo + 1
-        });
+        await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_ro_number: nextRo + 1 }]);
       }
       
       const cp_id = generateRandomString(10);
@@ -933,18 +943,27 @@ export default function WorkOrdersPage() {
         total_amount: 0,
         scheduled_date: "",
         technician: "",
-        line_items: JSON.stringify(counterSaleDefaultLineItems),
+        line_items: counterSaleDefaultLineItems,
         notes_to_customer: "",
         amount_paid: 0,
-        payments: JSON.stringify([])
+        payments: []
       };
-      
+
       console.log('Creating counter sale work order with data:', newWorkOrder);
-      
-      const response = await createworkorderdata({ data: newWorkOrder });
-      const createdWorkOrder = response.data?.data;
+
+      const { data: createdWorkOrder, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...newWorkOrder,
+          created_date: new Date().toISOString(),
+          created_by: currentUser?.email || null,
+        }])
+        .select('*')
+        .single();
+      if (createError) throw createError;
       console.log('Created counter sale work order:', createdWorkOrder);
-      
+
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
         throw new Error('Counter sale work order creation failed - no RO number returned');
       }

@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, SystemSettings, WorkOrderStatus } from '@/entities/all';
 import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
@@ -326,7 +325,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Parse existing payments for the modal
   const existingPayments = React.useMemo(() => {
     try {
-      return workOrder?.payments ? JSON.parse(workOrder.payments) : [];
+      return workOrder?.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
     } catch (error) {
       console.warn('Failed to parse workOrder.payments:', error);
       return [];
@@ -460,7 +459,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const settings = await SystemSettings.list();
+        const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+        if (settingsError) console.error('Error loading system settings:', settingsError);
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
@@ -482,8 +482,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     const loadWorkOrderStatuses = async () => {
       try {
-        const statuses = await WorkOrderStatus.filter({ is_active: true });
-        const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        const { data: statuses, error: statusesError } = await supabase.from('WorkOrderStatus').select('*').eq('is_active', true);
+        if (statusesError) throw statusesError;
+        const sortedStatuses = (statuses || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         setWorkOrderStatuses(sortedStatuses);
       } catch (error) {
         console.error('Error loading work order statuses:', error);
@@ -507,7 +508,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(workOrder.id);
+        const freshWorkOrder = workOrder;
         if (!freshWorkOrder) {
           setLockError('Work order data is missing.');
           setLockCheckComplete(true);
@@ -628,7 +629,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
+        const freshWorkOrder = workOrder;
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
           const { error: lockError } = await supabase.rpc('set_workorder_lock', {
@@ -718,7 +719,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -749,7 +750,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -877,7 +878,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -921,7 +922,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -1172,7 +1173,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
     let parsedPayments = [];
     try {
-      parsedPayments = workOrder?.payments ? JSON.parse(workOrder.payments) : [];
+      parsedPayments = workOrder?.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
     } catch (error) {
       parsedPayments = [];
     }
@@ -1181,14 +1182,16 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       .map((payment) => payment?.id)
       .filter(Boolean);
 
-    const response = await base44.functions.invoke('changeWorkOrderCustomer', {
-      workOrderId: workOrder.id,
-      newCustomerId: nextCustomer.id,
-      paymentIds,
+    const { data: response, error: changeCustomerError } = await supabase.functions.invoke('autopro-changeWorkOrderCustomer', {
+      body: {
+        workOrderId: workOrder.id,
+        newCustomerId: nextCustomer.id,
+        paymentIds,
+      }
     });
 
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || 'Failed to change customer.');
+    if (changeCustomerError || !response?.success) {
+      throw new Error(response?.error || changeCustomerError?.message || 'Failed to change customer.');
     }
 
     await refetchWorkOrder();
