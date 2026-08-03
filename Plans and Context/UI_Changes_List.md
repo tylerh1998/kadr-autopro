@@ -3,3 +3,4 @@
 - [ ] Inventory List page: Category option is overflowing - figure out what we'll do to reorganize. 
 - [ ] WorkOrderForm/LineItemsTable: The "Get Part" option in context menu doesn't allow the user to search. 
 - [ ] GLTransaction boxes? Other Charge modal
+  Combobox needs more logic: Autofill with prepopulated data, easier to select accounts with keyboard, enter is select an account, tab to the next field. Instant click - opens the account search. 

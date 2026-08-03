@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, AlertCircle, BookCheck, BookOpen } from 'lucide-react';
@@ -29,25 +29,30 @@ export default function ChequeWriter() {
         setChequeReference(ref);
         console.log('ChequeWriter: Loading cheque for reference:', ref);
 
-        const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierPayment',
-          match: { cheque_number: String(ref) }
-        });
-        const payment = paymentResponse.data?.data?.[0];
+        const { data: paymentMatches } = await supabase
+          .from('SupplierPayment')
+          .select('*')
+          .eq('cheque_number', String(ref));
+        const payment = paymentMatches?.[0];
 
         if (payment?.supplier_id) {
           setSupplierId(payment.supplier_id);
         }
 
-        const response = await base44.functions.invoke('generateChequePDF', {
-          chequeReference: ref
+        const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateChequePDF', {
+          body: { chequeReference: ref }
         });
 
-        console.log('ChequeWriter: PDF generation response:', response);
+        console.log('ChequeWriter: PDF generation response:', { data, invokeError });
 
-        if (response.data) {
-          const blob = new Blob([response.data], { type: 'application/pdf' });
+        if (invokeError) {
+          setError(invokeError.message || 'Failed to generate PDF');
+          setLoading(false);
+        } else if (data?.error) {
+          setError(data.error);
+          setLoading(false);
+        } else if (data) {
+          const blob = new Blob([data], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           setPdfUrl(url);
           setLoading(false);
