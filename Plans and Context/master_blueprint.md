@@ -1,6 +1,6 @@
 # Master Blueprint: Base44 Deprecation
 
-**Status:** APPROVED — Phase 1 & 2 Tested and complete; Phase 3 up next
+**Status:** APPROVED — Phase 1, 2, 3 & 4 Tested and complete; Phase 5 up next
 **Prepared:** 2026-08-02 (v1), revised 2026-08-02 (v2, v3, v4, v5)
 **Baseline commit:** `4ba05162` (development branch)
 
@@ -44,43 +44,6 @@ See `Plans and Context/phase_1_dev_environment_parity_plan.md` for the full, val
 - **Confirmed Base44-only entities** → need actual Postgres schema design (mirroring the `base44/entities/*.jsonc` definitions, following the FK/timestamp/default patterns established in `appointment_implementation_plan.md`) before any CRUD migration can happen.
 - **Confirmed dead/failed features** → delete outright, don't migrate (Kanban board, PartsTech/Online Ordering).
 
-**Architecture shift (plain-text diagram):**
-
-```
-BEFORE
-------
-React Frontend
-   |
-   |-- base44.functions.invoke('SupabaseProxy', ...) ---------> base44-proxy (Edge Fn) --> Base44 SaaS --> Postgres
-   |        122 calls / 51 files, generic CRUD shim
-   |
-   |-- base44.functions.invoke('supabaseCustomer' etc.) -------> base44-proxy (Edge Fn) --> Base44 SaaS
-   |        ~35 dedicated proxy functions                            (these ones just forward to Postgres
-   |                                                                   with a service key -- data is already yours)
-   |
-   |-- base44.entities.X  (13 sites / 12 files) ----------------> Base44 SaaS's OWN database (confirmed:
-   |                                                                17 of these entities have NO Postgres
-   |                                                                table yet -- real migration required)
-   |
-   |-- base44.auth.me() / updateMe()  (27 sites) ----------------> Base44 SaaS auth
-   |
-   `-- supabase.functions.invoke('autopro-*')  (12 fns, already migrated) --> Postgres  [already native]
-
-AFTER (target end state)
--------------------------
-React Frontend
-   |
-   |-- supabase.auth.getUser()  ----------------------------------> Supabase Auth
-   |-- supabase.functions.invoke('autopro-*')  (complex logic) ---> autopro-* Edge Functions --> Postgres
-   `-- supabase.from(...) direct  (thin CRUD, RLS-guarded) --------> Postgres directly
-
-   base44Client.js, base44-proxy Edge Fn, base44/ directory,
-   @base44/sdk, @base44/vite-plugin  ==>  ALL DELETED
-
-   PartsTech/Online Ordering feature (edge functions, browser
-   extension, Electron cart-scraping bridge, PartsTechCart table)  ==>  ALL DELETED (failed experiment)
-```
-
 **Goals:**
 1. Zero remaining `base44.*` imports anywhere in `src/`.
 2. Zero remaining `base44/functions/*` and `base44/entities/*` files still receiving live traffic — delete the tree once confirmed dark.
@@ -100,7 +63,7 @@ React Frontend
 - 17 native `autopro-*` Edge Functions built and wired for inventory receiving/adjustment/merging/returns, WO save, GL posting (`autopro-handleInvoiceConversionGL`, `autopro-handleSupplierInvoiceLineGL`), PartsTech integration, and OCR.
 - **Customer, Vehicle, and GLTransaction are fully migrated to native Postgres** — schema, data, and backend side done. Frontend call sites still route through Base44 proxy functions for these (Phase 5).
 - **WorkPRO's entire database** (Project, ProjectTimeSession, TimeRecord, UnassignedTime, Employee, and related tables) is **fully native in the same Supabase project**, with zero live Base44 data remaining for it. AutoPRO's remaining `workProProxy` calls are legacy transport only, not a real data dependency (Phase 4).
-- **Hybrid/in-progress**: Appointment (table exists, an existing separate implementation plan — `appointment_implementation_plan.md` — governs its transition; see Phase 12), ChartOfAccount (table + data migrated, CRUD not fully cut over — low-urgency since it's a low-change-frequency table), InventoryCategory, InventoryLocation, InventoryReturn, FiscalPeriod (all similarly hybrid).
+- **Hybrid/in-progress**: Appointment (table exists, an existing separate implementation plan — `appointment_implementation_plan.md` — governs its transition; see Phase 12), ChartOfAccount (table + data migrated, CRUD not fully cut over — low-urgency since it's a low-change-frequency table), InventoryReturn, FiscalPeriod (all similarly hybrid).
 - A local Electron Desktop App (`electron/main.js`, `electron/preload.cjs`) loading the production site — independent of the Base44 data layer, kept for its PWA-adjacent shell value.
 - `WorkPro.jsx` standalone page removed (commit `a0d3ed6`) — UI-level cleanup only; the underlying `workProProxy` calls were untouched (addressed in Phase 4).
 - The Kanban board view of Work Orders (`KanbanBoard.jsx`) is confirmed no longer in use — to be deleted, not migrated (Phase 13).
@@ -234,13 +197,19 @@ Tier F — Final
 
 ---
 
-### Phase 3 — Auth Centralization + User→Employee Settings Migration [Pending]
+### Phase 3 — Auth Centralization + User→Employee Settings Migration [Tested]
 
-**TL;DR:** Replace ~27 scattered `base44.auth.me()`/`updateMe()` call sites with a Supabase-auth-backed hook, and migrate stored user preferences off the Base44 `User` entity onto the (already-native) `Employee` table.
+**TL;DR:** Replaced all 35 `base44.auth.*`/`@/entities/User` call sites with `AuthContext`'s `employee` (backed by Supabase Auth + the native `Employee` table), added `updateEmployeePrefs()` for writes, and added the 4 new `Employee` preference columns to both dev and production.
 
-**Impacted files:** `src/Layout.jsx`, `src/lib/PageNotFound.jsx`, and ~24 other pages/components (Customers, Vehicles, Bank, CashDrawer, InventoryList, LinesOfCredit, Payroll, Suppliers, SupplierTx, Reconcile, Taxes, AppointmentForm, NewCustomerModal, NewVehicleModal, TechTimeModal, and others).
+**Full plan:** `Plans and Context/phase_3_implementation_plan.md` (source of truth — full 35-call-site inventory, field census, and verification checklist).
 
-**Description:** Build a `useCurrentUser()` hook backed by `supabase.auth.getUser()`/`getSession()`. Identify the specific preference fields currently on the Base44 `User` entity (dark mode, "open in new window," `wo_cards`, set via `base44.auth.updateMe()` in `Layout.jsx`), add equivalent storage on `Employee`, one-time migrate each active user's current values, then repoint reads/writes.
+**Impacted files:** `src/lib/AuthContext.jsx` (extended with `employee` + `updateEmployeePrefs`), `src/Layout.jsx` (full field census applied — `role`→`admin`, `AcctsPayAccess`→`accts_pay_access`, `access_level`→`autopro_access_lvl`, WorkPRO lookups fed from `employee.autopro_user_id`/`employee.email`, initials derived client-side, avatar photo dropped), plus ~24 other pages/components. `src/components/ProtectedRoute.jsx` deleted (confirmed dead).
+
+**Verification outcome:** All 6 previously-outstanding manual checklist items now confirmed — dark mode toggle, `paypro_user` payroll gating, avatar initials, executive Accounting menu (`autopro_access_lvl === 'lvl3_user'`), and AP-only Accounting menu (`accts_pay_access`) all verified working end-to-end via the dev-branch login mechanism built specifically to unblock this (see Section 7 lessons below). WorkPRO clock-in/out is explicitly **not** verifiable this way and is confirmed **Phase 4's responsibility**, not a Phase 3 gap — see Section 7.
+
+**Two real bugs found and fixed during this verification pass, both outside the original 35-site inventory:**
+1. `Layout.jsx` had two leftover `currentUser={user}` references (`FindPartModal`/`ReportModal` props) where `user` was never defined in scope — should have been `employee`. A genuine runtime `ReferenceError` on every render, invisible to `npm run build` (see Section 7 lesson on build-clean vs. runtime-clean). Fixed (commit `53387770`).
+2. `AuthContext.jsx`'s `Employee` fetch discarded the Supabase `error` entirely, silently degrading to "no employee" on any failure with zero trace. Added `console.error` logging (additive only, no behavior change).
 
 ---
 
@@ -260,7 +229,7 @@ Tier F — Final
 
 **Impacted files/functions:** `base44.functions.invoke('supabaseCustomer'|'supabaseVehicle'|'supabaseCustomerPayments'|'supabaseWorkOrder', ...)` (~34 call sites) in `AppointmentForm.jsx`, `CustomerForm.jsx`, `DocumentEditor.jsx`, `Schedule.jsx`, `EditApptViaWoModal.jsx`, `CashDrawer.jsx`, `CustomerARTransactions.jsx`, `Customers.jsx`, `NewVehicleModal.jsx`, `DepositDetailsModal.jsx`, `InvoicePaymentModal.jsx`; `searchCustomers`, `mergeCustomers`, `searchVehicles`, `mergeVehicles`, `decodeVin`; the stray `base44.entities.WorkOrder` direct-CRUD call in `WorkOrderProfitability.jsx`.
 
-**Description:** Per the thin-proxy policy, replace each with a direct `supabase.from()` call (with RLS) unless the logic is non-trivial (`decodeVin` may stay function-backed if it calls a third-party VIN API — confirm during detailed planning).
+**Description:** Per the thin-proxy policy, replace each with a direct `supabase.from()` call (with RLS) unless the logic is non-trivial (`decodeVin` may stay function-backed if it calls a third-party VIN API — confirm during detailed planning). If you feel it is more efficient to do this in sub-phases, you can draft the phase implementation plan to include sub-phases under 
 
 ---
 
@@ -358,6 +327,8 @@ Tier F — Final
 
 ## 6) Verification Plan
 
+You can use the webview accessing the dev-login with the Test Employee. Username/email: test@kensauto.ca and Password: Test123. This only accesses the test database (development branch of supabase) so I am ok with including those credentials here.
+
 | Phase | Verification Criteria |
 |---|---|
 | 1 | Dev branch schema matches production; a smoke-test write in dev never touches prod; all Edge Functions + secrets present and callable on the branch; static reference tables seeded and correct. |
@@ -404,3 +375,13 @@ Tier F — Final
 - **2026-08-03 (Phase 2 execution):** When editing a file for one specific removal (e.g. `Setup.jsx`'s PartsTech button), check whether any icon/import it uses is shared with unrelated code nearby before touching the import line — `Download` from `lucide-react` was also used by a neighboring, unrelated button. Verified via grep before editing; left the import alone.
 - **2026-08-03 (Phase 2 execution, project context for later phases):** The "Quoted (Not Ordered)" badge in `LineItemsTable.jsx` (~line 542) was intentionally left in place, not removed alongside the PartsTech context-menu items it used to pair with — user has a **future implementation** planned for it that will key off a `qtyquoted` value in the line item's JSON instead of the current `not_ordered` boolean. Relevant context for whoever scopes Phase 13 (Work Orders Core), since that phase will also be in this file.
 - **2026-08-03 (Phase 2 execution):** `Google-Contacts-Sync` (the untracked edge function tied to the hardcoded-JWT trigger from Phase 1's findings, see Section 0 item 5) is still live and unaddressed — re-confirmed via `list_edge_functions` during Phase 2's verification pass. Still an open, unscoped item, not part of any phase yet.
+- **2026-08-03 (Phase 3 verification, major structural finding):** **Supabase branches have a fully independent Auth service from their parent project — separate JWT signing keys, separate `auth.users` — confirmed by direct testing, not documentation alone.** A session issued by production's SSO login (`my.kensauto.ca`, `alg: ES256`) is rejected outright by the dev branch's own PostgREST (`PGRST301: No suitable key was found to decode the JWT`) when calling a direct `supabase.from()` table. This is the mechanism behind the already-known "Section 0 item 5 / Risk #14" finding, now proven at the JWT level rather than inferred from empty tables. **It cuts both directions**: a session issued *by* the dev branch (via a native `auth.users` account created directly on the branch) is equally rejected by `base44-proxy` — confirmed by reading its source: the function is deployed on production, uses production's own `SUPABASE_URL`/`SUPABASE_ANON_KEY` to call `supabase.auth.getUser(token)`, and separately looks up `Employee.autopro_user_id` in **production's** `Employee` table — so it can only ever authenticate a production-issued session, never a dev-branch one, regardless of any frontend env var. **Standing implication for every remaining phase:** there is no session that can authenticate against both a Supabase branch's own tables *and* `base44-proxy` at the same time. Testing an already-migrated direct-`supabase.from()` feature needs a dev-branch-native session; testing anything still `base44.*`-routed needs a production session — these are two different logins, not two settings on one login.
+- **2026-08-03 (Phase 3 verification):** Built a standing workaround for the above: a flag-gated `/dev-login` route (`src/lib/DevLogin.jsx`, gated by `VITE_ENABLE_DEV_LOGIN`, set only in the environment scope that already carries the dev-branch `VITE_SUPABASE_URL`) that calls `supabase.auth.signInWithPassword()` directly against whatever project the build is configured for, bypassing the `my.kensauto.ca` SSO redirect entirely. Paired with linking the dev branch's own `Employee` row to a native `auth.users` account created directly on that branch (not mirrored from production). **Scope of what this actually unblocks: only already-migrated, direct-`supabase.from()` features** (exactly Phase 3's scope) — it does not and cannot make `base44.*`-routed features (the majority of the app, pre-migration) work, since those still require a production session per the finding above. Confirmed live during Phase 3 verification: `SalesClass`/`ChartOfAccount`/WorkPRO clock-in all correctly failed under the dev-login session, for this exact reason, not due to any new bug. **This route is reusable, standing test infrastructure — every future phase's manual verification should use it** for whatever that phase migrates, and its value only grows as more of the app moves off `base44.*`.
+- **2026-08-03 (Phase 3 verification):** `npm run build` succeeding does **not** guarantee no runtime errors — a bare, undefined JS identifier reference (`currentUser={user}` where `user` was never declared) passed Vite/esbuild's build step cleanly because bundlers check syntax, not variable scope; the `ReferenceError` only threw at actual render time in a browser. Phase 3's own checklist listed "`npm run build` clean" as a checkbox, which was necessary but not sufficient — future phases' verification plans should treat a clean build as confirming no syntax/import errors only, never as a substitute for actually exercising the changed UI.
+- **2026-08-03 (Phase 3 verification):** Distinguish **data bugs** from **code bugs** when a migrated field-gated feature doesn't work as expected. The executive Accounting menu appeared broken (`autopro_access_lvl === 'lvl3_user'` gate never matching) — the code was correct throughout; the dev branch's hand-entered test value was the string `'lvl3'`, not the full `'lvl3_user'` enum value the app (and the original `base44/entities/User.jsonc` schema) actually uses. When manually seeding test data for any field that mirrors a former Base44 entity's enum, check the original `base44/entities/*.jsonc` definition for the exact string values first, rather than assuming a shorthand will match.
+- **2026-08-03 (Phase 3 verification, silent-failure pattern, echoes the Phase 1 entry above):** `AuthContext.jsx`'s `Employee` fetch discarded its Supabase `error` entirely (`const { data } = await supabase.from(...)`), so any failure — wrong project, RLS denial, network issue — silently produced the same "no employee" UI state as a legitimately-missing row, with zero console trace. This is what made the original nav-bar symptom take real investigation instead of a five-second console check. Added logging (additive only). **General rule going forward: any Supabase call whose failure mode degrades to a plausible-looking "empty" UI state should log its `error`, not just its `data`** — silent degradation is far more expensive to debug than a console line.
+- **2026-08-03 (Phase 4 planning):** **Audit fields don't populate themselves once a server-side proxy is removed.** `workProProxy`'s server function auto-filled `created_date`/`created_by`/`created_by_id` on every `create` call server-side. Confirmed via `information_schema` that `TimeRecord`/`Project`/`ProjectTimeSession`/`UnassignedTime` have **no column defaults** on `id`, `created_date`, or `updated_date`, and **no triggers at all** on any of the 5 WorkPRO-adjacent tables. Any phase that replaces a proxy/function layer with a direct `supabase.from()` call must explicitly carry forward whatever audit-field population that layer used to do for free — don't assume a migrated table will "just work" the same way; check `information_schema.columns` (defaults) and `information_schema.triggers` for the target table before writing the new insert/update, and set every audit field the old path used to set. General rule for every future phase, not just this one.
+- **2026-08-03 (Phase 4 planning):** **A component appearing in a prior phase's field-census/checklist doesn't mean it's actually reachable.** `TimeRecordsView.jsx` had its Phase 3 field mapping dutifully fixed (per that phase's checklist) and still shipped with one leftover stale reference (`access_level` instead of `autopro_access_lvl`) — turns out the whole component has zero importers anywhere in `src/`, not even `pages.config.js`. Nobody could have hit that bug because nobody can reach the component at all. Before fixing a bug *or* migrating a call site inside a component, grep for who actually renders it — orphaned components should be surfaced as a "delete or wire up?" question, not silently fixed/migrated as if they were live.
+- **2026-08-03 (Phase 4 planning, standing rule for every remaining phase):** **Leave the `base44/` source directory and any still-live Base44-platform deployments alone until Phase 14, even once a phase fully stops calling into them.** Confirmed with the user: individual phases should migrate call sites onto native replacements and stop *calling* `base44.*`, but should not delete anything under `base44/functions/`, `base44/entities/`, or de-provision anything on Base44's own platform as they go — that full sweep is reserved for Phase 14 specifically so there's one confirmed go/no-go gate (a repo-wide `base44` grep returning zero live call sites) before anything is actually stripped, rather than piecemeal deletions whose safety gets harder to re-verify later. This does **not** apply to already-native `supabase/functions/autopro-*` functions this migration itself created and later finds redundant (e.g. Phase 4 deleting its own now-unused `autopro-getProjectTimeSessions`) — those are fair game to delete immediately once confirmed dark; the hold is specifically on the legacy `base44/` tree and Base44's own hosted platform.
+- **2026-08-03 (Phase 4 planning):** **A deployed, `ACTIVE` Edge Function is not proof it's ever been successfully called.** `supabase/functions/autopro-getProjectTimeSessions` is live on production (`list_edge_functions` confirms `status: ACTIVE`) but has zero real frontend callers — a prior attempt to wire it into `TechTimeModal.jsx` apparently didn't work, and was quietly replaced with a direct `supabase.from('ProjectTimeSession')` call instead (which does work, and is already the Phase-4-desired end state for this exact case). Check actual call sites (grep the frontend), not just deployment status, before assuming a native-looking function is the thing actually running — and when a direct-call workaround already exists and already satisfies the migration policy, deleting the unused function is very likely simpler than debugging it back to life.
+- **2026-08-03 (Phase 3 verification, direct input for Phase 4):** Read `base44/functions/workProProxy/entry.ts` in full while diagnosing the WorkPRO clock button. It's not a simple proxy — it's a **Base44-hosted** Deno function (runs on Base44's own infrastructure, not a Supabase Edge Function) that itself calls `base44.auth.me()` for identity, then opens its **own** separate Supabase client using Base44-platform-specific secrets (`Supabase_project_url`/`Supabase_Secret_Key`, distinct naming from Supabase's own auto-injected vars) with the **service role key**, bypassing RLS entirely, to do generic `supabase.from(table)` CRUD. Confirmed real hop chain for every WorkPRO call today: Frontend → `base44` SDK → `base44-proxy` (Supabase Edge Fn, production-only per the finding above) → Base44 SaaS → this Base44-hosted function → Postgres (service role, target project unconfirmed but almost certainly hardcoded, not branch-aware). Direct relevance for Phase 4: the underlying tables (`Employee`, `TimeRecord`, `Project`, etc.) are already native and RLS-capable — the entire multi-hop chain exists only for historical reasons and can likely collapse to a single `supabase.from()` call per site, exactly as Phase 4 already proposed, now with the mechanism confirmed rather than assumed.

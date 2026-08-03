@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { 
   FileText, 
@@ -97,20 +98,6 @@ function LayoutContent({ children, currentPageName }) {
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
 
-  const sbCall = async (method, entityName, params = {}) => {
-    const response = await base44.functions.invoke('workProProxy', {
-      entityName,
-      method,
-      ...params,
-    });
-
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || `Failed ${method} on ${entityName}`);
-    }
-
-    return response.data?.data;
-  };
-
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(null);
@@ -175,16 +162,20 @@ function LayoutContent({ children, currentPageName }) {
         let workproEmployeeRecord = null;
 
         if (employee?.autopro_user_id) {
-          const byUserId = await sbCall('filter', 'Employee', {
-            params: { autopro_user_id: employee.autopro_user_id }
-          });
+          const { data: byUserId, error: byUserIdError } = await supabase
+            .from('Employee')
+            .select('*')
+            .eq('autopro_user_id', employee.autopro_user_id);
+          if (byUserIdError) console.error('Employee lookup by autopro_user_id failed', byUserIdError);
           workproEmployeeRecord = Array.isArray(byUserId) ? byUserId[0] : null;
         }
 
         if (!workproEmployeeRecord && employee?.email) {
-          const byEmail = await sbCall('filter', 'Employee', {
-            params: { email: employee.email }
-          });
+          const { data: byEmail, error: byEmailError } = await supabase
+            .from('Employee')
+            .select('*')
+            .eq('email', employee.email);
+          if (byEmailError) console.error('Employee lookup by email failed', byEmailError);
           workproEmployeeRecord = Array.isArray(byEmail) ? byEmail[0] : null;
         }
 
@@ -200,12 +191,12 @@ function LayoutContent({ children, currentPageName }) {
           return;
         }
 
-        const records = await sbCall('filter', 'TimeRecord', {
-          params: {
-            employee_name: employeeName,
-            status: 'clocked_in'
-          }
-        });
+        const { data: records, error: recordsError } = await supabase
+          .from('TimeRecord')
+          .select('*')
+          .eq('employee_name', employeeName)
+          .eq('status', 'clocked_in');
+        if (recordsError) console.error('TimeRecord lookup failed', recordsError);
 
         const activeRecord = Array.isArray(records)
           ? records.find((record) => record.status === 'clocked_in') || null
@@ -264,12 +255,12 @@ function LayoutContent({ children, currentPageName }) {
     setClockLoading(true);
 
     try {
-      const latestRecords = await sbCall('filter', 'TimeRecord', {
-        params: {
-          employee_name: workProEmployee.full_name,
-          status: 'clocked_in'
-        }
-      });
+      const { data: latestRecords, error: latestRecordsError } = await supabase
+        .from('TimeRecord')
+        .select('*')
+        .eq('employee_name', workProEmployee.full_name)
+        .eq('status', 'clocked_in');
+      if (latestRecordsError) console.error('TimeRecord lookup failed', latestRecordsError);
 
       const activeRecord = Array.isArray(latestRecords)
         ? latestRecords.find((record) => record.status === 'clocked_in') || null
@@ -282,22 +273,28 @@ function LayoutContent({ children, currentPageName }) {
         const clockOutTime = getCurrentMountainTimeISO();
         const totalHours = Math.round(((new Date(clockOutTime) - new Date(activeRecord.clock_in_time)) / 3600000) * 100) / 100;
 
-        await sbCall('update', 'TimeRecord', {
-          id: activeRecord.id,
-          params: {
+        const { error: updateError } = await supabase
+          .from('TimeRecord')
+          .update({
             clock_out_time: clockOutTime,
             total_hours: totalHours,
-            status: 'clocked_out'
-          }
-        });
+            status: 'clocked_out',
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', activeRecord.id);
+        if (updateError) console.error('TimeRecord update failed', updateError);
 
         setIsClockedIn(false);
         setCurrentTimeRecord(null);
       } else {
         const clockInTime = getCurrentMountainTimeISO();
 
-        const newRecord = await sbCall('create', 'TimeRecord', {
-          params: {
+        const { data: createdRecord, error: createError } = await supabase
+          .from('TimeRecord')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            created_by: employee?.email,
             created_by_id: employee?.autopro_user_id,
             employee_name: workProEmployee.full_name,
             clock_in_time: clockInTime,
@@ -305,10 +302,10 @@ function LayoutContent({ children, currentPageName }) {
             total_hours: 0,
             pto_hours: 0,
             stat_hours: 0
-          }
-        });
-
-        const createdRecord = Array.isArray(newRecord) ? newRecord[0] : newRecord;
+          })
+          .select()
+          .single();
+        if (createError) console.error('TimeRecord create failed', createError);
         setIsClockedIn(true);
         setCurrentTimeRecord(createdRecord || null);
       }

@@ -269,15 +269,13 @@ export default function WorkOrdersPage() {
       setWorkPROLoading(true);
     }
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'list',
-        sort: '-created_date'
-      });
+      const { data: projects, error: projectsError } = await supabase
+        .from('Project')
+        .select('*')
+        .order('created_date', { ascending: false });
 
-      if (response.data?.success) {
-        const projects = Array.isArray(response.data.data) ? response.data.data : [];
-        const sortedProjects = [...projects].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      if (!projectsError) {
+        const sortedProjects = Array.isArray(projects) ? projects : [];
 
         setWorkPROProjects(prev => {
           const prevSignature = prev.map(p => p.id + (p.updated_date || '')).join(',');
@@ -289,7 +287,7 @@ export default function WorkOrdersPage() {
         });
         setWorkPROLoaded(true);
       } else {
-        console.error('Error fetching WorkPRO projects:', response.data?.error || 'Unknown error');
+        console.error('Error fetching WorkPRO projects:', projectsError.message);
       }
     } catch (error) {
       console.error('Error loading WorkPRO projects:', error);
@@ -324,17 +322,16 @@ export default function WorkOrdersPage() {
 
   const loadTechTimeForProjects = async () => {
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'list'
-      });
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('ProjectTimeSession')
+        .select('*');
 
-      if (!response.data?.success) {
-        console.error('Error fetching tech time sessions:', response.data?.error || 'Unknown error');
+      if (sessionsError) {
+        console.error('Error fetching tech time sessions:', sessionsError.message);
         return;
       }
 
-      const sessions = Array.isArray(response.data.data) ? response.data.data : [];
+      const sessions = Array.isArray(sessionsData) ? sessionsData : [];
 
       const techTimeMap = {};
 

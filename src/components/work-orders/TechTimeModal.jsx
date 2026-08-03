@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Plus } from 'lucide-react';
@@ -183,9 +182,12 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
 
   const loadEmployees = async () => {
     try {
-      const allEmployees = await base44.entities.Employee.list();
-      // Filter for techs as requested
-      const techs = allEmployees.filter(e => e.employee_type === 'tech' && e.is_active !== false);
+      const { data: techs, error } = await supabase
+        .from('Employee')
+        .select('*')
+        .eq('employee_type', 'tech')
+        .eq('status', 'active');
+      if (error) throw error;
       setEmployees(techs);
     } catch (err) {
       console.error('Error loading employees:', err);

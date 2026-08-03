@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPRODescriptionModal({ open, onClose, workOrder, project, onUpdate }) {
   const [description, setDescription] = useState('');
@@ -35,15 +35,13 @@ export default function WorkPRODescriptionModal({ open, onClose, workOrder, proj
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: project.id,
-        params: { description: description }
-      });
+      const { error: updateError } = await supabase
+        .from('Project')
+        .update({ description: description, updated_date: new Date().toISOString() })
+        .eq('id', project.id);
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to update WorkPRO description');
-      
+      if (updateError) throw new Error(updateError.message || 'Failed to update WorkPRO description');
+
       onUpdate('description', description);
       setHasChanges(false);
       alert('Description updated successfully');
