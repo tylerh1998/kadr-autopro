@@ -83,11 +83,13 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 ## 5. Roadmap & Progress
 
 ```
-Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
-                                                │
-                                                ▼
-                                            Phase 4 ──► Phase 5 ──► Phase 6 ──► Phase 7 ──► Phase 8
+Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Skipped] ──► Phase 4 [Skipped] ──► Phase 5 [Skipped] ──► Phase 6
+                                                                                                                  │
+                                                                                                                  ▼
+                                                                                        Phase 7 ──► Phase 8
 ```
+
+**Note:** Phases 3, 4, and 5 are skipped for now (see their sections below) due to active concurrent work by another agent on the same files — see `Plans and Context/master_blueprint.md` (a separate, much larger Base44-deprecation migration blueprint being executed in parallel). Phase 3 (Work Orders remaining modals) directly overlaps with that blueprint's **Phase 13 "Work Orders Core"** (`DocumentEditor.jsx` and friends — status `[In Progress]`, flagged there as "highest blast radius"). Phase 4 (Financial pages: GL, Bank, Reconcile, P&L, Balance Sheet) directly overlaps with that blueprint's **Phase 10 "Accounting, GL Reporting, Taxes & Fiscal Periods"** (status `[Pending]`, next up for that agent). Phase 5 (Customers, Vehicles, Appointments Gaps) includes `WorkOrderView.jsx` and `CreditInvoice.jsx`, both confirmed inside that blueprint's Phase 13D/13E (not started, but scoped). Revisit all three once the other blueprint's Phase 13 and Phase 10 are marked `[Tested]`. **Phase 6 was also spot-checked against the other blueprint** — 3 of its 12 files (`ReportableLeviesReport.jsx`, `TechnicianPerformanceReportModal.jsx`, `InventoryAdd.jsx`) have confirmed active/planned touch points in that blueprint's Phase 10 and were excluded from Phase 6's scope below; the remaining 9 files showed no overlap and proceed as planned.
 
 ---
 
@@ -147,7 +149,9 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
 
 ---
 
-### Phase 3 — Work Orders: Remaining Modals [Pending]
+### Phase 3 — Work Orders: Remaining Modals [Skipped — Conflict Avoidance]
+
+**Skip reason (2026-08-03):** All 28 files below live under `src/components/work-orders/`, which is the exact scope of the concurrently-running Base44-deprecation blueprint's **Phase 13 "Work Orders Core"** (`Plans and Context/phase_13_implementation_plan.md`, status `[In Progress]` — sub-phases 13D "Documents & Communications" and 13E "final sweep" not yet started, and explicitly touch several of these same files, e.g. `WorkOrderPdfModal.jsx`/`SESEmailModal.jsx` via `WorkOrderView.jsx`). Editing these files now risks merge conflicts with that agent's active/upcoming work. **Revisit once that blueprint's Phase 13 is marked `[Tested]`.**
 
 **TL;DR:** Several work order modals identified in the audit are entirely missing dark mode. These are frequently used in daily operations.
 
@@ -183,7 +187,9 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
 
 ---
 
-### Phase 4 — Financial Pages & Components [Pending]
+### Phase 4 — Financial Pages & Components [Skipped — Conflict Avoidance]
+
+**Skip reason (2026-08-03):** These GL/Bank/Reconcile/P&L/Balance Sheet files directly overlap with the concurrently-running Base44-deprecation blueprint's **Phase 10 "Accounting, GL Reporting, Taxes & Fiscal Periods"** (`Plans and Context/master_blueprint.md`, status `[Pending]` — next up for that agent after Phase 9). Editing these files now risks merge conflicts with that agent's upcoming work. **Revisit once that blueprint's Phase 10 is marked `[Tested]`.**
 
 **TL;DR:** The accounting backbone of the app. GL, Bank, Cash Flow, Reconcile, P&L, Balance Sheet all render white/light. Deferred to Phase 4 to avoid conflicts with another agent working this area.
 
@@ -233,7 +239,9 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
 
 ---
 
-### Phase 5 — Customers, Vehicles, Appointments Gaps [Pending]
+### Phase 5 — Customers, Vehicles, Appointments Gaps [Skipped — Conflict Avoidance]
+
+**Skip reason (2026-08-03):** 2 of the 6 files (`WorkOrderView.jsx`, `CreditInvoice.jsx`) are confirmed inside the concurrently-running Base44-deprecation blueprint's **Phase 13D/13E** (`Plans and Context/phase_13_implementation_plan.md` — "Documents & Communications" / "final sweep", not started yet but explicitly scoped, e.g. `WorkOrderView.jsx` hosts the `WorkOrderPdfModal`/`SESEmailModal` components that 13D converts). Rather than split the phase and risk a confusing partial-completion state, the whole phase is deferred. **Revisit once that blueprint's Phase 13 is marked `[Tested]`.**
 
 **TL;DR:** Fill in remaining gaps in modules that were partially dark-mode converted.
 
@@ -241,9 +249,9 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
 - `src/components/customers/NewCustomerModal.jsx`
 - `src/components/vehicles/NewVehicleModal.jsx`
 - `src/components/vehicles/VehicleHistoryFilters.jsx`
-- `src/pages/WorkOrderView.jsx` (gap audit)
+- `src/pages/WorkOrderView.jsx` (gap audit) — **conflict: in other blueprint's Phase 13D/13E scope**
 - `src/pages/WorkPROView.jsx`
-- `src/pages/CreditInvoice.jsx`
+- `src/pages/CreditInvoice.jsx` — **conflict: in other blueprint's Phase 13D/13E scope**
 
 ---
 
@@ -251,10 +259,16 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3
 
 **TL;DR:** Inventory pages are data-dense with large tables, filters, and many action modals. The reports module powers printable views and dashboard sub-panels. Deferred to Phase 6 as reports are nip-and-tuck with the broader financial work.
 
+**Conflict check (2026-08-03):** Spot-checked all 12 files against the concurrently-running Base44-deprecation blueprint. 3 excluded from this phase's scope due to confirmed active/planned touch points in that blueprint's **Phase 10** (`Plans and Context/phase_10_implementation_plan.md`, status `[Pending]`):
+- `src/pages/InventoryAdd.jsx` — listed as a `checkFiscalPeriodStatus()` caller needing regression-confirmation in their Phase 10A test pass.
+- `src/components/reports/ReportableLeviesReport.jsx` — scheduled to have its `syncLevies`/`postLeviesToAP` invokes repointed as part of their Phase 10.
+- `src/components/reports/TechnicianPerformanceReportModal.jsx` — scheduled to have its payroll-target progress bar restored/unhidden as part of their Phase 10.
+
+These 3 files are carried forward to a later dark-mode phase (revisit once the other blueprint's Phase 10 is `[Tested]`). The remaining 9 files below showed no overlap and proceed as originally scoped.
+
 **Impacted Files:**
 
 *Pages:*
-- `src/pages/InventoryAdd.jsx`
 - `src/pages/InventoryValuation.jsx`
 - `src/pages/StockReorderReport.jsx`
 
