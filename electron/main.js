@@ -64,80 +64,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Register the custom protocol handler.
-  // React code can now do: fetch('desktop://api/get-cart-text')
-  // and get the iframe text content back as JSON.
+  // Register the custom protocol handler (currently a no-op scaffold; no active routes).
   protocol.handle('desktop', async (request) => {
     const url = new URL(request.url);
     console.log(`[Main] Protocol request: ${url.pathname}`);
-
-    if (url.pathname === '/get-cart-text' || url.pathname === '//api/get-cart-text') {
-      if (!mainWindow || mainWindow.isDestroyed()) {
-        return new Response(JSON.stringify({ error: 'Window not available' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-
-      try {
-        // Recursive frame search function
-        function getAllFrames(frame) {
-          let result = [frame];
-          for (const child of frame.frames) {
-            result = result.concat(getAllFrames(child));
-          }
-          return result;
-        }
-
-        const allFrames = getAllFrames(mainWindow.webContents.mainFrame);
-        console.log(`[Main] Total frames found (recursive): ${allFrames.length}`);
-        allFrames.forEach((f, i) => console.log(`[Main] Frame[${i}]: ${f.url}`));
-
-        const SUPPLIER_PATTERNS = [
-          'prolink.napacanada.com',
-          'napaprolink.ca',
-          'napa.ca',
-          'partstech.com',
-          'worldpac.com',
-          'stoneagle.com'
-        ];
-
-        const supplierFrame = allFrames.find(f =>
-          f.url && SUPPLIER_PATTERNS.some(p => f.url.includes(p))
-        );
-
-        if (supplierFrame) {
-          console.log(`[Main] Found supplier frame: ${supplierFrame.url}`);
-          const text = await supplierFrame.executeJavaScript('document.body.innerText');
-          console.log(`[Main] Extracted ${text.length} characters.`);
-          return new Response(JSON.stringify({ text }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
-        }
-
-        // If no supplier frame found, dump all frame URLs in the error so we know what to add
-        const frameUrls = allFrames.map(f => f.url).join(', ');
-        return new Response(JSON.stringify({
-          error: `Could not find supplier iframe. Frames found: [${frameUrls}]`
-        }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (err) {
-        console.error('[Main] Extraction error:', err);
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
-
-    // Health check endpoint — React can call this to verify desktop mode
-    if (url.pathname === '/ping' || url.pathname === '//api/ping') {
-      return new Response(JSON.stringify({ ok: true, version: app.getVersion() }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
 
     return new Response('Not found', { status: 404 });
   });

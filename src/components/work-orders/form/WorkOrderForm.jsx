@@ -13,7 +13,6 @@ import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
 import ROCoreModal from '../ROCoreModal';
-import OnlineOrderModal from '../OnlineOrderModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
@@ -101,11 +100,7 @@ export default function WorkOrderForm({
     returnPart: false,
     receivePart: false,
     cores: false,
-    partsTech: false,
   });
-
-  const [partsTechCartId, setPartsTechCartId] = useState(null);
-  const [supplierUrl, setSupplierUrl] = useState("https://app.partstech.com/");
 
   // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
   const getNonBlankLines = useCallback((lines) => {
@@ -451,28 +446,6 @@ export default function WorkOrderForm({
 
     closeModal('getPart');
   }, [closeModal, tracedSetLineItems, editedWorkOrder, selectedLineIndex]);
-
-  const handleOnlineOrder = useCallback((lineIndex, url, cartId = null) => {
-    console.log('=== DEBUG: handleOnlineOrder called with index:', lineIndex, 'url:', url, 'cartId:', cartId);
-    setPartsTechCartId(cartId);
-    setSupplierUrl(url);
-    openModal('partsTech', lineIndex);
-  }, [openModal]);
-
-  const handlePartsTechSuccess = useCallback((cartPayload) => {
-    console.log('=== DEBUG: handlePartsTechSuccess called ===', cartPayload);
-    if (!cartPayload?.parts || !Array.isArray(cartPayload.parts)) return;
-
-    const formattedParts = cartPayload.parts.map(part => ({
-      part_number: part.partNumber || part.part_number || '',
-      description: part.description || '',
-      parts_ea: part.costPrice || part.parts_ea || 0,
-      qty: part.quantity || part.qty || 1,
-      inventory_processed: false,
-    }));
-
-    handleMultiplePartsAdded(formattedParts, []);
-  }, [handleMultiplePartsAdded]);
 
   const handleAddOtherCharge = async (chargeData) => {
     console.log('=== DEBUG: handleAddOtherCharge called ===');
@@ -1118,7 +1091,6 @@ export default function WorkOrderForm({
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
         onCores={handleCores}
-        onOnlineOrder={handleOnlineOrder}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         onInsertLine={handleInsertLine}
         workOrder={initialWorkOrder}
@@ -1178,19 +1150,6 @@ export default function WorkOrderForm({
         workOrder={initialWorkOrder}
         onCoreProcessed={handleCoreProcessed}
         mode={mode} // Pass mode
-      />
-      <OnlineOrderModal
-        open={modals.partsTech}
-        onClose={() => {
-          closeModal('partsTech');
-          setPartsTechCartId(null);
-        }}
-        roNumber={initialWorkOrder?.ro_number}
-        vehicleInfo={vehicle}
-        userInfo={{ username: 'tech' }}
-        onTransferComplete={handlePartsTechSuccess}
-        cartId={partsTechCartId}
-        supplierUrl={supplierUrl}
       />
     </div>
   );

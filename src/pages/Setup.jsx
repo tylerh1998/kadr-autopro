@@ -76,14 +76,7 @@ export default function SetupPage() {
             <p className="text-slate-600 mt-1">Configure your shop settings and manage users</p>
           </div>
           <div className="flex gap-2">
-            <Button 
-              onClick={() => window.open('https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/partstech-extension.zip', '_blank')}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Download PartsTech Bridge
-            </Button>
-            <Button 
+            <Button
               onClick={() => window.open('https://drive.google.com/uc?export=download&id=1-APT_Tt8xlAxBChlmvU1KftO5h83ViKP', '_blank')}
               variant="outline"
               className="bg-white"
