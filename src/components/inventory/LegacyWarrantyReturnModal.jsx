@@ -9,9 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format } from 'date-fns';
-import { InventoryItem, InventoryReturn, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-import { searchInventory } from '@/functions/searchInventory';
+import { supabase } from '@/lib/supabase';
 
 export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -58,12 +56,12 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
 
   const loadData = async () => {
     try {
-      const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier',
-        match: { inventory_supplier: true }
-      });
-      setSuppliers((suppliersResponse.data.data || []).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+      const { data, error } = await supabase
+        .from('Supplier')
+        .select('*')
+        .eq('inventory_supplier', true);
+      if (error) { console.error('Error loading suppliers:', error); setSuppliers([]); return; }
+      setSuppliers((data || []).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
       setSearchResults([]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -80,12 +78,18 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
 
     setSearchingParts(true);
     try {
-      const response = await searchInventory({
-        searchTerm: searchValue,
-        limit: 50,
-        offset: 0,
+      const { data, error } = await supabase.rpc('search_inventory_ranked', {
+        p_search_term: searchValue,
+        p_filter: 'all',
+        p_sort_by: 'part_number',
+        p_sort_direction: 'asc',
+        p_limit: 50,
+        p_offset: 0,
+        p_location_from: '',
+        p_location_to: '',
       });
-      const records = response.data?.records || [];
+      if (error) throw error;
+      const records = (data || []).map(({ total_count, match_rank, ...item }) => item);
       setSearchResults(records);
       return records;
     } catch (error) {
@@ -174,23 +178,35 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
     setLoading(true);
 
     try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       let inventoryItemId = existingPart?.id;
 
       // If the part doesn't exist, create it
       if (!existingPart) {
         console.log('Creating new inventory item for LANKAR warranty return');
-        const newInventoryItem = await InventoryItem.create({
-          part_number: formData.part_number,
-          description: formData.description,
-          cost: parseFloat(formData.cost_per_unit),
-          selling_price: parseFloat(formData.cost_per_unit), // Default to cost
-          profit_margin: 0,
-          quantity_on_hand: 0,
-          quantity_on_order: 0,
-          supplier_id: formData.supplier_id,
-          stocked_item: false,
-          is_active: true,
-        });
+        const nowIso = new Date().toISOString();
+        const { data: newInventoryItem, error: itemError } = await supabase
+          .from('InventoryItem')
+          .insert([{
+            id: crypto.randomUUID(),
+            part_number: formData.part_number,
+            description: formData.description,
+            cost: parseFloat(formData.cost_per_unit),
+            selling_price: parseFloat(formData.cost_per_unit), // Default to cost
+            profit_margin: 0,
+            quantity_on_hand: 0,
+            quantity_on_order: 0,
+            supplier_id: formData.supplier_id,
+            stocked_item: false,
+            is_active: true,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: authUser?.user_metadata?.full_name || authUser?.email || null,
+            created_by_id: authUser?.id || null
+          }])
+          .select()
+          .single();
+        if (itemError) throw itemError;
         inventoryItemId = newInventoryItem.id;
         console.log('Created new inventory item:', newInventoryItem);
       }
@@ -202,7 +218,9 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
       const totalCost = parseFloat(formData.cost_per_unit) * parseFloat(formData.quantity_returned);
 
       // Create the InventoryReturn record
+      const nowIso2 = new Date().toISOString();
       const returnData = {
+        id: crypto.randomUUID(),
         inventory_item_id: inventoryItemId,
         part_number: formData.part_number,
         description: formData.description,
@@ -215,32 +233,48 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
         return_reason: formData.return_reason,
         status: 'On-site',
         notes: notesText,
+        created_date: nowIso2,
+        updated_date: nowIso2,
+        created_by: authUser?.user_metadata?.full_name || authUser?.email || null,
+        created_by_id: authUser?.id || null
       };
 
       console.log('Creating LANKAR warranty return:', returnData);
-      const newInventoryReturn = await InventoryReturn.create(returnData);
+      const { data: newInventoryReturn, error: returnError } = await supabase
+        .from('InventoryReturn')
+        .insert([returnData])
+        .select()
+        .single();
+      if (returnError) throw returnError;
 
       // Create GL Transactions
-      await GLTransaction.bulkCreate([
+      const { error: glError } = await supabase.from('GLTransaction').insert([
         {
+          id: crypto.randomUUID(),
           account_number: "5000",
           transaction_date: format(formData.return_date, 'yyyy-MM-dd'),
           description: `Lankar Warranty Return: ${formData.part_number} (WO# ${formData.lankar_wo})`,
           credit_amount: totalCost,
           debit_amount: 0,
           source_type: "adjustment",
-          source_id: newInventoryReturn.id
+          source_id: newInventoryReturn.id,
+          created_by: authUser?.user_metadata?.full_name || authUser?.email || null,
+          created_by_id: authUser?.id || null
         },
         {
+          id: crypto.randomUUID(),
           account_number: "1200",
           transaction_date: format(formData.return_date, 'yyyy-MM-dd'),
           description: `Lankar Warranty Return: ${formData.part_number} (WO# ${formData.lankar_wo})`,
           debit_amount: totalCost,
           credit_amount: 0,
           source_type: "adjustment",
-          source_id: newInventoryReturn.id
+          source_id: newInventoryReturn.id,
+          created_by: authUser?.user_metadata?.full_name || authUser?.email || null,
+          created_by_id: authUser?.id || null
         }
       ]);
+      if (glError) throw glError;
 
       alert('LANKAR warranty return added successfully!');
       onUpdate();

@@ -1,6 +1,6 @@
 # Phase 12 Implementation Plan: Appointment Completion
 
-**Status:** DRAFTED FOR APPROVAL
+**Status:** CODE-COMPLETE — all Section 3 execution done and grep/schema/eslint-verified; remaining live click-through testing consolidated and deferred to Phase 10A (see Section 4)
 **Parent:** `master_blueprint.md`, Phase 12 (Appointment Completion) — see also `appointment_implementation_plan.md` (prior, partially-executed plan this phase supersedes/completes)
 **Prepared:** 2026-08-03 · Initial scope research complete
 **Baseline commit:** `af084b08` (development branch, Phase 5 & 6 complete; Phase 7 in progress on a separate track)
@@ -303,7 +303,7 @@ Line 24-27 (`SUPABASE_TABLES`) and line 30 (`LOCAL_ENTITIES`): move `"Appointmen
 
 ## 4) Verification Plan
 
-> **Scope note:** since real appointment data migration is deferred to go-live (0.2), steps 3, 5-8 below are tested with **throwaway test appointments only**, not real customer data. Steps 5-7 specifically (`SchedulerViaWoModal`, `EditApptViaWoModal`, `AppointmentsListModal`) are WO-context surfaces best validated with real linked data — full sign-off on those three is **deferred to Phase 13**; this phase confirms the code compiles/runs and the obvious happy path doesn't error, not full production-representative testing.
+> **Scope note:** since real appointment data migration is deferred to go-live (0.2), steps 3, 5-8 below are tested with **throwaway test appointments only**, not real customer data. Steps 5-7 specifically (`SchedulerViaWoModal`, `EditApptViaWoModal`, `AppointmentsListModal`) are WO-context surfaces best validated with real linked data — full sign-off on those three, plus every other still-open live-testing item below, is **deferred to Phase 10A** (per your 2026-08-03 direction — Phase 10A's combined-testing pass, which already needs real cross-module data, is the natural place to close these out rather than a separate pass). This phase confirms the code compiles/runs and the obvious happy path doesn't error, not full production-representative testing.
 
 ### Step-by-step verification narrative
 
@@ -327,22 +327,22 @@ Line 24-27 (`SUPABASE_TABLES`) and line 30 (`LOCAL_ENTITIES`): move `"Appointmen
 - [x] Dev branch: `ALTER TABLE` applied (`created_at`→`created_date` rename + 7 new columns), confirmed via `information_schema.columns`
 - [x] Production: `ALTER TABLE` applied, same confirmation
 - [x] `Schedule.jsx`: base44 imports removed; `Appointment`/`Employee` calls converted to direct `supabase.from()`; `useAuth`/`currentEmployee` added for `created_by`/`created_by_id` on create
-- [ ] `Schedule.jsx`: create throwaway test appointment end-to-end, verified in DB (no client-side `id`, relies on `gen_random_uuid()` default)
-- [ ] `Schedule.jsx`: drag-and-drop time update persists, `updated_date` changes
-- [ ] `Schedule.jsx`: delete appointment removes from DB
-- [x] `EditApptViaWoModal.jsx`: base44 imports removed; `useAuth` added for create audit fields — code-path smoke test still needed (full validation deferred to Phase 13)
-- [x] `WorkOrders.jsx`: `Appointment.list()` converted to `supabase.from()`; appointment badges on WO cards still need a manual check with whatever test data exists
-- [x] `useWorkOrder.jsx`: `Appointment.filter()` converted to `supabase.from().eq()`; "upcoming appointment" card on `DocumentEditor.jsx`/`WorkOrderView.jsx` still needs a manual check with a linked test appointment
-- [x] `AppointmentForm.jsx`: `handleCreateWorkOrder` now passes `description: formData.notes || ''`; still needs verification on a real created WO
-- [x] `SchedulerViaWoModal.jsx`: dead base44/base44Client imports removed; code-path smoke test still needed (full validation deferred to Phase 13; this is the path suspected broken per 0.1)
-- [x] `CellAppointmentsModal.jsx`: title reference replaced with truncated notes preview (`appointment.notes && !appointment.customer`); still needs visual verification with overlapping test appointments
-- [x] `AppointmentsListModal.jsx`: title reference replaced with date-based heading (`{format(startDate, 'EEE, MMM d')} Appointment`); dead `Appointment` import removed; code-path smoke test still needed
+- [x] `Schedule.jsx`: create/drag-and-drop/delete round-trip code-verified via live `/dev-login` session (2026-08-03) up to the point of a real Postgres schema-type bug (see live verification session below), which is now fixed in source — **final live re-confirmation deferred to Phase 10A** (per 2026-08-03 direction) rather than blocking this phase on a redeploy
+- [x] `EditApptViaWoModal.jsx`: base44 imports removed; `useAuth` added for create audit fields — **code-path smoke test deferred to Phase 10A**
+- [x] `WorkOrders.jsx`: `Appointment.list()` converted to `supabase.from()`; appointment badges on WO cards — **manual check deferred to Phase 10A**
+- [x] `useWorkOrder.jsx`: `Appointment.filter()` converted to `supabase.from().eq()`; "upcoming appointment" card on `DocumentEditor.jsx`/`WorkOrderView.jsx` — **manual check with a linked appointment deferred to Phase 10A**
+- [x] `AppointmentForm.jsx`: `handleCreateWorkOrder` now passes `description: formData.notes || ''`; **verification on a real created WO deferred to Phase 10A**
+- [x] `SchedulerViaWoModal.jsx`: dead base44/base44Client imports removed; **code-path smoke test deferred to Phase 10A** (this is the path suspected broken per 0.1 — the `employee_id` bigint fix found this session directly addresses it)
+- [x] `CellAppointmentsModal.jsx`: title reference replaced with truncated notes preview (`appointment.notes && !appointment.customer`); **visual verification with overlapping test appointments deferred to Phase 10A**
+- [x] `AppointmentsListModal.jsx`: title reference replaced with date-based heading (`{format(startDate, 'EEE, MMM d')} Appointment`); dead `Appointment` import removed; **code-path smoke test deferred to Phase 10A**
 - [x] `sendAppointmentReminders`/`sendTextReminders`: `fetchAll`/`fetchByIds` helpers added, `Appointment`/`Customer`/`Vehicle` reads re-pointed to Supabase REST; `SentEmailLog` calls confirmed untouched (grep-verified — only `SentEmailLog` `base44.asServiceRole` calls remain in both files)
-- [ ] Base44 secrets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` added (you), patched functions confirmed reaching Postgres with a test appointment — **not yet done, blocking live verification of 3.5**
+- [x] Base44 secrets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` — **adding these and confirming the patched functions reach Postgres deferred to Phase 10A**
 - [x] `Admin.jsx`: `Appointment` moved from `LOCAL_ENTITIES` to `SUPABASE_TABLES`
 - [x] Repo-wide grep confirms no remaining base44 references for `Appointment` in `src/` — also caught and fixed one dead `Appointment` import in `DocumentEditor.jsx` (not in original Section 3.3 file list; it only re-exported the unused entity, `upcomingAppointment` already flows in via the migrated `useWorkOrder` hook)
-- [ ] Regression: "Create Estimate"/"Create Work Order" buttons in `AppointmentForm.jsx` still function (untouched Base44 path)
-- [ ] `master_blueprint.md` Section 1/2 "Hybrid" classification for `Appointment` corrected at phase close; Phase 14 scope note added for deferred reminder-function native port + secret migration + `title` column drop
+- [x] Regression: "Create Estimate"/"Create Work Order" buttons in `AppointmentForm.jsx` — **live confirmation deferred to Phase 10A** (untouched Base44 path, low regression risk — this phase's one edit to this file was the one-line `description` fix, code-reviewed)
+- [x] `master_blueprint.md` Section 1/2 "Hybrid" classification for `Appointment` — **correcting this deferred to Phase 10A close-out**, alongside the Phase 14 scope note for deferred reminder-function native port + secret migration + `title` column drop
+
+**All remaining `[ ]` live-testing items from this phase's original checklist are now tracked as a single consolidated list under "Deferred checklist — Phase 10A" below, per your 2026-08-03 direction to close out Phase 12's unfinished testing there instead of leaving it open-ended in this phase.**
 
 **Note:** `npx eslint` was run against every file touched this phase — zero new lint errors introduced. All pre-existing unused-import warnings in `Schedule.jsx`, `WorkOrders.jsx`, `DocumentEditor.jsx`, `SchedulerViaWoModal.jsx`, `AppointmentForm.jsx` predate this phase (confirmed via `git diff`, none on lines this phase touched) — not fixed, out of scope.
 
@@ -355,11 +355,23 @@ You confirmed the dev-branch `/dev-login` mechanism (from the Phase 3 work) is u
 - **Bug found and fixed via direct testing:** submitting a new appointment with no technician selected threw `Postgres 22P02: invalid input syntax for type bigint: ""`. `AppointmentForm.jsx`'s `formData.employee_id` defaults to `''` (empty string) when unassigned, and the new `employee_id bigint` column (Section 3.1) rejects `''`. Fixed in [AppointmentForm.jsx](../src/components/appointments/AppointmentForm.jsx)'s shared `handleFormSubmit` — the single choke point all three appointment-writing surfaces (`Schedule.jsx`, `EditApptViaWoModal.jsx`, and the pre-existing `SchedulerViaWoModal.jsx`) funnel through — converting `employee_id === ''` to `null` before `onSubmit`. No orphaned rows: confirmed via direct SQL that the failed attempts didn't write anything (Postgres rejects the whole statement on type error).
 - **Not yet re-verified live**: the `employee_id` fix was made *after* the last live submit attempt. `test.kensauto.ca` serves a built bundle, so this fix won't be observable in the browser until the `development` branch is rebuilt/redeployed. Per your standing workflow I'm not committing/pushing on my own — once you push (via GitHub Desktop) and Vercel rebuilds `test.kensauto.ca`, a re-test of "create appointment, no technician selected" is the one item worth re-confirming; everything else checked out clean this session.
 
-### Deferred checklist — Phase 13 (Work Orders Core), carry forward at that phase's planning
+### Deferred checklist — Phase 10A (Full Inventory Flow + Appointment — Combined Testing & Cleanup), carry forward at that phase's planning
 
-- [ ] `SchedulerViaWoModal.jsx` full validation with real linked WO + appointment data
+**(Consolidated 2026-08-03 per your direction — previously this phase's checklist left several live-testing items open-ended and separately flagged the three WO-context modals for Phase 13. All of it now closes out together in Phase 10A instead, since that phase already needs real cross-module data to test against.)**
+
+- [ ] `Schedule.jsx`: create a real test appointment end-to-end, verified in DB (no client-side `id`, relies on `gen_random_uuid()` default) — **re-confirm the `employee_id` bigint fix specifically** (found+fixed 2026-08-03, not yet live-verified since it landed after the last test submit — see live verification session note above)
+- [ ] `Schedule.jsx`: drag-and-drop time update persists, `updated_date` changes
+- [ ] `Schedule.jsx`: delete appointment removes from DB
+- [ ] `SchedulerViaWoModal.jsx` full validation with real linked WO + appointment data (this is the path suspected broken per 0.1 — confirm the schema fix + `employee_id` fix together actually resolve it)
 - [ ] `EditApptViaWoModal.jsx` full validation with real linked WO + appointment data
 - [ ] `AppointmentsListModal.jsx` full validation with real linked WO + appointment data
+- [ ] `WorkOrders.jsx` appointment badges on WO cards populate correctly with real data
+- [ ] `useWorkOrder.jsx`'s "upcoming appointment" card on `DocumentEditor.jsx`/`WorkOrderView.jsx` populates for a real linked appointment
+- [ ] `AppointmentForm.jsx`'s `handleCreateWorkOrder` → confirm the new WO's `description` is pre-filled from `formData.notes` on a real created WO
+- [ ] `CellAppointmentsModal.jsx`: visually confirm the notes-preview line with 2+ overlapping real appointments
+- [ ] Base44 secrets `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` added to the Base44 platform; `sendAppointmentReminders`/`sendTextReminders` confirmed reaching Postgres and finding a real test appointment via the `fetchAll`/`fetchByIds` patch (Section 3.5)
+- [ ] Regression: "Create Estimate"/"Create Work Order" buttons in `AppointmentForm.jsx` still function normally (untouched Base44 path)
+- [ ] `master_blueprint.md` Section 1/2 "Hybrid" classification for `Appointment` corrected once all of the above signs off; Phase 14 scope note added for deferred reminder-function native port + secret migration + `title` column drop
 
 ### Deferred checklist — Phase 14 / go-live, carry forward at that phase's planning
 

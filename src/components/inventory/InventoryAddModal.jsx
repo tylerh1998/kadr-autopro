@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TagAlong } from "@/entities/TagAlong";
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check } from "lucide-react";
 
@@ -116,12 +115,19 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                     const supplier = suppliers.find(s => s.id === formData.supplier_id);
                     const supplierName = supplier ? supplier.name : '';
                     
-                    const response = await base44.functions.invoke('suggestInventoryCategory', {
-                        part_number: formData.part_number,
-                        description: formData.description,
-                        supplier_name: supplierName
+                    const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                        body: {
+                            part_number: formData.part_number,
+                            description: formData.description,
+                            supplier_name: supplierName
+                        }
                     });
-                    
+
+                    if (response.error) {
+                        console.error('Category suggestion error:', response.error);
+                        return;
+                    }
+
                     if (response.data && response.data.category) {
                         setFormData(prev => {
                             if (!prev.category) {

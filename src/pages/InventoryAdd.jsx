@@ -1164,12 +1164,19 @@ export default function InventoryAddPage() {
                 setSuggestingCategory(true);
                 try {
                     const supplierName = getSupplierName(selectedSupplier);
-                    const response = await base44.functions.invoke('suggestInventoryCategory', {
-                        part_number: currentItem.part_number,
-                        description: currentItem.description,
-                        supplier_name: supplierName
+                    const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                        body: {
+                            part_number: currentItem.part_number,
+                            description: currentItem.description,
+                            supplier_name: supplierName
+                        }
                     });
-                    
+
+                    if (response.error) {
+                        console.error('Category suggestion error:', response.error);
+                        return;
+                    }
+
                     if (response.data && response.data.category) {
                         // Only update if user hasn't selected a category in the meantime
                         setCurrentItem(prev => {
