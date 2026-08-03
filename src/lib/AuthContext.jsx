@@ -17,11 +17,12 @@ export const AuthProvider = ({ children }) => {
       setUser(session?.user || null);
 
       if (session?.user?.id) {
-        const { data: employeeData } = await supabase
+        const { data: employeeData, error: employeeError } = await supabase
           .from('Employee')
           .select('*')
           .eq('mykadr_user_id', session.user.id)
           .maybeSingle();
+        if (employeeError) console.error('AuthContext: Employee lookup failed', employeeError);
         setEmployee(employeeData || null);
       } else {
         setEmployee(null);
