@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { 
@@ -113,7 +112,8 @@ function LayoutContent({ children, currentPageName }) {
     const fetchSettings = async () => {
       try {
         // Fetch System Settings to check for training environment
-        const settings = await base44.entities.SystemSettings.list();
+        const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+        if (settingsError) throw settingsError;
         if (settings && settings.length > 0 && settings[0].training_enviro) {
           setIsTraining(true);
         }
