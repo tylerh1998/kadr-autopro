@@ -7,8 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { LinesOfCredit, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -37,7 +35,12 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       if (open && currentUser && lineOfCredit) {
         try {
           // Always fetch the latest account data to check lock status
-          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const { data: account, error: accountError } = await supabase
+            .from('LinesOfCredit')
+            .select('*')
+            .eq('id', lineOfCredit.id)
+            .single();
+          if (accountError) throw accountError;
           const lockStatus = checkEntityLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -47,10 +50,10 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
           }
 
           // Acquire lock
-          await LinesOfCredit.update(lineOfCredit.id, {
+          await supabase.from('LinesOfCredit').update({
             locked_by_user: currentUser.email,
             locked_timestamp: new Date().toISOString()
-          });
+          }).eq('id', lineOfCredit.id);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -84,8 +87,8 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
         const fetchOffsetGL = async () => {
              // Find GL transaction where source_id = tx.id and account != loc.gl_account
              if (lineOfCredit?.gl_account) {
-                 const glTxs = await GLTransaction.filter({ source_id: transaction.id });
-                 const offsetTx = glTxs.find(tx => tx.account_number !== lineOfCredit.gl_account);
+                 const { data: glTxs } = await supabase.from('GLTransaction').select('*').eq('source_id', transaction.id);
+                 const offsetTx = (glTxs || []).find(tx => tx.account_number !== lineOfCredit.gl_account);
                  if (offsetTx) {
                      setFormData(prev => ({ ...prev, offset_gl_account: offsetTx.account_number }));
                  }
@@ -114,11 +117,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -128,11 +131,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }
@@ -199,9 +202,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('processLineOfCreditTransaction', {
-        id: transaction.id,
-        action: 'delete'
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditTransaction', {
+        body: {
+          id: transaction.id,
+          action: 'delete'
+        }
       });
 
       if (response.data && response.data.success) {
@@ -257,16 +262,18 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       const creditAmt = parseFloat(formData.credit_amount || 0);
       const isCharge = chargeAmt > 0;
 
-      const response = await base44.functions.invoke('processLineOfCreditTransaction', {
-        id: transaction?.id, // Pass ID for edit
-        line_of_credit_id: lineOfCredit.id,
-        transaction_date: formData.transaction_date,
-        description: formData.description,
-        reference: formData.reference,
-        transaction_type: isCharge ? 'charge' : 'credit',
-        amount: isCharge ? chargeAmt : creditAmt,
-        offset_gl_account: formData.offset_gl_account,
-        source_type: formData.source_type
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditTransaction', {
+        body: {
+          id: transaction?.id, // Pass ID for edit
+          line_of_credit_id: lineOfCredit.id,
+          transaction_date: formData.transaction_date,
+          description: formData.description,
+          reference: formData.reference,
+          transaction_type: isCharge ? 'charge' : 'credit',
+          amount: isCharge ? chargeAmt : creditAmt,
+          offset_gl_account: formData.offset_gl_account,
+          source_type: formData.source_type
+        }
       });
 
       if (response.data && response.data.success) {

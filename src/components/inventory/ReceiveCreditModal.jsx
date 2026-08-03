@@ -9,8 +9,6 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
@@ -48,31 +46,22 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         console.log('Chart of accounts loaded:', accountsData);
         setAccounts(accountsData || []);
 
-        let linesOfCreditData = [];
-        try {
-          linesOfCreditData = await LinesOfCredit.filter({ is_active: true });
-          console.log('Lines of Credit loaded via filter:', linesOfCreditData);
-        } catch (filterError) {
-          console.log('Filter failed, trying list():', filterError);
-          try {
-            linesOfCreditData = await LinesOfCredit.list();
-            console.log('Lines of Credit loaded via list:', linesOfCreditData);
-            linesOfCreditData = linesOfCreditData.filter(loc => loc.is_active !== false);
-          } catch (listError) {
-            console.error('Both filter and list failed for Lines of Credit:', listError);
-          }
-        }
-        setLinesOfCredit(linesOfCreditData);
+        const { data: linesOfCreditData, error: locError } = await supabase
+          .from('LinesOfCredit')
+          .select('*')
+          .eq('is_active', true);
+        if (locError) console.error('Failed to load Lines of Credit:', locError);
+        console.log('Lines of Credit loaded:', linesOfCreditData);
+        setLinesOfCredit(linesOfCreditData || []);
 
         // Load inventory suppliers
-        const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier',
-          match: { inventory_supplier: true }
-        });
-        const suppliersData = suppliersResponse.data?.data || [];
+        const { data: suppliersData, error: suppliersError } = await supabase
+          .from('Supplier')
+          .select('*')
+          .eq('inventory_supplier', true);
+        if (suppliersError) console.error('Failed to load inventory suppliers:', suppliersError);
         console.log('Inventory suppliers loaded:', suppliersData);
-        setSuppliers(suppliersData);
+        setSuppliers(suppliersData || []);
 
         // Set default supplier after suppliers are loaded
         if (returnItem?.supplier && refundCreditTo === 'Supplier AP') {
@@ -134,17 +123,17 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   const createGLTransaction = async (transactionData) => {
     const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+    const now = new Date().toISOString();
 
-    return await base44.functions.invoke('SupabaseProxy', {
-      action: 'create',
-      table: 'GLTransaction',
-      data: {
-        ...transactionData,
-        created_by: userDisplay,
-        created_by_id: currentUser?.id,
-        updated_by: userDisplay
-      }
-    });
+    return await supabase.from('GLTransaction').insert([{
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      ...transactionData,
+      created_date: now,
+      updated_date: now,
+      created_by: userDisplay,
+      created_by_id: currentUser?.id,
+      updated_by: userDisplay
+    }]);
   };
 
   const handleSubmit = async (e) => {
@@ -175,13 +164,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     // Check if the selected supplier is locked (live check on submit)
     try {
       const supplierIdToCheck = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
-      const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier',
-        match: { id: supplierIdToCheck }
-      });
-      const supplierEntity = (supplierResponse.data?.data || [])[0];
-      
+      const { data: supplierMatches } = await supabase.from('Supplier').select('*').eq('id', supplierIdToCheck);
+      const supplierEntity = (supplierMatches || [])[0];
+
       const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
       if (lockStatus.isLocked) {
         alert(`This supplier is currently locked by ${lockStatus.lockedByUser}. Please wait until the lock is released.`);
@@ -191,7 +176,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
       // Check if Line of Credit is locked (if selected)
       if (refundCreditTo === 'Line of Credit' && toAccount) {
-        const locEntity = await LinesOfCredit.get(toAccount);
+        const { data: locEntity } = await supabase.from('LinesOfCredit').select('*').eq('id', toAccount).single();
         const locLockStatus = checkEntityLock(locEntity, currentUser.email);
         if (locLockStatus.isLocked) {
           alert(`This line of credit account is currently locked by ${locLockStatus.lockedByUser}. Please wait until the lock is released.`);
@@ -210,23 +195,24 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 1. Create SupplierInvoiceLine for the parts credit
       const creditLineDescription = `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`;
       const supplierIdForInvoice = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
-      
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'SupplierInvoiceLine',
-        data: {
-          supplier_id: supplierIdForInvoice,
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          description: creditLineDescription,
-          purchase_amount: Math.round(-subtotal * 100) / 100,
-          gst_amount: Math.round(-gst * 100) / 100,
-          gl_account: '1200',
-          inventory: true,
-          inventory_credit: true,
-          inventory_item_id: returnItem.inventory_item_id || ''
-        }
-      });
+      const invoiceLineNow = new Date().toISOString();
+
+      await supabase.from('SupplierInvoiceLine').insert([{
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        supplier_id: supplierIdForInvoice,
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        description: creditLineDescription,
+        purchase_amount: Math.round(-subtotal * 100) / 100,
+        gst_amount: Math.round(-gst * 100) / 100,
+        gl_account: '1200',
+        inventory: true,
+        inventory_credit: true,
+        inventory_item_id: returnItem.inventory_item_id || '',
+        paid_amount: 0,
+        created_date: invoiceLineNow,
+        updated_date: invoiceLineNow
+      }]);
 
       // 2. Create SupplierInvoiceLine for adjustment (if any)
       if (adj !== 0) {
@@ -234,20 +220,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         // Invert adj and adjGst because a negative adjustment in UI means we want to REDUCE the credit invoice total (absolute value).
         // Since credit invoice lines are negative, adding a POSITIVE amount reduces the magnitude of the credit.
         // e.g. -100 (part) + 10 (adjustment) = -90 (total credit).
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'SupplierInvoiceLine',
-          data: {
-            supplier_id: supplierIdForInvoice,
-            invoice_number: invoiceNumber,
-            invoice_date: invoiceDate,
-            description: adjustmentDescription,
-            purchase_amount: Math.round(-adj * 100) / 100,
-            gst_amount: Math.round(-adjGst * 100) / 100,
-            gl_account: glAccount,
-            inventory: false
-          }
-        });
+        const adjustmentLineNow = new Date().toISOString();
+        await supabase.from('SupplierInvoiceLine').insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          supplier_id: supplierIdForInvoice,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          description: adjustmentDescription,
+          purchase_amount: Math.round(-adj * 100) / 100,
+          gst_amount: Math.round(-adjGst * 100) / 100,
+          gl_account: glAccount,
+          inventory: false,
+          paid_amount: 0,
+          created_date: adjustmentLineNow,
+          updated_date: adjustmentLineNow
+        }]);
       }
 
       // 3. Create InventoryAuditLog record for credit received
@@ -355,22 +342,13 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         });
 
         // Update BankAccount for Cash Drawer
-        const cashDrawerResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankAccount',
-          params: { gl_account: '1010' }
-        });
-        const cashDrawerAccounts = cashDrawerResponse.data?.data || [];
-        if (cashDrawerAccounts.length > 0) {
+        const { data: cashDrawerAccounts } = await supabase.from('BankAccount').select('*').eq('gl_account', '1010');
+        if (cashDrawerAccounts && cashDrawerAccounts.length > 0) {
           const cashDrawer = cashDrawerAccounts[0];
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'update',
-            table: 'BankAccount',
-            id: cashDrawer.id,
-            data: {
-              current_balance: (parseFloat(cashDrawer.current_balance) || 0) + grandTotal
-            }
-          });
+          await supabase.from('BankAccount').update({
+            current_balance: (parseFloat(cashDrawer.current_balance) || 0) + grandTotal,
+            updated_date: new Date().toISOString()
+          }).eq('id', cashDrawer.id);
         }
 
       } else if (refundCreditTo === 'Line of Credit') {
@@ -389,23 +367,32 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
           });
 
           // Create LOC transaction and update balance
-          await LinesOfCreditTransaction.create({
+          const locTxNow = new Date().toISOString();
+          const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+          await supabase.from('LinesOfCreditTransaction').insert([{
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
             line_of_credit_id: selectedLOC.id,
             transaction_date: invoiceDate,
             description: `Credit from supplier for return: ${returnItem.part_number}`,
             reference: `Credit Memo: ${invoiceNumber}`,
             charge_amount: 0,
             credit_amount: grandTotal,
+            payment_amount: 0,
             source_type: 'inventory_return',
             source_id: returnItem.id,
-          });
+            created_date: locTxNow,
+            updated_date: locTxNow,
+            created_by: userDisplay,
+            created_by_id: currentUser?.id
+          }]);
 
           const newBalance = (selectedLOC.current_balance || 0) - grandTotal;
           const newAvailableCredit = (selectedLOC.credit_limit || 0) - newBalance;
-          await LinesOfCredit.update(selectedLOC.id, {
+          await supabase.from('LinesOfCredit').update({
             current_balance: newBalance,
             available_credit: newAvailableCredit,
-          });
+            updated_date: locTxNow
+          }).eq('id', selectedLOC.id);
         } else {
           throw new Error('Selected Line of Credit or its GL account not found.');
         }

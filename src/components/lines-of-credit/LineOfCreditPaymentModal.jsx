@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LinesOfCreditTransaction, LinesOfCredit } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -243,7 +242,12 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       if (open && lineOfCredit && currentUser) {
         try {
           // Always fetch the latest account data to check lock status
-          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const { data: account, error: accountError } = await supabase
+            .from('LinesOfCredit')
+            .select('*')
+            .eq('id', lineOfCredit.id)
+            .single();
+          if (accountError) throw accountError;
           const lockStatus = checkEntityLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -253,10 +257,10 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           }
 
           // Acquire lock
-          await LinesOfCredit.update(lineOfCredit.id, {
+          await supabase.from('LinesOfCredit').update({
             locked_by_user: currentUser.email,
             locked_timestamp: new Date().toISOString()
-          });
+          }).eq('id', lineOfCredit.id);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -271,23 +275,23 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           setCalculating(false);
           setCalculationResult(null);
 
-          const [bankAccountsResponse, otherLOCData, transactionsData] = await Promise.all([
-            base44.functions.invoke('SupabaseProxy', {
-              action: 'list',
-              table: 'BankAccount'
-            }),
-            LinesOfCredit.filter({ is_active: true }),
-            LinesOfCreditTransaction.filter({ line_of_credit_id: lineOfCredit.id })
+          const [bankAccountsResponse, otherLOCResponse, transactionsResponse] = await Promise.all([
+            supabase.from('BankAccount').select('*'),
+            supabase.from('LinesOfCredit').select('*').eq('is_active', true),
+            supabase.from('LinesOfCreditTransaction').select('*').eq('line_of_credit_id', lineOfCredit.id)
           ]);
 
-          const bankAccountsData = (bankAccountsResponse.data?.data || []).filter(account => account.is_active !== false);
+          const bankAccountsData = (bankAccountsResponse.data || []).filter(account => account.is_active !== false);
           setBankAccounts(bankAccountsData);
-          
+
           // Set primary account as default if available
           const primaryAccount = bankAccountsData.find(acc => acc.primary);
           if (primaryAccount) {
             setPaymentData(prev => ({ ...prev, from_account_id: primaryAccount.id }));
           }
+
+          const otherLOCData = otherLOCResponse.data || [];
+          const transactionsData = transactionsResponse.data || [];
 
           // Filter out the current line of credit from other options
           setOtherLinesOfCredit(otherLOCData.filter(loc => loc.id !== lineOfCredit.id));
@@ -327,11 +331,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -341,11 +345,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }
@@ -393,9 +397,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     setCalculationResult(null);
 
     try {
-      const response = await base44.functions.invoke('calculateLineOfCreditPaymentBreakdown', {
-        lineOfCreditId: lineOfCredit.id,
-        paymentAmount
+      const response = await supabase.functions.invoke('autopro-calculateLineOfCreditPaymentBreakdown', {
+        body: {
+          lineOfCreditId: lineOfCredit.id,
+          paymentAmount
+        }
       });
 
       if (response.data?.success) {
@@ -460,13 +466,15 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
         appliedCharges = calculationResult?.appliedCharges || [];
       }
 
-      const response = await base44.functions.invoke('processLineOfCreditPayment', {
-        line_of_credit_id: lineOfCredit.id,
-        payment_date: format(paymentData.payment_date, 'yyyy-MM-dd'),
-        payment_amount: paymentAmount,
-        payment_method: paymentData.payment_method,
-        from_account_id: paymentData.from_account_id,
-        applied_charges: appliedCharges
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditPayment', {
+        body: {
+          line_of_credit_id: lineOfCredit.id,
+          payment_date: format(paymentData.payment_date, 'yyyy-MM-dd'),
+          payment_amount: paymentAmount,
+          payment_method: paymentData.payment_method,
+          from_account_id: paymentData.from_account_id,
+          applied_charges: appliedCharges
+        }
       });
 
       if (response.data && response.data.success) {

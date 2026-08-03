@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LinesOfCredit } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -34,7 +33,12 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
         if (lineOfCredit) {
           try {
             // Always fetch the latest account data to check lock status
-            const account = await LinesOfCredit.get(lineOfCredit.id);
+            const { data: account, error: accountError } = await supabase
+              .from('LinesOfCredit')
+              .select('*')
+              .eq('id', lineOfCredit.id)
+              .single();
+            if (accountError) throw accountError;
             const lockStatus = checkEntityLock(account, currentUser.email);
 
             if (lockStatus.isLocked) {
@@ -44,10 +48,10 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
             }
 
             // Acquire lock
-            await LinesOfCredit.update(lineOfCredit.id, {
+            await supabase.from('LinesOfCredit').update({
               locked_by_user: currentUser.email,
               locked_timestamp: new Date().toISOString()
-            });
+            }).eq('id', lineOfCredit.id);
             
             setLockAcquired(true);
             setIsLocked(false);
@@ -78,11 +82,11 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -92,11 +96,11 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }

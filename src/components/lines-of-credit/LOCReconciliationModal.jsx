@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LinesOfCreditTransaction, LinesOfCredit } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer, FileCheck } from 'lucide-react';
 import { format, parse, isValid, addDays, subDays, differenceInDays } from 'date-fns';
 
@@ -23,7 +23,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
     const fetchAccountName = async () => {
       if (lineOfCreditId) {
         try {
-          const account = await LinesOfCredit.get(lineOfCreditId);
+          const { data: account } = await supabase.from('LinesOfCredit').select('*').eq('id', lineOfCreditId).single();
           if (account) {
             setAccountName(account.name);
           }
@@ -189,12 +189,14 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
       const queryMax = format(maxDate, 'yyyy-MM-dd');
 
       // 3. Fetch System Transactions
-      const systemTxs = await LinesOfCreditTransaction.filter({
-          line_of_credit_id: lineOfCreditId
-      });
-      
+      const { data: systemTxs, error: systemTxsError } = await supabase
+        .from('LinesOfCreditTransaction')
+        .select('*')
+        .eq('line_of_credit_id', lineOfCreditId);
+      if (systemTxsError) throw systemTxsError;
+
       // Filter by date range manually since filter might be exact match or limited
-      const relevantSystemTxs = systemTxs.filter(tx => 
+      const relevantSystemTxs = (systemTxs || []).filter(tx =>
           tx.transaction_date >= queryMin && 
           tx.transaction_date <= queryMax &&
           tx.source_type !== 'payment_made' // Exclude payment records themselves, focusing on charges

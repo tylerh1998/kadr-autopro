@@ -1,6 +1,6 @@
 # Phase 9 Implementation Plan: Accounts Payable, Suppliers, Lines of Credit, Cheques & ChartOfAccount Finish-Up
 
-**Status:** **In Progress** — 9A `[Tested]`, 9B `[Tested]` (2026-08-03), 9C active.
+**Status:** **In Progress** — 9A `[Tested]`, 9B `[Tested]` (2026-08-03), 9C implementation complete 2026-08-03 (awaiting your live testing — see hold gate).
 **Parent:** `master_blueprint.md`, Phase 9
 **Prepared:** 2026-08-03
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -112,7 +112,7 @@ Real financial/ledger logic (AP payments, LOC charges/payments/reversals, GL pos
 |---|---|---|---|
 | **9A** | Schema (`LinesOfCredit`/`LinesOfCreditTransaction`/`CashFlowEntry`) + project-wide `ChartOfAccount` transport cutover | **[Tested]** — verified 2026-08-03 | None — start here |
 | **9B** | Suppliers & AP core: `Supplier`/`SupplierInvoiceLine`/`SupplierPayment`/`CashFlowEntry` transport cutover + 8 native functions | **[Tested]** — verified 2026-08-03 (see caveat below re: fiscal-period-gated write path) | **9A** (needs `CashFlowEntry` schema + `ChartOfAccount` cutover for `SupplierForm.jsx`) — cleared |
-| **9C** | Lines of Credit: `LinesOfCredit`/`LinesOfCreditTransaction` transport cutover + 4 native functions + `ReceiveCreditModal.jsx` | Active — starting now | **9A** (needs LOC schema); benefits from **9B** (shared payment-breakdown pattern) |
+| **9C** | Lines of Credit: `LinesOfCredit`/`LinesOfCreditTransaction` transport cutover + 4 native functions + `ReceiveCreditModal.jsx` | Implementation complete 2026-08-03, **awaiting your live testing** (hold gate) | **9A** (needs LOC schema); benefits from **9B** (shared payment-breakdown pattern) |
 | **9D** | Cheques: `IssuedChequesTable.jsx`, `ChequeWriter.jsx` + `generateChequePDF` port | Not Started | **9B** (reads `SupplierPayment` data created there) |
 
 ---
@@ -376,11 +376,11 @@ All 8 legacy sources read in full from `base44/functions/<name>/entry.ts` 2026-0
 
 ### 9C.3) Task List
 
-- [ ] All 4 functions ported, deployed to dev, verified via curl.
-- [ ] All 6 frontend files converted (table above).
-- [ ] Repo-wide grep: zero remaining `SupabaseProxy`/base44/`@/entities/all` references for `LinesOfCredit`/`LinesOfCreditTransaction` anywhere in `src/`.
-- [ ] `npx vite build` clean.
-- [ ] Apply functions to production after dev verification.
+- [x] All 4 functions ported, deployed to dev, verified via curl.
+- [x] All 6 frontend files converted (table above).
+- [x] Repo-wide grep: zero remaining `SupabaseProxy`/base44/`@/entities/all` references for `LinesOfCredit`/`LinesOfCreditTransaction` anywhere in `src/`.
+- [x] `npx vite build` clean.
+- [x] Apply functions to production after dev verification. — All 4 deployed to `hbcrwkmgsazqrvsrmxyr`, confirmed `status: ACTIVE`.
 
 ### 9C.4) Verification Checklist
 
@@ -497,7 +497,18 @@ Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) r
 
 ---
 
-### 9C — pre-execution research complete 2026-08-03, detailed plan below not yet executed
+### 9C — implementation complete 2026-08-03, awaiting your testing (hold gate below)
+
+All 4 functions ported byte-faithful to the researched legacy sources (see pre-execution research retained below), deployed to dev (`sitihbdnuxifwibontcm`) and verified via curl: `calculateLineOfCreditPaymentBreakdown` confirmed correct against real seeded data (Triangle Mastercard — all outstanding charges already fully paid off, correctly returned zero applied charges); `processLineOfCreditTransaction` confirmed via a full throwaway create→edit→delete cycle (GL rows and `LinesOfCredit.current_balance`/`available_credit` verified correct at each step via SQL, balance returned exactly to original after delete); `processLineOfCreditPayment` + `cancelLineOfCreditPayment` confirmed via a full throwaway LOC-to-LOC payment→cancel cycle (GL reversal rows net to zero, cross-link `is_reversed`/`reversed_by_id` correct both directions). All throwaway test rows and balances cleaned up/restored via SQL afterward, including manually restoring the source LOC's `current_balance` after cancellation — **confirmed the legacy `cancelLineOfCreditPayment` does not restore the source LOC's balance on a cross-LOC reversal, only the target's; ported faithfully, not silently fixed, per Section 2's standing rule.** All 4 then deployed to production (`hbcrwkmgsazqrvsrmxyr`), confirmed `status: ACTIVE`.
+
+All 6 frontend files converted per the 9C.1 table (`LinesOfCredit.jsx`, `LinesOfCreditEditModal.jsx`, `LineOfCreditTransactionModal.jsx`, `LineOfCreditPaymentModal.jsx`, `PaymentTransactionItem.jsx`, `LOCReconciliationModal.jsx`) plus `ReceiveCreditModal.jsx` (heaviest file — `LinesOfCredit`/`LinesOfCreditTransaction` plus the 6 `SupabaseProxy`-routed calls for `Supplier`, `GLTransaction` ×7 via `createGLTransaction`, `SupplierInvoiceLine` ×2, and cash-drawer `BankAccount` read/update, all converted to direct `supabase.from()`). `LineOfCreditPaymentModal.jsx`'s `Promise.all` (`BankAccount`/`LinesOfCredit`/`LinesOfCreditTransaction`) converted atomically in one edit, matching the standing `Promise.all` lesson.
+
+Repo-wide grep confirmed zero remaining `SupabaseProxy`/base44/`@/entities/all` references for `LinesOfCredit`/`LinesOfCreditTransaction` across all touched files, and zero remaining invokes of the 4 legacy function names. `npx vite build` passed clean (exit 0, `dist/` regenerated).
+
+**Not yet done this session:** live webview click-through on `test.kensauto.ca` (per this sub-phase's own 9C.4 checklist — account create/edit, manual charge/credit/edit/delete, a real end-to-end LOC payment, `ReceiveCreditModal.jsx`'s 3 refund destinations, and the CSV reconciliation matcher) — all backend logic is curl-verified against real/throwaway data, but the UI itself has not been clicked through live. Per this plan's hold-for-testing convention, that's the next step before 9D starts.
+
+<details>
+<summary>9C — original pre-execution research (2026-08-03), preserved for audit trail</summary>
 
 Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) re-verified every assumption in 9C's original draft against current on-disk reality — all 4 legacy function sources read in full at `base44/functions/<name>/entry.ts`, and all 6 frontend files in the 9C.1 table re-grepped against current state.
 
@@ -523,3 +534,5 @@ Fresh research pass (post-context-clear, per your `/nextsubphase` instruction) r
 **Correction to this sub-phase's own handoff note above:** the note speculated `LineOfCreditTransactionModal.jsx`/`LineOfCreditPaymentModal.jsx` "almost certainly" call `checkFiscalPeriodStatus()` on the frontend like `SupplierTx.jsx` does. Direct inspection shows **neither file does** — the fiscal-period gate for LOC transactions/payments exists only inside the four backend functions themselves (all four call it via `base44.asServiceRole.entities.FiscalPeriod.list()`, a service-role backend call). Once those four functions are ported to native `supabase.from('FiscalPeriod')` (service role, bypasses RLS, no auth-session dependency), **the 9B-style frontend 401/silent-block issue does not apply to 9C's write paths** — a materially better starting position than 9B had. This should be re-verified live once 9C executes, but nothing in the current source suggests it'll recur here.
 
 Nothing else out of scope was encountered — the file list and function list from the original 9C draft held up under verification, only the fiscal-period-gate detail above needed correcting (for the better).
+
+</details>

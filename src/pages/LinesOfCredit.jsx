@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { LinesOfCredit, LinesOfCreditTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,8 +106,9 @@ export default function LinesOfCreditPage() {
     setLoading(true);
     try {
       // 1. Load all lines of credit to find active ones
-      const allAccountsData = await LinesOfCredit.list();
-      const activeAccounts = allAccountsData.filter(acc => acc.is_active !== false);
+      const { data: allAccountsData, error: loadError } = await supabase.from('LinesOfCredit').select('*');
+      if (loadError) throw loadError;
+      const activeAccounts = (allAccountsData || []).filter(acc => acc.is_active !== false);
 
       // 2. Removed backend recalculation logic as we no longer track balances here
       
@@ -135,8 +135,13 @@ export default function LinesOfCreditPage() {
   // Existing `loadLinesOfCredit` for refreshing after account edits/saves
   const loadLinesOfCredit = useCallback(async () => {
     try {
-      const accountsData = await LinesOfCredit.filter({ is_active: true }, 'name');
-      setLinesOfCredit(accountsData);
+      const { data: accountsData, error: loadError } = await supabase
+        .from('LinesOfCredit')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (loadError) throw loadError;
+      setLinesOfCredit(accountsData || []);
       
       // Do NOT auto-select first account - let user choose
     } catch (error) {
@@ -153,11 +158,13 @@ export default function LinesOfCreditPage() {
         return;
       }
       
-      const allTransactionsData = await LinesOfCreditTransaction.filter(
-        { line_of_credit_id: selectedAccountId },
-        'transaction_date'
-      );
-      const visibleTransactionsData = allTransactionsData.filter(tx => tx.is_reversed !== true);
+      const { data: allTransactionsData, error: txError } = await supabase
+        .from('LinesOfCreditTransaction')
+        .select('*')
+        .eq('line_of_credit_id', selectedAccountId)
+        .order('transaction_date');
+      if (txError) throw txError;
+      const visibleTransactionsData = (allTransactionsData || []).filter(tx => tx.is_reversed !== true);
       
       // Sort all transactions by date (earliest first)
       visibleTransactionsData.sort((a, b) => {
@@ -307,10 +314,12 @@ export default function LinesOfCreditPage() {
 
   const handleSaveAccount = async (accountData) => {
     try {
+      const now = new Date().toISOString();
       if (editingAccount && editingAccount.id) {
-        await LinesOfCredit.update(editingAccount.id, accountData);
+        await supabase.from('LinesOfCredit').update({ ...accountData, updated_date: now }).eq('id', editingAccount.id);
       } else {
-        await LinesOfCredit.create(accountData);
+        const id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        await supabase.from('LinesOfCredit').insert([{ id, ...accountData, created_date: now, updated_date: now }]);
       }
       setShowEditModal(false);
       setEditingAccount(null);
@@ -372,9 +381,10 @@ export default function LinesOfCreditPage() {
   const handleFlushLocks = async () => {
     setFlushing(true);
     try {
-      const allAccounts = await LinesOfCredit.list();
-      const lockedAccounts = allAccounts.filter(acc => acc.locked_by_user);
-      
+      const { data: allAccounts, error: loadError } = await supabase.from('LinesOfCredit').select('*');
+      if (loadError) throw loadError;
+      const lockedAccounts = (allAccounts || []).filter(acc => acc.locked_by_user);
+
       if (lockedAccounts.length === 0) {
         alert('No locked accounts found.');
         setShowFlushConfirm(false);
@@ -382,11 +392,11 @@ export default function LinesOfCreditPage() {
         return;
       }
 
-      const updatePromises = lockedAccounts.map(account => 
-        LinesOfCredit.update(account.id, { 
+      const updatePromises = lockedAccounts.map(account =>
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        })
+        }).eq('id', account.id)
       );
 
       await Promise.all(updatePromises);

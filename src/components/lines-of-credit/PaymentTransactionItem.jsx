@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -65,8 +65,8 @@ export default function PaymentTransactionItem({ payment, allTransactions, onPay
   const handleCancelPayment = async () => {
     setIsCancelling(true);
     try {
-      await base44.functions.invoke('cancelLineOfCreditPayment', {
-        transactionId: payment.id,
+      await supabase.functions.invoke('autopro-cancelLineOfCreditPayment', {
+        body: { transactionId: payment.id },
       });
       await onPaymentCancelled?.();
     } finally {
