@@ -34,7 +34,7 @@ export default function AdvancePaymentModal({
     let parsedPayments = [];
     if (workOrder?.payments) {
       try {
-        const paymentsData = JSON.parse(workOrder.payments);
+        const paymentsData = typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments;
         if (Array.isArray(paymentsData)) {
           // Normalize payment objects to handle inconsistent property names
           parsedPayments = paymentsData.map(payment => ({

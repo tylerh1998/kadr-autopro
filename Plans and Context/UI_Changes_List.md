@@ -14,3 +14,4 @@
   - [ ] Add an edit feature that allows user to bring it back into the edit area. Similar to inventory add. 
 - [ ] Create/Edit Customer - make max height the screen height.
 - [ ] StockRelevelReport - print version. 
+- [ ] UI Modal by Modal for X standardization of Red box with white X as the close button

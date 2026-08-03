@@ -56,7 +56,7 @@ export default function WorkOrderViewFinancialSummary({ lineItems = [], workOrde
   const { amountPaid, balanceDue } = useMemo(() => {
     let payments = [];
     try {
-      payments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+      payments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
       if (!Array.isArray(payments)) payments = [];
     } catch (e) {
       console.error("Failed to parse payments JSON in WorkOrderViewFinancialSummary:", e);

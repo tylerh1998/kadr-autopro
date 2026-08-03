@@ -23,7 +23,7 @@ function getPaidAmount(workOrder) {
   let paid = 0;
   try {
     if (workOrder?.payments) {
-      const paymentsList = JSON.parse(workOrder.payments);
+      const paymentsList = typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments;
       if (Array.isArray(paymentsList)) {
         paid = paymentsList.reduce((sum, p) => {
           const method = p.payment_method || p.method;
