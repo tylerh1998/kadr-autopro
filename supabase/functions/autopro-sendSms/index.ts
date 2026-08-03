@@ -8,12 +8,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-
-const twilioClient = new twilio(accountSid, authToken);
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -42,6 +36,14 @@ serve(async (req) => {
     if (!to || !message) {
       return new Response(JSON.stringify({ error: 'Missing "to" or "message" parameter' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    if (!accountSid || !authToken || !fromNumber) {
+      return new Response(JSON.stringify({ error: 'Twilio credentials are not configured' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const twilioClient = new twilio(accountSid, authToken);
 
     const nowIso = new Date().toISOString();
     const newLogId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
