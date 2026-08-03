@@ -104,7 +104,7 @@ export default function TechnicianPerformanceReportModal() {
   return (
     <div className="space-y-6">
           {/* Controls */}
-          <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end">
+          <div className="flex flex-wrap gap-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg items-end">
             <div className="space-y-2 min-w-[150px]">
                <Label>Quick Select</Label>
                <Select onValueChange={setDateRange} defaultValue="thisMonth">
@@ -135,19 +135,19 @@ export default function TechnicianPerformanceReportModal() {
             </Button>
           </div>
 
-          {/* Progress Bar — hidden until Phase 10 migrates CashFlowSummary and target is populated */}
+          {/* Progress Bar — hidden until target > 0 (populated once monthly payroll target data exists) */}
           {reportData.progress.target > 0 && (
           <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-slate-500">
+                <CardTitle className="text-sm font-medium text-slate-500 dark:text-slate-400">
                     Monthly Payroll Target vs Labour Sales
                 </CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                        <span className="font-bold text-blue-600">Current: ${reportData.progress.current.toFixed(2)}</span>
-                        <span className="text-slate-500">Target: ${reportData.progress.target.toFixed(2)}</span>
+                        <span className="font-bold text-blue-600 dark:text-blue-400">Current: ${reportData.progress.current.toFixed(2)}</span>
+                        <span className="text-slate-500 dark:text-slate-400">Target: ${reportData.progress.target.toFixed(2)}</span>
                     </div>
                     <Progress value={(reportData.progress.current / (reportData.progress.target || 1)) * 100} className="h-3" />
                 </div>
@@ -204,14 +204,14 @@ export default function TechnicianPerformanceReportModal() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Efficiency Report
               </CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50">
+                  <TableRow className="bg-slate-50 dark:bg-slate-800">
                     <TableHead>Technician</TableHead>
                     <TableHead className="text-right">Project Hours</TableHead>
                     <TableHead className="text-right">Hours Billed</TableHead>
@@ -227,12 +227,12 @@ export default function TechnicianPerformanceReportModal() {
                           <TableCell className="font-medium">{tech.name}</TableCell>
                           <TableCell className="text-right">{tech.projectHours.toFixed(2)}</TableCell>
                           <TableCell className="text-right">{tech.billedHours.toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-green-600">${tech.laborRevenue.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-green-600 dark:text-green-400">${tech.laborRevenue.toFixed(2)}</TableCell>
                           <TableCell className="text-right font-bold">
                             ${(tech.revPerHour || 0).toFixed(2)}
                           </TableCell>
                           <TableCell className={`text-right font-bold ${
-                            (tech.billingEfficiency || 0) >= 100 ? 'text-green-600' : (tech.billingEfficiency || 0) >= 80 ? 'text-yellow-600' : 'text-red-600'
+                            (tech.billingEfficiency || 0) >= 100 ? 'text-green-600 dark:text-green-400' : (tech.billingEfficiency || 0) >= 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                           }`}>
                             {(tech.billingEfficiency || 0).toFixed(1)}%
                           </TableCell>
@@ -241,7 +241,7 @@ export default function TechnicianPerformanceReportModal() {
                   })}
                    {reportData.efficiency.length === 0 && (
                       <TableRow>
-                          <TableCell colSpan={6} className="text-center text-slate-500">No data found</TableCell>
+                          <TableCell colSpan={6} className="text-center text-slate-500 dark:text-slate-400">No data found</TableCell>
                       </TableRow>
                   )}
                 </TableBody>

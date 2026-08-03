@@ -1337,7 +1337,7 @@ export default function InventoryAddPage() {
                                 </SelectContent>
                             </Select>
                             {supplierLockStatus.locked && (
-                                <p className="text-xs text-red-600">Locked by: {supplierLockStatus.lockedBy}</p>
+                                <p className="text-xs text-red-600 dark:text-red-400">Locked by: {supplierLockStatus.lockedBy}</p>
                             )}
                         </div>
                         <div className="space-y-2">
@@ -1356,7 +1356,7 @@ export default function InventoryAddPage() {
                                     <button
                                         type="button"
                                         onClick={handleClearInvoice}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                                         tabIndex={-1}
                                     >
                                         <X className="h-4 w-4" />
@@ -1373,7 +1373,7 @@ export default function InventoryAddPage() {
                                     onChange={(e) => handleInvoiceDateChange(e.target.value)}
                                     onBlur={handleInvoiceDateBlur}
                                     placeholder="MM/DD/YYYY"
-                                    className={`flex-1 ${dateError ? 'text-red-600 border-red-500' : ''}`}
+                                    className={`flex-1 ${dateError ? 'text-red-600 dark:text-red-400 border-red-500 dark:border-red-700' : ''}`}
                                     title={dateError || ''}
                                 />
                                 <Popover>
@@ -1427,14 +1427,14 @@ export default function InventoryAddPage() {
                                         </div>
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-900">
                                             {inventorySearchLoading ? (
-                                                <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+                                                <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                                                     <Loader2 className="h-4 w-4 animate-spin" />
                                                     Searching parts...
                                                 </div>
                                             ) : filteredInventory.length === 0 ? (
-                                                <div className="py-6 text-center text-sm text-slate-500">
+                                                <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                                                     No existing parts found.
                                                     <br />
                                                     Continue typing to create new.
@@ -1448,11 +1448,11 @@ export default function InventoryAddPage() {
                                                                 selectPartFromList(item);
                                                                 setPartSearchOpen(false);
                                                             }}
-                                                            className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                                                            className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-50 dark:border-slate-800 last:border-0"
                                                         >
                                                             <div className="flex flex-col">
-                                                                <span className="font-medium text-slate-900">{item.part_number}</span>
-                                                                <span className="text-xs text-slate-500">{item.description}</span>
+                                                                <span className="font-medium text-slate-900 dark:text-slate-100">{item.part_number}</span>
+                                                                <span className="text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
                                                             </div>
                                                             {item.part_number === currentItem.part_number && (
                                                                 <Check className="h-4 w-4 text-green-600" />
@@ -1572,7 +1572,7 @@ export default function InventoryAddPage() {
                                     step="0.01"
                                     value={currentItem.profit_margin}
                                     readOnly
-                                    className="bg-gray-50"
+                                    className="bg-gray-50 dark:bg-slate-800"
                                 />
                             </div>
                             <div className="space-y-2 flex items-center">
@@ -1660,9 +1660,9 @@ export default function InventoryAddPage() {
                                                             handleItemFieldChange('location', '');
                                                             setLocationSearchOpen(false);
                                                         }}
-                                                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                     >
-                                                        <span className="text-slate-500 italic">No Location</span>
+                                                        <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                                                         {(!currentItem.location || currentItem.location === '') && <Check className="ml-auto h-4 w-4" />}
                                                     </div>
                                                     {filteredLocations.length === 0 ? (
@@ -1675,7 +1675,7 @@ export default function InventoryAddPage() {
                                                                     handleItemFieldChange('location', loc.location_name);
                                                                     setLocationSearchOpen(false);
                                                                 }}
-                                                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                             >
                                                                 <span>{loc.location_name}</span>
                                                                 {currentItem.location === loc.location_name && (
@@ -1693,8 +1693,8 @@ export default function InventoryAddPage() {
                         )}
 
                         {addToBatchError && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                                <p className="text-sm text-red-700 flex items-center gap-2">
+                            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md">
+                                <p className="text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
                                     <Lock className="w-4 h-4" />
                                     {addToBatchError}
                                 </p>
@@ -1703,7 +1703,7 @@ export default function InventoryAddPage() {
 
                         <div className="flex items-end justify-between gap-4 mt-4">
                             <div className="w-64">
-                                <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
+                                <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 dark:text-blue-400 animate-pulse">(Suggesting...)</span>}</Label>
                                 <Select 
                                     value={currentItem.category} 
                                     onValueChange={(val) => {
@@ -1728,7 +1728,7 @@ export default function InventoryAddPage() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">Ctrl + A</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">Ctrl + A</span>
                                 <Button onClick={handleAddToBatch} className="bg-black text-white hover:bg-gray-800">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add to Batch
@@ -1741,7 +1741,7 @@ export default function InventoryAddPage() {
                         <div className="border-t pt-6 mt-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="font-semibold">Batch Items ({getTotalItemsCount()} items, {batchItems.length} invoice{batchItems.length !== 1 ? 's' : ''})</h4>
-                                <div className="text-sm font-semibold text-slate-700">
+                                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     Total Value: ${getTotalBatchValue().toFixed(2)}
                                 </div>
                             </div>
@@ -1767,14 +1767,14 @@ export default function InventoryAddPage() {
                                     if (isDuplicate) errorMessages.push("Invoice appears to be a duplicate");
 
                                     return (
-                                    <div key={groupIndex} className={`bg-slate-50 rounded-lg p-4 ${isMissingGroupInfo ? 'border-2 border-orange-400' : ''}`}>
-                                        <div className="font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-300 flex items-center gap-2">
+                                    <div key={groupIndex} className={`bg-slate-50 dark:bg-slate-800 rounded-lg p-4 ${isMissingGroupInfo ? 'border-2 border-orange-400 dark:border-orange-600' : ''}`}>
+                                        <div className="font-semibold text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-300 dark:border-slate-600 flex items-center gap-2">
                                             {isMissingGroupInfo && (
                                                 <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">ERROR INVOICE</Badge>
                                             )}
                                             {getSupplierName(group.supplier_id)} - Invoice #{group.invoice_number || 'Missing'} - {group.invoice_date ? format(parseISO(group.invoice_date), 'MMM d, yyyy') : 'Missing Date'}
                                             {isDuplicate && (
-                                                <Badge variant="outline" className="ml-2 border-orange-500 text-orange-500 bg-orange-50 flex items-center gap-1 text-xs px-2 py-0">
+                                                <Badge variant="outline" className="ml-2 border-orange-500 dark:border-orange-700 text-orange-500 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 flex items-center gap-1 text-xs px-2 py-0">
                                                     <TriangleAlert className="w-3 h-3" />
                                                     Duplicate Entry
                                                 </Badge>
@@ -1784,39 +1784,39 @@ export default function InventoryAddPage() {
                                             {group.partItems.map((item) => {
                                                 const rowHasError = !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price || item.missing_tire_tax;
                                                 return (
-                                                <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 border-orange-300' : 'bg-white border-slate-200'}`}>
+                                                <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}>
                                                     <span className="text-sm">
-                                                        <span className="font-medium mr-2">{item.part_number || <span className="text-red-500 font-bold italic">Missing Part #</span>}</span>
+                                                        <span className="font-medium mr-2">{item.part_number || <span className="text-red-500 dark:text-red-400 font-bold italic">Missing Part #</span>}</span>
                                                         {!item.is_existing && (
-                                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] mr-2 h-5 px-1 py-0">New</Badge>
+                                                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] mr-2 h-5 px-1 py-0">New</Badge>
                                                         )}
                                                         {item.core && (
-                                                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
+                                                            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
                                                         )}
                                                         {item.enviro_fee > 0 && (
-                                                            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] mr-2 h-5 px-1 py-0">Enviro Fee: ${(parseFloat(item.enviro_fee) || 0).toFixed(2)}</Badge>
+                                                            <Badge variant="outline" className="bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 text-[10px] mr-2 h-5 px-1 py-0">Enviro Fee: ${(parseFloat(item.enviro_fee) || 0).toFixed(2)}</Badge>
                                                         )}
-                                                        <span>- {item.description || <span className="text-red-500 font-bold italic">Missing Description</span>}</span> 
+                                                        <span>- {item.description || <span className="text-red-500 dark:text-red-400 font-bold italic">Missing Description</span>}</span>
                                                         {item.missing_tire_tax && (
-                                                            <span className="text-red-500 font-bold italic ml-2">Missing Tire Tax</span>
+                                                            <span className="text-red-500 dark:text-red-400 font-bold italic ml-2">Missing Tire Tax</span>
                                                         )}
-                                                        <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
-                                                        <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
+                                                        <span className="text-slate-600 dark:text-slate-400"> (Qty: {item.quantity_received})</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
                                                     </span>
                                                     <div className="flex items-center gap-1">
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
                                                             onClick={() => handleEditItem(groupIndex, item)}
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                                                         >
                                                             <Pencil className="w-4 h-4" />
                                                         </Button>
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="ghost" 
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
                                                             onClick={() => handleRemoveItem(groupIndex, item.id)}
-                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </Button>
@@ -1824,17 +1824,17 @@ export default function InventoryAddPage() {
                                                 </div>
                                             )})}
                                         </div>
-                                        <div className="mt-2 pt-2 border-t border-slate-300 text-right text-sm font-semibold flex items-center justify-end gap-6 text-slate-700">
+                                        <div className="mt-2 pt-2 border-t border-slate-300 dark:border-slate-600 text-right text-sm font-semibold flex items-center justify-end gap-6 text-slate-700 dark:text-slate-300">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-slate-500 font-normal">Subtotal:</span>
-                                                <span className={subtotalMismatch ? 'bg-orange-200 px-1 rounded' : ''}>
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">Subtotal:</span>
+                                                <span className={subtotalMismatch ? 'bg-orange-200 dark:bg-orange-900/50 px-1 rounded' : ''}>
                                                     ${actualTotalForMismatch.toFixed(2)}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-slate-500 font-normal">Freight:</span>
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">Freight:</span>
                                                 <div className="relative">
-                                                    <span className="absolute left-2 top-1.5 text-slate-500">$</span>
+                                                    <span className="absolute left-2 top-1.5 text-slate-500 dark:text-slate-400">$</span>
                                                     <Input 
                                                         type="number" 
                                                         step="0.01" 
@@ -1849,9 +1849,9 @@ export default function InventoryAddPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-slate-500 font-normal">GST:</span>
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">GST:</span>
                                                 <div className="relative">
-                                                    <span className="absolute left-2 top-1.5 text-slate-500">$</span>
+                                                    <span className="absolute left-2 top-1.5 text-slate-500 dark:text-slate-400">$</span>
                                                     <Input 
                                                         type="number" 
                                                         step="0.01" 
@@ -1866,8 +1866,8 @@ export default function InventoryAddPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                Invoice Total: 
-                                                <span className={totalMismatch ? 'bg-orange-200 px-1 rounded' : ''}>
+                                                Invoice Total:
+                                                <span className={totalMismatch ? 'bg-orange-200 dark:bg-orange-900/50 px-1 rounded' : ''}>
                                                     ${calculatedGrandTotal.toFixed(2)}
                                                 </span>
                                             </div>
@@ -1875,7 +1875,7 @@ export default function InventoryAddPage() {
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <AlertCircle className="w-4 h-4 text-black cursor-help" />
+                                                            <AlertCircle className="w-4 h-4 text-black dark:text-slate-100 cursor-help" />
                                                         </TooltipTrigger>
                                                         <TooltipContent className="bg-black text-white p-2 text-sm">
                                                             <ul className="list-disc pl-4 space-y-1">
@@ -1899,7 +1899,7 @@ export default function InventoryAddPage() {
                             Cancel
                         </Button>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Ctrl + S</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">Ctrl + S</span>
                             <Button onClick={handleSaveAndFinish} disabled={batchItems.length === 0 || saving} className="bg-gray-600 text-white hover:bg-gray-700">
                                 {saving ? (
                                     <>

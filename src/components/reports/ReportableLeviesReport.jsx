@@ -199,7 +199,7 @@ export default function ReportableLeviesReport() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
         <div className="flex items-end gap-4">
           <div>
-            <label className="text-sm font-medium text-slate-700">Start Date</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Start Date</label>
             <Input
               type="date"
               value={dateRange.startDate}
@@ -208,7 +208,7 @@ export default function ReportableLeviesReport() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">End Date</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">End Date</label>
             <Input
               type="date"
               value={dateRange.endDate}
@@ -220,7 +220,7 @@ export default function ReportableLeviesReport() {
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
             Run Report
           </Button>
-          <Button variant="ghost" onClick={handleLastQuarter} className="mb-[2px] text-blue-600 hover:text-blue-800">
+          <Button variant="ghost" onClick={handleLastQuarter} className="mb-[2px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
             Last Quarter
           </Button>
         </div>
@@ -262,12 +262,12 @@ export default function ReportableLeviesReport() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
-                    <p className="text-sm text-slate-500 mt-2">Loading report data...</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Loading report data...</p>
                   </TableCell>
                 </TableRow>
               ) : data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-slate-500 dark:text-slate-400">
                     No reportable levies found for this period.
                   </TableCell>
                 </TableRow>
@@ -281,13 +281,13 @@ export default function ReportableLeviesReport() {
                       <TableCell className="text-right">{item.qty}</TableCell>
                       <TableCell className="text-right">${parseFloat(item.base_amount).toFixed(2)}</TableCell>
                       <TableCell className="text-right">${parseFloat(item.total_amount).toFixed(2)}</TableCell>
-                      <TableCell className={`text-center font-medium ${item.supplier_invoice_line_id ? 'text-green-600' : 'text-red-600'}`}>
+                      <TableCell className={`text-center font-medium ${item.supplier_invoice_line_id ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {item.supplier_invoice_line_id ? 'Yes' : 'No'}
                       </TableCell>
                     </TableRow>
                   ))}
                   {/* Totals Row */}
-                  <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                  <TableRow className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-700">
                     <TableCell colSpan={3} className="text-right">Totals:</TableCell>
                     <TableCell className="text-right">{summary.totalQty}</TableCell>
                     <TableCell className="text-right"></TableCell>
