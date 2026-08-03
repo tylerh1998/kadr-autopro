@@ -216,9 +216,9 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 onChange={(value) => handleFieldChange('supplier_id', value)}
                 disabled={supplierLocked}
                 placeholder="Select supplier"
-                className={supplierLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+                className={supplierLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}
               />
-              <p className="text-xs text-slate-500 mt-1">Supplier reassignment is saved by itself. If you change supplier, the other fields lock; if you change any other field, supplier locks.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Supplier reassignment is saved by itself. If you change supplier, the other fields lock; if you change any other field, supplier locks.</p>
             </div>
 
             <div className="col-span-2">
@@ -230,9 +230,9 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 rows={3}
                 maxLength={100}
                 readOnly={descriptionLocked}
-                className={descriptionLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+                className={descriptionLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 {(formData.description || '').length}/100 characters
               </p>
             </div>
@@ -244,7 +244,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 value={formData.invoice_number || ''}
                 onChange={(e) => handleFieldChange('invoice_number', e.target.value)}
                 readOnly={standardFieldsLocked}
-                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}
               />
             </div>
 
@@ -256,7 +256,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 value={formData.invoice_date || ''}
                 onChange={(e) => handleFieldChange('invoice_date', e.target.value)}
                 readOnly={standardFieldsLocked}
-                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+                className={standardFieldsLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}
               />
             </div>
 
@@ -269,7 +269,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 onChange={(e) => handleFieldChange('charge', e.target.value)}
                 placeholder="0.00"
                 readOnly={standardFieldsLocked}
-                className={`${isNaN(parseFloat(formData.charge)) && formData.charge !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed bg-slate-100' : ''}`}
+                className={`${isNaN(parseFloat(formData.charge)) && formData.charge !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}`}
               />
             </div>
 
@@ -282,7 +282,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 onChange={(e) => handleFieldChange('gst', e.target.value)}
                 placeholder="0.00"
                 disabled={standardFieldsLocked || !formData.gst_override}
-                className={`${isNaN(parseFloat(formData.gst)) && formData.gst !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked || !formData.gst_override ? 'cursor-not-allowed bg-slate-100' : ''}`}
+                className={`${isNaN(parseFloat(formData.gst)) && formData.gst !== '' ? 'border-red-300 text-red-600' : ''} ${standardFieldsLocked || !formData.gst_override ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}`}
               />
             </div>
 
@@ -293,7 +293,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 type="text"
                 value={typeof formData.line_total === 'number' ? formData.line_total.toFixed(2) : formData.line_total}
                 readOnly
-                className={`bg-slate-100 ${formData.line_total === 'Error' ? 'text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed' : ''}`}
+                className={`bg-slate-100 dark:bg-slate-700 ${formData.line_total === 'Error' ? 'text-red-600' : ''} ${standardFieldsLocked ? 'cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -305,7 +305,7 @@ export default function LineEditModal({ open, onClose, line, onSave, chartOfAcco
                 onChange={(value) => handleFieldChange('gl_account', value)}
                 disabled={glAccountLocked}
                 placeholder="Select GL account"
-                className={glAccountLocked ? 'cursor-not-allowed bg-slate-100' : ''}
+                className={glAccountLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-700' : ''}
               />
             </div>
 

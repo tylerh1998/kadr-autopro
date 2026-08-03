@@ -87,7 +87,7 @@ Phase 1 ──► Phase 2 ──► Phase 3
 
 ---
 
-### Phase 1 — Supplier & AP Pages [Pending]
+### Phase 1 — Supplier & AP Pages [Executed]
 
 **TL;DR:** Supplier transaction views, AP summary, cheque pages, and payment modals are heavily table-driven. Systematic row/header dark mode application needed. No conflict risk with other agents.
 

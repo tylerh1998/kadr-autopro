@@ -163,8 +163,8 @@ export default function SuppliersPage() {
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Suppliers</h1>
-              <p className="text-slate-600 mt-1">Manage your parts and service suppliers</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Suppliers</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your parts and service suppliers</p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -177,7 +177,7 @@ export default function SuppliersPage() {
               <Button
                 onClick={() => navigate(createPageUrl('APSummary'))}
                 variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/30"
               >
                 <FileText className="w-4 h-4 mr-2" />
                 AP Summary
@@ -228,24 +228,24 @@ export default function SuppliersPage() {
               Array(3).fill(0).map((_, i) => (
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-6 space-y-3">
-                    <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                    <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
                   </CardContent>
                 </Card>
               ))
             ) : filteredSuppliers.length > 0 ? (
               filteredSuppliers.map((supplier) => (
                 <Link key={supplier.id} to={createPageUrl(`SupplierTx?id=${supplier.id}`)} className="h-full">
-                  <Card className="group h-full border border-slate-200 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-blue-300 hover:ring-2 hover:ring-blue-100">
+                  <Card className="group h-full border border-slate-200 dark:border-slate-700 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-blue-300 hover:ring-2 hover:ring-blue-100 dark:hover:border-blue-700 dark:hover:ring-blue-900/40">
                     <CardContent className="p-6 h-full flex flex-col">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center transition-colors duration-200 group-hover:bg-blue-200">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center transition-colors duration-200 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/60">
                           <Truck className="w-6 h-6 text-blue-600" />
                         </div>
                         <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-bold text-slate-900 hover:underline">
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 hover:underline">
                             {supplier.name}
                           </h3>
                           {isLockedByOtherUser(supplier) && (
@@ -264,16 +264,16 @@ export default function SuppliersPage() {
                         </div>
                         </div>
                         <div className="space-y-2 text-sm mt-auto">
-                        {supplier.phone && <p className="flex items-center gap-2 text-slate-700"><Phone className="w-4 h-4 text-slate-400" /> {supplier.phone}</p>}
-                        {supplier.email && <p className="flex items-center gap-2 text-slate-700"><Mail className="w-4 h-4 text-slate-400" /> {supplier.email}</p>}
+                        {supplier.phone && <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><Phone className="w-4 h-4 text-slate-400 dark:text-slate-500" /> {supplier.phone}</p>}
+                        {supplier.email && <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" /> {supplier.email}</p>}
                         <div className="flex gap-2 flex-wrap">
                           {supplier.inventory_supplier && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
                               Inventory Supplier
                             </span>
                           )}
                           {supplier.pin_to_top && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
                               Pinned
                             </span>
                           )}
@@ -288,8 +288,8 @@ export default function SuppliersPage() {
                 <Card className="text-center py-12">
                   <CardContent>
                     <Truck className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Suppliers Found</h3>
-                    <p className="text-slate-600 mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Suppliers Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">
                       {searchTerm ? 'No suppliers match your search.' : 'Add your first supplier to get started.'}
                     </p>
                     <Button onClick={() => {

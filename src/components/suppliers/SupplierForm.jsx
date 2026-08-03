@@ -109,7 +109,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       {/* Assuming the parent component will provide the title, but if not, one could be added here */}
-      <h2 className="text-xl font-semibold mb-4">{supplier ? 'Edit Supplier' : 'Add New Supplier'}</h2>
+      <h2 className="text-xl font-semibold mb-4 dark:text-slate-100">{supplier ? 'Edit Supplier' : 'Add New Supplier'}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="name">Supplier Name *</Label>
@@ -180,7 +180,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
             />
             <Label htmlFor="inventory_supplier">Inventory Supplier</Label>
           </div>
-          <p className="text-sm text-slate-500">Include in inventory supplier lists</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Include in inventory supplier lists</p>
           
           <div className="flex items-center space-x-2 pt-2">
             <Checkbox
@@ -190,7 +190,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
             />
             <Label htmlFor="pin_to_top">Pin to Top</Label>
           </div>
-          <p className="text-sm text-slate-500">Show this supplier at the top of the list</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Show this supplier at the top of the list</p>
 
           <div className="flex items-center space-x-2 pt-2">
             <Checkbox
@@ -200,7 +200,7 @@ export default function SupplierForm({ supplier, onSubmit, onCancel }) {
             />
             <Label htmlFor="default_taxable">Default Manual GST</Label>
           </div>
-          <p className="text-sm text-slate-500">Default new lines to Manual GST mode (0.00)</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Default new lines to Manual GST mode (0.00)</p>
         </div>
       </div>
 

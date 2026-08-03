@@ -291,17 +291,17 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         {isFullPage ? (
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">AP Summary</h1>
-              <p className="text-slate-600 mt-1">Aged accounts payable for all suppliers.</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">AP Summary</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Aged accounts payable for all suppliers.</p>
             </div>
         ) : (
             <div className="flex items-center gap-4">
-                <h2 className="text-xl font-semibold text-slate-800">Accounts Payable Summary</h2>
+                <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">Accounts Payable Summary</h2>
                 <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => window.open(createPageUrl('APSummary'), '_blank')}
-                    className="gap-2 text-slate-500 hover:text-blue-600 h-8"
+                    className="gap-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 h-8"
                 >
                     <ExternalLink className="w-4 h-4" />
                     Open in new tab
@@ -345,14 +345,14 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
       
       <div className="print-area">
          <div className="print-title">Accounts Payable Summary - As of {format(asOfDate, 'MMMM d, yyyy')}</div>
-        <Card className="border rounded-lg shadow-sm">
+        <Card className="border rounded-lg shadow-sm dark:border-slate-700">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                   <tr>
                     <th 
-                      className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
+                      className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
                       onClick={() => handleSort('name')}
                     >
                       <div className="flex items-center">
@@ -361,12 +361,12 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                       </div>
                     </th>
                     <th 
-                      className="text-center p-3 font-semibold text-slate-700 whitespace-nowrap"
+                      className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap"
                     >
                       Cash Flow
                     </th>
                     <th 
-                      className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 whitespace-nowrap"
+                      className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
                       onClick={() => handleSort('not_due')}
                     >
                       <div className="flex items-center justify-end">
@@ -418,8 +418,8 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                   ) : summaryData.length > 0 ? (
                     summaryData.map(supplier => {
                       const RowContent = (
-                        <tr className="border-b last:border-b-0 hover:bg-slate-50 cursor-pointer transition-colors">
-                          <td className="p-3 font-medium text-slate-900">{supplier.name}</td>
+                        <tr className="border-b last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
+                          <td className="p-3 font-medium text-slate-900 dark:text-slate-100">{supplier.name}</td>
                           <td className="p-0 text-center align-top">
                             <div className="flex flex-col w-full h-full">
                                 {supplier.cashFlowEntries && supplier.cashFlowEntries.map((entry, idx) => {
@@ -464,7 +464,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                           <td className="p-3 text-right font-bold">${supplier.balance_0_30.toFixed(2)}</td>
                           <td className="p-3 text-right">${supplier.balance_31_60.toFixed(2)}</td>
                           <td className="p-3 text-right">${supplier.balance_60_plus.toFixed(2)}</td>
-                          <td className="p-3 text-right font-semibold text-blue-700">${supplier.total_balance}</td>
+                          <td className="p-3 text-right font-semibold text-blue-700 dark:text-blue-400">${supplier.total_balance}</td>
                         </tr>
                       );
 
@@ -480,7 +480,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                           <ContextMenuContent>
                             <ContextMenuItem 
                               onClick={handleViewTransactions}
-                              className="bg-white text-black focus:bg-slate-100 focus:text-black cursor-pointer"
+                              className="bg-white dark:bg-slate-800 text-black dark:text-slate-100 focus:bg-slate-100 dark:focus:bg-slate-700 focus:text-black dark:focus:text-slate-100 cursor-pointer"
                             >
                               <FileText className="w-4 h-4 mr-2" />
                               View Transactions
@@ -504,10 +504,10 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                       );
                     })
                   ) : (
-                    <tr><td colSpan="6" className="p-12 text-center text-slate-500">No outstanding payables found.</td></tr>
+                    <tr><td colSpan="6" className="p-12 text-center text-slate-500 dark:text-slate-400">No outstanding payables found.</td></tr>
                   )}
                 </tbody>
-                <tfoot className="bg-slate-100 font-bold border-t">
+                <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t dark:border-slate-700">
                    <tr>
                      <td className="p-3 text-right">Total</td>
                      <td className="p-3"></td>
@@ -515,7 +515,7 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                      <td className="p-3 text-right">${totals.balance_0_30.toFixed(2)}</td>
                      <td className="p-3 text-right">${totals.balance_31_60.toFixed(2)}</td>
                      <td className="p-3 text-right">${totals.balance_60_plus.toFixed(2)}</td>
-                     <td className="p-3 text-right text-blue-700">${totals.total_balance}</td>
+                     <td className="p-3 text-right text-blue-700 dark:text-blue-400">${totals.total_balance}</td>
                    </tr>
                 </tfoot>
               </table>

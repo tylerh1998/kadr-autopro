@@ -699,7 +699,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               <TabsContent value="pay_invoices" className="space-y-4">
                 <div className="border rounded-lg max-h-[400px] overflow-y-auto">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-white z-10">
+                    <TableHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10">
                       <TableRow>
                         <TableHead className="w-12">
                           <Checkbox
@@ -730,7 +730,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                           return (
                             <TableRow 
                               key={invoice.uniqueKey}
-                              className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (isCredit ? 'bg-green-50' : '')} hover:bg-blue-100`}
+                              className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (isCredit ? 'bg-green-50 dark:bg-green-900/20' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
                               onClick={() => handleInvoiceSelection(invoice.uniqueKey, !isSelected)}
                             >
                               <TableCell onClick={(e) => e.stopPropagation()}>
@@ -752,7 +752,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <span className="font-semibold">Selected Amount:</span>
                   <span className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                 </div>
@@ -760,8 +760,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
 
               <TabsContent value="pay_on_account" className="space-y-4">
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
                       This payment will be applied to the oldest outstanding invoices first.
                       Any remaining amount will be kept on account.
                     </p>
@@ -809,14 +809,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                             {calculating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Calculate"}
                         </Button>
                     </div>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       Total Balance Owing: {totalBalanceOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     </p>
                   </div>
 
                   {calculationResult && (
                     <div className="border rounded-lg overflow-hidden">
-                        <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                        <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 font-medium border-b dark:border-slate-700 flex justify-between">
                             <span>Proposed Application</span>
                             <span>{calculationResult.totalApplied.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                         </div>
@@ -844,9 +844,9 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                                         ))
                                     )}
                                     {Math.abs(calculationResult.unappliedAmount) > 0.005 && (
-                                        <TableRow className="bg-amber-50">
-                                            <TableCell className="font-medium text-amber-800">Unapplied (On Account)</TableCell>
-                                            <TableCell className="text-right font-medium text-amber-800">
+                                        <TableRow className="bg-amber-50 dark:bg-amber-900/30">
+                                            <TableCell className="font-medium text-amber-800 dark:text-amber-300">Unapplied (On Account)</TableCell>
+                                            <TableCell className="text-right font-medium text-amber-800 dark:text-amber-300">
                                                 {calculationResult.unappliedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                                             </TableCell>
                                         </TableRow>
@@ -885,8 +885,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             <DialogTitle>Payment Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">Payment Amount:</p>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
             </div>
 
@@ -969,8 +969,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                       onClick={() => handlePaymentMethodChange(method)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                         paymentData.payment_method === method
-                          ? 'bg-slate-900 text-white shadow-md'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                       }`}
                     >
                       {method}
@@ -1010,23 +1010,23 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             )}
 
             {(cashFlowLoading || cashFlowEntry) && (
-              <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
-                <Label className="text-sm font-semibold text-slate-700">Cash Flow Entry</Label>
+              <div className="space-y-2 rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
+                <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Cash Flow Entry</Label>
                 {cashFlowLoading ? (
-                  <p className="text-sm text-slate-500">Loading cash flow entry...</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Loading cash flow entry...</p>
                 ) : cashFlowEntry ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Paid Date</span>
-                      <span className="font-medium text-slate-900">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Paid Date</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Amount</span>
-                      <span className="font-medium text-slate-900">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Amount</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-slate-500">Comment</span>
-                      <p className="rounded border bg-white px-3 py-2 text-slate-900">{cashFlowEntry.comment || '—'}</p>
+                      <span className="text-slate-500 dark:text-slate-400">Comment</span>
+                      <p className="rounded border dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100">{cashFlowEntry.comment || '—'}</p>
                     </div>
                   </div>
                 ) : null}
@@ -1104,7 +1104,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
               <div className="text-center">
                 <h3 className="text-lg font-semibold mb-2">Processing Payment</h3>
-                <p className="text-sm text-slate-600">Please wait while we process your payment and prepare the cheque...</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Please wait while we process your payment and prepare the cheque...</p>
               </div>
             </div>
           </DialogContent>

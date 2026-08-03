@@ -73,14 +73,14 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
               id="supplier"
               value={formData.supplierName} 
               disabled 
-              className="bg-slate-100 text-slate-500"
+              className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
             />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="amount">Amount</Label>
             <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                <span className="absolute left-3 top-2.5 text-gray-500 dark:text-slate-400">$</span>
                 <Input
                   id="amount"
                   type="number"

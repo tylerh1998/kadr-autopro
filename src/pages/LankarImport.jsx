@@ -123,14 +123,14 @@ export default function LankarImport() {
         </Button>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Lankar Import</h1>
-            <p className="text-slate-600 mt-1">Import data in bulk from CSV files</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Lankar Import</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Import data in bulk from CSV files</p>
           </div>
           <div className="flex gap-2">
             <Button 
               onClick={() => setShowLegacyInvoiceModal(true)}
               variant="outline"
-              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+              className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
             >
               <FileText className="w-4 h-4 mr-2" />
               Add Legacy Invoice to AR
@@ -138,7 +138,7 @@ export default function LankarImport() {
             <Button 
               onClick={() => setShowWorkOrderImportModal(true)}
               variant="outline"
-              className="border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+              className="border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/30"
             >
               <FileText className="w-4 h-4 mr-2" />
               Import Work Order
@@ -146,7 +146,7 @@ export default function LankarImport() {
             <Button 
               onClick={() => setShowReturnModal(true)}
               variant="outline"
-              className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+              className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/30"
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Add Legacy Return
@@ -181,27 +181,27 @@ export default function LankarImport() {
           <CardContent>
             <RadioGroup value={selectedType} onValueChange={setSelectedType} className="space-y-3">
               {/* Customers */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="customers" id="customers" />
                 <Label htmlFor="customers" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Users className="w-5 h-5 text-green-600" />
                   <div>
                     <p className="font-medium">Customers</p>
-                    <p className="text-sm text-slate-500">Import customer records</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import customer records</p>
                   </div>
                 </Label>
               </div>
 
               {/* Vehicles */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="vehicles" id="vehicles" />
                 <Label htmlFor="vehicles" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Car className="w-5 h-5 text-purple-600" />
                   <div className="w-full">
                     <p className="font-medium">Vehicles</p>
-                    <p className="text-sm text-slate-500">Import vehicle records</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import vehicle records</p>
                     {selectedType === 'vehicles' && (
-                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                        <div className="mt-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                             <p className="font-semibold mb-1">Required Columns:</p>
                             <code className="text-purple-700">cusid, vehid, year, make, model, vin, engsize, unitno, colour</code>
                         </div>
@@ -211,15 +211,15 @@ export default function LankarImport() {
               </div>
 
               {/* Suppliers */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="suppliers" id="suppliers" />
                 <Label htmlFor="suppliers" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Package className="w-5 h-5 text-orange-600" />
                   <div>
                     <p className="font-medium">Suppliers</p>
-                    <p className="text-sm text-slate-500">Import supplier records</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import supplier records</p>
                     {selectedType === 'suppliers' && (
-                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                        <div className="mt-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                             <p className="font-semibold mb-1">Required Columns:</p>
                             <code className="text-orange-700">supid, company, Inventory_Supplier, contact, street, city, province, postal, atel, tel</code>
                         </div>
@@ -229,15 +229,15 @@ export default function LankarImport() {
               </div>
 
               {/* Inventory */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="inventory" id="inventory" />
                 <Label htmlFor="inventory" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Package className="w-5 h-5 text-blue-600" />
                   <div>
                     <p className="font-medium">Inventory</p>
-                    <p className="text-sm text-slate-500">Import inventory items and parts</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import inventory items and parts</p>
                     {selectedType === 'inventory' && (
-                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                        <div className="mt-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                             <p className="font-semibold mb-1">Required Columns:</p>
                             <code className="text-blue-700">partnum, description, qoh, lastcost, lastlist, location, chkhasacore, lastcorecost, category, reorderamt, reorderMAXamount</code>
                         </div>
@@ -247,15 +247,15 @@ export default function LankarImport() {
               </div>
 
               {/* Inventory Locations */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="inventory_locations" id="inventory_locations" />
                 <Label htmlFor="inventory_locations" className="flex items-center gap-3 cursor-pointer flex-1">
                   <Package className="w-5 h-5 text-indigo-600" />
                   <div>
                     <p className="font-medium">Inventory Locations</p>
-                    <p className="text-sm text-slate-500">Import location records from XLSX</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import location records from XLSX</p>
                     {selectedType === 'inventory_locations' && (
-                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                        <div className="mt-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                             <p className="font-semibold mb-1">Required Columns:</p>
                             <code className="text-indigo-700">Location (or Name), Description (optional)</code>
                         </div>
@@ -265,15 +265,15 @@ export default function LankarImport() {
               </div>
 
               {/* Balance Sheet */}
-              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+              <div className="flex items-center space-x-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">
                 <RadioGroupItem value="balance_sheet" id="balance_sheet" />
                 <Label htmlFor="balance_sheet" className="flex items-center gap-3 cursor-pointer flex-1">
                   <FileText className="w-5 h-5 text-teal-600" />
                   <div>
                     <p className="font-medium">Balance Sheet</p>
-                    <p className="text-sm text-slate-500">Import closing balances as GL Transactions</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Import closing balances as GL Transactions</p>
                     {selectedType === 'balance_sheet' && (
-                        <div className="mt-2 text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
+                        <div className="mt-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300">
                             <p className="font-semibold mb-1">Required Columns:</p>
                             <code className="text-teal-700">Acct #, DR, CR</code>
                         </div>
@@ -292,7 +292,7 @@ export default function LankarImport() {
             <CardDescription>Select a CSV or Excel file to import</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+            <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-blue-400 dark:hover:border-blue-600 transition-colors">
               <Upload className="w-10 h-10 text-slate-400 mx-auto mb-4" />
               <Input
                 type="file"
@@ -301,7 +301,7 @@ export default function LankarImport() {
                 className="max-w-xs mx-auto"
               />
               {selectedFile && (
-                <div className="mt-4 text-sm text-slate-600">
+                <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">
                   <p>Selected: <span className="font-medium">{selectedFile.name}</span></p>
                   {parsedData.length > 0 && (
                     <p className="text-green-600 mt-1">File ready for import</p>
@@ -314,7 +314,7 @@ export default function LankarImport() {
 
         {/* Import Result */}
         {importResult && (
-          <Card className={importResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
+          <Card className={importResult.success ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'}>
             <CardContent className="py-4 flex items-center gap-3">
               {importResult.success ? (
                 <CheckCircle className="w-5 h-5 text-green-600" />

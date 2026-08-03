@@ -73,7 +73,9 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
           setSearching(true);
           const { data, error } = await supabase.rpc('search_inventory_ranked', {
             p_search_term: contextLineItem.part_number,
-            p_limit: 50
+            p_limit: 50,
+            p_location_from: null,
+            p_location_to: null
           });
           if (error) console.error('Error searching for context item:', error);
           const records = (data || []).map(({ total_count, match_rank, ...item }) => item);
@@ -116,7 +118,9 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       try {
         const { data, error } = await supabase.rpc('search_inventory_ranked', {
           p_search_term: activeSearchTerm,
-          p_limit: 100
+          p_limit: 100,
+          p_location_from: null,
+          p_location_to: null
         });
 
         if (error) throw error;
