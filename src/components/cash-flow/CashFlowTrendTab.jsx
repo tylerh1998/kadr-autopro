@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import moment from 'moment';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,10 +39,12 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getFinancialDashboardData', {
-        dateRange: {
-          from: fromDate,
-          to: toDate
+      const response = await supabase.functions.invoke('autopro-getFinancialDashboardData', {
+        body: {
+          dateRange: {
+            from: fromDate,
+            to: toDate
+          }
         }
       });
 

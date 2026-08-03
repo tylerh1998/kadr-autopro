@@ -124,7 +124,7 @@ export default function OtherChargesBreakdownReport() {
   return (
     <div className="space-y-4">
       {/* Date Range Selection */}
-      <div className="flex items-end gap-4 p-4 bg-slate-50 rounded-lg">
+      <div className="flex items-end gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
         <div className="space-y-2">
           <Label htmlFor="startDate">Start Date</Label>
           <Input
@@ -166,7 +166,7 @@ export default function OtherChargesBreakdownReport() {
 
       {/* Error Display */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-900/40 dark:text-red-400">
           {error}
         </div>
       )}
@@ -176,17 +176,17 @@ export default function OtherChargesBreakdownReport() {
         <div className="space-y-4">
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-600">Invoices in Period</p>
-              <p className="text-2xl font-bold text-blue-800">{reportData.invoiceCount}</p>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-sm text-blue-600 dark:text-blue-400">Invoices in Period</p>
+              <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{reportData.invoiceCount}</p>
             </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-sm text-green-600">Charge Types</p>
-              <p className="text-2xl font-bold text-green-800">{reportData.charges.length}</p>
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <p className="text-sm text-green-600 dark:text-green-400">Charge Types</p>
+              <p className="text-2xl font-bold text-green-800 dark:text-green-300">{reportData.charges.length}</p>
             </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm text-purple-600">Grand Total</p>
-              <p className="text-2xl font-bold text-purple-800">${reportData.grandTotal.toFixed(2)}</p>
+            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+              <p className="text-sm text-purple-600 dark:text-purple-400">Grand Total</p>
+              <p className="text-2xl font-bold text-purple-800 dark:text-purple-300">${reportData.grandTotal.toFixed(2)}</p>
             </div>
           </div>
 
@@ -206,7 +206,7 @@ export default function OtherChargesBreakdownReport() {
                   reportData.charges.map((charge, index) => (
                     <TableRow 
                       key={index} 
-                      className="cursor-pointer hover:bg-slate-50"
+                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50"
                       onClick={() => setSelectedCharge(charge)}
                     >
                       <TableCell className="font-medium">{charge.description}</TableCell>
@@ -219,13 +219,13 @@ export default function OtherChargesBreakdownReport() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24 text-slate-500">
+                    <TableCell colSpan={4} className="text-center h-24 text-slate-500 dark:text-slate-400">
                       No other charges found for this period.
                     </TableCell>
                   </TableRow>
                 )}
                 {reportData.charges.length > 0 && (
-                  <TableRow className="bg-slate-100 font-bold">
+                  <TableRow className="bg-slate-100 dark:bg-slate-800 font-bold">
                     <TableCell colSpan={3}>Grand Total</TableCell>
                     <TableCell className="text-right">${reportData.grandTotal.toFixed(2)}</TableCell>
                   </TableRow>

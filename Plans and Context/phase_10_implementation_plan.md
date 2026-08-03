@@ -1,6 +1,6 @@
 # Phase 10 Implementation Plan: Accounting, GL Reporting, Taxes & Fiscal Periods
 
-**Status:** **Draft — awaiting your approval before execution begins.**
+**Status:** **In Progress.** 10A code-complete and **confirmed live** on `test.kensauto.ca` (pushed via commit `2b21dccaf` "Phase 10A"). 10B (the 7-function RPC-transition subset) is code-complete and backend-verified against real production data, but **not yet confirmed live** — 4 of 7 new edge functions are pushed (commit `f594728a` "Partial Phase 10"), the other 3 plus **all 6 frontend page repoints are still uncommitted in the working tree**. See "Current Status & Next Steps" at the bottom of this doc for the exact resume point.
 **Parent:** `master_blueprint.md`, Phase 10
 **Prepared:** 2026-08-03
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -170,16 +170,20 @@ CREATE POLICY "Enable all operations for all users" ON "Levies" FOR ALL TO publi
 
 ### 10A.4) Verification Checklist
 
-- [ ] `FiscalPeriods.jsx`: list loads, create/edit/close-period round-trips against the native table. **Blocked on your push** — confirmed live pre-push that the *old* code shows "No fiscal periods have been created yet" despite 6 real dev rows (the exact bug this sub-phase fixes, reproduced live). Re-check after commit/push.
-- [ ] Re-verify at least 3 previously-blocked flows now unblocked: `SupplierTx.jsx`'s `handleGlAccountChange` (the exact Phase 9B blocker), `SupplierPaymentModal.jsx`, `DepositHistoryModal.jsx`'s deposit list (Phase 8 finding).
+- [x] `FiscalPeriods.jsx`: **confirmed genuinely live** on `test.kensauto.ca` post-push (commit `2b21dccaf` "Phase 10A") via direct Browser-pane check, 2026-08-03 — all 6 real fiscal periods now load correctly (Oct-Dec 2026 Open, Jul-Sep 2026 Open, Apr-Jun 2026 Open, Jan-Mar 2026 Closed, 2025 Closed, 2024 Closed). Contrasts with the pre-push reproduction of "No fiscal periods have been created yet" — the fix is verified working, not just deployed. Create/edit/close-period round-trip not yet exercised live — do that next.
+- [ ] Re-verify at least 3 previously-blocked flows now unblocked: `SupplierTx.jsx`'s `handleGlAccountChange` (the exact Phase 9B blocker), `SupplierPaymentModal.jsx`, `DepositHistoryModal.jsx`'s deposit list (Phase 8 finding). **Still open** — not yet checked live.
 - [x] `CashFlowSummary`/`GSTReturn`/`SystemSettings`/`OtherChargeList`/`Levies` all readable/writable via direct SQL on dev (no more deny-all) — confirmed via `pg_policies`.
 - [x] Repo-wide grep clean; `npx vite build` clean.
 
-**🛑 HOLD FOR TESTING — code complete, schema live on both branches. Waiting on your commit/push + live confirmation before starting 10B.**
+**10A: code live and confirmed working via direct browser check.** Remaining verification items (create/edit/close-period round-trip, the 3 previously-blocked flows) can be picked up alongside 10B's live testing once that's pushed — no need to block 10B start on them specifically, since the core fix is proven.
 
 ---
 
 ## 10B) SUB-PHASE B: GL Reporting
+
+> **Update (2026-08-03):** the 7 functions below (`getGLJournalData`, `getGLAccountTransactions`, `getBalanceSheetData`, `getPLReportData`, `findGLImbalances`, `getThreeMonthPLReport`, `getFinancialDashboardData`) plus their frontend repoints are **done** — executed out of the original sub-phase order at your direct request ("Transition [these 7] to RPC calls"), ahead of 10A's live-testing hold. Key finding during execution: **4 of these already had a working RPC in Postgres** (`get_balance_sheet_data`, `get_pl_report_data`, `get_daily_gl_imbalances`, plus `get_general_ledger_data` for the separate `getGeneralLedgerData` function) — the legacy base44 functions were already calling them defensively (multi-candidate-parameter-name guessing). Only 3 needed genuinely new RPCs: `get_gl_journal_data` (trivial passthrough), `get_gl_account_transactions` (running-balance via a SQL window function, replacing a JS loop), and a pair for the dashboard — `get_financial_dashboard_gl_monthly` + `get_bank_cash_flow_daily` (the latter replicates the legacy's entire reverse-chronological daily-balance-reconstruction walk in SQL via `generate_series` + window functions). All 7 edge functions deployed to dev + production and verified against **real production data** (dev branch has zero `GLTransaction`/`BankTransaction` rows right now — a schema-only reseed at some point wiped transactional data while reference tables like `ChartOfAccount`/`BankAccount` survived) with strong cross-validated checks: `getBalanceSheetData` returned `isBalanced: true` (Assets = Liabilities + Equity), `getGLAccountTransactions`'s opening balance matched a manual SQL sum exactly, `getFinancialDashboardData`'s cash position matched the exact sum of `BankAccount.current_balance`, and its June+July revenue total matched the independently-computed `getThreeMonthPLReport` sum to the cent. One bug found and fixed during RPC development: PL/pgSQL return-table column names collided with CTE column names in `get_bank_cash_flow_daily`, causing an "ambiguous column" error — fixed by qualifying every reference in the final `SELECT`.
+>
+> **Still open from this sub-phase's original full scope** (not part of the narrower "transition to RPC" request just executed): `getGeneralLedgerData`/`getThreeMonthAPReport` edge-function ports (both already RPC-backed at the base44 layer, same mechanical port as the others — `GeneralLedger.jsx` and one call site in `FinancialDashboard.jsx` still call the legacy base44 functions for these); `JournalEntries.jsx`'s `postJournalEntries` repoint (via the `@/functions/postJournalEntries` legacy alias); the `TechnicianPerformanceReport` payroll-target progress-bar restoration. Pick these up before closing 10B for real.
 
 ### 10B.1) Native function ports (9)
 
@@ -219,11 +223,16 @@ No frontend change needed — `TechnicianPerformanceReportModal.jsx:138` already
 
 ### 10B.4) Task List
 
-- [ ] All 9 functions ported, deployed to dev, verified via curl.
-- [ ] All 7 frontend files converted (6 report pages + `CashFlowTrendTab.jsx`) + `JournalEntries.jsx`'s `postJournalEntries` repoint.
-- [ ] `TechnicianPerformanceReport` progress bar restored and verified against real `CashFlowSummary` data.
-- [ ] Repo-wide grep clean; `npx vite build` clean.
-- [ ] Apply all 9 functions to production after dev verification.
+- [x] 7 of 9 functions ported, deployed to **both** dev and production, verified via curl against real production data (`getGLJournalData`, `getGLAccountTransactions`, `getBalanceSheetData`, `getPLReportData`, `getFinancialDashboardData`, `findGLImbalances`, `getThreeMonthPLReport`). **Uncommitted status:** `autopro-getBalanceSheetData`, `autopro-getGLAccountTransactions`, `autopro-getGLJournalData`, `autopro-getPLReportData` are committed (`f594728a` "Partial Phase 10"); `autopro-findGLImbalances`, `autopro-getFinancialDashboardData`, `autopro-getThreeMonthPLReport` are still **untracked in the working tree** (confirmed via `git status`, 2026-08-03).
+- [ ] `getGeneralLedgerData`/`getThreeMonthAPReport` — not started (original 10B scope, not part of the 7-function RPC-transition request).
+- [x] 6 of 7 frontend files converted: `GLAcct.jsx`, `GLJournal.jsx`, `PLReport.jsx`, `BalanceSheet.jsx`, `FinancialDashboard.jsx`, `CashFlowTrendTab.jsx`. **All 6 are still uncommitted/modified in the working tree** (confirmed via `git status`, 2026-08-03) — code-complete but not yet live-testable.
+- [ ] `GeneralLedger.jsx` conversion — not started.
+- [ ] `JournalEntries.jsx`'s `postJournalEntries` repoint — not started.
+- [ ] `TechnicianPerformanceReport` progress bar restoration — not started.
+- [x] Repo-wide grep confirmed zero remaining invokes of the 7 legacy function names; `npx vite build` clean (both checked pre-summary).
+- [x] All 7 new/changed RPCs and 7 edge functions applied to **both** dev and production already (schema/backend work carries low live-behavior risk on its own, same reasoning as 10A's schema-first approach).
+
+**Resume point:** commit + push the 3 untracked edge functions and 6 modified frontend files, then re-run the verification checklist below live on `test.kensauto.ca`.
 
 ### 10B.5) Verification Checklist
 

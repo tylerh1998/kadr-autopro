@@ -301,15 +301,15 @@ export default function ReportModal({ open, onClose, reportType, currentUser }) 
                   onClick={() => handleReportClick(report)}
                   className={`flex justify-between items-center p-4 border rounded-lg transition-colors ${
                     report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report' || report.reportKey === 'parts_movement_report'
-                      ? 'cursor-pointer hover:bg-slate-50'
-                      : 'cursor-not-allowed bg-slate-50 text-slate-400'
+                      ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                      : 'cursor-not-allowed bg-slate-50 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     {renderIcon(report.icon)}
                     <div>
                       <span className="font-medium">{report.name}</span>
-                      {report.description && <p className="text-sm text-slate-500">{report.description}</p>}
+                      {report.description && <p className="text-sm text-slate-500 dark:text-slate-400">{report.description}</p>}
                     </div>
                   </div>
                   {(report.path || report.reportKey === 'inventory_on_order' || report.reportKey === 'inventory_valuation' || report.reportKey === 'other_charges_breakdown' || report.reportKey === 'reportable_levies' || report.reportKey === 'sales_analysis' || report.reportKey === 'wo_summary' || report.reportKey === 'tech_performance' || report.reportKey === 'customer_report' || report.reportKey === 'parts_movement_report') && <ChevronRight className="w-5 h-5" />}

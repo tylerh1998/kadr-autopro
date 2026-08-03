@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,10 +53,12 @@ export default function GLAcctPage() {
       setAccount(accountData?.[0] || null);
 
       // Fetch transactions via backend function
-      const response = await base44.functions.invoke('getGLAccountTransactions', {
-        accountNumber: accountNumber,
-        appliedStartDate: appliedStartDate,
-        appliedEndDate: appliedEndDate
+      const response = await supabase.functions.invoke('autopro-getGLAccountTransactions', {
+        body: {
+          accountNumber: accountNumber,
+          appliedStartDate: appliedStartDate,
+          appliedEndDate: appliedEndDate
+        }
       });
 
       console.log('Backend response:', response);

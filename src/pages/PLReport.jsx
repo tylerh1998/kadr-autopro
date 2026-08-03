@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,9 +25,11 @@ export default function PLReport({ isEmbedded = false }) {
     try {
       console.log('Loading P&L report for:', startDate, 'to', endDate);
       
-      const response = await base44.functions.invoke('getPLReportData', {
-        startDate: startDate,
-        endDate: endDate
+      const response = await supabase.functions.invoke('autopro-getPLReportData', {
+        body: {
+          startDate: startDate,
+          endDate: endDate
+        }
       });
 
       console.log('Backend response:', response);

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,9 +50,11 @@ export default function GLJournalPage() {
       });
       setAccountsMap(accountMap);
       
-      const response = await base44.functions.invoke('getGLJournalData', {
-        appliedStartDate,
-        appliedEndDate
+      const response = await supabase.functions.invoke('autopro-getGLJournalData', {
+        body: {
+          appliedStartDate,
+          appliedEndDate
+        }
       });
 
       if (!response.data?.success) {

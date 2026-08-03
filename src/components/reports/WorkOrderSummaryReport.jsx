@@ -49,7 +49,7 @@ export default function WorkOrderSummaryReport() {
   if (loading && !data) {
     return (
       <div className="flex justify-center items-center h-96">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin" />
       </div>
     );
   }
@@ -72,10 +72,10 @@ export default function WorkOrderSummaryReport() {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border rounded shadow-lg text-sm">
+        <div className="bg-white dark:bg-slate-900 dark:border-slate-700 p-3 border rounded shadow-lg text-sm">
           <p className="font-bold">{label}</p>
-          <p className="text-blue-600">Count: {payload[0].value}</p>
-          <p className="text-green-600">Value: {formatCurrency(payload[0].payload.amount)}</p>
+          <p className="text-blue-600 dark:text-blue-400">Count: {payload[0].value}</p>
+          <p className="text-green-600 dark:text-green-400">Value: {formatCurrency(payload[0].payload.amount)}</p>
         </div>
       );
     }
@@ -149,7 +149,7 @@ export default function WorkOrderSummaryReport() {
           <CardContent>
              <div className="flex justify-between items-end mb-1">
                 <span className="text-2xl font-bold">{data.totalLaborHours?.toFixed(1) || '0.0'} hrs</span>
-                <span className="text-sm font-medium text-red-600">{formatCurrency(data.wipCost?.labor || 0)}</span>
+                <span className="text-sm font-medium text-red-600 dark:text-red-400">{formatCurrency(data.wipCost?.labor || 0)}</span>
              </div>
              <div className="flex justify-between items-center text-xs text-muted-foreground">
                 <span>Total Hours</span>
@@ -173,9 +173,9 @@ export default function WorkOrderSummaryReport() {
           <CardContent className="h-80">
              <ResponsiveContainer width="100%" height="100%">
                <BarChart data={agingData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-               <XAxis type="number" allowDecimals={false} />
-               <YAxis dataKey="name" type="category" width={80} />
+               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+               <XAxis type="number" allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
+               <YAxis dataKey="name" type="category" width={80} stroke="hsl(var(--muted-foreground))" />
                <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
                <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Work Orders">
                   {agingData.map((entry, index) => (
@@ -211,8 +211,11 @@ export default function WorkOrderSummaryReport() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val) => formatCurrency(val)} />
-                <Legend />
+                <Tooltip
+                  formatter={(val) => formatCurrency(val)}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
+                />
+                <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -228,14 +231,14 @@ export default function WorkOrderSummaryReport() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Volume Comparison */}
             <div className="h-64">
-                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600">Volume (Count)</h4>
+                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600 dark:text-slate-400">Volume (Count)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[comparisonData[0]]}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                         <XAxis dataKey="name" hide />
-                        <YAxis allowDecimals={false} />
-                        <Tooltip cursor={{fill: 'transparent'}} />
-                        <Legend />
+                        <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" />
+                        <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                        <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
                         <Bar dataKey="open" name="Active WOs" fill="#3b82f6" radius={[4, 4, 0, 0]} label={{ position: 'top' }} />
                         <Bar dataKey="closed" name="Closed (30d)" fill="#10b981" radius={[4, 4, 0, 0]} label={{ position: 'top' }} />
                     </BarChart>
@@ -244,14 +247,14 @@ export default function WorkOrderSummaryReport() {
 
             {/* Revenue Comparison */}
             <div className="h-64">
-                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600">Revenue (Value)</h4>
+                <h4 className="text-sm font-semibold text-center mb-4 text-slate-600 dark:text-slate-400">Revenue (Value)</h4>
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[comparisonData[1]]}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                         <XAxis dataKey="name" hide />
-                        <YAxis tickFormatter={(val) => `$${val/1000}k`} />
-                        <Tooltip cursor={{fill: 'transparent'}} formatter={(val) => formatCurrency(val)} />
-                        <Legend />
+                        <YAxis tickFormatter={(val) => `$${val/1000}k`} stroke="hsl(var(--muted-foreground))" />
+                        <Tooltip cursor={{fill: 'transparent'}} formatter={(val) => formatCurrency(val)} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
+                        <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
                         <Bar dataKey="open" name="WIP Potential Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (val) => formatCurrency(val) }} />
                         <Bar dataKey="closed" name="Closed Revenue (30d)" fill="#10b981" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (val) => formatCurrency(val) }} />
                     </BarChart>
@@ -301,7 +304,7 @@ export default function WorkOrderSummaryReport() {
                     </TableRow>
                   ))}
                   {/* Totals Row */}
-                  <TableRow className="bg-slate-50 font-bold">
+                  <TableRow className="bg-slate-50 dark:bg-slate-800 font-bold">
                     <TableCell>Totals</TableCell>
                     <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.partsCost, 0))}</TableCell>
                     <TableCell className="text-right">{formatCurrency(Object.values(data.statusBreakdown).reduce((a, b) => a + b.partsRevenue, 0))}</TableCell>

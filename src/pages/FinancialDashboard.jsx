@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -74,10 +75,12 @@ export default function FinancialDashboard() {
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getFinancialDashboardData', {
-        dateRange: {
-          from: appliedFromDate,
-          to: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getFinancialDashboardData', {
+        body: {
+          dateRange: {
+            from: appliedFromDate,
+            to: appliedToDate
+          }
         }
       });
 
@@ -105,8 +108,8 @@ export default function FinancialDashboard() {
 
     setThreeMonthPLLoading(true);
     try {
-      const response = await base44.functions.invoke('getThreeMonthPLReport', {
-        endDate: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getThreeMonthPLReport', {
+        body: { endDate: appliedToDate }
       });
 
       if (response.data.success) {

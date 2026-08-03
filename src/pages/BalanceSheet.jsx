@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
   const handleEmailReport = async () => {
     setSendingEmail(true);
     try {
-      const response = await base44.functions.invoke('findGLImbalances', {});
+      const response = await supabase.functions.invoke('autopro-findGLImbalances', { body: {} });
       if (response.data?.success) {
         alert('Imbalance report emailed successfully!');
       } else {
@@ -40,8 +40,8 @@ export default function BalanceSheet({ isEmbedded = false }) {
     try {
       console.log('Loading Balance Sheet as of:', asOfDate);
       
-      const response = await base44.functions.invoke('getBalanceSheetData', {
-        asOfDate: asOfDate
+      const response = await supabase.functions.invoke('autopro-getBalanceSheetData', {
+        body: { asOfDate: asOfDate }
       });
 
       console.log('Backend response:', response);

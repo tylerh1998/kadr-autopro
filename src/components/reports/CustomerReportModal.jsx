@@ -105,7 +105,7 @@ export default function CustomerReportModal() {
   return (
     <div className="space-y-6 h-full flex flex-col">
           {/* Controls */}
-          <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end shrink-0">
+          <div className="flex flex-wrap gap-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg items-end shrink-0">
             <div className="space-y-2 min-w-[150px]">
                <Label>Quick Select</Label>
                <Select onValueChange={setDateRange} defaultValue="thisYear">
@@ -141,14 +141,14 @@ export default function CustomerReportModal() {
           <Card className="flex-1 flex flex-col overflow-hidden">
             <CardHeader className="shrink-0">
               <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Customer Sales Report
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-0 max-h-[60vh]">
               <Table>
-                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                  <TableRow className="bg-slate-50">
+                <TableHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 shadow-sm">
+                  <TableRow className="bg-slate-50 dark:bg-slate-800">
                     <TableHead>Customer Name</TableHead>
                     <TableHead className="text-right"># Work Orders</TableHead>
                     <TableHead className="text-right">Total Sales</TableHead>
@@ -159,22 +159,22 @@ export default function CustomerReportModal() {
                   {reportData.map((item, idx) => (
                     <TableRow 
                       key={idx} 
-                      className="hover:bg-slate-50/50 cursor-pointer"
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50 cursor-pointer"
                       onClick={() => handleCustomerClick(item)}
                     >
-                      <TableCell className="font-medium text-blue-600 hover:underline">{item.name}</TableCell>
+                      <TableCell className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{item.name}</TableCell>
                       <TableCell className="text-right">{item.workOrderCount}</TableCell>
-                      <TableCell className="text-right text-green-600 font-medium">
+                      <TableCell className="text-right text-green-600 dark:text-green-400 font-medium">
                         ${item.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-right text-slate-600">
+                      <TableCell className="text-right text-slate-600 dark:text-slate-400">
                         ${item.averageTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   ))}
                   {reportData.length === 0 && !isLoading && (
                       <TableRow>
-                          <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={4} className="text-center text-slate-500 dark:text-slate-400 py-8">
                             No data found for the selected period
                           </TableCell>
                       </TableRow>
@@ -182,7 +182,7 @@ export default function CustomerReportModal() {
                   {isLoading && (
                       <TableRow>
                           <TableCell colSpan={4} className="text-center py-8">
-                            <div className="flex justify-center items-center gap-2 text-slate-500">
+                            <div className="flex justify-center items-center gap-2 text-slate-500 dark:text-slate-400">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                                 Loading report data...
                             </div>
@@ -192,14 +192,14 @@ export default function CustomerReportModal() {
                 </TableBody>
                 {/* Footer with totals */}
                 {!isLoading && reportData.length > 0 && (
-                    <tfoot className="sticky bottom-0 bg-slate-100 z-10 font-bold border-t">
+                    <tfoot className="sticky bottom-0 bg-slate-100 dark:bg-slate-800 z-10 font-bold border-t dark:border-slate-700">
                         <TableRow>
                             <TableCell>Totals</TableCell>
                             <TableCell className="text-right">{totalCount}</TableCell>
-                            <TableCell className="text-right text-green-700">
+                            <TableCell className="text-right text-green-700 dark:text-green-400">
                                 ${totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
-                            <TableCell className="text-right text-blue-700">
+                            <TableCell className="text-right text-blue-700 dark:text-blue-400">
                                 ${totalAvg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                         </TableRow>

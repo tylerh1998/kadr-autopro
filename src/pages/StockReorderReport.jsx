@@ -129,7 +129,7 @@ export default function StockReorderReport() {
     return (
       <div className="min-h-screen text-foreground flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
           <p className="text-muted-foreground">Loading stock reorder report...</p>
         </div>
       </div>
@@ -184,7 +184,7 @@ export default function StockReorderReport() {
             {reportData.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
-                  <AlertTriangle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                  <AlertTriangle className="w-12 h-12 text-green-500 dark:text-green-400 mx-auto mb-4" />
                   <h2 className="text-xl font-semibold text-foreground mb-2">All Stock Levels Good</h2>
                   <p className="text-muted-foreground">No items are currently below their minimum quantity threshold.</p>
                 </CardContent>
@@ -195,7 +195,7 @@ export default function StockReorderReport() {
                   <Card key={supplierGroup.supplierId} className={index < reportData.length - 1 ? 'page-break' : ''}>
                     <CardHeader className="bg-muted/40">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-orange-600" />
+                        <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                         {supplierGroup.supplierName}
                         <span className="text-sm font-normal text-muted-foreground ml-2">
                           ({supplierGroup.items.length} {supplierGroup.items.length === 1 ? 'item' : 'items'})
@@ -212,7 +212,7 @@ export default function StockReorderReport() {
                             <TableHead className="text-center font-semibold">QOH</TableHead>
                             <TableHead className="text-center font-semibold">Min</TableHead>
                             <TableHead className="text-center font-semibold">Max</TableHead>
-                            <TableHead className="text-center font-semibold text-orange-700">Reorder Qty</TableHead>
+                            <TableHead className="text-center font-semibold text-orange-700 dark:text-orange-400">Reorder Qty</TableHead>
                             <TableHead className="text-right font-semibold">Cost</TableHead>
                             <TableHead className="text-right font-semibold">Total Cost</TableHead>
                           </TableRow>
@@ -233,12 +233,12 @@ export default function StockReorderReport() {
                               </TableCell>
                               <TableCell className="font-medium">{item.part_number}</TableCell>
                               <TableCell>{item.description || '-'}</TableCell>
-                              <TableCell className="text-center text-red-600 font-semibold">
+                              <TableCell className="text-center text-red-600 dark:text-red-400 font-semibold">
                                 {item.quantity_on_hand || 0}
                               </TableCell>
                               <TableCell className="text-center">{item.minimum_quantity || 0}</TableCell>
                               <TableCell className="text-center">{item.maximum_quantity || 0}</TableCell>
-                              <TableCell className="text-center font-bold text-orange-700">
+                              <TableCell className="text-center font-bold text-orange-700 dark:text-orange-400">
                                 {item.reorder_qty}
                               </TableCell>
                               <TableCell className="text-right">
@@ -277,8 +277,8 @@ export default function StockReorderReport() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">Estimated Total Reorder Cost</p>
-                        <p className="text-2xl font-bold text-blue-700">
-                          ${reportData.reduce((sum, group) => 
+                        <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                          ${reportData.reduce((sum, group) =>
                             sum + group.items.reduce((itemSum, item) => 
                               itemSum + ((item.cost || 0) * item.reorder_qty), 0
                             ), 0
