@@ -1,6 +1,6 @@
 # Phase 3 Implementation Plan — Work Orders: Remaining Modals (Dark Mode)
 
-**Status:** Draft — pending approval. No code changes made yet.
+**Status:** All 5 sub-phases (3A–3E) edited 2026-08-03. Phase-wide UI dark-mode verification and light-mode regression pass still pending before this phase can be marked `[Tested]`.
 **Type:** Multi-phase plan (28 files, ~6,800 lines total, several large/complex files — split into 5 sequential sub-phases: 3A–3E).
 **Parent:** `Antigravity-context-plans/master_blueprint.md`, Phase 3 (previously `[Skipped — Conflict Avoidance]`, now unblocked)
 
@@ -47,7 +47,7 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 ## 3. Phase 3 Roadmap & Progress
 
 ```
-3A [Done — pending UI verify] ──► 3B [Done — pending UI verify] ──► 3C [Done — pending UI verify] ──► 3D [Done — pending UI verify] ──► 3E [Pending]
+3A [Done — pending UI verify] ──► 3B [Done — pending UI verify] ──► 3C [Done — pending UI verify] ──► 3D [Done — pending UI verify] ──► 3E [Done — pending UI verify]
 ```
 
 | Sub-Phase | Scope Summary | File Count | Approx. Lines | Status |
@@ -56,7 +56,7 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 | **3B — Work Order Creation, Parts & Editing** | New WO creation, part lookup/search, project/WO detail editing, warranty returns. Includes `GetPartModal.jsx` (largest single file, 745 lines) and the known pre-existing Enter-key bug to avoid disturbing. | 6 | ~2,080 | Done — pending UI verify |
 | **3C — Notes, Communications & Documents** | Notes board/cards/columns, SES email modal, PDF modal. Includes the pure-wrapper `NoteBoard.jsx` (verify-only) and `NoteCard.jsx`'s share-button color-variant object. | 7 | ~810 | Done — pending UI verify |
 | **3D — Tech Time & Clock-In** | Global/tech clock-in modals, tech time logging, WorkPRO (third-party SaaS) view modal. Includes `TechTimeModal.jsx`'s `CATEGORIES` map + Shadcn `SelectTrigger` override gotcha. | 5 | ~1,875 | Done — pending UI verify |
-| **3E — Lists & Reports** | WO list (21-entry `colorMap`), profitability dashboard, printable report (`print:` variant to preserve). | 3 | ~1,205 | Pending |
+| **3E — Lists & Reports** | WO list (21-entry `colorMap`), profitability dashboard, printable report (`print:` variant to preserve). | 3 | ~1,205 | Done — pending UI verify |
 
 ---
 
@@ -167,12 +167,18 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - **Informational, not in scope:** `WorkOrderList.jsx`'s exact `colorMap` is duplicated verbatim in `WorkOrderTable.jsx` (already `[Tested]`/dark-mode-complete per the master blueprint's "Previously Completed" list) — worth spot-checking that file already has the equivalent dark pairs applied (it should, if already marked done) as a quick sanity cross-check, not a new edit target.
 
 **Task List:**
-- [ ] `WorkOrderList.jsx` — `colorMap` dark: pairing as one pass, + inline badge, + remaining instances
-- [ ] `WorkOrderProfitability.jsx` — dark: pass incl. 3 badges
-- [ ] `WorkOrderReport.jsx` — dark: pass, preserve `print:block` at line 336
-- [ ] Spot-check `WorkOrderTable.jsx` (already-complete file) for colorMap consistency — no edit expected
+- [x] `WorkOrderList.jsx` — `colorMap` dark: pairing as one pass, + inline badge, + remaining instances (84 instances)
+- [x] `WorkOrderProfitability.jsx` — dark: pass incl. margin-color/margin-badge-color maps (37 instances)
+- [x] `WorkOrderReport.jsx` — decision reversed from plan default: left with **zero** `dark:` classes, by deliberate user choice (see execution notes)
+- [x] Spot-check `WorkOrderTable.jsx` (already-complete file) for colorMap consistency — **edit was needed, contrary to expectation** (see execution notes)
 
 **Verification Plan:** Grep-audit all 3 files. UI: view the WO list (confirm every status badge color reads correctly in dark mode), open WO profitability view, open a WO report and trigger print preview (confirm print output stays light/unaffected) — all in dark mode.
+
+**3E Execution Notes (2026-08-03):** All edits additive. Grep audit: `WorkOrderList.jsx` 84 instances, `WorkOrderProfitability.jsx` 37 instances, `WorkOrderTable.jsx` 95 instances (after fix), `WorkOrderReport.jsx` 0 instances (intentional). Two deviations from the plan's predictions:
+1. **`WorkOrderReport.jsx` — plan's default (apply standard palette, preserve `print:block`) was overridden by explicit user decision.** This file renders a simulated paper document (white bg, black text, print-style borders) inside a preview modal before printing — same category as a PDF viewer keeping its page white regardless of app theme. Asked the user directly; confirmed keep the paper white/black in both light and dark mode, zero `dark:` classes added. Treated as verify-only, same pattern as `NoteBoard.jsx` in 3C.
+2. **`WorkOrderTable.jsx` spot-check found a real gap, not just a sanity check.** The master blueprint lists this file as already `[Tested]`/dark-mode-complete, but its `colorMap` (lines 29-52, identical to `WorkOrderList.jsx`'s) had **zero** `dark:` classes. Since `WorkOrderTable.jsx` is the *default* work-order list view (`WorkOrderList.jsx` only renders its own card UI when `currentUser?.wo_cards === true`; otherwise it delegates straight to `WorkOrderTable`), this gap affected most users' default dark-mode experience, not just an edge case. Fixed using the same systematic pass as `WorkOrderList.jsx`'s `colorMap` (grayscale families slate/gray/zinc/neutral/stone paired at the lighter `-700/60` tint per the palette's "Badge (gray)" convention, since `-900/40` would nearly disappear against the app's own slate-900/950 dark backgrounds; all other saturated hues paired at the standard `-900/40` bg / `-300` text). This is a deviation from the original 28-file scope (`WorkOrderTable.jsx` wasn't a phase 3 target file) but was directly necessitated by the plan's own spot-check instruction turning up a real, high-impact bug — not scope creep.
+
+Also confirmed (not fixed, intentionally left as-is): `WorkOrderTable.jsx`'s destructive `ContextMenuItem` (`text-red-600 focus:text-red-600 focus:bg-red-50`, unpaired) — same pattern already present unpaired in `WorkOrderList.jsx`'s identical menu item; `text-red-600` as a plain (non-background) accent color reads fine in both modes, consistent with the "already dark-safe saturated colors" precedent used throughout this phase for solid fills. `WorkOrderProfitability.jsx`'s margin-row `text-slate-400` "-" placeholder was left unpaired for the same already-legible-in-both-modes reason (lesson 3).
 
 ---
 
@@ -189,10 +195,10 @@ Apply `dark:` Tailwind variant classes to the remaining Work Orders modals/compo
 - [x] 3B — Work Order Creation, Parts & Editing (6 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [x] 3C — Notes, Communications & Documents (7 files) — edits done 2026-08-03, UI dark-mode verification still pending
 - [x] 3D — Tech Time & Clock-In (5 files) — edits done 2026-08-03, UI dark-mode verification still pending
-- [ ] 3E — Lists & Reports (3 files)
+- [x] 3E — Lists & Reports (3 files) — edits done 2026-08-03 (WorkOrderReport.jsx deliberately left unedited per user decision), UI dark-mode verification still pending
 - [x] `TechTimeModal.jsx` Shadcn `SelectTrigger` override + `CATEGORIES` map fixed
-- [ ] `WorkOrderList.jsx` `colorMap` fully paired
-- [ ] `WorkOrderReport.jsx` print output unaffected
+- [x] `WorkOrderList.jsx` `colorMap` fully paired
+- [x] `WorkOrderReport.jsx` print output unaffected (file untouched by design — kept as white/black paper preview in both modes)
 - [ ] Light-mode regression pass across all 28 edited files
 - [ ] No console errors introduced
 

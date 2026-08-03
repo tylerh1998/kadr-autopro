@@ -34,28 +34,28 @@ import {
 const StatusBadge = ({ status, workOrderStatuses }) => {
   // Map color names to Tailwind classes
   const colorMap = {
-    slate: "bg-slate-100 text-slate-800 border-slate-200",
-    gray: "bg-gray-100 text-gray-800 border-gray-200",
-    zinc: "bg-zinc-100 text-zinc-800 border-zinc-200",
-    neutral: "bg-neutral-100 text-neutral-800 border-neutral-200",
-    stone: "bg-stone-100 text-stone-800 border-stone-200",
-    red: "bg-red-100 text-red-800 border-red-200",
-    orange: "bg-orange-100 text-orange-800 border-orange-200",
-    amber: "bg-amber-100 text-amber-800 border-amber-200",
-    yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    lime: "bg-lime-100 text-lime-800 border-lime-200",
-    green: "bg-green-100 text-green-800 border-green-200",
-    emerald: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    teal: "bg-teal-100 text-teal-800 border-teal-200",
-    cyan: "bg-cyan-100 text-cyan-800 border-cyan-200",
-    sky: "bg-sky-100 text-sky-800 border-sky-200",
-    blue: "bg-blue-100 text-blue-800 border-blue-200",
-    indigo: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    violet: "bg-violet-100 text-violet-800 border-violet-200",
-    purple: "bg-purple-100 text-purple-800 border-purple-200",
-    fuchsia: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
-    pink: "bg-pink-100 text-pink-800 border-pink-200",
-    rose: "bg-rose-100 text-rose-800 border-rose-200",
+    slate: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-700/60 dark:text-slate-300 dark:border-slate-600",
+    gray: "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700/60 dark:text-gray-300 dark:border-gray-600",
+    zinc: "bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-700/60 dark:text-zinc-300 dark:border-zinc-600",
+    neutral: "bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-700/60 dark:text-neutral-300 dark:border-neutral-600",
+    stone: "bg-stone-100 text-stone-800 border-stone-200 dark:bg-stone-700/60 dark:text-stone-300 dark:border-stone-600",
+    red: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800",
+    orange: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800",
+    amber: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800",
+    yellow: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800",
+    lime: "bg-lime-100 text-lime-800 border-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:border-lime-800",
+    green: "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800",
+    emerald: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800",
+    teal: "bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800",
+    cyan: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-800",
+    sky: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800",
+    blue: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800",
+    indigo: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800",
+    violet: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800",
+    purple: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800",
+    fuchsia: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200 dark:bg-fuchsia-900/40 dark:text-fuchsia-300 dark:border-fuchsia-800",
+    pink: "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800",
+    rose: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800",
   };
 
   const statusObj = workOrderStatuses?.find(s => s.name === status);
@@ -158,11 +158,11 @@ function WorkOrderList({
     return (
       <Card className="text-center py-12">
         <CardContent>
-          <div className="text-slate-400 mb-4">
+          <div className="text-slate-400 dark:text-slate-500 mb-4">
             <Clock className="w-12 h-12 mx-auto" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No Work Orders Found</h3>
-          <p className="text-slate-600 mb-4">No work orders match your current filters.</p>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Work Orders Found</h3>
+          <p className="text-slate-600 dark:text-slate-400 mb-4">No work orders match your current filters.</p>
         </CardContent>
       </Card>
     );
@@ -215,11 +215,11 @@ function WorkOrderList({
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-bold text-slate-900">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                             {getCustomerName(workOrder)}
                           </h3>
                           {['invoice', 'credit_invoice'].includes(workOrder.stage) ? (
-                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'} border font-medium h-5 px-2 text-xs`}>
+                            <Badge className={`${workOrder.stage === 'credit_invoice' ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60' : 'bg-green-100 text-green-800 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900/60'} border font-medium h-5 px-2 text-xs`}>
                               {workOrder.stage === 'credit_invoice' ? 'Credit Invoice' : 'Invoice'}
                             </Badge>
                           ) : (
@@ -227,12 +227,12 @@ function WorkOrderList({
                               <StatusBadge status={workOrder.status} workOrderStatuses={workOrderStatuses} />
                             </div>
                           )}
-                          
+
                           {isLocked && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div>
-                                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 flex items-center gap-1 cursor-help h-5 px-2 text-xs">
+                                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700 flex items-center gap-1 cursor-help h-5 px-2 text-xs">
                                     <Lock className="w-3 h-3" />
                                     Locked
                                   </Badge>
@@ -245,11 +245,11 @@ function WorkOrderList({
                               </TooltipContent>
                             </Tooltip>
                           )}
-                          
-                          <span className="text-black text-sm font-normal">{workOrder.description}</span>
+
+                          <span className="text-black dark:text-slate-200 text-sm font-normal">{workOrder.description}</span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-black">
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-black dark:text-slate-200">
                           <div className="flex items-center gap-1">
                             <FileText className="w-4 h-4" />
                             <span>{displayNumber || `RO ${workOrder.ro_number}`}</span>
@@ -299,18 +299,18 @@ function WorkOrderList({
 
                       <div className="flex items-center gap-2">
                         <div className="text-right min-w-[80px]">
-                          <div className="flex items-center justify-end gap-0.5 text-base font-bold text-slate-900">
+                          <div className="flex items-center justify-end gap-0.5 text-base font-bold text-slate-900 dark:text-slate-100">
                             <DollarSign className="w-3 h-3" />
                             {(workOrder.total_amount || 0).toFixed(2)}
                           </div>
                           {workOrder.estimated_hours && (
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
                               {workOrder.estimated_hours}h est
                             </div>
                           )}
                         </div>
 
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-600" />
                       </div>
                     </div>
                   </CardContent>
