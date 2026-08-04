@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Truck, Mail, Phone } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function LinkSupplierModal({ open, onClose, onSelect }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,11 +21,12 @@ export default function LinkSupplierModal({ open, onClose, onSelect }) {
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier'
-      });
-      setSuppliers(response.data?.data || []);
+      const { data, error } = await supabase
+        .from('Supplier')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setSuppliers(data || []);
     } catch (error) {
       console.error("Failed to load suppliers:", error);
     } finally {

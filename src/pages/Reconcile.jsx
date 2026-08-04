@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -20,8 +19,7 @@ import {
   History,
   ArrowUp,
   ArrowDown,
-  Upload,
-  RotateCcw
+  Upload
 } from 'lucide-react';
 import { format, addDays, endOfMonth } from 'date-fns';
 import { createPageUrl } from '../utils';
@@ -340,31 +338,6 @@ export default function ReconcilePage() {
     alert(`Successfully checked off ${matchedIds.length} matched transactions.`);
   };
 
-  // const handleEmergencyReset = async () => {
-  //   if (!window.confirm("WARNING: This will reset ALL transactions that are marked as reconciled or cleared (across ALL bank accounts). This is a destructive operation to fix stuck transactions. Are you sure?")) {
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   try {
-  //     console.log('Attempting emergency reset...');
-  //     const response = await base44.functions.invoke('emergencyResetReconciliation');
-  //     console.log('Reset response:', response);
-      
-  //     if (response.data.success) {
-  //       alert(response.data.message);
-  //       window.location.reload();
-  //     } else {
-  //       alert('Error: ' + (response.data.error || 'Unknown error'));
-  //     }
-  //   } catch (error) {
-  //     console.error('Reset failed:', error);
-  //     alert('Failed to reset transactions: ' + error.message);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -384,12 +357,6 @@ export default function ReconcilePage() {
             <h1 className="text-3xl font-bold text-slate-900">Reconcile Bank Account</h1>
           </div>
           <div className="flex gap-2">
-            {/* {currentUser?.role === 'admin' && (
-              <Button onClick={handleEmergencyReset} variant="destructive" className="gap-2">
-                <RotateCcw className="w-4 h-4" />
-                Emergency Reset
-              </Button>
-            )} */}
             <Button onClick={() => setShowAutoReconcileModal(true)} variant="outline" className="gap-2">
               <Upload className="w-4 h-4" />
               Upload CSV

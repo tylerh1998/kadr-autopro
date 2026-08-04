@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer } from 'lucide-react';
 
@@ -24,9 +23,29 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
     if (!file) return;
     setLoading(true);
     try {
-      // 1. Upload File
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
+      // 1. Upload File to Supabase Storage (private bucket), then get a short-lived signed URL
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const storagePath = `bank-reconciliation/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('kadr-digital_invoice_uploads')
+        .upload(storagePath, file);
+
+      if (uploadError) {
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
+      }
+
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('kadr-digital_invoice_uploads')
+        .createSignedUrl(storagePath, 60);
+
+      if (signedUrlError) {
+        throw new Error(`Failed to generate file URL: ${signedUrlError.message}`);
+      }
+
+      const file_url = signedUrlData.signedUrl;
+
       // 2. Process Reconciliation
       const { data, error: invokeError } = await supabase.functions.invoke('autopro-processBankReconciliation', {
         body: {

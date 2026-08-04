@@ -13,13 +13,26 @@
 
 This phase turned out considerably larger and more entangled than the blueprint's original "2–3 sessions" estimate suggested. Direct research (not just the file list in the blueprint) surfaced real blockers and one active conflict. I need decisions on the items below before touching any code.
 
-### 0.1 — Active conflict: Phase 10E appears to be in progress right now
+### 0.1 — RESOLVED: Phase 10E conflict cleared
 
-`Plans and Context/phase_10_implementation_plan.md` has **uncommitted changes in the working tree at the moment I'm writing this** (confirmed via `git status`/`git diff --stat`, small diff, 3 insertions/4 deletions — looks like a status update, not a rewrite). This strongly suggests Phase 10E (Levies) is being actively worked on concurrently, possibly by another session/agent per this project's standing multi-agent workflow.
+Re-checked 2026-08-03 (later same day) per your direction ("we're all done up to phase 14"). `phase_10_implementation_plan.md` is now committed clean (`git status` shows no pending changes to it), and `master_blueprint.md`'s own detailed Phase 10 row confirms all 5 of Phase 10's own sub-phases (10A-10E) landed `[Tested]`. No more active-conflict risk on `Admin.jsx` from this direction. 14B can proceed on its own merits.
 
-This matters directly for **14B** (`Admin.jsx`), because `Admin.jsx`'s `LOCAL_ENTITIES` list is exactly the kind of shared surface Phase 10E might also need to touch (it already lists `Levies`, `GSTReturn`, `SystemSettings`). I re-verified live entity status directly via SQL as part of this research (see §0.2) rather than trusting any stale note, and current state looks stable and consistent — but I'd rather confirm with you than risk a concurrent edit collision on a file two phases both touch.
+### 0.1b — NEW finding: Phase 13's "Tested" status doesn't mean its blast radius is fully swept
 
-**Question:** Do you want me to hold off on 14B specifically until Phase 10E is confirmed closed/committed, or proceed now (I'll re-check `git status` on `Admin.jsx` immediately before editing it, same discipline as always)?
+You confirmed Phase 13 is done/`[Tested]`, and `master_blueprint.md`'s Phase 13 row does carry a `~~[Tested]~~` tag now. I re-verified directly rather than taking my own prior turn's secondhand research at face value (that research claimed several files were "confirmed false positives/dead imports" — this turned out to be wrong). Direct grep + read confirms these are **real, live, unmigrated imports**, not dead code:
+
+| File | Live import |
+|---|---|
+| `src/pages/Schedule.jsx` | `import { getworkorderlist } from '@/functions/getworkorderlist';` |
+| `src/components/appointments/AppointmentForm.jsx` | `WorkOrder, SystemSettings` via `@/entities/all`; `createworkorderdata`, `getworkorderlist` via `@/functions/*` |
+| `src/pages/InventoryAdd.jsx` | `TagAlong` via `@/entities/all`; `searchInventory` via `@/functions/searchInventory` |
+| `src/components/work-orders/WarrantyReturnModal.jsx` | `searchSuppliers` via `@/functions/searchSuppliers` |
+
+`getworkorderlist`/`createworkorderdata` are literally the two functions Phase 13B built native `autopro-*` replacements for (per the blueprint's own Phase 13 row text) — but these 4 files, sitting outside Phase 13's own claimed file scope (Schedule/Appointment/Inventory-domain, not Work-Orders-Core-domain), were never repointed to the new native calls. This isn't a knock against Phase 13 completing its own stated scope — it's evidence that no phase has ever done a full consumer-sweep for these shared legacy functions. See §0.7 for the fuller picture this surfaced.
+
+### 0.1c — Phase 10A is being folded into a separate "final validation plan," not tracked as a Phase 14 blocker
+
+Per your direction, the cross-cutting integration-testing pass (`master_blueprint.md`'s separate "Phase 10A: Full Inventory Flow + Appointment — Combined Testing & Cleanup," still `[Pending]`) is being rolled into a final validation plan outside this document's scope. I'm removing it from 14G's blocker list on that basis — but see §0.7 for why 14G still isn't close even without it.
 
 ### 0.2 — Direct entity-status verification (done, not a question — for the record)
 
@@ -61,9 +74,28 @@ This is real: no phase's plan doc — including this one's literal title — cla
 
 459-line legacy function (`base44/functions/processDataImport/entry.ts`) handles 6 import types (customers, vehicles, suppliers, inventory, inventory_locations, balance_sheet). The `balance_sheet` path posts opening/closing balances as raw `GLTransaction` inserts. Confirmed via grep: it does **not** call either protected function (`autopro-handleInvoiceConversionGL`/`autopro-handleSupplierInvoiceLineGL`) — it's a standalone one-time bulk-import tool, not day-to-day GL logic. My read is this is fine to port as-is under the standing "never modify the two protected GL functions" rule, since it isn't one of them and doesn't touch them. Flagging only so you can veto before I write the port.
 
-### 0.6 — Informational only, no action taken
+### 0.6 — Superseded by §0.1b above
 
-`master_blueprint.md`'s Section 4 status row for **Phase 13** looks stale — `phase_13_implementation_plan.md` itself shows 13D and 13E already **Tested** (2026-08-03, including a full live end-to-end regression pass that found and fixed 6 real bugs), but the blueprint's summary table still reads "13D and 13E not started" / phase "In Progress." I didn't touch this since you didn't ask for it and it's not this phase's job to edit — noting it because Phase 13's real closure status affects whether 14G's Tier F gate is actually met. Worth a `/Rollupplan` pass on Phase 13 at some point, independent of this phase.
+(Original note here about Phase 13's status being stale in the blueprint has been superseded — you've since confirmed Phase 13 is done, and the blueprint row now carries `[Tested]`. The real remaining issue isn't Phase 13's own status, it's the cross-file blast radius per §0.1b/§0.7.)
+
+### 0.7 — NEW: 14G's real blocker list, re-measured directly
+
+With Phase 10 confirmed Tested and Phase 13 confirmed done, I re-ran the repo-wide grep to see how close "Final Sunset" actually is. **Still 54 files** reference `base44`/`@/entities/all`/`@/functions/*` (excluding the 3 core API files that are only removable at 14G's own last step). Breakdown:
+
+| Category | Approx. count | Owner |
+|---|---|---|
+| Phase 14's own domain (Setup/Admin/Lankar, incl. 2 files not in my original file list: `LankarImportReturnModal.jsx`, `LankarWOView.jsx`) | ~13 | This phase (14A-14F) |
+| Unowned AR/Statements cluster | ~9 | Nobody — §0.3's decision |
+| Phase 5 (Customer/Vehicle) leftovers | ~5 | Nobody currently |
+| Phase 7 (Inventory) leftovers | ~11 | Nobody currently |
+| Phase 8 (Banking) leftovers, mostly dead/commented code (not independently re-verified this pass — treat as unconfirmed) | ~5 | Nobody currently |
+| Phase 12/13 boundary residue (`Schedule.jsx`, `AppointmentForm.jsx`, `WorkPROView.jsx`, `LankarWOView.jsx`, plus the 4 confirmed-live files in §0.1b) | ~6 | Nobody currently |
+| `CreditInvoice.jsx` — deliberately still full-base44 per Phase 13's own closeout note | 1 | Flagged, not claimed |
+| Core infra (only removable at 14G's literal last step) | 6 (excluded from the 54 above) | 14G itself |
+
+**This means even a fully-executed 14A-14F does not get 14G to a clean grep.** The other ~35 files are cross-phase residue nobody has ever explicitly owned cleaning up — this is a materially bigger finding than my first draft of this plan assumed (I'd only flagged the AR cluster in §0.3; the Phase 5/7/8/12-boundary residue is new).
+
+**Question:** given you mentioned a separate "final validation plan" already absorbing Phase 10A — is that final validation plan *also* meant to be the moment this repo-wide residue gets swept and Final Sunset actually happens (i.e., 14G moves out of this document entirely and becomes that plan's closing step)? Or do you want Phase 14 itself to absorb the sweep (spinning up 14H/14I/etc. sub-phases per leftover category), or a third option? I don't want to scope 14G further until this is decided — right now it's the single biggest open unknown in this whole plan.
 
 ---
 
@@ -112,12 +144,12 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 | Sub-phase | Status | Overview |
 |---|---|---|
 | 14A | Pending | Setup.jsx core: backup/restore/SalesClass — no blockers |
-| 14B | Pending (holds on §0.1) | Admin.jsx entity browser rewire |
+| 14B | Pending | Admin.jsx entity browser rewire |
 | 14C | Pending | Dev-only table → production replay + TagAlong/OtherCharges/WIP/WorkOrderStatus managers |
 | 14D | Pending | LankarImport.jsx transport + `autopro-processDataImport` port |
 | 14E | Pending | AddLegacyInvoiceModal.jsx cleanup (small) |
 | 14F | Pending (holds on §0.4) | LegacyWorkOrderImportModal.jsx + `autopro-processLegacyWorkOrder` port |
-| 14G | Blocked (holds on §0.3, and on Phase 10/10A/12/13 closure) | Final Sunset |
+| 14G | Blocked (holds on §0.3 and §0.7 — scope/ownership decision needed, not just phase-closure timing) | Final Sunset |
 
 ---
 
@@ -164,7 +196,7 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 
 **Target file:** `src/pages/Admin.jsx` (550 lines, read in full above).
 
-**Holds on §0.1** — re-check `git status` on this exact file immediately before starting, given the active concurrent Phase 10E work.
+§0.1's earlier concern (concurrent Phase 10E work) is resolved — clear to proceed. Standard discipline still applies: re-check `git status` on this file immediately before starting, same as any file.
 
 **Detailed Execution Plan:**
 
@@ -345,7 +377,7 @@ Current `LOCAL_ENTITIES` (line 29-37): `BankAccount, BankReconciliation, BankTra
 
 ### 14G — Final Sunset
 
-**Blocked** on: §0.3's decision (AR/Statements cluster), Phase 10 (10E remainder / GST full closure), Phase 10A (integration testing), Phase 12 (real click-through), Phase 13's actual closure status (per §0.6, likely closer to done than the blueprint currently shows — needs its own confirmation, not assumed from this plan), and 14A-14F above.
+**Blocked** on: §0.3's decision (AR/Statements cluster) and §0.7's decision (who sweeps the other ~35 cross-phase-residue files — Phase 5/7/8/12-boundary leftovers, none currently owned). Phase 10 and Phase 13 are confirmed closed (§0.1/§0.1b); Phase 10A is being handled by a separate final-validation plan outside this document (§0.1c). 14A-14F must also land first.
 
 **Detailed Execution Plan (once unblocked):**
 1. Repo-wide grep for `base44`, `@/entities/all`, `@/functions/` across `src/` — must return **zero** hits (the `base44/` source tree itself is exempt, per the standing "leave it alone until this step" rule — this check is about live traffic, not the presence of the archived source).

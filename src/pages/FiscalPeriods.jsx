@@ -85,8 +85,8 @@ export default function FiscalPeriodsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Fiscal Periods</h1>
-            <p className="text-slate-600 mt-1">Manage your company's fiscal periods to control transactions.</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Fiscal Periods</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your company's fiscal periods to control transactions.</p>
           </div>
           {!showForm && (
             <Button 
@@ -134,10 +134,10 @@ export default function FiscalPeriodsPage() {
                     {loading ? (
                       Array(5).fill(0).map((_, i) => (
                         <TableRow key={i} className="animate-pulse">
-                          <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                          <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                          <TableCell className="text-center"><div className="h-6 w-16 bg-slate-200 rounded-full mx-auto"></div></TableCell>
-                          <TableCell className="text-center"><div className="h-6 w-12 bg-slate-200 rounded-full mx-auto"></div></TableCell>
+                          <TableCell><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></TableCell>
+                          <TableCell><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></TableCell>
+                          <TableCell className="text-center"><div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto"></div></TableCell>
+                          <TableCell className="text-center"><div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto"></div></TableCell>
                         </TableRow>
                       ))
                     ) : periods.length > 0 ? (
@@ -163,7 +163,7 @@ export default function FiscalPeriodsPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan="4" className="p-12 text-center text-slate-500">
+                        <TableCell colSpan="4" className="p-12 text-center text-slate-500 dark:text-slate-400">
                           <p>No fiscal periods have been created yet.</p>
                           <p className="text-sm mt-2">Click "Create New Period" to get started.</p>
                         </TableCell>

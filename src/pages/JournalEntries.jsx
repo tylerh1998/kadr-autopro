@@ -144,8 +144,8 @@ export default function JournalEntriesPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Make General Journal Entries</h1>
-          <p className="text-slate-600 mt-1">Create manual accounting journal entries</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Make General Journal Entries</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">Create manual accounting journal entries</p>
         </div>
 
         {/* Entry Form */}
@@ -233,7 +233,7 @@ export default function JournalEntriesPage() {
                     <Button
                       variant="outline"
                       type="button"
-                      className="px-2 rounded-r-none border-r-0 text-slate-500 hover:text-slate-800"
+                      className="px-2 rounded-r-none border-r-0 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
                       onClick={() => setCurrentReference(currentMemo)}
                       title="Copy Memo to Reference"
                     >
@@ -274,26 +274,26 @@ export default function JournalEntriesPage() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-slate-700 w-8">#</th>
-                    <th className="text-left p-3 font-semibold text-slate-700 w-48">Account</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-28">Debit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700 w-28">Credit</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Memo</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Reference</th>
-                    <th className="text-center p-3 font-semibold text-slate-700 w-16"></th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300 w-8">#</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300 w-48">Account</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300 w-28">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300 w-28">Credit</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Memo</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Reference</th>
+                    <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300 w-16"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {journalLines.length > 0 ? (
                     journalLines.map((line, index) => (
-                      <tr key={line.id} className="border-b hover:bg-slate-50">
-                        <td className="p-3 font-medium text-slate-600">{index + 1}</td>
+                      <tr key={line.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <td className="p-3 font-medium text-slate-600 dark:text-slate-400">{index + 1}</td>
                         <td className="p-3">
                           <div>
                             <span className="font-medium">{line.account}</span>
-                            <div className="text-xs text-slate-500">{line.accountName}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{line.accountName}</div>
                           </div>
                         </td>
                         <td className="p-3 text-right font-medium">
@@ -302,14 +302,14 @@ export default function JournalEntriesPage() {
                         <td className="p-3 text-right font-medium">
                           {parseFloat(line.credit) > 0 ? `$${parseFloat(line.credit).toFixed(2)}` : ''}
                         </td>
-                        <td className="p-3 text-slate-600">{line.memo}</td>
-                        <td className="p-3 text-slate-600">{line.reference}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{line.memo}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{line.reference}</td>
                         <td className="p-3 text-center">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteLine(line.id)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                           >
                             ×
                           </Button>
@@ -318,25 +318,25 @@ export default function JournalEntriesPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="p-12 text-center text-slate-500">
+                      <td colSpan="7" className="p-12 text-center text-slate-500 dark:text-slate-400">
                         No journal entry lines added yet. Use the form above to add entries.
                       </td>
                     </tr>
                   )}
                   {/* Totals Row */}
                   {journalLines.length > 0 && (
-                    <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold">
+                    <tr className="border-t-2 border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-semibold">
                       <td className="p-3"></td>
                       <td className="p-3">TOTALS:</td>
-                      <td className="p-3 text-right text-slate-900">
+                      <td className="p-3 text-right text-slate-900 dark:text-slate-100">
                         ${totalDebits.toFixed(2)}
                       </td>
-                      <td className="p-3 text-right text-slate-900">
+                      <td className="p-3 text-right text-slate-900 dark:text-slate-100">
                         ${totalCredits.toFixed(2)}
                       </td>
                       <td className="p-3" colSpan="3">
                         {!isBalanced && (
-                          <span className="text-red-600 flex items-center gap-1 text-sm">
+                          <span className="text-red-600 dark:text-red-400 flex items-center gap-1 text-sm">
                             <AlertTriangle className="w-4 h-4" /> Difference: ${Math.abs(totalDebits - totalCredits).toFixed(2)}
                           </span>
                         )}

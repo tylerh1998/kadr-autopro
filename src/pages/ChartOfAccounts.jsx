@@ -128,11 +128,11 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
   };
 
   const accountTypeColors = {
-    'Asset': 'bg-blue-100 text-blue-800',
-    'Liability': 'bg-red-100 text-red-800',
-    'Equity': 'bg-purple-100 text-purple-800',
-    'Revenue': 'bg-green-100 text-green-800',
-    'Expense': 'bg-orange-100 text-orange-800'
+    'Asset': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    'Liability': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    'Equity': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    'Revenue': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    'Expense': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
   };
 
   const accountTypeLabels = {
@@ -196,8 +196,8 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Chart of Accounts</h1>
-            <p className="text-slate-600 mt-1">Manage your accounting structure</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Chart of Accounts</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your accounting structure</p>
           </div>
           <div className="flex flex-wrap gap-2 no-print">
             <Button 
@@ -249,22 +249,22 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b">
+                  <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                     <tr>
-                      <th className="text-left p-3 font-semibold text-slate-700">Acct #</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Account Name</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Account Type</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Status</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Acct #</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Account Name</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Account Type</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       Array(10).fill(0).map((_, i) => (
                         <tr key={i} className="border-b animate-pulse">
-                          <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                          <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                          <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                          <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                          <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                          <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div></td>
+                          <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                          <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
                         </tr>
                       ))
                     ) : filteredAccounts.length > 0 ? (
@@ -272,22 +272,22 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
                         {['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'].map((type) => (
                           accountsByType[type].length > 0 && (
                             <React.Fragment key={type}>
-                              <tr className="bg-slate-100">
+                              <tr className="bg-slate-100 dark:bg-slate-800">
                                 <td colSpan="4" className="p-3">
-                                  <h3 className="font-bold text-slate-900 text-lg">{accountTypeLabels[type]}</h3>
+                                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">{accountTypeLabels[type]}</h3>
                                 </td>
                               </tr>
                               {accountsByType[type].map((account) => (
                                 <ContextMenu key={account.id}>
                                   <ContextMenuTrigger asChild>
-                                    <tr className="border-b hover:bg-slate-50 cursor-pointer transition-colors">
+                                    <tr className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors">
                                       <td className="p-3" style={{ paddingLeft: account.parent_account ? '2rem' : '0.75rem' }}>
-                                        <span className="font-mono font-bold text-slate-900">{account.account_number}</span>
+                                        <span className="font-mono font-bold text-slate-900 dark:text-slate-100">{account.account_number}</span>
                                       </td>
                                       <td className="p-3" style={{ paddingLeft: account.parent_account ? '2rem' : '0.75rem' }}>
-                                        <span className="font-medium text-slate-900">{account.account_name}</span>
+                                        <span className="font-medium text-slate-900 dark:text-slate-100">{account.account_name}</span>
                                         {account.description && (
-                                          <p className="text-xs text-slate-500 mt-1">{account.description}</p>
+                                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{account.description}</p>
                                         )}
                                       </td>
                                       <td className="p-3">
@@ -325,8 +325,8 @@ export default function ChartOfAccountsPage({ isEmbedded = false }) {
                           <div className="text-slate-400 mb-4">
                             <BookOpen className="w-12 h-12 mx-auto" />
                           </div>
-                          <h3 className="text-lg font-semibold text-slate-900 mb-2">No Accounts Found</h3>
-                          <p className="text-slate-600 mb-4">
+                          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Accounts Found</h3>
+                          <p className="text-slate-600 dark:text-slate-400 mb-4">
                             {searchTerm ? 'No accounts match your search.' : 'Create your first account to get started.'}
                           </p>
                           <Button onClick={() => setShowForm(true)}>
