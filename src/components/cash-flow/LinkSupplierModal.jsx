@@ -81,36 +81,36 @@ export default function LinkSupplierModal({ open, onClose, onSelect }) {
           {/* Supplier List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto p-1">
             {loading ? (
-                <div className="col-span-2 text-center py-8 text-slate-500">Loading suppliers...</div>
+                <div className="col-span-2 text-center py-8 text-slate-500 dark:text-slate-400">Loading suppliers...</div>
             ) : filteredSuppliers.length === 0 ? (
-                <div className="col-span-2 text-center py-8 text-slate-500">No suppliers found.</div>
+                <div className="col-span-2 text-center py-8 text-slate-500 dark:text-slate-400">No suppliers found.</div>
             ) : (
                 filteredSuppliers.map((supplier) => (
                     <Card 
                     key={supplier.id} 
                     className={`cursor-pointer transition-all border-2 ${
-                        selectedSupplier?.id === supplier.id 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'hover:border-blue-200'
+                        selectedSupplier?.id === supplier.id
+                        ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/30'
+                        : 'hover:border-blue-200 dark:hover:border-blue-800'
                     }`}
                     onClick={() => setSelectedSupplier(supplier)}
                     >
                     <CardContent className="p-4">
                         <div className="flex items-start justify-between">
-                            <h4 className="font-semibold text-slate-900">{supplier.name}</h4>
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-100">{supplier.name}</h4>
                             <Truck className="w-4 h-4 text-slate-400" />
                         </div>
                         {supplier.contact_person && (
-                        <p className="text-xs text-slate-500 mt-1">Contact: {supplier.contact_person}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Contact: {supplier.contact_person}</p>
                         )}
                         {supplier.phone && (
-                        <p className="text-sm text-slate-600 flex items-center gap-1 mt-2">
+                        <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-2">
                             <Phone className="w-3 h-3"/>
                             {supplier.phone}
                         </p>
                         )}
                         {supplier.email && (
-                        <p className="text-sm text-slate-600 flex items-center gap-1 mt-1">
+                        <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1">
                             <Mail className="w-3 h-3"/>
                             {supplier.email}
                         </p>

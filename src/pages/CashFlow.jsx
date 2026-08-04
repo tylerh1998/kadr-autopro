@@ -402,9 +402,9 @@ export default function CashFlow() {
   const workDaysLeft = calculateBusinessDays(headerData.monthEnd);
 
   const getWorkDaysColor = (days) => {
-      if (days <= 5) return "bg-red-100 text-red-700 border-red-200";
-      if (days <= 10) return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      return "bg-blue-100 text-blue-700 border-blue-200";
+      if (days <= 5) return "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
+      if (days <= 10) return "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
+      return "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
   };
 
   const handleSort = (key) => {
@@ -477,36 +477,36 @@ export default function CashFlow() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col gap-4 mb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full">
-            <h1 className="text-3xl font-bold text-slate-900">Cash Flow</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Cash Flow</h1>
             <div className="overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <TabsList className="bg-slate-200/50 p-1.5 rounded-xl inline-flex w-max">
+                <TabsList className="bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-xl inline-flex w-max">
                     <TabsTrigger 
                     value="cashflow" 
-                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Cash Flow
                     </TabsTrigger>
                     <TabsTrigger 
                     value="apsummary" 
-                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     AP Summary
                     </TabsTrigger>
                     <TabsTrigger 
                     value="cheques" 
-                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Cheque Register
                     </TabsTrigger>
                     <TabsTrigger 
                     value="trends" 
-                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Trends
                     </TabsTrigger>
                     <TabsTrigger 
                     value="overhead" 
-                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white text-slate-900 hover:bg-slate-200 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                    className="rounded-lg px-6 py-2.5 text-base font-medium bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                     >
                     Overhead
                     </TabsTrigger>
@@ -561,39 +561,39 @@ export default function CashFlow() {
             <div className="xl:sticky xl:top-24 space-y-4">
               
               {/* Header Inputs */}
-              <div className="grid grid-cols-3 gap-3 bg-white p-4 rounded-xl border shadow-sm">
+              <div className="grid grid-cols-3 gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border shadow-sm">
                 <div className="flex flex-col gap-1.5">
-                    <span 
-                        className="text-[10px] font-bold text-blue-600 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800"
+                    <span
+                        className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800 dark:hover:text-blue-300"
                         onClick={() => handleHeaderChange({...headerData, lastUpdated: moment().format('MMM D')})}
                         title="Click to set to today"
                     >
                         Last Updated
                     </span>
-                    <Input 
+                    <Input
                         value={headerData.lastUpdated}
                         onChange={(e) => handleHeaderChange({...headerData, lastUpdated: e.target.value})}
-                        className="h-9 text-center bg-slate-50 border-slate-200 text-sm font-medium px-1"
+                        className="h-9 text-center bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-sm font-medium px-1"
                         placeholder="MMM D"
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                    <span 
-                        className="text-[10px] font-bold text-blue-600 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800"
+                    <span
+                        className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider text-center cursor-pointer hover:underline hover:text-blue-800 dark:hover:text-blue-300"
                         onClick={() => handleHeaderChange({...headerData, monthEnd: moment().endOf('month').format('MMM D')})}
                         title="Click to set to month end"
                     >
                         Month End
                     </span>
-                    <Input 
+                    <Input
                         value={headerData.monthEnd}
                         onChange={(e) => handleHeaderChange({...headerData, monthEnd: e.target.value})}
-                        className="h-9 text-center bg-slate-50 border-slate-200 text-sm font-medium px-1"
+                        className="h-9 text-center bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-sm font-medium px-1"
                         placeholder="MMM D"
                     />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Days Left</span>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Days Left</span>
                     <div className={`flex justify-center items-center h-9 rounded-md border transition-colors ${getWorkDaysColor(workDaysLeft)}`}>
                         <span className="text-sm font-bold">{workDaysLeft} Days</span>
                     </div>

@@ -32,7 +32,10 @@ export default function AccountBalancesByTypeReport({ data }) {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(_, __, item) => formatCurrency(item.payload.originalAmount)} />
+            <Tooltip
+              formatter={(_, __, item) => formatCurrency(item.payload.originalAmount)}
+              contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+            />
           </PieChart>
         </ResponsiveContainer>
         <div className="mt-4 space-y-2">
@@ -40,9 +43,9 @@ export default function AccountBalancesByTypeReport({ data }) {
             <div key={item.type} className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                <span className="text-sm text-slate-700">{item.type}</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">{item.type}</span>
               </div>
-              <span className="text-sm font-semibold text-slate-900">{formatCurrency(item.amount)}</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.amount)}</span>
             </div>
           ))}
         </div>

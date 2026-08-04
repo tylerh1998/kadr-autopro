@@ -295,7 +295,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
           </div>
 
           {/* Account Tabs */}
-          <div className="mt-4 border-b border-slate-200">
+          <div className="mt-4 border-b border-slate-200 dark:border-slate-700">
             <div className="flex overflow-x-auto gap-2 pb-1 no-scrollbar">
                 {accounts.map(acc => (
                     <button
@@ -307,8 +307,8 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                         }}
                         className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg border-b-2 transition-colors ${
                             selectedAccountId === acc.id
-                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30'
+                                : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                         }`}
                     >
                         {acc.name}
@@ -384,15 +384,17 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
               <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
                         dataKey={chartData[0]?.date ? "date" : "month"}
                         tickFormatter={chartData[0]?.date ? formatDate : formatMonth}
+                        stroke="hsl(var(--muted-foreground))"
                     />
-                    <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                    <Tooltip 
+                    <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip
                         formatter={(value) => formatCurrency(value)}
                         labelFormatter={chartData[0]?.date ? formatTooltipDate : formatMonth}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
                     />
                     {visibleLines.inflow && (
                         <Line type="monotone" dataKey="inflow" stroke="#10b981" strokeWidth={2} name="Cash Inflow" dot={false} />
@@ -411,7 +413,7 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-[400px] text-slate-500">
+            <div className="flex items-center justify-center h-[400px] text-slate-500 dark:text-slate-400">
                 No data available for the selected period
             </div>
           )}
@@ -425,33 +427,33 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
         </CardHeader>
         <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
-                <div className="p-4 bg-red-50 rounded-lg border border-red-100">
-                    <p className="text-sm font-medium text-red-800 mb-1">Remaining Overhead</p>
-                    <p className="text-2xl font-bold text-red-600">
+                <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-800">
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-1">Remaining Overhead</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                         {formatCurrency(metrics.remainingOverhead)}
                     </p>
-                    <p className="text-xs text-red-600/70">Dynamic Calculation</p>
+                    <p className="text-xs text-red-600/70 dark:text-red-400/70">Dynamic Calculation</p>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
-                    <p className="text-sm font-medium text-amber-800 mb-1">Remaining Accts Payable</p>
-                    <p className="text-2xl font-bold text-amber-600">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-100 dark:border-amber-800">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-1">Remaining Accts Payable</p>
+                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                         {formatCurrency(metrics.totalPayable)}
                     </p>
-                    <p className="text-xs text-amber-600/70">From Cash Flow Table</p>
+                    <p className="text-xs text-amber-600/70 dark:text-amber-400/70">From Cash Flow Table</p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                    <p className="text-sm font-medium text-purple-800 mb-1">Total Paid</p>
-                    <p className="text-2xl font-bold text-purple-600">
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-800">
+                    <p className="text-sm font-medium text-purple-800 dark:text-purple-300 mb-1">Total Paid</p>
+                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                         {formatCurrency(metrics.totalPaid)}
                     </p>
-                    <p className="text-xs text-purple-600/70">Bank Debits</p>
+                    <p className="text-xs text-purple-600/70 dark:text-purple-400/70">Bank Debits</p>
                 </div>
-                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                    <p className="text-sm font-medium text-green-800 mb-1">Total Revenue</p>
-                    <p className="text-2xl font-bold text-green-600">
+                <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-100 dark:border-green-800">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Total Revenue</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {formatCurrency(metrics.totalRevenue)}
                     </p>
-                    <p className="text-xs text-green-600/70">Bank Credits</p>
+                    <p className="text-xs text-green-600/70 dark:text-green-400/70">Bank Credits</p>
                 </div>
             </div>
 
@@ -459,11 +461,11 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
             <div className="space-y-4">
                 {/* Revenue Progress Bar */}
                 <div className="space-y-2">
-                    <div className="flex justify-between text-sm font-medium text-slate-600">
+                    <div className="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
                         <span>Revenue Progress</span>
                         <span>{metrics.totalMonthlyExpensesTarget > 0 ? Math.round((metrics.totalRevenue / metrics.totalMonthlyExpensesTarget) * 100) : 0}% of Monthly Expenses Covered</span>
                     </div>
-                    <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
+                    <div className="h-6 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
                         <div 
                             className="bg-green-500 h-full transition-all duration-500" 
                             style={{ width: `${Math.min(100, (metrics.totalRevenue / metrics.totalMonthlyExpensesTarget) * 100)}%` }}
@@ -475,11 +477,11 @@ export default function CashFlowTrendTab({ overheadRows = [], cashFlowRows = [],
                 </div>
 
                 <div className="space-y-2">
-                    <div className="flex justify-between text-sm font-medium text-slate-600">
+                    <div className="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
                         <span>Month Progress</span>
                         <span>{Math.round(monthProgress)}% of Month Elapsed</span>
                     </div>
-                    <div className="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex border border-slate-200">
+                    <div className="h-6 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex border border-slate-200 dark:border-slate-700">
                         <div 
                             className="bg-blue-500 h-full transition-all duration-500" 
                             style={{ width: `${monthProgress}%` }}

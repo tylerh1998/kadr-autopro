@@ -143,18 +143,19 @@ export default function CashFlowTrendReport({ data }) {
 
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={data?.[0]?.date ? 'date' : 'month'} tickFormatter={labelFormatter} />
-            <YAxis yAxisId="flow" tickFormatter={(value) => `$${Math.abs(value).toLocaleString()}`} />
-            <YAxis yAxisId="balance" orientation="right" tickFormatter={(value) => `$${value.toLocaleString()}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey={data?.[0]?.date ? 'date' : 'month'} tickFormatter={labelFormatter} stroke="hsl(var(--muted-foreground))" />
+            <YAxis yAxisId="flow" tickFormatter={(value) => `$${Math.abs(value).toLocaleString()}`} stroke="hsl(var(--muted-foreground))" />
+            <YAxis yAxisId="balance" orientation="right" tickFormatter={(value) => `$${value.toLocaleString()}`} stroke="hsl(var(--muted-foreground))" />
             <Tooltip
               labelFormatter={labelFormatter}
               formatter={(value, name) => {
                 if (name === 'Cash Out') return [formatCurrency(Math.abs(value)), name];
                 return [formatCurrency(value), name];
               }}
+              contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
             />
-            <ReferenceLine yAxisId="flow" y={0} stroke="#94a3b8" />
+            <ReferenceLine yAxisId="flow" y={0} stroke="hsl(var(--border))" />
             {visibleSeries.inflow && (
               <Bar yAxisId="flow" dataKey="inflow" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Cash In" />
             )}

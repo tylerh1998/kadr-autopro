@@ -16,14 +16,22 @@ serve(async (req) => {
 
     const cutoffDateString = asOfDate || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Edmonton' });
 
-    let customerQuery = supabase.from('Customer').select('*');
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      customerQuery = customerQuery.or(`first_name.ilike.%${searchLower}%,last_name.ilike.%${searchLower}%,org_name.ilike.%${searchLower}%,phone.ilike.%${searchLower}%,email.ilike.%${searchLower}%`);
-    }
+    const customers = [];
+    const pageSize = 1000;
+    for (let page = 0; ; page++) {
+      let customerQuery = supabase.from('Customer').select('*').range(page * pageSize, page * pageSize + pageSize - 1);
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        customerQuery = customerQuery.or(`first_name.ilike.%${searchLower}%,last_name.ilike.%${searchLower}%,org_name.ilike.%${searchLower}%,phone.ilike.%${searchLower}%,email.ilike.%${searchLower}%`);
+      }
 
-    const { data: customers, error: customersError } = await customerQuery;
-    if (customersError) throw customersError;
+      const { data: pageData, error: customersError } = await customerQuery;
+      if (customersError) throw customersError;
+      if (!pageData || pageData.length === 0) break;
+
+      customers.push(...pageData);
+      if (pageData.length < pageSize) break;
+    }
 
     if (!customers || customers.length === 0) {
       return new Response(JSON.stringify({ success: true, arSummaryData: [] }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
