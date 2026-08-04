@@ -125,20 +125,22 @@ export default function CustomerARTransactionsPage() {
       if (customerError) throw customerError;
       setCustomer(customerData);
 
-      const response = await base44.functions.invoke('getCustomerARData', {
-        customerId,
-        dateFrom: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
-        dateTo: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
-        searchTerm
+      const { data: response, error: arDataError } = await supabase.functions.invoke('autopro-getCustomerARData', {
+        body: {
+          customerId,
+          dateFrom: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
+          dateTo: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
+          searchTerm
+        }
       });
 
-      if (response.data.success) {
-        setTransactionsTabData(response.data.transactionsTab || []);
-        setPaymentsTabData(response.data.paymentsTab || []);
-        setCurrentBalance(response.data.summary?.total_balance ?? response.data.allTimeBalance ?? 0);
-        setOpeningBalance(response.data.openingBalance || 0);
+      if (!arDataError && response?.success) {
+        setTransactionsTabData(response.transactionsTab || []);
+        setPaymentsTabData(response.paymentsTab || []);
+        setCurrentBalance(response.summary?.total_balance ?? response.allTimeBalance ?? 0);
+        setOpeningBalance(response.openingBalance || 0);
       } else {
-        console.error('Failed to load transactions:', response.data.error);
+        console.error('Failed to load transactions:', arDataError?.message || response?.error);
       }
       
     } catch (error) {
