@@ -293,7 +293,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="debit_amount" className="text-red-600">Debit Amount</Label>
+                <Label htmlFor="debit_amount" className="text-red-600 dark:text-red-400">Debit Amount</Label>
                 <Input
                   id="debit_amount"
                   type="number"
@@ -301,12 +301,12 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   placeholder="0.00"
                   value={formData.debit_amount}
                   onChange={(e) => handleChange('debit_amount', e.target.value)}
-                  className="border-red-300 focus:border-red-500 text-red-600 font-semibold"
+                  className="border-red-300 dark:border-red-700 focus:border-red-500 text-red-600 dark:text-red-400 font-semibold"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="credit_amount" className="text-green-600">Credit Amount</Label>
+                <Label htmlFor="credit_amount" className="text-green-600 dark:text-green-400">Credit Amount</Label>
                 <Input
                   id="credit_amount"
                   type="number"
@@ -314,7 +314,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   placeholder="0.00"
                   value={formData.credit_amount}
                   onChange={(e) => handleChange('credit_amount', e.target.value)}
-                  className="border-green-300 focus:border-green-500 text-green-600 font-semibold"
+                  className="border-green-300 dark:border-green-700 focus:border-green-500 text-green-600 dark:text-green-400 font-semibold"
                 />
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   onValueChange={(value) => handleChange('gl_account', value)}
                   required
                 >
-                  <SelectTrigger className={!formData.gl_account ? 'border-red-300' : ''}>
+                  <SelectTrigger className={!formData.gl_account ? 'border-red-300 dark:border-red-700' : ''}>
                     <SelectValue placeholder="Select GL Account..." />
                   </SelectTrigger>
                   <SelectContent>

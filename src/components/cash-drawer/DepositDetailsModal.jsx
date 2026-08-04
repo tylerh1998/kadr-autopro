@@ -149,13 +149,13 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
   const getMethodBadgeColor = (method) => {
     const colors = {
-      cash: 'bg-green-100 text-green-800',
-      cheque: 'bg-orange-100 text-orange-800',
-      debit: 'bg-purple-100 text-purple-800',
-      credit_card: 'bg-blue-100 text-blue-800',
-      e_transfer: 'bg-indigo-100 text-indigo-800'
+      cash: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      cheque: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+      debit: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+      credit_card: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      e_transfer: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
     };
-    return colors[method] || 'bg-gray-100 text-gray-800';
+    return colors[method] || 'bg-gray-100 text-gray-800 dark:bg-gray-700/60 dark:text-gray-300';
   };
 
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -265,7 +265,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-4">
@@ -276,29 +276,29 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                   <div className="flex items-start gap-2">
                     <Calendar className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Date</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Date</p>
                       <p className="font-medium">{formatDate(deposit?.transaction_date)}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <Building className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Bank Account</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Bank Account</p>
                       <p className="font-medium">{deposit?.bank_account_name || deposit?.bank_name || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <FileText className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Reference</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Reference</p>
                       <p className="font-medium text-sm">{deposit?.reference || deposit?.source_id || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600 mt-0.5" />
+                    <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Total Amount</p>
-                      <p className="font-bold text-green-600">${(deposit?.credit_amount || 0).toFixed(2)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Total Amount</p>
+                      <p className="font-bold text-green-600 dark:text-green-400">${(deposit?.credit_amount || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                               {payment.payment_method?.replace('_', ' ')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-slate-600">
+                          <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                             {payment.descriptionText}
                           </TableCell>
                           <TableCell className="text-sm">{formatDate(payment.payment_date)}</TableCell>
@@ -343,7 +343,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="flex justify-end p-3 border-t bg-slate-50">
+                  <div className="flex justify-end p-3 border-t bg-slate-50 dark:bg-slate-800">
                     <span className="font-semibold">Subtotal: ${totalPayments.toFixed(2)}</span>
                   </div>
                 </CardContent>
@@ -373,20 +373,20 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                       {adjustments.map((adj) => (
                         <TableRow key={adj.id}>
                           <TableCell>
-                            <Badge className={adj.type === 'overage' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            <Badge className={adj.type === 'overage' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'}>
                               {adj.type}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">{[adj.description, adj.notes || adj.reference].filter(Boolean).join(' - ') || '-'}</TableCell>
                           <TableCell className="text-sm">{formatDate(adj.adjustment_date)}</TableCell>
-                          <TableCell className={`text-right font-medium ${adj.amount < 0 ? 'text-red-600' : ''}`}>
+                          <TableCell className={`text-right font-medium ${adj.amount < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                             ${(adj.amount || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="flex justify-end p-3 border-t bg-slate-50">
+                  <div className="flex justify-end p-3 border-t bg-slate-50 dark:bg-slate-800">
                     <span className="font-semibold">Subtotal: ${totalAdjustments.toFixed(2)}</span>
                   </div>
                 </CardContent>
@@ -394,7 +394,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
             )}
 
             {payments.length === 0 && adjustments.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 No payment or adjustment details found for this deposit.
               </div>
             )}
@@ -422,14 +422,14 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                 )}
               </Button>
             ) : (
-              <div className="flex items-center text-amber-600 text-sm font-medium" title={reversalReason}>
+              <div className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium" title={reversalReason}>
                 <Ban className="w-4 h-4 mr-2" />
                 Cannot Reverse: {reversalReason}
               </div>
             )}
             <Button
               variant="outline"
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30 border-blue-200 dark:border-blue-800"
               onClick={handlePrintReport}
               disabled={loading || generatingPdf}
             >

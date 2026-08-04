@@ -161,7 +161,7 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
                   id="is_active" 
                   checked={formData.is_active}
                   onChange={handleChange}
-                  className="rounded border-slate-300"
+                  className="rounded border-slate-300 dark:border-slate-600"
                 />
                 <Label htmlFor="is_active">Active Account</Label>
               </div>

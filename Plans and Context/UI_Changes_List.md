@@ -15,3 +15,6 @@
 - [ ] Create/Edit Customer - make max height the screen height.
 - [ ] StockRelevelReport - print version. 
 - [ ] UI Modal by Modal for X standardization of Red box with white X as the close button
+- [x] **Known Glitches**
+  - [x] supplier locks aren't cleared when saved (at least for payments.)
+  - [ ] 

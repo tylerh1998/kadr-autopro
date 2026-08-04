@@ -354,7 +354,7 @@ export default function ReconcilePage() {
               <ArrowLeft className="w-4 h-4" />
               Back to Bank Accounts
             </Button>
-            <h1 className="text-3xl font-bold text-slate-900">Reconcile Bank Account</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Reconcile Bank Account</h1>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => setShowAutoReconcileModal(true)} variant="outline" className="gap-2">
@@ -368,7 +368,7 @@ export default function ReconcilePage() {
           <Card>
             <CardContent className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">Loading bank account data...</p>
+              <p className="text-slate-600 dark:text-slate-400">Loading bank account data...</p>
             </CardContent>
           </Card>
         ) : (
@@ -384,25 +384,25 @@ export default function ReconcilePage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-slate-600">Bank Name</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Bank Name</p>
                       <p className="font-semibold">{bankAccount?.bank_name || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-slate-600">Account Type</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Account Type</p>
                       <p className="font-semibold">{bankAccount?.account_type || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-slate-600">Current Balance</p>
-                      <p className="text-xl font-bold text-slate-900">
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Current Balance</p>
+                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
                         ${(bankAccount?.current_balance || 0).toFixed(2)}
                       </p>
                     </div>
                     <div className="pt-2 border-t">
-                      <p className="text-sm text-slate-600">Showing unreconciled transactions from last 365 days</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Showing unreconciled transactions from last 365 days</p>
                     </div>
-                    
+
                     <div className="pt-4 border-t space-y-3">
-                      <h4 className="font-semibold text-sm text-slate-900">Reconciliation Period</h4>
+                      <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">Reconciliation Period</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="period-start" className="text-xs">Period Start</Label>
@@ -455,18 +455,18 @@ export default function ReconcilePage() {
 
                     <div className="border-t pt-4 space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-slate-600">Starting Balance:</span>
+                        <span className="text-slate-600 dark:text-slate-400">Starting Balance:</span>
                         <span className="font-semibold">
                           ${totals.startingBalance.toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-green-600">
+                      <div className="flex justify-between text-green-600 dark:text-green-400">
                         <span>Total Credits (Selected):</span>
                         <span className="font-semibold">
                           +${totals.totalCredits.toFixed(2)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-red-600">
+                      <div className="flex justify-between text-red-600 dark:text-red-400">
                         <span>Total Debits (Selected):</span>
                         <span className="font-semibold">
                           -${totals.totalDebits.toFixed(2)}
@@ -483,8 +483,8 @@ export default function ReconcilePage() {
                           <span className="font-semibold">Difference:</span>
                           <span className={`font-bold text-lg ${
                             Math.abs(difference) < 0.01
-                              ? 'text-green-600'
-                              : 'text-red-600'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
                           }`}>
                             ${difference.toFixed(2)}
                           </span>
@@ -521,15 +521,15 @@ export default function ReconcilePage() {
               </CardHeader>
               <CardContent className="p-0">
                 {filteredTransactions.length === 0 ? (
-                  <p className="text-center text-slate-500 py-8">
+                  <p className="text-center text-slate-500 dark:text-slate-400 py-8">
                     No unreconciled transactions found for the selected date range.
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b bg-slate-100">
-                          <th className="text-left p-3 cursor-pointer hover:bg-slate-50" onClick={toggleAll}>
+                        <tr className="border-b bg-slate-100 dark:bg-slate-800">
+                          <th className="text-left p-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" onClick={toggleAll}>
                             <div className="flex items-center gap-2">
                               <Checkbox
                                 checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
@@ -550,7 +550,7 @@ export default function ReconcilePage() {
                         {filteredTransactions.map((tx) => (
                           <tr 
                             key={tx.id} 
-                            className={`border-b cursor-pointer transition-colors ${selectedTransactions.has(tx.id) ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                            className={`border-b cursor-pointer transition-colors ${selectedTransactions.has(tx.id) ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}
                             onClick={() => toggleTransaction(tx.id)}
                           >
                             <td className="p-3">
@@ -564,11 +564,11 @@ export default function ReconcilePage() {
                               {format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}
                             </td>
                             <td className="p-3">{tx.description}</td>
-                            <td className="p-3 text-slate-600">{tx.reference || '-'}</td>
-                            <td className="p-3 text-right text-red-600">
+                            <td className="p-3 text-slate-600 dark:text-slate-400">{tx.reference || '-'}</td>
+                            <td className="p-3 text-right text-red-600 dark:text-red-400">
                               {tx.debit_amount > 0 ? `$${tx.debit_amount.toFixed(2)}` : '-'}
                             </td>
-                            <td className="p-3 text-right text-green-600">
+                            <td className="p-3 text-right text-green-600 dark:text-green-400">
                               {tx.credit_amount > 0 ? `$${tx.credit_amount.toFixed(2)}` : '-'}
                             </td>
                           </tr>
@@ -600,17 +600,17 @@ export default function ReconcilePage() {
             )}
 
             {/* Floating Cleared Balance Box */}
-            <div className="fixed bottom-6 left-6 z-50 bg-white rounded-lg shadow-xl border border-slate-200 p-4 min-w-[200px] animate-in slide-in-from-bottom-5">
+            <div className="fixed bottom-6 left-6 z-50 bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-4 min-w-[200px] animate-in slide-in-from-bottom-5">
               <div className="flex flex-col gap-1">
-                <span className="text-sm font-medium text-slate-500">Cleared Balance</span>
-                <span className="text-2xl font-bold text-slate-900">
+                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Cleared Balance</span>
+                <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                   ${totals.clearedBalance.toFixed(2)}
                 </span>
                 {statementBalance && (
                   <div className="flex justify-between items-center border-t pt-2 mt-1">
-                    <span className="text-xs text-slate-500">Difference</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Difference</span>
                     <span className={`text-sm font-bold ${
-                      Math.abs(difference) < 0.01 ? 'text-green-600' : 'text-red-600'
+                      Math.abs(difference) < 0.01 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       ${difference.toFixed(2)}
                     </span>
