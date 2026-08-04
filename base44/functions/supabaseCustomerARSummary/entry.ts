@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
         const searchLower = searchTerm.toLowerCase();
         customerQuery = customerQuery.or(`first_name.ilike.%${searchLower}%,last_name.ilike.%${searchLower}%,org_name.ilike.%${searchLower}%,phone.ilike.%${searchLower}%,email.ilike.%${searchLower}%`);
     }
-    
+
     const { data: customers, error: customersError } = await customerQuery;
     if (customersError) throw customersError;
 
