@@ -459,26 +459,26 @@ serve(async (req) => {
 
       const paymentAmount = Number(payment_amount) || 0;
       const creditCardFeeAmount = Number(credit_card_fee_amount) || 0;
-      const totalAmountWithFee = paymentAmount + creditCardFeeAmount;
 
-      if (!customer_id || !payment_date || !payment_method || totalAmountWithFee <= 0) {
+      if (!customer_id || !payment_date || !payment_method) {
         return res({ success: false, error: 'Missing required payment data' });
       }
 
       const customer = await fetchCustomer(customer_id);
       const customerName = formatCustomerDisplayName(customer);
       const outstandingCharges = await buildOutstandingCharges(customer_id);
-      const positiveOutstandingCharges = outstandingCharges.filter((charge) => (Number(charge.balance) || 0) > 0.01);
+      const chargeItems = outstandingCharges.filter((charge) => (Number(charge.balance) || 0) > 0.01);
+      const creditItems = outstandingCharges.filter((charge) => (Number(charge.balance) || 0) < -0.01);
+      const selectedSet = new Set((selected_charge_ids || []).filter(Boolean));
 
       let chargesToPay: any[] = [];
       if (apply_mode === 'selected') {
-        const selectedSet = new Set((selected_charge_ids || []).filter(Boolean));
-        chargesToPay = positiveOutstandingCharges
+        chargesToPay = chargeItems
           .filter((charge) => selectedSet.has(charge.id))
           .map((charge) => ({ ...charge, amountToApply: Number(charge.balance) || 0 }));
       } else {
         let remainingAmount = paymentAmount;
-        for (const charge of positiveOutstandingCharges) {
+        for (const charge of chargeItems) {
           if (remainingAmount <= 0) break;
           const amountToApply = Math.min(remainingAmount, Number(charge.balance) || 0);
           if (amountToApply > 0.01) {
@@ -488,25 +488,60 @@ serve(async (req) => {
         }
       }
 
-      if (apply_mode === 'selected' && chargesToPay.length === 0 && paymentAmount > 0.01) {
+      const totalChargesSelected = chargesToPay.reduce((sum, charge) => sum + (Number(charge.amountToApply) || 0), 0);
+
+      if (totalChargesSelected <= 0.01) {
         return res({ success: false, error: 'No valid outstanding charges were selected.' });
       }
 
+      // Credits are drawn against the charges above: explicitly selected in 'selected' mode
+      // (credits are just rows in the same selectable table), auto-folded in oldest-first mode
+      // since that tab has no manual selection step.
+      const eligibleCredits = apply_mode === 'selected'
+        ? creditItems.filter((credit) => selectedSet.has(credit.id))
+        : creditItems;
+
+      const creditPool = eligibleCredits.map((credit) => ({ ...credit, available: Math.abs(Number(credit.balance) || 0) }));
+      let creditAppliedTotal = 0;
+      const creditConsumption: { credit: any; amount: number }[] = [];
+      for (const charge of chargesToPay) {
+        let remainingOnCharge = charge.amountToApply;
+        for (const credit of creditPool) {
+          if (remainingOnCharge <= 0.01) break;
+          if (credit.available <= 0.01) continue;
+          const draw = Math.min(remainingOnCharge, credit.available);
+          credit.available -= draw;
+          remainingOnCharge -= draw;
+          creditAppliedTotal += draw;
+          creditConsumption.push({ credit, amount: draw });
+        }
+      }
+
+      const netCashNeeded = totalChargesSelected - creditAppliedTotal;
+      const usesRealCash = netCashNeeded > 0.01;
+      const totalAmountWithFee = usesRealCash ? (netCashNeeded + creditCardFeeAmount) : creditAppliedTotal;
+      const effectivePaymentMethod = usesRealCash ? payment_method : 'credit_applied';
+      const effectivePaymentDate = usesRealCash ? payment_date : getCurrentMountainDate();
+      const paymentId = createId();
+      const paymentReference = usesRealCash ? `ARPMT-${paymentId}` : `CREDITAPPLY-${paymentId}`;
+
       const paymentRecord = await insertCustomerPayment({
+        id: paymentId,
         customer_id,
         amount: totalAmountWithFee,
-        payment_method,
-        payment_date,
-        reference: reference || '',
-        notes: `AR Payment for ${customerName}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`,
+        payment_method: effectivePaymentMethod,
+        payment_date: effectivePaymentDate,
+        reference: usesRealCash ? (reference || '') : paymentReference,
+        notes: usesRealCash
+          ? `AR Payment for ${customerName}${creditCardFeeAmount > 0 ? ` (includes $${creditCardFeeAmount.toFixed(2)} CC fee)` : ''}`
+          : `AR Credit Applied for ${customerName}`,
         ar_pmt: true,
         ar_applyto: ''
       });
 
       const applyToEntries: any[] = [];
-      const paymentReference = `ARPMT-${paymentRecord.id}`;
 
-      if (creditCardFeeAmount > 0.01) {
+      if (usesRealCash && creditCardFeeAmount > 0.01) {
         const feeAdjustment = await insertAdjustment({
           customer_id,
           adjustment_date: payment_date,
@@ -548,28 +583,70 @@ serve(async (req) => {
         });
       }
 
-      await insertGLTransactions([
-        {
-          transaction_date: payment_date,
-          account_number: '1010',
-          description: `AR Payment - ${customerName}`,
-          debit_amount: totalAmountWithFee,
-          credit_amount: 0,
-          reference: paymentReference,
-          source_type: 'customer_payment',
-          source_id: paymentRecord.id
-        },
-        {
-          transaction_date: payment_date,
-          account_number: '1100',
-          description: `AR Payment - ${customerName}`,
-          debit_amount: 0,
-          credit_amount: totalAmountWithFee,
-          reference: paymentReference,
-          source_type: 'customer_payment',
-          source_id: paymentRecord.id
+      if (usesRealCash) {
+        await insertGLTransactions([
+          {
+            transaction_date: payment_date,
+            account_number: '1010',
+            description: `AR Payment - ${customerName}`,
+            debit_amount: totalAmountWithFee,
+            credit_amount: 0,
+            reference: paymentReference,
+            source_type: 'customer_payment',
+            source_id: paymentRecord.id
+          },
+          {
+            transaction_date: payment_date,
+            account_number: '1100',
+            description: `AR Payment - ${customerName}`,
+            debit_amount: 0,
+            credit_amount: totalAmountWithFee,
+            reference: paymentReference,
+            source_type: 'customer_payment',
+            source_id: paymentRecord.id
+          }
+        ]);
+      }
+
+      for (const { credit, amount } of creditConsumption) {
+        if (amount <= 0.01) continue;
+
+        const glAccount = credit.adjustment?.gl_account;
+        if (glAccount) {
+          await insertGLTransactions([
+            {
+              transaction_date: effectivePaymentDate,
+              account_number: glAccount,
+              description: `Credit Applied - ${customerName}`,
+              debit_amount: amount,
+              credit_amount: 0,
+              reference: paymentReference,
+              source_type: 'customer_payment',
+              source_id: paymentRecord.id
+            },
+            {
+              transaction_date: effectivePaymentDate,
+              account_number: '1100',
+              description: `Credit Applied - ${customerName}`,
+              debit_amount: 0,
+              credit_amount: amount,
+              reference: paymentReference,
+              source_type: 'customer_payment',
+              source_id: paymentRecord.id
+            }
+          ]);
         }
-      ]);
+
+        const newCreditArPaid = (Number(credit.ar_paid) || 0) - amount;
+        await updateAdjustment(credit.id, { ar_paid: newCreditArPaid });
+
+        applyToEntries.push({
+          id: credit.id,
+          type: 'credit_source',
+          amount,
+          description: credit.description || ''
+        });
+      }
 
       let totalApplied = 0;
       for (const charge of chargesToPay) {
@@ -595,7 +672,7 @@ serve(async (req) => {
         totalApplied += amountToApply;
       }
 
-      const overpaymentAmount = paymentAmount - totalApplied;
+      const overpaymentAmount = usesRealCash ? (paymentAmount - totalApplied) : 0;
       if (overpaymentAmount > 0.01) {
         const overpaymentAdjustment = await insertAdjustment({
           customer_id,
@@ -692,6 +769,7 @@ serve(async (req) => {
       const customer = payment.customer_id ? await fetchCustomer(payment.customer_id) : null;
       const customerName = formatCustomerDisplayName(customer);
       const arApplyToEntries = parseArApplyTo(payment.ar_applyto);
+      const reversalDate = getCurrentMountainDate();
 
       const autoAdjustmentsToReverse = new Map();
 
@@ -699,6 +777,40 @@ serve(async (req) => {
         const recordId = entry?.id;
         const amountApplied = Number(entry?.amount) || 0;
         if (!recordId || amountApplied <= 0) continue;
+
+        if (entry.type === 'credit_source') {
+          const sourceCredit = await fetchAdjustment(recordId);
+          if (sourceCredit) {
+            const restoredArPaid = Math.min(0, (Number(sourceCredit.ar_paid) || 0) + amountApplied);
+            await updateAdjustment(recordId, { ar_paid: restoredArPaid });
+
+            if (sourceCredit.gl_account) {
+              await insertGLTransactions([
+                {
+                  transaction_date: reversalDate,
+                  account_number: '1100',
+                  description: `Reversal: Credit Applied - ${customerName}`,
+                  debit_amount: amountApplied,
+                  credit_amount: 0,
+                  reference: `REV-${payment.reference || payment.id}`,
+                  source_type: 'customer_payment',
+                  source_id: payment.id
+                },
+                {
+                  transaction_date: reversalDate,
+                  account_number: sourceCredit.gl_account,
+                  description: `Reversal: Credit Applied - ${customerName}`,
+                  debit_amount: 0,
+                  credit_amount: amountApplied,
+                  reference: `REV-${payment.reference || payment.id}`,
+                  source_type: 'customer_payment',
+                  source_id: payment.id
+                }
+              ]);
+            }
+          }
+          continue;
+        }
 
         const appliedPayment = await fetchCustomerPayment(recordId);
         if (appliedPayment) {
@@ -718,29 +830,32 @@ serve(async (req) => {
         }
       }
 
-      const reversalDate = getCurrentMountainDate();
-      await insertGLTransactions([
-        {
-          transaction_date: reversalDate,
-          account_number: '1100',
-          description: `Reversal: AR Payment - ${customerName}`,
-          debit_amount: Number(payment.amount) || 0,
-          credit_amount: 0,
-          reference: `REV-ARPMT-${payment.id}`,
-          source_type: 'customer_payment',
-          source_id: payment.id
-        },
-        {
-          transaction_date: reversalDate,
-          account_number: '1010',
-          description: `Reversal: AR Payment - ${customerName}`,
-          debit_amount: 0,
-          credit_amount: Number(payment.amount) || 0,
-          reference: `REV-ARPMT-${payment.id}`,
-          source_type: 'customer_payment',
-          source_id: payment.id
-        }
-      ]);
+      // 'credit_applied' payments never had a real 1010 cash leg (no cash was ever collected -
+      // the whole thing was funded by credit_source entries above), so there is nothing to reverse here.
+      if (payment.payment_method !== 'credit_applied') {
+        await insertGLTransactions([
+          {
+            transaction_date: reversalDate,
+            account_number: '1100',
+            description: `Reversal: AR Payment - ${customerName}`,
+            debit_amount: Number(payment.amount) || 0,
+            credit_amount: 0,
+            reference: `REV-ARPMT-${payment.id}`,
+            source_type: 'customer_payment',
+            source_id: payment.id
+          },
+          {
+            transaction_date: reversalDate,
+            account_number: '1010',
+            description: `Reversal: AR Payment - ${customerName}`,
+            debit_amount: 0,
+            credit_amount: Number(payment.amount) || 0,
+            reference: `REV-ARPMT-${payment.id}`,
+            source_type: 'customer_payment',
+            source_id: payment.id
+          }
+        ]);
+      }
 
       for (const adjustment of autoAdjustmentsToReverse.values()) {
         await insertGLTransactions(
@@ -766,6 +881,13 @@ serve(async (req) => {
       const adjustment = await fetchAdjustment(adjustment_id);
       if (!adjustment) {
         return res({ success: false, error: 'Adjustment not found' });
+      }
+
+      if (adjustment.ar_paid && Number(adjustment.ar_paid) !== 0) {
+        return res({
+          success: false,
+          error: 'Cannot delete this adjustment because a payment or credit has already been applied against it. Record a correcting adjustment instead.'
+        });
       }
 
       const reversalDate = getCurrentMountainDate();

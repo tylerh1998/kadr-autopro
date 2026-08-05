@@ -316,6 +316,12 @@ export default function CustomerARTransactionsPage() {
         .eq('id', transaction.sourceId)
         .maybeSingle();
       if (adjustmentError) throw adjustmentError;
+
+      if (adjustment.ar_paid && Number(adjustment.ar_paid) !== 0) {
+        alert('Cannot delete this adjustment because a payment or credit has already been applied against it. Record a correcting adjustment instead.');
+        return;
+      }
+
       setAdjustmentToDelete(adjustment);
       setShowDeleteAdjustmentConfirm(true);
     } catch (error) {
