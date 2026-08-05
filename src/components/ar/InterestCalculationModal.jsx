@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { differenceInDays, differenceInMonths, addDays, format } from 'date-fns';
 import { Calculator, DollarSign, AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function InterestCalculationModal({ open, onClose, customers, onInterestCalculated }) {
   const [selectedCustomers, setSelectedCustomers] = useState({});
@@ -105,13 +106,11 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('applyARInterest', {
-        selectedCalculations
+      const { data, error } = await supabase.functions.invoke('autopro-processCustomerARAccounting', {
+        body: { action: 'apply_interest', selectedCalculations }
       });
-
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to apply interest charges');
 
       alert(`Successfully applied interest charges to ${selectedCalculations.length} customer(s).`);
       onInterestCalculated();

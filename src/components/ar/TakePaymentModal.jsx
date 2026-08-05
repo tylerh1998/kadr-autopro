@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 
 const getCustomerDisplayName = (customer) => {
@@ -91,19 +90,23 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('processCustomerARAccounting', {
-        action: 'create_payment',
-        customer_id: customer.id,
-        payment_date: format(paymentDate, 'yyyy-MM-dd'),
-        payment_amount: paymentAmount,
-        payment_method: paymentMethod,
-        reference,
-        apply_mode: activeTab === 'pay_invoices' ? 'selected' : 'oldest',
-        selected_charge_ids: Object.keys(selectedCharges),
-        credit_card_fee_amount: creditCardFeeAmount
+      const { data, error } = await supabase.functions.invoke('autopro-processCustomerARAccounting', {
+        body: {
+          action: 'create_payment',
+          customer_id: customer.id,
+          payment_date: format(paymentDate, 'yyyy-MM-dd'),
+          payment_amount: paymentAmount,
+          payment_method: paymentMethod,
+          reference,
+          apply_mode: activeTab === 'pay_invoices' ? 'selected' : 'oldest',
+          selected_charge_ids: Object.keys(selectedCharges),
+          credit_card_fee_amount: creditCardFeeAmount
+        }
       });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to process payment');
 
-      const updatedPaymentRecord = response.data?.payment;
+      const updatedPaymentRecord = data?.payment;
 
       if (onTakePayment) {
         await onTakePayment();

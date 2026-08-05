@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -215,16 +214,17 @@ export default function CustomerARTransactionsPage() {
 
   const handleRecordAdjustment = async (adjustmentData) => {
     try {
-      await base44.functions.invoke('processCustomerARAccounting', {
-        action: 'create_adjustment',
-        adjustmentData
+      const { data, error } = await supabase.functions.invoke('autopro-processCustomerARAccounting', {
+        body: { action: 'create_adjustment', adjustmentData }
       });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to record adjustment');
 
       await loadData();
       setShowAdjustmentModal(false);
     } catch (error) {
       console.error('Error recording adjustment:', error);
-      alert('Failed to record adjustment. Please try again.');
+      alert(`Failed to record adjustment: ${error.message}`);
     }
   };
 
@@ -287,18 +287,19 @@ export default function CustomerARTransactionsPage() {
     if (!paymentToDelete) return;
     
     try {
-      await base44.functions.invoke('processCustomerARAccounting', {
-        action: 'reverse_payment',
-        payment_id: paymentToDelete.id
+      const { data, error } = await supabase.functions.invoke('autopro-processCustomerARAccounting', {
+        body: { action: 'reverse_payment', payment_id: paymentToDelete.id }
       });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to delete payment');
 
       setShowDeleteConfirm(false);
       setPaymentToDelete(null);
       await loadData();
-      
+
     } catch (error) {
       console.error('Error deleting payment:', error);
-      alert(`Failed to delete payment: ${error?.response?.data?.error || error.message}`);
+      alert(`Failed to delete payment: ${error.message}`);
     }
   };
 
@@ -333,17 +334,18 @@ export default function CustomerARTransactionsPage() {
         return;
       }
 
-      await base44.functions.invoke('processCustomerARAccounting', {
-        action: 'reverse_adjustment',
-        adjustment_id: adjustmentToDelete.id
+      const { data, error } = await supabase.functions.invoke('autopro-processCustomerARAccounting', {
+        body: { action: 'reverse_adjustment', adjustment_id: adjustmentToDelete.id }
       });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to delete adjustment');
 
       setShowDeleteAdjustmentConfirm(false);
       setAdjustmentToDelete(null);
       await loadData();
     } catch (error) {
       console.error('Error deleting adjustment:', error);
-      alert(`Failed to delete adjustment: ${error?.response?.data?.error || error.message}`);
+      alert(`Failed to delete adjustment: ${error.message}`);
     }
   };
 
