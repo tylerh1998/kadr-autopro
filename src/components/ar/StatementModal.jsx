@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
-import { Statement } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import StatementEmailModal from './StatementEmailModal';
 
@@ -239,12 +238,15 @@ export default function StatementModal({ open, onClose, customer }) {
           cp_id: generateRandomString(10),
           customer_id: customer.id,
           statement_date: getMountainToday(),
-          transactions: JSON.stringify(outstandingItems),
-          aged_balances: JSON.stringify(calculatedAgedBalances),
+          transactions: outstandingItems,
+          aged_balances: calculatedAgedBalances,
           total_balance_due: calculatedAgedBalances.total,
         };
 
-        await Statement.create(newStatement);
+        const { data, error } = await supabase.functions.invoke('autopro-createStatement', { body: newStatement });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Failed to create statement record');
+
         setStatementPortalId(newStatement.cp_id);
         console.log("Statement record created successfully:", newStatement);
       } catch (error) {

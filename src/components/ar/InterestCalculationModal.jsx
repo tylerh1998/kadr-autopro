@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { differenceInDays, differenceInMonths, addDays, format } from 'date-fns';
 import { Calculator, DollarSign, AlertTriangle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 
 export default function InterestCalculationModal({ open, onClose, customers, onInterestCalculated }) {
@@ -34,15 +33,16 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
     
     setCalculating(true);
     try {
-      const response = await base44.functions.invoke('calculateARInterest', {
-        customerIds: customers.map(c => c.id)
+      const { data, error } = await supabase.functions.invoke('autopro-calculateARInterest', {
+        body: { customerIds: customers.map(c => c.id) }
       });
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
+      if (error) throw error;
+      if (data?.error || data?.success === false) {
+        throw new Error(data?.error || 'Failed to calculate interest');
       }
 
-      const calculations = response.data?.data || [];
+      const calculations = data?.data || [];
       // parse date strings back to objects
       const parsedCalculations = calculations.map(calc => ({
         ...calc,
