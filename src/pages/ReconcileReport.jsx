@@ -298,7 +298,7 @@ export default function ReconcileReportPage() {
 
           <div className="print-area">
             <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/fd8c6d187_KensAutoDieselRepair12.jpg"
+              src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg"
               alt="Ken's Auto & Diesel Repair"
               className="print-logo"
               style={{ display: 'none' }}

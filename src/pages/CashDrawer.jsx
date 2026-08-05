@@ -591,14 +591,14 @@ export default function CashDrawerPage() {
 
   const getPaymentIcon = (method) => {
     switch (method) {
-      case 'cash': return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'credit_card': return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'debit': return <CreditCard className="w-5 h-5 text-purple-600" />;
-      case 'cards': return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'cheque': return <Banknote className="w-5 h-5 text-orange-600" />;
-      case 'e_transfer': return <ArrowLeftRight className="w-5 h-5 text-indigo-600" />;
-      case 'other': return <DollarSign className="w-5 h-5 text-gray-600" />;
-      default: return <DollarSign className="w-5 h-5 text-gray-600" />;
+      case 'cash': return <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />;
+      case 'credit_card': return <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+      case 'debit': return <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+      case 'cards': return <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+      case 'cheque': return <Banknote className="w-5 h-5 text-orange-600 dark:text-orange-400" />;
+      case 'e_transfer': return <ArrowLeftRight className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />;
+      case 'other': return <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
+      default: return <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
     }
   };
 
@@ -866,7 +866,7 @@ export default function CashDrawerPage() {
                   Make Deposit (${getTotalForDeposit().toFixed(2)})
                 </Button>
                 {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
-                  <p className="text-xs text-red-600 max-w-xs text-right">
+                  <p className="text-xs text-red-600 dark:text-red-400 max-w-xs text-right">
                     {depositBatchStatus.message}
                   </p>
                 )}
@@ -947,7 +947,7 @@ export default function CashDrawerPage() {
           {loading && (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading payments...</p>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">Loading payments...</p>
             </div>
           )}
         </div>

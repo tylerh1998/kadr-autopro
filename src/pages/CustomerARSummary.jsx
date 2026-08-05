@@ -151,6 +151,21 @@ export default function CustomerARSummaryPage() {
           .print-area, .print-area * { visibility: visible; }
           .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400, .text-card-foreground {
+            color: #000 !important;
+          }
+          .text-yellow-600, .text-yellow-700 {
+            color: #a16207 !important;
+          }
+          .text-red-600, .text-red-700 {
+            color: #dc2626 !important;
+          }
         }
       `}</style>
       
@@ -282,7 +297,7 @@ export default function CustomerARSummaryPage() {
                         </>
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center h-24 text-slate-500">No customers with outstanding balances found.</TableCell>
+                          <TableCell colSpan={5} className="text-center h-24 text-slate-500 dark:text-slate-400">No customers with outstanding balances found.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

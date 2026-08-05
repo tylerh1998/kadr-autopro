@@ -228,7 +228,7 @@ export default function CustomersPage() {
               <input
                 type="checkbox"
                 id="includeInactive"
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500"
                 checked={includeInactive}
                 onChange={(e) => setIncludeInactive(e.target.checked)}
               />

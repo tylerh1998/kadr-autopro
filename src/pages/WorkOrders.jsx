@@ -438,32 +438,32 @@ export default function WorkOrdersPage() {
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
       case 'done':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />;
       case 'in_progress':
-        return <Clock className="w-5 h-5 text-blue-500" />;
+        return <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />;
       case 'parts_needed':
-        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+        return <AlertTriangle className="w-5 h-5 text-orange-500 dark:text-orange-400" />;
       case 'awaiting_work':
       case 'to_do':
-        return <Clock className="w-5 h-5 text-slate-400" />;
+        return <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />;
       case 'on_hold':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />;
       case 'archived':
-        return <Wrench className="w-5 h-5 text-gray-500" />;
+        return <Wrench className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
       default:
-        return <Clock className="w-5 h-5 text-slate-400" />;
+        return <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />;
     }
   };
 
   const getStatusBadge = (status) => {
     const colors = {
-      'done': 'bg-green-100 text-green-800 border-green-200',
-      'in_progress': 'bg-blue-100 text-blue-800 border-blue-200',
-      'parts_needed': 'bg-orange-100 text-orange-800 border-orange-200',
-      'awaiting_work': 'bg-slate-100 text-slate-800 border-slate-200',
-      'to_do': 'bg-slate-100 text-slate-800 border-slate-200',
-      'on_hold': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'archived': 'bg-gray-100 text-gray-800 border-gray-200',
+      'done': 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
+      'in_progress': 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+      'parts_needed': 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+      'awaiting_work': 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+      'to_do': 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+      'on_hold': 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+      'archived': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700',
     };
     
     const statusLower = status?.toLowerCase();
@@ -1062,22 +1062,27 @@ export default function WorkOrdersPage() {
   
   const getStatusColorClasses = (color, isActive) => {
     const colorMap = {
-      blue: { active: 'bg-blue-600 text-white', inactive: 'bg-blue-100 text-blue-900', badge: 'text-blue-600 border-blue-400' },
-      green: { active: 'bg-green-600 text-white', inactive: 'bg-green-100 text-green-900', badge: 'text-green-600 border-green-400' },
-      red: { active: 'bg-red-600 text-white', inactive: 'bg-red-100 text-red-900', badge: 'text-red-600 border-red-400' },
-      yellow: { active: 'bg-yellow-500 text-white', inactive: 'bg-yellow-100 text-yellow-900', badge: 'text-yellow-600 border-yellow-400' },
-      orange: { active: 'bg-orange-500 text-white', inactive: 'bg-orange-100 text-orange-900', badge: 'text-orange-600 border-orange-400' },
-      purple: { active: 'bg-purple-600 text-white', inactive: 'bg-purple-100 text-purple-900', badge: 'text-purple-600 border-purple-400' },
-      pink: { active: 'bg-pink-600 text-white', inactive: 'bg-pink-100 text-pink-900', badge: 'text-pink-600 border-pink-400' },
-      slate: { active: 'bg-slate-600 text-white', inactive: 'bg-slate-200 text-slate-900', badge: 'text-slate-600 border-slate-400' },
+      blue: { active: 'bg-blue-600 dark:bg-blue-700 text-white', inactive: 'bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-300', badge: 'text-blue-600 dark:text-blue-300 border-blue-400 dark:border-blue-600' },
+      green: { active: 'bg-green-600 dark:bg-green-700 text-white', inactive: 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-300', badge: 'text-green-600 dark:text-green-300 border-green-400 dark:border-green-600' },
+      red: { active: 'bg-red-600 dark:bg-red-700 text-white', inactive: 'bg-red-100 dark:bg-red-900/50 text-red-900 dark:text-red-300', badge: 'text-red-600 dark:text-red-300 border-red-400 dark:border-red-600' },
+      yellow: { active: 'bg-yellow-500 dark:bg-yellow-700 text-white', inactive: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-300', badge: 'text-yellow-600 dark:text-yellow-300 border-yellow-400 dark:border-yellow-600' },
+      orange: { active: 'bg-orange-500 dark:bg-orange-700 text-white', inactive: 'bg-orange-100 dark:bg-orange-900/50 text-orange-900 dark:text-orange-300', badge: 'text-orange-600 dark:text-orange-300 border-orange-400 dark:border-orange-600' },
+      purple: { active: 'bg-purple-600 dark:bg-purple-700 text-white', inactive: 'bg-purple-100 dark:bg-purple-900/50 text-purple-900 dark:text-purple-300', badge: 'text-purple-600 dark:text-purple-300 border-purple-400 dark:border-purple-600' },
+      pink: { active: 'bg-pink-600 dark:bg-pink-700 text-white', inactive: 'bg-pink-100 dark:bg-pink-900/50 text-pink-900 dark:text-pink-300', badge: 'text-pink-600 dark:text-pink-300 border-pink-400 dark:border-pink-600' },
+      slate: { active: 'bg-slate-600 dark:bg-slate-700 text-white', inactive: 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100', badge: 'text-slate-600 dark:text-slate-300 border-slate-400 dark:border-slate-600' },
     };
-    
+
     const theme = colorMap[color] || colorMap['slate'];
-    
+
     if (isActive) {
       return `flex items-center gap-2 ${theme.active}`;
     }
-    return `flex items-center gap-2 ${theme.inactive} data-[state=active]:${theme.active.split(' ')[0]} data-[state=active]:text-white`;
+    const activeStateClasses = theme.active
+      .split(' ')
+      .filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-'))
+      .map(c => `data-[state=active]:${c}`)
+      .join(' ');
+    return `flex items-center gap-2 ${theme.inactive} ${activeStateClasses} data-[state=active]:text-white`;
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
@@ -1563,11 +1568,11 @@ export default function WorkOrdersPage() {
               ) : filteredWorkPROProjects.length === 0 ? (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <div className="text-slate-400 mb-4">
+                    <div className="text-slate-400 dark:text-slate-600 mb-4">
                       <Wrench className="w-12 h-12 mx-auto" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Projects Found</h3>
-                    <p className="text-slate-600">No projects with status "{workPROStatusFilter.replace(/_/g, ' ')}".</p>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400">No projects with status "{workPROStatusFilter.replace(/_/g, ' ')}".</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -1605,7 +1610,7 @@ export default function WorkOrdersPage() {
                                   </p>
                                 )}
                                 {project.vin && (
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
                                     VIN: {project.vin}
                                   </p>
                                 )}
@@ -1613,19 +1618,19 @@ export default function WorkOrdersPage() {
                               <div className="flex items-center gap-2">
                                 {/* Clocked In Badge */}
                                 {projectTechTime[project.id]?.clockedInTechs?.length > 0 && (
-                                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                                  <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800">
                                     Clocked in: {projectTechTime[project.id].clockedInTechs.join(', ')}
                                   </Badge>
                                 )}
                                 {/* Static clock icon - opens tech clock status modal */}
-                                <div 
+                                <div
                                   className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openTechClockStatusModal(project.id);
                                   }}
                                 >
-                                  <Clock className="w-5 h-5 text-blue-500" />
+                                  <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                                 </div>
                               </div>
                             </div>
@@ -1639,12 +1644,12 @@ export default function WorkOrdersPage() {
                                   <span>{employeesDisplay}</span>
                                 </div>
                                 {project.created_date && !isNaN(new Date(project.created_date).getTime()) && (
-                                  <p className="text-xs text-slate-500 pl-5">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">
                                     Created: {format(new Date(project.created_date), 'MMM d, yyyy')}
                                   </p>
                                 )}
                                 {project.status === 'archived' && project.date_archived && !isNaN(new Date(project.date_archived).getTime()) && (
-                                  <p className="text-xs text-slate-500 pl-5">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">
                                     Archived: {format(new Date(project.date_archived), 'MMM d, yyyy')}
                                   </p>
                                 )}
@@ -1772,9 +1777,9 @@ export default function WorkOrdersPage() {
                                 {getStatusBadge(project.status)}
                                 {/* Tech Time Logged Badge - Clickable */}
                                 {projectTechTime[project.id] && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="bg-purple-50 text-purple-700 border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedProject(project);
@@ -1786,13 +1791,13 @@ export default function WorkOrdersPage() {
                                 )}
 
                                 {project.odometer_reading && (
-                                  <span className="text-sm text-slate-600">
+                                  <span className="text-sm text-slate-600 dark:text-slate-400">
                                     {project.odometer_reading.toLocaleString()} km
                                   </span>
                                 )}
                               </div>
                               {project.time_estimate && (
-                                <div className="flex items-center gap-1 text-sm text-slate-600">
+                                <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
                                   <Clock className="w-4 h-4" />
                                   <span>{project.time_estimate}h estimated</span>
                                 </div>
@@ -1801,7 +1806,7 @@ export default function WorkOrdersPage() {
 
                             {/* Warning/Status Messages */}
                             {project.status === 'parts_needed' && (
-                              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 bg-orange-50 px-3 py-2 rounded-md border border-orange-200">
+                              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/30 px-3 py-2 rounded-md border border-orange-200 dark:border-orange-800">
                                 <AlertTriangle className="w-4 h-4" />
                                 <span>Parts needed for completion</span>
                               </div>

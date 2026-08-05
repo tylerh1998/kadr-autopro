@@ -620,7 +620,7 @@ const navigationItems = [
                 }}
                 className="flex items-center cursor-pointer"
               >
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10 dark:hidden" />
+                <img src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoOnly.jpg" alt="Logo" className="h-10 dark:hidden" />
                 <img src="/dark_logo.png" alt="Logo" className="h-10 hidden dark:block" />
               </div>
 

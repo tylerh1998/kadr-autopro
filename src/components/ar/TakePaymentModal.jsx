@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarIcon, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 const getCustomerDisplayName = (customer) => {
   if (!customer) return '';
@@ -38,15 +39,11 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
       if (!customer || !open) return;
 
       try {
-        const response = await base44.functions.invoke('getOutstandingARItems', {
-          customerId: customer.id
-        });
+        const { data, error } = await supabase
+          .rpc('get_outstanding_ar_items', { customer_id_val: customer.id });
 
-        if (response.data?.success) {
-          setOutstandingCharges(response.data.items || []);
-        } else {
-          throw new Error(response.data?.error || 'Failed to load outstanding charges');
-        }
+        if (error) throw error;
+        setOutstandingCharges(data || []);
       } catch (error) {
         console.error('Error fetching outstanding charges:', error);
         alert('Failed to load outstanding charges');

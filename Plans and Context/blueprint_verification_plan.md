@@ -123,7 +123,7 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
 
 ### Cross-phase resolution status (things one phase deferred that a later phase claims to have closed)
 
-- [ ] **Phase 6's payroll-target progress bar** (`TechnicianPerformanceReportModal.jsx`) — deferred in Phase 6 (hardcoded to 0, card hidden) pending `CashFlowSummary` migration. Phase 10B claims to have restored it and reports live-verifying it — but only **with manufactured test data on dev**, since dev's real GL data was largely empty at that point. Worth a spot check against real production labour-sales figures once available.
+- [x] **Phase 6's payroll-target progress bar** (`TechnicianPerformanceReportModal.jsx`) — deferred in Phase 6 (hardcoded to 0, card hidden) pending `CashFlowSummary` migration. Phase 10B claims to have restored it and reports live-verifying it — but only **with manufactured test data on dev**, since dev's real GL data was largely empty at that point. Worth a spot check against real production labour-sales figures once available.
 - [ ] **Phase 13C's deferred `autopro-syncLevies` vs. Phase 10E's native `syncLevies`** — these are two distinct items, not the same gap. Phase 13C deferred porting `autopro-syncLevies` because the `Levies` table didn't exist. Phase 10E later built the `Levies` schema and the native `syncLevies`/`getReportableLeviesReport`/`postLeviesToAP` functions, live-verifying the Report/Post-to-AP flow. **However**, Phase 13's own WO-save trigger call site in `useDocumentEditorSave.jsx` is explicitly confirmed, in Phase 13's own text, to still be 401ing / still deferred as of the end of that phase ("unchanged by this session"). Nothing in either phase doc confirms this call site was ever reconnected to Phase 10E's new function. **This is a real, still-open wiring gap** — verify whether saving a Work Order today correctly triggers `autopro-syncLevies`, or whether that call site is still pointed at the old (or nowhere).
 - [ ] **Possible documentation conflict — Supplier lock-recovery fix**: `master_blueprint.md`'s Lessons Learned log (Section 7) describes a specific resolved incident attributed to Phase 9 — a supplier (`DENHAM CHRYSLER JEEP LTD.`) found stuck locked on production since March, fixed by building a new `autopro-releaseSupplierLock` function wired via a `keepalive` fetch pattern. A full read of `phase_9_implementation_plan.md` itself contains **no mention of this incident, no `autopro-releaseSupplierLock` function, and no DENHAM CHRYSLER reference anywhere** — that phase doc's own recorded decision on lock recovery (§0.1) explicitly states the opposite: "Port `acquireSupplierLock` as-is, no `locked_timestamp`/staleness/flush addition. Pure migration, not a UX fix." Confirm with the user whether this fix actually happened (in which case `phase_9_implementation_plan.md` is simply incomplete) or whether the `master_blueprint.md` entry describes work that was never captured in any phase plan doc — and either way, confirm whether `autopro-releaseSupplierLock` exists as a deployed function today.
 
@@ -191,22 +191,24 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Customer & Vehicle
 
-- [ ] **Create and edit a customer**
+- [x] **Create and edit a customer**
   tl;dr: Exercises the core native `Customer` CRUD path used by nearly every other module.
   UI entry point: `Customers.jsx` → "New Customer" / click a row to edit
   Files under test: `src/pages/Customers.jsx`, `src/components/customers/CustomerForm.jsx`, `NewCustomerModal.jsx`
 
-- [ ] **Merge two duplicate customers**
+- [x] **Merge two duplicate customers**
   tl;dr: Confirms cascade field-fill, notes-append, and duplicate deactivation all work correctly end to end.
   UI entry point: Customer list → duplicate-merge action → `MergeCustomerModal.jsx`
   Files under test: `src/components/customers/MergeCustomerModal.jsx`, `autopro-mergeCustomers`
 
-- [ ] **Create and edit a vehicle; decode a VIN**
+  **Needs dark mode compatibility**
+  
+- [x] **Create and edit a vehicle; decode a VIN**
   tl;dr: Confirms vehicle CRUD and the Gemini/NHTSA-backed VIN decode populate year/make/model/trim/engine correctly.
   UI entry point: `Vehicles.jsx` → "New Vehicle" → enter a real VIN
   Files under test: `src/pages/Vehicles.jsx`, `src/components/vehicles/VehicleForm.jsx`, `NewVehicleModal.jsx`, `autopro-decodeVin`
 
-- [ ] **Merge two duplicate vehicles**
+- [x] **Merge two duplicate vehicles**
   tl;dr: Confirms "keep highest mileage," master field-fill, and duplicate deactivation.
   UI entry point: Vehicle list → duplicate-merge action → `MergeVehicleModal.jsx`
   Files under test: `src/components/vehicles/MergeVehicleModal.jsx`, `autopro-mergeVehicles`

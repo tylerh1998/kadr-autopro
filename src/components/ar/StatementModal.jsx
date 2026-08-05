@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
 import { Statement } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import StatementEmailModal from './StatementEmailModal';
 
 export default function StatementModal({ open, onClose, customer }) {
@@ -130,7 +130,7 @@ export default function StatementModal({ open, onClose, customer }) {
       <body>
         <div class="top-row">
           <div>
-            <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/bbd9a7847_KensAutoDieselRepair1.jpg" alt="Company Logo" style="height: 120px;" />
+            <img src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg" alt="Company Logo" style="height: 120px;" />
           </div>
           <div style="text-align: right;">
             <h3 class="statement-title">Statement of Account</h3>
@@ -197,16 +197,15 @@ export default function StatementModal({ open, onClose, customer }) {
       if (!open || !customer) return;
 
       try {
-        const outstandingResponse = await base44.functions.invoke('getOutstandingARItems', {
-          customerId: customer.id
-        });
+        const { data: outstandingData, error: outstandingError } = await supabase
+          .rpc('get_outstanding_ar_items', { customer_id_val: customer.id });
 
-        if (!outstandingResponse.data?.success) {
-          console.error('Failed to load outstanding items:', outstandingResponse.data?.error);
+        if (outstandingError) {
+          console.error('Failed to load outstanding items:', outstandingError.message);
           return;
         }
 
-        const outstandingItems = [...(outstandingResponse.data.items || [])]
+        const outstandingItems = [...(outstandingData || [])]
           .filter((item) => Math.abs(Number(item.balance || 0)) > 0)
           .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 

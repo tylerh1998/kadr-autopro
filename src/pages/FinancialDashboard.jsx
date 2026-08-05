@@ -255,7 +255,7 @@ export default function FinancialDashboard() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <RefreshCw className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-slate-600">Loading financial dashboard...</p>
+              <p className="text-slate-600 dark:text-slate-400">Loading financial dashboard...</p>
             </div>
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function FinancialDashboard() {
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <p className="text-slate-600">No data available</p>
+            <p className="text-slate-600 dark:text-slate-400">No data available</p>
           </div>
         </div>
       </div>
@@ -344,6 +344,25 @@ export default function FinancialDashboard() {
             font-weight: bold;
             margin-bottom: 20px;
             text-align: center;
+          }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card, .bg-background {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400,
+          .text-card-foreground, .text-foreground, .text-muted-foreground {
+            color: #000 !important;
+          }
+          .text-yellow-600, .text-yellow-700 {
+            color: #a16207 !important;
+          }
+          .text-red-600, .text-red-700 {
+            color: #dc2626 !important;
+          }
+          .text-green-600, .text-green-700 {
+            color: #16a34a !important;
           }
         }
       `}</style>

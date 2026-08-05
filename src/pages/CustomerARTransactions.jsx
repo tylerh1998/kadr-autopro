@@ -421,7 +421,7 @@ export default function CustomerARTransactionsPage() {
       <div className="p-6">
         <Card>
           <CardContent className="text-center py-12">
-            <p className="text-slate-600">Customer not found.</p>
+            <p className="text-slate-600 dark:text-slate-400">Customer not found.</p>
             <Button 
               variant="outline" 
               onClick={() => navigate('/CustomerARSummary')} // Fallback if customer not found
@@ -628,6 +628,16 @@ export default function CustomerARTransactionsPage() {
 
   return (
     <div className="p-6 min-h-screen dark:bg-slate-900">
+      <style>{`
+        @media print {
+          [class*="bg-slate-"], [class*="bg-white"] {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400 {
+            color: #000 !important;
+          }
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
           <div className="flex items-center gap-4">

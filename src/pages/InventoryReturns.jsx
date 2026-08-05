@@ -483,6 +483,28 @@ export default function InventoryReturnsPage() {
           th, td { border: 1px solid #000; padding: 2px 4px; text-align: left; }
           th { background-color: #f0f0f0; font-weight: bold; }
           .print-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+
+          /* Force light/black output regardless of app dark mode (reachable via native Ctrl+P, not just the Print button) */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400,
+          .text-card-foreground {
+            color: #000 !important;
+          }
+          .bg-blue-100 { background-color: #dbeafe !important; }
+          .text-blue-800 { color: #1e40af !important; }
+          .border-blue-200 { border-color: #bfdbfe !important; }
+          .bg-green-100 { background-color: #dcfce7 !important; }
+          .text-green-800 { color: #166534 !important; }
+          .border-green-200 { border-color: #bbf7d0 !important; }
+          .bg-orange-100 { background-color: #ffedd5 !important; }
+          .text-orange-800 { color: #9a3412 !important; }
+          .border-orange-200 { border-color: #fed7aa !important; }
+          .bg-yellow-100 { background-color: #fef9c3 !important; }
+          .text-yellow-800 { color: #854d0e !important; }
+          .border-yellow-200 { border-color: #fef08a !important; }
         }
       `}</style>
 
