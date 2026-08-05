@@ -41,7 +41,13 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 
 **Work Orders:** AdvancePaymentModal.jsx ✅ | AppointmentsListModal.jsx ✅ | ChangeCustomerModal.jsx ✅ | DocumentEditor.jsx ✅ | EditApptViaWoModal.jsx ✅ | InvoiceDescriptionModal.jsx ✅ | InvoicePaymentModal.jsx ✅ | NewWorkPROModal.jsx ✅ | OdometerPromptModal.jsx ✅ | OtherChargeModal.jsx ✅ | ReceivePartModal.jsx ✅ | ReturnWOPartModal.jsx ✅ | ROCoreModal.jsx ✅ | SchedulerViaWoModal.jsx ✅ | SerialNumberModal.jsx ✅ | WOAddInventoryModal.jsx ✅ | WONotesModal.jsx ✅ | WorkOrderTable.jsx ✅ | WorkPROCommentsModal.jsx ✅ | WorkPROConnectorModal.jsx ✅ | WorkPRODescriptionModal.jsx ✅ | WorkPROEditProjectModal.jsx ✅ | WorkPROModal.jsx ✅ | WorkPROTaskModal.jsx ✅ | form/FinancialSummary.jsx ✅ | form/LineItemsTable.jsx ✅ | form/WorkOrderForm.jsx ✅ | form/WorkOrderHeaderInfo.jsx ✅ | form/WorkOrderViewFinancialSummary.jsx ✅ | form/WorkOrderViewHeaderInfo.jsx ✅ | form/WorkOrderViewLineItemsTable.jsx ✅ | history/*.jsx ✅
 
-**Pages (Partial):** CashDrawer.jsx | CustomerARSummary.jsx | CustomerARTransactions.jsx | Customers.jsx | FinancialDashboard.jsx | InventoryList.jsx | InventoryReturns.jsx | InvoiceConversion.jsx | Schedule.jsx | Vehicles.jsx | WorkOrders.jsx | WorkOrderView.jsx
+**Financial Pages & Components (Phase 4 — Tested, pending Phase 8D visual verification):** Bank.jsx ✅ | CashFlow.jsx ✅ | BalanceSheet.jsx ✅ | GeneralLedger.jsx ✅ | GLAcct.jsx ✅ | GLJournal.jsx ✅ | JournalEntries.jsx ✅ | Reconcile.jsx ✅ | ReconcileReport.jsx ✅ | PLReport.jsx ✅ | ChartOfAccounts.jsx ✅ | FiscalPeriods.jsx ✅ | AccountBalancesByTypeReport.jsx ✅ | CashFlowTrendReport.jsx ✅ (0 `dark:` — Recharts+Shadcn only, correct as-is) | CustomerPaymentsBreakdownReport.jsx ✅ | ThreeMonthAPReport.jsx ✅ | ThreeMonthPLReport.jsx ✅ | TopExpenseCategoriesReport.jsx ✅ | CashFlowTable.jsx ✅ | CashFlowTotals.jsx ✅ | CashFlowTrendTab.jsx ✅ | LinkSupplierModal.jsx ✅ | OverheadTable.jsx ✅ | PadRegistriesModal.jsx ✅ (pure Shadcn form, no raw colors, no changes needed) | AutoReconcileModal.jsx ✅ | BankAccountEditModal.jsx ✅ | BankTransactionModal.jsx ✅ | BankTransferModal.jsx ✅ | cash-drawer/DepositDetailsModal.jsx ✅ (path corrected from originally-scoped `bank/DepositDetailsModal.jsx`, which is empty/dead) | ReconciliationHistoryModal.jsx ✅ | AccountForm.jsx ✅ (pure Shadcn form, no changes needed) | GLTransactionForm.jsx ✅ (pure Shadcn form, no changes needed). `Bank.jsx`/`ReconcileReport.jsx` also got a real print-safety bug fix (see Phase 4 Rollup, Section 7).
+
+**Customers, Vehicles, Appointments Gaps (Phase 5 — Tested, pending Phase 8D visual verification):** WorkOrderView.jsx ✅ (gap audit, 2 fixes) | WorkPROView.jsx ✅ (from-scratch) | CreditInvoice.jsx ✅ (from-scratch) | NewCustomerModal.jsx ✅ (pure composition, no changes needed) | NewVehicleModal.jsx ✅ (pure composition, no changes needed) | VehicleHistoryFilters.jsx ✅ (pure composition, no changes needed)
+
+**Miscellaneous Pages (Phase 7 — Tested, pending Phase 8D visual verification):** APSummary.jsx ✅ (pure composition wrapper, no changes needed) | LinesOfCredit.jsx ✅ | PageNotFound.jsx ✅ | DevLogin.jsx ✅ | TechnicianPerformanceReportModal.jsx ✅ (carried over from Phase 6, stale comment also cleaned up) | ReportableLeviesReport.jsx ✅ (carried over from Phase 6; print-window HTML deliberately left out of scope, see Section 6 note) | InventoryAdd.jsx ✅ (carried over from Phase 6, largest file in this phase; one real bug fixed — bare `text-black` icon)
+
+**Pages — Full Dark Mode Pass Complete (Phase 8A — Tested, pending Phase 8D visual verification):** CashDrawer.jsx ✅ | CustomerARSummary.jsx ✅ | CustomerARTransactions.jsx ✅ | Customers.jsx ✅ | FinancialDashboard.jsx ✅ | InventoryList.jsx ✅ | InventoryReturns.jsx ✅ | InvoiceConversion.jsx ✅ | Schedule.jsx ✅ (composition-only, no changes needed) | Vehicles.jsx ✅ | WorkOrders.jsx ✅ | WorkOrderView.jsx ✅ (re-verified only, Phase 7's prior fixes held)
 
 **Suppliers & AP (Phase 1 — Tested):** Suppliers.jsx ✅ | SupplierTx.jsx ✅ | SupplierTxView.jsx ✅ | LankarImport.jsx ✅ | LankarWOView.jsx ✅ | ChequeWriter.jsx ✅ | ChequeRegister.jsx ✅ | AddToSheetModal.jsx ✅ | APSummaryTable.jsx ✅ | GLAccountCombobox.jsx ✅ | LineEditModal.jsx ✅ | SupplierCombobox.jsx ✅ | SupplierForm.jsx ✅ | SupplierPaymentModal.jsx ✅ | SupplierTxInvoiceLinesTab.jsx ✅ | SupplierTxInvoiceSummaryTab.jsx ✅ | SupplierTxModals.jsx ✅ (pure composition wrapper, no markup of its own) | SupplierTxPaymentHistoryTab.jsx ✅
 
@@ -87,13 +93,14 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 ## 5. Roadmap & Progress
 
 ```
-Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──► Phase 4 [Skipped] ──► Phase 5 [Skipped] ──► Phase 6 [Tested] ──► Phase 7
-                                                                                                                                             │
-                                                                                                                                             ▼
-                                                                                                                                         Phase 8
+Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──► Phase 4 [Tested*] ──► Phase 5 [Tested*] ──► Phase 6 [Tested] ──► Phase 7 [Tested*]
+                                                                                                                                                    │
+                                                                                                                                                    ▼
+                                                                                                                                     Phase 8 [In Progress — 8A Complete]
 ```
+`[Tested*]` = code-complete and grep-audit-verified, awaiting the user's manual visual walkthrough (Phase 8D checklist) rather than a separate live click-through pass per phase.
 
-**Note:** Phases 4 and 5 remain skipped (see their sections below) due to active concurrent work by another agent on the same files — see `Plans and Context/master_blueprint.md` (a separate, much larger Base44-deprecation migration blueprint being executed in parallel). Phase 4 (Financial pages: GL, Bank, Reconcile, P&L, Balance Sheet) directly overlaps with that blueprint's **Phase 10 "Accounting, GL Reporting, Taxes & Fiscal Periods"** — re-checked 2026-08-03, still confirmed `[Up Next]`/not started for that agent, so Phase 4 stays blocked. Phase 5 (Customers, Vehicles, Appointments Gaps) includes `WorkOrderView.jsx` and `CreditInvoice.jsx`, cited against that blueprint's Phase 13D/13E — **re-checked 2026-08-03: 13D and 13E are both now confirmed `[Tested]`**, and `WorkOrderView.jsx`'s specific dependency (a `SystemSettings` call powering the same `WorkOrderPdfModal`/`SESEmailModal` components 13D converted) was fixed and verified live during that work. `CreditInvoice.jsx`, however, is explicitly noted in that blueprint as **still fully base44-routed and deliberately left unmigrated** (not touched by 13D/13E despite being cited) — so Phase 5's conflict risk is reduced for 4 of its 6 files but not fully cleared for `CreditInvoice.jsx` specifically. Phase 3 (Work Orders remaining modals) previously overlapped with that same blueprint's Phase 13 — re-checked 2026-08-03, confirmed `[Tested]`, and Phase 3 has now been executed and closed out below. **Phase 6 was also spot-checked against the other blueprint** — 3 of its 12 files (`ReportableLeviesReport.jsx`, `TechnicianPerformanceReportModal.jsx`, `InventoryAdd.jsx`) have confirmed active/planned touch points in that blueprint's Phase 10 and were excluded from Phase 6's scope below; the remaining 9 files showed no overlap and proceed as planned.
+**Note:** Phases 4, 5, and 7 (originally skipped/deferred for conflict-avoidance with the concurrently-running Base44-deprecation blueprint at `Plans and Context/master_blueprint.md`) were all confirmed unblocked and executed in later sessions once that blueprint's own conflicting phases (10, 13) were verified `[Tested]`. Phase 6's 3 carried-forward files (`InventoryAdd.jsx`, `ReportableLeviesReport.jsx`, `TechnicianPerformanceReportModal.jsx`) were likewise unblocked and completed as an extension to Phase 7. See `phase_4_implementation_plan.md`, `phase_5_implementation_plan.md`, `phase_7_implementation_plan.md`, and `phase_8_implementation_plan.md` for the full per-file execution record, and the corresponding rollup subsections in Section 7 below for condensed lessons learned.
 
 ---
 
@@ -191,11 +198,11 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──►
 
 ---
 
-### Phase 4 — Financial Pages & Components [Skipped — Conflict Avoidance]
+### Phase 4 — Financial Pages & Components [Tested — pending Phase 8D visual verification]
 
-**Skip reason (2026-08-03):** These GL/Bank/Reconcile/P&L/Balance Sheet files directly overlap with the concurrently-running Base44-deprecation blueprint's **Phase 10 "Accounting, GL Reporting, Taxes & Fiscal Periods"** (`Plans and Context/master_blueprint.md`, status `[Pending]` — next up for that agent after Phase 9). Editing these files now risks merge conflicts with that agent's upcoming work. **Revisit once that blueprint's Phase 10 is marked `[Tested]`.**
+**Originally skipped, later unblocked and executed:** These GL/Bank/Reconcile/P&L/Balance Sheet files directly overlapped with the concurrently-running Base44-deprecation blueprint's **Phase 10 "Accounting, GL Reporting, Taxes & Fiscal Periods"** (`Plans and Context/master_blueprint.md`). Once that blueprint's Phase 10 was confirmed unblocked, all 4 sub-phases (4A–4D) were executed in full — see `phase_4_implementation_plan.md` for the complete per-file record and the Phase 4 Rollup in Section 7 below.
 
-**TL;DR:** The accounting backbone of the app. GL, Bank, Cash Flow, Reconcile, P&L, Balance Sheet all render white/light. Deferred to Phase 4 to avoid conflicts with another agent working this area.
+**TL;DR:** The accounting backbone of the app. GL, Bank, Cash Flow, Reconcile, P&L, Balance Sheet all render correctly in dark mode now.
 
 **Impacted Files:**
 
@@ -243,19 +250,19 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──►
 
 ---
 
-### Phase 5 — Customers, Vehicles, Appointments Gaps [Skipped — Conflict Avoidance]
+### Phase 5 — Customers, Vehicles, Appointments Gaps [Tested — pending Phase 8D visual verification]
 
-**Skip reason (2026-08-03):** 2 of the 6 files (`WorkOrderView.jsx`, `CreditInvoice.jsx`) are confirmed inside the concurrently-running Base44-deprecation blueprint's **Phase 13D/13E** (`Plans and Context/phase_13_implementation_plan.md` — "Documents & Communications" / "final sweep", not started yet but explicitly scoped, e.g. `WorkOrderView.jsx` hosts the `WorkOrderPdfModal`/`SESEmailModal` components that 13D converts). Rather than split the phase and risk a confusing partial-completion state, the whole phase is deferred. **Revisit once that blueprint's Phase 13 is marked `[Tested]`.**
+**Originally skipped, later unblocked and executed:** 2 of the 6 files (`WorkOrderView.jsx`, `CreditInvoice.jsx`) were confirmed inside the concurrently-running Base44-deprecation blueprint's **Phase 13D/13E** (`Plans and Context/phase_13_implementation_plan.md`). Once that blueprint's Phase 13 was confirmed `[Tested]`, all 6 files were executed — see `phase_5_implementation_plan.md` for the complete per-file record and the Phase 5 Rollup in Section 7 below.
 
-**TL;DR:** Fill in remaining gaps in modules that were partially dark-mode converted.
+**TL;DR:** Filled in remaining gaps in modules that were partially dark-mode converted.
 
 **Impacted Files:**
 - `src/components/customers/NewCustomerModal.jsx`
 - `src/components/vehicles/NewVehicleModal.jsx`
 - `src/components/vehicles/VehicleHistoryFilters.jsx`
-- `src/pages/WorkOrderView.jsx` (gap audit) — **conflict: in other blueprint's Phase 13D/13E scope**
+- `src/pages/WorkOrderView.jsx` (gap audit)
 - `src/pages/WorkPROView.jsx`
-- `src/pages/CreditInvoice.jsx` — **conflict: in other blueprint's Phase 13D/13E scope**
+- `src/pages/CreditInvoice.jsx`
 
 ---
 
@@ -268,7 +275,7 @@ Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──►
 - `src/components/reports/ReportableLeviesReport.jsx` — scheduled to have its `syncLevies`/`postLeviesToAP` invokes repointed as part of their Phase 10.
 - `src/components/reports/TechnicianPerformanceReportModal.jsx` — scheduled to have its payroll-target progress bar restored/unhidden as part of their Phase 10.
 
-These 3 files are carried forward to a later dark-mode phase (revisit once the other blueprint's Phase 10 is `[Tested]`). The remaining 9 files below showed no overlap and proceed as originally scoped.
+These 3 files were carried forward and completed as an extension to Phase 7, once the other blueprint's Phase 10 was confirmed `[Tested]` — see Phase 7's section above and its Rollup in Section 7 below. The remaining 9 files below showed no overlap and proceeded as originally scoped in this phase.
 
 **Impacted Files:**
 
@@ -285,27 +292,28 @@ These 3 files are carried forward to a later dark-mode phase (revisit once the o
 - `src/components/reports/SalesAnalysisReport.jsx`
 - `src/components/reports/WorkOrderSummaryReport.jsx`
 
-**Excluded (conflict — carry forward to a later phase):** `src/pages/InventoryAdd.jsx`, `src/components/reports/ReportableLeviesReport.jsx`, `src/components/reports/TechnicianPerformanceReportModal.jsx`
+**Originally excluded, since completed via Phase 7's extension:** `src/pages/InventoryAdd.jsx`, `src/components/reports/ReportableLeviesReport.jsx`, `src/components/reports/TechnicianPerformanceReportModal.jsx`
 
 ---
 
-### Phase 7 — Miscellaneous Pages [Pending]
+### Phase 7 — Miscellaneous Pages [Tested — pending Phase 8D visual verification]
 
-**TL;DR:** Remaining pages with zero dark mode coverage.
+**TL;DR:** Remaining pages with zero dark mode coverage, executed in full — plus a later same-blueprint extension that closed out Phase 6's 3 carried-forward files (`InventoryAdd.jsx`, `ReportableLeviesReport.jsx`, `TechnicianPerformanceReportModal.jsx`, see Phase 6's note above). `src/pages/CustomerHistory.jsx` and `src/pages/VehicleHistory.jsx` were confirmed dead/unrouted code during execution (Phase 7 Rollup, Section 7) and were not edited. See `phase_7_implementation_plan.md` for the complete per-file record.
 
 **Impacted Files:**
-- `src/pages/APSummary.jsx`
+- `src/pages/APSummary.jsx` (pure composition wrapper, no changes needed)
 - `src/pages/LinesOfCredit.jsx`
-- `src/pages/CustomerHistory.jsx`
-- `src/pages/VehicleHistory.jsx`
 - `src/lib/PageNotFound.jsx`
 - `src/lib/DevLogin.jsx`
+- `src/components/reports/TechnicianPerformanceReportModal.jsx` (carried over from Phase 6)
+- `src/components/reports/ReportableLeviesReport.jsx` (carried over from Phase 6)
+- `src/pages/InventoryAdd.jsx` (carried over from Phase 6)
 
 ---
 
-### Phase 8 — Full Audit Pass & Regression Testing [Pending]
+### Phase 8 — Full Audit Pass & Regression Testing [In Progress — 8A Complete]
 
-**TL;DR:** Final sweep to catch overlooked elements — popovers, comboboxes, tooltips, toasts, and print output.
+**TL;DR:** Final sweep to catch overlooked elements — popovers, comboboxes, tooltips, toasts, and print output. Restructured into sub-phases 8A–8E (see `phase_8_implementation_plan.md`); 8A (the 12 previously-partial pages) is complete, 8B (this rollup) in progress, 8C/8D/8E remain.
 
 **Tasks:**
 - Toggle dark mode and navigate every page
@@ -414,3 +422,29 @@ Divider/separator:     dark:divide-slate-700
 4. **A field can be renamed *and* reshaped during the Base44→Supabase migration, silently breaking any code that still hard-codes the old field.** The legacy `employee_assigned` (singular, comma-joined string, e.g. `"Jane Doe, John Smith"`) became `employees_assigned` (plural, a real jsonb array) in the native `Project` table. Several files were still reading/writing the old singular field name — confirmed via direct SQL query against live data (not assumption) before touching anything. Fixed with the same array-first/string-fallback pattern already used in the already-migrated `WorkPROModal.jsx` (`Array.isArray(x.employees_assigned) ? x.employees_assigned : (x.employee_assigned ? x.employee_assigned.split(',')... : [])`) in `WorkPROEditProjectModal.jsx`, `WorkPROView.jsx`, `WorkPROViewModal.jsx`, and two purely-cosmetic display fixes in `WorkPROTaskModal.jsx`/`WorkPRODescriptionModal.jsx` (which were displaying "Not assigned" even when employees genuinely were assigned). Similarly, `promised_by` (a form field) maps to the real column `due_date`, confirmed with the user rather than guessed. **Action for future phases:** when a field looks stale (an old English name next to a very-similar new column name), query real production data before writing the fix — don't assume matching field *names* means matching field *shapes*, and don't assume a rename is even correct without confirming with the user or a live sibling file.
 5. **Print/paper-preview UI is a real, recurring category that should stay outside the standard dark palette — treat it as a design decision, not a default.** `WorkOrderReport.jsx` renders a simulated printed page (white background, black text, print-style table borders) inside an on-screen preview modal, the same category as `WorkOrderPdfModal.jsx`'s embedded PDF iframe from Phase 3C (which also correctly got no content-level dark styling, only its surrounding modal chrome did). Asked the user directly rather than applying the standard palette by default; confirmed keep the paper white/black in both modes, zero `dark:` classes. **Action for future phases:** any file that renders a "the physical output should look the same regardless of app theme" surface (printable reports, PDF previews, exported documents) should be flagged to the user as a design question before applying `dark:` classes, not assumed to need the standard treatment.
 6. **`master_blueprint.md`'s cross-blueprint conflict notes need re-verification at time of use, not just at time of writing — they can go stale in both directions.** Phase 3's original skip reason (this blueprint) cited the other Base44-deprecation blueprint's Phase 13 as `[In Progress]`; by the time this phase actually ran, that blueprint's own status line still said "13D... and 13E... not started" in one summary table while `phase_13_implementation_plan.md`'s own status line showed both already `[Tested]` — a stale table cell, not a real conflict. Re-checking directly against the *other* blueprint's own detailed implementation-plan file (not just its summary table) resolved this in under a minute. The same re-check was applied to Phase 4 (confirmed still genuinely blocked — Phase 10 is confirmed `[Up Next]`, not stale) and Phase 5 (confirmed 13D/13E-related risk is now resolved for 4 of its 6 files, but `CreditInvoice.jsx` is explicitly still unmigrated and base44-routed per that blueprint's own notes — a partial, not full, unblock). **Action for future phases:** never trust a "skipped due to conflict" note at face value when it's time to revisit that phase — re-check the *other* blueprint's own detailed status directly, and expect it to have moved (in either direction) since the note was written.
+
+### Phase 4 Rollup — Lessons Learned (Tested, pending Phase 8D visual verification)
+*Condensed from `phase_4_implementation_plan.md` Section 4. Executed once the other blueprint's Phase 10 was confirmed unblocked.*
+1. **All 32 files across sub-phases 4A–4D done.** 4A (GL & Accounting Core, 10 files: 2 pure-Shadcn forms verify-only, 8 got full passes), 4B (Banking & Reconciliation, 9 files, including the path-corrected `cash-drawer/DepositDetailsModal.jsx` — the originally-scoped `bank/DepositDetailsModal.jsx` is empty/dead), 4C (Cash Flow, 7 files, 1 pure-Shadcn form verify-only), 4D (Financial Dashboard Reports, 6 files, 4 with Recharts theming).
+2. **Real bug found and fixed, not just a styling gap: `Bank.jsx` and `ReconcileReport.jsx` both print via a reused-on-screen-DOM pattern with no color-reset override**, unlike their sibling report pages from 4A which all had one. Since `.dark` stays on `<html>` during a print job, this would have made printed bank statements/reconciliation reports render dark-background/light-text — fixed by adding the missing print-safety reset before adding any `dark:` classes. **This revises Lesson 10** (Section 7 above): a `@media print` block's mere presence isn't proof of safety — always verify it actually contains a color reset. (Directly informs Phase 8A's own repeated application of the same check across `CustomerARSummary.jsx`, `FinancialDashboard.jsx`, `InventoryReturns.jsx`, `CustomerARTransactions.jsx`.)
+3. **The Recharts `hsl(var(--token))` theming technique is now proven across every chart type in the codebase** (Pie, Line, ComposedChart/Bar) with zero deviations across 6 total files spanning Phases 6 and 4 — treat as a fully settled pattern.
+4. **The "color decided in a JS helper, not inline JSX" pattern has two shapes**: object-map (`accountTypeColors` in `ChartOfAccounts.jsx`/`GeneralLedger.jsx`/`GLAcct.jsx`) and function (`getRowBgColor`/`getDueInfo` in `CashFlowTable.jsx`/`OverheadTable.jsx`) — check for both when auditing any file, not just object literals. (This exact pattern recurred in Phase 8A's `WorkOrders.jsx` — see that rollup below.)
+
+### Phase 5 Rollup — Lessons Learned (Tested, pending Phase 8D visual verification)
+*Condensed from `phase_5_implementation_plan.md` Section 3 (its own Section 5 results were never written up — verified directly against live file `dark:` counts instead: `WorkPROView.jsx` 97, `CreditInvoice.jsx` 17, both consistent with full completion; the 3 verify-only files correctly show 0). Executed once the other blueprint's Phase 13D/13E were confirmed `[Tested]`.*
+1. **All 6 files done.** 3 verify-only (`NewCustomerModal.jsx`, `NewVehicleModal.jsx`, `VehicleHistoryFilters.jsx` — pure composition wrappers, 0 `dark:` correctly expected), `WorkOrderView.jsx` (2-instance gap audit — bare `Loader2`/`AlertTriangle` icon colors), `WorkPROView.jsx` (from-scratch, largest task — status badge/button color maps, header/footer, oil-change card, inspection-results table mirrored from the already-converted `WorkPROViewModal.jsx`/`WorkPROModal.jsx`), `CreditInvoice.jsx` (from-scratch but small real surface area — the ~500 lines of business logic are untouched; only the error state, header, 2 buttons' hardcoded `bg-white` override, and 3 info cards needed styling).
+2. **A documentation-only gap, not an execution gap:** this phase's own plan file was never updated with a written results narrative after execution, and `master_blueprint.md` itself still showed Phase 5 as `[Skipped]` until this Phase 8B rollup — but the actual code was fully done. **Confirms Lesson 6 above** (a "done"/"not done" claim in a planning doc is not authoritative on its own) applies to plan-doc staleness in either direction, not just Section 2's completion list — always verify against live file state (`grep -c 'dark:'`) before trusting any status claim, including this blueprint's own.
+
+### Phase 7 Rollup — Lessons Learned (Tested, pending Phase 8D visual verification)
+*Condensed from `phase_7_implementation_plan.md` Sections 5 and 9.*
+1. **Original 6-file scope executed exactly as planned**: `dark:` classes added to `PageNotFound.jsx`, `DevLogin.jsx`, `LinesOfCredit.jsx`; `APSummary.jsx` reconfirmed a pure 5-line composition wrapper, no edit. `src/pages/CustomerHistory.jsx` and `src/pages/VehicleHistory.jsx` (originally scoped) were found dead/unrouted and not edited.
+2. **Extension (same blueprint, later session): closed out Phase 6's 3 carried-forward files** (`TechnicianPerformanceReportModal.jsx`, `ReportableLeviesReport.jsx`, `InventoryAdd.jsx` — the largest file in this phase) once their cited conflicts with the other blueprint's Phase 10 were directly re-verified against the live files (not the other team's planning doc, which was found self-contradictory on 10E's own status — trust the file, not the note). One real bug fixed: `InventoryAdd.jsx` had a bare `text-black` validation-warning icon that would have rendered invisible on a dark background.
+3. **`ReportableLeviesReport.jsx`'s print output (`handlePrint()`, a raw HTML string in a native `window.open()` tab) stays outside the dark palette by design** — same category as `WorkOrderReport.jsx` (Phase 3E), entirely outside the app's React/theme tree, deliberately left unstyled.
+4. **This phase directly caused Phase 8's 8A restructure**: its own rollup note flagged that `master_blueprint.md`'s Section 2/roadmap had drifted out of sync with actual completed work (Phase 7 shown `[Pending]` while done in the codebase) — the same discovery that led to auditing the "Pages (Partial)" line in Section 2, which turned up the 12 never-assigned files that became Phase 8A.
+
+### Phase 8 Rollup — Sub-phase 8A (Complete, pending Phase 8D visual verification)
+*Condensed from `phase_8_implementation_plan.md` Section 4 sub-phase 8A results. Will be extended with 8C/8D/8E findings at final closeout (Section 5 of this document, sub-phase 8E).*
+1. **All 12 previously-unassigned "Partial" pages completed.** 3 needed no changes at all once actually read in full (`Vehicles.jsx`, `InvoiceConversion.jsx`, `InventoryList.jsx` — all already thorough despite a misleadingly low raw `dark:` count), 1 was composition-only (`Schedule.jsx`), 1 was a re-verify-only carry-over from Phase 7 (`WorkOrderView.jsx`, held with no drift), and 6 got real fixes (`CustomerARSummary.jsx`, `Customers.jsx`, `FinancialDashboard.jsx`, `InventoryReturns.jsx`, `CustomerARTransactions.jsx`, `CashDrawer.jsx`). `WorkOrders.jsx` (the largest file in the entire blueprint) needed the most substantial work, matching its own plan's prediction.
+2. **Confirms Phase 4's revised Lesson 10 (print-safety) generalizes beyond financial pages**: the same dangerous visibility-only `@media print` pattern (no color-reset) was found and fixed in `CustomerARSummary.jsx`, `FinancialDashboard.jsx`, and `InventoryReturns.jsx`. `InventoryList.jsx` was the inverse case — a positive control confirming its own local print CSS was already fully safe (explicit `color: #000` forced regardless of `dark:` classes present).
+3. **New finding for 8C: a *global* print-safety gap.** `CustomerARTransactions.jsx` uses the shared `.no-print`/`.print-only` mechanism (defined once in `src/index.css`, used by 41 files across the codebase) rather than a local `@media print` block — and that global rule only forces `body { background: white !important; }`, never resetting nested `dark:bg-*`/`dark:text-*` classes on Cards/tables. Fixed locally for just this file (scoped `<style>` override) rather than patching the shared global rule, since most of the other 40 consumers are unaudited by this blueprint and a blanket fix risks breaking a solid dark badge elsewhere that's meant to stay visible in print. **Flagged as a required target for 8C's Sweep 4.**
+4. **Confirms the Phase 4C/4D "color decided in a JS helper" pattern recurs at scale**: `WorkOrders.jsx` had 3 separate color-map helper functions (`getStatusIcon`, `getStatusBadge`, `getStatusColorClasses`) with zero `dark:` pairing, one of them sitting directly next to a hand-coded block using the identical visual pattern with full, correct pairing — used as the exact reference for the fix. Confirms this "helper function returns unpaired Tailwind classes" shape is now recurring across enough phases (4A, 4C, 8A) to check for explicitly in 8C's automated sweep, not just discover opportunistically.

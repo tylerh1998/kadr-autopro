@@ -29,16 +29,16 @@ export default function HistoryFilters({
   };
 
   return (
-    <div className="no-print rounded-lg border bg-slate-50">
+    <div className="no-print rounded-lg border bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-left">
           <div>
-            <p className="font-semibold text-slate-900">{title}</p>
-            <p className="text-xs text-slate-500">{description}</p>
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{title}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
           </div>
-          <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+          <ChevronDown className={`h-4 w-4 text-slate-500 dark:text-slate-400 transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
         </CollapsibleTrigger>
-        <CollapsibleContent className="border-t px-4 py-4">
+        <CollapsibleContent className="border-t dark:border-slate-700 px-4 py-4">
           <div className="grid gap-3 md:grid-cols-4">
             <Input type="number" min="0" placeholder="Days Back" value={draft.daysBack} onChange={(e) => updateField("daysBack", e.target.value === "" ? "" : Number(e.target.value))} />
             <Input type="date" value={draft.fromDate} onChange={(e) => updateField("fromDate", e.target.value)} />

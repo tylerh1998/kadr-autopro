@@ -100,9 +100,9 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
 
         {returnItem && (
           <form onSubmit={handleSubmit} className="space-y-6 py-4">
-            <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-slate-900">{returnItem.part_number}</h4>
-              <p className="text-sm text-slate-600">{returnItem.description}</p>
+            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">{returnItem.part_number}</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{returnItem.description}</p>
 
             </div>
 

@@ -1,6 +1,6 @@
 # Phase 5 Implementation Plan — Customers, Vehicles, Appointments Gaps (Dark Mode)
 
-**Status:** Draft — pending approval. No code changes made yet.
+**Status:** Executed — all 6 files done in the codebase (verified via live `dark:` counts: `WorkPROView.jsx` 97, `CreditInvoice.jsx` 17, `WorkOrderView.jsx` gap fixes applied, 3 wrappers correctly 0). This status line and Section 5 were never updated after execution — corrected during Phase 8B's `master_blueprint.md` rollup. Pending Phase 8D visual verification.
 **Type:** Single-phase plan (6 files, but true dark-mode surface area is modest — see Section 0).
 **Parent:** `Antigravity-context-plans/master_blueprint.md`, Phase 5 (previously `[Skipped — Conflict Avoidance]`, now unblocked)
 
@@ -122,9 +122,7 @@ The ~500 lines of business logic (`handleConfirmCreditInvoice` and friends) are 
 
 ## 5. Phase Results and Final Context
 
-*(Live section — to be filled in during/after execution.)*
-
-- What actually happened vs. planned:
-- Deviations/adjustments:
-- Unexpected learnings:
-- Key takeaways for rollup to Master Blueprint Section 7:
+- **What actually happened vs. planned:** Executed exactly as scoped in Section 3. 3 verify-only files (`NewCustomerModal.jsx`, `NewVehicleModal.jsx`, `VehicleHistoryFilters.jsx`) reconfirmed as pure composition wrappers, no edits. `WorkOrderView.jsx` got its 2 mapped gap fixes (`Loader2`/`AlertTriangle` icon colors). `WorkPROView.jsx` and `CreditInvoice.jsx` got full passes per the detailed mapping in 3.3/3.4.
+- **Deviations/adjustments:** This results section itself was never filled in at the time of execution — a documentation gap, not an execution gap. Backfilled during Phase 8B's `master_blueprint.md` rollup after confirming actual completion via live `dark:` counts (`WorkPROView.jsx` 97, `CreditInvoice.jsx` 17), since the file counts and the plan's own detailed per-file mapping left no reasonable doubt the work was done.
+- **Unexpected learnings:** A plan document's own "Draft — pending approval" status line and an empty Results section are not reliable signals that work wasn't done — always verify against live file state first, consistent with Lesson 6 (Section 7 of `master_blueprint.md`).
+- **Key takeaways for rollup to Master Blueprint Section 7:** See the "Phase 5 Rollup" subsection added to `master_blueprint.md` Section 7 during Phase 8B.

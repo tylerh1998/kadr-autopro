@@ -1206,9 +1206,9 @@ export default function WorkOrdersPage() {
               <Plus className="w-4 h-4 mr-2" />
               New Counter Sale
             </Button>
-            <Button 
+            <Button
               onClick={() => setShowNewWorkPROModal(true)}
-              className="bg-gray-700 hover:bg-gray-800 whitespace-nowrap"
+              className="bg-gray-700 hover:bg-gray-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border dark:border-slate-700 whitespace-nowrap"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Project

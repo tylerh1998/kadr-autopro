@@ -292,7 +292,7 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">LANKAR Warranty Return</DialogTitle>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Add a warranty return from the legacy LANKAR system
           </p>
         </DialogHeader>
@@ -304,7 +304,7 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
               <Popover open={partSearchOpen} onOpenChange={setPartSearchOpen}>
                   <PopoverTrigger asChild>
                       <div className="relative">
-                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
                           <Input
                               id="part_number"
                               placeholder="Search or type part #... (Press Enter)"
@@ -322,14 +322,14 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
                       </div>
                   </PopoverTrigger>
                   <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                      <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                      <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-900">
                           {searchingParts ? (
-                              <div className="py-6 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
+                              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                   Searching parts...
                               </div>
                           ) : searchResults.length === 0 ? (
-                              <div className="py-6 text-center text-sm text-slate-500">
+                              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                                   No existing parts found.
                                   <br />
                                   Continue typing to create new.
@@ -350,14 +350,14 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
                                               }));
                                               setPartSearchOpen(false);
                                           }}
-                                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                                          className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-50 dark:border-slate-800 last:border-0"
                                       >
                                           <div className="flex flex-col">
-                                              <span className="font-medium text-slate-900">{item.part_number}</span>
-                                              <span className="text-xs text-slate-500">{item.description}</span>
+                                              <span className="font-medium text-slate-900 dark:text-slate-100">{item.part_number}</span>
+                                              <span className="text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
                                           </div>
                                           {item.part_number === formData.part_number && (
-                                              <Check className="h-4 w-4 text-green-600" />
+                                              <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                                           )}
                                       </div>
                                   ))}
@@ -367,10 +367,10 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
                   </PopoverContent>
               </Popover>
               {existingPart && (
-                <p className="text-xs text-green-600 mt-1">✓ Existing part found - data pre-filled</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Existing part found - data pre-filled</p>
               )}
               {formData.part_number && !existingPart && !searchResults.length && (
-                <p className="text-xs text-blue-600 mt-1">New part - will be added to inventory</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">New part - will be added to inventory</p>
               )}
             </div>
 
@@ -494,10 +494,10 @@ export default function LegacyWarrantyReturnModal({ open, onClose, onUpdate }) {
           </div>
 
           {formData.quantity_returned && formData.cost_per_unit && (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-700">Total Return Value:</span>
-                <span className="text-lg font-bold text-slate-900">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Return Value:</span>
+                <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
                   ${(parseFloat(formData.quantity_returned) * parseFloat(formData.cost_per_unit)).toFixed(2)}
                 </span>
               </div>

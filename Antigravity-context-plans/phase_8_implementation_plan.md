@@ -153,7 +153,7 @@ All new Supabase edge functions must be named `autopro-[functionname]`. (Not exp
 | Sub-phase | Scope | Status | Depends on |
 |---|---|---|---|
 | **8A** | Complete the 12 Partial-Coverage Pages (real dark-mode work, ~9,186 lines) | Complete | None — start here |
-| **8B** | Documentation Rollup — bring `master_blueprint.md` current (Phases 4, 5, 7, 8A) | Pending | 8A (so the rollup reflects final state, not mid-progress) |
+| **8B** | Documentation Rollup — bring `master_blueprint.md` current (Phases 4, 5, 7, 8A) | Complete | 8A (so the rollup reflects final state, not mid-progress) |
 | **8C** | Automated Repo-Wide Grep Audit & Remediation | Pending | 8B (so the audit checks against an accurate Section 2, not a stale one) |
 | **8D** | Manual UI/UX Verification Pass (checklist handoff to user) | Pending | 8A + 8C (both code passes done first) |
 | **8E** | Final Blueprint Closeout — mark everything `[Tested]`, final rollup | Pending | 8D (user's verification results feed the closeout) |
@@ -230,19 +230,19 @@ Update `Antigravity-context-plans/master_blueprint.md` to reflect actual current
 5. **Section 7**: Add a new "Phase 4 Rollup," "Phase 5 Rollup," "Phase 7 Rollup," and "Phase 8 Rollup" subsection each, condensed from this session's plan-doc results sections (`phase_4_implementation_plan.md` Section 4, `phase_5_implementation_plan.md`, `phase_7_implementation_plan.md` Sections 5/9, and this document's own Section 4 once 8A/8C/8D are done).
 
 #### Task List
-- [ ] Update Section 2 completion list (add Phases 4, 5, 7, 8A; remove the old "Pages (Partial)" line)
-- [ ] Update Section 5 roadmap diagram and prose note
-- [ ] Update Phase 4/5/7 section headers to `[Tested]`
-- [ ] Update Phase 6's "Excluded" note to reflect the 3 carry-over files are now done
-- [ ] Add condensed rollup subsections to Section 7 for Phases 4, 5, 7, 8
+- [x] Update Section 2 completion list (add Phases 4, 5, 7, 8A; remove the old "Pages (Partial)" line)
+- [x] Update Section 5 roadmap diagram and prose note
+- [x] Update Phase 4/5/7 section headers to `[Tested]`
+- [x] Update Phase 6's "Excluded" note to reflect the 3 carry-over files are now done
+- [x] Add condensed rollup subsections to Section 7 for Phases 4, 5, 7, 8
 
 #### Verification Plan
 This is a documentation-only sub-phase — no application code changes, so no UI verification applies. Verification is a read-through of the updated `master_blueprint.md` to confirm internal consistency (no contradictory status markers, no dangling references to "skipped" or "pending" for work that's actually done).
 
-- [ ] `master_blueprint.md` Section 2 accurately lists every completed file across all 8 phases
-- [ ] `master_blueprint.md` Section 5 roadmap and prose are internally consistent with Section 2
-- [ ] No phase section header contradicts its own file list's actual status
-- [ ] Section 7 rollups are condensed but preserve every actionable lesson (cross-check against this document's own Section 2 above and the 4 source plan docs)
+- [x] `master_blueprint.md` Section 2 accurately lists every completed file across all 8 phases
+- [x] `master_blueprint.md` Section 5 roadmap and prose are internally consistent with Section 2
+- [x] No phase section header contradicts its own file list's actual status
+- [x] Section 7 rollups are condensed but preserve every actionable lesson (cross-check against this document's own Section 2 above and the 4 source plan docs)
 
 ---
 
@@ -408,8 +408,8 @@ Once this phase closes, the dark-mode blueprint is complete. There is no Phase 9
   - **`WorkOrders.jsx`**: The plan's prediction held up — this genuinely was the largest real-work file (1939 lines, 62 `dark:` pre-edit → 211 raw occurrences post-edit). No `@media print` block (correctly not in 0.3's 6-file list). No logic changes — all edits were additive `className` strings only, including the two restructured color-map helper functions. Real gaps found and fixed, in order of significance: (1) **`getStatusColorClasses`** — a color-map helper driving the Estimates/WIP status-filter tabs had zero `dark:` pairing anywhere across its 8 colors × 3 variants, while a hand-coded WorkPRO status-filter block just below it in the same file (same visual pattern, different tab) already had full, correct pairing — used that neighboring block as the exact reference for the fix, and had to rewrite the `data-[state=active]` class-construction logic (previously a fragile `.split(' ')[0]` grabbing only the light-mode bg class) to properly carry a dark variant too. (2) **`getStatusIcon`** and **`getStatusBadge`** — two more color-map helpers (6 and 7 cases respectively) driving WorkPRO card status icons/badges, also zero `dark:` pairing; paired using the same-hue standard-palette convention used everywhere else in this blueprint. (3) A cluster of ~10 individually bare `text-slate-500/600/900`, badge, and icon instances throughout the WorkPRO project-card section (empty state, VIN/created/archived date labels, "Clocked in" badge, tech-clock icon, tech-time-logged badge, odometer/time-estimate text, "Parts needed" warning banner) — all fixed with standard pairs.
 
 ### Sub-phase 8B — Documentation Rollup
-- Status: Not started
-- Results:
+- Status: Complete
+- Results: Updated `Antigravity-context-plans/master_blueprint.md`: Section 2 now lists Phase 4 (32 files), Phase 5 (6 files), Phase 7 (9 files), and 8A (12 files) as done, replacing the stale "Pages (Partial)" line entirely. Section 5's roadmap diagram now shows Phases 4/5/7 as `[Tested*]` (pending Phase 8D visual verification) and Phase 8 as `[In Progress — 8A Complete]`, with the obsolete "skipped due to conflict" prose replaced. Phase 4/5/7 section headers updated to `[Tested — pending Phase 8D]`; Phase 6's "Excluded" note updated to reflect the 3 carry-over files are done via Phase 7's extension. Added 4 condensed rollup subsections to Section 7 (Phase 4, Phase 5, Phase 7, Phase 8/8A), cross-referencing the 4 source plan docs. **Notable finding during this pass:** `phase_5_implementation_plan.md`'s own Section 5 results were never written up and its status line still said "Draft — pending approval, no code changes made yet" — directly contradicting reality. Rather than trust either doc, verified directly against live file `dark:` counts (`WorkPROView.jsx` 97, `CreditInvoice.jsx` 17) to confirm the work was genuinely done before rolling it up — consistent with Lesson 6's standing rule to trust grep over any planning document, including this blueprint's own.
 
 ### Sub-phase 8C — Automated Repo-Wide Grep Audit & Remediation
 - Status: Not started

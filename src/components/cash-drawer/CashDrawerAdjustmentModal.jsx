@@ -126,7 +126,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-orange-600" />
+            <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             Cash Drawer Adjustment
           </DialogTitle>
         </DialogHeader>
@@ -158,13 +158,13 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                 <SelectContent>
                   <SelectItem value="shortage">
                     <div className="flex items-center gap-2">
-                      <TrendingDown className="w-4 h-4 text-red-500" />
+                      <TrendingDown className="w-4 h-4 text-red-500 dark:text-red-400" />
                       <span>Shortage</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="overage">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <TrendingUp className="w-4 h-4 text-green-500 dark:text-green-400" />
                       <span>Overage</span>
                     </div>
                   </SelectItem>
@@ -227,7 +227,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
             <div className="space-y-2">
               <Label htmlFor="amount">Amount *</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500">$</span>
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400">$</span>
                 <Input
                   id="amount"
                   type="number"
@@ -290,9 +290,9 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
             <div className="flex-1 pr-4">
               {formData.amount && (
                 <div className={`p-2 rounded-md inline-block ${
-                  formData.type === 'shortage' 
-                    ? 'bg-red-50 border border-red-200 text-red-800' 
-                    : 'bg-green-50 border border-green-200 text-green-800'
+                  formData.type === 'shortage'
+                    ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300'
+                    : 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300'
                 }`}>
                   <p className="text-sm font-medium">
                     {formData.type === 'shortage' 
@@ -320,57 +320,57 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
 
         {/* History Table */}
         <div className="flex-1 flex flex-col min-h-[300px] mt-4">
-          <h3 className="font-medium text-slate-800 mb-3">Recent Adjustments</h3>
-          
+          <h3 className="font-medium text-slate-800 dark:text-slate-200 mb-3">Recent Adjustments</h3>
+
           {adjustments.length === 0 ? (
-            <div className="py-8 text-center text-slate-500 border rounded-lg bg-slate-50">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            <div className="py-8 text-center text-slate-500 dark:text-slate-400 border rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
               <p>No adjustments have been recorded yet.</p>
             </div>
           ) : (
             <div className="flex-1 overflow-auto border rounded-md">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b sticky top-0 z-10">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Type</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Amount</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Method</th>
-                    <th className="text-center p-3 font-semibold text-slate-700">Status</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Type</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Amount</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Method</th>
+                    <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {adjustments.map((adj) => (
-                    <tr key={adj.id} className="border-b hover:bg-slate-50">
+                    <tr key={adj.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="p-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-slate-400" />
+                          <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                           {format(new Date(adj.adjustment_date), 'MMM d, yyyy')}
                         </div>
                       </td>
                       <td className="p-3">
-                        <Badge 
-                          className={adj.type === 'shortage' ? 'bg-red-100 text-red-800 hover:bg-red-100' : 'bg-green-100 text-green-800 hover:bg-green-100'}
+                        <Badge
+                          className={adj.type === 'shortage' ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40' : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40'}
                         >
                           {adj.type === 'shortage' ? 'Shortage' : 'Overage'}
                         </Badge>
                       </td>
                       <td className="p-3 text-right">
-                        <span className={`font-semibold ${adj.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <span className={`font-semibold ${adj.amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                           ${Math.abs(adj.amount || 0).toFixed(2)}
                         </span>
                       </td>
-                      <td className="p-3 text-slate-700">
+                      <td className="p-3 text-slate-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                          <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
                           <span className="truncate max-w-[200px] block" title={adj.description}>
                             {adj.description}
                           </span>
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-2 text-slate-700">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                           {getPaymentMethodIcon(adj.payment_method)}
                           <span>{getPaymentMethodLabel(adj.payment_method)}</span>
                         </div>
