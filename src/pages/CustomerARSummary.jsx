@@ -31,7 +31,7 @@ export default function CustomerARSummaryPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
-  const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(true);
+  const [showCreditBalances, setShowCreditBalances] = useState(false);
 
   const navigate = useNavigate();
 
@@ -42,7 +42,6 @@ export default function CustomerARSummaryPage() {
       const { data: response, error: summaryError } = await supabase.functions.invoke('autopro-supabaseCustomerARSummary', {
         body: {
           searchTerm: activeSearchTerm,
-          showOnlyWithBalance,
           asOfDate
         }
       });
@@ -71,13 +70,19 @@ export default function CustomerARSummaryPage() {
     } finally {
       setLoading(false);
     }
-    }, [activeSearchTerm, showOnlyWithBalance, asOfDate]);
+    }, [activeSearchTerm, asOfDate]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const filteredData = arSummaryData; // Backend already handles filtering by searchTerm
+  // Backend already handles filtering by searchTerm and excludes zero-balance customers.
+  // Credit-balance customers (total_balance < 0) are hidden by default; the checkbox reveals them.
+  const filteredData = useMemo(() => {
+    return showCreditBalances
+      ? arSummaryData
+      : arSummaryData.filter((item) => item.total_balance > 0.01);
+  }, [arSummaryData, showCreditBalances]);
 
   // Helper function to format customer name
   const formatCustomerName = (customer) => {
@@ -90,7 +95,7 @@ export default function CustomerARSummaryPage() {
   };
 
   const totals = useMemo(() => {
-    return arSummaryData.reduce((acc, item) => {
+    return filteredData.reduce((acc, item) => {
       acc.balance_0_30 += item.balance_0_30;
       acc.balance_31_60 += item.balance_31_60;
       acc.balance_60_plus += item.balance_60_plus;
@@ -102,7 +107,7 @@ export default function CustomerARSummaryPage() {
       balance_60_plus: 0,
       total_balance: 0
     });
-  }, [arSummaryData]);
+  }, [filteredData]);
 
   // handleTakePayment is now simplified, as the modal will handle the payment creation
   // and then call this to refresh the data.
@@ -199,16 +204,16 @@ export default function CustomerARSummaryPage() {
                       As of: {asOfDate}
                     </span>
                     <div className="flex items-center gap-2 no-print">
-                      <Checkbox 
-                        id="show-only-balance"
-                        checked={showOnlyWithBalance}
-                        onCheckedChange={setShowOnlyWithBalance}
+                      <Checkbox
+                        id="show-credit-balances"
+                        checked={showCreditBalances}
+                        onCheckedChange={setShowCreditBalances}
                       />
-                      <label 
-                        htmlFor="show-only-balance"
+                      <label
+                        htmlFor="show-credit-balances"
                         className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
                       >
-                        Only display customers with a balance
+                        Display Customers with a Credit Balance
                       </label>
                     </div>
                     
@@ -258,9 +263,9 @@ export default function CustomerARSummaryPage() {
                         <TableRow>
                           <TableCell colSpan={5} className="text-center p-4 text-slate-500 dark:text-slate-400">Loading...</TableCell>
                         </TableRow>
-                      ) : arSummaryData.length > 0 ? (
+                      ) : filteredData.length > 0 ? (
                         <>
-                            {arSummaryData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }, index) => (
+                            {filteredData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }, index) => (
                             <ContextMenu key={customer.id} onOpenChange={() => handleContextMenuOpen(customer)}>
                               <ContextMenuTrigger asChild>
                                 <TableRow 

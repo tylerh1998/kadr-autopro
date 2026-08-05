@@ -74,19 +74,20 @@ serve(async (req) => {
 
     const { data: employee, error: employeeError } = await supabase
       .from('Employee')
-      .select('autopro_user_id, full_name, email')
+      .select('full_name, email')
       .eq('mykadr_user_id', mykadrUserId)
       .single();
 
-    if (employeeError || !employee?.autopro_user_id) {
+    if (employeeError || !employee) {
       return res({
         success: false,
-        error: 'Your myKADR account is not linked to an AutoPRO user. Please ask your administrator to link your account in the Employee table.'
+        error: 'Your myKADR account is not linked to an Employee record. Please ask your administrator to add you in the Employee table.'
       });
     }
 
-    const user = { id: employee.autopro_user_id, email: employee.email || jwtEmail || '' };
-    const userDisplay = employee.full_name || employee.email || jwtEmail || employee.autopro_user_id;
+    // mykadr_user_id is the forward-looking identity key here - autopro_user_id is being deprecated.
+    const user = { id: mykadrUserId, email: employee.email || jwtEmail || '' };
+    const userDisplay = employee.full_name || employee.email || jwtEmail || mykadrUserId;
 
     const payload = await req.json().catch(() => ({}));
     const { action } = payload;

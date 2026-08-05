@@ -14,7 +14,7 @@ This app has **two Supabase projects**:
 - **`hbcrwkmgsazqrvsrmxyr`** — "KADR", the `main` git branch / production project.
 - **`sitihbdnuxifwibontcm`** — the `development` git branch's Supabase **branch** project. **`test.kensauto.ca` runs against this one, not `hbcrwkmgsazqrvsrmxyr`.** This tripped us up once already this session — always confirm which project a fix landed on when testing against `test.kensauto.ca`.
 
-Users authenticate via a myKADR SSO flow whose JWTs are issued by `sitihbdnuxifwibontcm`'s auth server even when the app itself is meant to run against `hbcrwkmgsazqrvsrmxyr` in production — the two are related via Supabase's branching feature (`sitihbdnuxifwibontcm` is a branch of `hbcrwkmgsazqrvsrmxyr`).
+Users authenticate via a myKADR SSO flow whose JWTs are issued by `sitihbdnuxifwibontcm`'s auth server even when the app itself is meant to run against `hbcrwkmgsazqrvsrmxyr` in production — the two are related via Supabase's branching feature (`sitihbdnuxifwibontcm` is a branch of `hbcrwkmgsazqrvsrmxyr`). 
 
 The legacy `base44-proxy` Supabase Edge Function (`supabase/functions/base44-proxy/index.ts`) does a manual `supabase.auth.getUser(token)` check before forwarding requests to the old Base44 backend. **This call always fails (401)** for this app's users, because `auth.getUser()` requires the user to exist natively in that project's own `auth.users` table — which third-party/cross-branch-issued JWTs don't satisfy, even though the same JWT is perfectly valid for direct PostgREST table/RPC access (confirmed: Supabase's Third-Party Auth trust covers PostgREST-level and Edge-Function-gateway-level (`verify_jwt: true`) validation, just not `auth.getUser()`'s user-table lookup).
 
