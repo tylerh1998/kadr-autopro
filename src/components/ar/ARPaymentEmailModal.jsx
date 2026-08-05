@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 import moment from 'moment-timezone';
-import { base44 } from "@/api/base44Client";
+import { supabase } from '@/lib/supabase';
 
 const formatMountainDate = (value) => {
   if (!value) return '—';
@@ -39,18 +39,21 @@ export default function ARPaymentEmailModal({ open, onClose, paymentRecord, cust
   const handleSend = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('sendARReceiptEmail', {
-        paymentId: paymentRecord.id,
-        toEmail: emailData.to,
-        subject: emailData.subject,
-        body: emailData.body
+      const { data, error } = await supabase.functions.invoke('autopro-sendARReceiptEmail', {
+        body: {
+          paymentId: paymentRecord.id,
+          toEmail: emailData.to,
+          subject: emailData.subject,
+          body: emailData.body
+        }
       });
+      if (error) throw error;
 
-      if (response.data?.success) {
+      if (data?.success) {
         alert('Receipt email sent successfully!');
         onClose();
       } else {
-        throw new Error(response.data?.error || 'Failed to send email');
+        throw new Error(data?.error || 'Failed to send email');
       }
     } catch (error) {
       console.error("Email sending failed:", error);

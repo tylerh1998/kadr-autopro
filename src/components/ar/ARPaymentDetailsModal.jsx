@@ -5,7 +5,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Using supabase proxy for entities
 import { Loader2, FileText, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
 import { supabase } from '@/lib/supabase';
 import ARPaymentEmailModal from './ARPaymentEmailModal';
 import ARReceiptPDFViewerModal from './ARReceiptPDFViewerModal';
@@ -54,11 +53,13 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
         console.log('Loading details for payment:', paymentRecord);
 
-        const response = await base44.functions.invoke('getAppliedPaymentDetails', {
-          paymentId: paymentRecord.id
+        const { data, error } = await supabase.functions.invoke('autopro-getAppliedPaymentDetails', {
+          body: { paymentId: paymentRecord.id }
         });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
-        const details = response?.data?.appliedDetails || [];
+        const details = data?.appliedDetails || [];
         console.log('Loaded applied to details:', details);
         setAppliedToDetails(details);
       } catch (error) {
@@ -87,19 +88,30 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
     setGeneratingPDF(true);
     try {
-      const response = await base44.functions.invoke('generateARReceiptPDF', {
-        paymentId: paymentRecord.id
+      const { data, error } = await supabase.functions.invoke('autopro-generateARReceiptPDF', {
+        body: { paymentId: paymentRecord.id }
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      if (response.data) {
-        if (receiptPdfUrl) {
-          window.URL.revokeObjectURL(receiptPdfUrl);
-        }
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        setReceiptPdfUrl(url);
-        setShowReceiptModal(true);
+      const { pdfDataUri } = data;
+      if (!pdfDataUri) throw new Error('No PDF data received from server');
+
+      const byteString = atob(pdfDataUri.split(',')[1]);
+      const mimeString = pdfDataUri.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
       }
+
+      if (receiptPdfUrl) {
+        window.URL.revokeObjectURL(receiptPdfUrl);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const url = window.URL.createObjectURL(blob);
+      setReceiptPdfUrl(url);
+      setShowReceiptModal(true);
     } catch (error) {
       console.error('Error generating receipt:', error);
       alert('Failed to generate receipt. Please try again.');
