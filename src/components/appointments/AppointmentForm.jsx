@@ -17,8 +17,7 @@ import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import { WorkOrder, SystemSettings } from '@/entities/all';
-import { createworkorderdata } from '@/functions/createworkorderdata';
-import { getworkorderlist } from '@/functions/getworkorderlist';
+import { createworkorderdata, getworkorderlist } from '@/api/workOrderFunctions';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 

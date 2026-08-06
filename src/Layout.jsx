@@ -69,7 +69,7 @@ import NewWorkOrderModal from './components/work-orders/NewWorkOrderModal';
 import TechClockStatusModal from './components/work-orders/TechClockStatusModal';
 import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
-import { createworkorderdata } from '@/functions/createworkorderdata';
+import { createworkorderdata } from '@/api/workOrderFunctions';
 import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
 
 function LayoutContent({ children, currentPageName }) {
