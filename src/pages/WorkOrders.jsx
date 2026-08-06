@@ -145,9 +145,14 @@ export default function WorkOrdersPage() {
     }
   };
 
-  // Keep latest state/handlers available to the realtime callback without forcing a resubscribe
+  // Keep latest state/handlers available to the realtime callback without forcing a resubscribe.
+  // Must run as an effect (not inline in the render body) since loadData/loadWorkPROProjects/
+  // loadTechTimeForProjects are declared later in this component via `const` and referencing them
+  // before that point is a temporal-dead-zone ReferenceError.
   const realtimeHandlersRef = useRef();
-  realtimeHandlersRef.current = { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects };
+  useEffect(() => {
+    realtimeHandlersRef.current = { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects };
+  });
 
   // Direct Broadcast WebSocket Connection - Zero Polling
   // Subscribed once for the page's lifetime; page/sort/search/tab changes must NOT tear this down,
