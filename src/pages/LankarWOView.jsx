@@ -3,7 +3,99 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LankarWOViewForm from '@/components/lankar/LankarWOViewForm';
-import { getLankarWorkOrderData } from '@/functions/getLankarWorkOrderData';
+import { supabase } from '@/lib/supabase';
+
+async function getLankarWorkOrderData({ woid, invoiceid }) {
+  if (!woid && !invoiceid) {
+    throw new Error('woid or invoiceid is required');
+  }
+
+  let infoResult;
+  if (woid) {
+    infoResult = await supabase.from('LankarWOInfo').select('*').eq('woid', woid).maybeSingle();
+    if (infoResult.error) throw new Error(infoResult.error.message);
+
+    if (!infoResult.data) {
+      infoResult = await supabase.from('LankarWOInfo').select('*').eq('invoiceid', woid).maybeSingle();
+      if (infoResult.error) throw new Error(infoResult.error.message);
+    }
+  } else {
+    infoResult = await supabase.from('LankarWOInfo').select('*').eq('invoiceid', invoiceid).maybeSingle();
+    if (infoResult.error) throw new Error(infoResult.error.message);
+  }
+
+  if (!infoResult.data) {
+    throw new Error('Lankar work order not found');
+  }
+
+  const actualWoid = infoResult.data.woid;
+
+  const linesResult = await supabase
+    .from('LankarWOLines')
+    .select('*')
+    .eq('woid', actualWoid)
+    .order('linenum', { ascending: true });
+  if (linesResult.error) throw new Error(linesResult.error.message);
+
+  const lines = linesResult.data || [];
+  const inventoryIds = [...new Set(
+    lines
+      .map((line) => {
+        const trimmedId = String(line.invinvid ?? '').trim();
+        if (!trimmedId) return null;
+        const parsedId = Number(trimmedId);
+        return Number.isFinite(parsedId) ? parsedId : null;
+      })
+      .filter((value) => value !== null)
+  )];
+
+  let inventoryPartMap = {};
+  if (inventoryIds.length > 0) {
+    const inventoryResult = await supabase
+      .from('LankarWOInventory')
+      .select('invid, partnum')
+      .in('invid', inventoryIds);
+    if (inventoryResult.error) throw new Error(inventoryResult.error.message);
+
+    inventoryPartMap = (inventoryResult.data || []).reduce((acc, item) => {
+      acc[String(item.invid ?? '').trim()] = item.partnum || null;
+      return acc;
+    }, {});
+  }
+
+  const enrichedLines = lines.map((line) => {
+    const inventoryKey = String(line.invinvid ?? '').trim();
+    return {
+      ...line,
+      partnum: inventoryPartMap[inventoryKey] || null
+    };
+  });
+
+  let customer = null;
+  if (infoResult.data.cusid) {
+    const customerResult = await supabase.from('Customer').select('*').eq('cusid', infoResult.data.cusid).maybeSingle();
+    if (!customerResult.error) {
+      customer = customerResult.data || null;
+    }
+  }
+
+  let vehicle = null;
+  if (infoResult.data.vehid) {
+    const vehicleResult = await supabase.from('Vehicle').select('*').eq('vehid', infoResult.data.vehid).maybeSingle();
+    if (!vehicleResult.error) {
+      vehicle = vehicleResult.data || null;
+    }
+  }
+
+  return {
+    data: {
+      info: infoResult.data,
+      lines: enrichedLines,
+      customer,
+      vehicle
+    }
+  };
+}
 
 const getStageMeta = (stage) => {
   const normalized = String(stage || '').toUpperCase();

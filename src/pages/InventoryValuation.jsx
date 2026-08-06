@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,8 +22,9 @@ export default function InventoryValuationPage() {
   const loadInventory = async () => {
     setLoading(true);
     try {
-      const items = await base44.entities.InventoryItem.filter({ is_active: true });
-      setInventory(items);
+      const { data: items, error } = await supabase.from('InventoryItem').select('*').eq('is_active', true);
+      if (error) throw error;
+      setInventory(items || []);
     } catch (error) {
       console.error('Error loading inventory:', error);
       alert('Failed to load inventory data');

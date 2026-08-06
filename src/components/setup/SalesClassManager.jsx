@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2, DollarSign } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 import PricingMatrixModal from "./PricingMatrixModal";
 
 export default function SalesClassManager() {
+  const { user, employee } = useAuth();
   const [salesClasses, setSalesClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -21,9 +23,9 @@ export default function SalesClassManager() {
   const loadSalesClasses = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {});
-      const data = response.data?.data || [];
-      setSalesClasses(data);
+      const { data, error } = await supabase.from('SalesClass').select('*');
+      if (error) throw error;
+      setSalesClasses(data || []);
     } catch (error) {
       console.error('Error loading sales classes:', error);
     } finally {
@@ -38,12 +40,25 @@ export default function SalesClassManager() {
 
   const handleSubmit = async (salesClassData) => {
     try {
+      const nowIso = new Date().toISOString();
       if (editingSalesClass) {
-        await base44.functions.invoke('SupabaseProxy', { action: 'update', id: editingSalesClass.id, data: salesClassData });
+        const { error } = await supabase
+          .from('SalesClass')
+          .update({ ...salesClassData, updated_date: nowIso })
+          .eq('id', editingSalesClass.id);
+        if (error) throw error;
       } else {
-        await base44.functions.invoke('SupabaseProxy', { action: 'create', data: salesClassData });
+        const { error } = await supabase.from('SalesClass').insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...salesClassData,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
+        });
+        if (error) throw error;
       }
-      
+
       setShowModal(false);
       setEditingSalesClass(null);
       loadSalesClasses();
@@ -56,7 +71,8 @@ export default function SalesClassManager() {
   const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this sales class?')) {
       try {
-        await base44.functions.invoke('SupabaseProxy', { action: 'delete', id });
+        const { error } = await supabase.from('SalesClass').delete().eq('id', id);
+        if (error) throw error;
         loadSalesClasses();
       } catch (error) {
         console.error('Error deleting sales class:', error);

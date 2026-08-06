@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,8 +20,9 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
 
   const loadSuppliers = useCallback(async () => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
-      setSuppliers(response.data?.data || []);
+      const { data, error } = await supabase.from('Supplier').select('*');
+      if (error) throw error;
+      setSuppliers(data || []);
     } catch (error) {
       console.error('Error loading suppliers:', error);
     }

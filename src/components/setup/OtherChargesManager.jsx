@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash2, MoreHorizontal, Loader2 } from "lucide-react";
-import { OtherChargeList } from "@/entities/all";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 import {
   Table,
   TableBody,
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import OtherChargeForm from "./OtherChargeForm";
 
 export default function OtherChargesManager() {
+  const { user, employee } = useAuth();
   const [charges, setCharges] = useState([]);
   const [glAccounts, setGlAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +32,12 @@ export default function OtherChargesManager() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const chargesData = await OtherChargeList.list('-created_date');
-      setCharges(chargesData);
+      const { data: chargesData, error } = await supabase
+        .from('OtherChargeList')
+        .select('*')
+        .order('created_date', { ascending: false });
+      if (error) throw error;
+      setCharges(chargesData || []);
     } catch (error) {
       console.error("Failed to fetch other charges:", error);
     }
@@ -63,10 +68,25 @@ export default function OtherChargesManager() {
 
   const handleSubmit = async (formData) => {
     try {
+      const nowIso = new Date().toISOString();
       if (editingCharge) {
-        await OtherChargeList.update(editingCharge.id, formData);
+        const { error } = await supabase
+          .from('OtherChargeList')
+          .update({ ...formData, updated_date: nowIso })
+          .eq('id', editingCharge.id);
+        if (error) throw error;
       } else {
-        await OtherChargeList.create(formData);
+        const { error } = await supabase
+          .from('OtherChargeList')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            ...formData,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: employee?.full_name || employee?.email || user?.email || '',
+            created_by_id: user?.id || ''
+          });
+        if (error) throw error;
       }
       setIsFormOpen(false);
       await fetchData();
@@ -79,7 +99,8 @@ export default function OtherChargesManager() {
   const handleDelete = async (chargeId) => {
     if (confirm("Are you sure you want to delete this predefined charge?")) {
       try {
-        await OtherChargeList.delete(chargeId);
+        const { error } = await supabase.from('OtherChargeList').delete().eq('id', chargeId);
+        if (error) throw error;
         fetchData();
       } catch (error) {
         console.error("Failed to delete charge:", error);

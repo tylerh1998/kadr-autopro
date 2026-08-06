@@ -22,7 +22,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Loader2, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import EditInventoryTransactionModal from './EditInventoryTransactionModal';
 
 export default function InventoryTransactionsModal({ isOpen, onClose, inventoryItemId }) {
@@ -48,28 +47,28 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
     try {
       const [invoiceLinesResponse, suppliersResponse, inventoryAuditResponse] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { inventory_item_id: inventoryItemId }
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier'
-        }),
+        supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('inventory_item_id', inventoryItemId),
+        supabase
+          .from('Supplier')
+          .select('*'),
         supabase
           .from('InventoryAuditLog')
           .select('source_record_id, quantity_change')
           .eq('inventory_item_id', inventoryItemId)
       ]);
-      
+
+      if (invoiceLinesResponse.error) throw invoiceLinesResponse.error;
+      if (suppliersResponse.error) throw suppliersResponse.error;
       if (inventoryAuditResponse.error) throw inventoryAuditResponse.error;
       const inventoryTxsData = inventoryAuditResponse.data || [];
 
-      const invoiceLines = [...(invoiceLinesResponse.data?.data || [])].sort((a, b) =>
+      const invoiceLines = [...(invoiceLinesResponse.data || [])].sort((a, b) =>
         new Date(b.invoice_date || 0).getTime() - new Date(a.invoice_date || 0).getTime()
       );
-      const suppliersData = suppliersResponse.data?.data || [];
+      const suppliersData = suppliersResponse.data || [];
 
       // Create a map of InventoryTxs by source_record_id for quick lookup (summing quantities)
       const txsMap = {};
@@ -152,13 +151,13 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
   const checkSupplierLock = async (transaction) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier',
-        match: { id: transaction.supplier_id }
-      });
-      
-      const supplier = response.data?.data?.[0];
+      const { data: supplierRows, error } = await supabase
+        .from('Supplier')
+        .select('*')
+        .eq('id', transaction.supplier_id);
+      if (error) throw error;
+
+      const supplier = supplierRows?.[0];
       if (supplier?.LockedByUser) {
         alert(`This supplier is locked by: ${supplier.LockedByUser}`);
         return true;

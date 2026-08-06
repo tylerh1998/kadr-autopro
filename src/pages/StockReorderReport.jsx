@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,16 +31,15 @@ export default function StockReorderReport() {
 
     setIsUpdating(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'InventoryItem',
-        ids: Array.from(selectedItems),
-        data: {
+      const { error } = await supabase
+        .from('InventoryItem')
+        .update({
           stocked_item: false,
           minimum_quantity: 0,
           maximum_quantity: 0
-        }
-      });
+        })
+        .in('id', Array.from(selectedItems));
+      if (error) throw error;
 
       setSelectedItems(new Set());
       loadReportData();
@@ -60,25 +59,26 @@ export default function StockReorderReport() {
     setLoading(true);
     try {
       // Fetch all active inventory items that are stocked
-      const inventoryResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'InventoryItem',
-        query: { is_active: true, stocked_item: true }
-      });
-      const inventoryItems = inventoryResponse.data?.data || [];
-      
+      const { data: inventoryItemsData, error: inventoryError } = await supabase
+        .from('InventoryItem')
+        .select('*')
+        .eq('is_active', true)
+        .eq('stocked_item', true);
+      if (inventoryError) throw inventoryError;
+      const inventoryItems = inventoryItemsData || [];
+
       // Filter items that truly need reordering
       const itemsNeedingReorder = inventoryItems.filter(item => {
         const reorderQty = Math.max(0, (item.maximum_quantity || 0) - (item.quantity_on_hand || 0));
         return (item.quantity_on_hand || 0) < (item.minimum_quantity || 0) && reorderQty > 0;
       });
 
-      // Fetch all suppliers via SupabaseProxy
-      const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier'
-      });
-      const suppliersData = suppliersResponse.data?.data || [];
+      // Fetch all suppliers
+      const { data: suppliersResponseData, error: suppliersError } = await supabase
+        .from('Supplier')
+        .select('*');
+      if (suppliersError) throw suppliersError;
+      const suppliersData = suppliersResponseData || [];
       setSuppliers(suppliersData);
 
       // Group items by supplier

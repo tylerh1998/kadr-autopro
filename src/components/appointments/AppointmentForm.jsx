@@ -16,7 +16,6 @@ import SelectWorkOrderModal from './SelectWorkOrderModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
-import { WorkOrder, SystemSettings } from '@/entities/all';
 import { createworkorderdata, getworkorderlist } from '@/api/workOrderFunctions';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
@@ -614,18 +613,17 @@ export default function AppointmentForm({
 
   const generateWorkOrderNumbers = async (stage) => {
     // Fetch next RO number from SystemSettings
-    const settings = await SystemSettings.list();
-    const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-    
+    const { data: settingsRows } = await supabase.from('SystemSettings').select('*');
+    const systemSettings = settingsRows && settingsRows.length > 0 ? settingsRows[0] : null;
+
     const nextRo = systemSettings?.next_ro_number || 1001;
-    
+
     // Increment and save back to SystemSettings
     if (systemSettings) {
-      await SystemSettings.update(systemSettings.id, {
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
     } else {
-      await SystemSettings.create({
+      await supabase.from('SystemSettings').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         next_ro_number: nextRo + 1
       });
     }
@@ -810,10 +808,12 @@ export default function AppointmentForm({
                         // Check for open work orders or estimates for this vehicle (if no WO already linked)
                         if (!formData.work_order_id && value) {
                           try {
-                            const openWOs = await WorkOrder.filter({
-                              vehicle_id: value,
-                              stage: { $in: ['estimate', 'work_order'] }
-                            });
+                            const { data: openWOs, error: openWOsError } = await supabase
+                              .from('WorkOrder')
+                              .select('id')
+                              .eq('vehicle_id', value)
+                              .in('stage', ['estimate', 'work_order']);
+                            if (openWOsError) throw openWOsError;
                             if (openWOs && openWOs.length > 0) {
                               setHasOpenWO(true);
                             }

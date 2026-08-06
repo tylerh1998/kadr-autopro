@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { InventoryReturn } from "@/entities/all";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function ChangeSupplierModal({ open, onClose, returnItem, onSupplierChange }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -30,12 +29,12 @@ export default function ChangeSupplierModal({ open, onClose, returnItem, onSuppl
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier',
-        match: { inventory_supplier: true }
-      });
-      const filteredSorted = (response.data.data || [])
+      const { data, error } = await supabase
+        .from('Supplier')
+        .select('*')
+        .eq('inventory_supplier', true);
+      if (error) throw error;
+      const filteredSorted = (data || [])
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       setSuppliers(filteredSorted);
     } catch (error) {
@@ -50,7 +49,11 @@ export default function ChangeSupplierModal({ open, onClose, returnItem, onSuppl
 
     setSaving(true);
     try {
-      await InventoryReturn.update(returnItem.id, { supplier: selectedSupplier });
+      const { error } = await supabase
+        .from('InventoryReturn')
+        .update({ supplier: selectedSupplier })
+        .eq('id', returnItem.id);
+      if (error) throw error;
       onSupplierChange();
     } catch (error) {
       console.error('Error updating supplier:', error);

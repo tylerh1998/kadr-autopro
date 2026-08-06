@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCustomerWorkOrderHistory } from '@/functions/getCustomerWorkOrderHistory';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge, Car } from 'lucide-react';
 import HistoryFilters, { DEFAULT_HISTORY_FILTERS } from '@/components/history/HistoryFilters';
@@ -20,15 +20,16 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
       const fetchHistory = async () => {
         setLoading(true);
         try {
-          const response = await getCustomerWorkOrderHistory({
-            customerId: customer.id,
-            daysBack: filters.daysBack,
-            fromDate: filters.fromDate,
-            toDate: filters.toDate,
-            searchTerm: filters.search.trim()
+          const { data, error } = await supabase.rpc('get_customer_work_order_history', {
+            p_customer_id: customer.id,
+            p_days_back: filters.daysBack ?? 365,
+            p_from_date: filters.fromDate || null,
+            p_to_date: filters.toDate || null,
+            p_search_term: filters.search.trim() || null
           });
+          if (error) throw error;
 
-          setHistory(response.data?.workOrders || []);
+          setHistory(data || []);
         } catch (error) {
           console.error("Failed to fetch customer work order history:", error);
           alert("Could not load customer history.");

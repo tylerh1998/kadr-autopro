@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function StatementEmailModal({ open, onClose, customer, portalUrl, agedBalances }) {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' });
@@ -26,20 +26,23 @@ export default function StatementEmailModal({ open, onClose, customer, portalUrl
   const handleSend = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('sendStatementEmail', {
-        to: emailData.to,
-        subject: emailData.subject,
-        body: emailData.body.replace(/\n/g, '<br>'),
-        customer_id: customer?.id,
-        portal_url: portalUrl,
-        aged_balances: agedBalances
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-sendStatementEmail', {
+        body: {
+          to: emailData.to,
+          subject: emailData.subject,
+          body: emailData.body.replace(/\n/g, '<br>'),
+          customer_id: customer?.id,
+          portal_url: portalUrl,
+          aged_balances: agedBalances
+        }
       });
+      if (invokeError) throw invokeError;
 
-      if (response.data?.success) {
+      if (data?.success) {
         alert('Email sent successfully!');
         onClose();
       } else {
-        throw new Error(response.data?.error || 'Failed to send email');
+        throw new Error(data?.error || 'Failed to send email');
       }
     } catch (error) {
       console.error("Email sending failed:", error);

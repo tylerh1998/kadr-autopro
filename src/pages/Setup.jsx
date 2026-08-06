@@ -1,61 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { Employee } from "@/entities/Employee";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Plus, Users, Settings, Wrench, DollarSign, Save, FileText, Upload, Download, Cloud } from "lucide-react";
-import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
-import { toast } from "sonner";
+import { Download } from "lucide-react";
 
 import TechDirectory from "../components/setup/TechDirectory";
-import TechForm from "../components/setup/TechForm";
 import SalesClassManager from "../components/setup/SalesClassManager";
 import TagAlongManager from "../components/setup/TagAlongManager";
 import OtherChargesManager from "../components/setup/OtherChargesManager";
 import WIPSettings from "../components/setup/WIPSettings";
-import RestoreBackupModal from "../components/setup/RestoreBackupModal";
 
 export default function SetupPage() {
   const { employee } = useAuth();
   const [activeTab, setActiveTab] = useState("sales");
   const [currentUser, setCurrentUser] = useState(null);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
 
   useEffect(() => {
     setCurrentUser(employee);
   }, [employee]);
-
-  const handleBackup = async () => {
-    setBackupLoading(true);
-    try {
-      const response = await base44.functions.invoke('backupToGoogleDrive');
-      if (response.data.success) {
-        toast.success('Backup completed successfully!', {
-          description: `${response.data.filename} uploaded to Google Drive`,
-          action: {
-            label: 'View',
-            onClick: () => window.open(response.data.fileUrl, '_blank')
-          }
-        });
-      } else {
-        toast.error('Backup failed', {
-          description: response.data.error || 'Unknown error'
-        });
-      }
-    } catch (error) {
-      console.error('Backup error:', error);
-      toast.error('Backup failed', {
-        description: error.message || 'Failed to create backup'
-      });
-    } finally {
-      setBackupLoading(false);
-    }
-  };
 
   const isLvl3User = currentUser?.autopro_access_lvl === 'lvl3_user';
 
@@ -76,26 +38,6 @@ export default function SetupPage() {
             >
               <Download className="w-4 h-4 mr-2" />
               Download Template
-            </Button>
-            {currentUser?.admin === true && (
-              <>
-
-                <Button 
-                  onClick={() => setShowRestoreModal(true)}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Restore Backup
-                </Button>
-              </>
-            )}
-            <Button 
-              onClick={handleBackup}
-              disabled={backupLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Cloud className="w-4 h-4 mr-2" />
-              {backupLoading ? 'Backing up...' : 'Backup AutoPRO'}
             </Button>
           </div>
         </div>
@@ -135,11 +77,6 @@ export default function SetupPage() {
           </TabsContent>
         </Tabs>
       </div>
-
-      <RestoreBackupModal 
-        open={showRestoreModal} 
-        onClose={() => setShowRestoreModal(false)} 
-      />
     </div>
   );
 }

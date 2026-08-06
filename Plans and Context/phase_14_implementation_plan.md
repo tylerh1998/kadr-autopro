@@ -1,8 +1,8 @@
-# Phase 14 Implementation Plan: Setup, Admin, Lankar Import & Final Sunset
+# Phase 14 Implementation Plan: Setup, Admin & Lankar Import (Deprecation + Cleanup)
 
-**Status:** **Planning — Section 0 open questions need your decisions before execution starts.**
-**Parent:** `master_blueprint.md`, Phase 14 (Tier F — final phase)
-**Prepared:** 2026-08-03 (research-only, no code changes made)
+**Status:** **Rescoped 2026-08-05 — ready for execution. No open decisions blocking start.**
+**Parent:** `master_blueprint.md`, Phase 14 (Tier F). Final Sunset is no longer this phase's job — see §0.9 and the new Phase 15 pointer.
+**Prepared:** 2026-08-03 (initial research), substantially rescoped 2026-08-05 following user decisions in §0.9.
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema/RLS changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
 
 > **LIVE DOCUMENT.** This plan is updated in place as execution/verification surfaces new findings — do not wipe prior sections, append/annotate instead. Key learnings roll back into `master_blueprint.md` Section 7 at phase close.
@@ -11,129 +11,113 @@
 
 ## 0) Open Questions, Info Requirements & Suggestions
 
-This phase turned out considerably larger and more entangled than the blueprint's original "2–3 sessions" estimate suggested. Direct research (not just the file list in the blueprint) surfaced real blockers and one active conflict. I need decisions on the items below before touching any code.
+*(§0.1–§0.8 are the historical research/decision record that led to the rescope in §0.9. Kept verbatim per this doc's own "don't wipe, append" rule. If you're picking this plan up fresh, read §0.9 first — it supersedes the scope described in §0.1-§0.8 — then jump to Section 1.)*
 
 ### 0.1 — RESOLVED: Phase 10E conflict cleared
 
-Re-checked 2026-08-03 (later same day) per your direction ("we're all done up to phase 14"). `phase_10_implementation_plan.md` is now committed clean (`git status` shows no pending changes to it), and `master_blueprint.md`'s own detailed Phase 10 row confirms all 5 of Phase 10's own sub-phases (10A-10E) landed `[Tested]`. No more active-conflict risk on `Admin.jsx` from this direction. 14B can proceed on its own merits.
+Re-checked 2026-08-03 (later same day) per your direction ("we're all done up to phase 14"). `phase_10_implementation_plan.md` is now committed clean (`git status` shows no pending changes to it), and `master_blueprint.md`'s own detailed Phase 10 row confirms all 5 of Phase 10's own sub-phases (10A-10E) landed `[Tested]`. No more active-conflict risk on `Admin.jsx` from this direction.
 
-### 0.1b — NEW finding: Phase 13's "Tested" status doesn't mean its blast radius is fully swept
+### 0.1b — Phase 13's "Tested" status doesn't mean its blast radius is fully swept
 
-You confirmed Phase 13 is done/`[Tested]`, and `master_blueprint.md`'s Phase 13 row does carry a `~~[Tested]~~` tag now. I re-verified directly rather than taking my own prior turn's secondhand research at face value (that research claimed several files were "confirmed false positives/dead imports" — this turned out to be wrong). Direct grep + read confirms these are **real, live, unmigrated imports**, not dead code:
+You confirmed Phase 13 is done/`[Tested]`. Direct grep + read confirmed 4 files (`Schedule.jsx`, `AppointmentForm.jsx`, `InventoryAdd.jsx`, `WarrantyReturnModal.jsx`) still had real, live, unmigrated imports of functions Phase 13B built native replacements for (`getworkorderlist`/`createworkorderdata`/`searchInventory`/`searchSuppliers`) — not dead code as I'd first (wrongly) reported. Some of these were independently fixed by other commits since (see §0.8). This isn't a knock against Phase 13 completing its own claimed scope — it's evidence no phase ever did a full consumer-sweep for these shared legacy functions. Full residue list now in the Appendix.
 
-| File | Live import |
-|---|---|
-| `src/pages/Schedule.jsx` | `import { getworkorderlist } from '@/functions/getworkorderlist';` |
-| `src/components/appointments/AppointmentForm.jsx` | `WorkOrder, SystemSettings` via `@/entities/all`; `createworkorderdata`, `getworkorderlist` via `@/functions/*` |
-| `src/pages/InventoryAdd.jsx` | `TagAlong` via `@/entities/all`; `searchInventory` via `@/functions/searchInventory` |
-| `src/components/work-orders/WarrantyReturnModal.jsx` | `searchSuppliers` via `@/functions/searchSuppliers` |
+### 0.1c — Phase 10A folded into a separate "final validation plan"
 
-`getworkorderlist`/`createworkorderdata` are literally the two functions Phase 13B built native `autopro-*` replacements for (per the blueprint's own Phase 13 row text) — but these 4 files, sitting outside Phase 13's own claimed file scope (Schedule/Appointment/Inventory-domain, not Work-Orders-Core-domain), were never repointed to the new native calls. This isn't a knock against Phase 13 completing its own stated scope — it's evidence that no phase has ever done a full consumer-sweep for these shared legacy functions. See §0.7 for the fuller picture this surfaced.
+Per your direction, the cross-cutting integration-testing pass (`master_blueprint.md`'s separate "Phase 10A: Full Inventory Flow + Appointment — Combined Testing & Cleanup") is being rolled into a final validation plan outside this document. Not tracked as a blocker here.
 
-### 0.1c — Phase 10A is being folded into a separate "final validation plan," not tracked as a Phase 14 blocker
+### 0.2 — RESOLVED (2026-08-05): entity status, including the `Statement` rename
 
-Per your direction, the cross-cutting integration-testing pass (`master_blueprint.md`'s separate "Phase 10A: Full Inventory Flow + Appointment — Combined Testing & Cleanup," still `[Pending]`) is being rolled into a final validation plan outside this document's scope. I'm removing it from 14G's blocker list on that basis — but see §0.7 for why 14G still isn't close even without it.
+Direct SQL against both branches, confirmed:
 
-### 0.2 — Direct entity-status verification (done, not a question — for the record)
-
-Per this project's standing rule ("always confirm entity status directly against the database, never trust a classification table"), I queried both branches directly rather than relying on the blueprint's Section 1 classification, which turned out partially stale:
-
-| Entity | Dev (`sitihbdnuxifwibontcm`) | Production (`hbcrwkmgsazqrvsrmxyr`) | RLS (where it exists) |
+| Entity | Dev | Production | RLS |
 |---|---|---|---|
-| `GSTReturn` | ✅ exists | ✅ exists | 1 policy, both |
-| `Levies` | ✅ exists | ✅ exists | 1 policy, both |
-| `OtherChargeList` | ✅ exists | ✅ exists | 1 policy, both |
-| `SystemSettings` | ✅ exists | ✅ exists | 1 policy, both |
-| `SalesClass` | ✅ exists | ✅ exists | already in `Admin.jsx`'s `SUPABASE_TABLES`, confirmed native |
-| `TagAlong` | ✅ exists | ❌ **missing** | 1 policy on dev |
-| `WorkOrderStatus` | ✅ exists | ❌ **missing** | 1 policy on dev |
-| `CustomerPortalWorkOrder` | ✅ exists | ❌ **missing** | 1 policy on dev |
-| `SentEmailLog` | ✅ exists | ❌ **missing** | 1 policy on dev |
-| `Statement` | ❌ **missing** | ❌ **missing** | doesn't exist anywhere — genuinely still Base44-only |
+| `GSTReturn`, `Levies`, `OtherChargeList`, `SystemSettings`, `SalesClass` | ✅ | ✅ | 1 policy, both |
+| `TagAlong`, `WorkOrderStatus`, `CustomerPortalWorkOrder`, `SentEmailLog` | ✅ | ❌ missing | 1 policy on dev |
+| `CustomerPortalStatement` (renamed from `Statement` — you confirmed the rename 2026-08-05) | ✅ | ❌ missing | not yet checked, expect 1 policy per the established pattern — verify in 14C |
 
-This is better news than the blueprint suggested — `GSTReturn`/`Levies`/`OtherChargeList`/`SystemSettings` were apparently already replayed to production by Phase 10's own work, mid-flight. Only 4 tables (`TagAlong`, `WorkOrderStatus`, `CustomerPortalWorkOrder`, `SentEmailLog`) still need a production schema replay, and `Statement` needs real schema design. I also confirmed column-level schema for all 4 dev-only tables matches exactly what their frontend call sites expect (no drift) — detail in §3.3.
+**Your decision:** replay of all 5 still-missing-on-production tables (`TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement`) is included in this plan (14C).
 
-### 0.3 — Unowned AR/Statements cluster blocks "Final Sunset" regardless of this phase's own work
+### 0.3 — RESOLVED (2026-08-05): AR cluster re-checked, only 2 files remain
 
-`Statement` doesn't exist on either branch, and a cluster of files depending on it (or on `SentEmailLog`) has **never been assigned to any phase**: `src/pages/CustomerARTransactions.jsx`, `src/pages/EmailLog.jsx`, `src/components/ar/StatementModal.jsx`, `src/components/ar/StatementEmailModal.jsx`, `src/components/ar/ARPaymentDetailsModal.jsx`, `src/components/ar/ARPaymentEmailModal.jsx`, `src/components/ar/TakePaymentModal.jsx`, `src/components/ar/InterestCalculationModal.jsx`, `src/components/work-orders/BatchSendWorkOrdersModal.jsx` (partial — email-log-adjacent), `src/components/reports/ReportableLeviesReport.jsx` (Levies-adjacent, actually now unblocked per §0.2, may just need transport cutover).
+You confirmed you'd already been working this area and suspected the earlier failures were caused by these gaps. Re-grepped the full original AR/Statements cluster directly:
 
-This is real: no phase's plan doc — including this one's literal title — claims Customer AR statements/interest/payment-take flows. It's genuinely out of scope for "Setup, Admin, Lankar Import," but it **is** in the direct path of the repo-wide-clean-grep gate that "Final Sunset" (14G) requires.
+**Already clean** (migrated since my first pass, independently of this plan): `ARPaymentDetailsModal.jsx`, `ARPaymentEmailModal.jsx`, `InterestCalculationModal.jsx`, `StatementModal.jsx`, `TakePaymentModal.jsx`, `CustomerARTransactions.jsx`, `EmailLog.jsx`.
 
-**Question — pick one:**
-1. Fold this cluster into Phase 14 as new sub-phases (grows this phase substantially — real schema design for `Statement`, plus `SentEmailLog`'s transport cutover across ~9 files).
-2. Spin it out as a new **Phase 15** and let Phase 14 close having done 14A–14F, with "Final Sunset" (14G) explicitly deferred to whenever Phase 15 (and everything else) lands.
-3. Something else you have in mind.
+**Still base44-dependent — added to this plan (new 14E, see Section 3):**
+- `src/components/ar/StatementEmailModal.jsx` — `base44.functions.invoke('sendStatementEmail', {...})`, one call site, sends a customer statement email. Simple, no entity writes.
+- `src/components/ar/BatchSendWorkOrdersModal.jsx` — two function-shim imports: `createBatchPortalSnapshot` (writes a `CustomerPortalWorkOrder` snapshot row — depends on 14C's replay of that table) and `sendBatchWorkOrderEmails` (sends one email per selected WO).
 
-### 0.4 — `LegacyWorkOrderImportModal.jsx`'s backing function overlaps Phase 13's domain
+Neither touches the two protected GL functions. Full detail in 14E below.
 
-`processLegacyWorkOrder` (153 lines, `base44/functions/processLegacyWorkOrder/entry.ts`) creates real `WorkOrder` rows with GL-classified line items — squarely "Work Orders Core" business logic, even though the only calling file lives in `src/components/lankar/`. Phase 13's own plan never claimed this file (confirmed by grep against `phase_13_implementation_plan.md`).
+### 0.4 — RESOLVED (2026-08-05): `processLegacyWorkOrder` is Phase 14's to port
 
-**Question:** Should Phase 14 port this function directly as part of 14F (it's the only caller, and nobody else has claimed it), or should it be flagged to whoever closes out Phase 13 instead? My default recommendation is **Phase 14 ports it** — it's a self-contained function with one caller, and waiting on Phase 13's separate closeout would just stall this phase for no real benefit. Flagging so you can veto.
+"This will be added to phase 14's scope, as all other phases are completed." — 14F ports it, unchanged from the original plan.
 
-### 0.5 — `processDataImport`'s `balance_sheet` import type posts bulk GL entries directly
+### 0.5 — RESOLVED (2026-08-05): `processDataImport` and its whole feature cluster are deprecated, not migrated
 
-459-line legacy function (`base44/functions/processDataImport/entry.ts`) handles 6 import types (customers, vehicles, suppliers, inventory, inventory_locations, balance_sheet). The `balance_sheet` path posts opening/closing balances as raw `GLTransaction` inserts. Confirmed via grep: it does **not** call either protected function (`autopro-handleInvoiceConversionGL`/`autopro-handleSupplierInvoiceLineGL`) — it's a standalone one-time bulk-import tool, not day-to-day GL logic. My read is this is fine to port as-is under the standing "never modify the two protected GL functions" rule, since it isn't one of them and doesn't touch them. Flagging only so you can veto before I write the port.
+You confirmed this entire capability is no longer needed — it existed only to bulk-import incompatible legacy LANKAR data (customers/vehicles/suppliers/inventory/inventory_locations/balance_sheet) into AutoPRO with special mapping/row-add logic, a one-time migration tool whose job is done. **Deprecate outright, don't port:**
+- `processDataImport` (the function) — never gets a native replacement.
+- `LankarImport.jsx`'s "Database Type" selector + file-upload/import UI — deleted from the page.
+- `AddLegacyInvoiceModal.jsx` ("Add Legacy Invoice to AR") — deleted entirely, button and all.
+- `LankarImportReturnModal.jsx` ("Add Legacy Return") — deleted entirely, button and all.
 
-### 0.6 — Superseded by §0.1b above
+**Explicitly NOT deprecated:** `LegacyWorkOrderImportModal.jsx` / `processLegacyWorkOrder` (14F) — "we still have a few legacy work orders yet to be moved over." This one gets migrated, not deleted.
 
-(Original note here about Phase 13's status being stale in the blueprint has been superseded — you've since confirmed Phase 13 is done, and the blueprint row now carries `[Tested]`. The real remaining issue isn't Phase 13's own status, it's the cross-file blast radius per §0.1b/§0.7.)
+This replaces the old 14D/14E entirely — see Section 3's new 14D.
 
-### 0.7 — NEW: 14G's real blocker list, re-measured directly
+### 0.6 — Superseded by §0.1b
 
-With Phase 10 confirmed Tested and Phase 13 confirmed done, I re-ran the repo-wide grep to see how close "Final Sunset" actually is. **Still 54 files** reference `base44`/`@/entities/all`/`@/functions/*` (excluding the 3 core API files that are only removable at 14G's own last step). Breakdown:
+(Historical note about Phase 13's blueprint status being stale — resolved, see §0.1b.)
 
-| Category | Approx. count | Owner |
-|---|---|---|
-| Phase 14's own domain (Setup/Admin/Lankar, incl. 2 files not in my original file list: `LankarImportReturnModal.jsx`, `LankarWOView.jsx`) | ~13 | This phase (14A-14F) |
-| Unowned AR/Statements cluster | ~9 | Nobody — §0.3's decision |
-| Phase 5 (Customer/Vehicle) leftovers | ~5 | Nobody currently |
-| Phase 7 (Inventory) leftovers | ~11 | Nobody currently |
-| Phase 8 (Banking) leftovers, mostly dead/commented code (not independently re-verified this pass — treat as unconfirmed) | ~5 | Nobody currently |
-| Phase 12/13 boundary residue (`Schedule.jsx`, `AppointmentForm.jsx`, `WorkPROView.jsx`, `LankarWOView.jsx`, plus the 4 confirmed-live files in §0.1b) | ~6 | Nobody currently |
-| `CreditInvoice.jsx` — deliberately still full-base44 per Phase 13's own closeout note | 1 | Flagged, not claimed |
-| Core infra (only removable at 14G's literal last step) | 6 (excluded from the 54 above) | 14G itself |
+### 0.7 — Superseded by the Appendix
 
-**This means even a fully-executed 14A-14F does not get 14G to a clean grep.** The other ~35 files are cross-phase residue nobody has ever explicitly owned cleaning up — this is a materially bigger finding than my first draft of this plan assumed (I'd only flagged the AR cluster in §0.3; the Phase 5/7/8/12-boundary residue is new).
+(Original cross-phase-residue breakdown here has been superseded by a fresher, more precisely-categorized version in the Appendix at the end of this document, per your request to hand it to a separate agent.)
 
-**Question:** given you mentioned a separate "final validation plan" already absorbing Phase 10A — is that final validation plan *also* meant to be the moment this repo-wide residue gets swept and Final Sunset actually happens (i.e., 14G moves out of this document entirely and becomes that plan's closing step)? Or do you want Phase 14 itself to absorb the sweep (spinning up 14H/14I/etc. sub-phases per leftover category), or a third option? I don't want to scope 14G further until this is decided — right now it's the single biggest open unknown in this whole plan.
+### 0.8 — Historical: mid-session progress check (2026-08-05, morning)
 
-### 0.8 — Reassessment (same day, later): real progress landed, plus one live production risk
+Confirmed real base44→native migrations had already landed independently of this plan (AR payment-receipt details, `EmailLog.jsx`, `getworkorderlist`/`createworkorderdata`, `TagAlongManager.jsx`) and flagged a live production risk: `TagAlongManager.jsx` had already been converted to query `TagAlong` directly, but `TagAlong` didn't exist on production yet. That risk is now formally addressed by 14C below (and per §0.2, you've decided to include all 5 affected tables' replay in this plan).
 
-You flagged "we've made some functional changes" — verified directly rather than assumed. Confirmed via fresh `git log`, `git diff`, and a fresh repo-wide grep:
+### 0.9 — Today's rescoping decisions (2026-08-05, this supersedes the scope in §0.1-§0.8)
 
-**Real progress since §0.7's count of 54:**
-- Commits `b7e83b0b`/`349967bc`/`36952d8b`/`b91a21e3`/`2c9841bb` landed real base44→native migrations: AR payment-receipt details, `EmailLog.jsx`, `getworkorderlist`/`createworkorderdata` (Appointment module), and — bundled into the generic "Bug Fixes" commit, not called out by name — `TagAlongManager.jsx`.
-- Fresh grep count: **41 files** (down from 54), after excluding `src/Layout.jsx` (a base44 URL string, not a live call) and 3 `work-orders/form|history` files (a hardcoded `@no-reply.base44.com` string check plus one dead commented-out line — confirmed genuinely inert, unlike my earlier wrong "false positive" claim about `getworkorderlist`/`searchInventory`/`searchSuppliers` consumers).
-- §0.3's AR/Statements cluster shrank a lot: `ARPaymentDetailsModal.jsx`, `ARPaymentEmailModal.jsx`, `InterestCalculationModal.jsx`, `StatementModal.jsx`, `TakePaymentModal.jsx`, `CustomerARTransactions.jsx`, `EmailLog.jsx`, `Reconcile.jsx`, `ReconcileReport.jsx`, `AutoReconcileModal.jsx`, `LinkSupplierModal.jsx`, `InventoryAdd.jsx`, `Schedule.jsx` are all now clean. Only `StatementEmailModal.jsx` (`sendStatementEmail`) and `BatchSendWorkOrdersModal.jsx` (`createBatchPortalSnapshot`/`sendBatchWorkOrderEmails`) remain from that cluster. `Statement` the table still doesn't exist on either branch (re-confirmed just now) — worth independently checking that whatever replaced `StatementModal.jsx`'s old logic doesn't quietly still expect a `Statement` row somewhere; not verified deeper than the grep here.
-- 14C shrank by one: `TagAlongManager.jsx` is fully converted to direct `supabase.from('TagAlong')`/`supabase.from('OtherChargeList')` calls already. `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx` are still on `@/entities/all` (unconverted, per the plan).
+Full summary of what changed and why, consolidated from your latest message:
 
-**⚠️ Live production risk, independent of Phase 14 sequencing:** `TagAlongManager.jsx` now queries `TagAlong` directly via `supabase.from()` — but `TagAlong` **still does not exist on the production Supabase project** (re-confirmed via direct query just now, alongside `WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`Statement` — none of the 5 exist on production). If this commit reaches the production frontend before the schema replay happens, the Setup → Tagalongs tab will silently break for real users (caught error → empty list, not a crash, but wrong behavior). **Recommend doing the `TagAlong` (and ideally all 4 remaining dev-only tables — `WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`) schema+RLS replay to production now, decoupled from the rest of 14C's sequencing** — it's the same low-risk, well-precedented task 14C already scoped, just worth pulling forward given code that depends on it may already be closer to production than planned.
-
-**Updated 14-domain file count:** 12 files now (`Setup.jsx`, `Admin.jsx`, `LankarImport.jsx`, `RestoreBackupModal.jsx`, `SalesClassManager.jsx`, `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx`, `LankarImportReturnModal.jsx`, `AddLegacyInvoiceModal.jsx`, `LegacyWorkOrderImportModal.jsx`, `LankarWOView.jsx` — the last one newly confirmed in scope, not in my original file list, depends on `getLankarWorkOrderData`).
-
-**§0.3/§0.4/§0.5 still open** — none of today's changes touched the remaining `StatementEmailModal.jsx`/`BatchSendWorkOrdersModal.jsx` pair, the `processLegacyWorkOrder` ownership question, or the `processDataImport` GL-posting sign-off. Still need your call on all three, plus §0.7's bigger question about where the final repo-wide sweep lives.
+1. **`Statement` → `CustomerPortalStatement`**, exists on dev. Replay of all 5 dev-only tables (including this one) is now explicitly in scope (14C).
+2. **AR cluster** re-verified — only `StatementEmailModal.jsx` and `BatchSendWorkOrdersModal.jsx` remain unmigrated; both added to this plan (new 14E).
+3. **`processLegacyWorkOrder`** confirmed Phase 14's to port (14F, unchanged).
+4. **`processDataImport` and its whole UI surface are deprecated, not migrated** — this removes the single largest, riskiest piece of the original plan (a 459-line 6-type bulk importer) and replaces it with straightforward deletion. Also deprecates `AddLegacyInvoiceModal.jsx` and `LankarImportReturnModal.jsx` outright (both deleted, not ported).
+5. **14A (Setup backup/restore) is deprecated, not migrated** — a different backup solution is coming that overhauls this area anyway. `Setup.jsx`'s backup button and `RestoreBackupModal.jsx` are deleted, not ported. `SalesClassManager.jsx` (unrelated Sales Class CRUD, same file family) still gets migrated.
+6. **14B (Admin.jsx) is mostly deprecated** — the entire "Database Query Tool" (generic entity browser: Extract/Search/Edit against any table) is deleted, along with its only child component `RecordDetailsModal.jsx`. The page shell and the "Lankar Import" nav button stay. A full rebuild of this area is planned for post-Phase-15, out of scope here.
+7. **14G becomes a verification-only step**, not the sunset. Final Sunset (deleting `@base44/sdk`, `base44-proxy`, the `base44/` tree) moves to a **new Phase 15**, which runs after a separate "final validation / blueprint verify" pass confirms every phase's features are functional and tested. Rationale (yours, preserved verbatim in spirit): only get rid of base44 context once — once all base44 calls/functions are removed from the codebase (except the `base44/` folder itself), all features are functional and tested (in case base44's own source is needed as a reference while troubleshooting), and Phase 14 is complete. A one-line pointer to this future Phase 15 has been added to `master_blueprint.md` Section 1 so it isn't forgotten, without adding a full Roadmap entry yet (that happens at rollup).
+8. **The Appendix** (end of this document) is a standalone handoff package — every remaining base44-referencing file outside Phase 14's own scope, categorized by likely owning phase and by exactly what kind of block it is (function shim / entity import / SDK method call / dead import / mixed), so a separate agent can work through it in parallel while this phase executes. Both efforts converge at 14G.
 
 ---
 
 ## 1) Phase Scope & Objectives
 
-**Objective:** Migrate the remaining Setup/Admin/Lankar-Import surface off Base44, then (once every other phase's own base44 usage is confirmed clear) delete the Base44 SDK, the `base44-proxy` bridge function, and the legacy `base44/` function tree.
+**Objective:** Deprecate the Setup backup/restore feature and the entire LANKAR bulk-data-import feature (both confirmed obsolete), gut Admin.jsx's generic database tool (confirmed will be rebuilt later), migrate what's left (Sales Classes, the 4 remaining Setup managers, the last 2 AR-cluster files, the legacy work-order importer) to native Supabase, and replay 5 still-dev-only tables to production. Close with a verification pass — **not** the base44 SDK/proxy/tree removal, which is now Phase 15's job.
 
-**In scope (pending §0 decisions):**
-1. **14A — Setup Core:** `Setup.jsx`'s `backupToGoogleDrive` call, `RestoreBackupModal.jsx`'s `restoreBackup` call, `SalesClassManager.jsx`'s `SupabaseProxy`-routed CRUD (target table `SalesClass`, already fully native).
-2. **14B — Admin.jsx Entity Browser Rewire:** convert the generic entity-browser tool's `SupabaseProxy`-routed "Supabase Table" path to direct `supabase.from()`; move every entity confirmed fully native on both branches from `LOCAL_ENTITIES` to `SUPABASE_TABLES`.
-3. **14C — Dev-only Table Production Replay + Setup Managers:** replay `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog` schemas + RLS to production (empty schema only, matching the established Phase 10A precedent), then migrate `TagAlongManager.jsx`, `OtherChargesManager.jsx`, `WorkOrderStatusManager.jsx` (child of `WIPSettings.jsx`), and `WIPSettings.jsx` itself to direct `supabase.from()`.
-4. **14D — LankarImport.jsx:** convert its own `TagAlong.list()` call to direct `supabase.from()`; replace `base44.integrations.Core.UploadFile` with the established native Storage-upload pattern (`supabase.storage.from('kadr-digital_invoice_uploads').upload(...)`, per `PartsInvoiceOCRModal.jsx`'s precedent); port `processDataImport` (all 6 import types) to a new `autopro-processDataImport` Edge Function.
-5. **14E — AddLegacyInvoiceModal.jsx:** already 95% native (direct `supabase.from('CustomerPayments')`, direct `supabase.rpc('search_customers_ranked')`) — only remaining base44 use is `UploadFile`, same native-Storage swap as 14D.
-6. **14F — LegacyWorkOrderImportModal.jsx:** replace `UploadFile`/`ExtractDataFromUploadedFile` with native Storage upload + a direct Gemini-based extraction call (same established pattern as `autopro-suggestInventoryCategory`/`autopro-processPartsInvoiceOCR`); port `processLegacyWorkOrder` to `autopro-processLegacyWorkOrder`; swap `Customer.list()`/`Vehicle.list()`/`InventoryItem.filter()` (`@/entities/all`) to direct `supabase.from()` calls (all three entities already fully native elsewhere).
-7. **14G — Final Sunset:** repo-wide `base44`/`@/entities/all`/`@/functions/*` grep returns zero hits (excluding the `base44/` source tree itself, per standing Phase 4 rule to leave it alone until this exact step); delete `@base44/sdk`/`@base44/vite-plugin` from `package.json`; remove the base44 plugin block from `vite.config.js`; delete the `base44-proxy` Edge Function; delete the `base44/` function/entity tree.
+**In scope:**
 
-**Explicitly NOT in scope (pending §0.3's decision):**
-- The AR/Statements cluster (`CustomerARTransactions.jsx`, `StatementModal.jsx`, etc.) — real schema design for `Statement`, transport cutover for `SentEmailLog`-dependent files. Held pending your §0.3 decision.
-- Anything belonging to Phase 10 (10E/GST remainder), 10A (integration testing), 12 (Appointment real click-through) — 14G's gate depends on these but this phase doesn't own fixing them.
-- `CreditInvoice.jsx` — confirmed by Phase 13's own closeout to be deliberately still full-base44, flagged there as needing its own follow-up, not this phase's to absorb.
+1. **14C — Production Table Replay (do this first — see "Execution Order" below):** replay `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement` schema+RLS to production. Finish converting `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx` to direct `supabase.from()` (`TagAlongManager.jsx` is already done, per §0.8 — verify, don't re-port).
+2. **14A — Deprecate Setup Backup/Restore, migrate Sales Classes:** delete `Setup.jsx`'s backup button/handler and `RestoreBackupModal.jsx` outright (no native port). Migrate `SalesClassManager.jsx`'s CRUD to direct `supabase.from('SalesClass')`.
+3. **14B — Deprecate Admin.jsx's Database Query Tool:** delete the entire generic entity-browser (state, handlers, `SUPABASE_TABLES`/`LOCAL_ENTITIES` arrays, the whole "Database Query Tool" card) and its only child component, `RecordDetailsModal.jsx`. Keep the page shell (admin access-gate, header) and the "Lankar Import" nav button.
+4. **14D — Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx`:** delete `LankarImport.jsx`'s "Database Type" selector, file-upload card, and import button (no `processDataImport` port — abandoned). Delete `AddLegacyInvoiceModal.jsx` and `LankarImportReturnModal.jsx` outright, including their buttons on `LankarImport.jsx`. Migrate `LankarWOView.jsx`'s `getLankarWorkOrderData` call to native (unrelated display page, not part of the deprecation).
+5. **14E — AR Cluster Remainder:** port `sendStatementEmail` (→ `autopro-sendStatementEmail`) for `StatementEmailModal.jsx`; port `createBatchPortalSnapshot`/`sendBatchWorkOrderEmails` (→ `autopro-createBatchPortalSnapshot`/`autopro-sendBatchWorkOrderEmails`) for `BatchSendWorkOrdersModal.jsx`. The former depends on 14C's `CustomerPortalWorkOrder` replay if targeting production.
+6. **14F — `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder`:** unchanged from original plan — replace `UploadFile`/`ExtractDataFromUploadedFile` with native Storage upload + direct Gemini extraction (same pattern as `autopro-suggestInventoryCategory`); port `processLegacyWorkOrder`; swap `Customer`/`Vehicle`/`InventoryItem` entity imports to direct `supabase.from()`.
+7. **14G — Final Verification Stage (not sunset):** repo-wide grep confirms zero `base44`/`@/entities/all`/`@/functions/*` hits across everything 14A-14F touched; full walkthrough of Setup, Admin, and Lankar Import; confirm no regressions in any consumer of the 5 newly-replayed tables. Once cleared, this phase is done and the separate final-validation pass (§0.9 item 7) + eventual Phase 15 take over.
 
-**Target outcome:** Zero `base44`/`@/entities/all`/`@/functions/*` references in `src/pages/Setup.jsx`, `src/pages/Admin.jsx`, `src/pages/LankarImport.jsx`, and every file under `src/components/setup/` and `src/components/lankar/`. `SalesClass`/`OtherChargeList`/`SystemSettings`/`TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog` all fully native, both branches. Two new native functions (`autopro-processDataImport`, `autopro-processLegacyWorkOrder`) deployed and curl-verified. If and only if 14G's full gate is met (all other phases closed, §0.3 resolved): Base44 SDK and legacy function tree fully removed from the codebase.
+**Recommended execution order** (not strictly A→G — several of these are now independent deletions that can happen in any order, but sequencing matters where noted):
+1. **14C first** — closes the live production risk flagged in §0.8 (`TagAlong` already queried directly by shipped code, table still missing on production) and unblocks 14E's `CustomerPortalWorkOrder` dependency.
+2. **14A, 14B, 14D** — all fast, low-risk deletions now; no reason to sequence relative to each other or to 14C except that 14D should follow 14C only if you want `LankarWOView.jsx`'s migration verified against production-shaped data (not a hard dependency).
+3. **14E, 14F** — the remaining real function ports.
+4. **14G** — verification, once 14A-14F are all done.
+
+**Explicitly NOT in scope:**
+- The Appendix's cross-phase residue (Phase 5/7/8/12/13-boundary leftovers) — handed off separately, not this phase's file scope, converges with this phase only at 14G's grep check.
+- `CreditInvoice.jsx` — confirmed by Phase 13's own closeout to be deliberately still full-base44; in the Appendix, not claimed by anyone yet.
+- Final Sunset itself (`@base44/sdk` removal, `base44-proxy` deletion, `base44/` tree deletion) — now Phase 15, after a separate final-validation pass.
+
+**Target outcome:** `Setup.jsx`, `Admin.jsx`, `LankarImport.jsx`, and every file under `src/components/setup/` and `src/components/lankar/` are either fully native or deleted. `SalesClass`/`OtherChargeList`/`SystemSettings`/`TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement` all fully native, both branches. Three new native functions deployed and curl-verified (`autopro-processLegacyWorkOrder`, `autopro-sendStatementEmail`, `autopro-createBatchPortalSnapshot`/`autopro-sendBatchWorkOrderEmails`). `processDataImport`, `AddLegacyInvoiceModal.jsx`, `LankarImportReturnModal.jsx`, `Setup.jsx`'s backup/restore feature, and `Admin.jsx`'s Database Query Tool are all gone, not ported.
 
 ---
 
@@ -141,17 +125,17 @@ You flagged "we've made some functional changes" — verified directly rather th
 
 Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this phase:
 
-- **Always confirm entity status directly against the database, never trust a classification table at face value** — reinforced 5+ times across prior phases, and directly relevant here: this plan's own §0.2 research already caught the blueprint's stale "dev-only" claim for `GSTReturn`/`Levies`/`OtherChargeList`/`SystemSettings` (all four are actually native on production too now).
-- **`RLS enabled + zero policies = silently blocked access, no clear error`** — the Phase 1 landmine, recurred at Phase 13B/13C when `SystemSettings`/`WorkOrderStatus`/`TagAlong`/`OtherChargeList` were first created on dev. Confirmed via direct query (§0.2) that all 4 still-dev-only tables already have exactly 1 policy each on dev — don't skip the same check when replaying them to production in 14C.
-- **Client-generated 24-char-hex ids (`crypto.randomUUID().replace(/-/g,'').substring(0,24)`) are the project-wide convention for every native `.insert()`**, confirmed as recently as Phase 11 — where the plan's own stated assumption that no id-generation was needed turned out wrong, caught only by checking `pg_attrdef` directly before writing the first insert. Apply this check before writing any new insert in 14A/14C/14D/14E/14F (e.g. any drive-by fix in `SalesClassManager.jsx`, `TagAlongManager.jsx`, etc. that adds a create call not already using `@/entities/all`'s own id-handling).
-- **`@/entities/X` and `base44.entities.X` are functionally identical to the `SupabaseProxy` shim** — both route through Base44. `TagAlongManager.jsx`/`OtherChargesManager.jsx`/`WIPSettings.jsx`/`LankarImport.jsx` all currently call `TagAlong.list()`/`OtherChargeList.create()`/etc. via `@/entities/all` — these need the same direct-`supabase.from()` treatment as any `SupabaseProxy` call, not just the ones using the literal `base44.functions.invoke` string.
-- **All native `autopro-*` Edge Functions return HTTP 200 with `{ error }` on failure** — apply to the two new functions this phase creates (`autopro-processDataImport`, `autopro-processLegacyWorkOrder`); the legacy versions violate this (raw 400/500), must be normalized during the port.
-- **Drop the `base44.auth.me()` gate when porting** — resolve identity from the caller's Supabase JWT only when audit fields are actually needed (both new functions write `created_by`/`created_by_id`-style fields, so they do need identity resolution — use the Phase 8C pattern: `supabase.auth.getUser(token)` from the Authorization header, safe specifically because both functions deploy with `verify_jwt: true`).
-- **A native Storage-upload + direct-fetch-to-Edge-Function pattern already exists and works** — `PartsInvoiceOCRModal.jsx` uploads to `supabase.storage.from('kadr-digital_invoice_uploads')` then calls its backing function directly via `fetch()` with the anon key + user JWT. Reuse this exact pattern for 14D/14E/14F's `UploadFile` replacements rather than inventing a new one.
-- **A native, Gemini-grounded extraction pattern already exists** (`autopro-suggestInventoryCategory`, Phase 7) and `autopro-processPartsInvoiceOCR` (kept alive through Phase 2's PartsTech removal specifically because it's unrelated) — model `LegacyWorkOrderImportModal.jsx`'s AI-extraction port (14F) after these rather than researching a new integration from scratch. Do **not** touch `GEMINI_API_KEY` while doing this (Phase 2's standing caution).
-- **The "one failed promise poisons the whole `Promise.all`" pattern has recurred 5+ times** — check `Admin.jsx`, `Setup.jsx`, and `LankarImport.jsx`'s own data-loading code for this shape before assuming a page's migrated calls are broken on a dev-native session.
-- **Leave the `base44/` source directory and live Base44 platform deployments alone until this phase** — standing rule since Phase 4, finally actionable in 14G.
-- **A phase's own plan can state an assumption that turns out wrong even after explicit attention** — Phase 11's id-generation entry is the most recent example. Verify, don't assume, at every "should be safe" step in this plan too.
+- **Always confirm entity status directly against the database, never trust a classification table at face value** — this plan's own §0.2 research caught a real rename (`Statement`→`CustomerPortalStatement`) and confirmed exactly which of the 5 target tables are missing from production. Re-confirm RLS policy count (1, not 0) on all 5 immediately before/after the 14C replay — the Phase 1 zero-policy landmine has recurred 3+ times on exactly this kind of dev-to-prod schema replay.
+- **Client-generated 24-char-hex ids (`crypto.randomUUID().replace(/-/g,'').substring(0,24)`) are the project-wide convention for every native `.insert()`**, confirmed as recently as Phase 11 (where the plan's own stated assumption that no id-generation was needed turned out wrong — caught only by checking `pg_attrdef` directly). Apply this check before any new insert in 14A (`SalesClassManager.jsx`) or 14E's two new functions.
+- **`@/entities/X` and `base44.entities.X` are functionally identical to the `SupabaseProxy` shim** — both route through Base44. Applies to every remaining `@/entities/all` import touched in this phase (`OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx`, `LankarWOView.jsx`, `LegacyWorkOrderImportModal.jsx`).
+- **All native `autopro-*` Edge Functions return HTTP 200 with `{ error }` on failure** — apply to `autopro-processLegacyWorkOrder`, `autopro-sendStatementEmail`, `autopro-createBatchPortalSnapshot`, `autopro-sendBatchWorkOrderEmails`.
+- **Drop the `base44.auth.me()` gate when porting** — resolve identity from the caller's Supabase JWT only when audit fields are actually needed (Phase 8C pattern: `supabase.auth.getUser(token)`, safe because these functions deploy with `verify_jwt: true`).
+- **A native Storage-upload + direct-fetch-to-Edge-Function pattern already exists and works** — `PartsInvoiceOCRModal.jsx` uploads to `supabase.storage.from('kadr-digital_invoice_uploads')` then calls its backing function directly via `fetch()`. Reuse exactly for 14F's `UploadFile` replacement.
+- **A native, Gemini-grounded extraction pattern already exists** (`autopro-suggestInventoryCategory`, Phase 7; `autopro-processPartsInvoiceOCR`) — model 14F's AI-extraction port after these. Do **not** touch `GEMINI_API_KEY` while doing this.
+- **The "one failed promise poisons the whole `Promise.all`" pattern has recurred 5+ times** — check `Admin.jsx` (post-deletion, should be trivial), `Setup.jsx`, and `LankarImport.jsx`'s remaining data-loading code for this shape.
+- **Before deleting a component, grep for every importer, not just the obvious one** — already done for `RestoreBackupModal.jsx` (only `Setup.jsx`), `RecordDetailsModal.jsx` (only `Admin.jsx`), `AddLegacyInvoiceModal.jsx`/`LankarImportReturnModal.jsx`/`processDataImport` (only `LankarImport.jsx` and themselves) — all confirmed clean single-owner deletions, no orphaned references expected elsewhere.
+- **Leave the `base44/` source directory and live Base44 platform deployments alone** — still true, now extends through Phase 15 rather than resolving at the end of this phase.
+- **A phase's own plan can state an assumption that turns out wrong even after explicit attention** — verify, don't assume, at every "should be safe" step, same as always.
 
 ---
 
@@ -159,279 +143,307 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 
 | Sub-phase | Status | Overview |
 |---|---|---|
-| 14A | Pending | Setup.jsx core: backup/restore/SalesClass — no blockers |
-| 14B | Pending | Admin.jsx entity browser rewire |
-| 14C | Pending | Dev-only table → production replay + TagAlong/OtherCharges/WIP/WorkOrderStatus managers |
-| 14D | Pending | LankarImport.jsx transport + `autopro-processDataImport` port |
-| 14E | Pending | AddLegacyInvoiceModal.jsx cleanup (small) |
-| 14F | Pending (holds on §0.4) | LegacyWorkOrderImportModal.jsx + `autopro-processLegacyWorkOrder` port |
-| 14G | Blocked (holds on §0.3 and §0.7 — scope/ownership decision needed, not just phase-closure timing) | Final Sunset |
+| 14C | **Code complete 2026-08-05 — live-verify pending deploy** | Production replay of 5 dev-only tables + finish 3 remaining Setup managers |
+| 14A | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate Setup backup/restore; migrate Sales Classes |
+| 14B | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate Admin.jsx's Database Query Tool + `RecordDetailsModal.jsx` |
+| 14D | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx` |
+| 14E | **Code complete 2026-08-05 — live-verify pending deploy** | AR cluster remainder: `StatementEmailModal.jsx` + `BatchSendWorkOrdersModal.jsx` |
+| 14F | **Code complete 2026-08-05 — live-verify pending deploy** | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
+| 14G | Pending (last, not yet started per user direction) | Final verification stage — not sunset |
 
 ---
 
-### 14A — Setup Core (Backup / Restore / Sales Classes)
+### 14C — Production Table Replay + Remaining Setup Managers
 
-**Target files:** `src/pages/Setup.jsx`, `src/components/setup/RestoreBackupModal.jsx`, `src/components/setup/SalesClassManager.jsx`; new `supabase/functions/autopro-backupToGoogleDrive/`, `supabase/functions/autopro-restoreBackup/`.
+**Do this first** — closes the live production risk from §0.8 and unblocks 14E.
+
+**Target:** new migration replaying `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement` schema+RLS to production; `src/components/setup/OtherChargesManager.jsx`, `src/components/setup/WIPSettings.jsx`, `src/components/setup/WorkOrderStatusManager.jsx`. `TagAlongManager.jsx` is **already converted** (confirmed reading current source 2026-08-05 — uses `supabase.from('TagAlong')`/`supabase.from('OtherChargeList')` throughout) — verify only, don't re-port.
+
+**Schema replay (production), column-for-column confirmed from dev via `information_schema`:**
+- `TagAlong(name, description, other_charge_id, tagalongid, id, created_date, updated_date, created_by_id, created_by, is_sample)`
+- `WorkOrderStatus(name, display_order, color, is_active, id, created_date, updated_date, created_by_id, created_by, is_sample)`
+- `CustomerPortalWorkOrder` — 24 columns (`original_work_order_id`, `cp_id`, `ref_number`, `ref_date`, `snapshot_date`, `notes_to_customer`, `customer_snapshot`, `vehicle_snapshot`, `line_items_snapshot`, `parts_total`, `labor_total`, `shop_supply_total`, `tax_amount`, `total_amount`, `payments`, `amount_paid`, `po_number`, `stage`, `approval`, + standard audit fields)
+- `SentEmailLog(to_email, from_email, subject, body, body_preview, status, status_message, sent_date, customer_id, work_order_id, portal_url, tracking_id, + standard audit fields)`
+- `CustomerPortalStatement(statement_date, cp_id, customer_id, transactions [jsonb], total_balance_due, aged_balances [jsonb], + standard audit fields)`
+
+Generate each `CREATE TABLE` from dev's live `information_schema` output, apply to production, then add the same single permissive RLS policy pattern already used for every other replay this project has done.
+
+**Detailed Execution Plan:**
+
+| File | Current dependency | Change |
+|---|---|---|
+| `TagAlongManager.jsx` | *(already done)* | Live-verify only — add/edit/delete a throwaway Tag Along on dev, then re-verify on production once the replay lands. |
+| `OtherChargesManager.jsx:5` `import { OtherChargeList } from "@/entities/all";` | `OtherChargeList.list('-created_date')/create()/update()/delete()` | `supabase.from('OtherChargeList').select('*').order('created_date', { ascending: false })` + matching insert/update/delete. File already uses direct `supabase.from('ChartOfAccount')` for its GL dropdown — only the `OtherChargeList` CRUD needs conversion. No replay dependency (`OtherChargeList` already native both branches). |
+| `WIPSettings.jsx:9` `import { SystemSettings } from "@/entities/all";` | `SystemSettings.list()/create()/update()` | `supabase.from('SystemSettings')...` — no replay dependency, `SystemSettings` already native both branches. |
+| `WorkOrderStatusManager.jsx:2` `import { WorkOrderStatus } from '@/entities/all';` | Presumably `list/create/update/delete`, same shape as `TagAlongManager.jsx`'s original code — read the full handler section before executing (only the imports/color-options were read so far) | `supabase.from('WorkOrderStatus')...` — needs the production replay first if this file is exercised on production. |
+
+**Task List:**
+- [x] Write and apply the 5-table schema-replay migration to production (schema + RLS only — these are config tables, nothing to backfill). Applied 2026-08-05, migration `phase14c_replay_tagalong_workorderstatus_customerportalwo_sentemaillog_customerportalstatement`.
+- [x] Confirm via direct SQL: RLS enabled, exactly 1 policy, on all 5 new production tables. Confirmed 2026-08-05 — all 5 show `rls_enabled: true`, `policy_count: 1`; `get_advisors` security scan shows no new findings tied to these tables.
+- [x] Read `WorkOrderStatusManager.jsx`'s full CRUD handlers (not yet reviewed line-by-line) and convert. Converted to direct `supabase.from('WorkOrderStatus')` throughout (list/create/update/delete + the drag-reorder `Promise.all`, which now checks each result for `.error` instead of letting one rejection type silently pass others).
+- [x] Convert `OtherChargesManager.jsx`, `WIPSettings.jsx`. Both converted to direct `supabase.from()` calls (`OtherChargeList`, `SystemSettings`), 24-char-hex id convention applied on inserts, confirmed against live dev rows first.
+- [ ] Live-verify `TagAlongManager.jsx`'s existing conversion on dev, then production post-replay. **Deferred — testing excluded until after commit/push/deploy per current session instructions.**
+- [ ] Live-verify each of the other 3 managers' CRUD round-trip on dev, then production post-replay. **Deferred, same reason.**
+- [x] Fold `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement` into 14B's replacement... **note:** since 14B now deletes the entity-browser entirely, there is no `SUPABASE_TABLES` array left to fold these into. Skipped as noted (confirmed moot — 14B's Admin.jsx rewrite has no such array).
+
+**Verification Plan Checklist:**
+- [x] Production replay migration applied cleanly, RLS confirmed (1 policy exactly) on all 5 tables.
+- [ ] Tag Along add/edit/delete round-trip live, dev then production. **Deferred to post-deploy testing pass.**
+- [ ] Other Charges add/edit/delete round-trip live. **Deferred.**
+- [ ] WIP Settings (legal text / default message / RO & Invoice numbering) save/reload round-trip live. **Deferred.**
+- [ ] Work Order Status manager round-trip live, dev then production. **Deferred.**
+- [x] `npm run build`/`npx eslint` clean on all 4 manager files.
+
+---
+
+### 14A — Deprecate Setup Backup/Restore; Migrate Sales Classes
+
+**Target files:** `src/pages/Setup.jsx`, `src/components/setup/RestoreBackupModal.jsx` (**delete**), `src/components/setup/SalesClassManager.jsx` (migrate).
+
+**Detailed Execution Plan:**
+
+| File / Area | Current | Change |
+|---|---|---|
+| `Setup.jsx:11` | `import { base44 } from "@/api/base44Client";` | Remove — nothing else in this file uses `base44` once the backup handler is gone. |
+| `Setup.jsx:26,33-58` (`backupLoading` state, `handleBackup`) | Full backup handler calling `base44.functions.invoke('backupToGoogleDrive')` | **Delete entirely.** |
+| `Setup.jsx:27,80-91` (`showRestoreModal` state, "Restore Backup" button, `admin === true` conditional wrapper) | Renders the button that opens `RestoreBackupModal` | **Delete entirely** (the surrounding `{currentUser?.admin === true && (...)}` block becomes empty and can be removed too, unless something else needs to render inside that admin-only conditional — confirm before removing the wrapper itself). |
+| `Setup.jsx:20,139-142` (`RestoreBackupModal` import + render) | `<RestoreBackupModal open={...} onClose={...} />` | **Delete.** |
+| `Setup.jsx:92-99` ("Backup AutoPRO" button) | | **Delete.** Keep the unrelated "Download Template" button (line 72-79, external Google Drive link, no base44 dependency). |
+| `RestoreBackupModal.jsx` | Whole file | **Delete the file.** Confirmed only importer is `Setup.jsx` (grepped). |
+| `SalesClassManager.jsx:7` | `import { base44 } from "@/api/base44Client";` | Remove once lines 24/42/44/59 convert. |
+| `SalesClassManager.jsx:24` (`loadSalesClasses`) | `base44.functions.invoke('SupabaseProxy', {})` | `supabase.from('SalesClass').select('*')` |
+| `SalesClassManager.jsx:42/44` (`handleSubmit`) | `SupabaseProxy` update/create | `supabase.from('SalesClass').update(salesClassData).eq('id', editingSalesClass.id)` / `.insert({ id: crypto.randomUUID().replace(/-/g,'').substring(0,24), ...salesClassData })` — confirm `SalesClass.id`'s real format on a live row first. |
+| `SalesClassManager.jsx:59` (`handleDelete`) | `SupabaseProxy` delete | `supabase.from('SalesClass').delete().eq('id', id)` |
+
+No new Edge Function needed — `backupToGoogleDrive`/`restoreBackup` are abandoned, not ported. (They remain live on the Base44 platform, unreachable from the app once these call sites are gone — no cleanup action needed there; Base44 platform itself is out of scope until Phase 15.)
+
+**Task List:**
+- [x] Confirm `SalesClass.id` format on a real dev row before writing the create call. Confirmed 24-char hex, matches convention.
+- [x] Delete `RestoreBackupModal.jsx`. Confirmed no other importers before deleting.
+- [x] Edit `Setup.jsx`: remove backup handler/state/button, remove restore modal state/import/render/button. Also cleaned up now-unused imports (`Employee`, `Card`/`CardContent`/`CardHeader`/`CardTitle`, `Input`, `Label`, several unused lucide icons, `TechForm`) flagged by eslint as a direct result of this edit.
+- [x] Convert `SalesClassManager.jsx`'s 4 call sites. All 4 (`load`/`create`/`update`/`delete`) now direct `supabase.from('SalesClass')` calls.
+- [ ] Live-verify: `/Setup` loads with no backup/restore UI present, no console errors; Sales Class add/edit/delete round-trip works. **Deferred to post-deploy testing pass.**
+
+**Verification Plan Checklist:**
+- [x] `npm run build`/`npx eslint` clean.
+- [ ] `/Setup` page loads, no "Backup AutoPRO"/"Restore Backup" buttons visible, no console errors. **Deferred.**
+- [ ] Sales Class create/edit/delete round-trip confirmed live. **Deferred.**
+- [x] Repo-wide grep for `base44` inside `Setup.jsx`/`SalesClassManager.jsx` returns zero hits; `RestoreBackupModal.jsx` no longer exists.
+
+---
+
+### 14B — Deprecate Admin.jsx's Database Query Tool
+
+**Target file:** `src/pages/Admin.jsx`; **delete** `src/components/admin/RecordDetailsModal.jsx` (confirmed only importer is `Admin.jsx`).
+
+**Detailed Execution Plan:**
+
+Delete entirely: the `SUPABASE_TABLES`/`LOCAL_ENTITIES` arrays (lines 24-37); all query-tool state (`selectedEntity`, `targetType`, `selectedLocalEntity`, `selectedSupabaseTable`, `entityFields`, `fieldMeta`, `loadingFields`, `startDate`, `endDate`, `extractAllDates`, `searchField`, `searchTerm`, `results`, `processing`, `selectedRecord`, `visibleColumns`); all handlers (`handleSelectLocal`, `handleSelectSupabase`, `toggleColumn`, the `fetchSchema` effect, `handleExtract`, `handleSearch`, `handleUpdateRecord`, `downloadData`); the entire "Database Query Tool" `Card` and the "Query Results" `Card` in the JSX; the `RecordDetailsModal` import and its render at the bottom; the `base44` import.
+
+**Keep:** the `isAdmin`/`loading` access-gate `useEffect` and early-return "Access Denied" block; the page header (`Shield` icon, "Admin Database Tools" title — consider renaming/re-copying since the tool itself is gone, your call); the "Lankar Import" button (`onClick={() => window.location.href = createPageUrl('LankarImport')}`).
+
+Resulting file should be well under 100 lines — essentially an access-gated shell with one working nav button.
+
+**Task List:**
+- [x] Confirm `RecordDetailsModal.jsx` has no other importers (already grepped — clean). Re-confirmed 2026-08-05.
+- [x] Rewrite `Admin.jsx` down to the shell described above. Renamed header from "Admin Database Tools" to "Admin" since the tool itself is gone (per plan's "your call" note).
+- [x] Delete `RecordDetailsModal.jsx`.
+- [ ] Live-verify: `/Admin` loads for an admin user, shows only the header + Lankar Import button, no console errors; a non-admin user still sees "Access Denied." **Deferred to post-deploy testing pass.**
+
+**Verification Plan Checklist:**
+- [x] `npm run build`/`npx eslint` clean.
+- [ ] `/Admin` loads correctly for both admin and non-admin sessions. **Deferred.**
+- [ ] "Lankar Import" button still navigates correctly. **Deferred.**
+- [x] Repo-wide grep for `base44` inside `Admin.jsx` returns zero hits; `RecordDetailsModal.jsx` no longer exists.
+
+---
+
+### 14D — Deprecate LANKAR Bulk Import + Legacy AR/Return Modals; Migrate `LankarWOView.jsx`
+
+**Target files:** `src/pages/LankarImport.jsx` (simplify); **delete** `src/components/lankar/AddLegacyInvoiceModal.jsx` and `src/components/inventory/LankarImportReturnModal.jsx`; migrate `src/pages/LankarWOView.jsx`.
+
+**Detailed Execution Plan — `LankarImport.jsx`:**
+
+Delete entirely: `selectedType`/`parsedData`/`uploadedFileUrl`/`importing`/`importResult` state and the `handleFileChange`/`handleImport` handlers (the whole `processDataImport` round-trip, both the `balance_sheet` dry-run branch and the real-import branch); the "Database Type" `RadioGroup` card (all 6 import-type options); the "Upload File" card; the "Import Data (Batch Process)" button; the "Add Legacy Invoice to AR" button + `showLegacyInvoiceModal` state + `<AddLegacyInvoiceModal>` render + its import; the "Add Legacy Return" button + `showReturnModal` state + `<LankarImportReturnModal>` render + its import; the `tagAlongs`/`loadTagAlongs`/`TagAlong` entity import (confirmed not referenced anywhere in the JSX in the version read — double-check with a fresh read before deleting, in case a later edit added a usage). Remove the `base44` import once all of the above is gone.
+
+**Keep:** the "Import Work Order" button, `showWorkOrderImportModal` state, and the `<LegacyWorkOrderImportModal>` render/import (this is 14F's target — do not touch its own internals here, just don't delete the button that opens it). The page's header/back-to-Setup button.
+
+Resulting `LankarImport.jsx` becomes a much smaller page — essentially a header plus one working button.
+
+**Delete:** `AddLegacyInvoiceModal.jsx` (confirmed only importer is `LankarImport.jsx`) and `LankarImportReturnModal.jsx` (confirmed only importer is `LankarImport.jsx`) — full files, no partial migration needed even though `LankarImportReturnModal.jsx` was already ~95% native (only its `InventoryItem`/`InventoryReturn` entity imports weren't yet converted) — deprecation means deletion, not finishing that last conversion.
+
+**`LankarWOView.jsx`** (not yet read in full) — depends on `getLankarWorkOrderData` via `@/functions/`. Read the file in full before executing; this is a display page (likely shows imported/legacy work-order data), unrelated to the deprecated bulk-import feature — migrate it, don't delete it, unless on reading it turns out to be tightly coupled to the deprecated import flow (verify before assuming).
+
+**Task List:**
+- [x] Re-read `LankarImport.jsx` fresh (not the version captured earlier in this doc) to confirm `tagAlongs` truly has no JSX usage before deleting that state. Confirmed no JSX usage.
+- [x] Read `LankarWOView.jsx` in full.
+- [x] Rewrite `LankarImport.jsx` down to header + "Import Work Order" button only.
+- [x] Delete `AddLegacyInvoiceModal.jsx` and `LankarImportReturnModal.jsx`.
+- [x] Convert `LankarWOView.jsx`'s `getLankarWorkOrderData` call to a direct native equivalent — read the legacy `base44/functions/getLankarWorkOrderData/entry.ts` source, confirmed it's pure read-only assembly (queries `LankarWOInfo`/`LankarWOLines`/`LankarWOInventory`/`Customer`/`Vehicle`, all already RLS-enabled with 1 policy on both branches), reimplemented client-side as a local async helper using `supabase.from()` — no new Edge Function needed.
+- [ ] Live-verify: `/LankarImport` loads with only the Import Work Order button visible, no console errors; `LankarWOView.jsx` still renders correctly for a real legacy work order. **Deferred to post-deploy testing pass.**
+
+**Verification Plan Checklist:**
+- [x] `npm run build`/`npx eslint` clean.
+- [ ] `/LankarImport` loads correctly, only "Import Work Order" present. **Deferred.**
+- [ ] `LankarWOView.jsx` regression-checked against a real record. **Deferred.**
+- [x] Repo-wide grep for `base44` inside `LankarImport.jsx`/`LankarWOView.jsx` returns zero hits; `AddLegacyInvoiceModal.jsx`/`LankarImportReturnModal.jsx` no longer exist; no dangling references to either anywhere else in `src/`.
+
+---
+
+### 14E — AR Cluster Remainder
+
+**Target files:** `src/components/ar/StatementEmailModal.jsx`, `src/components/ar/BatchSendWorkOrdersModal.jsx`; new `supabase/functions/autopro-sendStatementEmail/`, `supabase/functions/autopro-createBatchPortalSnapshot/`, `supabase/functions/autopro-sendBatchWorkOrderEmails/`.
 
 **Detailed Execution Plan:**
 
 | File / Line(s) | Current | Change |
 |---|---|---|
-| `Setup.jsx:11` | `import { base44 } from '@/api/base44Client';` | Remove once line 36's call converts. |
-| `Setup.jsx:36` (`handleBackup`) | `base44.functions.invoke('backupToGoogleDrive')` | `supabase.functions.invoke('autopro-backupToGoogleDrive', { body: {} })` — same `response.data.success`/`.filename`/`.fileUrl`/`.error` shape preserved by the ported function. |
-| `RestoreBackupModal.jsx:7` | `import { base44 } from "@/api/base44Client";` | Remove once line 33 converts. |
-| `RestoreBackupModal.jsx:33` (`handleRestore`) | `base44.functions.invoke('restoreBackup', { backupData: jsonContent })` | `supabase.functions.invoke('autopro-restoreBackup', { body: { backupData: jsonContent } })` — same `.success`/`.total_processed`/`.total_failed`/`.error` shape. |
-| `SalesClassManager.jsx:7` | `import { base44 } from '@/api/base44Client';` | Remove once lines 24/42/44/59 convert. |
-| `SalesClassManager.jsx:24` (`loadSalesClasses`) | `base44.functions.invoke('SupabaseProxy', {})` — note: no `action`/`table` specified at all, relying on some default/legacy shim behavior specific to this table | `supabase.from('SalesClass').select('*')` |
-| `SalesClassManager.jsx:42/44` (`handleSubmit`) | `SupabaseProxy` update/create, no `table` param specified either | `supabase.from('SalesClass').update(salesClassData).eq('id', editingSalesClass.id)` / `.insert({ id: crypto.randomUUID().replace(/-/g,'').substring(0,24), ...salesClassData })` — confirm `SalesClass.id` format via a live row first (§2's standing id-check rule) before assuming the 24-char-hex convention applies here too. |
-| `SalesClassManager.jsx:59` (`handleDelete`) | `SupabaseProxy` delete, no `table` param | `supabase.from('SalesClass').delete().eq('id', id)` |
+| `StatementEmailModal.jsx:8` | `import { base44 } from "@/api/base44Client";` | Remove once line 29 converts. |
+| `StatementEmailModal.jsx:29` (`handleSend`) | `base44.functions.invoke('sendStatementEmail', { to, subject, body, customer_id, portal_url, aged_balances })` | `supabase.functions.invoke('autopro-sendStatementEmail', { body: { to, subject, body, customer_id, portal_url, aged_balances } })` — same `.success`/`.error` shape, normalized to always-200. Read the legacy `base44/functions/sendStatementEmail/entry.ts` source before porting (not yet read — likely a straightforward SMTP/email-provider send, no entity writes). |
+| `BatchSendWorkOrdersModal.jsx:9` | `import { createBatchPortalSnapshot } from '@/functions/createBatchPortalSnapshot';` | `supabase.functions.invoke('autopro-createBatchPortalSnapshot', { body: { work_order_id } })` — writes a `CustomerPortalWorkOrder` row (needs 14C's replay if this is exercised against production before 14C lands; dev is unaffected either order). |
+| `BatchSendWorkOrdersModal.jsx:10` | `import { sendBatchWorkOrderEmails } from '@/functions/sendBatchWorkOrderEmails';` | `supabase.functions.invoke('autopro-sendBatchWorkOrderEmails', { body: { to, customer, workOrders } })` — sends one email per selected work order, returns a per-WO `results` array (`{ work_order_id, label, message, success }`) already consumed as-is by the frontend. |
 
-**New function ports** (both under 120 lines in their legacy form, straightforward 1:1 ports):
-- `autopro-backupToGoogleDrive` — 1:1 port of `base44/functions/backupToGoogleDrive/entry.ts` (112 lines). Read the full source before porting; likely iterates every native table and zips/uploads to Drive via a service account — confirm the Google Drive service-account secret name in the legacy function and make sure it's already present in Supabase secrets (it should be, per Phase 1's secrets-sync work) before assuming this is a pure code port with no infra step.
-- `autopro-restoreBackup` — 1:1 port of `base44/functions/restoreBackup/entry.ts` (76 lines). Drop the `base44.auth.me()` gate per convention; this one likely just re-inserts rows table-by-table from the uploaded JSON — verify it doesn't call either protected GL function before treating it as a pure mechanical port.
+Read both legacy function sources (`base44/functions/createBatchPortalSnapshot/entry.ts`, `base44/functions/sendBatchWorkOrderEmails/entry.ts`) in full before porting — not yet reviewed line-by-line, only the frontend call sites have been read.
 
 **Task List:**
-- [ ] Read both legacy function sources in full before writing the port (only skimmed line counts so far).
-- [ ] Confirm `SalesClass.id` format on a real row (dev) before writing the create call.
-- [ ] Port + deploy `autopro-backupToGoogleDrive` to dev, curl-verify.
-- [ ] Port + deploy `autopro-restoreBackup` to dev, curl-verify with a small throwaway JSON payload.
-- [ ] Convert `Setup.jsx`, `RestoreBackupModal.jsx`, `SalesClassManager.jsx`.
-- [ ] Live-verify: trigger a real backup from `/Setup`, confirm the Drive file appears; add/edit/delete a throwaway Sales Class.
-- [ ] Deploy both functions + frontend to production after dev sign-off.
+- [x] Read all 3 legacy function sources in full.
+- [x] Port + deploy `autopro-sendStatementEmail` to dev. Modeled after the already-shipped `autopro-sendARReceiptEmail`/`autopro-sendEmailViaSMTP` pattern (JWT auth via `supabase.auth.getUser`, Resend send, `SentEmailLog` logging, always-200 `{success}`/`{error}`).
+- [x] **Scope change from original plan:** did not port a new `createBatchPortalSnapshot` function — discovered `autopro-createPortalSnapshot` already exists (deployed to dev, used by `SESEmailModal.jsx`/`InvoiceConversion.jsx`) and is functionally identical (same cp_id generation, same `CustomerPortalWorkOrder` insert shape, same `portal_url` format). Reused it instead of duplicating. It was **missing from production** (pre-existing Appendix-type gap, unrelated to this phase) — deployed it to production as part of this task since `BatchSendWorkOrdersModal.jsx` now depends on it there.
+- [x] Port + deploy `autopro-sendBatchWorkOrderEmails` to dev (self-contained: builds per-work-order HTML, logs to `SentEmailLog`, sends via Resend, collects a per-WO results array — same shape the frontend already consumes).
+- [x] Convert both frontend files to `supabase.functions.invoke(...)`.
+- [ ] Live-verify: send one throwaway statement email; batch-send to one or two throwaway work orders, confirm portal links generate and emails send. **Deferred to post-deploy testing pass.**
+- [x] Deploy all functions to production (`autopro-sendStatementEmail`, `autopro-sendBatchWorkOrderEmails`, and `autopro-createPortalSnapshot`) — done same session, no need to wait on 14C since 14C's replay already landed first.
 
 **Verification Plan Checklist:**
-- [ ] `npm run build`/`npx eslint` clean on the 3 touched files.
-- [ ] Live backup button produces a real Drive file with correct row counts.
-- [ ] Restore-backup round-trip tested with a small throwaway export (export → wipe a throwaway row → restore → confirm it reappears), then cleaned up.
-- [ ] Sales Class create/edit/delete round-trip confirmed live on `test.kensauto.ca`.
-- [ ] Repo-wide grep for `base44` inside these 3 files returns zero hits.
+- [ ] All functions curl-verified on dev. **Not curl-verified — deployed and confirmed ACTIVE via Supabase API only; functional verification deferred to post-deploy testing pass.**
+- [ ] Statement email round-trip confirmed live. **Deferred.**
+- [ ] Batch work-order send round-trip confirmed live (portal snapshot creation + email send + results display). **Deferred.**
+- [x] `npm run build`/`npx eslint` clean.
+- [x] Repo-wide grep for `base44`/`@/functions/` inside both files returns zero hits.
 
 ---
 
-### 14B — Admin.jsx Entity Browser Rewire
+### 14F — `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder`
 
-**Target file:** `src/pages/Admin.jsx` (550 lines, read in full above).
+Unchanged from the original plan (confirmed "OK" by you) — full detail below, condensed from the original research.
 
-§0.1's earlier concern (concurrent Phase 10E work) is resolved — clear to proceed. Standard discipline still applies: re-check `git status` on this file immediately before starting, same as any file.
-
-**Detailed Execution Plan:**
-
-Current `SUPABASE_TABLES` (line 24-27): `Appointment, CashFlowEntry, CashFlowSummary, ChartOfAccount, Customer, CustomerARAdjustment, CustomerPayments, FiscalPeriod, InventoryItem, SalesClass, Supplier, SupplierInvoiceLine, SupplierPayment, Vehicle, WorkOrder`.
-
-Current `LOCAL_ENTITIES` (line 29-37): `BankAccount, BankReconciliation, BankTransaction, CashDrawerAdjustment, ChartOfAccount, CustomerPortalWorkOrder, DepositSlipBreakdown, Employee, GLTransaction, GSTReturn, InventoryCategory, InventoryLocation, InventoryReturn, InventoryTxs, Levies, LinesOfCredit, LinesOfCreditTransaction, OtherChargeList, PayrollTransaction, ReturnReason, SentEmailLog, Statement, SystemSettings, TagAlong, User, WorkOrderStatus`.
-
-(Note `ChartOfAccount` currently appears in **both** lists — dead weight in `LOCAL_ENTITIES`, drop it from there since the `SUPABASE_TABLES` entry is the live/correct one.)
-
-| Line(s) | Current | Change |
-|---|---|---|
-| 3 | `import { base44 } from '@/api/base44Client';` | Remove once every call site below converts. |
-| 24-27 | `SUPABASE_TABLES` array | Add every entity confirmed fully native on **both branches** and not already listed: `BankAccount, BankReconciliation, BankTransaction, CashDrawerAdjustment, DepositSlipBreakdown, GLTransaction, GSTReturn, InventoryCategory, InventoryLocation, InventoryReturn, Levies, LinesOfCredit, LinesOfCreditTransaction, OtherChargeList, PayrollTransaction, ReturnReason, SystemSettings`. Also add `TagAlong, WorkOrderStatus, CustomerPortalWorkOrder, SentEmailLog` **only after 14C's production replay lands** — don't move them here first, or the admin tool will 500 on production for anyone using it before 14C ships. |
-| 29-37 | `LOCAL_ENTITIES` array | Remove every entity moved above. Drop `ChartOfAccount` (duplicate, dead). Drop `InventoryTxs` entirely (confirmed deprecated/superseded by `InventoryAuditLog` per Section 2 of the blueprint — don't migrate a dead entity, just remove it from this list). `User` needs its own judgment call — it's a Base44 auth concept, not a real Postgres table; either drop it from the list entirely or point it at `auth.users` via a service-role-gated read if there's a genuine ops need to browse users this way (recommend dropping — flag to you if you want it kept). `Employee` stays in `LOCAL_ENTITIES` for now unless you want it moved too (it's WorkPRO-native, technically browsable via direct `supabase.from('Employee')`, just wasn't in this file's original scope decision — low-risk to move, your call). `Statement` stays in `LOCAL_ENTITIES` — still genuinely non-existent (see §0.3). |
-| 124-155 (`fetchSchema`, `targetType === 'supabase'` branch) | `base44.functions.invoke('SupabaseProxy', { action: 'read', table: selectedEntity })` | `supabase.from(selectedEntity).select('*').limit(1)` — same `data[0]` key-extraction logic below it, unchanged. |
-| 165-192 (`handleExtract`) | Same `SupabaseProxy` read pattern, then client-side date filtering | `supabase.from(selectedEntity).select('*')`, then identical client-side filtering logic (untouched — it's pure JS, not base44-dependent). |
-| 206-216 (`handleSearch`) | Same pattern | `supabase.from(selectedEntity).select('*')`, then identical client-side search-filter logic. |
-| 240-246 (`handleUpdateRecord`, `targetType === 'supabase'` branch) | `base44.functions.invoke('SupabaseProxy', { action: 'update', table: selectedEntity, id: ..., data: ... })` | `supabase.from(selectedEntity).update(updatedRecord).eq('id', updatedRecord.id)` |
-| 247-257 (`handleUpdateRecord`, `targetType === 'local'` branch) | `base44.entities[selectedEntity].update(...)` / `base44.functions.invoke('adminDbTool', ...)` | **Leave this branch alone** — it's for the `LOCAL_ENTITIES` dropdown, which by definition still has at least `Statement` (and possibly `User`/`Employee` per your call above) routing through base44/`adminDbTool`. Only fully removable once `LOCAL_ENTITIES` is empty, which depends on §0.3.
-
-**Task List:**
-- [ ] Re-check `git status` on `Admin.jsx` immediately before starting (§0.1).
-- [ ] Convert the 4 `targetType === 'supabase'` call sites to direct `supabase.from()`.
-- [ ] Update `SUPABASE_TABLES`/`LOCAL_ENTITIES` arrays per the table above (staged: the first 17 entities now, the 4 dev-only ones after 14C).
-- [ ] Decide (or ask) on `User`/`Employee` placement per the note above.
-- [ ] Live-verify: pick 3-4 newly-moved entities, run Extract and Search against real data, confirm results match what the old `SupabaseProxy` path would have returned.
-
-**Verification Plan Checklist:**
-- [ ] `npm run build`/`npx eslint` clean.
-- [ ] Extract works for at least one newly-native entity with real production-shaped data (e.g. `BankTransaction`).
-- [ ] Search works for at least one newly-native entity.
-- [ ] Record-detail edit (`handleUpdateRecord`) round-trips correctly for one newly-native entity.
-- [ ] `LOCAL_ENTITIES` dropdown still works unchanged for whatever remains in it (`adminDbTool` path untouched).
-- [ ] Repo-wide grep for `base44` inside `Admin.jsx` shows only the `targetType === 'local'` branch's intentionally-remaining calls.
-
----
-
-### 14C — Dev-Only Table Production Replay + Setup Managers
-
-**Target:** new migration replaying `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog` schema+RLS to production; `src/components/setup/TagAlongManager.jsx`, `src/components/setup/OtherChargesManager.jsx`, `src/components/setup/WIPSettings.jsx`, `src/components/setup/WorkOrderStatusManager.jsx` (not yet read — read before executing).
-
-**Schema replay (production):** Column-for-column schemas already confirmed identical intent to dev (verified live in §0.2's research: `TagAlong(name, description, other_charge_id, tagalongid, id, created_date, updated_date, created_by_id, created_by, is_sample)`, `WorkOrderStatus(name, display_order, color, is_active, id, created_date, updated_date, created_by_id, created_by, is_sample)`, `CustomerPortalWorkOrder` — 24 columns incl. jsonb-as-text snapshots, `SentEmailLog(to_email, from_email, subject, body, body_preview, status, status_message, sent_date, customer_id, work_order_id, portal_url, tracking_id, ...)`). Generate a `CREATE TABLE` from dev's live `pg_dump`-equivalent (via `information_schema`) for each of the 4, apply to production, then add the same single permissive RLS policy pattern already used for every other table this project has replayed (Phase 10A precedent).
-
-**Detailed Execution Plan (per-file, pending a read of `TagAlongManager.jsx`'s siblings not yet reviewed line-by-line — `WorkOrderStatusManager.jsx` needs its own read pass before writing exact line numbers):**
-
-| File | Current dependency | Change |
-|---|---|---|
-| `TagAlongManager.jsx:7` `import { TagAlong, OtherChargeList } from '@/entities/all';` | `TagAlong.list()/create()/update()/delete()`, `OtherChargeList.list()` | Both convert to `supabase.from('TagAlong')...`/`supabase.from('OtherChargeList')...`. `OtherChargeList` is safe today (already native both branches); `TagAlong` needs the production replay above first. |
-| `OtherChargesManager.jsx:5` `import { OtherChargeList } from "@/entities/all";` | `OtherChargeList.list('-created_date')/create()/update()/delete()` | Convert to `supabase.from('OtherChargeList').select('*').order('created_date', { ascending: false })` and matching insert/update/delete. Note this file **already** uses direct `supabase.from('ChartOfAccount')` for its GL-account dropdown (line 40) — only the `OtherChargeList` CRUD itself needs conversion, the file is already half-native. |
-| `WIPSettings.jsx:9` `import { SystemSettings } from "@/entities/all";` | `SystemSettings.list()/create()/update()` | Convert to `supabase.from('SystemSettings').select('*')` and matching insert/update. `SystemSettings` is already fully native both branches — no replay dependency here, purely mechanical. |
-| `WorkOrderStatusManager.jsx` (not yet read) | Presumably `WorkOrderStatus` via `@/entities/all`, same shape as `TagAlongManager` | Read this file in full before executing; expect the same `list/create/update/delete` → `supabase.from('WorkOrderStatus')` conversion pattern. Needs the production replay first. |
-
-**Task List:**
-- [ ] Read `WorkOrderStatusManager.jsx` in full (not yet reviewed).
-- [ ] Write and apply the 4-table schema-replay migration to production (schema + RLS only, no data — these are config tables, not transactional history, so there's nothing to backfill).
-- [ ] Confirm via direct SQL: RLS enabled, exactly 1 policy, on production, for all 4 new tables (standing Phase 1 landmine check).
-- [ ] Convert `TagAlongManager.jsx`, `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx`.
-- [ ] Live-verify each manager's CRUD round-trip on dev first, then production after the replay.
-- [ ] Fold the now-fully-native `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog` into 14B's `Admin.jsx` `SUPABASE_TABLES` array (deferred there specifically for this reason).
-
-**Verification Plan Checklist:**
-- [ ] Production replay migration applied cleanly, RLS confirmed (1 policy, exactly) on all 4 tables.
-- [ ] Tag Along add/edit/delete round-trip live on dev, then production.
-- [ ] Other Charges add/edit/delete round-trip live (already partially native, confirm no regression from the CRUD conversion).
-- [ ] WIP Settings (legal text / default message / RO & Invoice numbering) save/reload round-trip live.
-- [ ] Work Order Status manager round-trip live (pending file read).
-- [ ] `npm run build`/`npx eslint` clean on all 4 files.
-
----
-
-### 14D — LankarImport.jsx Transport + `autopro-processDataImport` Port
-
-**Target files:** `src/pages/LankarImport.jsx`; new `supabase/functions/autopro-processDataImport/`.
+**Target files:** `src/components/lankar/LegacyWorkOrderImportModal.jsx` (850 lines, read in full during initial research); new `supabase/functions/autopro-processLegacyWorkOrder/`.
 
 **Detailed Execution Plan:**
 
 | Line(s) | Current | Change |
 |---|---|---|
-| 9-10 | `import { InventoryItem, TagAlong } from '@/entities/all'; import { base44 } from '@/api/base44Client';` | Remove `base44` import once converted below. `InventoryItem` import is actually unused in this file (only `TagAlong` is referenced) — drop it too as a drive-by dead-import cleanup. |
-| 30-37 (`loadTagAlongs`) | `TagAlong.list()` | `supabase.from('TagAlong').select('*')` — depends on 14C's production replay landing first. |
-| 51-53 (`handleFileChange`) | `base44.integrations.Core.UploadFile({ file })` | `supabase.storage.from('kadr-digital_invoice_uploads').upload(\`lankar-import/${crypto.randomUUID()}-${file.name}\`, file)` then read back the storage path (not a public URL — pass the storage path to the new Edge Function, which reads it server-side via the service-role client, matching `PartsInvoiceOCRModal.jsx`'s established pattern exactly). |
-| 72-95, 92-95 (`handleImport`) | `base44.functions.invoke('processDataImport', { file_url, type, dry_run })` (×2 call sites: dry-run for balance_sheet, then real run) | `supabase.functions.invoke('autopro-processDataImport', { body: { storage_path, type, dry_run } })` — same `.success`/`.total_debits`/`.total_credits`/`.message`/`.error` response shape, normalized to always-200 per convention. |
-
-**New function port — `autopro-processDataImport`** (459-line legacy source, 6 import types):
-- Read the full legacy source before writing a single line of the port — this is the largest single artifact in this phase and deserves its own careful read-through, not a summary-level port.
-- Preserve the exact per-type column-mapping logic (customers/vehicles/suppliers/inventory/inventory_locations/balance_sheet) byte-for-byte per the project's standing "preserve exact legacy behavior" convention.
-- `balance_sheet`'s dry-run mode (returning `total_debits`/`total_credits` for user confirmation before a real import) must be preserved exactly — it's the one path with a client-side confirmation gate.
-- Apply the 24-char-hex id-generation convention (§2) to every row this function inserts, after confirming each target table's own `id` format on a live row first (`Customer`/`Vehicle`/`Supplier`/`InventoryItem`/`InventoryLocation` all likely already have an established convention from their own migration phases — check each, don't assume they're all the same).
-- Drop the `base44.auth.me()` gate; resolve `created_by`/`created_by_id` from the caller's JWT (Phase 8C pattern) since this writes audit fields.
-- Every legacy `Response.json({ error }, { status: 400/500 })` → `status: 200` per convention.
-
-**Task List:**
-- [ ] Read `base44/functions/processDataImport/entry.ts` in full.
-- [ ] Confirm id-format convention for each of the 5 non-GL target tables via a live row query.
-- [ ] Write and deploy `autopro-processDataImport` to dev.
-- [ ] Curl-verify each of the 6 import types against a small throwaway CSV/file per type (or as many as can be safely constructed) — this function has never been ported before, so no existing precedent to lean on for "which types actually still get used."
-- [ ] Convert `LankarImport.jsx`'s 3 call sites + storage-upload swap.
-- [ ] Live-verify at least the two or three import types the shop actually still uses in practice (confirm with the user which ones are live-relevant vs. legacy-only before spending time verifying all 6 equally).
-- [ ] Clean up all throwaway imported rows after verification.
-- [ ] Deploy to production after dev sign-off.
-
-**Verification Plan Checklist:**
-- [ ] `autopro-processDataImport` curl-verified for each import type actually still in active use.
-- [ ] `balance_sheet`'s dry-run confirmation dialog shows correct totals before a real import.
-- [ ] File upload via native Storage confirmed working (file lands in the bucket, function reads it server-side).
-- [ ] Throwaway imported data cleaned up after each test.
-- [ ] `npm run build`/`npx eslint` clean.
-- [ ] Repo-wide grep for `base44` inside `LankarImport.jsx` returns zero hits.
-
----
-
-### 14E — AddLegacyInvoiceModal.jsx Cleanup
-
-**Target file:** `src/components/lankar/AddLegacyInvoiceModal.jsx` — already uses direct `supabase.from('CustomerPayments')` and `supabase.rpc('search_customers_ranked')`; only base44 use is line 95's `UploadFile`.
-
-**Detailed Execution Plan:**
-
-| Line(s) | Current | Change |
-|---|---|---|
-| 6 | `import { base44 } from "@/api/base44Client";` | Remove once line 95 converts. |
-| 95 (`handleSubmit`) | `base44.integrations.Core.UploadFile({ file })` → `fileUrl` stored as `lankar_invoice` on the `CustomerPayments` insert | Same native-Storage swap as 14D: `supabase.storage.from('kadr-digital_invoice_uploads').upload(...)`, store the resulting storage path (or a signed URL if `lankar_invoice` needs to stay a directly-openable link — check how `lankar_invoice` is read elsewhere before deciding path-vs-signed-URL). |
-
-**Task List:**
-- [ ] Check every reader of `CustomerPayments.lankar_invoice` (grep) to confirm whether it expects a raw URL or can be adapted to a storage path + on-demand signed URL.
-- [ ] Convert the one call site.
-- [ ] Live-verify: add a throwaway legacy invoice with a file attached, confirm the file is retrievable afterward exactly like before.
-
-**Verification Plan Checklist:**
-- [ ] `npm run build`/`npx eslint` clean.
-- [ ] File attach + retrieve round-trip confirmed live.
-- [ ] Repo-wide grep for `base44` inside this file returns zero hits.
-
----
-
-### 14F — LegacyWorkOrderImportModal.jsx + `autopro-processLegacyWorkOrder` Port
-
-**Holds on §0.4.** **Target files:** `src/components/lankar/LegacyWorkOrderImportModal.jsx` (850 lines, read in full above); new `supabase/functions/autopro-processLegacyWorkOrder/`.
-
-**Detailed Execution Plan:**
-
-| Line(s) | Current | Change |
-|---|---|---|
-| 7-8 | `import { base44 } from "@/api/base44Client"; import { Customer, Vehicle, InventoryItem } from "@/entities/all";` | Remove `base44` once all call sites convert. `Customer`/`Vehicle`/`InventoryItem` → direct `supabase.from()` (all three already fully native, confirmed in prior phases — mechanical swap only). |
-| 95 (`processFile`) | `base44.integrations.Core.UploadFile({ file: uploadFile })` | Native Storage upload, same pattern as 14D/14E. |
-| 163-166 (`processFile`) | `base44.integrations.Core.ExtractDataFromUploadedFile({ file_url, json_schema: jsonSchema })` | Replace with a direct Gemini call inside a new native Edge Function (`autopro-extractLegacyWorkOrderData` or fold into the same function as `autopro-processLegacyWorkOrder`'s first phase) using the exact same JSON schema already defined client-side (lines 100-161) — model directly after `autopro-suggestInventoryCategory`'s existing Gemini-grounded pattern (§2). The frontend keeps sending the file (now a storage path) and gets back the same `extractedData` shape it already expects; only the transport changes. |
-| 178-181 (`processFile`) | `Customer.list()`, `Vehicle.list()` | `supabase.from('Customer').select('*')`, `supabase.from('Vehicle').select('*')` |
-| 211, 217 (`processFile`) | `InventoryItem.filter({ part_number: ... })` | `supabase.from('InventoryItem').select('*').eq('part_number', ...)` |
+| 7-8 | `import { base44 } from "@/api/base44Client"; import { Customer, Vehicle, InventoryItem } from "@/entities/all";` | Remove `base44` once all call sites convert. `Customer`/`Vehicle`/`InventoryItem` → direct `supabase.from()` (all three already fully native — mechanical swap). |
+| 95 (`processFile`) | `base44.integrations.Core.UploadFile({ file: uploadFile })` | Native Storage upload (`PartsInvoiceOCRModal.jsx` pattern). |
+| 163-166 (`processFile`) | `base44.integrations.Core.ExtractDataFromUploadedFile({ file_url, json_schema: jsonSchema })` | Direct Gemini call inside the new native function, using the exact same JSON schema already defined client-side (lines 100-161) — model after `autopro-suggestInventoryCategory`'s pattern. Recommend folding this into `autopro-processLegacyWorkOrder`'s own entrypoint as a first phase rather than a separate function — the frontend already treats it as one logical "process this file" action. |
+| 178-181 | `Customer.list()`, `Vehicle.list()` | `supabase.from('Customer').select('*')`, `supabase.from('Vehicle').select('*')` |
+| 211, 217 | `InventoryItem.filter({ part_number: ... })` | `supabase.from('InventoryItem').select('*').eq('part_number', ...)` |
 | 293 (`handleCreateWorkOrder`) | `base44.functions.invoke('processLegacyWorkOrder', payload)` | `supabase.functions.invoke('autopro-processLegacyWorkOrder', { body: payload })` — same `.success`/`.error` shape, normalized to always-200. |
 
-**New function port — `autopro-processLegacyWorkOrder`** (153-line legacy source):
-- Read the full legacy source before porting.
-- This creates a real `WorkOrder` row (id-format already established from Phase 13B's own research — 24-char truncated hex, confirmed against real production rows) plus classified line items (labor/parts/other-charges) and optionally new `InventoryItem` rows for unmatched parts.
-- Confirm it doesn't call either protected GL function (§0.5's same caution applies here) before treating this as a safe standalone port.
-- Drop the `base44.auth.me()` gate, resolve identity from the JWT per the Phase 8C pattern (this function almost certainly sets `created_by` on the new WorkOrder).
+**New function port — `autopro-processLegacyWorkOrder`** (153-line legacy source): read the full legacy source before porting; creates a real `WorkOrder` row (24-char truncated-hex id, per Phase 13B's confirmed convention) plus classified line items and optionally new `InventoryItem` rows; confirm it doesn't call either protected GL function; drop the `base44.auth.me()` gate, resolve identity from the JWT (Phase 8C pattern).
 
 **Task List:**
-- [ ] Read `base44/functions/processLegacyWorkOrder/entry.ts` in full.
-- [ ] Decide (with the extraction-schema JSON already defined client-side) whether the Gemini extraction call lives in its own function or is folded into `autopro-processLegacyWorkOrder`'s own entrypoint as a first phase — recommend folding, since the frontend already treats it as one logical "process this file" action split only by the `step` state variable, not by the file itself needing two separate backend round-trips.
-- [ ] Confirm `WorkOrder.id` format still matches the Phase 13B-documented convention on a fresh check (don't just trust the old note).
-- [ ] Write and deploy the new function(s) to dev.
-- [ ] Curl-verify against a real throwaway legacy work-order PDF.
-- [ ] Convert all `LegacyWorkOrderImportModal.jsx` call sites.
-- [ ] Live-verify the full 2-step flow (upload → extract → review/classify → create) against a real throwaway document.
-- [ ] Clean up the throwaway WorkOrder/InventoryItem rows created during verification.
-- [ ] Deploy to production after dev sign-off.
+- [x] Read `base44/functions/processLegacyWorkOrder/entry.ts` in full.
+- [x] Decide whether the Gemini extraction lives in its own function or folds into `autopro-processLegacyWorkOrder` (recommend folding) — **folded**, single function with `?mode=extract` (Storage download + Gemini structured-JSON extraction, modeled after `autopro-processPartsInvoiceOCR`'s pattern) vs. default POST body (work-order creation, modeled after `autopro-createworkorderdata`'s id/JWT conventions).
+- [x] Confirm `WorkOrder.id` format on a fresh live-row check — 24-char hex, matches convention (already confirmed by `autopro-createworkorderdata`'s own source).
+- [x] Write and deploy the new function to dev and production.
+- [ ] Curl-verify against a real throwaway legacy work-order PDF. **Deferred to post-deploy testing pass** — confirmed ACTIVE via Supabase API and confirmed dependencies exist (storage bucket `kadr-digital_invoice_uploads`, `InventoryItem` columns `stocked_item`/`core`/`core_cost`/`unit`/`category` all present, both branches) but not functionally exercised yet.
+- [x] Convert all `LegacyWorkOrderImportModal.jsx` call sites — `UploadFile`→native Storage upload, `ExtractDataFromUploadedFile`→direct fetch to `autopro-processLegacyWorkOrder?mode=extract` (same auth-header pattern as `PartsInvoiceOCRModal.jsx`), `Customer.list()`/`Vehicle.list()`/`InventoryItem.filter()`→`supabase.from()`, `base44.functions.invoke('processLegacyWorkOrder', ...)`→`supabase.functions.invoke('autopro-processLegacyWorkOrder', ...)`.
+- [ ] Live-verify the full 2-step flow (upload → extract → review/classify → create) against a real throwaway document. **Deferred.**
+- [ ] Clean up throwaway `WorkOrder`/`InventoryItem` rows created during verification. **Deferred (nothing created yet — no live test run).**
+- [x] Deploy to production — done same session, both dev and production now have the function active.
 
 **Verification Plan Checklist:**
-- [ ] Gemini extraction round-trips correctly with the exact same JSON schema the frontend already expects (no shape drift).
-- [ ] Customer/Vehicle auto-match logic still works against real data.
-- [ ] Inventory part-number fuzzy-match (`O`/`0` swap fallback) still works.
-- [ ] New-part creation path (`create_new_part` flag, cost/core/qty-on-order fields) round-trips correctly into `InventoryItem`.
-- [ ] Full "Create Work Order" round-trip produces a correct `WorkOrder` row with correctly-classified line items.
-- [ ] Throwaway data cleaned up.
-- [ ] `npm run build`/`npx eslint` clean.
-- [ ] Repo-wide grep for `base44` inside this file returns zero hits.
+- [ ] Gemini extraction round-trips with the exact JSON schema the frontend already expects. **Deferred to post-deploy testing pass.**
+- [ ] Customer/Vehicle auto-match logic still works. **Deferred.**
+- [ ] Inventory part-number fuzzy-match (`O`/`0` swap fallback) still works. **Deferred.**
+- [ ] New-part creation path round-trips correctly into `InventoryItem`. **Deferred.**
+- [ ] Full "Create Work Order" round-trip produces a correct `WorkOrder` row with correctly-classified line items. **Deferred.**
+- [ ] Throwaway data cleaned up. **N/A until live-verify runs.**
+- [x] `npm run build`/`npx eslint` clean (pre-existing unused-import/unused-var issues in this file, untouched by this port, left as-is).
+- [x] Repo-wide grep for `base44` inside this file returns zero hits.
 
 ---
 
-### 14G — Final Sunset
+### 14G — Final Verification Stage (not the sunset)
 
-**Blocked** on: §0.3's decision (AR/Statements cluster) and §0.7's decision (who sweeps the other ~35 cross-phase-residue files — Phase 5/7/8/12-boundary leftovers, none currently owned). Phase 10 and Phase 13 are confirmed closed (§0.1/§0.1b); Phase 10A is being handled by a separate final-validation plan outside this document (§0.1c). 14A-14F must also land first.
+**Scope note:** this is now scoped only to Phase 14's own work — a full repo-wide zero-base44-hits grep is Phase 15's gate, not this step's. Once cleared, hand off to the separate final-validation pass and eventual Phase 15 planning.
 
-**Detailed Execution Plan (once unblocked):**
-1. Repo-wide grep for `base44`, `@/entities/all`, `@/functions/` across `src/` — must return **zero** hits (the `base44/` source tree itself is exempt, per the standing "leave it alone until this step" rule — this check is about live traffic, not the presence of the archived source).
-2. Remove `@base44/sdk` and `@base44/vite-plugin` from `package.json`.
-3. Remove the base44 plugin block from `vite.config.js`.
-4. Delete the `base44-proxy` Edge Function from both dev and production (`supabase functions delete base44-proxy --project-ref <ref>`, per the Phase 2 precedent of source-deletion and live-function-deletion being two separate steps).
-5. Delete the `base44/` directory from the repo.
-6. Full-app smoke test: every top-level nav page loads without error, on both branches.
+**Detailed Execution Plan:**
+1. Repo-wide grep for `base44`/`@/entities/all`/`@/functions/` restricted to `src/pages/Setup.jsx`, `src/pages/Admin.jsx`, `src/pages/LankarImport.jsx`, `src/pages/LankarWOView.jsx`, everything under `src/components/setup/` and `src/components/lankar/`, plus `StatementEmailModal.jsx`/`BatchSendWorkOrdersModal.jsx` — must return **zero** hits.
+2. Confirm `RestoreBackupModal.jsx`, `RecordDetailsModal.jsx`, `AddLegacyInvoiceModal.jsx`, `LankarImportReturnModal.jsx` no longer exist and nothing else in `src/` references them.
+3. Full walkthrough per the checklist below.
+4. Confirm no regressions in any consumer of the 5 newly-replayed tables outside this phase's own files (spot-check at least one such consumer per table if any exist — e.g. does any work-order form read `WorkOrderStatus` for a status dropdown?).
 
 **Task List:**
-- [ ] Confirm every other phase's closure status directly (not from the blueprint's summary table alone — same standing rule as everywhere else in this project).
-- [ ] Resolve §0.3.
-- [ ] Run the final repo-wide grep and treat any surprise hit as a stop-and-investigate, not a "close enough."
-- [ ] Execute steps 2-6 above.
-- [ ] Full smoke test on `test.kensauto.ca`, then production.
+- [ ] Run the scoped repo-wide grep, treat any surprise hit as stop-and-investigate.
+- [ ] Confirm the 4 deleted files are gone and unreferenced.
+- [ ] Full combined walkthrough (see checklist below).
+- [ ] Report results back for the master_blueprint rollup.
 
-**Verification Plan Checklist:**
-- [ ] Repo-wide `base44` grep: zero hits in `src/`.
-- [ ] `npm run build` succeeds with `@base44/sdk`/`@base44/vite-plugin` fully removed from `package.json` and `vite.config.js`.
-- [ ] Every top-level page loads without console errors on dev.
-- [ ] Every top-level page loads without console errors on production.
-- [ ] `base44-proxy` function deleted from both environments, confirmed via `list_edge_functions`.
-- [ ] `base44/` directory deleted, confirmed via `git status`/`ls`.
+**Verification Plan Checklist (combined, all sub-phases):**
+- [ ] Full Setup page walkthrough: no backup/restore UI present; Sales Classes, Tagalongs, Other Charges, WIP (Statuses/Main/Legal/Default Message) all round-trip correctly.
+- [ ] Full Admin page walkthrough: shell loads correctly for admin and non-admin; Lankar Import button works.
+- [ ] Full Lankar Import page walkthrough: only "Import Work Order" present; one legacy work order import completed end-to-end; `LankarWOView.jsx` regression-checked.
+- [ ] AR cluster: statement email send, batch work-order send both confirmed live.
+- [ ] All 5 replayed tables confirmed working on production, RLS correct.
+- [ ] Repo-wide grep (scoped per above) returns zero hits.
+- [ ] `npm run build`/`npx eslint` clean across everything touched.
 
 ---
 
-## Final Verification Plan (all sub-phases together)
+## Handoff Context to Whatever Comes Next
 
-Once 14A-14F are individually verified, a single combined pass before declaring the phase closed:
-- [ ] Full Setup page walkthrough: backup, restore (throwaway), all 4 setup tabs (Sales Classes, Tagalongs, Other Charges, WIP incl. Statuses/Main/Legal/Default Message).
-- [ ] Full Admin page walkthrough: extract + search against 3-4 different newly-native entities, one record edit.
-- [ ] Full Lankar Import page walkthrough: one CSV-type import (whichever the shop actually still uses), one legacy invoice add with file attach, one legacy work order import end-to-end.
-- [ ] Repo-wide grep across all of Phase 14's target files returns zero `base44` hits.
-- [ ] No regressions in any adjacent page that reads `SalesClass`/`OtherChargeList`/`SystemSettings`/`TagAlong`/`WorkOrderStatus` (e.g. work-order forms that consume tag-alongs/other-charges/WIP legal text) — spot-check at least one such consumer per entity.
+The separate final-validation pass (§0.9 item 7) and eventual Phase 15 planning should inherit: this phase's own confirmation that its file scope is fully clean; the Appendix below, updated to reflect whatever the separate agent working it in parallel has resolved by the time Phase 14 closes; and the note already added to `master_blueprint.md` Section 1 flagging Phase 15's existence for the eventual rollup.
 
-## Handoff Context to Next Phase
+---
 
-Whatever closes out this phase (14G or a deferred "Phase 15 + deferred 14G") should inherit: the exact `base44`-grep file list from whenever 14A-14F actually finish (it will have shrunk from today's ~61-file count but won't be zero until 10/10A/12/13/§0.3 are all done too); the decision made on §0.3; and the `User`/`Employee` placement decision from 14B if left open here.
+## Appendix: Cross-Phase Base44 Residue — Handoff Package for a Separate Agent
+
+Everything below is **outside Phase 14's own file scope** — real, live, unmigrated base44 dependencies left over from other (mostly already-"Tested") phases, none of them currently owned by anyone. Re-verified directly file-by-file on 2026-08-05 (not just grep — actual content read where the block type wasn't obvious from the import line alone). Intended to be picked up by a separate agent/session working in parallel; converges with Phase 14 only at 14G's grep check.
+
+**Block-type legend:**
+- **Function shim** — imports a named function from `@/functions/X` (functionally identical to `base44.functions.invoke('X', ...)`) or calls `base44.functions.invoke(...)` directly. Needs a native `autopro-*` Edge Function port.
+- **Entity import** — imports an entity object from `@/entities/all` (e.g. `WorkOrder`, `Customer`) and calls `.list()`/`.create()`/`.update()`/`.filter()` on it. Functionally identical to `base44.entities.X`. If the underlying table is already confirmed native (most are, in this list), this is a **mechanical swap** to `supabase.from()` — no schema/backend work needed.
+- **SDK method call** — calls a `base44.*` method that isn't `.functions.invoke` or `.entities.X` (e.g. `base44.appLogs.logUserInApp(...)`). Needs case-by-case judgment on whether a native replacement exists or is needed.
+- **Dead import** — `base44` (or similar) is imported but never actually referenced anywhere in the file. Safe one-line deletion, not a real functional blocker.
+- **Mixed** — more than one of the above in the same file.
+
+| File | Likely owning phase | Block type | Specific dependency |
+|---|---|---|---|
+| `src/lib/NavigationTracker.jsx` | Core infra (Phase 4-era) | SDK method call | `base44.appLogs.logUserInApp(pageName)` |
+| `src/components/appointments/AppointmentForm.jsx` | Phase 12/13 boundary | Entity import (native, mechanical) | `WorkOrder, SystemSettings` via `@/entities/all` |
+| `src/components/cash-drawer/DepositDetailsModal.jsx` | Phase 8 boundary | Entity import (native, mechanical) | `WorkOrder` via `@/entities/all` |
+| `src/components/cash-drawer/PaymentSelectionModal.jsx` | Phase 8 boundary | Function shim | `getWorkOrderRoNumber` |
+| `src/pages/CreditInvoice.jsx` | Phase 13 (deliberately deferred at closeout, confirmed not this phase's) | Mixed, substantial | `SupabaseProxy` ×5 + `handleCreditInvoiceGL` |
+| `src/components/customers/NewCustomerModal.jsx` | Phase 5 leftover | Function shim | `SupabaseProxy` create |
+| `src/components/customers/CustomerWorkOrderHistoryModal.jsx` | Phase 5 leftover | Function shim | `getCustomerWorkOrderHistory` |
+| `src/components/inventory/EditInventoryTransactionModal.jsx` | Phase 7 leftover | Function shim | `SupabaseProxy` |
+| `src/components/customers/CustomerHistoryModal.jsx` | Phase 5 leftover | Function shim | `SupabaseProxy` |
+| `src/components/inventory/ChangeSupplierModal.jsx` | Phase 7/9 leftover | Mixed | `InventoryReturn` entity (native) + `SupabaseProxy` |
+| `src/components/inventory/InventoryHistoryModal.jsx` | Phase 7 leftover | Function shim | `SupabaseProxy` (reads `Supplier`) |
+| `src/components/inventory/InventoryEditModal.jsx` | Phase 7 leftover | Mixed | `InventoryItem, InventoryCategory` entity (native) + `SupabaseProxy` + `inventoryUpdate` function |
+| `src/components/inventory/MergeInventoryModal.jsx` | Phase 7 leftover | Function shim | `searchInventory` |
+| `src/pages/InventoryValuation.jsx` | Phase 7 leftover | SDK method call (native table, trivial) | `base44.entities.InventoryItem.filter()` |
+| `src/components/inventory/InventoryAdjustQOHModal.jsx` | Phase 7 leftover | **Dead import** | `base44` imported, never referenced — one-line delete |
+| `src/components/inventory/InventoryTransactionsModal.jsx` | Phase 7 leftover | Function shim | `SupabaseProxy` ×3 |
+| `src/pages/InventoryReturns.jsx` | Phase 7 leftover | Mixed | `SupabaseProxy` ×2 + `inventoryUpdate` |
+| `src/pages/WorkPROView.jsx` | WorkPRO/Phase 4 leftover | Entity import (all native, mechanical) | `WorkOrder, Customer, Vehicle, Employee, TechTimeLog` via `@/entities/all` |
+| `src/components/work-orders/WarrantyReturnModal.jsx` | Phase 13 boundary (confirmed genuinely live, not dead code) | Function shim | `searchSuppliers` |
+| `src/pages/StockReorderReport.jsx` | Phase 7 leftover | Function shim | `SupabaseProxy` ×3 |
+| `src/components/vehicles/VehicleHistoryModal.jsx` | Phase 5 leftover | Mixed | `SupabaseProxy` + `getVehicleWorkOrderHistory` |
+| `src/components/vehicles/VehicleDetails.jsx` | Phase 5 leftover | Function shim | `getVehicleWorkOrderHistory` |
+
+**Confirmed dead code, not real blockers (cosmetic cleanup only, safe to batch with anything else):**
+- `src/Layout.jsx` — a hardcoded `https://registry-pos-tracker-b5793593.base44.app/` URL string (external link, not an API call).
+- `src/components/work-orders/history/WorkOrderHistoryModal.jsx` — `email.endsWith('@no-reply.base44.com')` string check.
+- `src/components/work-orders/form/WorkOrderHeaderInfo.jsx` — same string check + one dead commented-out line (`// const users = await base44.entities.User.filter(...)`).
+- `src/components/work-orders/form/WorkOrderViewHeaderInfo.jsx` — same as above.
+
+**Core infra — only removable at Phase 15's literal last step, not before:**
+- `src/api/base44Client.js`, `src/api/entities.js`, `src/api/integrations.js` — the SDK wrapper files themselves.
+
+**Not in this list, already independently claimed:** everything in Phase 14's own scope (Section 1/3 above); the `base44/` source tree (leave alone until Phase 15, per standing rule).
 
 ---
 

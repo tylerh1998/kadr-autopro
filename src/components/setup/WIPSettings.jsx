@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2 } from "lucide-react";
-import { SystemSettings } from "@/entities/all";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 import WorkOrderStatusManager from "./WorkOrderStatusManager";
 
 export default function WIPSettings({ currentUser }) {
+  const { user, employee } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState("statuses");
   const [legalText, setLegalText] = useState("");
   const [defaultMessage, setDefaultMessage] = useState("");
@@ -29,7 +31,8 @@ export default function WIPSettings({ currentUser }) {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const settings = await SystemSettings.list();
+      const { data: settings, error } = await supabase.from('SystemSettings').select('*');
+      if (error) throw error;
       if (settings && settings.length > 0) {
         const systemSettings = settings[0];
         setSystemSettingsId(systemSettings.id);
@@ -49,10 +52,23 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { wip_legal: legalText });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({ wip_legal: legalText, updated_date: new Date().toISOString() })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ wip_legal: legalText });
-        setSystemSettingsId(newSettings.id);
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
+          wip_legal: legalText,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
+        });
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setLegalHasChanges(false);
       alert("Legal text saved successfully!");
@@ -68,10 +84,23 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { default_message: defaultMessage });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({ default_message: defaultMessage, updated_date: new Date().toISOString() })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ default_message: defaultMessage });
-        setSystemSettingsId(newSettings.id);
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
+          default_message: defaultMessage,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
+        });
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setMessageHasChanges(false);
       alert("Default message saved successfully!");
@@ -87,16 +116,28 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { 
-          next_ro_number: nextRoNumber,
-          next_inv_number: nextInvNumber
-        });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({
+            next_ro_number: nextRoNumber,
+            next_inv_number: nextInvNumber,
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ 
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
           next_ro_number: nextRoNumber,
-          next_inv_number: nextInvNumber
+          next_inv_number: nextInvNumber,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
         });
-        setSystemSettingsId(newSettings.id);
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setNumberingHasChanges(false);
       alert("Numbering settings saved successfully!");

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrderStatus } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ const COLOR_OPTIONS = [
 ];
 
 export default function WorkOrderStatusManager() {
+  const { user, employee } = useAuth();
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingStatus, setEditingStatus] = useState(null);
@@ -39,8 +41,9 @@ export default function WorkOrderStatusManager() {
   const loadStatuses = async () => {
     try {
       setLoading(true);
-      const data = await WorkOrderStatus.list();
-      const sorted = data.sort((a, b) => a.display_order - b.display_order);
+      const { data, error } = await supabase.from('WorkOrderStatus').select('*');
+      if (error) throw error;
+      const sorted = (data || []).sort((a, b) => a.display_order - b.display_order);
       setStatuses(sorted);
     } catch (error) {
       console.error('Error loading statuses:', error);
@@ -67,11 +70,13 @@ export default function WorkOrderStatusManager() {
 
     // Save new order to database
     try {
-      await Promise.all(
+      const results = await Promise.all(
         updatedItems.map(item =>
-          WorkOrderStatus.update(item.id, { display_order: item.display_order })
+          supabase.from('WorkOrderStatus').update({ display_order: item.display_order }).eq('id', item.id)
         )
       );
+      const failed = results.find(r => r.error);
+      if (failed) throw failed.error;
     } catch (error) {
       console.error('Error updating status order:', error);
       alert('Failed to update status order');
@@ -84,13 +89,24 @@ export default function WorkOrderStatusManager() {
 
     try {
       if (editingStatus) {
-        await WorkOrderStatus.update(editingStatus.id, formData);
+        const { error } = await supabase
+          .from('WorkOrderStatus')
+          .update({ ...formData, updated_date: new Date().toISOString() })
+          .eq('id', editingStatus.id);
+        if (error) throw error;
       } else {
         const maxOrder = statuses.length > 0 ? Math.max(...statuses.map(s => s.display_order)) : 0;
-        await WorkOrderStatus.create({
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase.from('WorkOrderStatus').insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
           ...formData,
-          display_order: maxOrder + 1
+          display_order: maxOrder + 1,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
         });
+        if (error) throw error;
       }
 
       setShowForm(false);
@@ -117,7 +133,8 @@ export default function WorkOrderStatusManager() {
     if (!confirm(`Are you sure you want to delete the status "${status.name}"?`)) return;
 
     try {
-      await WorkOrderStatus.delete(status.id);
+      const { error } = await supabase.from('WorkOrderStatus').delete().eq('id', status.id);
+      if (error) throw error;
       loadStatuses();
     } catch (error) {
       console.error('Error deleting status:', error);

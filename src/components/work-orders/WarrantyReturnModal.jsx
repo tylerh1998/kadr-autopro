@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { searchSuppliers } from '@/functions/searchSuppliers';
 import { supabase } from '@/lib/supabase';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
@@ -61,8 +60,14 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         }
 
         try {
-          const suppliersResponse = await searchSuppliers({ searchTerm: '' });
-          setSuppliers(suppliersResponse.data?.suppliers || []);
+          const { data: suppliersData, error: suppliersError } = await supabase.from('Supplier').select('*');
+          if (suppliersError) throw suppliersError;
+          const sortedSuppliers = [...(suppliersData || [])].sort((a, b) => {
+            if (a.pin_to_top && !b.pin_to_top) return -1;
+            if (!a.pin_to_top && b.pin_to_top) return 1;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          setSuppliers(sortedSuppliers);
         } catch (error) {
           console.error('Error fetching suppliers:', error);
           setSuppliers([]);

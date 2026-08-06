@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { createPageUrl } from '@/utils';
-import { getWorkOrderRoNumber } from '@/functions/getWorkOrderRoNumber';
+import { supabase } from '@/lib/supabase';
 
 export default function PaymentSelectionModal({ open, onClose, paymentMethod, payments, title, onMove, onChangeMethod }) {
   const [selectedPayments, setSelectedPayments] = useState([]);
@@ -201,8 +201,13 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                   variant="outline" 
                   className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:text-blue-800 dark:hover:text-blue-200"
                   onClick={async () => {
-                    const response = await getWorkOrderRoNumber({ workOrderId: item.workOrderId });
-                    const roNumber = response.data?.ro_number;
+                    const { data, error } = await supabase
+                      .from('WorkOrder')
+                      .select('ro_number')
+                      .eq('id', item.workOrderId)
+                      .single();
+                    if (error) console.error('Error fetching work order:', error);
+                    const roNumber = data?.ro_number;
                     if (!roNumber) {
                       alert('Unable to find the work order number.');
                       return;

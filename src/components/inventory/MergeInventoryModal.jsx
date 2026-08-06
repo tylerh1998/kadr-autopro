@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Search, ArrowRight, AlertTriangle } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { searchInventory } from "@/lib/inventorySearch";
 import { supabase } from "@/lib/supabase";
 
 export default function MergeInventoryModal({ open, onClose, onMergeComplete, preselectedMaster }) {
@@ -42,7 +42,7 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
       setSearching(true);
       try {
-        const response = await base44.functions.invoke('searchInventory', {
+        const response = await searchInventory({
           searchTerm: searchTerm,
           filter: 'all',
           sortBy: 'part_number',

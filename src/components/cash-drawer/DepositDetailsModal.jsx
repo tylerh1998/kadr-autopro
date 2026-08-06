@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { WorkOrder } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
@@ -99,7 +98,10 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         // Fetch work orders for payments that have work_order_id
         const workOrderIds = [...new Set(batchPayments.filter(p => p.work_order_id).map(p => p.work_order_id))];
         const workOrders = await Promise.all(
-          workOrderIds.map(id => WorkOrder.get(id).catch(() => null))
+          workOrderIds.map(id =>
+            supabase.from('WorkOrder').select('*').eq('id', id).maybeSingle()
+              .then(({ data }) => data).catch(() => null)
+          )
         );
         const workOrderMap = workOrders.reduce((acc, wo) => {
           if (wo) {

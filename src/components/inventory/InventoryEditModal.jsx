@@ -6,9 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { InventoryItem, InventoryCategory } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check, AlertCircle, Merge } from "lucide-react";
 import MergeInventoryModal from './MergeInventoryModal';
@@ -113,8 +110,9 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
         
                     // Only load categories if not provided via props
                     if (!propInventoryCategories || propInventoryCategories.length === 0) {
-                        const categoriesData = await InventoryCategory.list();
-                        setInternalCategories(categoriesData);
+                        const { data: categoriesData, error: categoriesError } = await supabase.from('InventoryCategory').select('*');
+                        if (categoriesError) throw categoriesError;
+                        setInternalCategories(categoriesData || []);
                     }
                 } catch (error) {
                     console.error('Error loading data:', error);
@@ -288,8 +286,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 category: formData.category === "none" || formData.category === "" ? null : formData.category,
             };
 
-            const response = await inventoryUpdate({ itemId: item.id, updates: dataToSubmit });
-            const updatedItem = response.data?.data;
+            const { data: updatedItem, error: updateError } = await supabase
+                .from('InventoryItem')
+                .update(dataToSubmit)
+                .eq('id', item.id)
+                .select()
+                .single();
+            if (updateError) throw updateError;
 
             // Create GL entry if cost changed and QOH > 0
             if (newCost !== oldCost && qoh > 0) {
@@ -345,11 +348,8 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     });
                 }
 
-                await base44.functions.invoke('SupabaseProxy', {
-                    action: 'create',
-                    table: 'GLTransaction',
-                    data: glTransactions
-                });
+                const { error: glError } = await supabase.from('GLTransaction').insert(glTransactions);
+                if (glError) throw glError;
             }
 
             onUpdate(updatedItem);

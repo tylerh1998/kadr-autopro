@@ -45,8 +45,6 @@ import ChangeSupplierModal from '../components/inventory/ChangeSupplierModal';
 import ReceiveCreditModal from '../components/inventory/ReceiveCreditModal';
 import EditReturnInfoModal from '../components/inventory/EditReturnInfoModal';
 import LegacyWarrantyReturnModal from '../components/inventory/LegacyWarrantyReturnModal';
-import { base44 } from '@/api/base44Client';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
 import { searchInventory } from '@/lib/inventorySearch';
 
 export default function InventoryReturnsPage() {
@@ -84,11 +82,9 @@ export default function InventoryReturnsPage() {
 
   const loadSuppliers = async () => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier'
-      });
-      setSuppliers(response.data.data || []);
+      const { data, error } = await supabase.from('Supplier').select('*');
+      if (error) throw error;
+      setSuppliers(data || []);
     } catch (error) {
       console.error('Error loading suppliers:', error);
     }
@@ -140,12 +136,12 @@ export default function InventoryReturnsPage() {
 
   const handleOpenWorkOrder = async (workOrderId) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'WorkOrder',
-        params: { id: workOrderId }
-      });
-      const wo = response.data?.data?.[0];
+      const { data: woRows, error } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('id', workOrderId);
+      if (error) throw error;
+      const wo = woRows?.[0];
       if (wo && wo.ro_number) {
         window.open(getWorkOrderEditUrl(wo.ro_number), '_blank');
       } else {

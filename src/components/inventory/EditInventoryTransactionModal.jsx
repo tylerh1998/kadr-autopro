@@ -8,7 +8,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Save, X, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 
 
@@ -151,12 +150,12 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     const checkLock = async () => {
       if (transaction?.supplier_id) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: transaction.supplier_id }
-          });
-          const supplier = response.data?.data?.[0];
+          const { data: supplierRows, error: supplierError } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', transaction.supplier_id);
+          if (supplierError) throw supplierError;
+          const supplier = supplierRows?.[0];
           const userEmail = employee?.email || null;
           setCurrentUserEmail(userEmail);
 

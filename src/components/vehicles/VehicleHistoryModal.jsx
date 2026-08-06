@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { base44 } from '@/api/base44Client';
-import { getVehicleWorkOrderHistory } from '@/functions/getVehicleWorkOrderHistory';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { FileText, Calendar, DollarSign, Gauge } from 'lucide-react';
 import ModalCloseButton from '@/components/ui/modal-close-button';
@@ -31,14 +30,15 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
       const fetchHistory = async () => {
         setLoading(true);
         try {
-          const response = await getVehicleWorkOrderHistory({
-            vehicleId: vehicle.id,
-            daysBack: filters.daysBack,
-            fromDate: filters.fromDate,
-            toDate: filters.toDate,
-            searchTerm: filters.search.trim()
+          const { data, error } = await supabase.rpc('get_vehicle_work_order_history', {
+            p_vehicle_id: vehicle.id,
+            p_days_back: filters.daysBack ?? 365,
+            p_from_date: filters.fromDate || null,
+            p_to_date: filters.toDate || null,
+            p_search_term: filters.search.trim() || null
           });
-          setHistory(response.data?.workOrders || []);
+          if (error) throw error;
+          setHistory(data || []);
         } catch (error) {
           console.error("Failed to fetch vehicle history:", error);
           alert("Could not load vehicle history.");
@@ -81,11 +81,9 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
 
   const handleEditClick = async () => {
     try {
-      const res = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'read', 
-        table: 'Customer'
-      });
-      setCustomers(res.data?.data || []);
+      const { data, error } = await supabase.from('Customer').select('*');
+      if (error) throw error;
+      setCustomers(data || []);
       setShowEditVehicle(true);
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -95,13 +93,13 @@ export default function VehicleHistoryModal({ open, onClose, vehicle, customer, 
   const handleUpdateVehicle = async (vehicleData) => {
     setIsSubmitting(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'update', 
-        table: 'Vehicle',
-        id: currentVehicle.id,
-        data: vehicleData 
-      });
-      const updated = response.data?.data?.[0];
+      const { data: updated, error } = await supabase
+        .from('Vehicle')
+        .update(vehicleData)
+        .eq('id', currentVehicle.id)
+        .select()
+        .single();
+      if (error) throw error;
       if (updated) {
         setCurrentVehicle(updated);
         setShowEditVehicle(false);

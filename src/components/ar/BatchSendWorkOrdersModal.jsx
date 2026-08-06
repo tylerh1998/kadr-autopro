@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, Copy, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import { createBatchPortalSnapshot } from '@/functions/createBatchPortalSnapshot';
-import { sendBatchWorkOrderEmails } from '@/functions/sendBatchWorkOrderEmails';
+import { supabase } from '@/lib/supabase';
 
 function getStageTitle(workOrder) {
   if (workOrder?.stage === 'estimate') return 'Estimate';
@@ -67,11 +66,14 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
 
       for (const workOrder of selectedWorkOrders) {
         try {
-          const response = await createBatchPortalSnapshot({ work_order_id: workOrder.id });
-          if (response.data?.success) {
-            nextLinks[workOrder.id] = response.data.portal_url || `https://portal.kensauto.ca/WorkOrder?cp_id=${response.data.cp_id}`;
+          const { data, error: invokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+            body: { work_order_id: workOrder.id }
+          });
+          if (invokeError) throw invokeError;
+          if (data?.success) {
+            nextLinks[workOrder.id] = data.portal_url || `https://portal.kensauto.ca/WorkOrder?cp_id=${data.cp_id}`;
           } else {
-            nextErrors[workOrder.id] = response.data?.error || 'Failed to create portal link';
+            nextErrors[workOrder.id] = data?.error || 'Failed to create portal link';
           }
         } catch (error) {
           nextErrors[workOrder.id] = error.message || 'Failed to create portal link';
@@ -98,24 +100,27 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
   const handleSend = async () => {
     setSending(true);
     try {
-      const response = await sendBatchWorkOrderEmails({
-        to: emailTo,
-        customer,
-        workOrders: selectedWorkOrders.map((workOrder) => ({
-          id: workOrder.id,
-          customer_id: workOrder.customer_id,
-          stage: workOrder.stage,
-          ro_number: workOrder.ro_number,
-          wo_number: workOrder.wo_number,
-          est_number: workOrder.est_number,
-          inv_number: workOrder.inv_number,
-          total_amount: workOrder.total_amount || 0,
-          amount_paid: getPaidAmount(workOrder),
-          portal_url: portalLinks[workOrder.id] || null
-        }))
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-sendBatchWorkOrderEmails', {
+        body: {
+          to: emailTo,
+          customer,
+          workOrders: selectedWorkOrders.map((workOrder) => ({
+            id: workOrder.id,
+            customer_id: workOrder.customer_id,
+            stage: workOrder.stage,
+            ro_number: workOrder.ro_number,
+            wo_number: workOrder.wo_number,
+            est_number: workOrder.est_number,
+            inv_number: workOrder.inv_number,
+            total_amount: workOrder.total_amount || 0,
+            amount_paid: getPaidAmount(workOrder),
+            portal_url: portalLinks[workOrder.id] || null
+          }))
+        }
       });
+      if (invokeError) throw invokeError;
 
-      const nextResults = response.data?.results || [];
+      const nextResults = data?.results || [];
       setResults(nextResults);
       if (nextResults.some((item) => item.success)) {
         onSent?.(nextResults);

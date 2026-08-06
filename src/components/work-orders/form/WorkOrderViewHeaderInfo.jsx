@@ -38,19 +38,6 @@ export default function WorkOrderViewHeaderInfo({
       }
     }
 
-    // User fetch removed to enforce Employee list lookup
-    // try {
-    //   // Try to fetch user name from User entity (admin only or current user)
-    //   const users = await base44.entities.User.filter({ email });
-    //   if (users && users.length > 0) {
-    //     const user = users[0];
-    //     return user.User_name || user.full_name || email;
-    //   }
-    // } catch (error) {
-    //   // Ignore permission errors for non-admins
-    //   // console.error('Error fetching user info for:', email, error);
-    // }
-
     return email;
   };
 

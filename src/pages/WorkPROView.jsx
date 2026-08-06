@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { WorkOrder, Customer, Vehicle, Employee, TechTimeLog } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,8 +78,12 @@ export default function WorkPROViewPage() {
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
-      const techTimeLogs = await TechTimeLog.filter({ workpro_project_id: projectId });
-      const totalHours = techTimeLogs.reduce((sum, log) => sum + (parseFloat(log.hours) || 0), 0);
+      const { data: techTimeLogs, error: techTimeLogsError } = await supabase
+        .from('TechTimeLog')
+        .select('*')
+        .eq('workpro_project_id', projectId);
+      if (techTimeLogsError) throw techTimeLogsError;
+      const totalHours = (techTimeLogs || []).reduce((sum, log) => sum + (parseFloat(log.hours) || 0), 0);
       setTechTimeTotal(totalHours);
     } catch (error) {
       console.error('Error fetching tech time total:', error);
@@ -102,9 +105,9 @@ export default function WorkPROViewPage() {
         // If roNumber is provided, load work order and fetch project by work order
         if (roNumber) {
           // Load work order - try both ro_number and wo_number
-          let workOrders = await WorkOrder.filter({ ro_number: roNumber });
+          let { data: workOrders } = await supabase.from('WorkOrder').select('*').eq('ro_number', roNumber);
           if (!workOrders || workOrders.length === 0) {
-            workOrders = await WorkOrder.filter({ wo_number: roNumber });
+            ({ data: workOrders } = await supabase.from('WorkOrder').select('*').eq('wo_number', roNumber));
           }
           if (!workOrders || workOrders.length === 0) {
             setError('Work order not found');
@@ -115,9 +118,9 @@ export default function WorkPROViewPage() {
           setWorkOrder(wo);
 
           // Load customer and vehicle
-          const [customerData, vehicleData] = await Promise.all([
-            Customer.get(wo.customer_id),
-            Vehicle.get(wo.vehicle_id)
+          const [{ data: customerData }, { data: vehicleData }] = await Promise.all([
+            supabase.from('Customer').select('*').eq('id', wo.customer_id).maybeSingle(),
+            supabase.from('Vehicle').select('*').eq('id', wo.vehicle_id).maybeSingle()
           ]);
           setCustomer(customerData);
           setVehicle(vehicleData);
@@ -146,8 +149,9 @@ export default function WorkPROViewPage() {
         }
 
         // Load employees
-        const allEmployees = await Employee.list();
-        const techs = allEmployees.filter(emp => 
+        const { data: allEmployeesData, error: allEmployeesError } = await supabase.from('Employee').select('*');
+        if (allEmployeesError) throw allEmployeesError;
+        const techs = (allEmployeesData || []).filter(emp =>
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||
           emp.position === 'service_advisor'

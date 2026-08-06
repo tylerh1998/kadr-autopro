@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getVehicleWorkOrderHistory } from "@/functions/getVehicleWorkOrderHistory";
+import { supabase } from "@/lib/supabase";
 import {
   X,
   User,
@@ -43,14 +43,15 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
 
       setLoadingWorkOrders(true);
       try {
-        const response = await getVehicleWorkOrderHistory({
-          vehicleId: vehicle.id,
-          daysBack: filters.daysBack,
-          fromDate: filters.fromDate,
-          toDate: filters.toDate,
-          searchTerm: filters.search.trim()
+        const { data, error } = await supabase.rpc('get_vehicle_work_order_history', {
+          p_vehicle_id: vehicle.id,
+          p_days_back: filters.daysBack ?? 365,
+          p_from_date: filters.fromDate || null,
+          p_to_date: filters.toDate || null,
+          p_search_term: filters.search.trim() || null
         });
-        setWorkOrders(response.data?.workOrders || []);
+        if (error) throw error;
+        setWorkOrders(data || []);
       } catch (error) {
         console.error('Error fetching work orders:', error);
       } finally {
