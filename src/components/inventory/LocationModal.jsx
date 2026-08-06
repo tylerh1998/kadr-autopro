@@ -192,13 +192,13 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
                             setSelectedLocation('');
                             setSearchOpen(false);
                         }}
-                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
-                        <span className="text-slate-500 italic">No Location</span>
+                        <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                         {(!selectedLocation || selectedLocation === '') && <Check className="ml-auto h-4 w-4" />}
                         </div>
                     {filteredLocations.length === 0 ? (
-                        <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                        <div className="py-2 text-center text-sm text-slate-500 dark:text-slate-400">No locations found.</div>
                     ) : (
                         filteredLocations.map((location) => (
                         <div
@@ -207,7 +207,7 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
                                 setSelectedLocation(location.location_name);
                                 setSearchOpen(false);
                             }}
-                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             <span>{location.location_name}</span>
                             {selectedLocation === location.location_name && (
@@ -243,7 +243,7 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
           </div>
 
           {showAddForm && (
-            <div className="space-y-3 p-4 border rounded-lg bg-slate-50">
+            <div className="space-y-3 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800">
               <Label>New Location Name</Label>
               <Input
                 value={newLocationName}
@@ -257,7 +257,7 @@ export default function LocationModal({ open, onClose, item, onUpdate }) {
           )}
 
           {showEditForm && (
-            <div className="space-y-3 p-4 border rounded-lg bg-slate-50">
+            <div className="space-y-3 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800">
               <Label>Edit Location Name</Label>
               <Input
                 value={editLocationName}

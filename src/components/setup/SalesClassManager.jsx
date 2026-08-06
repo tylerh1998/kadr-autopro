@@ -88,8 +88,8 @@ export default function SalesClassManager() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Sales Classes</h2>
-            <p className="text-slate-600 mt-1">Manage pricing classes and profit margins</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Sales Classes</h2>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage pricing classes and profit margins</p>
           </div>
           <Button
             onClick={() => {
@@ -107,7 +107,7 @@ export default function SalesClassManager() {
         <Card>
           <CardContent className="p-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
               <Input
                 placeholder="Search sales classes..."
                 value={searchTerm}
@@ -124,9 +124,9 @@ export default function SalesClassManager() {
             Array(3).fill(0).map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6 space-y-3">
-                  <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                  <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div>
+                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3"></div>
                 </CardContent>
               </Card>
             ))
@@ -136,12 +136,12 @@ export default function SalesClassManager() {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-slate-900">{salesClass.name}</h3>
-                        <p className="text-sm text-slate-600">{salesClass.description || 'No description'}</p>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{salesClass.name}</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">{salesClass.description || 'No description'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ export default function SalesClassManager() {
 
                   <div className="space-y-2 mb-4">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">Pricing Ranges:</span>
+                      <span className="text-slate-600 dark:text-slate-400">Pricing Ranges:</span>
                       <Badge variant="outline">{getRangeCount(salesClass.pricing_matrix)} ranges</Badge>
                     </div>
                   </div>
@@ -172,7 +172,7 @@ export default function SalesClassManager() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleDelete(salesClass.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -184,9 +184,9 @@ export default function SalesClassManager() {
             <div className="col-span-full">
               <Card className="text-center py-12">
                 <CardContent>
-                  <DollarSign className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Sales Classes Found</h3>
-                  <p className="text-slate-600 mb-4">
+                  <DollarSign className="w-12 h-12 mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Sales Classes Found</h3>
+                  <p className="text-slate-600 dark:text-slate-400 mb-4">
                     {searchTerm ? 'No sales classes match your search.' : 'Create your first sales class to get started.'}
                   </p>
                   <Button onClick={() => {

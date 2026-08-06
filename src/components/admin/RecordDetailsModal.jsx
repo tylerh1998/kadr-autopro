@@ -117,7 +117,7 @@ export default function RecordDetailsModal({ open, onClose, record, entityName, 
 
                 return (
                   <div key={key} className="grid grid-cols-4 items-start gap-4">
-                    <Label className="text-right pt-2 font-mono text-xs text-slate-500 break-words col-span-1">
+                    <Label className="text-right pt-2 font-mono text-xs text-slate-500 dark:text-slate-400 break-words col-span-1">
                       {key}
                     </Label>
                     <div className="col-span-3 relative group">
@@ -125,13 +125,13 @@ export default function RecordDetailsModal({ open, onClose, record, entityName, 
                         <Textarea 
                           readOnly 
                           value={displayValue} 
-                          className="font-mono text-xs min-h-[80px] bg-slate-50 resize-y"
+                          className="font-mono text-xs min-h-[80px] bg-slate-50 dark:bg-slate-800 resize-y"
                         />
                       ) : (
                         <Input 
                           readOnly 
                           value={displayValue} 
-                          className="font-mono text-xs bg-slate-50 h-8"
+                          className="font-mono text-xs bg-slate-50 dark:bg-slate-800 h-8"
                         />
                       )}
                       <CopyButton text={displayValue} />
@@ -179,11 +179,11 @@ function CopyButton({ text }) {
     <Button
       variant="ghost"
       size="icon"
-      className="absolute top-0 right-0 h-8 w-8 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 hover:bg-white"
+      className="absolute top-0 right-0 h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900"
       onClick={handleCopy}
       title="Copy to clipboard"
     >
-      {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+      {copied ? <Check className="w-3 h-3 text-green-600 dark:text-green-400" /> : <Copy className="w-3 h-3" />}
     </Button>
   );
 }

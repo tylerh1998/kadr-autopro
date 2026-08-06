@@ -553,7 +553,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                       return (
                         <TableRow 
                           key={charge.id}
-                          className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (index % 2 === 1 ? 'bg-slate-50' : '')} hover:bg-blue-100`}
+                          className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (index % 2 === 1 ? 'bg-slate-50 dark:bg-slate-800/50' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
                           onClick={() => handleSelectCharge(charge.id, !isSelected)}
                         >
                           <TableCell onClick={(e) => e.stopPropagation()}>
@@ -565,7 +565,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                           <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
                           <TableCell>{charge.description}</TableCell>
                           <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
-                          <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600' : ''}`}>
+                          <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                             {charge.credit_amount > 0 ? '-' : ''}${((charge.charge_amount || charge.credit_amount) - Math.abs(charge.payment_amount || 0)).toFixed(2)}
                           </TableCell>
                         </TableRow>
@@ -578,7 +578,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+              <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <span className="font-semibold">Selected Amount:</span>
                 <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
               </div>
@@ -609,7 +609,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
                 {calculationResult && (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                    <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 font-medium border-b dark:border-slate-700 flex justify-between">
                       <span>Proposed Application</span>
                       <span>${(calculationResult.totalApplied || 0).toFixed(2)}</span>
                     </div>
@@ -632,7 +632,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                               return (
                                 <TableRow key={item.id}>
                                   <TableCell>{tx?.description || item.id}</TableCell>
-                                  <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600' : ''}`}>
+                                  <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                                     ${Math.abs(item.amount).toFixed(2)}
                                   </TableCell>
                                 </TableRow>
@@ -640,9 +640,9 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                             })
                           )}
                           {(calculationResult.unappliedAmount || 0) > 0.00001 && (
-                            <TableRow className="bg-amber-50">
-                              <TableCell className="font-medium text-amber-800">Unapplied</TableCell>
-                              <TableCell className="text-right font-medium text-amber-800">
+                            <TableRow className="bg-amber-50 dark:bg-amber-900/20">
+                              <TableCell className="font-medium text-amber-800 dark:text-amber-400">Unapplied</TableCell>
+                              <TableCell className="text-right font-medium text-amber-800 dark:text-amber-400">
                                 ${calculationResult.unappliedAmount.toFixed(2)}
                               </TableCell>
                             </TableRow>
@@ -702,8 +702,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             <DialogTitle>Payment Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">Payment Amount:</p>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)}</p>
             </div>
 
@@ -741,8 +741,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                     onClick={() => setPaymentData(prev => ({ ...prev, payment_method: method.value, from_account_id: '' }))}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       paymentData.payment_method === method.value
-                        ? 'bg-slate-900 text-white shadow-md'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     {method.label}
@@ -766,7 +766,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                       </SelectItem>
                     ))
                   ) : (
-                    <p className="p-2 text-sm text-gray-500">No accounts available</p>
+                    <p className="p-2 text-sm text-gray-500 dark:text-gray-400">No accounts available</p>
                   )}
                 </SelectContent>
               </Select>

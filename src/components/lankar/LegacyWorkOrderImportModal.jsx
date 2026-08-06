@@ -471,9 +471,9 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
 
                     {step === 1 && (
                         <div className="py-8 space-y-4 text-center">
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 hover:bg-slate-50 transition-colors">
-                                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                                <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 mb-2">
+                            <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-10 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
+                                <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Upload Work Order PDF
                                 </Label>
                                 <Input 
@@ -503,8 +503,8 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 {/* Customer Selection */}
                                 <div className="space-y-2">
                                     <Label>Customer</Label>
-                                    <div className="text-sm text-slate-500 mb-1">
-                                        Extracted: <span className="font-medium text-slate-900">{extractedData.customer_info?.name}</span>
+                                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900 dark:text-slate-100">{extractedData.customer_info?.name}</span>
                                     </div>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -543,8 +543,8 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 {/* Vehicle Selection */}
                                 <div className="space-y-2">
                                     <Label>Vehicle</Label>
-                                    <div className="text-sm text-slate-500 mb-1">
-                                        Extracted: <span className="font-medium text-slate-900">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
+                                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900 dark:text-slate-100">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
                                     </div>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -584,21 +584,21 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                             </div>
 
                             {/* Invoice Details */}
-                            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
+                            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-md">
                                 <div>
-                                    <Label className="text-xs text-slate-500">Document #</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Document #</Label>
                                     <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Date</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Date</Label>
                                     <div className="font-medium">{extractedData.invoice_details?.invoice_date || 'N/A'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Total Amount</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Total Amount</Label>
                                     <div className="font-medium">${extractedData.totals?.total_amount?.toFixed(2) || '0.00'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Odometer</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Odometer</Label>
                                     <Input 
                                         type="number"
                                         className="h-8 mt-1"
@@ -640,13 +640,13 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                             <>
                                                                 {item.part_number}
                                                                 {item.inventory_match && (
-                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
                                                                         Found
                                                                     </span>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <span className="italic text-slate-500">
+                                                            <span className="italic text-slate-500 dark:text-slate-400">
                                                                 {item.is_other_charge ? 'Other Charge' : (item.is_labor ? 'Labour' : 'Unclassified')}
                                                             </span>
                                                         )}
@@ -673,7 +673,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                         />
                                                                         <label 
                                                                             htmlFor={`new-part-${idx}`} 
-                                                                            className="text-xs cursor-pointer select-none text-blue-600 font-medium"
+                                                                            className="text-xs cursor-pointer select-none text-blue-600 dark:text-blue-400 font-medium"
                                                                         >
                                                                             Add
                                                                         </label>
@@ -683,7 +683,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                     variant="ghost" 
                                                                     size="sm" 
                                                                     onClick={() => handleOpenPartInfo(idx)}
-                                                                    className="text-blue-600 h-7 px-2 text-xs"
+                                                                    className="text-blue-600 dark:text-blue-400 h-7 px-2 text-xs"
                                                                 >
                                                                     Part Info
                                                                 </Button>
@@ -693,7 +693,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                 variant="ghost" 
                                                                 size="sm" 
                                                                 onClick={() => handleOpenClassify(idx)}
-                                                                className="text-blue-600 h-8 px-2"
+                                                                className="text-blue-600 dark:text-blue-400 h-8 px-2"
                                                             >
                                                                 Classify
                                                             </Button>
@@ -797,7 +797,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 onChange={(e) => setQtyOnOrder(e.target.value)} 
                                 placeholder="0"
                             />
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Enter quantity currently on order (max {extractedData?.line_items[costItemIndex]?.quantity || 0}).
                             </p>
                         </div>

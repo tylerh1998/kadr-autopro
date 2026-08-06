@@ -47,7 +47,8 @@ import {
   Sun,
   Moon,
   Shield,
-  User as UserIcon
+  User as UserIcon,
+  AlertCircle
   } from 'lucide-react';
 import {
   DropdownMenu,
@@ -71,6 +72,7 @@ import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
 import { createworkorderdata } from '@/api/workOrderFunctions';
 import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
+import ReportIssueModal from './components/layout/ReportIssueModal';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -82,11 +84,12 @@ function LayoutContent({ children, currentPageName }) {
   const [reportType, setReportType] = useState('');
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { lockState, clearSupplierLock } = useSupplierLock();
-  const { logout, employee, updateEmployeePrefs } = useAuth();
+  const { logout, employee, updateEmployeePrefs, user } = useAuth();
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -853,6 +856,10 @@ const navigationItems = [
                       {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                       <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowReportIssueModal(true)} className="cursor-pointer">
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        <span>Report Issue</span>
+                      </DropdownMenuItem>
                       {employee?.admin === true && (
                         <>
                           <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
@@ -1037,6 +1044,14 @@ const navigationItems = [
         onClose={() => setShowGlobalClockInModal(false)}
         user={employee}
         onClockIn={handleGlobalClockInSuccess}
+      />
+
+      <ReportIssueModal
+        isOpen={showReportIssueModal}
+        onClose={() => setShowReportIssueModal(false)}
+        user={user}
+        currentEmployeeData={employee}
+        isGloballyClockedIn={isClockedIn}
       />
     </div>
   );

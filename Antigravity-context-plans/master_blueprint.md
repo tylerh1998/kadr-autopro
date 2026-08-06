@@ -49,6 +49,19 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 
 **Pages — Full Dark Mode Pass Complete (Phase 8A — Tested, pending Phase 8D visual verification):** CashDrawer.jsx ✅ | CustomerARSummary.jsx ✅ | CustomerARTransactions.jsx ✅ | Customers.jsx ✅ | FinancialDashboard.jsx ✅ | InventoryList.jsx ✅ | InventoryReturns.jsx ✅ | InvoiceConversion.jsx ✅ | Schedule.jsx ✅ (composition-only, no changes needed) | Vehicles.jsx ✅ | WorkOrders.jsx ✅ | WorkOrderView.jsx ✅ (re-verified only, Phase 7's prior fixes held)
 
+**Components — 40 Files Found by 8C's Sweep 1, Never Previously Scoped (Phase 8F — Tested, pending Phase 8D visual verification):**
+*Inventory:* EditInventoryTransactionModal.jsx ✅ | InventoryAddModal.jsx ✅ | InventoryHistoryModal.jsx ✅ | InventoryTransactionsModal.jsx ✅ | LankarImportReturnModal.jsx ✅ | LocationModal.jsx ✅ | MergeInventoryModal.jsx ✅
+*Lines of Credit:* LineOfCreditPaymentModal.jsx ✅ | LineOfCreditTransactionModal.jsx ✅ | LOCReconciliationModal.jsx ✅ | PaymentTransactionItem.jsx ✅
+*Setup/Admin:* RecordDetailsModal.jsx ✅ | EmployeeDirectory.jsx ✅ | PricingMatrixModal.jsx ✅ | RestoreBackupModal.jsx ✅ | SalesClassEditModal.jsx ✅ | SalesClassManager.jsx ✅ | TagAlongManager.jsx ✅ | TechDirectory.jsx ✅ | WIPSettings.jsx ✅ | WorkOrderStatusManager.jsx ✅
+*Lankar:* LankarWOFinancialSummary.jsx ✅ | LankarWOHeaderInfo.jsx ✅ | LankarWOLineItemsTable.jsx ✅ | LegacyWorkOrderImportModal.jsx ✅
+*Cash Drawer:* AdjustmentHistoryModal.jsx ✅ | DepositHistoryModal.jsx ✅ | DepositModal.jsx ✅ | DepositSlipBreakdownModal.jsx ✅
+*Customers:* CustomerHistoryModal.jsx ✅ | CustomerWorkOrderHistoryModal.jsx ✅ | MergeCustomerModal.jsx ✅
+*AR:* BatchSendWorkOrdersModal.jsx ✅ | InterestCalculationModal.jsx ✅
+*Appointments:* SelectCustomerModal.jsx ✅ | SelectWorkOrderModal.jsx ✅
+*Work Order note-card:* NoteColorPicker.jsx ✅ | NoteEditableContent.jsx ✅
+*Cheques:* IssuedChequesTable.jsx ✅ (real print-safety fix — dangerous reused-DOM pattern, no color-reset, fixed)
+*Misc:* UserNotRegisteredError.jsx ✅
+
 **Suppliers & AP (Phase 1 — Tested):** Suppliers.jsx ✅ | SupplierTx.jsx ✅ | SupplierTxView.jsx ✅ | LankarImport.jsx ✅ | LankarWOView.jsx ✅ | ChequeWriter.jsx ✅ | ChequeRegister.jsx ✅ | AddToSheetModal.jsx ✅ | APSummaryTable.jsx ✅ | GLAccountCombobox.jsx ✅ | LineEditModal.jsx ✅ | SupplierCombobox.jsx ✅ | SupplierForm.jsx ✅ | SupplierPaymentModal.jsx ✅ | SupplierTxInvoiceLinesTab.jsx ✅ | SupplierTxInvoiceSummaryTab.jsx ✅ | SupplierTxModals.jsx ✅ (pure composition wrapper, no markup of its own) | SupplierTxPaymentHistoryTab.jsx ✅
 
 **Payroll, Taxes, Admin, Setup, Email (Phase 2 — Tested):** Payroll.jsx ✅ | Taxes.jsx ✅ | Admin.jsx ✅ | Setup.jsx ✅ | EmailLog.jsx ✅ | AddAdjustmentModal.jsx ✅ | AddPaychequeModal.jsx ✅ | AddRemittanceModal.jsx ✅ | EmployeeDetailsForm.jsx ✅ (pure Shadcn form, no raw colors, no changes needed) | payroll/MarkPaidModal.jsx ✅ | PayrollEmployeeForm.jsx ✅ (pure Shadcn form, no raw colors, no changes needed) | PayrollGLAccountCombobox.jsx ✅ | PreviousPaychequesModal.jsx ✅ | taxes/MarkPaidModal.jsx ✅
@@ -96,7 +109,7 @@ Ensure that **every user-facing component and page** in the AutoPro application 
 Phase 1 [Tested] ──► Phase 2 [Tested] ──► Phase 3 [Tested] ──► Phase 4 [Tested*] ──► Phase 5 [Tested*] ──► Phase 6 [Tested] ──► Phase 7 [Tested*]
                                                                                                                                                     │
                                                                                                                                                     ▼
-                                                                                                                                     Phase 8 [In Progress — 8A Complete]
+                                                                                                                                     Phase 8 [In Progress — 8A/8B/8C/8F Complete, 8D/8E Remain]
 ```
 `[Tested*]` = code-complete and grep-audit-verified, awaiting the user's manual visual walkthrough (Phase 8D checklist) rather than a separate live click-through pass per phase.
 
@@ -311,9 +324,9 @@ These 3 files were carried forward and completed as an extension to Phase 7, onc
 
 ---
 
-### Phase 8 — Full Audit Pass & Regression Testing [In Progress — 8A Complete]
+### Phase 8 — Full Audit Pass & Regression Testing [In Progress — 8A/8B/8C/8F Complete, 8D/8E Remain]
 
-**TL;DR:** Final sweep to catch overlooked elements — popovers, comboboxes, tooltips, toasts, and print output. Restructured into sub-phases 8A–8E (see `phase_8_implementation_plan.md`); 8A (the 12 previously-partial pages) is complete, 8B (this rollup) in progress, 8C/8D/8E remain.
+**TL;DR:** Final sweep to catch overlooked elements — popovers, comboboxes, tooltips, toasts, and print output. Restructured into sub-phases 8A–8F (see `phase_8_implementation_plan.md`); 8A (the 12 previously-partial pages), 8B (this rollup), 8C (repo-wide grep audit), and 8F (the 40 files 8C's Sweep 1 found never-scoped) are complete. 8D (manual UI/UX verification, user-driven) and 8E (final closeout) remain.
 
 **Tasks:**
 - Toggle dark mode and navigate every page
@@ -448,3 +461,11 @@ Divider/separator:     dark:divide-slate-700
 2. **Confirms Phase 4's revised Lesson 10 (print-safety) generalizes beyond financial pages**: the same dangerous visibility-only `@media print` pattern (no color-reset) was found and fixed in `CustomerARSummary.jsx`, `FinancialDashboard.jsx`, and `InventoryReturns.jsx`. `InventoryList.jsx` was the inverse case — a positive control confirming its own local print CSS was already fully safe (explicit `color: #000` forced regardless of `dark:` classes present).
 3. **New finding for 8C: a *global* print-safety gap.** `CustomerARTransactions.jsx` uses the shared `.no-print`/`.print-only` mechanism (defined once in `src/index.css`, used by 41 files across the codebase) rather than a local `@media print` block — and that global rule only forces `body { background: white !important; }`, never resetting nested `dark:bg-*`/`dark:text-*` classes on Cards/tables. Fixed locally for just this file (scoped `<style>` override) rather than patching the shared global rule, since most of the other 40 consumers are unaudited by this blueprint and a blanket fix risks breaking a solid dark badge elsewhere that's meant to stay visible in print. **Flagged as a required target for 8C's Sweep 4.**
 4. **Confirms the Phase 4C/4D "color decided in a JS helper" pattern recurs at scale**: `WorkOrders.jsx` had 3 separate color-map helper functions (`getStatusIcon`, `getStatusBadge`, `getStatusColorClasses`) with zero `dark:` pairing, one of them sitting directly next to a hand-coded block using the identical visual pattern with full, correct pairing — used as the exact reference for the fix. Confirms this "helper function returns unpaired Tailwind classes" shape is now recurring across enough phases (4A, 4C, 8A) to check for explicitly in 8C's automated sweep, not just discover opportunistically.
+
+### Phase 8 Rollup — Sub-phase 8F (Complete, pending Phase 8D visual verification)
+*Condensed from `phase_8_implementation_plan.md` Section 4 sub-phase 8F results.*
+1. **All 40 files found by 8C's Sweep 1 (never previously assigned to any phase) completed**, using the same full-read → gap-audit-or-full-pass → print-safety-check → grep-audit methodology as 8A. Almost all were genuinely from-scratch (0 pre-existing `dark:` coverage, matching Sweep 1's finding) rather than gap-audits, unlike 8A where several files turned out closer to done than their raw count suggested.
+2. **The mandatory print-safety check (deferred from 8C Sweep 4) came due on `IssuedChequesTable.jsx`**: its local `@media print` block used the dangerous reused-DOM visibility-toggle pattern with no color-reset. Fixed with an explicit `.print-area, .print-area * { color: #000 !important; background: none !important; }` reset before any `dark:` classes were added — same fix shape as `CustomerARSummary.jsx`/`FinancialDashboard.jsx`/`InventoryReturns.jsx` in 8A and `LinesOfCredit.jsx`/`APSummaryTable.jsx`/`StockReorderReport.jsx` in 8C. `LOCReconciliationModal.jsx` (also deferred from Sweep 4) turned out **not** to need a fix on inspection — its print block is embedded inside a `window.open()`-generated HTML string (Safe Pattern A), not a reused-DOM risk as originally assumed.
+3. **The `NoteColorPicker.jsx` hardcoded `PopoverContent` `bg-white`** flagged in 8C Sweep 6 was fixed as part of this sub-phase's own pass over that file.
+4. **Two "merge" modals share an identical card-rendering pattern**: `MergeInventoryModal.jsx`'s `renderItemCard` (8F, this sub-phase) and `MergeCustomerModal.jsx`'s `renderCustomerCard` (also 8F) — both master/duplicate color-coded card layouts, styled identically. Worth using as a direct reference pair if any future "merge X" modal is added to the app.
+5. **Confirms a boundary case for the "additive-only" rule**: `NoteColorPicker.jsx`'s note-color swatches (literal `bg-white`/`bg-blue-100`/`bg-green-100`/etc., representing the actual selectable note colors a user picks) were deliberately left unpaired with `dark:` — these are content values the user is choosing, not UI chrome describing the app's own light/dark state, so pairing them would be incorrect (a "blue" note swatch shouldn't change color depending on the app's theme). Distinguishes this from every other `bg-*`/`text-*` instance fixed across the whole blueprint, which are all UI chrome.

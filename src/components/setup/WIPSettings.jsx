@@ -111,8 +111,8 @@ export default function WIPSettings({ currentUser }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">WIP Settings</h2>
-        <p className="text-slate-600 mt-1">Configure work-in-progress related settings</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">WIP Settings</h2>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">Configure work-in-progress related settings</p>
       </div>
 
       <div className="flex gap-6">
@@ -146,7 +146,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Numbering Settings</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Numbering Settings</h3>
                   <Button
                     onClick={handleSaveNumbering}
                     disabled={!numberingHasChanges || saving || currentUser?.role !== 'admin'}
@@ -163,7 +163,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -181,7 +181,7 @@ export default function WIPSettings({ currentUser }) {
                         className="max-w-xs"
                         disabled={currentUser?.role !== 'admin'}
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next RO number that will be assigned (e.g., 1001 becomes RO1001)
                       </p>
                     </div>
@@ -200,7 +200,7 @@ export default function WIPSettings({ currentUser }) {
                         className="max-w-xs"
                         disabled={currentUser?.role !== 'admin'}
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next Invoice number that will be assigned (e.g., 1001 becomes INV1001)
                       </p>
                     </div>
@@ -214,7 +214,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Legal Text</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Legal Text</h3>
                   <Button
                     onClick={handleSaveLegal}
                     disabled={!legalHasChanges || saving}
@@ -231,7 +231,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <>
@@ -245,7 +245,7 @@ export default function WIPSettings({ currentUser }) {
                       className="min-h-[400px] font-mono text-sm"
                     />
                     
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       This text will appear on work orders, estimates, and invoices as legal terms and conditions.
                     </p>
                   </>
@@ -258,7 +258,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Default Message</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Default Message</h3>
                   <Button
                     onClick={handleSaveDefaultMessage}
                     disabled={!messageHasChanges || saving}
@@ -275,7 +275,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <>
@@ -289,7 +289,7 @@ export default function WIPSettings({ currentUser }) {
                       className="min-h-[400px] font-mono text-sm"
                     />
                     
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       This message will be automatically added to the "Notes to Customer" field when creating new work orders.
                     </p>
                   </>

@@ -114,7 +114,7 @@ export default function TagAlongManager() {
       <CardContent>
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
             <Input
               placeholder="Search tag alongs..."
               value={searchTerm}
@@ -124,9 +124,9 @@ export default function TagAlongManager() {
           </div>
 
           {loading ? (
-            <div className="text-center py-8 text-slate-500">Loading...</div>
+            <div className="text-center py-8 text-slate-500 dark:text-slate-400">Loading...</div>
           ) : filteredTagAlongs.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-slate-500 dark:text-slate-400">
               No tag alongs found. Click "Add Tag Along" to create one.
             </div>
           ) : (
@@ -142,7 +142,7 @@ export default function TagAlongManager() {
                 </thead>
                 <tbody>
                   {filteredTagAlongs.map((tagAlong) => (
-                    <tr key={tagAlong.id} className="border-b hover:bg-slate-50">
+                    <tr key={tagAlong.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <td className="p-3">{tagAlong.name}</td>
                       <td className="p-3">{tagAlong.description}</td>
                       <td className="p-3">{getLinkedChargeName(tagAlong.other_charge_id)}</td>
@@ -159,7 +159,7 @@ export default function TagAlongManager() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(tagAlong)}
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

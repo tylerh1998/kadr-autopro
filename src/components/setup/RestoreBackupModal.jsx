@@ -68,7 +68,7 @@ export default function RestoreBackupModal({ open, onClose }) {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex gap-3 text-orange-800 text-sm">
+          <div className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800 rounded-lg p-3 flex gap-3 text-orange-800 dark:text-orange-300 text-sm">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
             <div>
               <p className="font-semibold">Warning</p>
@@ -88,7 +88,7 @@ export default function RestoreBackupModal({ open, onClose }) {
           </div>
 
           {status && (
-            <div className="flex items-center gap-2 text-sm text-slate-600 justify-center py-2">
+            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 justify-center py-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>{status}</span>
             </div>

@@ -191,7 +191,7 @@ export default function DepositSlipBreakdownModal({
             <Receipt className="w-5 h-5" />
             Deposit Slip - {depositDate ? format(new Date(depositDate + 'T00:00:00'), 'MMM d, yyyy') : ''}
           </DialogTitle>
-          <p className="text-sm text-slate-500">Enter cash breakdown and confirm cheque details.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Enter cash breakdown and confirm cheque details.</p>
         </DialogHeader>
 
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto p-4 border-t border-b">
@@ -199,9 +199,9 @@ export default function DepositSlipBreakdownModal({
           <div className="space-y-4 pr-4 md:border-r">
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <DollarSign className="h-5 w-5" /> Cash Breakdown
-              {hasCash && <span className="text-sm font-normal text-slate-500">(Expected: ${expectedCashTotal.toFixed(2)})</span>}
+              {hasCash && <span className="text-sm font-normal text-slate-500 dark:text-slate-400">(Expected: ${expectedCashTotal.toFixed(2)})</span>}
             </h3>
-            {!hasCash && <p className="text-sm text-slate-500">No cash in this deposit.</p>}
+            {!hasCash && <p className="text-sm text-slate-500 dark:text-slate-400">No cash in this deposit.</p>}
             {hasCash && (
               <>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -252,10 +252,10 @@ export default function DepositSlipBreakdownModal({
             )}
             <div className="flex justify-between items-center text-lg font-bold pt-4 border-t">
               <span>Total Cash:</span>
-              <span className={cashMismatch ? 'text-red-600' : ''}>${calculateCashTotals.total.toFixed(2)}</span>
+              <span className={cashMismatch ? 'text-red-600 dark:text-red-400' : ''}>${calculateCashTotals.total.toFixed(2)}</span>
             </div>
             {cashMismatch && (
-              <p className="text-sm text-red-500">
+              <p className="text-sm text-red-500 dark:text-red-400">
                 Mismatch: Expected ${expectedCashTotal.toFixed(2)}, entered ${calculateCashTotals.total.toFixed(2)}
               </p>
             )}
@@ -266,10 +266,10 @@ export default function DepositSlipBreakdownModal({
             <h3 className="font-semibold text-lg flex items-center gap-2">
               <Banknote className="h-5 w-5" /> Cheque Details
             </h3>
-            {cheques.length === 0 && <p className="text-sm text-slate-500">No cheques in this deposit.</p>}
+            {cheques.length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">No cheques in this deposit.</p>}
             {cheques.length > 0 && (
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                <div className="grid grid-cols-3 font-medium text-slate-700 border-b pb-1">
+                <div className="grid grid-cols-3 font-medium text-slate-700 dark:text-slate-300 border-b pb-1">
                   <span>Cheque Name</span>
                   <span className="text-center">Cheque #</span>
                   <span className="text-right">Amount</span>
@@ -277,7 +277,7 @@ export default function DepositSlipBreakdownModal({
                 {cheques.map((cheque, index) => (
                   <div key={cheque.id || `cheque-${index}`} className="grid grid-cols-3 text-sm py-1">
                     <span>{cheque.displayName}</span>
-                    <span className="text-center text-slate-600">{cheque.cheque_number || '-'}</span>
+                    <span className="text-center text-slate-600 dark:text-slate-400">{cheque.cheque_number || '-'}</span>
                     <span className="text-right">${(cheque.amount || 0).toFixed(2)}</span>
                   </div>
                 ))}

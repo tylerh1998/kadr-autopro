@@ -113,16 +113,16 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
 
   const getTxTypeBadge = (txType) => {
     const typeStyles = {
-      'Received': 'text-blue-700 border-blue-300 bg-blue-50',
-      'Ordered': 'text-yellow-700 border-yellow-300 bg-yellow-50',
-      'Issued to WO': 'text-red-700 border-red-300 bg-red-50',
-      'Returned from WO': 'text-green-700 border-green-300 bg-green-50',
-      'QOH Adjusted': 'text-purple-700 border-purple-300 bg-purple-50',
-      'Returned to Supplier': 'text-orange-700 border-orange-300 bg-orange-50'
+      'Received': 'text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30',
+      'Ordered': 'text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30',
+      'Issued to WO': 'text-red-700 dark:text-red-300 border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/30',
+      'Returned from WO': 'text-green-700 dark:text-green-300 border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-900/30',
+      'QOH Adjusted': 'text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/30',
+      'Returned to Supplier': 'text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/30'
     };
 
     return (
-      <Badge variant="outline" className={`${typeStyles[txType] || 'text-gray-700 border-gray-300 bg-gray-50'} font-medium`}>
+      <Badge variant="outline" className={`${typeStyles[txType] || 'text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800'} font-medium`}>
         {txType}
       </Badge>
     );
@@ -133,19 +133,19 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     const orderedChange = tx.quantity_ordered_change || 0;
     
     if (qohChange === 0 && orderedChange === 0) {
-      return <span className="text-slate-400 flex items-center"><Minus className="w-3 h-3" /></span>;
+      return <span className="text-slate-400 dark:text-slate-500 flex items-center"><Minus className="w-3 h-3" /></span>;
     }
 
     return (
       <div className="space-y-1 text-sm">
         {qohChange !== 0 && (
-          <div className={`flex items-center gap-1 ${qohChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`flex items-center gap-1 ${qohChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             {qohChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             <span className="font-medium">QOH: {qohChange > 0 ? '+' : ''}{qohChange}</span>
           </div>
         )}
         {orderedChange !== 0 && (
-          <div className={`flex items-center gap-1 ${orderedChange > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+          <div className={`flex items-center gap-1 ${orderedChange > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
             {orderedChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             <span className="font-medium">Ordered: {orderedChange > 0 ? '+' : ''}{orderedChange}</span>
           </div>
@@ -164,7 +164,7 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     
     if (tx.ro_number) {
       refs.push(
-        <div key="ro" className="text-xs font-mono text-blue-600 cursor-pointer hover:underline" onClick={() => handleOpenRO(tx.ro_number)}>
+        <div key="ro" className="text-xs font-mono text-blue-600 dark:text-blue-400 cursor-pointer hover:underline" onClick={() => handleOpenRO(tx.ro_number)}>
           RO: {tx.ro_number}
         </div>
       );
@@ -172,19 +172,19 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     
     if (tx.supplier_inv) {
       refs.push(
-        <div key="inv" className="text-xs font-mono text-green-600">
+        <div key="inv" className="text-xs font-mono text-green-600 dark:text-green-400">
           Inv: {tx.supplier_inv}
         </div>
       );
     }
-    
-    return refs.length > 0 ? <div className="space-y-1">{refs}</div> : <span className="text-slate-400">-</span>;
+
+    return refs.length > 0 ? <div className="space-y-1">{refs}</div> : <span className="text-slate-400 dark:text-slate-500">-</span>;
   };
 
   const renderSupplier = (tx) => {
     const supplierName = getSupplierName(tx.supplier_name);
     return (
-      <span className="text-sm text-slate-600">
+      <span className="text-sm text-slate-600 dark:text-slate-400">
         {supplierName}
       </span>
     );
@@ -215,15 +215,15 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
                 {Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
             ) : error ? (
-              <div className="text-center py-10 text-red-500">{error}</div>
+              <div className="text-center py-10 text-red-500 dark:text-red-400">{error}</div>
             ) : transactions.length === 0 ? (
-              <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
+              <div className="text-center py-10 text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
                 <PackageX className="w-10 h-10" />
                 <p>No transaction history found for this part.</p>
               </div>
             ) : (
               <Table>
-                <TableHeader className="sticky top-0 bg-slate-50 z-10">
+                <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
                   <TableRow>
                     <TableHead className="w-32">Date</TableHead>
                     <TableHead className="w-40">Transaction Type</TableHead>
@@ -235,7 +235,7 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
                 </TableHeader>
                 <TableBody>
                   {transactions.map((tx) => (
-                    <TableRow key={tx.id} className="hover:bg-slate-50">
+                    <TableRow key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <TableCell className="text-sm">
                         {tx.tx_date ? format(new Date(tx.tx_date), 'MMM d, yyyy\nh:mm a') : 'N/A'}
                       </TableCell>
@@ -243,7 +243,7 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
                       <TableCell>{renderReference(tx)}</TableCell>
                       <TableCell>{renderQuantityChanges(tx)}</TableCell>
                       <TableCell>{renderSupplier(tx)}</TableCell>
-                      <TableCell className="text-sm text-slate-600">
+                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                         {tx.description || '-'}
                       </TableCell>
                     </TableRow>

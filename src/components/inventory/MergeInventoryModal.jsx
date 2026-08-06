@@ -120,21 +120,21 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
   };
 
   const renderItemCard = (item, type) => (
-    <div className={`p-4 rounded-lg border ${type === 'master' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+    <div className={`p-4 rounded-lg border ${type === 'master' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
       <div className="flex justify-between items-start mb-2">
-        <span className={`text-xs font-bold px-2 py-1 rounded ${type === 'master' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+        <span className={`text-xs font-bold px-2 py-1 rounded ${type === 'master' ? 'bg-green-200 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 'bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-300'}`}>
           {type === 'master' ? 'MASTER (Keep)' : 'DUPLICATE (Merge & Hide)'}
         </span>
       </div>
       <div className="space-y-1">
-        <div className="font-bold text-lg">{item.part_number}</div>
-        <div className="text-sm text-gray-600">{item.description}</div>
+        <div className="font-bold text-lg dark:text-slate-100">{item.part_number}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">{item.description}</div>
         <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
           <div>
-            <span className="text-gray-500">QOH:</span> <span className="font-medium">{item.quantity_on_hand}</span>
+            <span className="text-gray-500 dark:text-gray-400">QOH:</span> <span className="font-medium dark:text-slate-200">{item.quantity_on_hand}</span>
           </div>
           <div>
-            <span className="text-gray-500">Cost:</span> <span className="font-medium">${item.cost}</span>
+            <span className="text-gray-500 dark:text-gray-400">Cost:</span> <span className="font-medium dark:text-slate-200">${item.cost}</span>
           </div>
         </div>
       </div>
@@ -151,20 +151,20 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
         {step < 3 ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>1</div>
-              <span className={step === 1 ? 'font-bold' : 'text-gray-500'}>Select Master Item</span>
-              <div className="w-8 h-px bg-gray-300 mx-2"></div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>2</div>
-              <span className={step === 2 ? 'font-bold' : 'text-gray-500'}>Select Duplicate Item</span>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400'}`}>1</div>
+              <span className={step === 1 ? 'font-bold dark:text-slate-100' : 'text-gray-500 dark:text-gray-400'}>Select Master Item</span>
+              <div className="w-8 h-px bg-gray-300 dark:bg-gray-700 mx-2"></div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 2 ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400'}`}>2</div>
+              <span className={step === 2 ? 'font-bold dark:text-slate-100' : 'text-gray-500 dark:text-gray-400'}>Select Duplicate Item</span>
             </div>
 
             {masterItem && step === 2 && (
               <div className="mb-4">
-                <div className="text-sm text-gray-500 mb-1">Selected Master Item:</div>
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Selected Master Item:</div>
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex justify-between items-center">
                   <div>
-                    <span className="font-bold mr-2">{masterItem.part_number}</span>
-                    <span>{masterItem.description}</span>
+                    <span className="font-bold mr-2 dark:text-slate-100">{masterItem.part_number}</span>
+                    <span className="dark:text-slate-300">{masterItem.description}</span>
                   </div>
                   {!preselectedMaster && (
                     <Button variant="ghost" size="sm" onClick={() => { setStep(1); setMasterItem(null); setSearchTerm(""); }}>Change</Button>
@@ -174,7 +174,7 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
             )}
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
               <Input
                 placeholder={`Search for ${step === 1 ? 'Master' : 'Duplicate'} Item...`}
                 value={searchTerm}
@@ -186,44 +186,44 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
             <div className="max-h-60 overflow-y-auto border rounded-md">
               {searching ? (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                   Searching...
                 </div>
               ) : searchResults.length > 0 ? (
-                <div className="divide-y">
+                <div className="divide-y dark:divide-slate-800">
                   {searchResults.map(item => (
-                    <div 
-                      key={item.id} 
-                      className="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                    <div
+                      key={item.id}
+                      className="p-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer flex justify-between items-center"
                       onClick={() => handleSelect(item)}
                     >
                       <div>
-                        <div className="font-medium">{item.part_number}</div>
-                        <div className="text-sm text-gray-500">{item.description}</div>
+                        <div className="font-medium dark:text-slate-100">{item.part_number}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{item.description}</div>
                       </div>
-                      <div className="text-right text-sm">
+                      <div className="text-right text-sm dark:text-slate-200">
                         <div>QOH: {item.quantity_on_hand}</div>
-                        <div className="text-gray-500">${item.cost}</div>
+                        <div className="text-gray-500 dark:text-gray-400">${item.cost}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : searchTerm.length >= 2 ? (
-                <div className="p-4 text-center text-gray-500">No items found</div>
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">No items found</div>
               ) : (
-                <div className="p-4 text-center text-gray-400">Type at least 2 characters to search</div>
+                <div className="p-4 text-center text-gray-400 dark:text-gray-500">Type at least 2 characters to search</div>
               )}
             </div>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-700 p-4">
               <div className="flex">
-                <AlertTriangle className="h-5 w-5 text-yellow-400 mr-2" />
+                <AlertTriangle className="h-5 w-5 text-yellow-400 dark:text-yellow-500 mr-2" />
                 <div>
-                  <p className="font-bold text-yellow-700">Warning: This action cannot be undone</p>
-                  <p className="text-sm text-yellow-600 mt-1">
+                  <p className="font-bold text-yellow-700 dark:text-yellow-400">Warning: This action cannot be undone</p>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">
                     Merging will move all history, work order links, and quantities from the Duplicate to the Master item. The Duplicate item will be deactivated.
                   </p>
                 </div>
@@ -232,21 +232,21 @@ export default function MergeInventoryModal({ open, onClose, onMergeComplete, pr
 
             <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
               {renderItemCard(duplicateItem, 'duplicate')}
-              <ArrowRight className="w-6 h-6 text-gray-400" />
+              <ArrowRight className="w-6 h-6 text-gray-400 dark:text-gray-500" />
               {renderItemCard(masterItem, 'master')}
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
-              <h4 className="font-bold text-gray-700">Merge Result Preview:</h4>
+            <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg space-y-2 text-sm">
+              <h4 className="font-bold text-gray-700 dark:text-gray-300">Merge Result Preview:</h4>
               <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-                <div className="text-gray-500">New QOH:</div>
-                <div className="font-medium">{(masterItem.quantity_on_hand || 0) + (duplicateItem.quantity_on_hand || 0)}</div>
-                
-                <div className="text-gray-500">New Cost:</div>
-                <div className="font-medium">${Math.max(masterItem.cost || 0, duplicateItem.cost || 0).toFixed(2)}</div>
-                
-                <div className="text-gray-500">Master ID:</div>
-                <div className="font-mono text-xs">{masterItem.id}</div>
+                <div className="text-gray-500 dark:text-gray-400">New QOH:</div>
+                <div className="font-medium dark:text-slate-200">{(masterItem.quantity_on_hand || 0) + (duplicateItem.quantity_on_hand || 0)}</div>
+
+                <div className="text-gray-500 dark:text-gray-400">New Cost:</div>
+                <div className="font-medium dark:text-slate-200">${Math.max(masterItem.cost || 0, duplicateItem.cost || 0).toFixed(2)}</div>
+
+                <div className="text-gray-500 dark:text-gray-400">Master ID:</div>
+                <div className="font-mono text-xs dark:text-slate-400">{masterItem.id}</div>
               </div>
             </div>
           </div>

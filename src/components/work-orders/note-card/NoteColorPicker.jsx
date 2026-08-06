@@ -25,8 +25,8 @@ export default function NoteColorPicker({ icon: Icon, currentColour = 'white', o
           <Icon className={`h-4 w-4 ${buttonIconClassName}`} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 border-slate-200 bg-white p-3">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Choose Colour</div>
+      <PopoverContent align="start" className="w-56 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Choose Colour</div>
         <div className="space-y-1">
           {colourOptions.map((option) => {
             const isActive = currentColour === option.value;
@@ -35,13 +35,13 @@ export default function NoteColorPicker({ icon: Icon, currentColour = 'white', o
                 key={option.value}
                 type="button"
                 onClick={() => handleSelect(option.value)}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-slate-50"
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <div className="flex items-center gap-3">
                   <span className={`h-5 w-5 rounded-full border ${option.swatch}`} />
-                  <span className="text-sm font-medium text-slate-700">{option.label}</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{option.label}</span>
                 </div>
-                {isActive ? <Check className="h-4 w-4 text-slate-500" /> : null}
+                {isActive ? <Check className="h-4 w-4 text-slate-500 dark:text-slate-400" /> : null}
               </button>
             );
           })}

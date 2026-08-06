@@ -426,9 +426,9 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
 
         <div className="flex-1 overflow-y-auto py-4">
           {!isSupported ? (
-             <div className="flex flex-col items-center justify-center h-full py-12 text-slate-500">
-               <AlertCircle className="w-12 h-12 mb-4 text-slate-400" />
-               <p className="text-lg font-medium text-slate-900">Auto Reconcile Unavailable</p>
+             <div className="flex flex-col items-center justify-center h-full py-12 text-slate-500 dark:text-slate-400">
+               <AlertCircle className="w-12 h-12 mb-4 text-slate-400 dark:text-slate-500" />
+               <p className="text-lg font-medium text-slate-900 dark:text-slate-100">Auto Reconcile Unavailable</p>
                <p className="text-sm">This feature is not supported for this account type.</p>
              </div>
           ) : step === 'upload' ? (
@@ -437,7 +437,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 <Label htmlFor="csv-upload">Statement CSV</Label>
                 <Input id="csv-upload" type="file" accept=".csv" onChange={handleFileChange} />
               </div>
-              <p className="text-sm text-slate-500 text-center max-w-md">
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-md">
                 {lineOfCreditId === SERVUS_ID 
                   ? "Servus Format: Semicolon delimited (Date; Description; Amount)" 
                   : "ATB Format: Comma delimited (Date, Debit, Credit, Text)"}
@@ -449,17 +449,17 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
           ) : step === 'report' && results ? (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4 mb-4">
-                 <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
-                    <div className="text-2xl font-bold text-green-700">{results.stats.matched}</div>
-                    <div className="text-sm text-green-600">Matches Found</div>
+                 <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-800 text-center">
+                    <div className="text-2xl font-bold text-green-700 dark:text-green-400">{results.stats.matched}</div>
+                    <div className="text-sm text-green-600 dark:text-green-500">Matches Found</div>
                  </div>
-                 <div className="bg-orange-50 p-4 rounded-lg border border-orange-100 text-center">
-                    <div className="text-2xl font-bold text-orange-700">{results.stats.unmatchedCsv}</div>
-                    <div className="text-sm text-orange-600">Unmatched Statement</div>
+                 <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-100 dark:border-orange-800 text-center">
+                    <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">{results.stats.unmatchedCsv}</div>
+                    <div className="text-sm text-orange-600 dark:text-orange-500">Unmatched Statement</div>
                  </div>
-                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
-                    <div className="text-2xl font-bold text-blue-700">{results.stats.unmatchedSystem}</div>
-                    <div className="text-sm text-blue-600">Unmatched System</div>
+                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 text-center">
+                    <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{results.stats.unmatchedSystem}</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-500">Unmatched System</div>
                  </div>
               </div>
 
@@ -473,7 +473,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 <TabsContent value="matched" className="mt-4">
                    <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-100">
+                        <thead className="bg-slate-100 dark:bg-slate-800">
                           <tr>
                             <th className="p-2 text-left">CSV Date/Desc</th>
                             <th className="p-2 text-right">Amount</th>
@@ -483,22 +483,22 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                         </thead>
                         <tbody>
                           {results.matches.map((m, i) => (
-                            <tr key={i} className="border-t hover:bg-slate-50">
+                            <tr key={i} className="border-t dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                <td className="p-2">
-                                  <div className="font-medium">{m.csv.date}</div>
-                                  <div className="text-xs text-slate-500 truncate max-w-[200px]" title={m.csv.description}>{m.csv.description}</div>
+                                  <div className="font-medium dark:text-slate-200">{m.csv.date}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.csv.description}>{m.csv.description}</div>
                                </td>
-                               <td className="p-2 text-right font-medium">
+                               <td className="p-2 text-right font-medium dark:text-slate-200">
                                  ${m.csv.amount.toFixed(2)}
                                </td>
-                               <td className="p-2 text-center text-green-500"><ArrowRight className="w-4 h-4 mx-auto"/></td>
+                               <td className="p-2 text-center text-green-500 dark:text-green-400"><ArrowRight className="w-4 h-4 mx-auto"/></td>
                                <td className="p-2">
-                                  <div className="font-medium">{m.system.transaction_date}</div>
-                                  <div className="text-xs text-slate-500 truncate max-w-[200px]" title={m.system.description}>{m.system.description}</div>
+                                  <div className="font-medium dark:text-slate-200">{m.system.transaction_date}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.system.description}>{m.system.description}</div>
                                </td>
                             </tr>
                           ))}
-                          {results.matches.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-slate-500">No matches found.</td></tr>}
+                          {results.matches.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-slate-500 dark:text-slate-400">No matches found.</td></tr>}
                         </tbody>
                       </table>
                    </div>
@@ -507,7 +507,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 <TabsContent value="unmatched-csv" className="mt-4">
                   <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-100">
+                        <thead className="bg-slate-100 dark:bg-slate-800">
                           <tr>
                             <th className="p-2 text-left">Date</th>
                             <th className="p-2 text-left">Description</th>
@@ -516,13 +516,13 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                         </thead>
                         <tbody>
                           {results.unmatchedCsv.map((row, i) => (
-                            <tr key={i} className="border-t hover:bg-slate-50">
-                               <td className="p-2">{row.date}</td>
-                               <td className="p-2 text-slate-600">{row.description}</td>
-                               <td className="p-2 text-right">${row.amount.toFixed(2)}</td>
+                            <tr key={i} className="border-t dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                               <td className="p-2 dark:text-slate-200">{row.date}</td>
+                               <td className="p-2 text-slate-600 dark:text-slate-400">{row.description}</td>
+                               <td className="p-2 text-right dark:text-slate-200">${row.amount.toFixed(2)}</td>
                             </tr>
                           ))}
-                          {results.unmatchedCsv.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500">No unmatched statement transactions.</td></tr>}
+                          {results.unmatchedCsv.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500 dark:text-slate-400">No unmatched statement transactions.</td></tr>}
                         </tbody>
                       </table>
                    </div>
@@ -531,7 +531,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                 <TabsContent value="unmatched-system" className="mt-4">
                    <div className="border rounded-md overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead className="bg-slate-100">
+                        <thead className="bg-slate-100 dark:bg-slate-800">
                           <tr>
                             <th className="p-2 text-left">Date</th>
                             <th className="p-2 text-left">Description</th>
@@ -542,17 +542,17 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                           {results.unmatchedSystem.map((tx, i) => {
                              const amt = tx.charge_amount > 0 ? tx.charge_amount : tx.credit_amount;
                              return (
-                            <tr key={i} className="border-t hover:bg-slate-50">
-                               <td className="p-2">{tx.transaction_date}</td>
-                               <td className="p-2 text-slate-600">{tx.description}</td>
-                               <td className="p-2 text-right">${amt.toFixed(2)}</td>
+                            <tr key={i} className="border-t dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                               <td className="p-2 dark:text-slate-200">{tx.transaction_date}</td>
+                               <td className="p-2 text-slate-600 dark:text-slate-400">{tx.description}</td>
+                               <td className="p-2 text-right dark:text-slate-200">${amt.toFixed(2)}</td>
                             </tr>
                           )})}
-                           {results.unmatchedSystem.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500">No unmatched system transactions.</td></tr>}
+                           {results.unmatchedSystem.length === 0 && <tr><td colSpan={3} className="p-4 text-center text-slate-500 dark:text-slate-400">No unmatched system transactions.</td></tr>}
                         </tbody>
                       </table>
                    </div>
-                   <p className="text-xs text-slate-500 mt-2">Showing system transactions within 30 days of the CSV date range.</p>
+                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Showing system transactions within 30 days of the CSV date range.</p>
                 </TabsContent>
               </Tabs>
             </div>

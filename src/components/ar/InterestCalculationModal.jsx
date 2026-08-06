@@ -143,7 +143,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">Calculating interest for all customers...</p>
+              <p className="text-slate-600 dark:text-slate-400">Calculating interest for all customers...</p>
             </div>
           </div>
         ) : (
@@ -151,9 +151,9 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
             <div className="space-y-4">
               {interestCalculations.length === 0 ? (
                 <div className="text-center py-8">
-                  <AlertTriangle className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">No Interest Due</h3>
-                  <p className="text-slate-600">No customers have outstanding balances with accrued interest.</p>
+                  <AlertTriangle className="w-12 h-12 mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Interest Due</h3>
+                  <p className="text-slate-600 dark:text-slate-400">No customers have outstanding balances with accrued interest.</p>
                 </div>
               ) : (
                 <>
@@ -178,7 +178,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
 
                   <ScrollArea className="h-96 border rounded-lg">
                     <Table>
-                      <TableHeader className="bg-slate-50">
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800">
                         <TableRow>
                           <TableHead className="w-10"></TableHead>
                           <TableHead>Customer</TableHead>
@@ -194,7 +194,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                             <TableRow 
                               key={calc.customer.id}
                               onClick={() => handleCustomerSelect(calc.customer.id, !isSelected)}
-                              className={`cursor-pointer ${isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+                              className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}
                             >
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
@@ -211,7 +211,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                               <TableCell className="text-right font-medium">
                                 ${calc.currentBalance.toFixed(2)}
                               </TableCell>
-                              <TableCell className="text-right font-bold text-red-600">
+                              <TableCell className="text-right font-bold text-red-600 dark:text-red-400">
                                 ${calc.totalInterest.toFixed(2)}
                               </TableCell>
                               <TableCell className="text-center">
@@ -224,7 +224,7 @@ export default function InterestCalculationModal({ open, onClose, customers, onI
                     </Table>
                   </ScrollArea>
 
-                  <div className="text-xs text-slate-500 space-y-1">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
                     <p>• Interest starts accruing 30 days after invoice/transaction date</p>
                     <p>• 24% Annual Percentage Rate, compounded monthly (2% per month)</p>
                     <p>• Interest will be posted to GL Account 4010</p>

@@ -259,17 +259,17 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
           {/* Global Error Display */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">Error</p>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setError(null)}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
               >
                 Dismiss
               </Button>
@@ -278,29 +278,29 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
 
           {/* Deleting Overlay */}
           {deleting && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" />
               <div>
-                <p className="text-sm font-medium text-blue-800">Reversing Transaction</p>
-                <p className="text-sm text-blue-700 mt-0.5">Please wait while we process the reversal...</p>
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Reversing Transaction</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mt-0.5">Please wait while we process the reversal...</p>
               </div>
             </div>
           )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              <span className="ml-3 text-slate-600">Loading transactions...</span>
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+              <span className="ml-3 text-slate-600 dark:text-slate-400">Loading transactions...</span>
             </div>
           ) : transactions.length === 0 ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-              <p className="text-slate-600">No transactions found for this inventory item.</p>
+            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
+              <p className="text-slate-600 dark:text-slate-400">No transactions found for this inventory item.</p>
             </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50">
+                  <TableRow className="bg-gray-50 dark:bg-slate-800">
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
@@ -320,7 +320,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                       <ContextMenu key={transaction.id}>
                         <ContextMenuTrigger asChild>
                           <TableRow 
-                            className={`hover:bg-gray-50 cursor-context-menu ${isReversal ? 'bg-red-50' : ''}`}
+                            className={`hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-context-menu ${isReversal ? 'bg-red-50 dark:bg-red-900/20' : ''}`}
                           >
                             <TableCell className="font-medium">
                               {transaction.invoice_number}
@@ -333,13 +333,13 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                             <TableCell>{formatDate(transaction.invoice_date)}</TableCell>
                             <TableCell className="text-right">{formatQuantity(transaction.quantity)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(transaction.amountPerUnit)}</TableCell>
-                            <TableCell className={`text-right font-semibold ${isReversal ? 'text-red-600' : ''}`}>
+                            <TableCell className={`text-right font-semibold ${isReversal ? 'text-red-600 dark:text-red-400' : ''}`}>
                               {formatCurrency(transaction.charge)}
                             </TableCell>
                             <TableCell>{getSupplierName(transaction.supplier_id)}</TableCell>
                             <TableCell>
                               {isCore && (
-                                <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                <Badge variant="secondary" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50">
                                   Core
                                 </Badge>
                               )}
@@ -355,10 +355,10 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                             <Edit className="w-4 h-4 mr-2" />
                             <span>Edit</span>
                             {isLocked && (
-                              <span className="ml-2 text-xs text-slate-500">(Paid)</span>
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(Paid)</span>
                             )}
                             {isReversal && (
-                              <span className="ml-2 text-xs text-slate-500">(Reversed)</span>
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(Reversed)</span>
                             )}
                           </ContextMenuItem>
                           <ContextMenuItem
@@ -373,10 +373,10 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                             <Trash2 className="w-4 h-4 mr-2" />
                             <span>Delete</span>
                             {isLocked && (
-                              <span className="ml-2 text-xs text-slate-500">(Paid)</span>
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(Paid)</span>
                             )}
                             {isReversal && (
-                              <span className="ml-2 text-xs text-slate-500">(Reversed)</span>
+                              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(Reversed)</span>
                             )}
                           </ContextMenuItem>
                         </ContextMenuContent>
@@ -389,10 +389,10 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
           )}
 
           {!loading && transactions.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-4">
+            <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mt-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-700">Total Transactions:</span>
-                <span className="text-lg font-bold text-slate-900">{transactions.length}</span>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Transactions:</span>
+                <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{transactions.length}</span>
               </div>
             </div>
           )}
@@ -412,7 +412,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               Confirm Transaction Reversal
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
@@ -420,9 +420,9 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                 Are you sure you want to delete this transaction? This will reverse the inventory and accounting entries.
               </p>
               {transactionToDelete && (
-                <div className="bg-slate-50 border border-slate-200 rounded p-3 mt-3 text-sm">
-                  <div className="font-medium text-slate-900 mb-1">Transaction Details:</div>
-                  <div className="text-slate-700 space-y-1">
+                <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-3 mt-3 text-sm">
+                  <div className="font-medium text-slate-900 dark:text-slate-100 mb-1">Transaction Details:</div>
+                  <div className="text-slate-700 dark:text-slate-300 space-y-1">
                     <div>Invoice: <span className="font-medium">{transactionToDelete.invoice_number}</span></div>
                     <div>Date: <span className="font-medium">{formatDate(transactionToDelete.invoice_date)}</span></div>
                     <div>Quantity: <span className="font-medium">{formatQuantity(transactionToDelete.quantity)}</span></div>
@@ -430,7 +430,7 @@ export default function InventoryTransactionsModal({ isOpen, onClose, inventoryI
                   </div>
                 </div>
               )}
-              <p className="text-red-600 font-medium mt-2">
+              <p className="text-red-600 dark:text-red-400 font-medium mt-2">
                 This action will create offsetting entries to reverse the transaction. The original transaction will remain in the system for audit purposes.
               </p>
             </AlertDialogDescription>

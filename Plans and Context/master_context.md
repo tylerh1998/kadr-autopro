@@ -1,53 +1,244 @@
 # AutoPro Master System Context
 
+*Living reference document, attached to future AI agents' context to explain how AutoPRO actually works at a system level — before they dive into specific code. For migration history, phase-by-phase execution detail, and current testing status, see `master_blueprint.md` and `blueprint_verification_plan.md` instead of duplicating that here.*
+
 ## 1) Purpose Statement
 The all-in-one management solution for automotive repair shops, streamlining work orders, inventory, scheduling, payroll, and financials for efficient business operations.
 
 ## 2) Module Context & Architecture
-*   **Sales & Work Management:** Work orders, estimates, invoices, notes, and WorkPro integrations.
-*   **Scheduling:** Appointments, WO/WorkPro calendar integrations, reminders.
+*   **Sales & Work Management:** Work orders, estimates, invoices, notes, and WorkPRO integrations.
+*   **Scheduling:** Appointments, WO/WorkPRO calendar integrations, reminders.
 *   **Inventory Management:** Inventory items, returns, history, parts entry, cores, levies, sales classes.
 *   **Customer Management:** Customer CRUD, history, Accounts Receivable (AR), email logging.
 *   **Vehicle Management:** Vehicle CRUD and service history.
 *   **Accounts Payable:** Supplier CRUD, transactions (charges/payments), Lines of Credit (charges, credits, payments).
 *   **Banking:** Cash drawer, bank accounts, transactions, reconciliations, transfers, cash flow tracking.
-*   **Accounting:** Chart of accounts, balance sheet, P&L, financial dashboard, GL ledger, GST/taxes, journal entries, fiscal periods.
+*   **Accounting:** Chart of accounts, balance sheet, P&L, financial dashboard, GL ledger, GST/taxes, journal entries, fiscal periods, levies.
 *   **Payroll:** Payroll transactions and ledger entries.
-*   **Setup:** Global system settings and configurations.
+*   **Reports:** Read-only aggregations that pull from every other module — no dedicated schema of its own.
+*   **Setup:** Global system settings and configurations. **Not yet rolled up here** — Setup/Admin/Lankar Import/Final Sunset is Phase 14, still in progress as of this writing. Add its module section once that phase completes.
 
-**WorkPRO (Sister Application):** WorkPRO is a *separate* application from AutoPRO, not an AutoPRO module — it's the technician-facing side of the business: project tracking, pairing a Project to a Work Order, and time tracking (clock-in/out, tech time logs). It shares the same Supabase project as AutoPRO. AutoPRO reads/writes WorkPRO's tables (`Project`, `ProjectTimeSession`, `TimeRecord`, `UnassignedTime`, `Employee`, etc.) for features like tech time display and WO↔Project pairing. The integration flow is linear: `Appointment -> WorkOrder -> Project`.
+**WorkPRO (Sister Application):** WorkPRO is a *separate application* from AutoPRO, not an AutoPRO module — it's the technician-facing side of the business: project tracking, pairing a Project to a Work Order, and time tracking (clock-in/out, tech time logs). It shares the same Supabase project as AutoPRO. AutoPRO reads/writes WorkPRO's tables (`Project`, `ProjectTimeSession`, `TimeRecord`, `UnassignedTime`, `Employee`, etc.) for features like tech time display and WO↔Project pairing. The integration flow is linear and deliberate: `Appointment -> WorkOrder -> Project`. Do not conflate the three concepts.
+
+
 
 ## 3) Global Technical Rules & Conventions
-*   **Supabase Edge Functions:** 
-    * Must always use the `autopro-[functionname]` naming format.
-    * **Error Handling:** Edge Functions must return a `200 OK` status with an `{ error: "message" }` JSON payload instead of throwing raw 4xx/5xx HTTP errors. The Supabase JS client (`FunctionsHttpError`) intercepts non-2xx codes and swallows the JSON response body, hiding the actual error message from the frontend.
-    * **Payloads:** Deno edge functions typically require payloads to be wrapped as `{ body: { ... } }` when invoking from the frontend via the Supabase client.
-*   **Base44 API & Authentication:**
-    * **API Key Limitations:** While the Base44 LLM Instructions suggest using an `api_key` header, this key *only* grants read access to generic entities (e.g., `/entities/User/me`). It **does not** work for executing custom Base44 Functions (e.g., `getworkorderlist`) via proxy.
-    * **Proxy Authentication:** When using `X-Act-As-User` to execute functions on behalf of other users, the proxy *must* send a valid JWT via the `Authorization: Bearer <JWT>` header. Using an `api_key` in this scenario will result in an unhelpful `500 Internal Server Error` ("This app is private, You do not have access to this app") from the Base44 backend.
-    * **System Tokens:** The `BASE44_ACCESS_TOKEN` used in Edge Functions should be a long-lived JWT obtained from a valid admin session (e.g., from the `base44_access_token` browser cookie), not an API key.
-*   **Data Models & Schemas:** 
-    * **Postgres Triggers:** Updating rows directly via the Supabase client can conflict with Postgres triggers. For example, updating `InventoryItem.quantity_on_hand` fires `trg_inventory_audit`. To pass context to these triggers, you *must* use a dedicated RPC (e.g., `update_inventory_with_audit`) that sets Postgres session variables (`set_config`) before running the update. Mixing direct `.update()` calls with manual log `.insert()` calls leads to duplicate and corrupted records.
-    * **Data Types:** Always strictly cast variables (e.g., `Number()` or `parseFloat()`) before saving to the database. JS string concatenation bugs (e.g., `"5" + "1" = "51"`) caused severe data corruption in the legacy database.
-    * **Native Over Legacy:** Always prefer direct `supabase.from()` calls or native RPCs over the legacy `base44.functions.invoke('SupabaseProxy')` wrapper.
-*   **UI/UX Standards:** 
-    * Use accessible, soft UI patterns (Tailwind CSS, Radix primitives via `shadcn/ui`).
-    * Implement robust error boundaries, loading skeletons, and graceful degradation.
-*   **Local Development:** Running the app on `localhost` is not viable — the authentication system requires same-origin. All development/testing happens against a real hosted deployment (the Vercel `development`-branch environment, `test.kensauto.ca`), never a local dev server.
 
-## 4) Key Area Nuggets & Inner Workings
-*   *Sales/AR Integration:* Invoice posting mechanics trigger synchronous dual-entry GL transactions. When an RO converts to an Invoice, `autopro-handleInvoiceConversionGL` orchestrates moving funds from WIP/Inventory accounts to COGS, recognizing Revenue, tracking Tax liabilities, and debiting AR.
-*   *Inventory, Cores & Levies:* 
-    * **Audit Log:** The legacy `InventoryTxs` table is deprecated. All inventory history is managed natively by `InventoryAuditLog`. Reads and writes MUST hit this table.
-    * **Returns:** Core and warranty returns hit `WarrantyReturnModal` and `InventoryPartsReturnModal`, communicating directly with supplier credit endpoints.
-*   *Edge Function Architecture:* 
-    * `autopro-processInventoryReceipt`: Generates supplier invoice lines, maps GL entries for Accounts Payable, and augments inventory QOH/QOO.
-    * `autopro-mergeInventoryItems`: Merges duplicate parts seamlessly, automatically cascading the new ID through historical `InventoryAuditLog` and `SupplierInvoiceLine` references to preserve history.
+*   **Supabase Edge Functions:**
+    * Must always use the `autopro-[functionname]` naming format.
+    * **Error Handling:** Edge Functions must return a `200 OK` status with an `{ error: "message" }` JSON payload instead of throwing raw 4xx/5xx HTTP errors. The Supabase JS client (`FunctionsHttpError`) intercepts non-2xx codes and swallows the JSON response body, hiding the actual error message from the frontend. (PDF-generating functions are a deliberate exception on their success path — they return raw PDF bytes with `Content-Type: application/pdf`; only their failure path uses the `{error}` convention.)
+    * **Payloads:** Deno edge functions typically require payloads to be wrapped as `{ body: { ... } }` when invoking from the frontend via the Supabase client.
+    * Constructing a third-party SDK client (e.g. Twilio) at module top-level is dangerous — a bad credential throws at construction time and crashes the *entire function*, including its CORS `OPTIONS` preflight handler. Build credential-dependent clients inside the request handler, after the `OPTIONS` short-circuit.
+*   **Base44 API & Authentication (for any call site not yet migrated):**
+    * **API Key Limitations:** The Base44 `api_key` header only grants read access to generic entities (e.g. `/entities/User/me`) — it does **not** work for executing custom Base44 Functions via proxy.
+    * **Proxy Authentication:** `X-Act-As-User` execution requires a valid JWT via `Authorization: Bearer <JWT>` — an `api_key` here produces an unhelpful `500` ("This app is private, You do not have access to this app").
+    * **System Tokens:** `BASE44_ACCESS_TOKEN` must be a long-lived JWT from a valid admin session, not an API key — it expires periodically and is a standing, project-wide source of 401s on every still-Base44 call site until refreshed or migrated away.
+    * **`VITE_BASE44_BACKEND_URL`/`VITE_BASE44_PROXY_URL` are hardcoded to production**, independent of which Supabase branch the frontend points at — every remaining `base44.*` call hits production data regardless of environment. Never write-test an unmigrated feature outside production.
+*   **Entity & Table Verification:**
+    * An entity being importable from `@/entities/all` is **not** proof it's a native Supabase table — some resolve to real tables, others still proxy to a legacy backing store. Query `information_schema.tables` directly before treating any entity as migrated. Never trust a phase document's own classification table at face value either — verify live, per table, every time.
+    * **RLS enabled with zero policies silently blocks all access**, with no clear error. Any "restored"/"copied" table needs its `pg_policies` row count checked. The standing convention across this project is one permissive policy: `CREATE POLICY "Enable all operations for all users" ... FOR ALL TO public USING (true) WITH CHECK (true)`.
+*   **ID Generation:** Legacy-origin tables almost universally have `text` primary keys with **no working Postgres default** (a few, like `GLTransaction.id`, have a decoy default like `''::text` that looks real but produces useless empty-string collisions). Every native insert must generate its own id, client- or function-side. Two formats coexist across the schema — **check the specific table's live rows before choosing, never assume project-wide uniformity**:
+    * 24-char lowercase hex (Base44/Mongo-ObjectId-style): `crypto.randomUUID().replace(/-/g,'').substring(0,24)` — used by `WorkOrder`, `Customer`, `Vehicle`, `InventoryCategory`/`InventoryLocation`/`ReturnReason`, `CashDrawerAdjustment`/`DepositSlipBreakdown`, and most other legacy-origin tables.
+    * Standard 36-char UUID: `crypto.randomUUID()` unmodified — used by `InventoryItem` and `InventoryReturn`.
+*   **Data Types — recurring traps:**
+    * **`jsonb` columns come back already-parsed** from `supabase-js` — never `JSON.parse()`/`JSON.stringify()` them. Confirmed genuine `jsonb` columns: `WorkOrder.line_items`/`payments`/`accounting_details`/`tech_time`, `CashFlowSummary.pad_registries_details`/`overhead_items`, `CustomerPortalStatement.transactions`/`aged_balances`, `SupplierPayment.invoice_number`, `CashDrawerAdjustment.gl_transactions`. The defensive read-side pattern used throughout the codebase where legacy code still might send a string: `typeof x === 'string' ? JSON.parse(x) : x`.
+    * **The inverse trap also exists** — some columns that *look* like they should be structured are genuinely still `text`, and the existing `JSON.parse()`/`JSON.stringify()` calls around them are correct and must be preserved (e.g. `PayrollTransaction.additional_deductions`). Always check the live Postgres column type before assuming either direction.
+    * **Stringy booleans:** `Customer.is_active`, `Vehicle.is_active` (and similar) are `text`, holding `'true'`/`'false'`/`'0'`/`'f'`/`'n'`/`'no'`/`null` — use `.or('is_active.eq.true,is_active.is.null')`, never a plain `.eq('is_active', true)`.
+    * **`bigint` columns silently reject fractional values** (Postgres `22P02`) with no visible error if the caller's `{error}` check is missing/incomplete — the UI can show a value optimistically that never actually persists. Any dollar-amount column should be `double precision`, not `bigint`, proactively. Recurring instances: `CashFlowSummary` (12 fields), `Levies.total_amount`/`base_amount`, various denomination columns.
+    * **Text-typed number fields** need an explicit cast before arithmetic and an explicit `String()`/stringify before write: `LinesOfCreditTransaction.balance`, `PayrollTransaction.amount`. Always strictly cast (`Number()`/`parseFloat()`) — JS string-concat bugs (`"5"+"1"="51"`) have caused real data corruption historically.
+    * **Text-typed date/timestamp columns:** several date fields are plain `YYYY-MM-DD` text, not real `date`/`timestamp` columns (`CustomerPayments.payment_date`, `CustomerARAdjustment.adjustment_date`, `InventoryReturn.return_date`/`date_returned`, `GSTReturn.period_start_date`/`period_end_date`). Any SQL needing these must cast directly to `::DATE` — casting through a timezone (`::TIMESTAMPTZ AT TIME ZONE ...`) assumes UTC midnight and shifts the displayed date back a day.
+*   **"Schema replayed to production" ≠ "data replayed."** A table can exist correctly on production with the right RLS while still holding zero rows — a reference/config table (`SystemSettings`, `CashFlowSummary`, `OtherChargeList` all hit this) existing is not proof it's usable. Verify row counts on both branches after any schema replay, not just table presence.
+*   **Postgres triggers + audit RPCs:** direct `.update()` calls can conflict with triggers expecting session context. Where a dedicated audit RPC exists (e.g. `update_inventory_with_audit`, which sets `set_config` session variables the `trg_inventory_audit` trigger reads before writing to `InventoryAuditLog`), it is **mandatory** for that class of write — a raw `.update()` bypasses the audit trail entirely and/or produces duplicate/corrupted log rows if mixed with a manual log insert.
+*   **Fiscal Period gate:** any function that moves real money must call the shared `checkFiscalPeriodStatus()` pattern (`src/components/utils/fiscalPeriodUtils.jsx`) before writing, gated on the transaction's date — reject if the covering `FiscalPeriod` is closed or doesn't exist. This is the single most important cross-cutting rule in the Accounting domain; confirmed callers span nearly every money-moving surface in the app (AP, LOC, Inventory receiving, Bank transfers, Levies, Deposits, WO payments). New GL-posting functions should copy this guard from an existing one rather than omit it.
+*   **`Promise.all` poisoning:** batching a still-legacy (`base44.*`) call with an already-native call in one `Promise.all` means a single legacy 401 blanks the *entire* result set, including the native calls that would have succeeded. This recurred repeatedly across many files during migration. Always isolate native fetches from legacy fetches with independent error handling (e.g. separate `.catch()`s) rather than assuming a mixed batch is safe.
+*   **Two GL-posting functions are permanently protected — never modify:** `autopro-handleInvoiceConversionGL` and `autopro-handleSupplierInvoiceLineGL`. Every other module (Banking, AP, LOC, GST, Levies, Payroll) is free to post its own GL entries directly/independently — this is an intentional, coexisting pattern, not something to consolidate into the two protected functions.
+*   **Optimistic locking — two patterns coexist:**
+    * **Mature pattern** (`WorkOrder` via `set_workorder_lock` RPC, `BankAccount`, `LinesOfCredit`): a two-column `locked_by_user`/`locked_timestamp` pair, atomic compare-and-swap acquire, a stale-lock timeout (120 minutes for WorkOrder) allowing a second CAS-based steal, and a dedicated flush/admin-unlock action.
+    * **Weaker pattern** (`Supplier`): a single bare `LockedByUser` text column — no timestamp, no staleness detection, no flush mechanism. A crashed tab can permanently lock a supplier with no automatic recovery today. This is a real, permanent gap, not something a later phase silently fixed — know it before debugging a "why can't I edit this supplier" report.
+*   **Identity / audit fields:** `created_date`/`created_by`/`created_by_id` are the standard insert-audit trio; most legacy-origin tables have **no** `updated_by`/`updated_by_id` (only `updated_date`) — don't assume symmetry. `WorkOrder` is a further exception, using `last_updated`/`last_updated_by` instead of the `updated_date` convention used elsewhere.
+*   **UI/UX Standards:**
+    * Use accessible, soft UI patterns (Tailwind CSS, Radix primitives via `shadcn/ui`).
+    * Implement robust error boundaries, loading skeletons, and graceful degradation — especially for data sourced from a not-yet-fully-migrated entity, which should hide/stub gracefully rather than error.
+*   **Local Development:** Running the app on `localhost` is not viable — the authentication system requires same-origin. All development/testing happens against a real hosted deployment (the Vercel `development`-branch environment, `test.kensauto.ca`, which is the same environment as the dev Supabase branch), never a local dev server.
+
+## 4) Module Functionality and Operations
+
+*Per-module business logic, data model, and cross-module integration — the "how it actually works" layer. Execution/testing history lives in `master_blueprint.md`/`blueprint_verification_plan.md`, not here.*
+
+### 4.1 Sales & Work Management (Work Orders Core)
+
+**Data model.** `WorkOrder` is the central entity — 24-char-hex `id`; `ro_number` is the stable identifier across the whole lifecycle, with `wo_number`/`est_number`/`inv_number`/`crinv_number` auto-derived from its digits per stage. **`stage`** (not `status`) is what actually drives page-redirect/UI logic: `estimate` → `work_order` → `invoice` → `credit_invoice`, or `void`. `line_items`, `payments`, `accounting_details`, `tech_time` are genuine `jsonb` (see §3). Each `line_items[]` entry's core-tracking fields: `Core_num` (capital C, quantity of core units), `core_ret` (quantity returned), `core_cost`, and **computed** `core_osamt = (Core_num - core_ret) * core_cost` — never store `core_osamt` as an editable input. Related tables: `Approvals` (portal approvals), `CustomerPortalWorkOrder` (portal snapshots, keyed by a unique 10-char `cp_id`), `SentEmailLog` (SMS/email audit, `pending`→`sent`/`failed` lifecycle), `InventoryReturn` (backs core/warranty returns), `Levies` (see §4.7), `SystemSettings`/`WorkOrderStatus`/`TagAlong`/`OtherChargeList` (small config/lookup tables consumed by the editor).
+
+**Lifecycle.** Estimate→Work Order conversion performs a **QOH/QOO allocation split** per line item — a requested quantity can split across "available now" (QOH) vs "still on order" (QOO), each portion written via `update_inventory_with_audit`, called twice per split line (once tagged `'Issued to WO'`, once `'Ordered'`) so the audit trail keeps both as distinct rows. Each line's inventory step is error-isolated so one bad line doesn't fail the whole conversion. Work Order→Invoice conversion triggers GL posting via the protected `autopro-handleInvoiceConversionGL` function (§3) — a live-verified example produced 8 balanced GL rows including COGS/inventory-reduction entries and a penny-adjustment line when needed to zero the balance exactly. Only estimate-stage WOs can be voided.
+
+**Locking.** `set_workorder_lock` RPC — see §3's "mature pattern." Runs alongside a separate `beforeunload`/`pagehide` keepalive-fetch release path (not merged into the RPC path).
+
+**Core returns (FIFO).** Filters `InventoryReturn` by `part_number`+`work_order_id`+`status:'On-site'`, sorts FIFO by `return_date` then `created_date` as **plain string comparisons, not date-typed** (must be preserved exactly), pre-checks total available quantity before mutating anything, then consumes fully-consumed records via delete and partially-consumed records via update.
+
+**Warranty returns.** Only reachable when `stage === 'invoice'`. Stamps the line item's `warranty_returned` integer flag (`1` = returned) inside `line_items[]`, writes the array back, and inserts its own GL reversal rows (a separate direct-insert path from §"Lifecycle" above).
+
+**Levies sync.** `Levies` now exists as a real native table with 3 functions (`autopro-syncLevies`, `getReportableLeviesReport`, `postLeviesToAP` — see §4.7 for the algorithm). The WO-save trigger call site (`useDocumentEditorSave.jsx`) intended to fire `syncLevies` on every save — **verify its current wiring status against `blueprint_verification_plan.md` before assuming it's connected; this was flagged there as a still-open gap as of that document's writing, not a resolved integration.**
+
+**Documents & communications.** PDF generation (`generateWorkOrderPdf`, jsPDF-based) and portal-snapshot generation both apply the same business rule — **payment totals exclude `on_account` payments** — treat this as one shared rule, not two independent implementations, if it's ever changed. SMS/Email both log a `pending` `SentEmailLog` row *before* the send, then update to `sent`/`failed` after; email failure triggers an internal shop-notification email as a deliberate side effect. Notes Board gives unplaced notes a deterministic round-robin fallback placement (`% 3` across a per-column running counter) — preserve the exact algorithm so unplaced notes land in a stable spot.
+
+**Integration.** → **Inventory**: all quantity mutations go through `update_inventory_with_audit`; part search via `search_inventory_ranked`/`search_work_order_parts` (8-param signature — always pass `p_location_from`/`p_location_to` explicitly, even as `null`, to avoid PostgREST overload ambiguity). → **GL**: delegated to the two protected functions (§3), plus direct-insert paths for warranty reversals. → **Customer/AR**: `customer_id`/`vehicle_id` FK fields; re-parenting a WO to a different customer also bulk-updates linked `CustomerPayments.customer_id` — this two-statement operation is **explicitly non-atomic**, matching legacy behavior. → **WorkPRO**: `Project.work_order` matches `WorkOrder.wo_number` by plain text, no FK — see §4.9.
+
+### 4.2 Scheduling / Appointments
+
+**Data model.** `Appointment`: `customer_id`/`vehicle_id`/`work_order_id` (nullable — the *only* sanctioned link into the WO/WorkPRO chain), `start_time`/`end_time`, `notes` (free text — **`title` was removed entirely**; legacy title text was folded into `notes` as a `[Title]\nNotes...` prefix during migration), `status` (default `'Scheduled'`), `bay`, `employee_id`, reminder settings (`reminders_email`/`reminders_text` booleans, `reminder_days_before`, default 1).
+
+**Business logic.** "Create Work Order" from an appointment passes `notes` straight into the new WO's `description` field. Reminder functions (`sendAppointmentReminders`/`sendTextReminders`) drive email/SMS sends ahead of `start_time` based on the reminder booleans/day-count. Drag-reschedule on the calendar updates `start_time`/`end_time` (and potentially `bay`/`employee_id`) directly.
+
+**Integration.** Strict separation of concerns is deliberate: **Appointments = Scheduling, Work Orders = Billing, Projects = Execution (WorkPRO)**. The linear chain is `Appointment → WorkOrder → Project`; don't add a direct Appointment↔Project link. Also carries direct FKs to `Customer`/`Vehicle`, independent of any Work Order — an appointment can exist before any billing document does.
+
+### 4.3 Inventory Management
+
+**Data model.** `InventoryItem` (36-char-UUID id): `part_number`, `description`, `cost`, `selling_price`, `quantity_on_hand`/`quantity_on_order`, `supplier_id`. **`location`/`category` are plain name-string text columns, not FKs** into the lookup tables below — those tables exist to drive dropdown lists/validation, not relational integrity. `InventoryCategory` (`name`), `InventoryLocation` (`location_name`, `is_active`), `ReturnReason` (**field is `reason`, not `name`** — a real naming trap) all use 24-char-hex ids. `InventoryReturn` (36-char-UUID id, 32 live rows historically): `return_type` (app-enforced discriminator text — `"core"`/`"return"`/`"warranty"`, not a DB constraint), `status` (`"On-site"`/`"Returned"`), `return_date`/`date_returned` (text, `yyyy-MM-dd`). `InventoryAuditLog` is the real, authoritative movement-history table, populated by the `trg_inventory_audit` trigger as a side effect of `update_inventory_with_audit` writes.
+
+**Receiving.** `InventoryAdd.jsx` (optionally OCR-assisted via `autopro-processPartsInvoiceOCR`, a pure Gemini-vision prefill with zero DB writes) saves through `autopro-processInventoryReceipt`: handles create/edit/reverse of `SupplierInvoiceLine` records, updates QOH/QOO exclusively via `update_inventory_with_audit`, checks `FiscalPeriod.is_closed`, rounds all money math to the cent (including a largest-remainder GST-proration algorithm across multiple lines), and **delegates GL posting** to the separate `autopro-handleSupplierInvoiceLineGL` function rather than posting inline — receiving/inventory logic never posts GL directly, a deliberate architectural boundary.
+
+**QOH adjustment → GL.** `autopro-processQOHAdjustment` posts `value_change = quantity_change * item_cost`, rounded to the cent both for the nonzero-change decision *and* the GL amount (float artifacts like `9.990000000000002` must not produce fractional-penny rows or false nonzero checks): increase → debit `1200` (inventory asset)/credit `5003` (adjustment expense); decrease → the reverse.
+
+**Audit pattern.** Any write changing `quantity_on_hand`/`quantity_on_order` **must** go through `update_inventory_with_audit` — the one confirmed exception is non-quantity field changes (e.g. `LocationModal.jsx` reassigning `location`, a plain `.update()`).
+
+**Category AI-suggestion.** `autopro-suggestInventoryCategory`: hardcoded shortcut if `supplier_name` contains `"jard"` (case-insensitive) → `"Jard"`, no AI call. Otherwise a single Gemini `gemini-flash-latest` call grounded with `google_search` tool (temperature 0.1, **no JSON response mode** — grounding and structured-output mode aren't reliably combinable on this model), classifying into an existing `InventoryCategory` name; falls back to `"other"` on no match.
+
+**Returns — one table, workflows differentiated by `return_type`.** `InventoryPartsReturnModal` (pre-bills COGS, `"return"`/`"core"`), `EditReturnInfoModal` (edits any type, no GL), `WarrantyReturnModal` (post-bills COGS from an already-invoiced WO, `"warranty"`), `LegacyWarrantyReturnModal` (LANKAR items never received into this system — **creates a brand-new `InventoryItem` on the fly** at 0 QOH/QOO before creating the return, since no receiving record exists; a genuinely different pattern from the other three).
+
+**Integration.** → **Suppliers/AP**: receiving creates `SupplierInvoiceLine`s; GL delegated to `autopro-handleSupplierInvoiceLineGL`. → **Work Orders**: `search_inventory_ranked`/`search_work_order_parts` RPCs for part search; core-tracking fields live in `WorkOrder.line_items`, conceptually shared with `InventoryReturn.return_type = "core"` but owned/migrated on the WO side. → **GL**: three distinct entry points (QOH adjustment, receiving's delegated function, and direct-insert warranty-return postings) — prefer delegating to a dedicated GL function over inline posting wherever one already exists for the workflow.
+
+### 4.4 Customer & Vehicle Management (incl. Accounts Receivable)
+
+**Data model.** `Customer`/`Vehicle`: `is_active` is stringy-boolean text (§3); no DB-side id/timestamp defaults. `CustomerPayments`: `amount`, `ar_pmt`/`ar_paid` (double), `ar_applyto` (text), `deposited` (bool), `gl_posted`, `work_order_id`. `CustomerARAdjustment`: `amount`, `ar_paid`, `overpayment` (bool) — **no `ar_applyto` column**, adjustments aren't a payment "source" in the same sense (except via the `credit_source` mechanism below, tracked on the payment side). **`ar_paid` sign convention** (both tables): `balance = amount - ar_paid`. A charge (`amount > 0`) is paid down by *increasing* `ar_paid` toward `amount`. A credit (`amount < 0`, e.g. an overpayment) starts with a negative balance (available credit); consuming `$X` makes `ar_paid` *more negative* (`newArPaid = ar_paid - amountApplied`). **`ar_applyto` format** (`CustomerPayments` only): comma-separated `id:type:amount:description` entries; `type` ∈ `'pmt'` (applied to a charge), `'adj'` (applied to a positive adjustment), `'credit_source'` (the credit that funded this payment) — a free-form string field, so new types need no schema change. **GL accounts**: `1100` = AR control, `1010` = Cash, `2100` = customer-deposit/overpayment liability (system-generated overpayment adjustments only — a manual credit can carry any `gl_account`, always read the row's own value, never hardcode).
+
+**Merges.** Customer merge (`autopro-mergeCustomers`): fill-if-empty on a fixed field list, duplicate's notes appended under a `--- Merged Data ---` separator, cascades `customer_id` across `Vehicle`/`WorkOrder`/`CustomerPayments`/`CustomerARAdjustment`, deactivates (never deletes) the duplicate with an audit note. Vehicle merge (`autopro-mergeVehicles`): same fill-if-empty pattern plus "keep highest mileage" and "keep newest odometer date" special cases; cascades `vehicle_id` on `WorkOrder`.
+
+**AR payment application (credit-aware `create_payment`, in `autopro-processCustomerARAccounting`).** `buildOutstandingCharges` returns both positive-balance charges and negative-balance credits, oldest-first. Charges to pay are either user-selected or an oldest-first walk up to the payment amount; eligible credits are either explicitly selected or (in "oldest" mode) all folded in automatically. Credit is applied oldest-charge-first; `netCashNeeded = totalChargesSelected - creditAppliedTotal`. If cash is still needed, a normal `CustomerPayments` row posts with standard `1010`/`1100` GL legs. If credit fully covers the selection, a `CustomerPayments` row still gets created (`payment_method: 'credit_applied'`) so the existing reversal machinery works, but with **no `1010` cash leg** — only credit-consumption GL entries (debit the credit's own `gl_account`, credit `1100`). `ar_applyto` records both the charge/adjustment entries and one `'credit_source'` entry per credit drawn on.
+
+**Reversal (`reverse_payment`).** Blocked if `payment.deposited === true`. Rolls back `ar_paid` on genuinely-external charge/adjustment entries; fully reverses-and-deletes payment-*generated* adjustments (credit-card fee, overpayment); restores credit-source `ar_paid` (ceiling at 0). Posts an offsetting GL entry and deletes the payment row — reversal is always via a balanced offsetting entry, never GL deletion.
+
+**Adjustment-reversal guard (`reverse_adjustment`).** Closes an integrity gap: an adjustment with `ar_paid !== 0` (already paid down or already consumed as a credit source) is rejected from deletion — deleting it would orphan whatever payment/credit is applied against it and permanently corrupt the balance. Applies to all adjustments, positive or negative.
+
+**AR interest (`autopro-calculateARInterest`).** Read-only. 30-day grace period per charge, then compounds monthly at 24% APR / 2%/month: `(1.02)^monthsOverdue`. Only returns customers with `totalInterest > 0.01`. "Apply Interest" bulk-inserts one `CustomerARAdjustment` + GL rows per customer via the same `create_adjustment` machinery.
+
+**Statement portal (`autopro-createStatement`).** Writes `CustomerPortalStatement` (`transactions`/`aged_balances` as genuine `jsonb`, matching the shape `get_outstanding_ar_items` already produces). `portal.kensauto.ca/statement?cp_id=...` still reads from the legacy backend directly as of this writing — this table is populated ahead of a future re-point, mirroring how the WorkOrder customer portal already reads from `CustomerPortalWorkOrder`.
+
+**AR aging/drill-down.** `get_customer_ar_transaction_page(customer_id, start, end)` RPC returns `{transactions (jsonb), opening_balance, current_balance}` in one call, transactions pre-joined with their linked `WorkOrder`. `get_outstanding_ar_items(customer_id)` powers Take-Payment/Statement invoice selection (both charges and credits, no sign filter).
+
+**Integration.** → **Work Orders**: on-account charges are `CustomerPayments` rows with `payment_method = 'on_account'` — exactly what `buildOutstandingCharges` treats as AR balance. → **Banking/Cash Drawer**: `deposited` boolean gates both reversal eligibility and cash-drawer visibility — `.or('deposited.eq.false,deposited.is.null')` for undeposited queries. Cash-drawer bucket visibility is governed purely by `payment_method` list membership (`CashDrawer.jsx`'s fixed `paymentMethods` array) — any method absent from that list (`on_account`, `credit_applied`) is automatically excluded from cash reconciliation with no extra filtering logic needed; this is the standing mechanism for keeping non-physical-money payment types out of the drawer. → **GL**: every AR mutation posts through the same shared function, so a change there has app-wide AR blast radius.
+
+### 4.5 Accounts Payable — Suppliers & Lines of Credit
+
+**Data model.** `Supplier`/`SupplierInvoiceLine`/`SupplierPayment` (24-char-hex ids). **`SupplierPayment.invoice_number` is a genuine `jsonb` array** — never `JSON.parse()` it (§3). `LinesOfCredit`/`LinesOfCreditTransaction`: `line_of_credit_id` has a real FK (`ON UPDATE CASCADE ON DELETE RESTRICT` — Postgres itself blocks deleting an LOC with existing transactions); `LinesOfCreditTransaction.balance` is `text`, must be parsed before arithmetic. `ChartOfAccount` is conceptually owned here but read for GL-account dropdowns across nearly every module.
+
+**Payment flow.** Two-step, asynchronous by design: `processSupplierPayment` validates and inserts a `pending` `SupplierPayment`, then fires-and-forgets an invoke of `executeSupplierPayment`, which resolves accounts, builds the GL pair, and calls the atomic Postgres RPC **`process_payment_atomic(p_payment_id, p_gl_entries, p_bank_tx)`** — the canonical pattern in this codebase for "post GL rows + a bank transaction together, atomically." For cheque payments it also bumps `BankAccount.next_cheque_number`.
+
+**Invoice-line save (`saveSupplierInvoiceTransactions`).** Four ordered phases: deletions (skipping lines with nonzero `paid_amount`), additions, modifications (field-diffed for GL relevance), then payment reallocation across the supplier's existing payments. GL edits use reversal-then-repost. Direct GL account numbers: `2000` = AP, `2003` = GST Paid, plus the line's own dynamic `gl_account`.
+
+**Payment cancellation (`cancelSupplierPayment`).** Fiscal-gated → locates and validates (rejects if `cleared`/`reconciled`) the linked `BankTransaction`/`LinesOfCreditTransaction` → reverses `paid_amount` across affected invoice lines → posts a GL reversal → deletes the payment row → triggers `calculateBankBalances` if bank-sourced.
+
+**Lines of Credit.** `processLineOfCreditTransaction` handles create/edit/delete of manual charges/credits in one function (edit = full reverse-then-reapply, both old and new dates fiscal-checked). `calculateLineOfCreditPaymentBreakdown` is read-only FIFO oldest-first matching (credits settle first each iteration, then charges). `processLineOfCreditPayment` resolves a target LOC and a payment source (another LOC or a `BankAccount`), applies charges additively, and posts GL + a source-side effect. `cancelLineOfCreditPayment` reverses a payment, cross-linking `is_reversed`/`reversed_by_id` on both sides. **Known, permanent asymmetry:** a cross-LOC payment cancellation restores the *target* LOC's balance but **not** the *source* LOC's — confirmed matching legacy behavior and preserved deliberately, not a bug to re-flag.
+
+**Integration.** → **Banking**: every AP/LOC money movement flows through `process_payment_atomic` or direct `BankTransaction`/`GLTransaction` inserts, always followed by `autopro-calculateBankBalances`. `ReceiveCreditModal.jsx` (physically an Inventory-return-flow file) routes refunds to one of 3 destinations — Supplier AP, Cash Drawer, or LOC — each with its own write path. → **GL**: independent direct posting throughout this module (§3) — never routed through the two protected functions.
+
+### 4.6 Banking & Cash Drawer
+
+**Data model.** `BankAccount` (two-column lock pattern, §3), `BankTransaction` (`debit_amount`/`credit_amount`, `source_type`/`source_id`; `is_reversed`/`reversed_by_id` columns exist but are **unused** by `reverseDeposit` — see below), `BankReconciliation` (`is_balanced` is derived, not stored), `CashDrawerAdjustment`, `DepositSlipBreakdown` (denomination columns are `bigint` — cast/default to `0`/`null`, never `''`).
+
+**Deposit flow.** Cash Drawer item → "For Deposit" → Make Deposit → Deposit Slip Breakdown → one `BankTransaction` + 2 balanced `GLTransaction` rows + one `DepositSlipBreakdown` row, sharing a `deposit_batch_id`; marks the source `CashDrawerAdjustment.deposited = true`.
+
+**`reverseDeposit` (7 ordered steps).** Validate the target transaction is an un-cleared, un-reconciled deposit → fiscal-period gate → find and flip-sign-reverse the original GL rows (tagged `source_type: 'deposit_reversal'`) → un-deposit the matching `CustomerPayments` rows → reset matching `CashDrawerAdjustment` rows → **hard-delete** the `BankTransaction` (deliberately not a soft reversal via the unused `is_reversed` columns — permanent, intentional legacy behavior) → recompute balances via `calculateBankBalances`. Never touches `DepositSlipBreakdown`.
+
+**`calculateBankBalances`.** Sums `credit_amount - debit_amount` across non-reversed transactions, writes `BankAccount.current_balance`/`last_recalculated_date`. **The universal "recompute after any bank-affecting write" primitive** — reused by AP, LOC, Payroll, GST, and Bank Transfer.
+
+**Reconciliation.** `processBankReconciliation` is a read-only CSV-vs-system amount matcher (±0.005 tolerance, amount-only). `batchReconcileTransactions` updates `reconciled`/`cleared`/`reconciliation_id` for a batch, returning HTTP `207` for partial success — a deliberately preserved non-`200+{error}` signal, an exception to the usual convention.
+
+**Bank Transfer (`autopro-transferFunds`).** Validates both accounts are active with a `gl_account`, inserts 2 cross-referencing `BankTransaction` rows + 2 balanced GL rows, recalculates both accounts' balances. The fiscal-period guard was **deliberately added** during the native port (legacy never had it) — matches the project-wide convention, not a bug fix to undo.
+
+**Integration.** Every other money-moving module (AP, LOC, GST, Levies, Payroll) posts through `BankAccount`/`BankTransaction` and always calls `autopro-calculateBankBalances` afterward — this module supplies the shared money-movement primitives for the whole system, even though the actual write sites for e.g. supplier payments live in the AP module's own files.
+
+### 4.7 Accounting — GL Reporting, Taxes, Fiscal Periods, Levies
+
+**`FiscalPeriod`** is the central gating table for the whole system — see §3's `checkFiscalPeriodStatus()` rule.
+
+**GL Reporting suite.** Mostly read-only aggregation over `GLTransaction`/`ChartOfAccount` (a couple, like `getGeneralLedgerData`, are thin RPC passthroughs). Balance Sheet construction validates `isBalanced` (Assets = Liabilities + Equity) directly in its output. `findGLImbalances` can trigger an email alert via `autopro-sendEmailViaSMTP` when imbalances are found. `postJournalEntries` validates debits = credits before writing any row, with rollback-on-partial-failure.
+
+**GST.** `calculateGSTReturn` (read-only) sums `GLTransaction` rows filtered by account number against `SystemSettings`'s configured collected/paid accounts; `total_sales`/`total_purchases` are computed via **string range comparisons** on `text` account numbers (`>= '4000' && < '5000'` for sales, `>='5000' && <'7000'` for purchases) — deliberately string-based, not a bug. `postGSTJournalEntries` builds up to 4 GL rows with **sign-aware debit/credit branching** that flips depending on whether the balance is positive or negative — this branching must be preserved exactly. `processGSTPayment` requires the `GSTReturn` be `status==='posted'`, posts a sign-aware GL pair + `BankTransaction`, and calls `calculateBankBalances` (a deliberate addition beyond the legacy source, for consistency).
+
+**Levies pipeline** (a fully separate, append-only ledger design — do not reimplement as an overwrite):
+- **`syncLevies`** (fired on WO save, must stay cheap/non-blocking — errors are swallowed and only logged, never blocking the WO save itself): reads `OtherChargeList` rows flagged `reportable_levy`, walks WO line items, computes each reportable line's target state, diffs against existing `Levies` rows for that WO, and inserts **delta rows** representing the net change (never overwrites/replaces existing rows) — removed lines get a zero-balancing negative delta.
+- **`getReportableLeviesReport`** — read-only, resolves `work_order_id` to a real RO/WO/EST/INV number with a multi-field fallback scan, joins `OtherChargeList` descriptions.
+- **`postLeviesToAP`** — fiscal-gated. Groups in-range `Levies` by `other_charge_id`, validates each charge type has a `linked_supplier_id`, computes a quarterly invoice number/date, inserts one `SupplierInvoiceLine` per group (`gl_account: '5001'`, `gst_override: true`) plus a balanced GL pair (debit `5001`/credit `2000`), then marks the source `Levies` rows as remitted by pointing them at the new invoice line. The fiscal guard here was likewise deliberately added during the native port.
+
+**Cash Flow.** `CashFlowSummary` (single-row config) auto-creates a fresh row if none exists — a self-healing fallback, not an error state. `CashFlowEntry` is a drag-reorderable sheet with debounced `sort_order` persistence (owned data-model-wise by the AP module, edited on this domain's `CashFlow.jsx` page).
+
+**GL account number reference** (a shared vocabulary referenced — sometimes hardcoded — across many modules' posting code):
+
+| Account | Meaning |
+|---|---|
+| `1010` | Cash |
+| `1100` | Accounts Receivable |
+| `1200` | Inventory asset |
+| `2000` | Accounts Payable |
+| `2001` | GST Payable/Receivable |
+| `2002` | GST Received/Collected |
+| `2003` | GST Paid |
+| `2052` | CPP payable |
+| `2053` | EI payable |
+| `2054` | Income tax payable |
+| `2100` | Customer deposits / overpayment liability |
+| `5001` | Levy and Enviro Fees Expense |
+| `5003` | Inventory adjustment expense |
+| `5005` | Payroll Expenses (adjustment default) |
+| `5006`/`5007` | Employer CPP/EI expense |
+| `5008`/`5009` | Wages |
+
+**Integration.** `FiscalPeriod` reachability has historically been the single biggest recurring live-testing blocker across Banking/AP/LOC — any "write silently reverts" symptom should first rule out a still-legacy-routed `FiscalPeriod` read before assuming a regression elsewhere. Levies is triggered from Work Orders and reported/posted from the Reports domain — a genuine Work Orders ↔ Accounting integration point. The Technician Performance Report's payroll-target progress bar (Reports domain) is fed by this module's `CashFlowSummary`, not by Payroll.
+
+### 4.8 Payroll
+
+**Data model.** `PayrollTransaction`: `transaction_type` ∈ Paycheque/Remittance/Adjustment; `amount` and `additional_deductions` are both genuinely `text` (§3 — cast/parse accordingly, do not "fix" to native numeric/jsonb types without explicit direction, since existing call sites depend on the current types).
+
+**Business logic.** Add Paycheque/Remittance support manual entry or a `.txt` "PayPRO" export upload parsed by the pure-parser `autopro-parsePayrollFile` (regex extraction only, no DB access). Manual Paycheque/Remittance creates intentionally omit `created_by`/`created_by_id` (pre-existing behavior, not a bug); Add Adjustment sets them.
+
+**Mark Paid → GL** (`MarkPaidModal.jsx`, the highest-risk piece): a client-side debit/credit balance check runs before any writes. Per selected transaction, in a **deliberately sequential** (not parallelized) loop: marks `is_paid = true`, then inserts a type-specific `BankTransaction`. After the loop, one **bulk** `GLTransaction` insert covers all selected transactions, then `autopro-calculateBankBalances` runs once for the account. GL account mapping: `5008`/`5009` wages, `2054` income tax, `2052` CPP, `2053` EI, `5006`/`5007` employer CPP/EI expense (adjustments instead post to a user-selected account via a GL-account combobox, e.g. `5005`).
+
+**Reversal.** `handleDelete` on an unpaid transaction inserts a reversal-adjustment row (negative amount) rather than deleting — paid transactions aren't deletable through the UI by design.
+
+**Integration.** → **Banking**: `MarkPaidModal.jsx` reads `BankAccount`/writes `BankTransaction`/`GLTransaction` directly — Payroll has no bank/GL tables of its own, and shares write access to the same accounts other modules use (this is normal in this codebase; entity writes are shared freely across modules even though file ownership is siloed). → **Auth/Employee**: reads `pay_rate`/`pto_eligible`/etc. but does not own or write them (owned by Setup's Tech Directory).
+
+### 4.9 Reports
+
+Pure read-only aggregation layer with no dedicated schema — every report is a native `autopro-get*` Edge Function querying other modules' tables directly and returning a computed shape; large scans use a paginated `fetchAllRows` helper (1000-row `.range()` pages) since some source tables exceed default row caps.
+
+**Report inventory:** Customer Report (per-customer sales aggregation), Other Charges Breakdown (non-parts/labor charge aggregation from `line_items` across a date range), **Sales Analysis Report** (fuzzy-matches WO RO numbers to WorkPRO `Project`s, attributes labor cost via `Employee.pay_rate × ProjectTimeSession` time, computes revenue/cost/margin), **Technician Performance Report** (per-tech utilization/efficiency from `TimeRecord`/`ProjectTimeSession`/`UnassignedTime` vs. WO-attributable hours, plus a payroll-target progress bar sourced from Accounting's `CashFlowSummary` — a deliberately separable, lower-fidelity feature from the utilization/efficiency numbers), Work Order Summary (aging buckets, WIP revenue/cost, 30-day closed-revenue comparison, status breakdown — `WorkOrder.status` is already human-readable text, no lookup needed), Inventory On Order, Parts Movement (backed directly by the `get_parts_movement_v2` RPC, not an Edge Function).
+
+**Integration.** Reads across virtually every module (Work Orders, WorkPRO, Employee, Customer, Supplier, InventoryItem) — since it's read-only and every touched table already has permissive RLS, Reports carries none of the write-safety concerns other modules do. Report access gating (e.g. Sales Analysis) must check current `Employee` fields (`admin`/`autopro_access_lvl`) — see §4.10.
+
+### 4.10 WorkPRO (Sister Application)
+
+A **technician-facing sister application**, not an AutoPRO module — see §2's framing. Core tables: `Project` (correlated to a Work Order via plain-text `Project.work_order = WorkOrder.wo_number`, **no FK**), `ProjectTimeSession`, `TimeRecord` (clock in/out, keyed by `employee_name`), `UnassignedTime` (unattributed time, keyed by **`user_name`** — a different field name than `TimeRecord`'s `employee_name` for the same concept, not interchangeable). None of these four tables have working DB defaults for `id`/audit fields — every write must set them explicitly, and none has an `updated_by` column, only `updated_date`.
+
+**Business logic.** Clock-in/out toggles `TimeRecord.status` (`'clocked_in'`/`'clocked_out'`), computing `total_hours` on clock-out; a "global" clock-in also writes a matching `UnassignedTime` row when time isn't attributed to a project. **Project archiving on invoice conversion**: converting a WO to an invoice fire-and-forgets an update of all matching, not-yet-archived `Project` rows to `status: 'archived'` with `date_archived` (Mountain-time local date). The tech directory is simply `Employee` rows filtered by `employee_type = 'tech'` — no separate roster/sync mechanism.
+
+**Gotchas.** `Employee.status` (text, e.g. `'active'`) governs active/inactive here, **not** a boolean `is_active`. `employee_type` (`'tech'`/`'non-tech'`) — never `position` (a free-text job title) — is what determines technician status.
+
+### 4.11 Auth / Employee & Permissions
+
+There is **no separate native `User` table** — `Employee` is the sole authoritative identity/permissions record, linked to Supabase Auth via `Employee.mykadr_user_id` (maps to `auth.users.id`). Key fields: `admin` (bool, admin-only UI), `autopro_access_lvl` (text, e.g. `'lvl3_user'` for full executive Accounting access), `accts_pay_access` (bool, gates a *limited* Accounting menu — Cash Drawer + Cash Flow only — distinct from the full executive menu), `paypro_user` (bool, payroll-nav visibility), `dark_mode` (bool). Avatars are always derived client-side as initials from `full_name` — there's no stored avatar/initials field.
+
+**Legacy → native field-name census (permanent reference, not a one-time migration note):** `role` → `admin`; `access_level` → `autopro_access_lvl`; `Paypro_user` → `paypro_user`; `AcctsPayAccess` → `accts_pay_access`. Any code still checking the left-hand legacy names against a native session/Employee object silently evaluates false/undefined rather than erroring — this specific bug class has recurred across multiple unrelated files.
+
+**A missing `Employee` row for a valid Auth session is an expected state**, not exceptional — every identity-consuming code path must degrade gracefully rather than assume `employee` is always populated. `wo_cards`/`OpenNewWindow` were deprecated outright and deliberately not carried forward to any native column.
+
+**Integration.** Virtually every module reads permission fields off the same resolved `Employee` object rather than maintaining separate logic — Scheduling (`Appointment.employee_id`), Work Orders (assigned-staff fields), WorkPRO (clock-in identity), Reports (access gating) all key off this one table.
 
 ## 5) Long-Term Architectural Roadmap
-*   **Base44 Deprecation:** The full, living, phase-by-phase roadmap for removing all remaining Base44 dependency (proxy functions, direct entity CRUD, auth, integrations) lives in `master_blueprint.md` at the repo root — refer there for current phase status rather than duplicating it here.
+*   **Base44 Deprecation:** The full, living, phase-by-phase roadmap for removing all remaining Base44 dependency (proxy functions, direct entity CRUD, auth, integrations) lives in `master_blueprint.md` — refer there for phase-by-phase history rather than duplicating it here.
+*   **Current testing status:** `blueprint_verification_plan.md` is the living, authoritative document for what's actually been live-verified vs. still outstanding across every phase — check it before assuming any given flow has been proven to work end-to-end.
 
 ## 6) User Preferences & Constraints
 *   **Data Integrity First:** Double-entry accounting rules and exact inventory quantities are sacred. Prioritize backend constraints (RPCs, triggers) to guarantee data safety.
 *   **Consistency:** Keep UI styling consistent with existing modal and table patterns. Do not introduce major UI changes unless requested.
-*   **Transparency:** Provide verbose `console.log` and `console.error` outputs in complex operations (especially GL and Inventory syncing) to aid in frontend debugging.
+*   **Transparency:** Provide verbose `console.log`/`console.error` outputs in complex operations (especially GL and Inventory syncing) to aid frontend debugging.
+*   **Deployment workflow:** The user pushes commits to `origin/development` via GitHub Desktop independently, outside of any AI agent session. `test.kensauto.ca` serves whatever is currently pushed to `development` — local uncommitted changes are invisible there. Check `git log`/`git status` (and whether the branch is up to date with origin) before diagnosing a live-site failure as a code bug in freshly-written code.

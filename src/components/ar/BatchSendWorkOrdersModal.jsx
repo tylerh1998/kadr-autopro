@@ -150,9 +150,9 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
             </div>
 
             {creatingSnapshots && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center gap-2">
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-sm text-blue-800">Creating customer portal links...</span>
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md p-3 flex items-center gap-2">
+                <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                <span className="text-sm text-blue-800 dark:text-blue-300">Creating customer portal links...</span>
               </div>
             )}
 
@@ -167,10 +167,10 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                     <div key={workOrder.id} className="rounded-md border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-medium text-slate-900">{label}</p>
-                          <p className="text-sm text-slate-500">${(workOrder.total_amount || 0).toFixed(2)}</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{label}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">${(workOrder.total_amount || 0).toFixed(2)}</p>
                         </div>
-                        {url && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                        {url && <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />}
                       </div>
 
                       {url && (
@@ -184,9 +184,9 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                       )}
 
                       {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-sm text-red-800">{error}</p>
+                        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-3 flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
                         </div>
                       )}
                     </div>
@@ -203,10 +203,10 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                 {results.map((result) => (
                   <div key={result.work_order_id} className="flex items-center justify-between gap-3 p-3 text-sm">
                     <div>
-                      <p className="font-medium text-slate-900">{result.label}</p>
-                      <p className="text-slate-500">{result.message}</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{result.label}</p>
+                      <p className="text-slate-500 dark:text-slate-400">{result.message}</p>
                     </div>
-                    <Badge className={result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                    <Badge className={result.success ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}>
                       {result.success ? 'Sent' : 'Failed'}
                     </Badge>
                   </div>

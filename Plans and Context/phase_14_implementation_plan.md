@@ -97,6 +97,22 @@ With Phase 10 confirmed Tested and Phase 13 confirmed done, I re-ran the repo-wi
 
 **Question:** given you mentioned a separate "final validation plan" already absorbing Phase 10A — is that final validation plan *also* meant to be the moment this repo-wide residue gets swept and Final Sunset actually happens (i.e., 14G moves out of this document entirely and becomes that plan's closing step)? Or do you want Phase 14 itself to absorb the sweep (spinning up 14H/14I/etc. sub-phases per leftover category), or a third option? I don't want to scope 14G further until this is decided — right now it's the single biggest open unknown in this whole plan.
 
+### 0.8 — Reassessment (same day, later): real progress landed, plus one live production risk
+
+You flagged "we've made some functional changes" — verified directly rather than assumed. Confirmed via fresh `git log`, `git diff`, and a fresh repo-wide grep:
+
+**Real progress since §0.7's count of 54:**
+- Commits `b7e83b0b`/`349967bc`/`36952d8b`/`b91a21e3`/`2c9841bb` landed real base44→native migrations: AR payment-receipt details, `EmailLog.jsx`, `getworkorderlist`/`createworkorderdata` (Appointment module), and — bundled into the generic "Bug Fixes" commit, not called out by name — `TagAlongManager.jsx`.
+- Fresh grep count: **41 files** (down from 54), after excluding `src/Layout.jsx` (a base44 URL string, not a live call) and 3 `work-orders/form|history` files (a hardcoded `@no-reply.base44.com` string check plus one dead commented-out line — confirmed genuinely inert, unlike my earlier wrong "false positive" claim about `getworkorderlist`/`searchInventory`/`searchSuppliers` consumers).
+- §0.3's AR/Statements cluster shrank a lot: `ARPaymentDetailsModal.jsx`, `ARPaymentEmailModal.jsx`, `InterestCalculationModal.jsx`, `StatementModal.jsx`, `TakePaymentModal.jsx`, `CustomerARTransactions.jsx`, `EmailLog.jsx`, `Reconcile.jsx`, `ReconcileReport.jsx`, `AutoReconcileModal.jsx`, `LinkSupplierModal.jsx`, `InventoryAdd.jsx`, `Schedule.jsx` are all now clean. Only `StatementEmailModal.jsx` (`sendStatementEmail`) and `BatchSendWorkOrdersModal.jsx` (`createBatchPortalSnapshot`/`sendBatchWorkOrderEmails`) remain from that cluster. `Statement` the table still doesn't exist on either branch (re-confirmed just now) — worth independently checking that whatever replaced `StatementModal.jsx`'s old logic doesn't quietly still expect a `Statement` row somewhere; not verified deeper than the grep here.
+- 14C shrank by one: `TagAlongManager.jsx` is fully converted to direct `supabase.from('TagAlong')`/`supabase.from('OtherChargeList')` calls already. `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx` are still on `@/entities/all` (unconverted, per the plan).
+
+**⚠️ Live production risk, independent of Phase 14 sequencing:** `TagAlongManager.jsx` now queries `TagAlong` directly via `supabase.from()` — but `TagAlong` **still does not exist on the production Supabase project** (re-confirmed via direct query just now, alongside `WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`Statement` — none of the 5 exist on production). If this commit reaches the production frontend before the schema replay happens, the Setup → Tagalongs tab will silently break for real users (caught error → empty list, not a crash, but wrong behavior). **Recommend doing the `TagAlong` (and ideally all 4 remaining dev-only tables — `WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`) schema+RLS replay to production now, decoupled from the rest of 14C's sequencing** — it's the same low-risk, well-precedented task 14C already scoped, just worth pulling forward given code that depends on it may already be closer to production than planned.
+
+**Updated 14-domain file count:** 12 files now (`Setup.jsx`, `Admin.jsx`, `LankarImport.jsx`, `RestoreBackupModal.jsx`, `SalesClassManager.jsx`, `OtherChargesManager.jsx`, `WIPSettings.jsx`, `WorkOrderStatusManager.jsx`, `LankarImportReturnModal.jsx`, `AddLegacyInvoiceModal.jsx`, `LegacyWorkOrderImportModal.jsx`, `LankarWOView.jsx` — the last one newly confirmed in scope, not in my original file list, depends on `getLankarWorkOrderData`).
+
+**§0.3/§0.4/§0.5 still open** — none of today's changes touched the remaining `StatementEmailModal.jsx`/`BatchSendWorkOrdersModal.jsx` pair, the `processLegacyWorkOrder` ownership question, or the `processDataImport` GL-posting sign-off. Still need your call on all three, plus §0.7's bigger question about where the final repo-wide sweep lives.
+
 ---
 
 ## 1) Phase Scope & Objectives

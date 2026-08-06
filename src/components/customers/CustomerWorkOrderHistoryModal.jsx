@@ -60,11 +60,11 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
 
   const getStageBadgeColor = (stage) => {
     switch(stage) {
-      case 'estimate': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'work_order': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'invoice': return 'bg-green-100 text-green-800 border-green-300';
-      case 'credit_invoice': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-slate-100 text-slate-800 border-slate-300';
+      case 'estimate': return 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800';
+      case 'work_order': return 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800';
+      case 'invoice': return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800';
+      case 'credit_invoice': return 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800';
+      default: return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600';
     }
   };
 
@@ -100,39 +100,39 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
                 href={wo.isLankar ? `/LankarWOView?woid=${wo.originalWoid}` : `/WorkOrderEdit?id=${wo.ro_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
+                className="vehicle-history-entry block p-4 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors text-inherit hover:text-inherit no-underline"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-blue-700">
+                    <p className="font-semibold text-blue-700 dark:text-blue-400">
                       {getDisplayNumber(wo) || `RO ${wo.ro_number}`}
                     </p>
                     <Badge variant="outline" className={`text-xs border ${getStageBadgeColor(wo.stage)}`}>
                       {getStageLabel(wo.stage)}
                     </Badge>
                   </div>
-                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     {format(new Date(wo.scheduled_date || wo.created_date), 'MMM d, yyyy')}
                   </p>
                 </div>
-                <p className="text-sm text-slate-600 mb-2 flex items-start gap-2">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-2 flex items-start gap-2">
                   <FileText className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{wo.description}</span>
                 </p>
-                <p className="text-sm text-slate-600 mb-3 flex items-start gap-2">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mb-3 flex items-start gap-2">
                   <Car className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{getVehicleLabel(wo)}</span>
                 </p>
                 <div className="flex items-center justify-between">
                   {wo.odometer !== undefined && wo.odometer !== null ? (
-                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                    <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
                       <Gauge className="w-4 h-4" />
                       {Number(wo.odometer).toLocaleString()} km
                     </div>
                   ) : <div />}
                   {wo.total_amount !== undefined && wo.total_amount !== null && (
-                    <div className="flex items-center gap-1 text-sm font-medium text-slate-700 ml-auto">
+                    <div className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300 ml-auto">
                       <DollarSign className="w-4 h-4" />
                       {Number(wo.total_amount).toFixed(2)}
                     </div>
@@ -141,7 +141,7 @@ export default function CustomerWorkOrderHistoryModal({ open, onClose, customer,
               </a>
             ))
           ) : (
-            <p className="text-center text-slate-500 py-8">No work order history found for this customer.</p>
+            <p className="text-center text-slate-500 dark:text-slate-400 py-8">No work order history found for this customer.</p>
           )}
         </div>
       </DialogContent>

@@ -163,10 +163,10 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
             {loading ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600">Loading deposits...</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">Loading deposits...</p>
               </div>
             ) : deposits.length === 0 ? (
-              <div className="text-center py-8 text-slate-600">
+              <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                 <p>No deposit history found.</p>
               </div>
             ) : (
@@ -192,16 +192,16 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                         <TableCell>{deposit.bank_account_name || deposit.bank_name || 'N/A'}</TableCell>
                         <TableCell className="text-right">${deposit.credit_amount.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          {deposit.reconciled && <span className="text-green-600">Reconciled</span>}
-                          {!deposit.reconciled && deposit.cleared && <span className="text-blue-600">Cleared</span>}
-                          {!deposit.reconciled && !deposit.cleared && <span className="text-orange-600">Pending</span>}
+                          {deposit.reconciled && <span className="text-green-600 dark:text-green-400">Reconciled</span>}
+                          {!deposit.reconciled && deposit.cleared && <span className="text-blue-600 dark:text-blue-400">Cleared</span>}
+                          {!deposit.reconciled && !deposit.cleared && <span className="text-orange-600 dark:text-orange-400">Pending</span>}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30"
                               onClick={() => {
                                 setSelectedDeposit(deposit);
                                 setShowDetailsModal(true);
@@ -214,7 +214,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                               onClick={() => onReprintSlip(deposit)}
                               disabled={loading}
                               title="Reprint Deposit Slip"
@@ -237,7 +237,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                                 title={`Cannot reverse: ${deposit.reversalReason}`}
                                 disabled
                               >
-                                <Ban className="w-4 h-4 text-red-500" />
+                                <Ban className="w-4 h-4 text-red-500 dark:text-red-400" />
                               </Button>
                             )}
                           </div>
@@ -251,7 +251,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
           </CardContent>
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4 px-2">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, deposits.length)} of {deposits.length}
             </p>
             <div className="flex items-center gap-2">

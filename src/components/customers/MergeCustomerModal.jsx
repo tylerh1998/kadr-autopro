@@ -98,17 +98,17 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
   };
 
   const renderCustomerCard = (customer, type) => (
-    <div className={`p-4 rounded-lg border ${type === 'master' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+    <div className={`p-4 rounded-lg border ${type === 'master' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
       <div className="flex justify-between items-start mb-2">
-        <span className={`text-xs font-bold px-2 py-1 rounded ${type === 'master' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+        <span className={`text-xs font-bold px-2 py-1 rounded ${type === 'master' ? 'bg-green-200 dark:bg-green-900/50 text-green-800 dark:text-green-300' : 'bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-300'}`}>
           {type === 'master' ? 'MASTER (Keep & Update)' : 'DUPLICATE (Merge & Deactivate)'}
         </span>
       </div>
       <div className="space-y-1">
-        <div className="font-bold text-lg">{getCustomerName(customer)}</div>
-        <div className="text-sm text-gray-600">{customer.phone || 'No Phone'}</div>
-        <div className="text-sm text-gray-600">{customer.email || 'No Email'}</div>
-        <div className="text-xs text-gray-400 mt-2">ID: {customer.id}</div>
+        <div className="font-bold text-lg dark:text-slate-100">{getCustomerName(customer)}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">{customer.phone || 'No Phone'}</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">{customer.email || 'No Email'}</div>
+        <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">ID: {customer.id}</div>
       </div>
     </div>
   );
@@ -122,13 +122,13 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
 
         {step === 1 ? (
           <div className="space-y-4">
-            <div className="bg-blue-50 p-3 rounded-md border border-blue-200 text-sm mb-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800 text-sm mb-4">
               <span className="font-bold">Master Customer:</span> {getCustomerName(masterCustomer)}
-              <div className="text-xs text-gray-500 mt-1">Search for the customer you want to merge INTO this master customer.</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Search for the customer you want to merge INTO this master customer.</div>
             </div>
 
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
               <Input
                 placeholder="Search for Duplicate Customer..."
                 value={searchTerm}
@@ -140,45 +140,45 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
 
             <div className="max-h-60 overflow-y-auto border rounded-md">
               {searching ? (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
                   Searching...
                 </div>
               ) : searchResults.length > 0 ? (
-                <div className="divide-y">
+                <div className="divide-y dark:divide-slate-800">
                   {searchResults.map(customer => (
-                    <div 
-                      key={customer.id} 
-                      className="p-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                    <div
+                      key={customer.id}
+                      className="p-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer flex justify-between items-center"
                       onClick={() => handleSelect(customer)}
                     >
                       <div>
-                        <div className="font-medium">{getCustomerName(customer)}</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="font-medium dark:text-slate-100">{getCustomerName(customer)}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {customer.phone} {customer.email ? `• ${customer.email}` : ''}
                         </div>
                       </div>
-                      <div className="text-right text-sm text-gray-400">
+                      <div className="text-right text-sm text-gray-400 dark:text-gray-500">
                         {customer.city}, {customer.state}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : searchTerm.length >= 2 ? (
-                <div className="p-4 text-center text-gray-500">No customers found</div>
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">No customers found</div>
               ) : (
-                <div className="p-4 text-center text-gray-400">Type at least 2 characters to search</div>
+                <div className="p-4 text-center text-gray-400 dark:text-gray-500">Type at least 2 characters to search</div>
               )}
             </div>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-700 p-4">
               <div className="flex">
-                <AlertTriangle className="h-5 w-5 text-yellow-400 mr-2" />
+                <AlertTriangle className="h-5 w-5 text-yellow-400 dark:text-yellow-500 mr-2" />
                 <div>
-                  <p className="font-bold text-yellow-700">Warning: This action cannot be undone</p>
-                  <p className="text-sm text-yellow-600 mt-1">
+                  <p className="font-bold text-yellow-700 dark:text-yellow-400">Warning: This action cannot be undone</p>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-500 mt-1">
                     Merging will move all Vehicles, Work Orders, Payments, and Adjustments from the Duplicate to the Master customer.
                     <br />
                     The Duplicate customer will be marked inactive.
@@ -191,7 +191,7 @@ export default function MergeCustomerModal({ open, onClose, onMergeComplete, mas
 
             <div className="grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
               {renderCustomerCard(duplicateCustomer, 'duplicate')}
-              <ArrowRight className="w-6 h-6 text-gray-400" />
+              <ArrowRight className="w-6 h-6 text-gray-400 dark:text-gray-500" />
               {renderCustomerCard(masterCustomer, 'master')}
             </div>
           </div>
