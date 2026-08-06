@@ -154,8 +154,9 @@ All new Supabase edge functions must be named `autopro-[functionname]`. (Not exp
 |---|---|---|---|
 | **8A** | Complete the 12 Partial-Coverage Pages (real dark-mode work, ~9,186 lines) | Complete | None — start here |
 | **8B** | Documentation Rollup — bring `master_blueprint.md` current (Phases 4, 5, 7, 8A) | Complete | 8A (so the rollup reflects final state, not mid-progress) |
-| **8C** | Automated Repo-Wide Grep Audit & Remediation | Pending | 8B (so the audit checks against an accurate Section 2, not a stale one) |
-| **8D** | Manual UI/UX Verification Pass (checklist handoff to user) | Pending | 8A + 8C (both code passes done first) |
+| **8C** | Automated Repo-Wide Grep Audit & Remediation | Complete | 8B (so the audit checks against an accurate Section 2, not a stale one) |
+| **8F** | Complete the 38 Files Found by 8C's Sweep 1 (real dark-mode work, ~11,200 lines, never previously scoped) | In progress | 8C — **reordered ahead of 8D/8E per user direction**: no point verifying the UI while 38 files are known-missed |
+| **8D** | Manual UI/UX Verification Pass (checklist handoff to user) | Pending | 8A + 8C + 8F (all code passes done first) |
 | **8E** | Final Blueprint Closeout — mark everything `[Tested]`, final rollup | Pending | 8D (user's verification results feed the closeout) |
 
 ---
@@ -271,25 +272,25 @@ For every file explicitly named with a ✅ in Section 2 (post-8B rollup), run a 
 Grep for custom `className` overrides on `PopoverContent`, `Combobox`-pattern components (search for `Combobox` in filenames — several exist: `GLAccountCombobox.jsx`, `SupplierCombobox.jsx`, `PayrollGLAccountCombobox.jsx`), `TooltipContent`, and any toast/notification component (search for `toast(` calls and `Toaster` usage) for hardcoded light-only colors without `dark:` pairs. These are lower-frequency components that may not have been swept by any prior phase's per-file reads since they're often embedded inside otherwise-already-styled parent files.
 
 #### Task List
-- [ ] Run Sweep 1, produce a list of candidate missed-work files, flag any genuinely new scope to the user before fixing
-- [ ] Run Sweep 2, manually triage every `text-black`/`text-white`/`bg-black`/`bg-white` hit, fix genuine bugs
-- [ ] Run Sweep 3, fix any hardcoded Shadcn-primitive override gaps found
-- [ ] Run Sweep 4, fix any print-safety gaps found (same pattern as 4B/8A's fixes)
-- [ ] Run Sweep 5, manually re-verify any suspiciously-low-count ✅ files, fix genuine gaps
-- [ ] Run Sweep 6, fix any popover/combobox/tooltip/toast gaps found
-- [ ] Compile a short summary of what each sweep found (even "clean, no findings" is a useful result to record)
+- [x] Run Sweep 1, produce a list of candidate missed-work files, flag any genuinely new scope to the user before fixing
+- [x] Run Sweep 2, manually triage every `text-black`/`text-white`/`bg-black`/`bg-white` hit, fix genuine bugs
+- [x] Run Sweep 3, fix any hardcoded Shadcn-primitive override gaps found
+- [x] Run Sweep 4, fix any print-safety gaps found (same pattern as 4B/8A's fixes)
+- [x] Run Sweep 5, manually re-verify any suspiciously-low-count ✅ files, fix genuine gaps
+- [x] Run Sweep 6, fix any popover/combobox/tooltip/toast gaps found
+- [x] Compile a short summary of what each sweep found (even "clean, no findings" is a useful result to record)
 
 #### Verification Plan
 1. For each fix applied in this sub-phase, do a targeted grep-audit of just that file (same as every prior phase's per-file verification).
 2. No broad UI walkthrough needed here — that's 8D's job. This sub-phase's own verification is the grep re-check confirming each fix landed.
 
-- [ ] Sweep 1 complete, findings triaged (fixed or explicitly flagged as new scope)
-- [ ] Sweep 2 complete, all bare black/white hits triaged
-- [ ] Sweep 3 complete, all hardcoded override gaps fixed
-- [ ] Sweep 4 complete, all print-safety gaps fixed
-- [ ] Sweep 5 complete, all stale ✅ claims re-verified
-- [ ] Sweep 6 complete, popover/combobox/tooltip/toast gaps fixed
-- [ ] No console errors introduced by any fix
+- [x] Sweep 1 complete, findings triaged (fixed or explicitly flagged as new scope) — flagged, awaiting user decision
+- [x] Sweep 2 complete, all bare black/white hits triaged
+- [x] Sweep 3 complete, all hardcoded override gaps fixed
+- [x] Sweep 4 complete, all print-safety gaps fixed
+- [x] Sweep 5 complete, all stale ✅ claims re-verified
+- [x] Sweep 6 complete, popover/combobox/tooltip/toast gaps fixed
+- [x] No console errors introduced by any fix (lint-verified on every edited file)
 
 ---
 
@@ -374,16 +375,58 @@ Once 8D's checklist comes back (either clean, or with a short list of final touc
 
 ---
 
+### 8F) SUB-PHASE F — Complete the 38 Files Found by 8C's Sweep 1
+
+**User decision (this session):** run this as its own sub-phase after 8D/8E close out the current scope, using the same file-by-file methodology as 8A — full read, gap-audit/full-pass as needed, print-safety check where applicable, grep-audit sanity check, live results written to this section as each file completes.
+
+**In scope — 38 files (~11,200 lines), grouped by module, none previously assigned to any phase:**
+
+*Inventory (7 files, ~3,158 lines):* `EditInventoryTransactionModal.jsx` | `InventoryAddModal.jsx` | `InventoryHistoryModal.jsx` | `InventoryTransactionsModal.jsx` | `LankarImportReturnModal.jsx` | `LocationModal.jsx` | `MergeInventoryModal.jsx`
+
+*Lines of Credit (4 files, ~2,030 lines):* `LineOfCreditPaymentModal.jsx` | `LineOfCreditTransactionModal.jsx` | `LOCReconciliationModal.jsx` | `PaymentTransactionItem.jsx`
+
+*Setup/Admin (10 files, ~2,117 lines):* `RecordDetailsModal.jsx` | `EmployeeDirectory.jsx` | `PricingMatrixModal.jsx` | `RestoreBackupModal.jsx` | `SalesClassEditModal.jsx` | `SalesClassManager.jsx` | `TagAlongManager.jsx` | `TechDirectory.jsx` | `WIPSettings.jsx` | `WorkOrderStatusManager.jsx`
+
+*Lankar (4 files, ~1,099 lines):* `LankarWOFinancialSummary.jsx` | `LankarWOHeaderInfo.jsx` | `LankarWOLineItemsTable.jsx` | `LegacyWorkOrderImportModal.jsx`
+
+*Cash Drawer (4 files, ~914 lines):* `AdjustmentHistoryModal.jsx` | `DepositHistoryModal.jsx` | `DepositModal.jsx` | `DepositSlipBreakdownModal.jsx`
+
+*Customers (3 files, ~527 lines):* `CustomerHistoryModal.jsx` | `CustomerWorkOrderHistoryModal.jsx` | `MergeCustomerModal.jsx`
+
+*AR (2 files, ~492 lines):* `BatchSendWorkOrdersModal.jsx` | `InterestCalculationModal.jsx`
+
+*Appointments (2 files, ~264 lines):* `SelectCustomerModal.jsx` | `SelectWorkOrderModal.jsx`
+
+*Work Order note-card (2 files, ~248 lines):* `NoteColorPicker.jsx` | `NoteEditableContent.jsx`
+
+*Cheques (1 file, 358 lines):* `IssuedChequesTable.jsx`
+
+*Misc (1 file, 31 lines):* `UserNotRegisteredError.jsx`
+
+**Also relevant when 8F reaches these two:** per Sweep 4, `IssuedChequesTable.jsx` and `LOCReconciliationModal.jsx` both already have a local `@media print` block using the dangerous visibility-toggle pattern with no color-reset — currently 0 `dark:` risk since they have 0 coverage today, but the mandatory print-safety check (same as every prior phase) becomes live and must be applied as part of each file's own pass, not deferred again.
+
+**Out of scope (confirmed deliberate exclusions during Sweep 1, do not re-flag):** `WorkOrderReport.jsx`, `CustomerHistoryPrintHeader.jsx`, `VehicleHistoryPrintHeader.jsx` — all three are paper-preview-only content gated behind the global `.print-only` class, invisible on-screen, correctly left unstyled by design (same category established in Phase 3).
+
+#### Task List
+- [ ] Work through all 38 files per the list above, same methodology as 8A (full read → gap-audit or full pass → print-safety check where relevant → grep-audit)
+- [ ] Note per-file results in this section as each completes (live, not batched to the end)
+- [ ] Update `master_blueprint.md` Section 2 with a new completion entry once done (mirrors 8A's own entry)
+
+#### Verification Plan
+Same as 8A: grep-audit each fixed file for non-zero `dark:` where expected, defer full visual walkthrough to a follow-up checklist (same pattern as 8D) rather than attempting browser-pane verification.
+
+---
+
 ## Final Verification Plan (All Sub-Phases Together)
 
-1. Confirm 8A's 12 files, 8C's sweep-driven fixes, and any 8D/8E touch-ups are all grep-audit-clean (non-zero `dark:` where expected, zero where composition-only/Recharts-only).
-2. Confirm `master_blueprint.md` (post-8B and post-8E) shows a fully internally-consistent, all-`[Tested]` picture with no dangling "Skipped"/"Pending" markers anywhere for work that's actually done.
+1. Confirm 8A's 12 files, 8C's sweep-driven fixes, 8F's 38 files, and any 8D/8E touch-ups are all grep-audit-clean (non-zero `dark:` where expected, zero where composition-only/Recharts-only).
+2. Confirm `master_blueprint.md` (post-8B and post-8E, updated again post-8F) shows a fully internally-consistent, all-`[Tested]` picture with no dangling "Skipped"/"Pending" markers anywhere for work that's actually done.
 3. Confirm 8D's full manual checklist has been walked by the user with no unresolved regressions.
 4. Confirm zero light-mode regressions anywhere across the entire application.
 
 ## Handoff Context (Post-Phase 8)
 
-Once this phase closes, the dark-mode blueprint is complete. There is no Phase 9 planned. Any future dark-mode-adjacent work (e.g. new pages built after this blueprint closes) should follow the same standard palette and lessons documented here and in `master_blueprint.md` Section 7, applied at build time rather than retrofitted later.
+Once 8A–8E close, the dark-mode blueprint's originally-scoped work is complete. **8F remains outstanding by explicit user direction** — the 38-file Sweep 1 discovery, to be executed after 8E using the same methodology as 8A. Any future dark-mode-adjacent work beyond 8F (e.g. new pages built after this blueprint fully closes) should follow the same standard palette and lessons documented here and in `master_blueprint.md` Section 7, applied at build time rather than retrofitted later.
 
 ---
 
@@ -412,8 +455,14 @@ Once this phase closes, the dark-mode blueprint is complete. There is no Phase 9
 - Results: Updated `Antigravity-context-plans/master_blueprint.md`: Section 2 now lists Phase 4 (32 files), Phase 5 (6 files), Phase 7 (9 files), and 8A (12 files) as done, replacing the stale "Pages (Partial)" line entirely. Section 5's roadmap diagram now shows Phases 4/5/7 as `[Tested*]` (pending Phase 8D visual verification) and Phase 8 as `[In Progress — 8A Complete]`, with the obsolete "skipped due to conflict" prose replaced. Phase 4/5/7 section headers updated to `[Tested — pending Phase 8D]`; Phase 6's "Excluded" note updated to reflect the 3 carry-over files are done via Phase 7's extension. Added 4 condensed rollup subsections to Section 7 (Phase 4, Phase 5, Phase 7, Phase 8/8A), cross-referencing the 4 source plan docs. **Notable finding during this pass:** `phase_5_implementation_plan.md`'s own Section 5 results were never written up and its status line still said "Draft — pending approval, no code changes made yet" — directly contradicting reality. Rather than trust either doc, verified directly against live file `dark:` counts (`WorkPROView.jsx` 97, `CreditInvoice.jsx` 17) to confirm the work was genuinely done before rolling it up — consistent with Lesson 6's standing rule to trust grep over any planning document, including this blueprint's own.
 
 ### Sub-phase 8C — Automated Repo-Wide Grep Audit & Remediation
-- Status: Not started
+- Status: Complete, except Sweep 1's new-scope finding is awaiting a user decision (see below) before any fixing starts on it
 - Results:
+  - **Sweep 1 (missed-work files):** Found 41 files under `src/pages`/`src/components` (excl. `ui/`) with 0 `dark:` coverage AND real light-mode-only markup. 3 are confirmed deliberate exclusions (paper-preview pattern, same category as `WorkOrderReport.jsx`): `WorkOrderReport.jsx` itself, `CustomerHistoryPrintHeader.jsx`, `VehicleHistoryPrintHeader.jsx` (both confirmed via read — gated behind the global `.print-only` class, invisible on-screen). **The remaining 38 files (~11,200 lines) are genuinely new, never-scoped work** — none appear anywhere in `master_blueprint.md`. This is comparable in scale to Phase 8A's own original discovery. Broken down by module: Inventory (7 files, ~3,158 lines), Lines of Credit (4 files, ~2,030 lines), Setup/Admin (10 files, ~2,117 lines), Lankar (4 files, ~1,099 lines), Cash Drawer (4 files, ~914 lines), AR (2 files, ~492 lines), Customers (3 files, ~527 lines), Appointments (2 files, ~264 lines), Cheques (1 file, 358 lines), Work Order note-card (2 files, ~248 lines), Misc (1 file, 31 lines). **Not fixed — flagged to the user per the mandatory rule, awaiting a decision on how to scope it** (fold into a new sub-phase like 8A's own precedent, spin off as a separate phase, or defer).
+  - **Sweep 2 (bare text-black/text-white):** 58 unpaired hits reviewed individually. ~54 are legitimate solid-saturated-fill buttons/badges (dark-safe per Lesson 10) or intentional fixed-color tooltips (dark bg tooltip, correct in both themes per Phase 7 precedent) — no action. **Found 1 genuine bug pattern, in 2 files already marked ✅**: `NewWorkPROModal.jsx` and `WorkPROModal.jsx` both have the identical `statusButtons` color-map array as the already-correctly-fixed `WorkPROView.jsx` (Phase 5), but only `WorkPROView.jsx` got the `inactiveColor` dark-mode pairing — the other two shipped the unpaired `bg-white`/`text-slate-900` default button state. Fixed both using `WorkPROView.jsx`'s exact proven pairing as the template. This doubles as a Sweep 5 finding.
+  - **Sweep 3 (hardcoded Shadcn primitive overrides):** Wrote a precise per-token checker (plain grep produces false positives on `dark:hover:bg-*` substring matches). Zero genuine findings on single-line `className` attributes — every `bg-white`/`bg-slate-N` override on an `<Input>`/`<Button>`/`<SelectTrigger>`/`<Textarea>` tag already has a matching `dark:bg-` pair. The only related hits (`RecordDetailsModal.jsx`) are already captured by Sweep 1.
+  - **Sweep 4 (print-safety):** Checked all 28 files with a local `@media print` block (14 already known-fixed from 4A/4B/8A, 14 newly checked this sweep). **Found and fixed 3 real gaps**: `LinesOfCredit.jsx` (dangerous visibility-toggle pattern, no reset, despite 70 `dark:` instances of real content — Phase 7's own rollup had explicitly left this block untouched), `APSummaryTable.jsx` (same dangerous pattern, 24 `dark:` instances at risk), and `StockReorderReport.jsx` (a **novel variant** — this file is built almost entirely on theme-aware CSS-variable tokens like `bg-card`/`text-foreground` rather than literal `dark:` classes, so the risk wasn't a `dark:` class leaking but the CSS custom properties themselves resolving to dark values during print; extended the reset to cover token classes too). 10 files confirmed already safe via one of three patterns: separate `window.open()` document (`StatementModal.jsx`, `AutoReconcileModal.jsx`, `OtherChargesBreakdownReport.jsx`, `ReportableLeviesReport.jsx`), a universal `* { color: #000 !important; background-color: #fff !important; }` wildcard reset (`SupplierTx.jsx`), or an already-complete explicit per-cell reset matching the `InventoryList.jsx`/`Payroll.jsx` pattern (`DocumentEditor.jsx`, `CreditInvoice.jsx`, `InventoryValuation.jsx`, `ReconciliationHistoryModal.jsx`). 2 files (`IssuedChequesTable.jsx`, `LOCReconciliationModal.jsx`) have the dangerous pattern but 0 `dark:` content to leak yet — deferred, no isolated action needed until/unless Sweep 1's scope reaches them.
+  - **Sweep 5 (stale ✅ claims):** Cross-checked all 173 files marked ✅ in Section 2 against live `dark:` counts. **3 files no longer exist anywhere in the codebase** (`EmployeeDetailsForm.jsx`, `PayrollEmployeeForm.jsx`, `PreviousPaychequesModal.jsx` — zero matches by filename search or import reference) — a stale-documentation issue, not a code gap; nothing to fix, flagged for a future doc cleanup pass. Of the 12 files with a 0 `dark:` count, all 12 confirmed legitimate on inspection (composition-only wrappers or pure-Shadcn forms, consistent with established precedent — e.g. `VehicleHistoryFilters.jsx`, the file the user asked about earlier this session, which is correctly 0 because the real markup lives in the `HistoryFilters.jsx` it wraps). Of the low-ratio-relative-to-size files, `WorkOrderForm.jsx` (1155 lines, only 2 `dark:`) confirmed as a genuine composition-only orchestrator (composes 3 already-fixed child components plus already-fixed modals, with only one raw styled element of its own). Found and fixed 1 real gap: `InventoryEditModal.jsx`'s calculated-margin-% indicator had a bare `text-green-600`. The `NewWorkPROModal.jsx`/`WorkPROModal.jsx` finding from Sweep 2 is also a Sweep 5 finding (both marked ✅ with a real unfixed gap).
+  - **Sweep 6 (popovers/comboboxes/tooltips/toasts):** All 3 Combobox files already ✅ and confirmed fine (not flagged by Sweep 5's ratio check). The 3 `TooltipContent` hits with hardcoded `bg-slate-900 text-white` are confirmed intentional fixed-dark tooltips, correct in both themes. 1 `PopoverContent` hit (`NoteColorPicker.jsx`) already captured by Sweep 1. **The app's entire toast/`Toaster` system is dead code** — `<Toaster />` is rendered once in `App.jsx`, but zero `toast()` calls or `useToast()` hook usages exist anywhere in the app outside `src/components/ui/`. Not actionable (nothing ever shows), flagged as an informational finding only.
 
 ### Sub-phase 8D — Manual UI/UX Verification Pass
 - Status: Not started

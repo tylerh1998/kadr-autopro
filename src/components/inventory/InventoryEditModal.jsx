@@ -522,7 +522,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                     required
                                 />
                                 {calculatedMargin && (
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600">
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600 dark:text-green-400">
                                         {calculatedMargin}%
                                     </div>
                                 )}

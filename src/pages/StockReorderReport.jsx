@@ -146,12 +146,24 @@ export default function StockReorderReport() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background-color: white !important;
+            color: #000 !important;
           }
           .print-area {
             padding: 20px;
           }
           .page-break {
             page-break-after: always;
+          }
+
+          /* Force light/black output regardless of app dark mode — this page is
+             built almost entirely on theme-aware CSS-variable tokens (bg-card,
+             text-foreground) which are not reset by the class-based overrides above */
+          .bg-background, .bg-card, .bg-muted, [class*="bg-slate-"] {
+            background-color: white !important;
+          }
+          .text-foreground, .text-muted-foreground, [class*="text-slate-"] {
+            color: #000 !important;
           }
         }
       `}</style>

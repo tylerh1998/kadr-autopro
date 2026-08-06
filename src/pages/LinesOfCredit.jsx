@@ -451,6 +451,25 @@ export default function LinesOfCreditPage() {
           table { border-collapse: collapse; width: 100%; font-size: 10px; }
           th, td { border: 1px solid #000; padding: 2px 4px; text-align: left; }
           th { background-color: #f0f0f0; font-weight: bold; }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400,
+          .text-card-foreground {
+            color: #000 !important;
+          }
+          .bg-green-100 { background-color: #dcfce7 !important; }
+          .text-green-800 { color: #166534 !important; }
+          .border-green-200 { border-color: #bbf7d0 !important; }
+          .bg-red-100 { background-color: #fee2e2 !important; }
+          .text-red-800 { color: #991b1b !important; }
+          .border-red-200 { border-color: #fecaca !important; }
+          .bg-yellow-100 { background-color: #fef9c3 !important; }
+          .text-yellow-800 { color: #854d0e !important; }
+          .border-yellow-200 { border-color: #fef08a !important; }
         }
       `}</style>
 

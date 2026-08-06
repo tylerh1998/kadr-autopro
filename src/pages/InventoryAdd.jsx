@@ -590,8 +590,17 @@ export default function InventoryAddPage() {
             return;
         }
 
+        // Determine new-vs-existing fresh at the moment of adding, rather than trusting a flag
+        // carried over from an earlier step (dropdown selection / OCR import / edit) - those paths
+        // don't reliably preserve it, which was flagging real existing parts as "New".
+        const normalizedPartNumber = (currentItem.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const matchedExistingPart = inventorySearchResults.find(
+            (invItem) => (invItem.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === normalizedPartNumber
+        );
+
         const itemToAdd = {
             ...currentItem,
+            is_existing: !!matchedExistingPart,
             quantity_received: parseFloat(currentItem.quantity_received),
             cost: parseFloat(currentItem.cost),
             profit_margin: parseFloat(currentItem.profit_margin),

@@ -286,6 +286,16 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
           table { width: 100%; border-collapse: collapse; font-size: 10px; }
           th, td { border: 1px solid #ddd; padding: 4px; text-align: left; }
           th { background-color: #f2f2f2; }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"] {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400,
+          .text-blue-600, .text-blue-700, .text-blue-400 {
+            color: #000 !important;
+          }
         }
         @media screen {
           .print-title { display: none; }

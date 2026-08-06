@@ -213,7 +213,7 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: Vehicle list → duplicate-merge action → `MergeVehicleModal.jsx`
   Files under test: `src/components/vehicles/MergeVehicleModal.jsx`, `autopro-mergeVehicles`
 
-- [ ] **Customer AR summary and transaction history**
+- [x] **Customer AR summary and transaction history**
   tl;dr: Confirms AR aging balances and the drill-down transaction list render correctly for a customer with real invoice/payment history.
   UI entry point: Customer detail → AR tab
   Files under test: `src/components/customers/CustomerARSummary.jsx`, `autopro-supabaseCustomerARSummary`, `CustomerARTransactions.jsx`, `ARPaymentDetailsModal.jsx`
@@ -272,7 +272,7 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `InventoryAdd.jsx` → "Receive Inventory"
   Files under test: `src/pages/InventoryAdd.jsx`, `autopro-processInventoryReceipt`
 
-- [ ] **Add a new inventory item with AI category suggestion**
+- [x] **Add a new inventory item with AI category suggestion**
   tl;dr: Confirms the Gemini-backed category suggestion correctly fills in and the item saves.
   UI entry point: `InventoryAdd.jsx` / `InventoryAddModal.jsx` → new part entry
   Files under test: `src/components/inventory/InventoryAddModal.jsx`, `src/pages/InventoryAdd.jsx`, `autopro-suggestInventoryCategory`
@@ -324,7 +324,7 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Work Orders
 
-- [ ] **Create a new Work Order / Estimate**
+- [x] **Create a new Work Order / Estimate**
   tl;dr: Exercises the native insert path and confirms `WorkOrder.id` generation and lock acquisition both work.
   UI entry point: `WorkOrders.jsx` → "New Work Order"
   Files under test: `src/components/work-orders/NewWorkOrderModal.jsx`, `set_workorder_lock` RPC
