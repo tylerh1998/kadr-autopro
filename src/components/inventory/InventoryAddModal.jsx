@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TagAlong } from "@/entities/TagAlong";
 import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check } from "lucide-react";
 
@@ -95,8 +94,9 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
         }
 
         try {
-            const tagAlongsData = await TagAlong.list();
-            setTagAlongs(tagAlongsData);
+            const { data: tagAlongsData, error: tagAlongsError } = await supabase.from('TagAlong').select('*');
+            if (tagAlongsError) throw tagAlongsError;
+            setTagAlongs(tagAlongsData || []);
         } catch (error) {
             console.error('Error loading tag alongs:', error);
         }

@@ -43,9 +43,9 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
     return (
       <Badge 
         className={`${
-          isShortage 
-            ? 'bg-red-100 text-red-800 border-red-300' 
-            : 'bg-green-100 text-green-800 border-green-300'
+          isShortage
+            ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800'
+            : 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800'
         } border`}
       >
         {isShortage ? (
@@ -106,14 +106,14 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
               Unselect All
             </Button>
           </div>
-          <div className="text-sm font-medium text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+          <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
             Selected: {selectedPayments.length} items (${selectedTotal.toFixed(2)})
           </div>
         </div>
 
         <div className="flex-grow overflow-y-auto border rounded-md">
           {payments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               No items in this category
             </div>
           ) : (
@@ -128,10 +128,10 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                     key={payment.id} 
                     onClick={() => handleTogglePayment(payment.id)}
                     className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
-                      selectedPayments.includes(payment.id) 
-                        ? 'bg-blue-50 border-l-4 border-l-blue-500' 
-                        : 'hover:bg-gray-50'
-                    } ${isAdjustment ? 'bg-orange-50/30' : ''}`}
+                      selectedPayments.includes(payment.id)
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500'
+                        : 'hover:bg-gray-50 dark:hover:bg-slate-800/40'
+                    } ${isAdjustment ? 'bg-orange-50/30 dark:bg-orange-900/20' : ''}`}
                   >
                     <Checkbox
                       checked={selectedPayments.includes(payment.id)}
@@ -141,7 +141,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                     
                     {isAdjustment && (
                       <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
-                        isShortage ? 'text-red-500' : 'text-green-500'
+                        isShortage ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'
                       }`} />
                     )}
                     
@@ -154,30 +154,30 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
                       </div>
                       {/* Show cheque info if available */}
                       {payment.method === 'cheque' && (payment.cheque_name || payment.cheque_number) && (
-                        <div className="text-xs text-slate-600 mt-1">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                           {payment.cheque_name && <span>Cheque: {payment.cheque_name}</span>}
                           {payment.cheque_name && payment.cheque_number && <span> • </span>}
                           {payment.cheque_number && <span>#{payment.cheque_number}</span>}
                         </div>
                       )}
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {formatDate(payment.date)}
                         {payment.reference && ` • Ref: ${payment.reference}`}
                       </div>
                       {payment.notes && (
-                        <div className="text-xs text-gray-500 mt-1 italic">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">
                           {payment.notes}
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="text-right flex-shrink-0">
                       <div className={`font-semibold text-lg ${
-                        isNegative ? 'text-red-600' : ''
+                        isNegative ? 'text-red-600 dark:text-red-400' : ''
                       }`}>
                         {isNegative ? '-' : ''}${Math.abs(payment.amount).toFixed(2)}
                       </div>
-                      <div className="text-xs text-gray-500 capitalize">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                         {payment.method.replace('_', ' ')}
                       </div>
                     </div>
@@ -199,7 +199,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
               return (
                 <Button 
                   variant="outline" 
-                  className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800"
+                  className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:text-blue-800 dark:hover:text-blue-200"
                   onClick={async () => {
                     const response = await getWorkOrderRoNumber({ workOrderId: item.workOrderId });
                     const roNumber = response.data?.ro_number;

@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Upload, Package, Users, Car, Loader2, CheckCircle, AlertTriangle, RotateCcw, FileText } from 'lucide-react';
 import { createPageUrl } from '@/utils';
-import { InventoryItem, TagAlong } from '@/entities/all';
+import { InventoryItem } from '@/entities/all';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import LankarImportReturnModal from '@/components/inventory/LankarImportReturnModal';
 import AddLegacyInvoiceModal from '@/components/lankar/AddLegacyInvoiceModal';
 import LegacyWorkOrderImportModal from '@/components/lankar/LegacyWorkOrderImportModal';
@@ -29,8 +30,9 @@ export default function LankarImport() {
 
   const loadTagAlongs = async () => {
     try {
-      const data = await TagAlong.list();
-      setTagAlongs(data);
+      const { data, error } = await supabase.from('TagAlong').select('*');
+      if (error) throw error;
+      setTagAlongs(data || []);
     } catch (error) {
       console.error('Error loading tag alongs:', error);
     }

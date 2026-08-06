@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Customer } from "@/entities/Customer";
 import { Vehicle } from "@/entities/Vehicle";
 import { useAuth } from '@/lib/AuthContext';
@@ -145,7 +145,13 @@ export default function WorkOrdersPage() {
     }
   };
 
+  // Keep latest state/handlers available to the realtime callback without forcing a resubscribe
+  const realtimeHandlersRef = useRef();
+  realtimeHandlersRef.current = { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects };
+
   // Direct Broadcast WebSocket Connection - Zero Polling
+  // Subscribed once for the page's lifetime; page/sort/search/tab changes must NOT tear this down,
+  // or the socket can be left in a broken state after the first churn (see realtime investigation notes).
   useEffect(() => {
     let isActive = true;
     let realtimeChannel = null;
@@ -159,7 +165,8 @@ export default function WorkOrdersPage() {
         .channel('work_order_refresh')
         .on('broadcast', { event: 'workorder-updated' }, (message) => {
           console.log('Live broadcast received! Database changed:', message.payload);
-          
+
+          const { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects } = realtimeHandlersRef.current;
           loadData();
           if (activeTab === 'workpro' && workPROLoaded) {
             loadWorkPROProjects();
@@ -179,7 +186,7 @@ export default function WorkOrdersPage() {
       isActive = false;
       realtimeChannel?.unsubscribe();
     };
-  }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'workpro' && !workPROLoaded) {

@@ -47,7 +47,7 @@ import EditReturnInfoModal from '../components/inventory/EditReturnInfoModal';
 import LegacyWarrantyReturnModal from '../components/inventory/LegacyWarrantyReturnModal';
 import { base44 } from '@/api/base44Client';
 import { inventoryUpdate } from '@/functions/inventoryUpdate';
-import { searchInventory } from '@/functions/searchInventory';
+import { searchInventory } from '@/lib/inventorySearch';
 
 export default function InventoryReturnsPage() {
   const [returns, setReturns] = useState([]);

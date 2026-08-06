@@ -11,7 +11,7 @@ import { CalendarIcon, Loader2, Search, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { InventoryItem, InventoryReturn } from '@/entities/all';
 import { supabase } from '@/lib/supabase';
-import { searchInventory } from '@/functions/searchInventory';
+import { searchInventory } from '@/lib/inventorySearch';
 
 // Helper function to safely parse and format dates
 const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {

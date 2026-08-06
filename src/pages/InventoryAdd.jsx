@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { TagAlong } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
-import { searchInventory } from '@/functions/searchInventory';
+import { searchInventory } from '@/lib/inventorySearch';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
 import PartsInvoiceOCRModal from '../components/inventory/PartsInvoiceOCRModal';
@@ -241,8 +240,9 @@ export default function InventoryAddPage() {
                 }
 
                 try {
-                    const tagAlongsData = await TagAlong.list();
-                    setTagAlongs(tagAlongsData);
+                    const { data: tagAlongsData, error: tagAlongsError } = await supabase.from('TagAlong').select('*');
+                    if (tagAlongsError) throw tagAlongsError;
+                    setTagAlongs(tagAlongsData || []);
                 } catch (error) {
                     console.error('Error loading tag alongs:', error);
                 }

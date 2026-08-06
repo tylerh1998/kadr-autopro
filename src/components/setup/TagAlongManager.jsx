@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { TagAlong, OtherChargeList } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import TagAlongForm from './TagAlongForm';
 
 export default function TagAlongManager() {
+  const { user, employee } = useAuth();
   const [tagAlongs, setTagAlongs] = useState([]);
   const [otherCharges, setOtherCharges] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,12 +24,14 @@ export default function TagAlongManager() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tagAlongsData, otherChargesData] = await Promise.all([
-        TagAlong.list(),
-        OtherChargeList.list()
+      const [tagAlongsResult, otherChargesResult] = await Promise.all([
+        supabase.from('TagAlong').select('*').order('name'),
+        supabase.from('OtherChargeList').select('*')
       ]);
-      setTagAlongs(tagAlongsData || []);
-      setOtherCharges(otherChargesData || []);
+      if (tagAlongsResult.error) throw tagAlongsResult.error;
+      if (otherChargesResult.error) throw otherChargesResult.error;
+      setTagAlongs(tagAlongsResult.data || []);
+      setOtherCharges(otherChargesResult.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
       setTagAlongs([]);
@@ -39,10 +43,25 @@ export default function TagAlongManager() {
 
   const handleSubmit = async (formData) => {
     try {
+      const nowIso = new Date().toISOString();
       if (editingTagAlong) {
-        await TagAlong.update(editingTagAlong.id, formData);
+        const { error } = await supabase
+          .from('TagAlong')
+          .update({ ...formData, updated_date: nowIso })
+          .eq('id', editingTagAlong.id);
+        if (error) throw error;
       } else {
-        await TagAlong.create(formData);
+        const { error } = await supabase
+          .from('TagAlong')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            ...formData,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: employee?.full_name || employee?.email || user?.email || '',
+            created_by_id: user?.id || ''
+          });
+        if (error) throw error;
       }
       setShowForm(false);
       setEditingTagAlong(null);
@@ -61,7 +80,8 @@ export default function TagAlongManager() {
   const handleDelete = async (tagAlong) => {
     if (window.confirm(`Are you sure you want to delete "${tagAlong.name}"?`)) {
       try {
-        await TagAlong.delete(tagAlong.id);
+        const { error } = await supabase.from('TagAlong').delete().eq('id', tagAlong.id);
+        if (error) throw error;
         fetchData();
       } catch (error) {
         console.error('Error deleting tag along:', error);
