@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { SystemSettings } from "@/entities/SystemSettings";
-import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -101,7 +99,8 @@ export default function CreditInvoicePage() {
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const settings = await SystemSettings.list();
+        const { data: settings, error } = await supabase.from('SystemSettings').select('*');
+        if (error) throw error;
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
@@ -199,15 +198,13 @@ export default function CreditInvoicePage() {
       const invNumericPart = invNumberMatch ? invNumberMatch[0] : '0000';
       
       // Find existing credit invoices for this invoice to determine suffix
-      const existingCreditInvoicesRes = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'filter', 
-        table: 'WorkOrder', 
-        params: { 
-          customer_id: workOrder.customer_id,
-          stage: 'credit_invoice'
-        }
-      });
-      const existingCreditInvoices = existingCreditInvoicesRes.data?.data || [];
+      const { data: existingCreditInvoicesData, error: existingCreditInvoicesError } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('customer_id', workOrder.customer_id)
+        .eq('stage', 'credit_invoice');
+      if (existingCreditInvoicesError) throw existingCreditInvoicesError;
+      const existingCreditInvoices = existingCreditInvoicesData || [];
       
       // Filter to only those related to this original invoice
       const relatedCredits = existingCreditInvoices.filter(ci => {
@@ -233,6 +230,7 @@ export default function CreditInvoicePage() {
       const effectivePaymentMethod = refundSource === 'cash_drawer' ? cashDrawerPaymentType : refundSource;
       
       const creditInvoiceData = {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         ro_number: uniqueRoNumber, // Use the generated unique RO number
         crinv_number: creditInvoiceNumber, // Use the base credit invoice number for crinv_number
         customer_id: workOrder.customer_id,
@@ -247,11 +245,11 @@ export default function CreditInvoicePage() {
         shop_supply_total: -Math.abs(shopSupplyTotal),
         tax_amount: -Math.abs(creditTaxAmount),
         total_amount: -Math.abs(creditTotalAmount),
-        line_items: JSON.stringify(selectedLineItems.map(line => {
+        line_items: selectedLineItems.map(line => {
           const lineTotal = parseFloat(line.total) || 0;
           // For other charges, if oc_total isn't set, use the line total
           // This ensures the credit shows up in the "Other Charges" breakdown
-          const ocTotalSource = (line.is_other_charge || line.other_charge_id) 
+          const ocTotalSource = (line.is_other_charge || line.other_charge_id)
               ? ((parseFloat(line.oc_total) || 0) !== 0 ? (parseFloat(line.oc_total) || 0) : lineTotal)
               : (parseFloat(line.oc_total) || 0);
 
@@ -262,49 +260,60 @@ export default function CreditInvoicePage() {
             labour: -Math.abs(parseFloat(line.labour) || 0),
             oc_total: -Math.abs(ocTotalSource),
           };
-        })),
-        payments: JSON.stringify([{
+        }),
+        payments: [{
           id: Date.now(),
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: -Math.abs(creditTotalAmount),
           payment_method: effectivePaymentMethod,
           reference: `Credit for ${workOrder.inv_number}`,
-        }]),
+        }],
         amount_paid: -Math.abs(creditTotalAmount),
         cp_id: workOrder.cp_id,
       };
       
       console.log('Creating credit invoice:', creditInvoiceData);
-      
-      const createRes = await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'WorkOrder', data: creditInvoiceData });
-      const createdCreditInvoice = createRes.data?.data?.[0];
+
+      const { data: createdCreditInvoice, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert(creditInvoiceData)
+        .select()
+        .single();
+      if (createError) throw createError;
       console.log('Created credit invoice:', createdCreditInvoice);
 
       // Invoke GL function to create accounting entries for the credit invoice
-      const systemSettingsData = await SystemSettings.list();
+      const { data: systemSettingsData, error: systemSettingsError } = await supabase.from('SystemSettings').select('*');
+      if (systemSettingsError) throw systemSettingsError;
       const currentSystemSettings = systemSettingsData && systemSettingsData.length > 0 ? systemSettingsData[0] : {};
 
-      const glResponse = await base44.functions.invoke('handleCreditInvoiceGL', {
-        workOrder: createdCreditInvoice,
-        lineItems: JSON.parse(createdCreditInvoice.line_items),
-        payments: JSON.parse(createdCreditInvoice.payments),
-        systemSettings: currentSystemSettings
+      const { data: glResponseData, error: glInvokeError } = await supabase.functions.invoke('autopro-handleCreditInvoiceGL', {
+        body: {
+          workOrder: createdCreditInvoice,
+          lineItems: createdCreditInvoice.line_items,
+          payments: createdCreditInvoice.payments,
+          systemSettings: currentSystemSettings
+        }
       });
+      if (glInvokeError) throw new Error(glInvokeError.message);
 
-      if (glResponse.data.success) {
-        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: createdCreditInvoice.id, data: {
-          accounting_details: glResponse.data.accounting_details
-        }});
+      if (glResponseData.success) {
+        const { error: accountingUpdateError } = await supabase
+          .from('WorkOrder')
+          .update({ accounting_details: glResponseData.accounting_details })
+          .eq('id', createdCreditInvoice.id);
+        if (accountingUpdateError) throw accountingUpdateError;
         console.log('GL transactions for credit invoice recorded successfully.');
       } else {
-        console.error('Failed to record GL transactions for credit invoice:', glResponse.data.error);
+        console.error('Failed to record GL transactions for credit invoice:', glResponseData.error);
       }
 
       // Fetch suppliers to map IDs to names for returns
       let suppliers = [];
       try {
-        const suppliersRes = await base44.functions.invoke('SupabaseProxy', { action: 'list', table: 'Supplier' });
-        suppliers = suppliersRes.data?.data || [];
+        const { data: suppliersData, error: suppliersError } = await supabase.from('Supplier').select('*');
+        if (suppliersError) throw suppliersError;
+        suppliers = suppliersData || [];
       } catch (err) {
         console.error("Failed to load suppliers for return processing", err);
       }
@@ -419,10 +428,12 @@ export default function CreditInvoicePage() {
         }
       });
       
-      await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: workOrder.id, data: {
-        line_items: JSON.stringify(updatedLineItems)
-      }});
-      
+      const { error: lineItemsUpdateError } = await supabase
+        .from('WorkOrder')
+        .update({ line_items: updatedLineItems })
+        .eq('id', workOrder.id);
+      if (lineItemsUpdateError) throw lineItemsUpdateError;
+
       console.log('Updated original work order line items with credit reference');
 
       // Create CustomerPayment record for the refund
@@ -435,7 +446,8 @@ export default function CreditInvoicePage() {
           paymentMethod = 'on_account';
         }
 
-        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'CustomerPayments', data: {
+        const { error: refundPaymentError } = await supabase.from('CustomerPayments').insert({
+          id: crypto.randomUUID(),
           customer_id: workOrder.customer_id,
           work_order_id: createdCreditInvoice.id,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -443,7 +455,8 @@ export default function CreditInvoicePage() {
           payment_method: paymentMethod,
           notes: `Refund for credit invoice ${creditInvoiceNumber}`,
           created_date: new Date().toISOString()
-        }});
+        });
+        if (refundPaymentError) throw refundPaymentError;
 
         console.log('Created CustomerPayment refund record');
       }
