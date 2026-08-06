@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SentEmailLog } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,30 +30,32 @@ export default function EmailLogPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const logsData = await SentEmailLog.list('-sent_date', 200); // Get latest 200 logs
-      setLogs(logsData);
-
-      // Fetch customers and work orders from Supabase Proxy
-      const [customersRes, workOrdersRes] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' }),
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder' })
+      const [
+        { data: logsData, error: logsError },
+        { data: customersData, error: customersError },
+        { data: workOrdersData, error: workOrdersError }
+      ] = await Promise.all([
+        supabase.from('SentEmailLog').select('*').order('sent_date', { ascending: false }).limit(200),
+        supabase.from('Customer').select('*'),
+        supabase.from('WorkOrder').select('*')
       ]);
 
-      if (customersRes.data?.data) {
-        const customerMap = customersRes.data.data.reduce((acc, customer) => {
-          acc[customer.id] = customer;
-          return acc;
-        }, {});
-        setCustomers(customerMap);
-      }
+      if (logsError) throw logsError;
+      setLogs(logsData || []);
 
-      if (workOrdersRes.data?.data) {
-        const woMap = workOrdersRes.data.data.reduce((acc, wo) => {
-          acc[wo.id] = wo;
-          return acc;
-        }, {});
-        setWorkOrders(woMap);
-      }
+      if (customersError) throw customersError;
+      const customerMap = (customersData || []).reduce((acc, customer) => {
+        acc[customer.id] = customer;
+        return acc;
+      }, {});
+      setCustomers(customerMap);
+
+      if (workOrdersError) throw workOrdersError;
+      const woMap = (workOrdersData || []).reduce((acc, wo) => {
+        acc[wo.id] = wo;
+        return acc;
+      }, {});
+      setWorkOrders(woMap);
 
     } catch (error) {
       console.error("Failed to load email logs:", error);
