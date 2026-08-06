@@ -63,7 +63,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 }
                 const filtered = (accounts || [])
                     .filter(a => a.is_active && !a.controlled)
-                    .sort((a, b) => (a.account_number || '').localeCompare(b.account_number || '', undefined, { numeric: true }));
+                    .sort((a, b) => String(a.account_number || '').localeCompare(String(b.account_number || ''), undefined, { numeric: true }));
                 setGlAccounts(filtered);
             };
             loadData();

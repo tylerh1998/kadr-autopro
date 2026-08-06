@@ -148,7 +148,7 @@ export default function LankarWOView() {
 
       try {
         const response = await getLankarWorkOrderData({ woid, invoiceid });
-        setData(response.data?.data || null);
+        setData(response.data || null);
       } catch (err) {
         setError(err?.response?.data?.error || err.message || 'Failed to load Lankar work order');
       } finally {

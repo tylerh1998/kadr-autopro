@@ -143,12 +143,12 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 
 | Sub-phase | Status | Overview |
 |---|---|---|
-| 14C | **Code complete 2026-08-05 — live-verify pending deploy** | Production replay of 5 dev-only tables + finish 3 remaining Setup managers |
-| 14A | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate Setup backup/restore; migrate Sales Classes |
-| 14B | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate Admin.jsx's Database Query Tool + `RecordDetailsModal.jsx` |
-| 14D | **Code complete 2026-08-05 — live-verify pending deploy** | Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx` |
-| 14E | **Code complete 2026-08-05 — live-verify pending deploy** | AR cluster remainder: `StatementEmailModal.jsx` + `BatchSendWorkOrdersModal.jsx` |
-| 14F | **Code complete 2026-08-05 — live-verify pending deploy** | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
+| 14C | **Live-verified 2026-08-06** (Other Charges + Work Order Status create round-tripped live; Main/Legal/Default Message confirmed reading live data) | Production replay of 5 dev-only tables + finish 3 remaining Setup managers |
+| 14A | **Live-verified 2026-08-06** (Sales Class create/update round-tripped live) | Deprecate Setup backup/restore; migrate Sales Classes |
+| 14B | **Live-verified 2026-08-06** | Deprecate Admin.jsx's Database Query Tool + `RecordDetailsModal.jsx` |
+| 14D | **Live-verified 2026-08-06, with 1 real bug found+fixed** (`LankarWOView.jsx` double-unwrap bug — fix not yet redeployed) | Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx` |
+| 14E | **Fully live-verified 2026-08-06** — real emails sent end-to-end, both functions, `SentEmailLog` confirmed `status: 'sent'` with real Resend tracking IDs | AR cluster remainder: `StatementEmailModal.jsx` + `BatchSendWorkOrdersModal.jsx` |
+| 14F | **Partially live-verified 2026-08-06** (step 1 + GL load confirmed; 1 real bug found+fixed, fix not yet redeployed; full upload/extract/create flow untested — needs a real PDF) | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
 | 14G | Pending (last, not yet started per user direction) | Final verification stage — not sunset |
 
 ---
@@ -449,4 +449,39 @@ Everything below is **outside Phase 14's own file scope** — real, live, unmigr
 
 ## 4) Phase Results and Final Context
 
-*(Empty — to be filled in as execution/verification proceeds. Do not remove this section header.)*
+**2026-08-06 — Live testing pass on `test.kensauto.ca` (dev branch `sitihbdnuxifwibontcm`).** Confirmed `test.kensauto.ca` is wired to the dev Supabase branch, not production — safe environment for write-testing. Login flow requires manual auth (redirects to `my.kensauto.ca`, MFA-aware); Claude cannot enter passwords, so the user logged in and Claude drove the rest.
+
+**Blocking issue found and fixed before any Phase 14 testing could start (not a Phase 14 bug):** `src/pages/WorkOrders.jsx:150` assigned `loadData`/`loadWorkPROProjects`/`loadTechTimeForProjects` into a ref directly in the render body, but those are `const`-declared later in the same component (lines 211/275/332) — a temporal-dead-zone `ReferenceError` on every render, crashing the page that loads right after login and blocking all navigation. Pre-existing, unrelated to Phase 14 (file never touched by this phase). Fixed by moving the assignment into a no-deps `useEffect`. **Live-verified fixed** — `WorkOrdersPage` now renders correctly post-login.
+
+**14A — Sales Classes:** create and update round-tripped live through the real UI (`ZZTEST Phase14` → `ZZTEST Phase14 Edited`, then cleaned up via direct SQL — the delete button's native `confirm()` dialog can't be accepted by the browser-automation tooling, so delete was verified by code review + direct cleanup, not the button click itself). **Live-verified.**
+
+**14C:**
+- Other Charges: create round-tripped live (`ZZTEST Phase14 Charge`, GL 5103, cleaned up after). **Live-verified.**
+- WIP → Statuses: create round-tripped live (`ZZTEST Status`, cleaned up after). **Live-verified.**
+- WIP → Main/Legal/Default Message: confirmed loading real live data correctly (Next RO#/Inv#, legal text, default message). Did not write-test Main (live sequence counters, too risky) or Legal/Default Message (didn't want to risk corrupting real shop text through UI text-selection) — trusted the update path since it's the identical `supabase.from().update()` pattern already proven on Sales Classes/Other Charges/Work Order Status.
+- Tagalongs: confirmed loading real live data (this file was already-converted pre-Phase-14, not part of this phase's own edits).
+
+**14B — Admin.jsx:** live-verified — loads for the admin test user showing only the header and "Lankar Import" button, no Database Query Tool remnants; button navigates correctly to `/LankarImport`.
+
+**14D:**
+- `LankarImport.jsx`: live-verified — stripped to header + "Import Work Order" button only; opens `LegacyWorkOrderImportModal.jsx` correctly.
+- `LankarWOView.jsx`: **real bug found and fixed.** `getLankarWorkOrderData` (the new local helper) returns `{ data: {...} }`, but the caller still did `response.data?.data` — a leftover double-unwrap from the old axios/base44-invoke-style shim shape. That extra `.data` always resolved to `undefined`, so the page always showed "Work order not found" regardless of whether the record existed. Fixed by changing the caller to `response.data`. Root-caused by importing a real historical record (`LankarWOInfo` woid `46000` + its `LankarWOLines`/`LankarWOInventory` rows + the linked `Vehicle`) from production into dev to get a live test case — dev branch had zero Lankar legacy rows before this. **Fix applied locally, not yet redeployed/re-verified live** (found near end of session).
+
+**14E — AR cluster: fully live-verified end-to-end, both functions, real sends:**
+- `autopro-sendStatementEmail`: sent a real statement email (customer "test new") to `tyler.haney.1998@gmail.com` — confirmed `SentEmailLog` row with `status: 'sent'` and a real Resend `tracking_id`.
+- `autopro-createPortalSnapshot` (reused from 14E's original plan, see 14E section above) + `autopro-sendBatchWorkOrderEmails`: real customer Tyler Haney had only orphaned `work_order_id` references in dev's `CustomerPayments` (pre-existing dev-data gap, unrelated to Phase 14) — no valid work order to select. Fixed by importing real production data for invoice RO51085 (`WorkOrder` id `cff4bd6604434841bb12e4b4` + its linked `Vehicle`) into dev. With that in place, ran the full flow live: portal snapshot created (`CustomerPortalWorkOrder` row, portal URL generated), email sent to `tyler@kensauto.ca`, confirmed `SentEmailLog` row with `status: 'sent'` and a real Resend `tracking_id`.
+- User explicitly restricted live-send testing to the Tyler Haney account only (not other real customers) — respected throughout; confirmed via `SentEmailLog` that no email went to the one other real customer (Austin Unruh) whose data was inspected but never sent to.
+
+**14F — `LegacyWorkOrderImportModal.jsx`: one real bug found and fixed, full upload/extract/create flow not testable this session (needs a real PDF, explicitly out of scope for this pass).**
+- Step 1 (upload UI) and the modal's initial `ChartOfAccount` load confirmed working live.
+- **Real bug:** `.sort((a, b) => (a.account_number || '').localeCompare(...))` on the GL Account dropdown (used in the "Classify Line Item" sub-modal) — `ChartOfAccount.account_number` is `bigint`, not text, so calling `.localeCompare` on a raw number throws `TypeError: ... .localeCompare is not a function`. Pre-existing bug (not introduced by this phase's edits, this line was untouched by the base44 migration itself), only surfaced by live-clicking through the modal. Fixed with `String(a.account_number || '')`. **Fix applied locally, not yet redeployed/re-verified live.**
+
+**Data imported from production into dev during this testing pass (real historical data, not synthetic — left in place, not cleaned up, since it's accurate and improves dev's data parity with production):**
+- `WorkOrder` `cff4bd6604434841bb12e4b4` (RO51085) + its `Vehicle` `69562a1cf1018615bdfb047d`.
+- `LankarWOInfo` woid `46000` + its 6 `LankarWOLines` rows + 5 `LankarWOInventory` rows + its `Vehicle` `69562a128758b75c1e37dac7`.
+
+**Tooling notes for future live-testing sessions on this app:**
+- Local dev server (`npm run dev`) cannot be used for auth-gated testing — login requires same-site cookies with `kensauto.ca`, which `localhost` can't receive. All live testing must happen on a real `*.kensauto.ca` deployment.
+- The Browser-pane automation cannot accept native `window.confirm()`/`alert()` dialogs — delete buttons gated by `confirm()` silently no-op under automation. Verify deletes via direct SQL instead of the button when automating.
+- Screenshot pixel coordinates and actual click coordinates are NOT 1:1 in this environment (viewport 1225×871 vs. screenshot 800×568) — prefer `ref`-based clicks (from `read_page`) over screenshot-coordinate clicks for anything precise; a coordinate click landed on the wrong button more than once this session.
+- `.env`'s `VITE_BASE44_ACCESS_TOKEN` is expired (was valid through ~2026-07-30) — causes constant 401 console noise from `base44-proxy` calls (`entities/User/me`, `analytics/track/batch`) on every page load. Cosmetic only (base44 auth is vestigial per the migration), not a Phase 14 concern, but worth a ticket since it clutters console output during debugging.
