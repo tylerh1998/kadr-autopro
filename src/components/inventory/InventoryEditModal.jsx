@@ -306,6 +306,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
                 if (costDifference > 0) {
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -316,6 +317,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
@@ -327,6 +329,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     });
                 } else {
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -337,6 +340,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
