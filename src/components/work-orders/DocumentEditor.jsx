@@ -1880,13 +1880,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           )}
 
           <Dialog open={modals.editCustomer} onOpenChange={() => closeModal('editCustomer')}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               {customer && <CustomerForm customer={customer} onSubmit={handleCustomerUpdate} onCancel={() => closeModal('editCustomer')} />}
             </DialogContent>
           </Dialog>
 
           <Dialog open={modals.editVehicle} onOpenChange={() => closeModal('editVehicle')}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               {vehicle && <VehicleForm vehicle={vehicle} customers={[customer]} onSubmit={handleVehicleUpdate} onCancel={() => closeModal('editVehicle')} />}
             </DialogContent>
           </Dialog>
