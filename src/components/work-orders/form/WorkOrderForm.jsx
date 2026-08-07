@@ -798,10 +798,12 @@ export default function WorkOrderForm({
 
   const handleWorkOrderPartsMarkedOrdered = (markedLineItemIds) => {
       console.log('=== DEBUG: handleWorkOrderPartsMarkedOrdered called ===', markedLineItemIds);
-      const markedIdSet = new Set(markedLineItemIds);
+      // String-normalized - line ids from newly-added batch parts are raw JS numbers, but markedLineItemIds
+      // arrives from the modal's checked-state object keys, which JS stringifies (same fix as the edge function).
+      const markedIdSet = new Set(markedLineItemIds.map(String));
 
       tracedSetLineItems(prev => prev.map(li => {
-          if (!markedIdSet.has(li.id)) return li;
+          if (!markedIdSet.has(String(li.id))) return li;
 
           const qtyQuoted = parseFloat(li.qty_quoted) || 0;
           return {

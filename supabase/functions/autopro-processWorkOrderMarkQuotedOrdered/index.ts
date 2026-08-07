@@ -76,10 +76,13 @@ serve(async (req) => {
       });
     }
 
-    const selectedIdSet = new Set(lineItemIds);
+    // IDs are compared as strings - line_items[].id is often a raw JS number (Date.now() + Math.random())
+    // from client-side line creation, while lineItemIds arrives here having passed through object-key
+    // coercion on the frontend (e.g. Object.keys() on a checked-state map), which stringifies numbers.
+    const selectedIdSet = new Set(lineItemIds.map(String));
     const targetIndexes = [];
     lineItems.forEach((li, idx) => {
-      if (selectedIdSet.has(li.id) && (parseFloat(li.qty_quoted) || 0) > 0) {
+      if (selectedIdSet.has(String(li.id)) && (parseFloat(li.qty_quoted) || 0) > 0) {
         targetIndexes.push(idx);
       }
     });
