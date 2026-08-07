@@ -52,6 +52,7 @@ export default function LineItemsTable({
   onAddPart,
   onReturnPart,
   onReceivePart,
+  onMarkPartsOrdered,
   onCores,
   onDeleteLine, // Accept onDeleteLine prop
   onInsertLine,
@@ -383,6 +384,15 @@ export default function LineItemsTable({
           <ContextMenuSeparator />
         </>
       )}
+      {mode !== 'estimate' && lineItems.some(l => (parseFloat(l?.qty_quoted) || 0) > 0) && (
+        <>
+          <ContextMenuItem onClick={() => onMarkPartsOrdered()}>
+            <Truck className="mr-2 h-4 w-4" />
+            <span>Mark Parts as Ordered</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
       {mode !== 'estimate' && coreCount !== 0 && (
         <>
           <ContextMenuItem onClick={() => onCores(index)}>
@@ -523,9 +533,9 @@ export default function LineItemsTable({
                         On Order {line.qty_on_order}
                       </Badge>
                     )}
-                    {line.not_ordered && (
+                    {(parseFloat(line.qty_quoted) || 0) > 0 && (
                       <Badge variant="outline" className="px-1 py-0 text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700">
-                        Quoted (Not Ordered)
+                        Quoted (Qty {line.qty_quoted})
                       </Badge>
                     )}
                     {isPriceDifferent && (

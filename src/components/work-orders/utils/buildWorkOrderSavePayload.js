@@ -73,6 +73,7 @@ export const prepareWorkOrderSavePayload = ({
       unit: item.unit || '',
       qty: item.qty || 0,
       qty_on_order: item.qty_on_order || 0,
+      qty_quoted: item.qty_quoted || 0,
       hrs: item.hrs || 0,
       parts_ea: item.parts_ea || 0,
       tot_parts: item.tot_parts,

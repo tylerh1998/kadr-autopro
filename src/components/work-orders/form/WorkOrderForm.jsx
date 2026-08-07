@@ -13,6 +13,7 @@ import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
 import ROCoreModal from '../ROCoreModal';
+import MarkPartsOrderedModal from '../MarkPartsOrderedModal';
 
 // Helper function to pad lines (moved to top of file for reusability)
 function padLines(lines, minLines = 20, defaultTaxable = true) {
@@ -48,6 +49,7 @@ function padLines(lines, minLines = 20, defaultTaxable = true) {
       oc_total: 0,
       supplier_invoice_line_id: null,
       qty_on_order: 0,
+      qty_quoted: 0,
       unit: '',
       manually_inserted: false
     });
@@ -100,6 +102,7 @@ export default function WorkOrderForm({
     returnPart: false,
     receivePart: false,
     cores: false,
+    markOrdered: false,
   });
 
   // Helper to identify non-blank lines (must match logic in tracedSetLineItems)
@@ -397,6 +400,11 @@ export default function WorkOrderForm({
   const handleCores = useCallback((lineIndex) => {
     console.log('=== DEBUG: handleCores called with index:', lineIndex);
     openModal('cores', lineIndex);
+  }, [openModal]);
+
+  const handleMarkPartsOrdered = useCallback(() => {
+    console.log('=== DEBUG: handleMarkPartsOrdered called ===');
+    openModal('markOrdered');
   }, [openModal]);
   
   const handleMultiplePartsAdded = useCallback((partsArrayWithProcessedFlags, inventoryAdjustments) => {
@@ -788,6 +796,26 @@ export default function WorkOrderForm({
       }
   };
 
+  const handleWorkOrderPartsMarkedOrdered = (markedLineItemIds) => {
+      console.log('=== DEBUG: handleWorkOrderPartsMarkedOrdered called ===', markedLineItemIds);
+      const markedIdSet = new Set(markedLineItemIds);
+
+      tracedSetLineItems(prev => prev.map(li => {
+          if (!markedIdSet.has(li.id)) return li;
+
+          const qtyQuoted = parseFloat(li.qty_quoted) || 0;
+          return {
+              ...li,
+              qty_on_order: (parseFloat(li.qty_on_order) || 0) + qtyQuoted,
+              qty_quoted: 0,
+              inventory_processed: true
+          };
+      }));
+
+      setHasUnsavedChanges(true);
+      closeModal('markOrdered');
+  };
+
   const handleCoreProcessed = (quantity, action, cost, newCoreRet) => {
     console.log('=== DEBUG: handleCoreProcessed called ===');
     console.log('quantity:', quantity, 'action:', action, 'cost:', cost, 'newCoreRet:', newCoreRet);
@@ -1090,6 +1118,7 @@ export default function WorkOrderForm({
         onAddPart={handleAddPart}
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
+        onMarkPartsOrdered={handleMarkPartsOrdered}
         onCores={handleCores}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         onInsertLine={handleInsertLine}
@@ -1142,6 +1171,14 @@ export default function WorkOrderForm({
         workOrderId={initialWorkOrder?.id}
         roNumber={initialWorkOrder?.ro_number}
         onReceive={handleReceiveWorkOrderPart}
+      />
+      <MarkPartsOrderedModal
+        open={modals.markOrdered}
+        onClose={() => closeModal('markOrdered')}
+        lineItems={displayLineItems}
+        workOrderId={initialWorkOrder?.id}
+        roNumber={initialWorkOrder?.ro_number}
+        onMarked={handleWorkOrderPartsMarkedOrdered}
       />
       <ROCoreModal
         open={modals.cores}

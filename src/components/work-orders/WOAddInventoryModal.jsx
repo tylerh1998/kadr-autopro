@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import WOPartsImportModal from './WOPartsImportModal';
 
 export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder }) {
   const [formData, setFormData] = useState({
@@ -53,6 +54,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const [existingPartQOH, setExistingPartQOH] = useState(0);
   
   const [partSearchOpen, setPartSearchOpen] = useState(false);
+  const [ocrModalOpen, setOcrModalOpen] = useState(false);
   const partNumberRef = useRef(null);
   const descriptionRef = useRef(null);
 
@@ -77,11 +79,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             handleAddToBatch({ preventDefault: () => {} });
         }
         
-        // Ctrl + Enter to Process Batch
+        // Ctrl + Enter to Process Batch (defaults to On Order)
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             if (batchItems.length > 0 && !processingBatch) {
-                handleProcessBatch();
+                handleProcessBatch('on_order');
             }
         }
     };
@@ -356,9 +358,33 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     setBatchItems(prev => prev.filter(item => item.temp_id !== tempId));
   };
 
-  const handleProcessBatch = async () => {
+  const validateBatchItems = (items) => {
+    const problems = [];
+    items.forEach((item, idx) => {
+      const missing = [];
+      if (!item.part_number) missing.push('Part #');
+      if (!item.description) missing.push('Description');
+      if (!(parseFloat(item.cost) > 0)) missing.push('Cost');
+      if (!(parseFloat(item.selling_price) > 0)) missing.push('Selling Price');
+      if (!item.sales_class) missing.push('Sales Class');
+      if (!item.supplier_id) missing.push('Supplier');
+      if (!(parseFloat(item.quantity_to_order) > 0)) missing.push('Qty Ordered');
+      if (missing.length > 0) {
+        problems.push(`Item ${idx + 1} (${item.part_number || 'no part #'}): missing ${missing.join(', ')}`);
+      }
+    });
+    return problems;
+  };
+
+  const handleProcessBatch = async (saveMode) => {
     if (batchItems.length === 0) return;
-    
+
+    const validationErrors = validateBatchItems(batchItems);
+    if (validationErrors.length > 0) {
+        alert(`Cannot process batch: some items are missing required fields.\n\n${validationErrors.join('\n')}`);
+        return;
+    }
+
     setProcessingBatch(true);
     const lineItemsToAdd = [];
 
@@ -392,25 +418,32 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 oldQuantity = currentQOH;
                 newQuantity = currentQOH;
                 oldQuantityOnOrder = currentQOO;
-                newQuantityOnOrder = currentQOO + quantityToOrder;
 
-                const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
-                    p_item_id: freshItem.id,
-                    p_qoh: currentQOH,
-                    p_qoo: currentQOO + quantityToOrder,
-                    p_ro_number: workOrder.ro_number,
-                    p_supplier_inv: null,
-                    p_source_action: 'WOAddInventoryModal',
-                    p_tx_type: 'Ordered',
-                    p_description: `Ordered existing part for WO ${workOrder.ro_number}`,
-                    p_user_id: userId,
-                    p_user_name: userDisplay,
-                    p_source_record_id: workOrder.id
-                });
-                
-                if (updateError) throw new Error('Failed to update inventory quantity via RPC: ' + updateError.message);
-                
-                processedInventoryItem = { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
+                if (saveMode === 'on_order') {
+                    newQuantityOnOrder = currentQOO + quantityToOrder;
+
+                    const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+                        p_item_id: freshItem.id,
+                        p_qoh: currentQOH,
+                        p_qoo: currentQOO + quantityToOrder,
+                        p_ro_number: workOrder.ro_number,
+                        p_supplier_inv: null,
+                        p_source_action: 'WOAddInventoryModal',
+                        p_tx_type: 'Ordered',
+                        p_description: `Ordered existing part for WO ${workOrder.ro_number}`,
+                        p_user_id: userId,
+                        p_user_name: userDisplay,
+                        p_source_record_id: workOrder.id
+                    });
+
+                    if (updateError) throw new Error('Failed to update inventory quantity via RPC: ' + updateError.message);
+
+                    processedInventoryItem = { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
+                } else {
+                    // Quoted: leave QOO untouched, no audit entry - nothing has actually been ordered yet
+                    newQuantityOnOrder = currentQOO;
+                    processedInventoryItem = freshItem;
+                }
             } else {
                 // Create new item
                 const newInventoryItemData = {
@@ -426,7 +459,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     selling_price: parseFloat(item.selling_price) || 0,
                     profit_margin: parseFloat(item.profit_margin) || 0,
                     quantity_on_hand: 0,
-                    quantity_on_order: quantityToOrder,
+                    quantity_on_order: saveMode === 'on_order' ? quantityToOrder : 0,
                     minimum_quantity: item.minimum_quantity ? parseInt(item.minimum_quantity, 10) : 0,
                     maximum_quantity: item.maximum_quantity ? parseInt(item.maximum_quantity, 10) : 0,
                     location: item.location || null,
@@ -449,27 +482,29 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 if (createError) throw new Error('Failed to create new inventory item: ' + createError.message);
                 processedInventoryItem = createData[0];
 
-                // Create InventoryAuditLog record ONLY for new items (RPC handles existing)
-                const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
-                    inventory_item_id: processedInventoryItem.id,
-                    part_num: processedInventoryItem.part_number,
-                    old_quantity: 0,
-                    new_quantity: 0,
-                    old_quantity_on_order: 0,
-                    new_quantity_on_order: quantityToOrder,
-                    supplier_name: getSupplierName(item.supplier_id),
-                    source_record_id: workOrder.id,
-                    source_function: 'WOAddInventoryModal',
-                    tx_type: 'Ordered',
-                    quantity_change: 0,
-                    quantity_ordered_change: quantityToOrder,
-                    ro_number: workOrder.ro_number,
-                    description: `Ordered new part for WO ${workOrder.ro_number}`,
-                    created_by_id: userId,
-                    created_by: userDisplay,
-                    tx_date: nowStr
-                }]);
-                if (auditError) console.error('Error creating InventoryAuditLog for new item:', auditError);
+                // Create InventoryAuditLog record ONLY for new items ordered On Order (RPC handles existing; Quoted has no quantity movement to log)
+                if (saveMode === 'on_order') {
+                    const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
+                        inventory_item_id: processedInventoryItem.id,
+                        part_num: processedInventoryItem.part_number,
+                        old_quantity: 0,
+                        new_quantity: 0,
+                        old_quantity_on_order: 0,
+                        new_quantity_on_order: quantityToOrder,
+                        supplier_name: getSupplierName(item.supplier_id),
+                        source_record_id: workOrder.id,
+                        source_function: 'WOAddInventoryModal',
+                        tx_type: 'Ordered',
+                        quantity_change: 0,
+                        quantity_ordered_change: quantityToOrder,
+                        ro_number: workOrder.ro_number,
+                        description: `Ordered new part for WO ${workOrder.ro_number}`,
+                        created_by_id: userId,
+                        created_by: userDisplay,
+                        tx_date: nowStr
+                    }]);
+                    if (auditError) console.error('Error creating InventoryAuditLog for new item:', auditError);
+                }
             }
 
             // Create Line Item
@@ -491,7 +526,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 total: quantityToOrder * (parseFloat(item.selling_price) || 0),
                 complete: false,
                 bold: false,
-                qty_on_order: quantityToOrder,
+                qty_on_order: saveMode === 'on_order' ? quantityToOrder : 0,
+                qty_quoted: saveMode === 'quoted' ? quantityToOrder : 0,
                 inventory_item_id: processedInventoryItem.id,
                 inventory_processed: true,
                 cost_ea: parseFloat(item.cost) || 0,
@@ -604,6 +640,118 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       return s ? s.name : 'Unknown';
   };
 
+  const handleOCRImportSuccess = async ({ supplierId, items }) => {
+      if (!items || items.length === 0) return;
+
+      const regularSalesClass = salesClasses.find(sc => (sc.name || '').toLowerCase() === 'regular');
+      const regularSalesClassId = regularSalesClass ? String(regularSalesClass.id) : '';
+
+      const partNumbersToFetch = items
+          .map(item => (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))
+          .filter(Boolean);
+
+      let existingItemsMap = new Map();
+      if (partNumbersToFetch.length > 0) {
+          try {
+              const { data: existingItems, error } = await supabase
+                  .from('InventoryItem')
+                  .select('*')
+                  .in('part_number', partNumbersToFetch);
+
+              if (!error && existingItems) {
+                  existingItems.forEach(item => {
+                      existingItemsMap.set((item.part_number || '').toUpperCase(), item);
+                  });
+              }
+          } catch (err) {
+              console.error('Error fetching existing items for WO parts import:', err);
+          }
+      }
+
+      const mappedItems = items.map(item => {
+          const partNumber = (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const existingPart = existingItemsMap.get(partNumber);
+
+          const cost = parseFloat(item.cost) || 0;
+          let isCore = !!item.core;
+          let coreCost = parseFloat(item.core_cost) || 0;
+          let sellingPrice = 0;
+          let margin = 0;
+          let salesClass = regularSalesClassId;
+          let description = item.description || '';
+          let matchedTagAlongId = '';
+          const enviroFee = parseFloat(item.enviro_fee) || 0;
+
+          if (existingPart) {
+              salesClass = existingPart.sales_class || regularSalesClassId;
+              description = existingPart.description || description;
+              matchedTagAlongId = existingPart.tag_along_id || '';
+              if (!isCore && existingPart.core) {
+                  isCore = true;
+                  coreCost = parseFloat(existingPart.core_cost) || 0;
+              }
+          }
+
+          if (enviroFee > 0 && !matchedTagAlongId) {
+              let bestMatch = null;
+              let minDiff = Infinity;
+              tagAlongs.forEach(ta => {
+                  const str = (ta.name + ' ' + (ta.description || '')).replace(/\s/g, '');
+                  const match = str.match(/\$?(?:[0-9]+\.[0-9]+|[0-9]+)/);
+                  if (match) {
+                      const taPrice = parseFloat(match[0].replace('$', ''));
+                      if (taPrice >= enviroFee) {
+                          const diff = taPrice - enviroFee;
+                          if (diff < minDiff) {
+                              minDiff = diff;
+                              bestMatch = ta;
+                          }
+                      }
+                  }
+              });
+              if (bestMatch) matchedTagAlongId = bestMatch.id;
+          }
+
+          if (cost > 0 && salesClass) {
+              const calc = calculatePriceFromSalesClass(cost, salesClass);
+              if (calc) {
+                  sellingPrice = parseFloat(calc.sellingPrice);
+                  margin = parseFloat(calc.margin);
+              }
+          } else if (existingPart) {
+              sellingPrice = parseFloat(existingPart.selling_price) || 0;
+              margin = parseFloat(existingPart.profit_margin) || 0;
+          }
+
+          return {
+              part_number: partNumber,
+              description,
+              unit: existingPart ? (existingPart.unit || '') : '',
+              category: existingPart ? (existingPart.category || '') : '',
+              supplier_id: supplierId,
+              manufacturer: existingPart ? (existingPart.manufacturer || '') : '',
+              cost: cost ? cost.toFixed(2) : '',
+              selling_price: sellingPrice ? sellingPrice.toFixed(2) : '',
+              sales_class: salesClass,
+              profit_margin: margin ? margin.toFixed(2) : '',
+              quantity_to_order: (parseFloat(item.quantity) || 0).toString(),
+              minimum_quantity: existingPart ? (existingPart.minimum_quantity || 0).toString() : '',
+              maximum_quantity: existingPart ? (existingPart.maximum_quantity || 0).toString() : '',
+              location: existingPart ? (existingPart.location || '') : '',
+              core: isCore,
+              core_cost: coreCost ? coreCost.toFixed(2) : '',
+              tag_along_id: matchedTagAlongId,
+              stocked_item: existingPart ? !!existingPart.stocked_item : false,
+              is_active: true,
+              temp_id: Date.now() + Math.random(),
+              isExistingPart: !!existingPart,
+              existingPartId: existingPart ? existingPart.id : null,
+          };
+      });
+
+      setBatchItems(prev => [...mappedItems, ...prev]);
+  };
+
   const handlePartNumberKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
         const trimmedSearch = searchTerm.trim();
@@ -627,8 +775,9 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0 dark:bg-slate-950 dark:border-slate-800"
         onInteractOutside={(e) => e.preventDefault()}
       >
@@ -973,6 +1122,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 </Select>
                 </div>
 
+                <div className="flex items-end">
+                    <Button type="button" variant="outline" onClick={() => setOcrModalOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Paste/Upload Parts
+                    </Button>
+                </div>
+
                 <div className="flex gap-2 items-center">
                     <span className="text-xs text-slate-500 mr-2">Ctrl + A to Add</span>
                     <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">
@@ -1051,9 +1207,27 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 Cancel
             </Button>
             <div className="flex gap-2 items-center">
-                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + Enter to Process</span>}
-                <Button 
-                    onClick={handleProcessBatch} 
+                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + Enter for On Order</span>}
+                <Button
+                    onClick={() => handleProcessBatch('quoted')}
+                    disabled={batchItems.length === 0 || processingBatch}
+                    variant="outline"
+                    className="min-w-[170px] border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                >
+                    {processingBatch ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Add Batch as Quoted
+                        </>
+                    )}
+                </Button>
+                <Button
+                    onClick={() => handleProcessBatch('on_order')}
                     disabled={batchItems.length === 0 || processingBatch}
                     className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
                 >
@@ -1065,7 +1239,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     ) : (
                         <>
                             <Save className="w-4 h-4 mr-2" />
-                            Save Batch & Add to WO
+                            Add Batch as On Order
                         </>
                     )}
                 </Button>
@@ -1074,5 +1248,12 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
       </DialogContent>
     </Dialog>
+    <WOPartsImportModal
+      open={ocrModalOpen}
+      onClose={() => setOcrModalOpen(false)}
+      onSuccess={handleOCRImportSuccess}
+      suppliers={suppliers}
+    />
+    </>
   );
 }
