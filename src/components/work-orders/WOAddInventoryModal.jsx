@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save, Upload } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save, Upload, Pencil } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -356,6 +356,50 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   const handleRemoveFromBatch = (tempId) => {
     setBatchItems(prev => prev.filter(item => item.temp_id !== tempId));
+  };
+
+  const handleEditBatchItem = (item) => {
+    if (formData.part_number && formData.part_number.trim() !== '') {
+        const proceed = window.confirm("This will clear the current part info you have entered above. Do you want to proceed?");
+        if (!proceed) return;
+    }
+
+    setFormData({
+        part_number: item.part_number || '',
+        description: item.description || '',
+        unit: item.unit || '',
+        category: item.category || '',
+        supplier_id: item.supplier_id || '',
+        manufacturer: item.manufacturer || '',
+        cost: item.cost !== undefined ? String(item.cost) : '',
+        selling_price: item.selling_price !== undefined ? String(item.selling_price) : '',
+        sales_class: item.sales_class || '',
+        profit_margin: item.profit_margin !== undefined ? String(item.profit_margin) : '',
+        quantity_to_order: item.quantity_to_order !== undefined ? String(item.quantity_to_order) : '1',
+        minimum_quantity: item.minimum_quantity !== undefined ? String(item.minimum_quantity) : '',
+        maximum_quantity: item.maximum_quantity !== undefined ? String(item.maximum_quantity) : '',
+        location: item.location || '',
+        core: !!item.core,
+        core_cost: item.core_cost !== undefined ? String(item.core_cost) : '',
+        tag_along_id: item.tag_along_id || '',
+        stocked_item: !!item.stocked_item,
+        is_active: item.is_active !== undefined ? item.is_active : true,
+    });
+    setCalculatedMargin(item.profit_margin !== undefined ? String(item.profit_margin) : '');
+    setIsCategorySuggested(false);
+    setIsExistingPart(!!item.isExistingPart);
+    setExistingPartId(item.existingPartId || null);
+    setExistingPartQOH(0);
+    setSearchTerm(item.part_number || '');
+    setActiveSearchTerm('');
+    setSearchResults([]);
+    setPartSearchOpen(false);
+
+    handleRemoveFromBatch(item.temp_id);
+
+    setTimeout(() => {
+        partNumberRef.current?.focus();
+    }, 100);
   };
 
   const validateBatchItems = (items) => {
@@ -1123,7 +1167,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 </div>
 
                 <div className="flex items-end">
-                    <Button type="button" variant="outline" onClick={() => setOcrModalOpen(true)}>
+                    <Button type="button" onClick={() => setOcrModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
                         <Upload className="w-4 h-4 mr-2" />
                         Paste/Upload Parts
                     </Button>
@@ -1184,7 +1228,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                                             <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700/50 text-[10px] px-1.5 py-0">New</Badge>
                                         )}
                                     </div>
-                                    <div className="col-span-1 flex justify-end">
+                                    <div className="col-span-1 flex justify-end gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEditBatchItem(item)}
+                                            className="h-8 w-8 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -1212,7 +1264,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     onClick={() => handleProcessBatch('quoted')}
                     disabled={batchItems.length === 0 || processingBatch}
                     variant="outline"
-                    className="min-w-[170px] border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                    className="min-w-[170px] border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20"
                 >
                     {processingBatch ? (
                         <>

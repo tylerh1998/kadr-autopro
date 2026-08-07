@@ -102,7 +102,7 @@ export default function MarkPartsOrderedModal({ open, onClose, lineItems, workOr
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate">{line.description}</div>
                 </div>
-                <div className="text-sm font-semibold text-purple-700 dark:text-purple-400 whitespace-nowrap">
+                <div className="text-sm font-semibold text-rose-700 dark:text-rose-400 whitespace-nowrap">
                   Qty {line.qty_quoted}
                 </div>
               </div>

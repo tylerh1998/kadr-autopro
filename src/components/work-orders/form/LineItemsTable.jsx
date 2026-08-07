@@ -534,7 +534,7 @@ export default function LineItemsTable({
                       </Badge>
                     )}
                     {(parseFloat(line.qty_quoted) || 0) > 0 && (
-                      <Badge variant="outline" className="px-1 py-0 text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-300 dark:border-purple-700">
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-700">
                         Quoted (Qty {line.qty_quoted})
                       </Badge>
                     )}
