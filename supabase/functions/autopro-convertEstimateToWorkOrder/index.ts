@@ -77,6 +77,54 @@ serve(async (req) => {
 
     // Process line items for inventory updates sequentially
     for (const line of lineItems) {
+      const qtyQuoted = parseFloat(line.qty_quoted) || 0;
+
+      // Quoted parts (Estimate stage only allows Quoted, never On Order) are finalized to real on-order
+      // quantities on conversion - estimates can't place real orders, so this is where that commitment happens.
+      if (qtyQuoted > 0 && line.inventory_item_id) {
+        try {
+          const { data: inventoryItem } = await supabaseAdmin
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', line.inventory_item_id)
+            .maybeSingle();
+
+          if (!inventoryItem) {
+            updatedLineItems.push(line);
+            continue;
+          }
+
+          const currentQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
+          const currentQOO = parseFloat(inventoryItem.quantity_on_order) || 0;
+          const newQOO = currentQOO + qtyQuoted;
+
+          const { error: rpcError } = await supabaseAdmin.rpc('update_inventory_with_audit', {
+            p_item_id: line.inventory_item_id,
+            p_qoh: currentQOH,
+            p_qoo: newQOO,
+            p_ro_number: workOrder.ro_number || null,
+            p_supplier_inv: null,
+            p_source_action: 'autopro-convertEstimateToWorkOrder',
+            p_tx_type: 'Ordered',
+            p_description: `Quote finalized to order on conversion of EST ${workOrder.ro_number} to WO - ${line.description || line.part_number}`,
+            p_user_id: user.id || null,
+            p_user_name: user.email || null,
+            p_source_record_id: workOrder.id
+          });
+          if (rpcError) console.error(`Error finalizing quoted part ${line.inventory_item_id}:`, rpcError);
+
+          updatedLineItems.push({
+            ...line,
+            qty_on_order: (parseFloat(line.qty_on_order) || 0) + qtyQuoted,
+            qty_quoted: 0
+          });
+        } catch (err) {
+          console.error(`Error finalizing quoted line for item ${line.inventory_item_id}:`, err);
+          updatedLineItems.push(line);
+        }
+        continue;
+      }
+
       if (line.inventory_item_id && !line.inventory_processed && parseFloat(line.qty) > 0) {
         const requestedQuantity = parseFloat(line.qty);
         const inventoryItemId = line.inventory_item_id;

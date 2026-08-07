@@ -1150,11 +1150,12 @@ export default function WorkOrderForm({
         editingChargeLine={currentLineItem?.is_other_charge ? currentLineItem : null}
         workOrderNumber={initialWorkOrder?.ro_number || initialWorkOrder?.wo_number}
       />
-      <AddPartToWOModal 
+      <AddPartToWOModal
         open={modals.addPart}
         onClose={() => closeModal('addPart')}
         onAdd={handleMultiplePartsAdded}
         workOrder={initialWorkOrder}
+        mode={mode} // Pass mode
       />
       <ReturnWOPartModal
           open={modals.returnPart}

@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import WOPartsImportModal from './WOPartsImportModal';
 
-export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder }) {
+export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, mode = 'work_order' }) {
   const [formData, setFormData] = useState({
     part_number: '',
     description: '',
@@ -79,18 +79,18 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             handleAddToBatch({ preventDefault: () => {} });
         }
         
-        // Ctrl + Enter to Process Batch (defaults to On Order)
+        // Ctrl + Enter to Process Batch (defaults to On Order, or Quoted on Estimates - On Order isn't available there)
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             if (batchItems.length > 0 && !processingBatch) {
-                handleProcessBatch('on_order');
+                handleProcessBatch(mode === 'estimate' ? 'quoted' : 'on_order');
             }
         }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, batchItems, processingBatch, formData]); // Depend on formData for add
+  }, [open, batchItems, processingBatch, formData, mode]); // Depend on formData for add
 
   const resetForm = (overrides = {}) => {
     setFormData({
@@ -1259,7 +1259,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 Cancel
             </Button>
             <div className="flex gap-2 items-center">
-                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + Enter for On Order</span>}
+                {batchItems.length > 0 && (
+                    <span className="text-xs text-slate-500 mr-2">
+                        {mode === 'estimate' ? 'Ctrl + Enter for Quoted' : 'Ctrl + Enter for On Order'}
+                    </span>
+                )}
                 <Button
                     onClick={() => handleProcessBatch('quoted')}
                     disabled={batchItems.length === 0 || processingBatch}
@@ -1278,23 +1282,25 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                         </>
                     )}
                 </Button>
-                <Button
-                    onClick={() => handleProcessBatch('on_order')}
-                    disabled={batchItems.length === 0 || processingBatch}
-                    className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
-                >
-                    {processingBatch ? (
-                        <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing Batch...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="w-4 h-4 mr-2" />
-                            Add Batch as On Order
-                        </>
-                    )}
-                </Button>
+                {mode !== 'estimate' && (
+                    <Button
+                        onClick={() => handleProcessBatch('on_order')}
+                        disabled={batchItems.length === 0 || processingBatch}
+                        className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                    >
+                        {processingBatch ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Processing Batch...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="w-4 h-4 mr-2" />
+                                Add Batch as On Order
+                            </>
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
 
