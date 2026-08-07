@@ -219,7 +219,9 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="dark:text-slate-300">Notes</Label>
+                  <Label className="dark:text-slate-300">
+                    Notes <span className="text-xs font-normal text-slate-500 dark:text-slate-400">(this field crosses over to WorkPRO's Vehicle Notes field)</span>
+                  </Label>
                   <Textarea value={vehicle.notes || ""} readOnly className="bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 min-h-[96px]" />
                 </div>
 
