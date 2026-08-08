@@ -12,6 +12,7 @@ import OtherChargeModal from '../OtherChargeModal';
 import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
+import ReceiveQuotedPartModal from '../ReceiveQuotedPartModal';
 import ROCoreModal from '../ROCoreModal';
 import MarkPartsOrderedModal from '../MarkPartsOrderedModal';
 
@@ -78,6 +79,7 @@ export default function WorkOrderForm({
   onOpenOdometerPrompt,
   onOpenApprovals,
   onOpenVersionHistory,
+  onShowVehicleDetails,
   mode = 'work_order', // Add mode prop with default
   shopSupplyRate = 0.07,
   onLineItemProcessed,
@@ -101,6 +103,7 @@ export default function WorkOrderForm({
     addPart: false,
     returnPart: false,
     receivePart: false,
+    receiveQuotedPart: false,
     cores: false,
     markOrdered: false,
   });
@@ -395,6 +398,11 @@ export default function WorkOrderForm({
   const handleReceivePart = useCallback((lineIndex) => {
     console.log('=== DEBUG: handleReceivePart called with index:', lineIndex);
     openModal('receivePart', lineIndex);
+  }, [openModal]);
+
+  const handleReceiveQuotedPart = useCallback((lineIndex) => {
+    console.log('=== DEBUG: handleReceiveQuotedPart called with index:', lineIndex);
+    openModal('receiveQuotedPart', lineIndex);
   }, [openModal]);
   
   const handleCores = useCallback((lineIndex) => {
@@ -796,6 +804,48 @@ export default function WorkOrderForm({
       }
   };
 
+  const handleReceiveQuotedWorkOrderPart = async (lineItem, receivedQuantity, freshInventoryItem) => {
+      console.log('=== DEBUG: handleReceiveQuotedWorkOrderPart called ===');
+
+      if (!lineItem || !lineItem.inventory_item_id) {
+          console.error('Cannot receive quoted part: missing line item or inventory_item_id');
+          return;
+      }
+
+      try {
+          const inventoryItem = freshInventoryItem || inventory.find(i => i.id === lineItem.inventory_item_id);
+          if (!inventoryItem) {
+              console.error('Inventory item not found for id:', lineItem.inventory_item_id);
+              alert('Inventory item not found.');
+              return;
+          }
+
+          tracedSetLineItems(prev => {
+              const updated = prev.map(li => {
+                  if (li.id === lineItem.id) {
+                      const currentQtyQuoted = parseFloat(li.qty_quoted) || 0;
+                      const newQtyQuoted = Math.max(0, currentQtyQuoted - receivedQuantity);
+
+                      return {
+                          ...li,
+                          qty_quoted: newQtyQuoted,
+                          inventory_processed: true,
+                          cost_ea: freshInventoryItem?.cost || inventoryItem?.cost || 0
+                      };
+                  }
+                  return li;
+              });
+              return updated;
+          });
+
+          setHasUnsavedChanges(true);
+          closeModal('receiveQuotedPart');
+      } catch (error) {
+          console.error('Error in handleReceiveQuotedWorkOrderPart:', error);
+          alert('Failed to update line item. Please try again.');
+      }
+  };
+
   const handleWorkOrderPartsMarkedOrdered = (markedLineItemIds) => {
       console.log('=== DEBUG: handleWorkOrderPartsMarkedOrdered called ===', markedLineItemIds);
       // String-normalized - line ids from newly-added batch parts are raw JS numbers, but markedLineItemIds
@@ -1109,6 +1159,7 @@ export default function WorkOrderForm({
         onOpenOdometerPrompt={onOpenOdometerPrompt}
         onOpenApprovals={onOpenApprovals}
         onOpenVersionHistory={onOpenVersionHistory}
+        onShowVehicleDetails={onShowVehicleDetails}
       />
       
       <LineItemsTable
@@ -1120,6 +1171,7 @@ export default function WorkOrderForm({
         onAddPart={handleAddPart}
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
+        onReceiveQuotedPart={handleReceiveQuotedPart}
         onMarkPartsOrdered={handleMarkPartsOrdered}
         onCores={handleCores}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
@@ -1174,6 +1226,15 @@ export default function WorkOrderForm({
         workOrderId={initialWorkOrder?.id}
         roNumber={initialWorkOrder?.ro_number}
         onReceive={handleReceiveWorkOrderPart}
+      />
+      <ReceiveQuotedPartModal
+        open={modals.receiveQuotedPart}
+        onClose={() => closeModal('receiveQuotedPart')}
+        lineItem={currentLineItem}
+        inventoryItem={inventory.find(i => i.id === currentLineItem?.inventory_item_id)}
+        workOrderId={initialWorkOrder?.id}
+        roNumber={initialWorkOrder?.ro_number}
+        onReceive={handleReceiveQuotedWorkOrderPart}
       />
       <MarkPartsOrderedModal
         open={modals.markOrdered}

@@ -22,6 +22,7 @@ export default function WorkOrderHeaderInfo({
   onOpenOdometerPrompt,
   onOpenApprovals,
   onOpenVersionHistory,
+  onShowVehicleDetails,
 }) {
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
@@ -297,7 +298,11 @@ export default function WorkOrderHeaderInfo({
                     Vehicle
                   </h3>
 
-                  <div className="space-y-1 text-sm">
+                  <div 
+                    className="space-y-1 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors p-2 -m-2 rounded-lg"
+                    onClick={onShowVehicleDetails}
+                    title="Click to view vehicle details"
+                  >
                     <p className="text-slate-900 dark:text-slate-100 font-semibold text-base">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -312,7 +317,9 @@ export default function WorkOrderHeaderInfo({
                     {vehicle.vin && (
                       <p className="text-slate-700 dark:text-slate-300 text-xs font-mono break-all">VIN: {vehicle.vin}</p>
                     )}
+                  </div>
                     
+                  <div className="text-sm">
                     {/* Odometer Field as a Button for the new modal */}
                     <div>
                       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Odometer</label>

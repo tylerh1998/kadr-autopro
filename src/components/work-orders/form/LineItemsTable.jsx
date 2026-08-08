@@ -52,6 +52,7 @@ export default function LineItemsTable({
   onAddPart,
   onReturnPart,
   onReceivePart,
+  onReceiveQuotedPart,
   onMarkPartsOrdered,
   onCores,
   onDeleteLine, // Accept onDeleteLine prop
@@ -364,7 +365,10 @@ export default function LineItemsTable({
             </ContextMenuItem>
           )}
           {mode !== 'estimate' && (
-            <ContextMenuItem onClick={() => onReceivePart(index)} disabled={!line.qty_on_order || line.qty_on_order === 0}>
+            <ContextMenuItem
+              onClick={() => ((parseFloat(line.qty_on_order) || 0) > 0 ? onReceivePart(index) : onReceiveQuotedPart(index))}
+              disabled={!((parseFloat(line.qty_on_order) || 0) > 0 || (parseFloat(line.qty_quoted) || 0) > 0)}
+            >
               <Truck className="mr-2 h-4 w-4" />
               <span>Receive Part</span>
             </ContextMenuItem>

@@ -62,6 +62,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import VehicleHistoryModal from '../vehicles/VehicleHistoryModal';
+import VehicleDetails from '../vehicles/VehicleDetails';
 import WorkOrderDetailsEditModal from './form/WorkOrderDetailsEditModal';
 
 // Import the new WorkPRO modals
@@ -208,6 +209,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     editCustomer: false,
     editVehicle: false,
     vehicleHistory: false,
+    vehicleDetails: false,
     editWorkOrderDetails: false,
     workPROTask: false,
     workPRODescription: false,
@@ -1755,6 +1757,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               onChangeCustomer={handleAssignedCustomerChange}
               onEditVehicle={() => openModal('editVehicle')}
               onShowVehicleHistory={() => openModal('vehicleHistory')}
+              onShowVehicleDetails={() => openModal('vehicleDetails')}
               onEditWorkOrderDetails={() => openModal('editWorkOrderDetails')}
               onSelectedLineChange={setSelectedLineIndex}
               onOpenOdometerPrompt={handleOpenOdometerPrompt}
@@ -1892,6 +1895,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           </Dialog>
 
           <VehicleHistoryModal open={modals.vehicleHistory} onClose={() => closeModal('vehicleHistory')} vehicle={vehicle} />
+
+          <Dialog open={modals.vehicleDetails} onOpenChange={() => closeModal('vehicleDetails')}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-100 dark:bg-slate-900">
+              <DialogTitle className="sr-only">Vehicle Details</DialogTitle>
+              {vehicle && <VehicleDetails vehicle={vehicle} customer={customer} />}
+            </DialogContent>
+          </Dialog>
 
           <WorkOrderDetailsEditModal 
             open={modals.editWorkOrderDetails} 
