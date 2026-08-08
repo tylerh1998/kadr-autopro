@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Shield, Upload } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { Button } from "@/components/ui/button";
+import DatabaseQueryTool from '@/components/admin/DatabaseQueryTool';
 
 export default function AdminPage() {
   const { employee } = useAuth();
@@ -31,8 +32,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
+    <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-blue-600 rounded-lg shadow-sm">
             <Shield className="w-8 h-8 text-white" />
@@ -50,6 +51,8 @@ export default function AdminPage() {
           Lankar Import
         </Button>
       </div>
+
+      <DatabaseQueryTool />
     </div>
   );
 }
