@@ -17,6 +17,12 @@
 
 This document is meant to be usable standalone by someone who hasn't read `master_blueprint.md`, though it cross-references that document and the individual `phase_N_implementation_plan.md` docs by name rather than duplicating their full contents.
 
+**Live Verification Session Protocol (added 2026-08-03, governs how Section 3 is actually executed):**
+- **Authentication:** the user logs into `test.kensauto.ca` with their own `test@kensauto.ca` credentials directly — there is no shared/reset password handed to the testing agent. If a live session hits an authentication wall (session expired, login prompt, permission denial) mid-workflow, **stop and ask the user rather than retrying, guessing, or reprompting for credentials.**
+- **Hard rule — no live customer communication except to Tyler Haney.** A second agent is currently copying full production data (customers, real emails, real phone numbers) onto the dev branch, explicitly so it's usable for testing. That data may be used freely for CRUD/testing purposes — **except** it must never trigger a real email or SMS to any customer other than Tyler Haney. Every workflow in Section 3 that can send a live customer-facing email or text is flagged inline below with **⚠️ COMMS RULE**. Before running one of those flows: either point it at a customer/contact record whose email/phone is Tyler's own, or stop and ask before the actual send action, verifying only the rest of the flow.
+- **Data caveat — GLTransaction is excluded from the production data copy.** Once the copy finishes, every other table should reflect real production data, but `GLTransaction` (and anything depending on it, e.g. Balance Sheet/GL Journal/GL-imbalance figures) will still be on whatever thin/synthetic data existed on dev before — do not assume GL-dependent workflows have real figures just because everything else does.
+- **Hold point:** live verification does not start until the user confirms the data copy is complete.
+
 ---
 
 ## 1. Blueprint Overview
@@ -125,7 +131,7 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
 
 - [x] **Phase 6's payroll-target progress bar** (`TechnicianPerformanceReportModal.jsx`) — deferred in Phase 6 (hardcoded to 0, card hidden) pending `CashFlowSummary` migration. Phase 10B claims to have restored it and reports live-verifying it — but only **with manufactured test data on dev**, since dev's real GL data was largely empty at that point. Worth a spot check against real production labour-sales figures once available.
 - [ ] **Phase 13C's deferred `autopro-syncLevies` vs. Phase 10E's native `syncLevies`** — these are two distinct items, not the same gap. Phase 13C deferred porting `autopro-syncLevies` because the `Levies` table didn't exist. Phase 10E later built the `Levies` schema and the native `syncLevies`/`getReportableLeviesReport`/`postLeviesToAP` functions, live-verifying the Report/Post-to-AP flow. **However**, Phase 13's own WO-save trigger call site in `useDocumentEditorSave.jsx` is explicitly confirmed, in Phase 13's own text, to still be 401ing / still deferred as of the end of that phase ("unchanged by this session"). Nothing in either phase doc confirms this call site was ever reconnected to Phase 10E's new function. **This is a real, still-open wiring gap** — verify whether saving a Work Order today correctly triggers `autopro-syncLevies`, or whether that call site is still pointed at the old (or nowhere).
-- [ ] **Possible documentation conflict — Supplier lock-recovery fix**: `master_blueprint.md`'s Lessons Learned log (Section 7) describes a specific resolved incident attributed to Phase 9 — a supplier (`DENHAM CHRYSLER JEEP LTD.`) found stuck locked on production since March, fixed by building a new `autopro-releaseSupplierLock` function wired via a `keepalive` fetch pattern. A full read of `phase_9_implementation_plan.md` itself contains **no mention of this incident, no `autopro-releaseSupplierLock` function, and no DENHAM CHRYSLER reference anywhere** — that phase doc's own recorded decision on lock recovery (§0.1) explicitly states the opposite: "Port `acquireSupplierLock` as-is, no `locked_timestamp`/staleness/flush addition. Pure migration, not a UX fix." Confirm with the user whether this fix actually happened (in which case `phase_9_implementation_plan.md` is simply incomplete) or whether the `master_blueprint.md` entry describes work that was never captured in any phase plan doc — and either way, confirm whether `autopro-releaseSupplierLock` exists as a deployed function today.
+- [x] **~~Possible documentation conflict — Supplier lock-recovery fix~~ — RESOLVED 2026-08-03.** `master_blueprint.md`'s Lessons Learned log (Section 7) describes a specific resolved incident attributed to Phase 9 — a supplier (`DENHAM CHRYSLER JEEP LTD.`) found stuck locked on production since March, fixed by building a new `autopro-releaseSupplierLock` function. `phase_9_implementation_plan.md` itself has no record of this (its §0.1 decision even says the opposite: "pure migration, no flush addition"), but the fix is real — confirmed directly: `supabase/functions/autopro-releaseSupplierLock/index.ts` exists in the repo, and the function is deployed `ACTIVE` on **both** the dev branch and production. `phase_9_implementation_plan.md` is simply incomplete/never updated to capture this later addition; no further action needed.
 
 ### Phase 7 (Inventory) — untested for lack of data
 
@@ -255,10 +261,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `/Schedule` — seed 2+ appointments in the same slot
   Files under test: `src/components/appointments/CellAppointmentsModal.jsx`
 
-- [ ] **Reminder-function live re-point confirmation (email + SMS)**
+- [ ] **Reminder-function live re-point confirmation (email + SMS)** ⚠️ COMMS RULE — also still Base44-hosted (production-routed regardless of dev branch, per the structural finding in Section 2)
   tl;dr: Confirms the two Base44-hosted-but-Supabase-patched reminder functions actually reach Postgres and find a real appointment, now that the required Base44 secrets have been added.
   UI entry point: N/A (backend cron/trigger — verify via a real seeded appointment due for a reminder, and check logs/inbox/phone)
   Files under test: `base44/functions/sendAppointmentReminders/entry.ts`, `base44/functions/sendTextReminders/entry.ts`
+  **Do not run against a real customer's appointment.** Seed a throwaway appointment against a customer/contact record using Tyler's own email/phone before triggering — or skip the actual send and verify only that the function reaches Postgres and resolves the correct appointment.
 
 - [ ] **Regression: "Create Estimate" / "Create Work Order" buttons still work from `AppointmentForm.jsx`**
   tl;dr: These buttons ride an untouched Base44 code path — confirm Phase 12's changes didn't regress them.
@@ -359,18 +366,20 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `DocumentEditor.jsx` → core return action
   Files under test: `src/components/work-orders/ROCoreModal.jsx`, `autopro-returnCoreToWO`
 
-- [ ] **Generate a Work Order PDF, then send it by email and by SMS**
+- [ ] **Generate a Work Order PDF, then send it by email and by SMS** ⚠️ COMMS RULE
   tl;dr: Confirms all three document/comms outputs work with real recipients.
   UI entry point: `DocumentEditor.jsx` → Print/Email/Text actions
   Files under test: `src/components/work-orders/WorkOrderPdfModal.jsx`, `autopro-generateWorkOrderPdf`, `SESEmailModal.jsx`, `autopro-sendEmailViaSMTP`, `autopro-sendSms`
+  Run this against a real Work Order whose customer contact is Tyler Haney (or a WO with Tyler's email/phone substituted in before sending) — never a real customer's actual contact info. PDF generation itself is safe to test against any WO; only the actual send step is gated.
 
-- [ ] **Batch-send multiple Work Orders**
+- [ ] **Batch-send multiple Work Orders** ⚠️ COMMS RULE
   tl;dr: Confirms the batch email path also respects the jsonb-guard fix.
   UI entry point: WO list → multi-select → "Batch Send"
   Files under test: `src/components/ar/BatchSendWorkOrdersModal.jsx`
+  Batch-select only Work Orders whose customer contact resolves to Tyler Haney — a batch action makes it easy to accidentally sweep in real customers.
 
-- [ ] **Customer portal snapshot creation and approval**
-  tl;dr: Confirms a portal snapshot is created and the approvals path (non-empty state) works — this specific path was never live-tested in Phase 13D.
+- [ ] **Customer portal snapshot creation and approval** — confirm recipient before running
+  tl;dr: Confirms a portal snapshot is created and the approvals path (non-empty state) works — this specific path was never live-tested in Phase 13D. "Send for Approval" implies the customer is notified of the portal link somehow — read `autopro-createPortalSnapshot` first to confirm whether it actually emails/texts the customer; if it does, this falls under the ⚠️ COMMS RULE (run against a WO whose customer contact is Tyler's own).
   UI entry point: `DocumentEditor.jsx` → "Send for Approval" / `ROApprovalsModal.jsx`
   Files under test: `autopro-createPortalSnapshot`, `CustomerPortalWorkOrder` table, `Approvals` table, `ROApprovalsModal.jsx`
 
@@ -492,8 +501,8 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `JournalEntries.jsx`
   Files under test: `autopro-postJournalEntries`
 
-- [ ] **Find GL Imbalances (and its email trigger)** *(directly verifies the Section 2 checklist contradiction)*
-  tl;dr: Run the imbalance check and confirm whether the email notification actually fires — the phase doc left this ambiguous.
+- [ ] **Find GL Imbalances (and its email trigger)** *(directly verifies the Section 2 checklist contradiction)* — confirm recipient before running
+  tl;dr: Run the imbalance check and confirm whether the email notification actually fires — the phase doc left this ambiguous. This looks like an internal admin/accountant alert rather than a customer-facing email, but confirm the actual recipient address in the function before triggering — if it resolves to any real staff/customer inbox other than Tyler's, treat it under the ⚠️ COMMS RULE same as the customer-facing items above.
   UI entry point: Accounting → "Find GL Imbalances"
   Files under test: `autopro-findGLImbalances`
 
@@ -620,3 +629,5 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 ## 4. Work Progress and Lessons Learned
 
 This section is populated by the AI agent as issues are found and fixed during testing against this document, mirroring `master_blueprint.md` Section 7's running log format — date-stamped entries, most recent last. It starts empty; do not pre-fill entries.
+
+- **2026-08-03 (pre-Section-3 triage):** Confirmed live, via the actual browser session against `test.kensauto.ca`, that the standing expired-`BASE44_ACCESS_TOKEN` issue (Section 2) is still active. Diagnosed the exact mechanism: `src/api/base44Client.js`'s fetch/XHR interceptor still auto-fires on every page load (not from any app code — `AuthContext.jsx` is fully native, `grep` for `User.me()`/`base44.auth` in `src/` turns up nothing app-side), attaching the user's Supabase JWT to two calls the bundled `@base44/sdk` fires automatically: a `.../entities/User/me` identity lookup and an `.../analytics/track/batch` telemetry beacon, both routed to `base44-proxy` on **production** (`hbcrwkmgsazqrvsrmxyr`). Both 401 because `base44-proxy`'s stored `BASE44_ACCESS_TOKEN` is expired. Confirmed via `performance.getEntriesByType('resource')` (a `window.fetch` monkey-patch doesn't survive `navigate()`'s full reload, so this was the reliable technique — worth reusing over the fetch-patch approach for any future initial-page-load diagnosis). Did not block the actual page content tested so far (`WorkOrders` list rendered correctly with real data via `search_work_orders`/`getNotesBoardData`, both native and 200). Not fixed here — root cause (SDK removal) is Phase 14 scope; the token itself is the user's call on refresh timing. Treat any further `base44-proxy`/`User/me`/`analytics/track` 401 during this session as this same known issue, not a new finding.

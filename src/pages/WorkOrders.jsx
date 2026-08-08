@@ -219,7 +219,9 @@ export default function WorkOrdersPage() {
       const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
       const [generalResponse, invoicePageResponse, notesResponse] = await Promise.all([
-        supabase.rpc('search_work_orders', {}),
+        supabase.rpc('search_work_orders', {
+          p_stages: ['estimate', 'work_order', 'void']
+        }),
         supabase.rpc('search_work_orders', {
           p_stages: ['invoice', 'credit_invoice'],
           p_sort: invoicesSort,
