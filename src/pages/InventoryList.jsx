@@ -851,9 +851,8 @@ export default function InventoryListPage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Customize
+                    <Button variant="outline" size="icon" title="Customize columns" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
+                      <Settings className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 max-h-96 overflow-y-auto dark:bg-slate-950 dark:border-slate-800">
