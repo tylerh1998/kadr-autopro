@@ -6,7 +6,7 @@ import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Search, Phone, Mail, Truck, Lock, FileText, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, Search, Phone, Mail, Truck, Lock, RotateCcw, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -163,64 +163,51 @@ export default function SuppliersPage() {
     <TooltipProvider>
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Suppliers</h1>
-              <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your parts and service suppliers</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={loadSuppliers}
-                variant="outline"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-              <Button
-                onClick={() => navigate(createPageUrl('APSummary'))}
-                variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/30"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                AP Summary
-              </Button>
-              <Button
-                onClick={() => {
-                  setEditingSupplier(null);
-                  setShowForm(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Supplier
-              </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowFlushConfirm(true)}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Flush Locks
-                </Button>
-            </div>
-          </div>
-
           <Card>
             <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search suppliers by name (Press Enter)..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setActiveSearchTerm(searchTerm);
-                    }
-                  }}
-                  className="pl-10"
-                />
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    ref={searchInputRef}
+                    placeholder="Search suppliers by name (Press Enter)..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setActiveSearchTerm(searchTerm);
+                      }
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={loadSuppliers}
+                    variant="outline"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingSupplier(null);
+                      setShowForm(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Supplier
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowFlushConfirm(true)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Flush Locks
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
