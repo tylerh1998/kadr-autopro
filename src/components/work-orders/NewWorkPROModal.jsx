@@ -123,6 +123,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
     setSaving(true);
     try {
       const projectData = {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         name: `${formData.customer}${formData.task ? ' - ' + formData.task : ''}`,
         customer: formData.customer,
         vehicle: formData.vehicle,
