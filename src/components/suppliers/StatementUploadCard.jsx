@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, FileText, X, ScanLine } from 'lucide-react';
 
-export default function StatementUploadCard({ file, onFileSelect, onClear, onSubmit, processing, progress, error }) {
+export default function StatementUploadCard({ file, onFileSelect, onClear, onSubmit, processing, progress, error, statementSummary, safeFormatDate }) {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -47,6 +47,22 @@ export default function StatementUploadCard({ file, onFileSelect, onClear, onSub
               </div>
             )}
           </div>
+          {statementSummary && (
+            <div className="flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+              <div>
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Period:</span>{' '}
+                {statementSummary.periodStart || statementSummary.periodEnd
+                  ? `${safeFormatDate(statementSummary.periodStart)} – ${safeFormatDate(statementSummary.periodEnd)}`
+                  : 'N/A'}
+              </div>
+              <div>
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Total:</span>{' '}
+                {statementSummary.totalAmountDue != null
+                  ? statementSummary.totalAmountDue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+                  : 'N/A'}
+              </div>
+            </div>
+          )}
           <Button
             onClick={onSubmit}
             disabled={!file || processing}

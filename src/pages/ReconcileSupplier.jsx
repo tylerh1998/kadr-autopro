@@ -49,6 +49,7 @@ export default function ReconcileSupplierPage() {
   const [supplier, setSupplier] = useState(null);
   const [autoproInvoices, setAutoproInvoices] = useState([]);
   const [statementInvoices, setStatementInvoices] = useState([]);
+  const [statementSummary, setStatementSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
@@ -133,6 +134,7 @@ export default function ReconcileSupplierPage() {
   const handleClearFile = () => {
     setFile(null);
     setError(null);
+    setStatementSummary(null);
   };
 
   const handleReconcile = async () => {
@@ -190,6 +192,11 @@ export default function ReconcileSupplierPage() {
       }
 
       setStatementInvoices(responseData.data?.invoices || []);
+      setStatementSummary({
+        periodStart: responseData.data?.period_start || null,
+        periodEnd: responseData.data?.period_end || null,
+        totalAmountDue: responseData.data?.total_amount_due != null ? parseFloat(responseData.data.total_amount_due) : null,
+      });
     } catch (err) {
       console.error('Statement reconcile error:', err);
       setError(err.message || 'An error occurred while reconciling the statement.');
@@ -229,9 +236,11 @@ export default function ReconcileSupplierPage() {
             width: 100%;
           }
           body { background-color: white !important; }
-          .print-logo { display: block; width: 100%; max-width: 250px; height: auto; margin: 0 auto 15px; }
-          .print-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; text-align: center; color: #000; }
-          .print-subtitle { font-size: 13px; text-align: center; margin-bottom: 20px; color: #333; }
+          .print-header { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+          .print-logo { width: 100%; max-width: 200px; height: auto; flex-shrink: 0; }
+          .print-header-text { flex: 1; }
+          .print-title { font-size: 18px; font-weight: bold; margin-bottom: 4px; text-align: left; color: #000; }
+          .print-subtitle { font-size: 13px; text-align: left; color: #333; }
           .report-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
           .report-summary-card { border: 1px solid #000; padding: 10px; break-inside: avoid; }
           .report-summary-title { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; color: #000; }
@@ -284,6 +293,8 @@ export default function ReconcileSupplierPage() {
           processing={processing}
           progress={progress}
           error={error}
+          statementSummary={statementSummary}
+          safeFormatDate={safeFormatDate}
         />
 
         <ReconcileErrorGroup errors={discrepancyResult.errors} safeFormatDate={safeFormatDate} />
@@ -317,16 +328,20 @@ export default function ReconcileSupplierPage() {
       </div>
 
       <div className="reconcile-print-report">
-        <img
-          src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg"
-          alt="Ken's Auto & Diesel Repair"
-          className="print-logo"
-        />
-        <div className="print-title">Supplier Statement Reconciliation Report</div>
-        <div className="print-subtitle">
-          <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '6px' }}>{supplier?.name}</div>
-          <div>Report Date: {format(new Date(), 'MMM d, yyyy')}</div>
-          {file && <div>Statement File: {file.name}</div>}
+        <div className="print-header">
+          <img
+            src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg"
+            alt="Ken's Auto & Diesel Repair"
+            className="print-logo"
+          />
+          <div className="print-header-text">
+            <div className="print-title">Supplier Statement Reconciliation Report</div>
+            <div className="print-subtitle">
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '6px' }}>{supplier?.name}</div>
+              <div>Report Date: {format(new Date(), 'MMM d, yyyy h:mm a')}</div>
+              {file && <div>Statement File: {file.name}</div>}
+            </div>
+          </div>
         </div>
 
         <div className="report-summary-grid">

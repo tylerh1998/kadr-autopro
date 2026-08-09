@@ -254,6 +254,18 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
     return null;
   }, [salesClasses]);
 
+  // Same tire / missing-tag-along detection InventoryAdd.jsx uses (both its manual entry
+  // and OCR import paths) - kept identical here so the warning behaves consistently everywhere.
+  const detectMissingTireTax = useCallback((partNumber, description, category, hasTagAlong) => {
+    const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+    const isTire = /\btire(s)?\b/i.test(partNumber || '') ||
+      /\btire(s)?\b/i.test(description || '') ||
+      /\btire(s)?\b/i.test(category || '') ||
+      tireSizeRegex.test(description || '') ||
+      tireSizeRegex.test(partNumber || '');
+    return isTire && !hasTagAlong;
+  }, []);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => {
       const newFormData = { ...prev, [field]: value };
@@ -340,7 +352,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
         ...formData,
         temp_id: Date.now() + Math.random(),
         isExistingPart,
-        existingPartId
+        existingPartId,
+        missing_tire_tax: detectMissingTireTax(formData.part_number, formData.description, formData.category, formData.tag_along_id)
     };
 
     setBatchItems(prev => [...prev, newItem]);
@@ -427,6 +440,14 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
     if (validationErrors.length > 0) {
         alert(`Cannot process batch: some items are missing required fields.\n\n${validationErrors.join('\n')}`);
         return;
+    }
+
+    const missingTireTaxItems = batchItems
+        .filter(item => item.missing_tire_tax)
+        .map(item => item.part_number || item.description || 'Unknown Part');
+    if (missingTireTaxItems.length > 0) {
+        const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
+        if (!proceed) return;
     }
 
     setProcessingBatch(true);
@@ -790,6 +811,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
               temp_id: Date.now() + Math.random(),
               isExistingPart: !!existingPart,
               existingPartId: existingPart ? existingPart.id : null,
+              missing_tire_tax: detectMissingTireTax(partNumber, description, existingPart ? existingPart.category : '', matchedTagAlongId),
           };
       });
 
@@ -1204,10 +1226,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
                         </div>
                         <div className="max-h-60 overflow-y-auto">
                             {batchItems.map((item, index) => (
-                                <div key={item.temp_id} className="grid grid-cols-12 gap-4 p-3 border-b border-slate-200 dark:border-slate-700 last:border-0 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm">
+                                <div key={item.temp_id} className={`grid grid-cols-12 gap-4 p-3 border-b last:border-0 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm ${item.missing_tire_tax ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700' : 'border-slate-200 dark:border-slate-700'}`}>
                                     <div className="col-span-3">
                                         <div className="font-semibold text-slate-900 dark:text-slate-100">{item.part_number}</div>
                                         <div className="text-slate-500 dark:text-slate-400 text-xs truncate">{item.description}</div>
+                                        {item.missing_tire_tax && (
+                                            <div className="text-red-500 dark:text-red-400 font-bold italic text-[11px]">Missing Tire Tax</div>
+                                        )}
                                     </div>
                                     <div className="col-span-2 text-slate-600 dark:text-slate-400 text-xs truncate">
                                         {getSupplierName(item.supplier_id)}

@@ -60,10 +60,11 @@ CRITICAL INSTRUCTION: A statement typically has (at minimum) two amount columns/
     1. CREDIT MEMOS / CREDIT NOTES: these are the supplier's own negative invoice, usually issued for a return, price correction, warranty credit, or other billing adjustment. They almost always have their own distinct document/reference number (commonly prefixed "CM", "CR", "CN", or similar - e.g. "CM162307"). These MUST be extracted exactly like an invoice, using that document number as "invoice_number", but with a NEGATIVE "amount". Do not skip these - they are real, matchable documents.
     2. ACTUAL PAYMENTS: the customer's payment being received (check, EFT, wire transfer, cash, credit card, "PAYMENT", "AUTO PAY", etc.), which typically has no distinct document/credit-memo number of its own (or references a check/transaction number that is not an invoice-style document). These are NOT invoices and MUST be excluded entirely - do not extract them.
   - If you cannot confidently tell whether a Payments & Credits row is a credit memo or a plain payment, prefer extracting it (as a negative amount) over silently dropping it - a false positive here is far less costly than silently losing a real credit memo.
-CRITICAL INSTRUCTION: If a "balance forward", "opening balance", "closing balance", "total due", account-status summary (e.g. "current", "over 30/60/90/120"), or similar summary row/box exists, do NOT extract it as an invoice.
+CRITICAL INSTRUCTION: If a "balance forward", "opening balance", "closing balance", "total due", account-status summary (e.g. "current", "over 30/60/90/120"), or similar summary row/box exists, do NOT extract it as an invoice - but DO still capture it for the statement-level summary fields below.
 CRITICAL INSTRUCTION: There may be handwritten (pen) edits on the statement. YOU MUST PRIORITIZE HANDWRITTEN EDITS over printed text that has been crossed out.
 CRITICAL INSTRUCTION: Invoice Number Normalization: Strip all non-alphanumeric characters (such as dashes, asterisks, spaces, slashes) from the extracted invoice/document number. The final "invoice_number" should ONLY contain letters and numbers (e.g., "INV-123*4" becomes "INV1234", "CM-162307" becomes "CM162307").
 CRITICAL INSTRUCTION: The "amount" field must be the actual invoice/credit-memo total (the full amount of that document as originally billed/credited), NOT a remaining/outstanding running-balance column if the statement separately shows both. If only one amount column exists per row, use it, applying the positive/negative sign rules above.
+CRITICAL INSTRUCTION: Also extract two statement-level summary fields, separate from the invoice list: (1) the date range the statement covers - printed as something like "Statement Period", "For the Period", "Billing Period", "Statement Date", or a "From ... To ..." range - as period_start/period_end in YYYY-MM-DD format (if only a single statement date is printed rather than a range, use it for both fields); (2) the statement's own printed total/balance-due figure - labeled something like "Total Due", "Balance Due", "New Balance", "Amount Due", or "Current Balance" - as total_amount_due, a positive number. These come directly from the statement's own printed summary, not a sum you calculate. If a field cannot be confidently found, return empty string ("") for the date fields or 0 for total_amount_due - do not guess.
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "invoices": [
@@ -72,7 +73,10 @@ Format the output EXACTLY as a JSON object with no markdown wrappers or addition
       "invoice_date": "The invoice/credit memo date in YYYY-MM-DD format. If you cannot find it, return empty string.",
       "amount": The document total amount as a number - positive for a purchase/invoice, negative for a credit memo. If not found, return 0
     }
-  ]
+  ],
+  "period_start": "Start of the statement's covered date range, in YYYY-MM-DD format. If you cannot find it, return empty string.",
+  "period_end": "End of the statement's covered date range, in YYYY-MM-DD format. If you cannot find it, return empty string.",
+  "total_amount_due": The statement's own printed total/balance-due figure as a positive number. If not found, return 0
 }
 Include every distinct invoice and credit-memo row found on the statement (across all pages, if multiple) - only exclude genuine payment-received rows and summary/balance rows, per the instructions above.`;
 

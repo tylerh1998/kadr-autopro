@@ -598,6 +598,12 @@ export default function InventoryAddPage() {
             (invItem) => (invItem.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === normalizedPartNumber
         );
 
+        // Same tire / missing-tag-along detection the OCR import path runs (handleOCRSuccess) -
+        // keep the regex and condition identical so manual and OCR-added items warn consistently.
+        const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+        const isTire = /\btire(s)?\b/i.test(normalizedPartNumber) || /\btire(s)?\b/i.test(currentItem.description) || (matchedExistingPart && /\btire(s)?\b/i.test(matchedExistingPart.category || '')) || tireSizeRegex.test(currentItem.description) || tireSizeRegex.test(normalizedPartNumber);
+        const missingTireTax = isTire && !currentItem.tag_along_id;
+
         const itemToAdd = {
             ...currentItem,
             is_existing: !!matchedExistingPart,
@@ -609,6 +615,7 @@ export default function InventoryAddPage() {
             minimum_quantity: parseInt(currentItem.minimum_quantity, 10) || 0,
             maximum_quantity: parseInt(currentItem.maximum_quantity, 10) || 0,
             line_total: (parseFloat(currentItem.cost) + (currentItem.core ? (parseFloat(currentItem.core_cost) || 0) : 0)) * parseFloat(currentItem.quantity_received),
+            missing_tire_tax: missingTireTax,
             id: Date.now() + Math.random() // Temporary client-side ID for batch management
         };
 
