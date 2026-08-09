@@ -1310,7 +1310,7 @@ export default function InventoryAddPage() {
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back to Inventory
                     </Button>
-                    <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
+                    <h1 className="text-2xl font-bold">Receive Parts</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button 

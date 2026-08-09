@@ -41,13 +41,9 @@ import {
   RefreshCw,
   History,
   Printer,
-  RotateCcw,
-  Plus,
   FileText,
   Settings
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 import InventoryAddModal from "@/components/inventory/InventoryAddModal";
 import InventoryEditModal from "@/components/inventory/InventoryEditModal";
@@ -149,7 +145,6 @@ async function fetchInventoryRecords({
 
 export default function InventoryListPage() {
   const { employee } = useAuth();
-  const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -805,7 +800,7 @@ export default function InventoryListPage() {
             {/* Top row: Search Bar and Action Buttons */}
             <div className="flex flex-col xl:flex-row justify-between gap-4 mb-4">
               {/* Left side: Search Bar */}
-              <div className="relative w-full xl:w-[400px] shrink-0">
+              <div className="relative w-full xl:flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500" />
                 <Input
                   placeholder="Search by Part # or Description (Press Enter)"
@@ -819,29 +814,13 @@ export default function InventoryListPage() {
 
               {/* Right side: Action Buttons + Location Range + Customize */}
               <div className="flex flex-wrap items-center gap-2 justify-start xl:justify-end shrink-0">
-                <Button 
-                  onClick={() => navigate(createPageUrl('InventoryReturns'))} 
-                  variant="outline"
-                  className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 dark:bg-orange-700 dark:hover:bg-orange-800 dark:border-orange-700"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Returns
-                </Button>
-                <Button 
-                  onClick={() => navigate(createPageUrl('InventoryAdd'))} 
-                  variant="outline"
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600 dark:bg-green-700 dark:hover:bg-green-800 dark:border-green-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Inventory
-                </Button>
                 <Button onClick={handlePrint} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                   <Printer className="h-4 w-4 mr-2" />
                   Print
                 </Button>
                 <Button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Item
+                  New Part
                 </Button>
                 <Button onClick={fetchInventory} variant="outline" className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
