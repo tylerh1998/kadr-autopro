@@ -54,22 +54,27 @@ serve(async (req) => {
 
         const prompt = `You are a highly accurate accounts-payable statement parser.
 Analyze the provided document, which is a SUPPLIER STATEMENT (an account activity ledger listing outstanding invoices for a business), not an itemized parts invoice. Do NOT attempt to extract line-item parts/products - statements do not list them.
-CRITICAL INSTRUCTION: A statement typically lists multiple types of rows: invoices/charges (what we want), and payments/credits/adjustments (what we must EXCLUDE). Only extract rows that represent an actual invoice/charge owed to the supplier. Skip any row that represents a payment, credit, adjustment, or a running/opening/closing balance total - these are NOT invoices.
-CRITICAL INSTRUCTION: If a "balance forward", "opening balance", "closing balance", "total due", or similar summary row exists, do NOT extract it as an invoice.
+CRITICAL INSTRUCTION: A statement typically has (at minimum) two amount columns/categories of rows: a PURCHASES/CHARGES column (invoices owed to the supplier) and a PAYMENTS & CREDITS column (amounts that reduce the balance). Handle them as follows:
+  - Every row in the PURCHASES/CHARGES column is an invoice. Extract it with a POSITIVE "amount".
+  - Rows in the PAYMENTS & CREDITS column are NOT all the same, and must be split into two cases:
+    1. CREDIT MEMOS / CREDIT NOTES: these are the supplier's own negative invoice, usually issued for a return, price correction, warranty credit, or other billing adjustment. They almost always have their own distinct document/reference number (commonly prefixed "CM", "CR", "CN", or similar - e.g. "CM162307"). These MUST be extracted exactly like an invoice, using that document number as "invoice_number", but with a NEGATIVE "amount". Do not skip these - they are real, matchable documents.
+    2. ACTUAL PAYMENTS: the customer's payment being received (check, EFT, wire transfer, cash, credit card, "PAYMENT", "AUTO PAY", etc.), which typically has no distinct document/credit-memo number of its own (or references a check/transaction number that is not an invoice-style document). These are NOT invoices and MUST be excluded entirely - do not extract them.
+  - If you cannot confidently tell whether a Payments & Credits row is a credit memo or a plain payment, prefer extracting it (as a negative amount) over silently dropping it - a false positive here is far less costly than silently losing a real credit memo.
+CRITICAL INSTRUCTION: If a "balance forward", "opening balance", "closing balance", "total due", account-status summary (e.g. "current", "over 30/60/90/120"), or similar summary row/box exists, do NOT extract it as an invoice.
 CRITICAL INSTRUCTION: There may be handwritten (pen) edits on the statement. YOU MUST PRIORITIZE HANDWRITTEN EDITS over printed text that has been crossed out.
-CRITICAL INSTRUCTION: Invoice Number Normalization: Strip all non-alphanumeric characters (such as dashes, asterisks, spaces, slashes) from the extracted invoice number. The final "invoice_number" should ONLY contain letters and numbers (e.g., "INV-123*4" becomes "INV1234").
-CRITICAL INSTRUCTION: The "amount" field must be the actual invoice total (the full charge amount for that invoice as originally billed), NOT a remaining/outstanding balance column if the statement separately shows both. If only one amount column exists, use it.
+CRITICAL INSTRUCTION: Invoice Number Normalization: Strip all non-alphanumeric characters (such as dashes, asterisks, spaces, slashes) from the extracted invoice/document number. The final "invoice_number" should ONLY contain letters and numbers (e.g., "INV-123*4" becomes "INV1234", "CM-162307" becomes "CM162307").
+CRITICAL INSTRUCTION: The "amount" field must be the actual invoice/credit-memo total (the full amount of that document as originally billed/credited), NOT a remaining/outstanding running-balance column if the statement separately shows both. If only one amount column exists per row, use it, applying the positive/negative sign rules above.
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "invoices": [
     {
-      "invoice_number": "The invoice number, normalized per the instruction above. If you cannot find it, return empty string.",
-      "invoice_date": "The invoice date in YYYY-MM-DD format. If you cannot find it, return empty string.",
-      "amount": The invoice total amount as a number. If not found, return 0
+      "invoice_number": "The invoice or credit memo document number, normalized per the instruction above. If you cannot find it, return empty string.",
+      "invoice_date": "The invoice/credit memo date in YYYY-MM-DD format. If you cannot find it, return empty string.",
+      "amount": The document total amount as a number - positive for a purchase/invoice, negative for a credit memo. If not found, return 0
     }
   ]
 }
-Include every distinct invoice/charge row found on the statement (across all pages, if multiple).`;
+Include every distinct invoice and credit-memo row found on the statement (across all pages, if multiple) - only exclude genuine payment-received rows and summary/balance rows, per the instructions above.`;
 
         const requestBody = {
             contents: [

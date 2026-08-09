@@ -136,7 +136,7 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
 ### Cross-phase resolution status (things one phase deferred that a later phase claims to have closed)
 
 - [x] **Phase 6's payroll-target progress bar** (`TechnicianPerformanceReportModal.jsx`) — deferred in Phase 6 (hardcoded to 0, card hidden) pending `CashFlowSummary` migration. Phase 10B claims to have restored it and reports live-verifying it — but only **with manufactured test data on dev**, since dev's real GL data was largely empty at that point. Worth a spot check against real production labour-sales figures once available.
-- [ ] **Phase 13C's deferred `autopro-syncLevies` vs. Phase 10E's native `syncLevies`** — these are two distinct items, not the same gap. Phase 13C deferred porting `autopro-syncLevies` because the `Levies` table didn't exist. Phase 10E later built the `Levies` schema and the native `syncLevies`/`getReportableLeviesReport`/`postLeviesToAP` functions, live-verifying the Report/Post-to-AP flow. **However**, Phase 13's own WO-save trigger call site in `useDocumentEditorSave.jsx` is explicitly confirmed, in Phase 13's own text, to still be 401ing / still deferred as of the end of that phase ("unchanged by this session"). Nothing in either phase doc confirms this call site was ever reconnected to Phase 10E's new function. **This is a real, still-open wiring gap** — verify whether saving a Work Order today correctly triggers `autopro-syncLevies`, or whether that call site is still pointed at the old (or nowhere).
+- [x] **Phase 13C's deferred `autopro-syncLevies` vs. Phase 10E's native `syncLevies`** — **RESOLVED 2026-08-08.** These were two distinct items, not the same gap (Phase 13C deferred it since `Levies` didn't exist yet; Phase 10E built it). Live-verified: saving `RO51611` in `DocumentEditor.jsx` with fetch monitoring active confirmed `autopro-syncLevies` fires correctly as part of the save sequence and returns `200`. The wiring gap flagged at the end of Phase 13 is closed.
 - [x] **~~Possible documentation conflict — Supplier lock-recovery fix~~ — RESOLVED 2026-08-03.** `master_blueprint.md`'s Lessons Learned log (Section 7) describes a specific resolved incident attributed to Phase 9 — a supplier (`DENHAM CHRYSLER JEEP LTD.`) found stuck locked on production since March, fixed by building a new `autopro-releaseSupplierLock` function. `phase_9_implementation_plan.md` itself has no record of this (its §0.1 decision even says the opposite: "pure migration, no flush addition"), but the fix is real — confirmed directly: `supabase/functions/autopro-releaseSupplierLock/index.ts` exists in the repo, and the function is deployed `ACTIVE` on **both** the dev branch and production. `phase_9_implementation_plan.md` is simply incomplete/never updated to capture this later addition; no further action needed.
 
 ### Phase 7 (Inventory) — untested for lack of data
@@ -482,10 +482,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `LinesOfCredit.jsx` → "New LOC"
   Files under test: `src/pages/LinesOfCredit.jsx`, `src/components/lines-of-credit/LinesOfCreditEditModal.jsx`
 
-- [ ] **Manual LOC charge and credit**
+- [x] **Manual LOC charge and credit** — **PASSED (2026-08-08)**
   tl;dr: Confirms manual transaction entry against a LOC balance.
   UI entry point: LOC detail → "Add Transaction"
   Files under test: `src/components/lines-of-credit/LineOfCreditTransactionModal.jsx`, `autopro-processLineOfCreditTransaction`
+  **Result:** $75 charge against Triangle Mastercard — `LinesOfCreditTransaction` row correct, `LinesOfCredit.current_balance`/`available_credit` updated correctly (+$75/-$75), GL balanced (`4008` dr $75 / `2008` cr $75). Test data cleaned up afterward — **note for cleanup technique**: deleting a `LinesOfCreditTransaction` row directly via SQL does NOT revert `LinesOfCredit.current_balance`/`available_credit` (those are only updated by the app's own write path, not a DB trigger) — had to manually revert both fields after the delete. Apply the same care to any other test transaction cleanup in this domain.
 
 - [ ] **LOC payment, then cancel it — including a cross-account reversal** *(directly verifies the Section 2 asymmetry item)*
   tl;dr: Make a bank-sourced LOC payment, then cancel it while paying attention to whether a cross-LOC reversal correctly restores the source account's balance — it's documented as NOT doing so by design; confirm this is still the actual behavior and acceptable.
@@ -535,17 +536,19 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Fiscal Periods
 
-- [ ] **Create, edit, and close a fiscal period** *(directly verifies the Section 2 gap — never live-tested)*
+- [x] **Create, edit, and close a fiscal period** *(directly verifies the Section 2 gap — never live-tested)* — **Create PASSED (2026-08-08)**; edit/close not exercised (would affect real period gating)
   tl;dr: Only the period list-load was ever confirmed live; the actual CRUD/close-period round trip has not been.
   UI entry point: `FiscalPeriods.jsx`
   Files under test: `src/pages/FiscalPeriods.jsx`, `src/components/utils/fiscalPeriodUtils.jsx`
+  **Result:** Created a new period (2027-01-01 to 2027-03-31) via the inline "Create New Fiscal Period" form — persisted correctly, then deleted to clean up. Deliberately did not toggle "Closed" on any real existing period (Q1 2026 and earlier are real closed periods; flipping that gates real transaction posting and isn't something to do as a side effect of a smoke test) — edit/close-period specifically still needs a deliberate check, ideally on a disposable test period rather than a real one.
 
 ### Levies
 
-- [ ] **Trigger a Levies sync via a Work Order save** *(directly verifies the Section 2 wiring gap)*
+- [x] **Trigger a Levies sync via a Work Order save** *(directly verifies the Section 2 wiring gap)* — **PASSED (2026-08-08), gap resolved**
   tl;dr: Confirms whether saving a Work Order actually invokes `autopro-syncLevies` correctly now, or whether the 13C↔10E wiring gap flagged in Section 2 is still open.
   UI entry point: `DocumentEditor.jsx` → Save
   Files under test: `src/components/work-orders/hooks/useDocumentEditorSave.jsx`, `autopro-syncLevies`
+  **Result:** Saved `RO51611` with fetch-call monitoring active — confirmed `autopro-syncLevies` fires as part of the save sequence (alongside `autopro-saveworkorderdata`/`autopro-getNotesBoardData`) and returns `200`. The 13C↔10E wiring gap is resolved, not still open.
 
 - [ ] **Run the Reportable Levies Report and Post to AP**
   tl;dr: Re-confirms the one flow in this domain that was already live-verified, as a regression check.
@@ -595,10 +598,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: Reports → Other Charges Breakdown
   Files under test: `src/components/reports/OtherChargesBreakdownReport.jsx`, `autopro-getOtherChargesBreakdown`
 
-- [ ] **Sales Analysis Report**
+- [x] **Sales Analysis Report** — **Backend PASSED (2026-08-08) via direct call; UI entry point not located this session**
   tl;dr: Confirms both charts (pie + daily bar) render, and that the earlier `role`/`access_level` access-gating bug fix holds (admin can open it, non-privileged user still blocked).
   UI entry point: Reports → Sales Analysis
   Files under test: `src/components/reports/SalesAnalysisReport.jsx`, `autopro-getSalesAnalysisReport`, `ReportModal.jsx`
+  **Result:** Could not find the actual "Reports" UI entry point by browsing the nav (no dedicated Reports page or nav item found — `ReportModal.jsx` is opened via `Layout.jsx`'s `showFinancialReports`/`showManagementReports`/etc. action dispatcher, whose trigger UI wasn't identified this session). Verified the backend directly instead (real-JWT authenticated call, same technique as Phase 8/13 lessons): `autopro-getSalesAnalysisReport` with real July–Aug 2026 data returned sensible real figures (`totalRevenue: $93,802.35`, 213 invoices, 41.3% margin) — confirms the function itself works correctly with real data, but the actual UI click-through (charts rendering, the `role`/`access_level` gating) is unverified. **See Section 5.**
 
 - [ ] **Technician Performance Report, including the restored payroll-target progress bar**
   tl;dr: Confirms utilization/efficiency numbers and — specifically — the progress bar restored in Phase 10B against real (not manufactured) labour-sales data.
@@ -676,6 +680,10 @@ Items the AI agent could not exercise itself — not because the underlying feat
   UI entry point: `Payroll.jsx` → import/upload a payroll file.
 - [ ] **Inventory: OCR invoice upload (`autopro-processPartsInvoiceOCR`)** — explicitly deferred through every phase that touched Inventory; still untested end-to-end via a real uploaded invoice image/PDF.
   UI entry point: Wherever the supplier-invoice OCR upload control lives in the Inventory/Receiving flow.
+
+### Could not locate the UI entry point (backend verified directly instead)
+
+- [ ] **Where "Reports" actually lives in the UI** — `ReportModal.jsx` is opened via `Layout.jsx`'s action dispatcher (`showFinancialReports`/`showManagementReports`/`showInventoryReports`/`showPayrollReports`/`showAccountingReports`), but nothing found while browsing `WIP`/`Customers`/`Vehicles`/`Inventory`/`Suppliers`/`Accounting`/`Payroll`/`Setup` nav items triggers it, there's no dedicated `/Reports` route (404s), and the top search bar is a plain filter, not a command palette. All 6 report Edge Functions were instead verified directly via authenticated `fetch()` (see Section 3's Reports group) — real data, correct output — but none of the actual report UIs (charts, the Sales Analysis access-gating check, the Technician Performance progress bar) have been visually confirmed. **Whoever knows where this lives in the UI should point the next session at it directly** — once found, the rest of Section 3's Reports group should be quick to finish.
 
 ### Inconclusive automated attempts — needs a human click-through to confirm pass/fail
 

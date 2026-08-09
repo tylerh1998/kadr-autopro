@@ -80,7 +80,9 @@ Autonomous execution pace (no back-and-forth waiting on manual DB clicks — Edg
 
 ### Phase A — Backend: Reconcile read RPC + Statement OCR function `[Executed]`
 
-**Execution note (2026-08-08):** Deployed to the dev Supabase branch (`sitihbdnuxifwibontcm`) per your explicit direction — the dev branch's `MIGRATIONS_FAILED`/stale-schema state (flagged before this phase started) does not block this feature, since the tables it depends on (`SupplierInvoiceLine`, `Supplier`, `CashFlowEntry`) already existed there. `get_supplier_reconcile_invoices` was applied via `apply_migration` and curl-verified directly against a real supplier (Automotive Parts Distributors, 12 conceptual invoices returned, one legitimate $0.00-net invoice from an offsetting reversal pair — expected given the literal per-line blank filter, not a bug). Both Edge Functions deployed with `verify_jwt: false`, matching the existing `autopro-processPartsInvoiceOCR`/`autopro-getSupplierTransactions` convention. `autopro-processSupplierStatementOCR`'s Gemini prompt has not yet been tested against a real statement PDF (no sample document available in this session) — first real-document test happens in Phase B's browser verification below.
+**Execution note (2026-08-08):** Deployed to the dev Supabase branch (`sitihbdnuxifwibontcm`) per your explicit direction — the dev branch's `MIGRATIONS_FAILED`/stale-schema state (flagged before this phase started) does not block this feature, since the tables it depends on (`SupplierInvoiceLine`, `Supplier`, `CashFlowEntry`) already existed there. `get_supplier_reconcile_invoices` was applied via `apply_migration` and curl-verified directly against a real supplier (Automotive Parts Distributors, 12 conceptual invoices returned, one legitimate $0.00-net invoice from an offsetting reversal pair — expected given the literal per-line blank filter, not a bug). Both Edge Functions deployed with `verify_jwt: false`, matching the existing `autopro-processPartsInvoiceOCR`/`autopro-getSupplierTransactions` convention.
+
+**Bug found and fixed during your live testing (2026-08-09):** the original prompt instructed the model to skip every row under a statement's "Payments & Credits" column, treating them all as plain cash payments. Real dealer statements (confirmed against a live Boundary Ford statement you provided) mix genuine payments with **credit memos** (document-numbered negative invoices, e.g. `CM162307`, `CM164032` — issued for returns/price corrections) in that same column. The original prompt was silently dropping credit memos entirely, so they never appeared in any of the three reconcile buckets. Fixed by splitting the "Payments & Credits" instruction into two cases: credit-memo-style rows (has its own document/reference number, commonly `CM`/`CR`/`CN`-prefixed) are now extracted like an invoice with a **negative** amount; genuine payment rows (no document number of their own — check/EFT/wire/cash/"PAYMENT") are still excluded. Re-deployed and curl-verified against the real statement: all 11 rows extracted correctly (9 positive purchases + 2 negative credit memos, exact amounts matching the PDF). `matchStatementToAutoPro` needed no changes — its amount-equality matching already handles negative totals correctly, since AutoPro's own return/reversal `SupplierInvoiceLine` groups are already negative-total conceptual invoices (confirmed in this same phase's earlier RPC test, e.g. invoice `015343` totaling `-$838.19`).
 
 **Files/functions impacted:**
 - New: `supabase/functions/autopro-getSupplierReconcileInvoices/index.ts`
@@ -124,7 +126,9 @@ Autonomous execution pace (no back-and-forth waiting on manual DB clicks — Edg
 
 ---
 
-### Phase D — Cash Flow push + back-navigation `[Pending]`
+### Phase D — Cash Flow push + back-navigation `[Executed]`
+
+**Execution note (2026-08-09):** Built exactly per the Working Area scope from the prior revision of this document — `AddToSheetModal` imported and wired, a `selectedMatchedTotal` memo sums `total_amount` across `matchedItems` filtered by `selectedMatchedKeys`, and a yellow "Add to Cash Flow ($X)" button (`bg-amber-500 hover:bg-amber-600`, matching `SupplierPaymentModal.jsx` exactly) sits on the right side of the header, disabled when nothing is selected. `onSuccess` clears the selection set (rather than navigating away) so the user stays on the page and can immediately see the now-deselected rows, since a pushed cash-flow entry doesn't mark anything as "handled" in the underlying data — the user can still re-select the same rows and push again if needed (no double-push guard exists, matching `AddToSheetModal`'s own lack of one). ESLint clean.
 
 **Files/functions impacted:**
 - Modified: `src/pages/ReconcileSupplier.jsx` (header bar: back button, "Add to Cash Flow" button, `AddToSheetModal` wiring)
@@ -147,15 +151,11 @@ Autonomous execution pace (no back-and-forth waiting on manual DB clicks — Edg
 
 ---
 
-## 7) Working Area (Current Phase): Phase D — Cash Flow push + back-navigation `[Pending]`
+## 7) Working Area (Current Phase): None — all 4 phases executed, awaiting final verification
 
-Phases A, B, and C are executed (see their sections above) and ready for your manual testing per §6's Phase A/B/C verification steps. Phase D is next once you're satisfied with A–C:
+All planned phases (A, B, C, D) are `[Executed]` — see their sections above for what was built and the two live-testing fixes that came out of your Phase A–C testing pass (the dev-branch deployment-target decision, and the credit-memo extraction bug). Nothing is currently in active development.
 
-**Exact scope (unchanged from the original Phase D description in §5):** `ReconcileSupplier.jsx` already has `selectedMatchedKeys` (a `Set` of matched-invoice keys) and the checkbox UI wired up — Phase D only needs to add:
-1. Import `AddToSheetModal` from `../components/suppliers/AddToSheetModal`.
-2. A `showAddToSheetModal` boolean state.
-3. A yellow "Add to Cash Flow" button in the header (`bg-amber-500 hover:bg-amber-600`, matching `SupplierPaymentModal.jsx`'s existing button exactly), disabled when `selectedMatchedKeys.size === 0`.
-4. Compute the selected total: `matchedItems.filter(item => selectedMatchedKeys.has(item.key)).reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0)`.
-5. Render `<AddToSheetModal open={showAddToSheetModal} onClose={...} initialValues={{ supplierName: supplier?.name, supplierId: supplier?.id, amount: selectedTotal.toFixed(2), dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd') }} onSuccess={...} />` — needs `endOfMonth` added to the existing `date-fns` import.
-
-No backend changes needed — `AddToSheetModal` already exists and its `CashFlowEntry` insert shape needs no modification.
+**Outstanding before this plan can be marked fully `[Tested]` and archived:**
+- Live-test Phase D specifically: on `ReconcileSupplier.jsx`, select one or more "Matched" invoices, click "Add to Cash Flow," confirm/submit `AddToSheetModal`, then verify on `CashFlow.jsx` that a new row appears with the correct supplier/amount/due-date (per §6's Phase D verification steps).
+- The edge function source changes in this session (`autopro-getSupplierReconcileInvoices`, `autopro-processSupplierStatementOCR` — including the credit-memo prompt fix) were deployed directly to the dev Supabase branch via MCP tools, independent of git. The corresponding local files are up to date in this repo but need a commit/push through GitHub Desktop (per your standing workflow) to keep the repo in sync with what's actually running.
+- This entire feature has only been deployed/tested against the **dev** Supabase branch (`sitihbdnuxifwibontcm`), not production (`hbcrwkmgsazqrvsrmxyr`) — the two new Edge Functions and the `get_supplier_reconcile_invoices` Postgres function do not yet exist on production. Production deployment is a separate, explicit step to take when you're ready to ship this to `kensauto.ca` (not `test.kensauto.ca`).

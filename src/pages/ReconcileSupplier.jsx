@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { ArrowLeft, DollarSign } from 'lucide-react';
+import { format, parseISO, endOfMonth } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import StatementUploadCard from '../components/suppliers/StatementUploadCard';
 import ReconcileInvoiceGroup from '../components/suppliers/ReconcileInvoiceGroup';
+import AddToSheetModal from '../components/suppliers/AddToSheetModal';
 import { matchStatementToAutoPro } from '@/lib/reconcileMatching';
 
 const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
@@ -53,6 +54,7 @@ export default function ReconcileSupplierPage() {
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
   const [selectedMatchedKeys, setSelectedMatchedKeys] = useState(new Set());
+  const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -102,6 +104,13 @@ export default function ReconcileSupplierPage() {
     const validKeys = new Set(matchedItems.map((item) => item.key));
     setSelectedMatchedKeys((prev) => new Set(Array.from(prev).filter((key) => validKeys.has(key))));
   }, [matchedItems]);
+
+  const selectedMatchedTotal = useMemo(
+    () => matchedItems
+      .filter((item) => selectedMatchedKeys.has(item.key))
+      .reduce((sum, item) => sum + (parseFloat(item.total_amount) || 0), 0),
+    [matchedItems, selectedMatchedKeys]
+  );
 
   const toggleMatchedSelection = (key) => {
     setSelectedMatchedKeys((prev) => {
@@ -194,14 +203,24 @@ export default function ReconcileSupplierPage() {
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-screen-xl mx-auto space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button variant="outline" onClick={handleBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">
-            <ArrowLeft className="w-4 h-4 mr-2" />Back
-          </Button>
-          <div className="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Reconcile Supplier Statement</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button variant="outline" onClick={handleBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">
+              <ArrowLeft className="w-4 h-4 mr-2" />Back
+            </Button>
+            <div className="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Reconcile Supplier Statement</p>
+            </div>
           </div>
+          <Button
+            onClick={() => setShowAddToSheetModal(true)}
+            disabled={selectedMatchedKeys.size === 0}
+            className="bg-amber-500 hover:bg-amber-600 text-white"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            Add to Cash Flow ({selectedMatchedTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})
+          </Button>
         </div>
 
         <StatementUploadCard
@@ -241,6 +260,18 @@ export default function ReconcileSupplierPage() {
           emptyMessage="Upload a statement to see matched invoices here."
         />
       </div>
+
+      <AddToSheetModal
+        open={showAddToSheetModal}
+        onClose={() => setShowAddToSheetModal(false)}
+        initialValues={{
+          supplierName: supplier?.name,
+          supplierId: supplier?.id,
+          amount: selectedMatchedTotal.toFixed(2),
+          dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+        }}
+        onSuccess={() => setSelectedMatchedKeys(new Set())}
+      />
     </div>
   );
 }
