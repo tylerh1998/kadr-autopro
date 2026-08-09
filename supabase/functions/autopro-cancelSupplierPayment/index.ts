@@ -92,7 +92,7 @@ serve(async (req) => {
         .from('BankTransaction')
         .select('*')
         .eq('source_id', payment.id)
-        .eq('source_type', 'payment');
+        .eq('source_type', 'supplier_payment');
 
       const bankTx = bankTxArr || [];
 
