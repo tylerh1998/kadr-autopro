@@ -222,7 +222,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftInvoiceNumbers((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleInvoiceNumberBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-800 dark:text-slate-100' : 'bg-white dark:bg-slate-800 dark:text-slate-100'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100'}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -231,7 +231,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftDates((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleDateBlur(line.id, draftDates[line.id] ?? formatDateForInput(line.invoice_date))}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-800 dark:text-slate-100' : 'bg-white dark:bg-slate-800 dark:text-slate-100'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100'}
                                   />
                                   {line.dateError ? <p className="mt-1 text-xs text-red-600">{line.dateError}</p> : null}
                                 </TableCell>
@@ -241,7 +241,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftDescriptions((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleDescriptionBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white dark:bg-slate-800 dark:text-slate-100 leading-snug' : 'min-h-[60px] resize-y bg-white dark:bg-slate-800 dark:text-slate-100 leading-snug'}
+                                    className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 leading-snug' : 'min-h-[60px] resize-y bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 leading-snug'}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -264,7 +264,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                         }}
                                         disabled={isReadOnly || hasInventoryItem || locked}
                                         placeholder="Select GL"
-                                        className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white dark:bg-slate-800' : 'bg-white dark:bg-slate-800'}`}
+                                        className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600' : 'bg-white dark:bg-slate-950 dark:border-slate-600'}`}
                                       />
                                     );
                                   })()}
@@ -275,7 +275,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftCharges((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleChargeBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-800 dark:text-slate-100 text-right' : 'bg-white dark:bg-slate-800 dark:text-slate-100 text-right'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -284,7 +284,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => gstEditable && setDraftGsts((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => gstEditable && handleGstBlur(line)}
                                     readOnly={!gstEditable}
-                                    className={gstEditable ? 'bg-white dark:bg-slate-800 dark:text-slate-100 text-right' : 'cursor-not-allowed bg-white dark:bg-slate-800 dark:text-slate-100 text-right'}
+                                    className={gstEditable ? 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right' : 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
