@@ -660,7 +660,7 @@ export default function InventoryListPage() {
           <Package className="mr-2 h-4 w-4" />
           <span>Edit Location</span>
       </ContextMenuItem>
-      {currentUser?.role === 'admin' && (
+      {currentUser?.admin === true && (
         <>
           <ContextMenuSeparator className="dark:bg-slate-800" />
           <ContextMenuItem
@@ -1106,7 +1106,7 @@ export default function InventoryListPage() {
                                       <Package className="mr-2 h-4 w-4" />
                                       <span>Edit Location</span>
                                     </DropdownMenuItem>
-                                    {currentUser?.role === 'admin' && (
+                                    {currentUser?.admin === true && (
                                       <>
                                         <DropdownMenuSeparator className="dark:bg-slate-800" />
                                         <DropdownMenuItem
