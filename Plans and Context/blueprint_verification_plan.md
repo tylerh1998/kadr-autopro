@@ -115,6 +115,8 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
 
 ### Newly discovered bugs (found during live verification, not pre-existing knowledge)
 
+- [ ] **"Create New Project" from a Work Order's WorkPRO tab is completely broken — `NewWorkPROModal.jsx` never sets `Project.id`, and the column has no DB default.** CONFIRMED 2026-08-08. Clicking "Create Project" always fails: `Error creating project: {code: 23502, ... "null value in column \"id\" of relation \"Project\" violates not-null constraint"}`. Root cause confirmed at both ends: `NewWorkPROModal.jsx`'s `handleSaveProject` (~line 125) builds `projectData` with `name`/`customer`/`vehicle`/etc. but never an `id` field, and `information_schema.columns` confirms `Project.id` has `column_default: null` — nothing on the DB side generates one either. Real `Project` rows use 24-char-hex ids (e.g. `147b387761c1495a9d87551c`), matching the project's established `WorkOrder`/`InventoryCategory` convention. **Fix:** add `id: crypto.randomUUID().replace(/-/g,'').substring(0,24)` to `projectData` before the `.insert()` call, same pattern used for `WorkOrder.id`. This blocks the entire "pair a new WorkPRO project to a Work Order" flow — every technician-facing time-tracking feature that depends on a Project existing is unreachable via this path until fixed. **"Connect to Existing Project" (pairing to an already-existing Project) confirmed working correctly** — only the create-new path is broken. Tech-time display against a connected project also confirmed working (see Section 3's WorkPRO entry).
+
 - [x] **`SystemSettings.next_ro_number` counter fell behind real data after the production data copy, causing new Work Orders to collide with real existing RO numbers — FIXED 2026-08-08 (data-sync fix, not a code fix).** RO/WO numbering is generated from a stored counter (`generateWorkOrderNumbers()`, `AppointmentForm.jsx:614` — reads `SystemSettings.next_ro_number`), not computed as `max(ro_number)+1`. After the other agent's full production-data copy landed on dev, the real `WorkOrder` table's highest number was `RO51610`, but the counter was still `51568` (stale from before the copy). Creating a Work Order via `NewWorkOrderModal.jsx` produced `RO51567`/`WO51567` — colliding with a real, already-existing `Completed` WorkOrder with the same numbers. The collision didn't surface immediately (the initial insert via `autopro-createworkorderdata` succeeded), but every subsequent `Save` in `DocumentEditor.jsx` failed with a `500` from `autopro-saveworkorderdata`: `"Failed to read work order: JSON object requested, multiple (or no) rows returned"` — a `.single()`-style lookup by `ro_number` finding 2 rows instead of 1. **Fixed by updating `SystemSettings.next_ro_number` to `51611`** (real max + 1) and deleting the orphaned colliding test WorkOrder. **This is worth a design-robustness note, not just a one-time data fix:** a counter that can silently drift from real data (any bulk import/copy, or a bug elsewhere) has no self-correcting safety net the way a `max()+1` or a DB-level unique-violation-with-retry would — consider whether `next_ro_number`/`next_inv_number` should be validated/derived rather than purely trusted at read time. Confirm `SystemSettings.next_inv_number` (`41230` as of this writing) doesn't have the same drift before it's needed.
 
 - [ ] **`search_customers_ranked` RPC: "First Last" full-name searches return zero results app-wide** — **CONFIRMED, 2026-08-08.** The function's `WHERE` filter only checks `org_name`/`first_name`/`last_name`/`email`/`phone` individually against the search term — it never checks the concatenated `first_name || ' ' || last_name`. The `ORDER BY match_rank` logic *does* have cases for a full-name match (rank 3 exact, rank 9 partial) — but those cases are unreachable dead code, since a row that only matches on the concatenated full name never passes the `WHERE` clause to begin with. Directly confirmed: `select count(*) from search_customers_ranked('Tyler Haney', false, 50, 0)` returns **0**, while `search_customers_ranked('Haney', ...)` correctly returns 4 rows including Tyler Haney. **Impact is app-wide**, not one modal — `grep` shows 6 callers: `src/pages/Customers.jsx` (the main customer search page), `src/components/work-orders/NewWorkOrderModal.jsx`, `ChangeCustomerModal.jsx`, `MergeCustomerModal.jsx`, `VehicleForm.jsx`, plus the tracked source `src/supabase/search_customers_ranked.sql`. Any staff member typing a customer's full first+last name gets zero results and has to know to fall back to last-name-only. **Fix:** add `lower(btrim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) like '%' || lower(p_search_term) || '%'` (and ideally the exact-match variant) to the `WHERE` clause, mirroring what the `ORDER BY` already assumes exists. Note: this is a pre-existing bug in a Phase 5–era RPC, unrelated to anything Phase 13 or later touched — the Appointment customer-search dialog (`AppointmentForm.jsx`) uses a *different* search mechanism and was directly confirmed working correctly with the exact same "Tyler Haney" full-name query earlier in this session, which is what surfaced the discrepancy.
@@ -590,14 +592,16 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Reports
 
-- [ ] **Customer Report**
-  UI entry point: Reports → Customer Report
+- [x] **Customer Report** — **PASSED (2026-08-08)**
+  UI entry point: `WIP` nav → Reports → Customer Report
   Files under test: `src/components/reports/CustomerReportModal.jsx`, `autopro-getCustomerReportData`
+  **Result:** Real customer sales ranking loaded correctly (e.g. `BUFFALO TRAIL PUBLIC SCHOOLS: 11 WOs, $85,712.99 total`), sorted descending by total sales, avg WO total computed correctly per row.
 
-- [ ] **Other Charges Breakdown Report**
+- [x] **Other Charges Breakdown Report** — **PASSED (2026-08-08)**
   tl;dr: Confirms the charge-detail drill-down dialog still opens correctly.
-  UI entry point: Reports → Other Charges Breakdown
+  UI entry point: `WIP` nav → Reports → Other Charges Breakdown
   Files under test: `src/components/reports/OtherChargesBreakdownReport.jsx`, `autopro-getOtherChargesBreakdown`
+  **Result:** Real data for Jul 1–Aug 8 2026: 261 invoices, 18 charge types, $10,673.53 grand total, correctly broken down by description/GL account/count/amount (e.g. `School Bus Earnings VRD2` GL `4050`, `$6,643.60`).
 
 **Entry points (confirmed 2026-08-08, user-supplied):** `Inventory` nav → "Reports" (Inventory Reports: Valuation, Stock Reorder, Parts Movement, On Order, Reportable Levies); `WIP` nav → "Reports" (Management Reports: Sales Analysis, Customer Report, Work Order Summary, Technician Performance, Other Charges Breakdown); `Accounting` nav → "Reports" (opens `/FinancialDashboard`: Cash Flow Trend, P&L, Balance Sheet, General Ledger, Chart of Accounts, GL Journal tabs) and `Accounting` nav → "Accounting" (`showAccountingReports`, not yet opened this session). All three nav items reveal their dropdown on **hover** (`onMouseEnter`, React state — not click, not a route), which is why they weren't found by clicking earlier in this session — see the Section 4 technique note.
 
@@ -607,15 +611,17 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   Files under test: `src/components/reports/SalesAnalysisReport.jsx`, `autopro-getSalesAnalysisReport`, `ReportModal.jsx`
   **Result:** Opened via the real UI path (`WIP` → Reports → Sales Analysis). Real charts confirmed rendering (`recharts` present), real data: Total Sales $11,151.96 / 38 Invoices, Gross Profit $4,993.66 (44.8% margin), pie chart (Parts 58% / Labor 39% / Supplies 2%), Daily Sales Trend bar chart. Opened successfully as the `lvl3_user`/admin test account — the non-privileged-user-blocked half of the access-gating check not separately tested (would need a second, lower-privilege account).
 
-- [ ] **Technician Performance Report, including the restored payroll-target progress bar**
+- [x] **Technician Performance Report, including the restored payroll-target progress bar** — **PASSED (2026-08-08), resolves the Section 2 real-data spot check**
   tl;dr: Confirms utilization/efficiency numbers and — specifically — the progress bar restored in Phase 10B against real (not manufactured) labour-sales data.
-  UI entry point: Reports → Technician Performance
+  UI entry point: `WIP` nav → Reports → Technician Performance
   Files under test: `src/components/reports/TechnicianPerformanceReportModal.jsx`, `autopro-getTechnicianPerformanceReport`
+  **Result:** Loaded correctly with real technicians (Marshall Johnston, Marley Jacobs, Ryley Bates, etc.) and real efficiency figures (project hours, hours billed, labour revenue, billing efficiency %). The payroll-target progress bar showed real figures — `Current: $1,902.00` / `Target: $19,500.00` — not the Phase 6 hardcoded-zero placeholder and not Phase 10B's manufactured test data. Resolves the Section 2 item asking for a real-data spot check.
 
-- [ ] **Work Order Summary Report**
+- [x] **Work Order Summary Report** — **PASSED (2026-08-08)**
   tl;dr: Confirms all 4 stat cards, both charts, the aging table, and the status-breakdown table.
-  UI entry point: Reports → Work Order Summary
+  UI entry point: `WIP` nav → Reports → Work Order Summary
   Files under test: `src/components/reports/WorkOrderSummaryReport.jsx`, `autopro-getWorkOrderSummaryReport`
+  **Result:** All stat cards correct with real data (Total Active 83, Inventory in WIP $29,004.40, WIP Revenue $55,351.12, WIP Labor 270.7 hrs/$4,901.30), Work Order Aging chart, WIP Revenue Breakdown, and Open-vs-Closed volume/revenue charts all rendered correctly.
 
 - [x] **Inventory On Order Report** — **PASSED (2026-08-08)**
   tl;dr: Confirms the grouped-by-supplier table and print view.
@@ -623,22 +629,25 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   Files under test: `src/components/reports/InventoryOnOrder.jsx`, `autopro-getRealTimeInventoryOnOrder`
   **Result:** Loaded correctly, grouped by real supplier (Automotive Parts Distributors, Boundary Ford, Jard Industrial Supply...) with real part #s, quantities, and linked WO/RO numbers.
 
-- [ ] **Parts Movement Report**
+- [x] **Parts Movement Report** — **PASSED (2026-08-08)**
   tl;dr: Confirms client-side sort/filter/search and the totals footer against the direct RPC.
-  UI entry point: Reports → Parts Movement
+  UI entry point: `Inventory` nav → Reports → Parts Movement
   Files under test: `src/components/reports/PartsMovementReportModal.jsx`, `get_parts_movement_v2` RPC
+  **Result:** Default date range showed "No parts found" — needed "This Year" quick-select before "Run Report" (worth knowing: the default range is narrower than useful for a quick smoke test). With This Year selected, real parts movement data loaded correctly (WIP qty/amt, Invoiced qty/amt, Total qty/amt per part, e.g. `PROPANE BOTTLE: 3,609 total qty, $4,747.41`).
 
 ### WorkPRO (technician-facing sister app)
 
-- [ ] **Clock in and clock out**
+- [x] **Clock in and clock out** — **PASSED (2026-08-08)**
   tl;dr: Confirms `TimeRecord`/`UnassignedTime` creation with correct audit fields, including the Phase 4 `employee_name`→`user_name` bug fix.
   UI entry point: Global clock-in control; `TechClockStatusModal.jsx`
   Files under test: `src/components/work-orders/GlobalClockInModal.jsx`, `TechClockStatusModal.jsx`, `src/Layout.jsx` (`checkClockStatus`)
+  **Result:** Clicked the header "Clock In" control — `TimeRecord` row created correctly (`employee_name: "Test Employee"`, `status: clocked_in`, correct `created_by`). Header control correctly switched to "Clock Out"; clicking it set `status: clocked_out`, `clock_out_time`, and computed `total_hours: 0.02`. Full round trip confirmed. Test record deleted afterward.
 
-- [ ] **WO ↔ Project pairing and tech time display**
+- [x] **WO ↔ Project pairing and tech time display** — **FAILED (2026-08-08) — real bug found, see Section 2**
   tl;dr: Confirms the `Appointment → Work Order → Project` integration flow and that tech time logs display correctly against a Work Order.
   UI entry point: `DocumentEditor.jsx` → WorkPRO tab
   Files under test: `src/components/work-orders/WorkPRODescriptionModal.jsx`, `TechTimeModal.jsx`, `src/pages/WorkOrders.jsx` (Project/ProjectTimeSession lists)
+  **Result:** "Create New Project" from `RO51611`'s WorkPRO tab fails every time with a Postgres NOT NULL violation on `Project.id` — see Section 2's new bug entry for full root cause and fix. **"Connect to Existing Project" works correctly as an alternate path** — connected `RO51611` to an existing real project ("Shop-.", `in_progress`), `Project.work_order` updated correctly to `WO51611`, and the WO's WorkPRO tab correctly displayed the connected project's live-tracked hours (`6.73 hrs, IN PROGRESS`). Confirms tech-time display itself works — only new-project creation is broken. Reverted the test project's `work_order` back to `null` afterward.
 
 - [ ] **Archive WO projects on invoice conversion**
   tl;dr: Confirms the native `archiveWorkOrderProjects` function correctly archives linked Projects when an estimate converts to an invoice.

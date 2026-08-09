@@ -7,8 +7,9 @@ import { format, parseISO, endOfMonth } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import StatementUploadCard from '../components/suppliers/StatementUploadCard';
 import ReconcileInvoiceGroup from '../components/suppliers/ReconcileInvoiceGroup';
+import ReconcileErrorGroup from '../components/suppliers/ReconcileErrorGroup';
 import AddToSheetModal from '../components/suppliers/AddToSheetModal';
-import { matchStatementToAutoPro } from '@/lib/reconcileMatching';
+import { matchStatementToAutoPro, findDiscrepancies } from '@/lib/reconcileMatching';
 
 const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
   if (!dateString || dateString === '') return 'N/A';
@@ -87,13 +88,18 @@ export default function ReconcileSupplierPage() {
     [statementInvoices, autoproInvoices]
   );
 
-  const notInAutoProItems = useMemo(
-    () => matchResult.notInAutoPro.map((statementInvoice, index) => mapStatementToItem(statementInvoice, index)),
+  const discrepancyResult = useMemo(
+    () => findDiscrepancies(matchResult.notInAutoPro, matchResult.notOnStatement),
     [matchResult]
   );
+
+  const notInAutoProItems = useMemo(
+    () => discrepancyResult.notInAutoPro.map((statementInvoice, index) => mapStatementToItem(statementInvoice, index)),
+    [discrepancyResult]
+  );
   const notOnStatementItems = useMemo(
-    () => matchResult.notOnStatement.map((invoice) => mapAutoproToItem(invoice)),
-    [matchResult]
+    () => discrepancyResult.notOnStatement.map((invoice) => mapAutoproToItem(invoice)),
+    [discrepancyResult]
   );
   const matchedItems = useMemo(
     () => matchResult.matched.map((pair) => mapAutoproToItem(pair.autopro, { dateMismatch: pair.dateMismatch, statementDate: pair.statement.invoice_date })),
@@ -237,6 +243,9 @@ export default function ReconcileSupplierPage() {
           .report-table th, .report-table td { border: 1px solid #000; padding: 4px 6px; text-align: left; color: #000; }
           .report-table th { background-color: #f0f0f0 !important; font-weight: bold; }
           .report-table td:nth-child(3), .report-table td:nth-child(4), .report-table td:nth-child(5) { text-align: right; }
+          .report-section-error .report-section-title { color: #b91c1c; border-bottom-color: #b91c1c; }
+          .report-error-table th { background-color: #fee2e2 !important; }
+          .report-error-table td:nth-child(4), .report-error-table td:nth-child(7), .report-error-table td:nth-child(8) { text-align: right; }
         }
       `}</style>
       <div className="p-6 min-h-screen">
@@ -276,6 +285,8 @@ export default function ReconcileSupplierPage() {
           progress={progress}
           error={error}
         />
+
+        <ReconcileErrorGroup errors={discrepancyResult.errors} safeFormatDate={safeFormatDate} />
 
         <ReconcileInvoiceGroup
           title="Not In AutoPro"
@@ -330,6 +341,40 @@ export default function ReconcileSupplierPage() {
             );
           })}
         </div>
+
+        {discrepancyResult.errors.length > 0 && (
+          <div className="report-section report-section-error">
+            <h2 className="report-section-title">Errors</h2>
+            <table className="report-table report-error-table">
+              <thead>
+                <tr>
+                  <th>Reason</th>
+                  <th>Statement Inv #</th>
+                  <th>Statement Date</th>
+                  <th>Statement Amt</th>
+                  <th>AutoPro Inv #</th>
+                  <th>AutoPro Date</th>
+                  <th>AutoPro Amt</th>
+                  <th>Difference</th>
+                </tr>
+              </thead>
+              <tbody>
+                {discrepancyResult.errors.map((err) => (
+                  <tr key={err.key}>
+                    <td>{err.reason}</td>
+                    <td>{err.statement.invoice_number || '—'}</td>
+                    <td>{safeFormatDate(err.statement.invoice_date, 'MMM dd, yyyy')}</td>
+                    <td>${(parseFloat(err.statement.amount) || 0).toFixed(2)}</td>
+                    <td>{err.autopro.invoice_number || '—'}</td>
+                    <td>{safeFormatDate(err.autopro.invoice_date, 'MMM dd, yyyy')}</td>
+                    <td>${(parseFloat(err.autopro.total_amount) || 0).toFixed(2)}</td>
+                    <td>${Math.abs(parseFloat(err.difference) || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {printSections.map((section) => (
           <div key={section.key} className="report-section">
