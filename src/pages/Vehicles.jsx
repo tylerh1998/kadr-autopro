@@ -174,40 +174,34 @@ export default function VehiclesPage() {
   return (
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Vehicles</h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage customer vehicle information</p>
-          </div>
-          <Button 
-            onClick={() => {
-              setEditingVehicle(null);
-              setShowForm(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Vehicle
-          </Button>
-        </div>
-
         {/* Search */}
         <Card className="dark:bg-card border dark:border-slate-800">
           <CardContent className="p-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
-              <Input
-                placeholder="Search vehicles by make, model, VIN, license plate, or customer name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    setAppliedSearchTerm(searchTerm);
-                  }
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
+                <Input
+                  placeholder="Search vehicles by make, model, VIN, license plate, or customer name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setAppliedSearchTerm(searchTerm);
+                    }
+                  }}
+                  className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingVehicle(null);
+                  setShowForm(true);
                 }}
-                className="pl-10 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
-              />
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Vehicle
+              </Button>
             </div>
             <div className="flex items-center space-x-2 mt-4">
               <input
