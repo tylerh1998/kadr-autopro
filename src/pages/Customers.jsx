@@ -176,53 +176,30 @@ export default function CustomersPage() {
   return (
     <div className="p-6 min-h-screen dark:bg-slate-900">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Customers</h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your client information</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline"
-              onClick={() => navigate(createPageUrl('CustomerARSummary'))}
-              className="bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              AR Summary
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => navigate(createPageUrl('EmailLog'))}
-              className="bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Email Log
-            </Button>
-            <Button 
-              onClick={() => {
-                setEditingCustomer(null);
-                setShowEditDialog(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Customer
-            </Button>
-          </div>
-        </div>
-
         <Card className="dark:bg-slate-900 dark:border-slate-800">
           <CardContent className="p-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <Input
-              ref={searchInputRef}
-              placeholder="Search customers by name, organization, phone, or email (Press Enter)..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              className="pl-10 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-              />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                ref={searchInputRef}
+                placeholder="Search customers by name, organization, phone, or email (Press Enter)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="pl-10 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingCustomer(null);
+                  setShowEditDialog(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
             </div>
             <div className="flex items-center space-x-2 mt-4">
               <input
