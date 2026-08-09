@@ -1,6 +1,6 @@
 # Phase 14 Implementation Plan: Setup, Admin & Lankar Import (Deprecation + Cleanup)
 
-**Status:** **Rescoped 2026-08-05 — ready for execution. No open decisions blocking start.**
+**Status:** **Substantively complete 2026-08-07.** 14A-14G all code-complete and live-verified on dev; rolled up into `master_blueprint.md` (v11). 2 items remain genuinely deferred, not testing-scope choices — see §14G's "Bottom line" note and the roadmap table below.
 **Parent:** `master_blueprint.md`, Phase 14 (Tier F). Final Sunset is no longer this phase's job — see §0.9 and the new Phase 15 pointer.
 **Prepared:** 2026-08-03 (initial research), substantially rescoped 2026-08-05 following user decisions in §0.9.
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` (schema/RLS changes tested here first, always); production `hbcrwkmgsazqrvsrmxyr` (applied second, after dev verification)
@@ -149,7 +149,7 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 | 14D | **Fully live-verified 2026-08-07 — bug fix confirmed deployed and working** (`LankarWOView.jsx` double-unwrap fix live-verified against woid 46000) | Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx` |
 | 14E | **Fully live-verified 2026-08-06** — real emails sent end-to-end, both functions, `SentEmailLog` confirmed `status: 'sent'` with real Resend tracking IDs | AR cluster remainder: `StatementEmailModal.jsx` + `BatchSendWorkOrdersModal.jsx` |
 | 14F | **Partially live-verified — `localeCompare` fix confirmed deployed and working 2026-08-07; full upload/extract/create flow still genuinely blocked on a real legacy work-order PDF** | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
-| 14G | Pending (last, not yet started) | Final verification stage — not sunset |
+| 14G | **Substantively complete 2026-08-07** — found and fixed one real production gap (`autopro-createStatement` missing on prod); 2 items remain genuinely open (14F full-flow needs a real PDF; production-UI re-confirmation of 4 dev-tested 14C managers), neither blocking rollup | Final verification stage — not sunset |
 
 ---
 
@@ -376,19 +376,27 @@ Unchanged from the original plan (confirmed "OK" by you) — full detail below, 
 4. Confirm no regressions in any consumer of the 5 newly-replayed tables outside this phase's own files (spot-check at least one such consumer per table if any exist — e.g. does any work-order form read `WorkOrderStatus` for a status dropdown?).
 
 **Task List:**
-- [ ] Run the scoped repo-wide grep, treat any surprise hit as stop-and-investigate.
-- [ ] Confirm the 4 deleted files are gone and unreferenced.
-- [ ] Full combined walkthrough (see checklist below).
-- [ ] Report results back for the master_blueprint rollup.
+- [x] Run the scoped repo-wide grep, treat any surprise hit as stop-and-investigate. **2026-08-07: zero hits.**
+- [x] Confirm the 4 deleted files are gone and unreferenced. **2026-08-07: confirmed — all 4 (`RestoreBackupModal.jsx`, `RecordDetailsModal.jsx`, `AddLegacyInvoiceModal.jsx`, `LankarImportReturnModal.jsx`) absent from disk, zero references anywhere in `src/`.**
+- [x] Full combined walkthrough (see checklist below). **2026-08-06/07, see below — one item still genuinely blocked (14F full flow, needs a real PDF).**
+- [x] Confirm no regressions in any consumer of the 5 newly-replayed tables outside this phase's own files (spot-check at least one such consumer per table if any exist). **2026-08-07 — see finding below: found and fixed a real gap.**
+- [x] Report results back for the master_blueprint rollup. **This pass — rollup follows in master_blueprint.md.**
+
+**2026-08-07 consumer regression spot-check (item 4) — real finding, fixed same session:**
+Grepped `src/` for all 14 non-Phase-14-owned files referencing `TagAlong`/`WorkOrderStatus`/`CustomerPortalWorkOrder`/`SentEmailLog`/`CustomerPortalStatement`. `TagAlong` consumers (`WOAddInventoryModal.jsx`, `InventoryAdd.jsx`, `InventoryEditModal.jsx`, `InventoryAddModal.jsx`, `GetPartModal.jsx`, `useWorkOrder.jsx`), `WorkOrderStatus` consumers (`WorkOrders.jsx`, `DocumentEditor.jsx`), and the `SentEmailLog` consumer (`EmailLog.jsx`) all query the tables directly via `supabase.from()` — no intermediary function, no regression risk once the table itself exists on a branch (already confirmed 2026-08-05).
+
+**`CustomerPortalStatement` was different — found a real, live gap.** `StatementModal.jsx` calls `supabase.functions.invoke('autopro-createStatement', ...)` on every open (line 246), but `autopro-createStatement` — the function that inserts into the newly-replayed `CustomerPortalStatement` table — had never been deployed to production (confirmed via `get_edge_function`, `NotFoundException`). The error is caught silently (no crash), but `statementPortalId` never gets set, so the statement portal-link/email flow was quietly broken for every customer on production. Same shape as the `autopro-createPortalSnapshot` gap caught in 14E. **Fixed same session, with explicit user approval before touching production:** deployed `autopro-createStatement` to production verbatim from dev source (version 1, `ACTIVE`), smoke-tested with an invalid bearer token — platform gateway correctly returned `UNAUTHORIZED_INVALID_JWT_FORMAT` before reaching function code, proving it's live and correctly JWT-gated, no real data touched. Also confirmed `CustomerPortalWorkOrder` has no other in-repo reader/writer beyond `autopro-createPortalSnapshot` (already confirmed deployed both branches in 14E) — no further regression surface for that table within this repo.
 
 **Verification Plan Checklist (combined, all sub-phases):**
-- [ ] Full Setup page walkthrough: no backup/restore UI present; Sales Classes, Tagalongs, Other Charges, WIP (Statuses/Main/Legal/Default Message) all round-trip correctly.
-- [ ] Full Admin page walkthrough: shell loads correctly for admin and non-admin; Lankar Import button works.
-- [ ] Full Lankar Import page walkthrough: only "Import Work Order" present; one legacy work order import completed end-to-end; `LankarWOView.jsx` regression-checked.
-- [ ] AR cluster: statement email send, batch work-order send both confirmed live.
-- [ ] All 5 replayed tables confirmed working on production, RLS correct.
-- [ ] Repo-wide grep (scoped per above) returns zero hits.
-- [ ] `npm run build`/`npx eslint` clean across everything touched.
+- [x] Full Setup page walkthrough: no backup/restore UI present; Sales Classes, Tagalongs, Other Charges, WIP (Statuses/Main/Legal/Default Message) all round-trip correctly. **Confirmed 2026-08-06/07 on dev**, see §4.
+- [~] Full Admin page walkthrough: shell loads correctly for admin and non-admin; Lankar Import button works. **Admin session confirmed 2026-08-06. Non-admin "Access Denied" path was never actually exercised live in either pass** — code-reviewed only (the `isAdmin`/`loading` gate was kept unmodified from pre-Phase-14 code, not touched by this phase's edits). Flagging honestly rather than claiming full coverage.
+- [~] Full Lankar Import page walkthrough: only "Import Work Order" present; one legacy work order import completed end-to-end; `LankarWOView.jsx` regression-checked. **Page load and `LankarWOView.jsx` regression confirmed 2026-08-07. The end-to-end legacy work order import itself remains genuinely blocked — no test PDF available, not a testing-scope choice.**
+- [x] AR cluster: statement email send, batch work-order send both confirmed live. **Confirmed 2026-08-06**, see §4.
+- [~] All 5 replayed tables confirmed working on production, RLS correct. **RLS confirmed correct on all 5 (2026-08-05, re-verifiable any time via direct SQL). Functional round-trip via the UI itself has only been exercised on dev, not production — the one real production gap this pass could find (missing `autopro-createStatement` function) has been found and fixed; no evidence of further gaps, but the 4 dev-tested 14C managers (Tag Along/Other Charges/WIP/Work Order Status) have not had their production UI round-trip independently re-confirmed.**
+- [x] Repo-wide grep (scoped per above) returns zero hits. **Confirmed 2026-08-07.**
+- [x] `npm run build`/`npx eslint` clean across everything touched. **Confirmed 2026-08-07** — build clean; eslint's only findings are pre-existing unused-import warnings in `LegacyWorkOrderImportModal.jsx`/`LankarWOView.jsx`, confirmed via `git show` not introduced by this phase.
+
+**Bottom line:** 14G is substantively complete. Two items remain genuinely open, both correctly deferred rather than closed by choice: (1) 14F's full upload→extract→create flow, blocked on a real legacy work-order PDF; (2) independent production-UI re-confirmation of the 4 dev-tested 14C managers (their production schema/RLS is already confirmed correct, and no gap was found on the one thing this pass could check — the dependent Edge Function layer). Neither blocks proceeding to the master_blueprint rollup.
 
 ---
 
