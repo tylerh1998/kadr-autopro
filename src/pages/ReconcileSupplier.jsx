@@ -98,10 +98,28 @@ export default function ReconcileSupplierPage() {
     () => discrepancyResult.notInAutoPro.map((statementInvoice, index) => mapStatementToItem(statementInvoice, index)),
     [discrepancyResult]
   );
-  const notOnStatementItems = useMemo(
-    () => discrepancyResult.notOnStatement.map((invoice) => mapAutoproToItem(invoice)),
-    [discrepancyResult]
-  );
+  // AutoPro invoices dated after the statement's own period end aren't real discrepancies -
+  // it's normal to reconcile before every post-period entry exists yet. Split them out of
+  // "Not On Statement" into their own lower-priority section rather than excluding them
+  // entirely (an invoice could always be dated wrong and genuinely belong in-period).
+  const periodEnd = statementSummary?.periodEnd || null;
+
+  const { notOnStatementItems, afterPeriodEndItems } = useMemo(() => {
+    const allItems = discrepancyResult.notOnStatement.map((invoice) => mapAutoproToItem(invoice));
+    if (!periodEnd) {
+      return { notOnStatementItems: allItems, afterPeriodEndItems: [] };
+    }
+    const inPeriod = [];
+    const afterPeriod = [];
+    allItems.forEach((item) => {
+      if (item.invoice_date && item.invoice_date > periodEnd) {
+        afterPeriod.push(item);
+      } else {
+        inPeriod.push(item);
+      }
+    });
+    return { notOnStatementItems: inPeriod, afterPeriodEndItems: afterPeriod };
+  }, [discrepancyResult, periodEnd]);
   const matchedItems = useMemo(
     () => matchResult.matched.map((pair) => mapAutoproToItem(pair.autopro, { dateMismatch: pair.dateMismatch, statementDate: pair.statement.invoice_date })),
     [matchResult]
@@ -213,6 +231,7 @@ export default function ReconcileSupplierPage() {
   const printSections = [
     { key: 'notInAutoPro', title: 'Not In AutoPro', items: notInAutoProItems },
     { key: 'notOnStatement', title: 'Not On Statement', items: notOnStatementItems },
+    { key: 'afterPeriodEnd', title: 'After Statement Period', items: afterPeriodEndItems },
     { key: 'matched', title: 'Matched', items: matchedItems },
   ];
 
@@ -314,6 +333,16 @@ export default function ReconcileSupplierPage() {
           safeFormatDate={safeFormatDate}
           emptyMessage="No outstanding AutoPro invoices are missing from the statement."
         />
+
+        {periodEnd && (
+          <ReconcileInvoiceGroup
+            title="After Statement Period"
+            items={afterPeriodEndItems}
+            accentClass="text-teal-600 dark:text-teal-400"
+            safeFormatDate={safeFormatDate}
+            emptyMessage="No AutoPro invoices are dated after the statement period end."
+          />
+        )}
 
         <ReconcileInvoiceGroup
           title="Matched"

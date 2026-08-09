@@ -50,10 +50,17 @@ export default function StatementUploadCard({ file, onFileSelect, onClear, onSub
           {statementSummary && (
             <div className="flex flex-col items-center justify-center gap-0.5 px-4 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
               <div>
-                <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Period:</span>{' '}
-                {statementSummary.periodStart || statementSummary.periodEnd
-                  ? `${safeFormatDate(statementSummary.periodStart)} – ${safeFormatDate(statementSummary.periodEnd)}`
-                  : 'N/A'}
+                {statementSummary.periodStart && statementSummary.periodEnd && statementSummary.periodStart !== statementSummary.periodEnd ? (
+                  <>
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Period:</span>{' '}
+                    {`${safeFormatDate(statementSummary.periodStart)} – ${safeFormatDate(statementSummary.periodEnd)}`}
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Date:</span>{' '}
+                    {safeFormatDate(statementSummary.periodStart || statementSummary.periodEnd)}
+                  </>
+                )}
               </div>
               <div>
                 <span className="font-semibold text-slate-500 dark:text-slate-400">Statement Total:</span>{' '}
