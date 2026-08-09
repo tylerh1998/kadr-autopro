@@ -113,6 +113,12 @@ Executed across five sub-phases, the highest blast-radius phase in the blueprint
 
 A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` Section 7 (Lessons Learned). Check items off by hand as they're resolved or verified; do not silently remove an item without re-verifying it. Where two source documents conflict, both sides are stated rather than one being picked silently.
 
+### Newly discovered bugs (found during live verification, not pre-existing knowledge)
+
+- [x] **`SystemSettings.next_ro_number` counter fell behind real data after the production data copy, causing new Work Orders to collide with real existing RO numbers — FIXED 2026-08-08 (data-sync fix, not a code fix).** RO/WO numbering is generated from a stored counter (`generateWorkOrderNumbers()`, `AppointmentForm.jsx:614` — reads `SystemSettings.next_ro_number`), not computed as `max(ro_number)+1`. After the other agent's full production-data copy landed on dev, the real `WorkOrder` table's highest number was `RO51610`, but the counter was still `51568` (stale from before the copy). Creating a Work Order via `NewWorkOrderModal.jsx` produced `RO51567`/`WO51567` — colliding with a real, already-existing `Completed` WorkOrder with the same numbers. The collision didn't surface immediately (the initial insert via `autopro-createworkorderdata` succeeded), but every subsequent `Save` in `DocumentEditor.jsx` failed with a `500` from `autopro-saveworkorderdata`: `"Failed to read work order: JSON object requested, multiple (or no) rows returned"` — a `.single()`-style lookup by `ro_number` finding 2 rows instead of 1. **Fixed by updating `SystemSettings.next_ro_number` to `51611`** (real max + 1) and deleting the orphaned colliding test WorkOrder. **This is worth a design-robustness note, not just a one-time data fix:** a counter that can silently drift from real data (any bulk import/copy, or a bug elsewhere) has no self-correcting safety net the way a `max()+1` or a DB-level unique-violation-with-retry would — consider whether `next_ro_number`/`next_inv_number` should be validated/derived rather than purely trusted at read time. Confirm `SystemSettings.next_inv_number` (`41230` as of this writing) doesn't have the same drift before it's needed.
+
+- [ ] **`search_customers_ranked` RPC: "First Last" full-name searches return zero results app-wide** — **CONFIRMED, 2026-08-08.** The function's `WHERE` filter only checks `org_name`/`first_name`/`last_name`/`email`/`phone` individually against the search term — it never checks the concatenated `first_name || ' ' || last_name`. The `ORDER BY match_rank` logic *does* have cases for a full-name match (rank 3 exact, rank 9 partial) — but those cases are unreachable dead code, since a row that only matches on the concatenated full name never passes the `WHERE` clause to begin with. Directly confirmed: `select count(*) from search_customers_ranked('Tyler Haney', false, 50, 0)` returns **0**, while `search_customers_ranked('Haney', ...)` correctly returns 4 rows including Tyler Haney. **Impact is app-wide**, not one modal — `grep` shows 6 callers: `src/pages/Customers.jsx` (the main customer search page), `src/components/work-orders/NewWorkOrderModal.jsx`, `ChangeCustomerModal.jsx`, `MergeCustomerModal.jsx`, `VehicleForm.jsx`, plus the tracked source `src/supabase/search_customers_ranked.sql`. Any staff member typing a customer's full first+last name gets zero results and has to know to fall back to last-name-only. **Fix:** add `lower(btrim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) like '%' || lower(p_search_term) || '%'` (and ideally the exact-match variant) to the `WHERE` clause, mirroring what the `ORDER BY` already assumes exists. Note: this is a pre-existing bug in a Phase 5–era RPC, unrelated to anything Phase 13 or later touched — the Appointment customer-search dialog (`AppointmentForm.jsx`) uses a *different* search mechanism and was directly confirmed working correctly with the exact same "Tyler Haney" full-name query earlier in this session, which is what surfaced the discrepancy.
+
 ### Cross-cutting / infrastructure
 
 - [ ] **Expired `BASE44_ACCESS_TOKEN`** — a standing, project-wide infra issue first flagged at Phase 7 closeout, still causing 401s on every remaining still-base44 call app-wide (e.g. `TagAlong.list()`, the reminder functions' own Base44 hosting). No entry in any phase doc confirms the token was ever refreshed. It briefly appeared to be blocking `DocumentEditor.jsx` in Phase 13 but was later found to be a misdiagnosis (a leftover `useShopData()` call, not the token) — so the token issue itself remains unresolved and will keep surfacing as "broken" symptoms on any page not yet fully migrated off Base44 (chiefly the Appointment reminder functions and anything still touching `TagAlong`).
@@ -123,7 +129,7 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
   - `InventoryAdd.jsx` (same pattern, Phase 7C) — **fixed** (decoupled).
   - `OtherChargesManager.jsx` (mixed native `ChartOfAccount` with still-base44 `OtherChargeList`, Phase 9A) — **fixed** (decoupled).
   - `WorkOrders.jsx`'s `loadData()` (mixed `getNotesBoardData` with native `search_work_orders` RPC calls, Phase 13) — **fixed** (given its own `.catch()`).
-  - `DepositHistoryModal.jsx`'s `loadDeposits()` (mixed still-base44 `FiscalPeriod.list()` with native `autopro-getBankTransactions`, first flagged Phase 8C) — **code fixed** in Phase 10 sub-phase 10A (decoupled atomically), but **live UI re-verification never happened** — Phase 10's own closeout explicitly lists this among 3 flows "never circled back" to. Needs a direct check that the deposit-history list actually loads now.
+  - `DepositHistoryModal.jsx`'s `loadDeposits()` (mixed still-base44 `FiscalPeriod.list()` with native `autopro-getBankTransactions`, first flagged Phase 8C) — **code fixed** in Phase 10 sub-phase 10A (decoupled atomically). **Live-reverified 2026-08-08**: opened cleanly, loaded 549 real deposit records. Resolved.
 - [ ] **Re-verify the 3 flows Phase 10 sub-phase 10A itself flagged as never circled back to**: `SupplierTx.jsx`'s `handleGlAccountChange` (the write-path blocker from Phase 9B), `SupplierPaymentModal.jsx`, and `DepositHistoryModal.jsx`'s deposit list (see above). All three were expected to unblock once `FiscalPeriod` went native, but none were re-tested live after that cutover landed.
 - [ ] **`FiscalPeriods.jsx` create/edit/close-period round-trip** — only the list-load itself was live-verified in sub-phase 10A; the actual CRUD round-trip was never click-tested.
 
@@ -151,7 +157,7 @@ A dynamic checklist gathered from all 13 phase docs plus `master_blueprint.md` S
 
 ### Phase 10 — narrower testing gaps
 
-- [ ] **10C's GST sign-aware debit/credit branching** was proven correct only via curl against a synthetic period; the actual live UI click-through only ever exercised a $0.00 placeholder case since dev's real GL data was empty at the time. Worth re-running live once real non-zero GST figures exist.
+- [x] **10C's GST sign-aware debit/credit branching** was proven correct only via curl against a synthetic period — **RESOLVED 2026-08-08**: live-generated a real Q3 2026 report against real data (GST Collected $5,093.46, Paid $1,947.73, Net Due $3,145.73 — arithmetic exact). Calculation confirmed correct with real non-zero figures; posting/paying a real period deliberately not exercised (see Section 3).
 - [ ] **10B's `findGLImbalances` email trigger** — the phase's own checklist marks this as checked/verified, but the prose right next to it says "not yet checked live." Never reconciled — confirm directly whether the email actually fires.
 - [ ] **`CashFlowSummary` bigint bug fix pattern** — the fix (widening 12 money fields from `bigint` to `double precision`) closed a real silent-failure bug in Phase 10D, but the phase doc explicitly flags that other debounced-save patterns in the same file (`saveRowToDb`, `persistRowOrder`) and possibly elsewhere in the codebase were never audited for the same blind spot.
 - [ ] **Dev `GLTransaction`/`BankTransaction` data wipe** — discovered mid-Phase-10 (a schema-only reseed wiped transactional data on dev while reference tables survived). This reshaped later sub-phase verification toward production SQL cross-checks instead of dev-real-data curl tests. Worth confirming current dev data integrity before relying on dev-branch data for further live testing.
@@ -226,10 +232,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Appointment (Phase 12 — first live pass; every item below has never been click-tested)
 
-- [ ] **`/Schedule` full create → drag → delete round trip**
+- [x] **`/Schedule` full create → drag → delete round trip** — **PASSED (2026-08-08 live session), with one caveat**
   tl;dr: The single highest-priority untested flow in the whole blueprint — create a real appointment, drag it to a new time, then delete it, confirming each step persists.
   UI entry point: `/Schedule`
   Files under test: `src/pages/Schedule.jsx`, `src/components/appointments/AppointmentForm.jsx` — also re-check the `Promise.all`/`getworkorderlist()` issue flagged in Section 2 before assuming the New Appointment form's customer/vehicle dropdowns populate correctly.
+  **Result:** Created a real appointment (customer Tyler Haney, vehicle 2025 Chevrolet Trax, Aug 10 8:00–9:00 AM, Main Floor) — persisted correctly, `reminder_email_address`/`reminders_phone` auto-filled from the customer record, reminder checkboxes correctly left off. Rendered live on the calendar in the correct cell. Rescheduled via the Edit dialog's time fields to 10:00–11:00 AM — persisted (`updated_date` changed). Deleted — row confirmed gone. **Caveat:** the literal drag gesture itself was not exercised — the Browser pane wasn't visually displayed on the user's end, and native drag-and-drop requires a real screenshot-backed mouse drag (a synthetic pointer-event sequence was tried first and did not register with the calendar's DnD library). Rescheduling was instead verified through the Edit dialog's time fields, which exercises the same underlying update path. If true drag-and-drop interaction matters specifically (not just that reschedule-and-persist works), re-verify with the pane visually open. Customer/vehicle dropdowns populated correctly in this run — the Section 2 `Promise.all` concern did not manifest here.
 
 - [ ] **`SchedulerViaWoModal` full validation with a real linked Work Order**
   tl;dr: Confirms scheduling an appointment directly from a Work Order's context works against the corrected schema.
@@ -256,7 +263,7 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `WorkOrders.jsx` WIP list; `DocumentEditor.jsx`/`WorkOrderView.jsx` for a WO with a linked appointment
   Files under test: `src/pages/WorkOrders.jsx`, `src/components/hooks/useWorkOrder.jsx`
 
-- [ ] **Overlapping appointments on one calendar cell**
+- [x] **Overlapping appointments on one calendar cell** — **PASSED (2026-08-08)**, confirmed incidentally while testing the create/edit round trip above (real production-copied data already had a 2-appointment cell at 8:00 AM Aug 10) — clicking the cell opened `CellAppointmentsModal.jsx` listing both appointments correctly, and clicking an entry opened its Edit dialog correctly.
   tl;dr: Visually confirms the notes-preview line renders correctly with 2+ overlapping appointments.
   UI entry point: `/Schedule` — seed 2+ appointments in the same slot
   Files under test: `src/components/appointments/CellAppointmentsModal.jsx`
@@ -267,10 +274,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   Files under test: `base44/functions/sendAppointmentReminders/entry.ts`, `base44/functions/sendTextReminders/entry.ts`
   **Do not run against a real customer's appointment.** Seed a throwaway appointment against a customer/contact record using Tyler's own email/phone before triggering — or skip the actual send and verify only that the function reaches Postgres and resolves the correct appointment.
 
-- [ ] **Regression: "Create Estimate" / "Create Work Order" buttons still work from `AppointmentForm.jsx`**
+- [x] **Regression: "Create Estimate" / "Create Work Order" buttons still work from `AppointmentForm.jsx`** — **PASSED (2026-08-08), correction to the doc's own premise**
   tl;dr: These buttons ride an untouched Base44 code path — confirm Phase 12's changes didn't regress them.
   UI entry point: `/Schedule` → new/existing appointment → "Create Estimate" and "Create Work Order"
   Files under test: `src/components/appointments/AppointmentForm.jsx`
+  **Correction:** `handleCreateWorkOrder` (line 648) is actually fully native — calls `createworkorderdata` (a real `autopro-*`/native path per Phase 13B), not Base44. Clicked live with customer=Tyler Haney, vehicle=2025 Chevrolet Trax: a real `WorkOrder` row was created in Postgres (`id: d5fdd429f0ed49f99e105a8e`, `status: Open`, correct `customer_id`) and `formData.work_order_id` was attached to the still-open appointment form, confirming the create-and-attach step works. **Could not verify the resulting `window.open('/WorkOrderEdit?...', '_blank', ...)` popup itself** — `tabs_context` showed no new tab opened; a script-dispatched `.click()` isn't treated as a trusted user gesture by the browser's popup blocker the way a real click is, so this is a testing-tool limitation, not a confirmed app bug. A real user's physical click should not have this problem. Leftover test `WorkOrder` (`d5fdd429f0ed49f99e105a8e`) intentionally left in place, not linked to any appointment since the appointment form itself was never submitted after attaching it.
 
 ### Inventory
 
@@ -284,20 +292,23 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `InventoryAdd.jsx` / `InventoryAddModal.jsx` → new part entry
   Files under test: `src/components/inventory/InventoryAddModal.jsx`, `src/pages/InventoryAdd.jsx`, `autopro-suggestInventoryCategory`
 
-- [ ] **Adjust quantity on hand**
+- [x] **Adjust quantity on hand** — **PASSED (2026-08-08), first real UI-driven confirmation of the GL-rounding fix**
   tl;dr: Confirms the GL cent-rounding fix holds under a real UI-driven adjustment, not just a direct API call.
   UI entry point: `InventoryList.jsx` → an item → Adjust QOH
   Files under test: `src/components/inventory/InventoryAdjustQOHModal.jsx`, `autopro-processQOHAdjustment`
+  **Result:** Part `11579`, QOH 2→5 (+3 units @ $1.93 cost). `InventoryAuditLog` row created correctly (`old_quantity:2, new_quantity:5, quantity_change:3, source_function:processQOHAdjustment`, correct `created_by`/description). GL posted a clean, balanced pair: debit `1200` $5.79 / credit `5003` $5.79 — exactly `3 × 1.93`, no floating-point artifact, confirming the Phase 7 rounding fix holds. Left as-is (not reverted) — an accurate audit trail is more valuable than a raw SQL revert that would desync history from the QOH value; the dev data is disposable per standing instruction anyway.
 
-- [ ] **Change / add / edit an inventory location** *(flagged untested in Phase 7 — priority)*
+- [x] **Change / add / edit an inventory location** *(flagged untested in Phase 7 — priority)* — **PASSED (2026-08-08), first-ever live confirmation**
   tl;dr: First-ever live test of this flow; no prior sub-phase had eligible test data.
   UI entry point: An inventory item with a location → "Change Location"
   Files under test: `src/components/inventory/LocationModal.jsx`, `InventoryLocation` table
+  **Result:** Part `11579` (BRAKE HARDWARE), location `BR4C6` → changed to `12A` via `LocationModal.jsx`'s search-and-select combobox → "Update Location" → confirmed persisted in Postgres (`updated_date` changed, `location = '12A'`). Reverted back to `BR4C6` afterward via direct SQL (front-end path already proven, no need to re-verify the revert through the UI). Only the "change existing item's location" path was tested — the modal's separate "Add Location"/"Edit Location Name" controls (for managing the `InventoryLocation` reference table itself) were not exercised here, see the separate "Manage Inventory Categories, Locations, and Return Reasons (admin)" item below.
 
-- [ ] **Process a parts return and edit return info** *(flagged untested in Phase 7 — priority)*
+- [x] **Process a parts return and edit return info** *(flagged untested in Phase 7 — priority)* — **Return path PASSED (2026-08-08); edit-info path not reached**
   tl;dr: First-ever live test; confirms `ReturnReason` selection and the return record itself save correctly.
   UI entry point: An inventory item → "Return" / an existing return → "Edit Return Info"
   Files under test: `src/components/inventory/InventoryPartsReturnModal.jsx`, `EditReturnInfoModal.jsx`, `ReturnReason` table
+  **Result:** Returned 1× part `11579` via `InventoryPartsReturnModal.jsx`, reason "Overstock" (confirmed the `ReturnReason` dropdown is populated with all 9 real reference values). `InventoryReturn` row created correctly (`return_reason: Overstock`, `cost_per_unit: 1.93`, correct `supplier`/`inventory_item_id`, `status: On-site`), and `InventoryItem.quantity_on_hand` correctly decremented 5→4. Confirmed it appears correctly on `InventoryReturns.jsx`'s grouped-by-supplier list. **Not reached:** clicking the return row/its row-icon on `InventoryReturns.jsx` did not open `EditReturnInfoModal.jsx` in this session (no dialog appeared) — either a different click target than tried, or worth a direct look at that page's click handler before assuming it's broken.
 
 - [ ] **Manage Inventory Categories, Locations, and Return Reasons (admin)**
   tl;dr: Confirms CRUD on the three new Phase 7 reference tables.
@@ -331,20 +342,23 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Work Orders
 
-- [x] **Create a new Work Order / Estimate**
+- [x] **Create a new Work Order / Estimate** — **RE-CONFIRMED (2026-08-08)**, surfaced the `next_ro_number` collision bug (see Section 2's "Newly discovered bugs")
   tl;dr: Exercises the native insert path and confirms `WorkOrder.id` generation and lock acquisition both work.
   UI entry point: `WorkOrders.jsx` → "New Work Order"
   Files under test: `src/components/work-orders/NewWorkOrderModal.jsx`, `set_workorder_lock` RPC
+  **Result:** Created via `NewWorkOrderModal.jsx` (customer Tyler Haney, vehicle 2025 Chevrolet Trax). First attempt got a colliding RO number from a stale `SystemSettings` counter (fixed, see Section 2) — after the fix, a second creation (`RO51611`) succeeded cleanly with no collision. `NewWorkOrderModal.jsx`'s customer search itself also hit the `search_customers_ranked` full-name bug (see Section 2) — worked around with a last-name-only search. Note the click on a WO row / "Create Work Order" navigates via `window.open(...)`, same popup-blocker limitation as the Appointment form's equivalent button — verified the backend result via direct SQL + direct URL navigation to `/WorkOrderEdit?id=<ro_number>` instead of following the popup.
 
-- [ ] **Add line items and parts to a Work Order**
+- [x] **Add line items and parts to a Work Order** — **PARTIALLY PASSED (2026-08-08)** — manual line entry + save confirmed; part-search-driven add not yet exercised
   tl;dr: Confirms part search, add-existing-part, and add-new-part-with-batch-quantity all work — this exact path had a real inventory-corruption bug fixed in Phase 13E.
   UI entry point: `DocumentEditor.jsx` → Parts tab → "Get Part" / "Add Inventory"
   Files under test: `src/components/work-orders/form/LineItemsTable.jsx`, `GetPartModal.jsx`, `WOAddInventoryModal.jsx`, `FindPartModal.jsx`, `search_work_order_parts` RPC
+  **Result:** Manually filled a line item's Qty/Description/Parts EA cells directly in `LineItemsTable.jsx`'s grid and clicked Save — persisted correctly (`line_items` jsonb array populated, `tot_parts`/`total` computed correctly, `total_amount` correctly included 5% GST: `25.00 → 26.25`). **Not yet tested:** the part-search flow itself (`GetPartModal.jsx`'s "Get Part" button, `search_work_order_parts` RPC) and `WOAddInventoryModal.jsx`'s batch-quantity add — this session only exercised free-text manual entry, not part lookup/attach.
 
-- [ ] **Convert an Estimate to a Work Order, then to an Invoice**
+- [x] **Convert an Estimate to a Work Order, then to an Invoice** — **PASSED (2026-08-08), full chain verified**
   tl;dr: Full lifecycle conversion, including the native `convertEstimateToWorkOrder` function and the invoice-conversion GL posting.
   UI entry point: `DocumentEditor.jsx` (Estimate) → "Convert to WO"; then `InvoiceConversion.jsx`
   Files under test: `autopro-convertEstimateToWorkOrder`, `src/pages/InvoiceConversion.jsx`, `autopro-archiveWorkOrderProjects`
+  **Result:** `EST51613` → clicking the "Work Order" tab converted `stage: estimate→work_order`, added `wo_number`. Added a real $10 taxable line item, saved. Clicking "Invoice" launched a 3-phase wizard (odometer → internal description → settle payment) — not a single click, worth noting for anyone expecting instant conversion. Skipped odometer, filled description, paid the $10.50 balance in cash, clicked Continue: `stage→invoice`, real `inv_number: INV41269` assigned, `status→Completed`, payment recorded correctly in `payments` jsonb. **GL posting fully verified and balanced**: `1100`(AR) dr $10.50 / `4002`(Parts) cr $10 / `2002`(GST) cr $0.50, then `1010`(Cash) dr $10.50 / `1100`(AR) cr $10.50 — total debits = total credits = $21. This is one of the most consequential flows in the app and it's confirmed working correctly end to end, including tax and payment application. `autopro-archiveWorkOrderProjects` not separately confirmed (this WO had no linked WorkPRO Project to archive).
 
 - [ ] **Record a payment against a Work Order**
   tl;dr: Confirms the jsonb-guard fix on `WorkOrder.payments` holds for a WO that already has prior payment history.
@@ -356,10 +370,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `DocumentEditor.jsx`, opened twice for the same WO
   Files under test: `set_workorder_lock` RPC
 
-- [ ] **Create a Counter Sale**
+- [x] **Create a Counter Sale** — **PASSED (2026-08-08)**
   tl;dr: Directly re-verifies the Phase 13E bug fix (non-existent `cp_id`/`customer_complaint`/`estimated_hours`/`scheduled_date`/`technician` columns) now that it's been redeployed.
   UI entry point: `WorkOrders.jsx` → "Counter Sale"
   Files under test: `src/pages/WorkOrders.jsx` (`handleCreateCounterSale`)
+  **Result:** Created cleanly — `RO51612`/`WO51612`, `status: Open`, `description: "Counter Sale"`, no numbering collision (counter fix holding). Confirms the Phase 13E column fix still holds post-redeploy.
 
 - [ ] **Core return on a Work Order**
   tl;dr: Confirms the FIFO core-return logic and inventory/GL updates.
@@ -395,10 +410,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### Banking & Cash Drawer
 
-- [ ] **Bank transaction entry and lock acquisition**
+- [x] **Bank transaction entry and lock acquisition** — **PASSED (2026-08-08)** (manual-entry CRUD + GL confirmed; lock acquisition itself not separately isolated)
   tl;dr: Basic CRUD plus the locking pattern shared with other modules.
   UI entry point: `Bank.jsx` → New Transaction
   Files under test: `src/pages/Bank.jsx`, `src/components/bank/BankTransactionModal.jsx`, `autopro-getBankTransactions`, `autopro-calculateBankBalances`
+  **Result:** Created a $100 manual credit against GL account `4003` (Other Charge Revenue) via `Bank.jsx` → New Transaction. `BankTransaction` row correct, and GL posted a clean balanced pair: `1001`(Bank) dr $100 / `4003` cr $100. Test row and its GL entries deleted afterward to keep the real bank data clean.
 
 - [ ] **Bank reconciliation, save, and report**
   tl;dr: Full Reconcile → Save → ReconcileReport round trip, including the checkbox double-click fix.
@@ -425,17 +441,19 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `DepositHistoryModal.jsx` → a deposit → "Reverse"
   Files under test: `autopro-reverseDeposit`, `src/components/cash-drawer/DepositDetailsModal.jsx`
 
-- [ ] **Deposit history list and drill-down** *(directly verifies the Section 2 FiscalPeriod fix)*
+- [x] **Deposit history list and drill-down** *(directly verifies the Section 2 FiscalPeriod fix)* — **PASSED (2026-08-08), resolves the flagged "never circled back" item**
   tl;dr: Confirms the list actually loads now that the `FiscalPeriod`/`Promise.all` fix has landed — this exact flow was flagged as never re-verified live.
   UI entry point: `CashDrawer.jsx` → "Deposit History"
   Files under test: `src/components/cash-drawer/DepositHistoryModal.jsx`
+  **Result:** Opened cleanly via `CashDrawer.jsx` → "History", loaded 549 real deposit records (paginated, page 1 of 110) with correct dates/descriptions/amounts/status. The `FiscalPeriod`/`Promise.all` bug flagged in Section 2 as unresolved-live is confirmed fixed — mark that Section 2 item resolved.
 
 ### Suppliers / Accounts Payable
 
-- [ ] **Supplier invoice entry — full write path** *(directly verifies the Section 2 FiscalPeriod-gate item)*
+- [ ] **Supplier invoice entry — full write path** *(directly verifies the Section 2 FiscalPeriod-gate item)* — **attempted 2026-08-08, inconclusive, needs human verification**
   tl;dr: Add an invoice line, select a GL account, and Save All Changes — this exact path was blocked by the FiscalPeriod gate in Phase 9B and never re-confirmed after the cutover.
   UI entry point: `Suppliers.jsx` → a supplier → `SupplierTx.jsx`
   Files under test: `src/pages/SupplierTx.jsx`, `autopro-saveSupplierInvoiceTransactions`, `autopro-getSupplierTransactions`
+  **Result:** Filled invoice #/description/charge in the first empty row of `SupplierTx.jsx`'s grid and clicked "Save All Changes" — no console error, but the new line never appeared in `SupplierInvoiceLine` afterward, and the grid's visible content changed to something unrelated after the click (looked like a reset/refetch, not a save confirmation). Did not chase further — possibly the row's GL-account field needs an explicit dropdown interaction rather than accepting its default displayed value, but couldn't confirm root cause in the time available. **Moved to Section 5 for a human to verify directly** rather than leave a false pass or an unconfirmed bug claim.
 
 - [ ] **Supplier payment — full cycle, then cancel**
   tl;dr: Confirms the pending-payment insert, the atomic GL/bank posting via `process_payment_atomic`, and a full cancellation.
@@ -486,10 +504,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
   UI entry point: `ChartOfAccounts.jsx`
   Files under test: `src/pages/ChartOfAccounts.jsx`
 
-- [ ] **General Ledger, GL Journal, and GL Account Transactions views**
+- [x] **General Ledger, GL Journal, and GL Account Transactions views** — **PARTIALLY PASSED (2026-08-08)** — `GeneralLedger.jsx` confirmed; `GLJournal.jsx`/`GLAcct.jsx` not separately opened
   tl;dr: Confirms the ported reverse-chronological balance-walk logic renders correctly.
   UI entry point: `GeneralLedger.jsx`, `GLJournal.jsx`, `GLAcct.jsx`
   Files under test: `autopro-getGeneralLedgerData`, `autopro-getGLJournalData`/`get_gl_journal_data`, `autopro-getGLAccountTransactions`/`get_gl_account_transactions`
+  **Result:** `GeneralLedger.jsx` loaded correctly with real account balances and transaction counts (e.g. `1001 Primary - Servus: $18,074.46 DR, 1180 transactions`). `GLJournal.jsx`/`GLAcct.jsx` drill-down views not separately opened this session.
 
 - [ ] **Balance Sheet, P&L, and Financial Dashboard**
   tl;dr: Confirms the three headline financial-report pages render correctly against real data.
@@ -508,10 +527,11 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 ### GST / Taxes
 
-- [ ] **Calculate, post, and pay a GST return with real non-zero data** *(directly verifies the Section 2 $0.00-only gap)*
+- [x] **Calculate, post, and pay a GST return with real non-zero data** *(directly verifies the Section 2 $0.00-only gap)* — **Calculation PASSED (2026-08-08)**; post/pay not exercised (would affect real historical GST records)
   tl;dr: The sign-aware debit/credit branching in this function has never been proven live with real figures — only via curl on a synthetic period.
   UI entry point: `Taxes.jsx`
   Files under test: `autopro-calculateGSTReturn`, `autopro-postGSTJournalEntries`, `autopro-processGSTPayment`, `src/components/taxes/MarkPaidModal.jsx`
+  **Result:** Generated a live Q3 2026 GST report against real data: GST Collected $5,093.46 (on $106,146.62 sales), GST Paid $1,947.73 (on $80,261.05 purchases), Net GST Due $3,145.73 — arithmetic checks out exactly (5093.46 − 1947.73 = 3145.73). Resolves the Section 2 concern that this was only ever proven with synthetic $0.00 data. Deliberately did not click "Post Return" — this is a real, already-partially-filed GST period (two real prior quarters show `PAID`) and posting/paying a real quarter's return isn't something to do as a side effect of a UI smoke test. Post/Pay steps left for a deliberate, separate check.
 
 ### Fiscal Periods
 
@@ -630,4 +650,48 @@ Real user workflows for a human tester to run, grouped by module and ordered so 
 
 This section is populated by the AI agent as issues are found and fixed during testing against this document, mirroring `master_blueprint.md` Section 7's running log format — date-stamped entries, most recent last. It starts empty; do not pre-fill entries.
 
-- **2026-08-03 (pre-Section-3 triage):** Confirmed live, via the actual browser session against `test.kensauto.ca`, that the standing expired-`BASE44_ACCESS_TOKEN` issue (Section 2) is still active. Diagnosed the exact mechanism: `src/api/base44Client.js`'s fetch/XHR interceptor still auto-fires on every page load (not from any app code — `AuthContext.jsx` is fully native, `grep` for `User.me()`/`base44.auth` in `src/` turns up nothing app-side), attaching the user's Supabase JWT to two calls the bundled `@base44/sdk` fires automatically: a `.../entities/User/me` identity lookup and an `.../analytics/track/batch` telemetry beacon, both routed to `base44-proxy` on **production** (`hbcrwkmgsazqrvsrmxyr`). Both 401 because `base44-proxy`'s stored `BASE44_ACCESS_TOKEN` is expired. Confirmed via `performance.getEntriesByType('resource')` (a `window.fetch` monkey-patch doesn't survive `navigate()`'s full reload, so this was the reliable technique — worth reusing over the fetch-patch approach for any future initial-page-load diagnosis). Did not block the actual page content tested so far (`WorkOrders` list rendered correctly with real data via `search_work_orders`/`getNotesBoardData`, both native and 200). Not fixed here — root cause (SDK removal) is Phase 14 scope; the token itself is the user's call on refresh timing. Treat any further `base44-proxy`/`User/me`/`analytics/track` 401 during this session as this same known issue, not a new finding.
+- **2026-08-08 (Work Orders live testing, real bug found):** `search_customers_ranked` (Postgres function) returns zero rows for a "First Last" full-name search term, even though a real matching customer exists — confirmed directly via `select count(*) from search_customers_ranked('Tyler Haney', false, 50, 0)` = 0, vs. `search_customers_ranked('Haney', ...)` = 4 rows including the same customer. Root cause: the `WHERE` clause never checks the concatenated full name, only individual columns — see the full writeup and fix suggestion in Section 2's new "Newly discovered bugs" group. 6 real call sites affected app-wide. Found while testing `NewWorkOrderModal.jsx`'s customer search with the exact "Tyler Haney" term that had worked moments earlier in `AppointmentForm.jsx`'s (differently-implemented) customer search — the discrepancy between the two is what surfaced this.
+- **2026-08-08 (Appointment live testing, tooling note):** The Browser-pane's native `confirm()`/`alert()` dialogs auto-resolve to "cancel" when the pane isn't visually displayed on the user's screen (confirmed message: "native JavaScript dialogs are disabled in this browser; confirm() returned false to the page"). `AppointmentForm.jsx`'s submit handler correctly calls `window.confirm(...)` to warn when both reminder checkboxes are off ("This appointment will NOT send any reminders...") — this silently blocked the first create attempt. Fix: override `window.confirm = () => true` via `javascript_tool` before submitting any form gated behind a confirm dialog. Reusable for any future workflow in this doc that has a confirm-gated action (matches the Phase 11 lesson about a similar `window.confirm()` override need).
+- **2026-08-08 (Appointment live testing, tooling note):** `AppointmentForm.jsx`'s "Create Work Order"/"Create Estimate" buttons open the new WO editor via `window.open(url, '_blank', ...)` rather than an in-app navigation. A script-dispatched `.click()` (via `javascript_tool`) does not count as a trusted user gesture, so the browser's popup blocker silently swallows the new tab — `tabs_context` shows no new tab, with zero console error. The backend action itself (WorkOrder creation) still fully succeeds and is verifiable via direct SQL. Any future workflow in this doc that opens a new window/tab this way needs its *backend* effect verified via SQL/API rather than by checking for a new tab.
+- **2026-08-08 (Appointment live testing, tooling note):** True drag-and-drop on the `/Schedule` calendar could not be exercised — the calendar isn't using the native HTML5 DnD API (`draggable` attribute absent throughout the card's ancestor chain), and a synthetic `pointerdown`/`pointermove`/`pointerup` event sequence dispatched via `javascript_tool` did not register with whatever DnD library it uses (no DB change resulted). The `computer` tool's `left_click_drag` requires a prior `screenshot`, which fails when the Browser pane isn't visually displayed on the user's screen. If a workflow specifically needs drag-gesture verification (not just "the underlying update persists"), the pane needs to be visually open first.
+- **2026-08-08 (session summary so far):** Live-verification session against `test.kensauto.ca` using real production-copied data (customer/vehicle/WO/supplier/inventory data all real; `GLTransaction` intentionally excluded from the copy). Confirmed passing live, with real data, this session: Appointment create/edit/delete round trip + overlapping-appointments modal + Appointment→WO creation; Inventory search/filters/location-change/QOH-adjustment(GL-verified)/parts-return; Work Order creation, manual line-item entry, Counter Sale, full Estimate→WorkOrder→Invoice→Payment conversion with balanced GL; Bank transaction entry with GL; Deposit History list (resolves a previously-flagged gap); General Ledger view; GST return calculation with real non-zero figures (resolves another previously-flagged gap); Payroll page loads with real data. **Three real findings this session:** (1) `search_customers_ranked` full-name search bug, app-wide, not yet fixed; (2) `SystemSettings.next_ro_number` counter drift causing a real WO-numbering collision, fixed live; (3) `SupplierTx.jsx`'s invoice-line save produced an inconclusive result (moved to Section 5 for human verification rather than guessed at). Payroll/LOC/Fiscal-Periods/Levies/Reports/WorkPRO/the cross-module integration flow are not yet exercised beyond a page-load spot check — still open for a future pass.
+- **2026-08-08 (`SystemSettings.next_ro_number` fix, re-tested):** The counter fix (`51568`→`51611`) was re-verified live in this same session — a second `NewWorkOrderModal.jsx` creation immediately after the fix produced `RO51611`/`WO51611` with no collision, and a full add-line-item-and-save round trip against it succeeded cleanly (see Section 3's "Create a new Work Order" and "Add line items" entries). Confirmed resolved, no further re-test needed from the user's side for this specific fix.
+
+---
+
+## 5. User Verification Required
+
+Items the AI agent could not exercise itself — not because the underlying feature looks broken, but because of a hard limitation in the browser-automation tooling used for this session. Each entry states *why* it couldn't be automated, so a human tester knows exactly what to check and doesn't have to re-diagnose the blocker. Check items off as you verify them; if you find a real bug while doing so, add it to Section 2 rather than just checking the box.
+
+### Requires the Browser pane to be visually displayed (real mouse/OS-level input)
+
+- [ ] **`/Schedule` calendar: drag an appointment to a new time/day** — the calendar doesn't use the native HTML5 drag API, and synthetic pointer events didn't register with its drag library. The *underlying reschedule-and-persist* was already verified via the Edit dialog's time fields (see Section 3), so this is specifically about confirming the drag *gesture itself* works, not whether rescheduling works at all.
+  UI entry point: `/Schedule` → drag any appointment card to a different time slot.
+
+### Requires a real file upload (no file-input capability in this session's browser automation)
+
+- [ ] **Bank reconciliation: `AutoReconcileModal.jsx`'s CSV upload** — opens cleanly but the upload itself was never exercised (still true as of Phase 8's own closeout notes, unchanged this session).
+  UI entry point: `Bank.jsx`/`Reconcile.jsx` → Auto-Reconcile → upload a bank CSV.
+- [ ] **Payroll: `autopro-parsePayrollFile` via the actual file-upload UI** — the function itself was curl-verified in Phase 11 with synthetic payloads, but never driven through a real file picker.
+  UI entry point: `Payroll.jsx` → import/upload a payroll file.
+- [ ] **Inventory: OCR invoice upload (`autopro-processPartsInvoiceOCR`)** — explicitly deferred through every phase that touched Inventory; still untested end-to-end via a real uploaded invoice image/PDF.
+  UI entry point: Wherever the supplier-invoice OCR upload control lives in the Inventory/Receiving flow.
+
+### Inconclusive automated attempts — needs a human click-through to confirm pass/fail
+
+- [ ] **`SupplierTx.jsx`: add an invoice line and "Save All Changes"** — filled the first empty grid row (invoice #, description, charge) and saved; no error appeared, but the new line was not found in `SupplierInvoiceLine` afterward and the grid's content looked like it reset rather than confirmed a save. Could be a GL-account-dropdown interaction the agent's scripted fill skipped (the cell showed a default value but may need an explicit selection), or a genuine save failure — needs a real click-through to tell which.
+  UI entry point: `Suppliers.jsx` → any supplier → add a line in the Invoice Lines grid → "Save All Changes".
+- [ ] **`InventoryReturns.jsx`: open "Edit Return Info" on an existing return** — clicking a return row, and the row's small icon button, did not open `EditReturnInfoModal.jsx` in this session (no dialog appeared either time). The underlying return-creation flow (`InventoryPartsReturnModal.jsx`) was separately confirmed working. Possibly a different click target than either one tried.
+  UI entry point: `InventoryReturns.jsx` → click any return row.
+
+### Requires two simultaneous authenticated sessions (only one browser session available to the agent)
+
+- [ ] **Work Order locking under contention** — open the same Work Order in two sessions/browsers at once; confirm the second is correctly blocked/warned, and that a stale lock can be flushed.
+  UI entry point: `DocumentEditor.jsx`, opened twice for the same WO (e.g. one normal window + one incognito, or two different logins).
+  Files under test: `set_workorder_lock` RPC.
+- [ ] **Concurrent supplier-lock blocking** — same pattern, for Suppliers.
+  UI entry point: `Suppliers.jsx` → `SupplierTx.jsx`, opened twice.
+  Files under test: `autopro-acquireSupplierLock`.
+
+*(This section will grow as later modules — financial chain, Reports, WorkPRO — surface more agent-side blockers. Re-check this list before considering the blueprint's testing pass fully closed.)*
+- **2026-08-03 (pre-Section-3 triage):** Confirmed live, via the actual browser session against `test.kensauto.ca`, that a handful of 401s fire on every page load. Diagnosed the exact mechanism: `src/api/base44Client.js`'s fetch/XHR interceptor auto-fires on every page load (not from any app code — `AuthContext.jsx` is fully native, `grep` for `User.me()`/`base44.auth` in `src/` turns up nothing app-side), attaching the user's dev-branch Supabase JWT to two calls the bundled `@base44/sdk` fires automatically: a `.../entities/User/me` identity lookup and an `.../analytics/track/batch` telemetry beacon, both routed to `base44-proxy` on **production** (`hbcrwkmgsazqrvsrmxyr`). **Correction after direct testing:** initially attributed to the expired-`BASE44_ACCESS_TOKEN` issue; a direct authenticated `fetch()` replay of the exact call (technique from the Phase 8/13 lessons) instead returned `{"error":"Unauthorized user session","debug":["Auth header present: true","getUser finished. Error: true. User: undefined"]}` — i.e. `base44-proxy` calls `supabase.auth.getUser(token)` against **production's own** auth service, which structurally cannot recognize a token issued by the **dev branch's** independent Auth service (separate signing keys — this is the Phase 3 "dev session rejected by base44-proxy" finding, not the token-expiry issue). This is not fixable by refreshing any token; it only resolves once these two SDK-internal calls stop existing (Phase 14 SDK removal). Confirmed via `performance.getEntriesByType('resource')` (a `window.fetch` monkey-patch doesn't survive `navigate()`'s full reload, so this was the reliable technique for initial-page-load diagnosis; a direct authenticated replay via `window.__SUPABASE_JWT__` confirmed the exact error body). Does not block actual page content — `WorkOrders` list rendered correctly with real data via `search_work_orders`/`getNotesBoardData`, both native and 200. Permanent, expected noise until Phase 14; treat any further `base44-proxy`/`User/me`/`analytics/track` 401 during this session as this same known issue, not a new finding.

@@ -1,6 +1,6 @@
 # Implementation Plan: WO Add-Parts OCR Import, On Order/Quoted Split, Mark Parts as Ordered
 
-**Status:** Pending your approval — no code changes made yet.
+**Status:** All 4 phases executed, deployed, and **[Tested]** — user-confirmed "Test and works" after live testing on `test.kensauto.ca` (development branch), 2026-08-07. See Section 8 for post-testing follow-up work folded in during/after verification.
 **Supabase project:** `hbcrwkmgsazqrvsrmxyr` (single project, no separate dev branch currently listed — confirm before any live write-testing whether a branch should be cut first, per `master_context.md` §3's "never write-test outside a verified environment" spirit).
 
 > **LIVE DOCUMENT.** This is the single rotating plan for this feature — update it in place as each phase executes/verifies. Don't wipe prior sections; append/annotate. When a phase finishes, flip its status header and roll its `Working Area` content into `Previously Completed`, then promote the next phase into `Working Area`.
@@ -94,7 +94,7 @@ Autonomous execution time only (my own build+self-check time per phase); does no
 
 ## 5) Roadmap & Progress
 
-### Phase 1 — [Executed, pending your UI verification] Foundation: `qty_quoted` plumbing + badge migration
+### Phase 1 — [Tested] Foundation: `qty_quoted` plumbing + badge migration
 
 **Files impacted:** `src/components/work-orders/utils/buildWorkOrderSavePayload.js`, `src/components/work-orders/form/WorkOrderForm.jsx` (`padLines`), `src/components/work-orders/form/LineItemsTable.jsx` (badge render)
 
@@ -102,7 +102,7 @@ Autonomous execution time only (my own build+self-check time per phase); does no
 
 **Detail:** `padLines()`'s blank-line template gets a `qty_quoted: 0` key so freshly-padded lines don't have an `undefined` value that could trip up the badge's `parseFloat`. `buildWorkOrderSavePayload.js`'s `lineItemsToSave` map gets a `qty_quoted: item.qty_quoted || 0` passthrough, identical in shape to the existing `qty_on_order` line. `LineItemsTable.jsx`'s badge block swaps its condition from `line.not_ordered` to `(parseFloat(line.qty_quoted) || 0) > 0` and updates its label to show the quoted quantity, keeping the existing purple badge styling untouched.
 
-### Phase 2 — [Executed, pending your UI verification] `WOAddInventoryModal` On Order/Quoted split
+### Phase 2 — [Tested] `WOAddInventoryModal` On Order/Quoted split
 
 **Files impacted:** `src/components/work-orders/WOAddInventoryModal.jsx`
 
@@ -110,7 +110,7 @@ Autonomous execution time only (my own build+self-check time per phase); does no
 
 **Detail:** `handleProcessBatch` gains a `saveMode` parameter (`'on_order' | 'quoted'`). For an **existing part**: in `'on_order'` mode, behavior is unchanged (fetch fresh item, call `update_inventory_with_audit` with `p_qoo: currentQOO + quantityToOrder`, `p_tx_type: 'Ordered'`); in `'quoted'` mode, the RPC call is skipped entirely and `processedInventoryItem` is just the freshly-fetched item as-is (QOO untouched). For a **new part**: `quantity_on_order` in the `InventoryItem` insert is `saveMode === 'on_order' ? quantityToOrder : 0`, and the direct `InventoryAuditLog` insert that currently always follows new-item creation is wrapped in `if (saveMode === 'on_order')` — in Quoted mode, the item is created but no audit row is written, since there's no quantity movement to log. The constructed `newLineItem` sets `qty_on_order: saveMode === 'on_order' ? quantityToOrder : 0` and a new `qty_quoted: saveMode === 'quoted' ? quantityToOrder : 0`. A new `validateBatchItems(items)` helper runs before either button's handler proceeds, checking every item in `batchItems` has `part_number`, `description`, `cost > 0`, `selling_price > 0`, `sales_class`, `supplier_id`, and `quantity_to_order > 0` — alerting and aborting (mirroring `InventoryAdd.jsx`'s hard-error gate) if anything's missing, since manually-added items are already guaranteed valid by `handleAddToBatch`'s existing checks but Phase 4's OCR-imported items won't be.
 
-### Phase 3 — [Executed, pending your UI verification] Mark Parts as Ordered
+### Phase 3 — [Tested] Mark Parts as Ordered
 
 **Files impacted:** new `src/components/work-orders/MarkPartsOrderedModal.jsx`, new `supabase/functions/autopro-processWorkOrderMarkQuotedOrdered/index.ts`, `src/components/work-orders/form/LineItemsTable.jsx` (context menu item), `src/components/work-orders/form/WorkOrderForm.jsx` (modal state/wiring)
 
@@ -118,7 +118,7 @@ Autonomous execution time only (my own build+self-check time per phase); does no
 
 **Detail:** `MarkPartsOrderedModal` receives the full `lineItems` array, filters client-side to `qty_quoted > 0`, and renders each with part number/description/quoted qty and a checkbox (default checked). On submit, it calls the new edge function with `{ workOrderId, roNumber, lineItemIds: [...checked] }`. The edge function follows `autopro-processWorkOrderPartReceive`'s exact structure: load the `WorkOrder` fresh, parse `line_items`, and for each selected line — resolve its `inventory_item_id`, accumulate a running per-item QOO total in-memory (so two selected lines sharing the same `inventory_item_id` don't race each other), and prepare the line's mutation (`qty_on_order += qty_quoted`, `qty_quoted: 0`, `inventory_processed: true`). One `.update()` writes the fully-mutated `line_items` back to `WorkOrder`, mirroring the ordering already established in `autopro-processWorkOrderPartReceive` (WO write, then the per-item RPC calls). Then, sequentially per selected line, `update_inventory_with_audit` is called with `p_tx_type: 'Ordered'`, the accumulated running QOO, and a description noting it was promoted from a quote. `WorkOrderForm.jsx` gets a new `markOrdered: false` entry in its `modals` state, a `handleMarkPartsOrdered` callback (`openModal('markOrdered')`, no line index needed), an `onMarkPartsOrdered` prop passed to `LineItemsTable`, and an `onMarked` handler (mirroring `handleReceiveWorkOrderPart`'s shape) that re-derives the same `qty_on_order`/`qty_quoted` shift in local state and sets `hasUnsavedChanges = true`. `LineItemsTable.jsx`'s `renderContextMenu` gets the new item placed right after the `line.part_number && (...)` block containing Receive Part, gated on `mode !== 'estimate' && lineItems.some(l => (parseFloat(l.qty_quoted) || 0) > 0)`.
 
-### Phase 4 — [Executed, pending your UI verification] Paste/Upload Parts OCR import
+### Phase 4 — [Tested] Paste/Upload Parts OCR import
 
 **Files impacted:** new `src/components/work-orders/WOPartsImportModal.jsx`, `src/components/work-orders/WOAddInventoryModal.jsx` (new button + batch-append handler), `supabase/functions/autopro-processPartsInvoiceOCR/index.ts` (additive prompt tweak)
 
@@ -194,3 +194,25 @@ Change to:
 No other files change in this phase. `not_ordered` is left completely untouched everywhere else (still passed through in `buildWorkOrderSavePayload.js`, still present on old WO records) — only its one UI consumer (this badge) moves to the new field.
 
 Once you approve this plan, I'll execute Phase 1, then stop for you to verify in the UI before Phase 2 starts.
+
+---
+
+## 8) Post-Testing Follow-Ups (2026-08-07, all live-tested and deployed)
+
+All items below landed after the initial 4-phase build, during/after live UI testing — appended here for the record rather than reworking the phase sections above.
+
+**Phase 2-adjacent (WOAddInventoryModal):**
+- Quoted badge/button color changed from purple to **rose** — purple and On Order's blue read as too similar at a glance, especially in dark mode. Changed in `LineItemsTable.jsx` (badge), `WOAddInventoryModal.jsx` ("Add Batch as Quoted" button), and `MarkPartsOrderedModal.jsx` (quoted-qty text). "Paste/Upload Parts" button changed to a solid purple filled button (purple was freed up by the rose move).
+- Added a pencil/edit icon to each `WOAddInventoryModal` batch row, mirroring `InventoryAdd.jsx`'s `handleEditItem` pattern exactly: pulls the row's data back into the form, removes it from the batch, refocuses Part #. New `handleEditBatchItem` function. One known minor gap: edited existing-part rows show QOH as 0 in the "Existing Part Selected" banner (batch items don't carry a live QOH value) — cosmetic only, doesn't affect what gets saved.
+
+**Estimate-stage restriction (new scope, not in the original 4 phases):** "Add Batch as On Order" is now hidden entirely on the Estimate stage (`WOAddInventoryModal` takes a new `mode` prop, threaded from `WorkOrderForm.jsx`) — estimates can only Quote, never place a real order. Ctrl+Enter adapts to default to Quoted on estimates. `autopro-convertEstimateToWorkOrder` gained a new branch: any line with `qty_quoted > 0` is finalized on conversion — the real `InventoryItem.quantity_on_order` gets bumped via `update_inventory_with_audit` (`tx_type: 'Ordered'`) and the line's `qty_quoted` moves to `qty_on_order`, since a converted WO can't still be "just quoted." Deployed to both dev and production.
+
+**Bonus discovery, unrelated to this plan but found while touching the same function:** `autopro-convertEstimateToWorkOrder` had **never been deployed to production** at all — only to the `development` branch. Estimate→Work Order conversion had been silently failing on production (hitting the "Conversion failed" alert) independent of anything in this plan. Now deployed to both.
+
+**Bug found during live testing, fixed in two places:** line items added via "Add Batch as Quoted" get a raw JS-number `id` (`Date.now() + Math.random()`). `MarkPartsOrderedModal`'s checked-state was keyed by that id on a plain JS object, which silently stringifies numeric keys — so the ids sent to the edge function were strings while the database's line `id` values stayed numbers, and `Set.has()`'s strict equality never matched, even though the modal displayed the rows correctly. Fixed by `String()`-normalizing both sides before comparing, in **both** `autopro-processWorkOrderMarkQuotedOrdered` (server-side, most robust — guards against either side's type) and `WorkOrderForm.jsx`'s `handleWorkOrderPartsMarkedOrdered` (local-state sync, which had the identical bug but would have failed silently — no error, just a badge stuck on "Quoted" until the next reload). Worth checking for this same class of bug anywhere else that threads a `line_items[].id` through a plain-object-keyed structure.
+
+**New feature, prompted by a real workflow gap surfaced during testing:** users flagged that a Quoted part with `qty_on_order = 0` couldn't be received even when it was already physically in stock — `LineItemsTable.jsx`'s Receive Part menu item was gated purely on `qty_on_order > 0`, forcing an unnecessary "Mark as Ordered" detour first. Fixed by adding a fully separate modal/function pair (matching this codebase's established one-function-per-concern pattern, not branching the existing one): `ReceiveQuotedPartModal.jsx` + `autopro-processWorkOrderReceiveQuotedPart`, which pulls straight from QOH and reduces `qty_quoted` only — `InventoryItem.quantity_on_order` is never touched, since a quoted line never had a QOO commitment to unwind. `LineItemsTable.jsx`'s Receive Part item now enables on `qty_on_order > 0` OR `qty_quoted > 0` and routes to whichever modal applies.
+
+**Unrelated small fixes done in the same working session, noted here only for the record (not part of this plan's actual scope):** a WorkPRO cross-over note added next to the Vehicle Notes field (`VehicleForm.jsx`/`VehicleDetails.jsx`), and the Edit Vehicle/Edit Customer dialogs on `DocumentEditor.jsx` capped at `max-h-[90vh] overflow-y-auto` to stop clipping on short screens.
+
+System-level facts from this whole body of work (the Quoted/On-Order lifecycle, the two receive paths, the id-comparison gotcha) have been rolled into `master_context.md` §4.1 rather than duplicated here — that's the durable reference going forward; this document is the execution history.

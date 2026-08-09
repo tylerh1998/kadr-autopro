@@ -80,6 +80,7 @@ import PLReport from './pages/PLReport';
 import Payroll from './pages/Payroll';
 import Reconcile from './pages/Reconcile';
 import ReconcileReport from './pages/ReconcileReport';
+import ReconcileSupplier from './pages/ReconcileSupplier';
 import Schedule from './pages/Schedule';
 import Setup from './pages/Setup';
 import StockReorderReport from './pages/StockReorderReport';
@@ -129,6 +130,7 @@ export const PAGES = {
     "Payroll": Payroll,
     "Reconcile": Reconcile,
     "ReconcileReport": ReconcileReport,
+    "ReconcileSupplier": ReconcileSupplier,
     "Schedule": Schedule,
     "Setup": Setup,
     "StockReorderReport": StockReorderReport,

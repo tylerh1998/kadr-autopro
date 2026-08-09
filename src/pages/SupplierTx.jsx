@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, AlertTriangle, Search, Edit, Printer, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, AlertTriangle, Search, ScanLine, Printer, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import SupplierForm from '../components/suppliers/SupplierForm';
@@ -966,6 +966,25 @@ export default function SupplierTxPage() {
     setIsNavigatingBack(false);
   }, [hasUnsavedChanges, supplierId, lockAcquired, currentUser, releaseLock, navigate, handleSaveAll, isNavigatingBack]);
 
+  const handleOpenReconcile = useCallback(async () => {
+    const goToReconcile = async () => {
+      if (lockAcquired && supplierId && currentUser) await releaseLock(currentUser);
+      navigate(createPageUrl(`ReconcileSupplier?id=${supplierId}`));
+    };
+    if (hasUnsavedChanges) {
+      const message = 'You have unsaved changes. Would you like to save them before reconciling this supplier?\n\nClick "OK" to save changes and continue.\nClick "Cancel" to continue without saving.';
+      const userWantsToSave = window.confirm(message);
+      if (userWantsToSave) {
+        const saveSuccessful = await handleSaveAll();
+        if (saveSuccessful) return await goToReconcile();
+      } else {
+        return await goToReconcile();
+      }
+    } else {
+      return await goToReconcile();
+    }
+  }, [hasUnsavedChanges, lockAcquired, supplierId, currentUser, releaseLock, navigate, handleSaveAll]);
+
   const handleSupplierUpdate = async (updatedSupplierData) => {
     try {
       if (!supplier?.id) return alert('Missing supplier ID.');
@@ -1050,7 +1069,7 @@ export default function SupplierTxPage() {
       <div className="p-6 min-h-screen">
         <div className="max-w-screen-xl mx-auto">
           <div className="print-header"><div className="print-header-grid"><div><h2 style={{ fontSize: '14pt', margin: 0, fontWeight: 'bold' }}>{supplier?.name}</h2><div style={{ fontSize: '9px' }}>Transaction Report • {dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}` : 'All Dates'}</div></div><div className="text-right"><div style={{ fontSize: '8px', color: '#666', marginBottom: '4px' }}>Printed: {format(new Date(), 'MMM dd, yyyy HH:mm')}</div><div className="print-totals"><div className="print-total-item"><div className="print-total-label">Date Range Total</div><div className="print-total-value">${dateRangeTotal.toFixed(2)}</div></div><div className="print-total-item"><div className="print-total-label">Balance Owing</div><div className="print-total-value">${currentBalance.toFixed(2)}</div></div></div></div></div></div>
-          <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} disabled={isNavigatingBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">{isNavigatingBack ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-2" />}Back</Button><div className="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm"><h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></div></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={() => setShowEditSupplierModal(true)} disabled={isLockedByOtherUser || !lockAcquired} variant="outline" className="bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"><Edit className="w-4 h-4 mr-2" />Edit Supplier</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\nClick "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else setShowPaymentModal(true); } else setShowPaymentModal(true); }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
+          <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} disabled={isNavigatingBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">{isNavigatingBack ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-2" />}Back</Button><button type="button" onClick={() => setShowEditSupplierModal(true)} disabled={isLockedByOtherUser || !lockAcquired} title="Edit Supplier" className="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm text-left hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-900 transition-colors"><h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></button></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={handleOpenReconcile} disabled={isLockedByOtherUser || !lockAcquired} className="bg-indigo-600 hover:bg-indigo-700 text-white"><ScanLine className="w-4 h-4 mr-2" />Reconcile</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\nClick "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else setShowPaymentModal(true); } else setShowPaymentModal(true); }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
           <div className="mb-4 flex justify-between items-start">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-4">
