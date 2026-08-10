@@ -219,15 +219,17 @@ export default function VehiclesPage() {
         </Card>
 
         {showForm && (
-          <VehicleForm
-            vehicle={editingVehicle}
-            customers={customers}
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingVehicle(null);
-            }}
-          />
+          <div className="no-print">
+            <VehicleForm
+              vehicle={editingVehicle}
+              customers={customers}
+              onSubmit={handleSubmit}
+              onCancel={() => {
+                setShowForm(false);
+                setEditingVehicle(null);
+              }}
+            />
+          </div>
         )}
 
         {selectedVehicle && (
