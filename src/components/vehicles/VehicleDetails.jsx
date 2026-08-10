@@ -396,13 +396,19 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
         </div>
 
         {/* Vehicle Metadata */}
-        <Separator className="dark:bg-slate-800" />
-        <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
-          <span>Vehicle added: {new Date(vehicle.created_date).toLocaleDateString()}</span>
-          {vehicle.updated_date !== vehicle.created_date && (
-            <span>Last updated: {new Date(vehicle.updated_date).toLocaleDateString()}</span>
-          )}
-        </div>
+        {(vehicle.created_date || vehicle.updated_date) && (
+          <>
+            <Separator className="dark:bg-slate-800" />
+            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+              {vehicle.created_date && (
+                <span>Vehicle added: {new Date(vehicle.created_date).toLocaleDateString()}</span>
+              )}
+              {vehicle.updated_date && vehicle.updated_date !== vehicle.created_date && (
+                <span>Last updated: {new Date(vehicle.updated_date).toLocaleDateString()}</span>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -175,7 +175,7 @@ export default function VehiclesPage() {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Search */}
-        <Card className="dark:bg-card border dark:border-slate-800">
+        <Card className="no-print dark:bg-card border dark:border-slate-800">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
               <div className="relative flex-1">

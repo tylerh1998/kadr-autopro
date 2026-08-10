@@ -8,6 +8,10 @@ import { format } from 'date-fns';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 import { supabase } from '@/lib/supabase';
 
+// Parse a plain YYYY-MM-DD string as local midnight, not UTC midnight - new Date('2026-08-07')
+// is parsed as UTC and rolls back a day once formatted in a timezone behind UTC (e.g. Mountain Time).
+const formatDateOnly = (dateStr) => format(new Date(`${dateStr}T00:00:00`), 'MMM d, yyyy');
+
 export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder, workPROProject, mode = 'invoiceConversion', vehicle }) {
   const [odometer, setOdometer] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -118,7 +122,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
                 <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">{vehicle.mileage.toLocaleString()}</span>
                 {vehicle.odometer_date && (
                   <span className="text-sm text-slate-600 dark:text-slate-400">
-                    {format(new Date(vehicle.odometer_date), 'MMM d, yyyy')}
+                    {formatDateOnly(vehicle.odometer_date)}
                   </span>
                 )}
               </div>
@@ -149,7 +153,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
                 onClick={handlePullFromWorkPRO}
                 disabled={!hasWorkPROOdometer || isLoading}
                 title={hasWorkPROOdometer ?
-                  `Pull odometer reading from WorkPRO: ${workPROProject.odometer_reading}${workPROProject.odometer_date ? ` (recorded ${format(new Date(workPROProject.odometer_date), 'MMM d, yyyy')})` : ''}` :
+                  `Pull odometer reading from WorkPRO: ${workPROProject.odometer_reading}${workPROProject.odometer_date ? ` (recorded ${formatDateOnly(workPROProject.odometer_date)})` : ''}` :
                   'No odometer reading available in WorkPRO'
                 }
               >
@@ -159,7 +163,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
             {hasWorkPROOdometer && (
               <p className="text-sm text-muted-foreground">
                 WorkPRO has odometer reading: {workPROProject.odometer_reading}
-                {workPROProject.odometer_date && ` (recorded ${format(new Date(workPROProject.odometer_date), 'MMM d, yyyy')})`}
+                {workPROProject.odometer_date && ` (recorded ${formatDateOnly(workPROProject.odometer_date)})`}
               </p>
             )}
           </div>
