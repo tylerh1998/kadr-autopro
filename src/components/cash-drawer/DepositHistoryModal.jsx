@@ -26,7 +26,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
         base44.functions.invoke('getBankTransactions', {
           sourceType: 'deposit',
           fromDate: '1900-01-01',
-          sortField: 'created_date',
+          sortField: 'transaction_date',
           sortDirection: 'desc'
         }),
         FiscalPeriod.list()
