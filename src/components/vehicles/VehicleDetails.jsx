@@ -149,7 +149,10 @@ export default function VehicleDetails({ vehicle, customer, onClose, onEdit }) {
         <div className="grid lg:grid-cols-2 gap-6 items-stretch">
           {/* Vehicle Information */}
           <div className="space-y-6">
-            <div>
+            {/* On-screen editing fields only - VehicleHistoryPrintHeader above already covers
+                Year/Make/Model/VIN for print, and a customer-facing report has no use for the
+                rest of these (Active checkbox, internal Notes, etc). */}
+            <div className="no-print">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
                 <Car className="w-5 h-5" />
                 Vehicle Details
