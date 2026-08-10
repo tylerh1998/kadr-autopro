@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder, workPROProject, mode = 'invoiceConversion', vehicle }) {
   const [odometer, setOdometer] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [pulledOdometerDate, setPulledOdometerDate] = useState(null);
 
   useEffect(() => {
     if (open && workOrder) {
@@ -21,14 +22,22 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
       } else {
         setOdometer('');
       }
+      setPulledOdometerDate(null);
     }
   }, [open, workOrder]);
 
   const handlePullFromWorkPRO = () => {
-    // Pull odometer reading from WorkPRO project if available
+    // Pull odometer reading (and its recorded date) from WorkPRO project if available
     if (workPROProject?.odometer_reading) {
       setOdometer(workPROProject.odometer_reading.toString());
+      setPulledOdometerDate(workPROProject.odometer_date || null);
     }
+  };
+
+  const handleOdometerInputChange = (e) => {
+    setOdometer(e.target.value);
+    // A manual edit invalidates the WorkPRO-sourced date - fall back to today's date on submit
+    setPulledOdometerDate(null);
   };
 
   const handleContinue = async () => {
@@ -52,8 +61,10 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
       
       if (odometerValue !== null && workOrder) {
         const mountainNow = getMountainTimeNow();
-        const currentDate = `${mountainNow.getFullYear()}-${String(mountainNow.getMonth() + 1).padStart(2, '0')}-${String(mountainNow.getDate()).padStart(2, '0')}`;
-        
+        const todayDate = `${mountainNow.getFullYear()}-${String(mountainNow.getMonth() + 1).padStart(2, '0')}-${String(mountainNow.getDate()).padStart(2, '0')}`;
+        // If this reading was pulled from WorkPRO, use the date WorkPRO recorded it on rather than today
+        const odometerDate = pulledOdometerDate || todayDate;
+
         // Update Vehicle entity with mileage and odometer_date in Supabase
         if (workOrder.vehicle_id) {
           try {
@@ -61,7 +72,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
               .from('Vehicle')
               .update({
                 mileage: odometerValue,
-                odometer_date: currentDate
+                odometer_date: odometerDate
               })
               .eq('id', workOrder.vehicle_id);
             if (updateError) throw updateError;
@@ -122,7 +133,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
                 type="number"
                 placeholder="e.g., 150000"
                 value={odometer}
-                onChange={(e) => setOdometer(e.target.value)}
+                onChange={handleOdometerInputChange}
                 disabled={isLoading}
                 className="flex-1"
                 onKeyDown={(e) => {
@@ -137,8 +148,8 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
                 size="sm"
                 onClick={handlePullFromWorkPRO}
                 disabled={!hasWorkPROOdometer || isLoading}
-                title={hasWorkPROOdometer ? 
-                  `Pull odometer reading from WorkPRO: ${workPROProject.odometer_reading}` : 
+                title={hasWorkPROOdometer ?
+                  `Pull odometer reading from WorkPRO: ${workPROProject.odometer_reading}${workPROProject.odometer_date ? ` (recorded ${format(new Date(workPROProject.odometer_date), 'MMM d, yyyy')})` : ''}` :
                   'No odometer reading available in WorkPRO'
                 }
               >
@@ -148,6 +159,7 @@ export default function OdometerPromptModal({ open, onClose, onSubmit, workOrder
             {hasWorkPROOdometer && (
               <p className="text-sm text-muted-foreground">
                 WorkPRO has odometer reading: {workPROProject.odometer_reading}
+                {workPROProject.odometer_date && ` (recorded ${format(new Date(workPROProject.odometer_date), 'MMM d, yyyy')})`}
               </p>
             )}
           </div>

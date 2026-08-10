@@ -1897,7 +1897,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           <VehicleHistoryModal open={modals.vehicleHistory} onClose={() => closeModal('vehicleHistory')} vehicle={vehicle} />
 
           <Dialog open={modals.vehicleDetails} onOpenChange={() => closeModal('vehicleDetails')}>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-100 dark:bg-slate-900">
+            <DialogContent className="vehicle-history-dialog max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-100 dark:bg-slate-900">
               <DialogTitle className="sr-only">Vehicle Details</DialogTitle>
               {vehicle && <VehicleDetails vehicle={vehicle} customer={customer} />}
             </DialogContent>
