@@ -3,15 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle2, XCircle, RefreshCw, ExternalLink, Eye } from "lucide-react";
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import CustomerApprovalSnapshotModal from './CustomerApprovalSnapshotModal';
 
 export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusSync, onRefreshComplete }) {
     const [approvals, setApprovals] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [viewingApproval, setViewingApproval] = useState(null);
 
     const fetchApprovals = useCallback(async () => {
         if (!workOrderId) {
@@ -94,6 +96,7 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
     };
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
@@ -160,16 +163,27 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                                         </div>
                                         
                                         {approval.cp_id && (
-                                            <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-8" asChild>
-                                                <a 
-                                                    href={`https://portal.kensauto.ca/WorkOrder?cp_id=${approval.cp_id}`} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8"
+                                                    onClick={() => setViewingApproval(approval)}
                                                 >
-                                                    <ExternalLink className="w-4 h-4 mr-2" />
-                                                    Open Approved Order
-                                                </a>
-                                            </Button>
+                                                    <Eye className="w-4 h-4 mr-2" />
+                                                    View In-App
+                                                </Button>
+                                                <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white h-8" asChild>
+                                                    <a
+                                                        href={`https://portal.kensauto.ca/WorkOrder?cp_id=${approval.cp_id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                                        Open Approved Order
+                                                    </a>
+                                                </Button>
+                                            </div>
                                         )}
                                     </div>
                                     
@@ -201,5 +215,13 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <CustomerApprovalSnapshotModal
+            open={!!viewingApproval}
+            onClose={() => setViewingApproval(null)}
+            cpId={viewingApproval?.cp_id}
+            approval={viewingApproval}
+        />
+        </>
     );
 }

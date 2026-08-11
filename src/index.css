@@ -257,6 +257,30 @@ button:focus-visible {
     page-break-inside: avoid;
   }
 
+  body:has(.customer-approval-dialog) #root {
+    display: none !important;
+  }
+
+  .customer-approval-dialog {
+    display: grid !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .customer-approval-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   body {
     background: white !important;
   }

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
+import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3, UserCheck } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
@@ -24,6 +24,7 @@ import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
 import WorkOrderProfitability from '../components/work-orders/WorkOrderProfitability';
 import VehicleDetails from '../components/vehicles/VehicleDetails';
 import WorkOrderHistoryModal from '../components/work-orders/history/WorkOrderHistoryModal';
+import ROApprovalsModal from '../components/work-orders/ROApprovalsModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   ContextMenu,
@@ -70,6 +71,7 @@ export default function WorkOrderViewPage() {
   const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
   const [showVehicleDetailsModal, setShowVehicleDetailsModal] = useState(false);
   const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
+  const [showApprovalsModal, setShowApprovalsModal] = useState(false);
 
   useEffect(() => {
     setUser(employee);
@@ -360,6 +362,15 @@ export default function WorkOrderViewPage() {
                     <span className="leading-tight">Print</span>
                   </Button>
 
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowApprovalsModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <UserCheck className="w-5 h-5" />
+                    <span className="leading-tight">Approvals</span>
+                  </Button>
+
                   <Button 
                     variant="outline" 
                     onClick={handleEditWorkOrder} 
@@ -509,6 +520,13 @@ export default function WorkOrderViewPage() {
         onClose={() => setShowVersionHistoryModal(false)}
         workOrderId={workOrder?.id}
         employees={allEmployees || employees}
+      />
+
+      {/* Approvals Modal (includes in-app snapshot view + print) */}
+      <ROApprovalsModal
+        open={showApprovalsModal}
+        onClose={() => setShowApprovalsModal(false)}
+        workOrderId={workOrder?.id}
       />
 
       {/* Vehicle Details Modal */}

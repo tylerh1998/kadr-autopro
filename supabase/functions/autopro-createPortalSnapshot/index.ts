@@ -216,6 +216,8 @@ serve(async (req) => {
           : JSON.stringify(workOrder.payments || []),
         amount_paid: adjustedAmountPaid,
         po_number: workOrder.po_number || '',
+        cvip: workOrder.cvip || null,
+        odometer: workOrder.odometer ?? null,
         stage,
         approval: 'pending',
         created_date: nowIso,
