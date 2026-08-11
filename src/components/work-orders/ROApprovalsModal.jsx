@@ -97,7 +97,7 @@ export default function ROApprovalsModal({ open, onClose, workOrderId, onStatusS
 
     return (
         <>
-        <Dialog open={open} onOpenChange={onClose}>
+        <Dialog open={open && !viewingApproval} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Customer Approvals</DialogTitle>
