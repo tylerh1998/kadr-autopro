@@ -37,13 +37,14 @@
 - [ ] FiscalPeriod
 - [ ] ReturnReason
 
-### 2c. `WorkOrder_Broadcast` — security fix, own mini-project
-Production's current `WorkOrder_Broadcast` trigger has a **live JWT hardcoded in plaintext** in the trigger definition (flagged Phase 1, never fixed). Dev has a newer implementation (`provision_supabase_functions_webhook_infra`) that should be built to avoid this.
-- [ ] Write the fix: move the secret into `supabase_vault`, have the trigger reference it via `vault.decrypted_secrets` at fire time (same pattern already used for `AUTOPRO_CRON_SECRET` this session) — no plaintext token in the trigger body.
-- [ ] Write a proper tracked migration file for this (closes the untracked-migration gap at the same time as the security fix).
-- [ ] Test in isolation on dev: confirm it fires correctly on WorkOrder insert/update/delete, confirm the broadcast payload is unchanged in shape from what `WorkOrders.jsx`'s realtime subscription expects.
-- [ ] Deploy the fixed version to production, replacing the insecure one. Safe to do *before* Aug 17 since nothing on current-`main` consumes this broadcast today (the realtime subscription is new-frontend-only) — but flag to Tyler before doing it, since it does touch a currently-firing production trigger.
-- [ ] Confirm old insecure trigger is actually replaced, not left running alongside the new one.
+### 2c. `WorkOrder_Broadcast` — security fix, own mini-project — **DONE 2026-08-12**
+Production's `WorkOrder_Broadcast` trigger had a JWT hardcoded in plaintext in the trigger definition (flagged Phase 1). Investigated fully before fixing: the JWT decoded to each project's own public **anon key** (not a service-role key or third-party credential), and the called `WorkOrder-Broadcast` function never actually reads the header at all — it authenticates internally via the auto-injected `SUPABASE_SERVICE_ROLE_KEY`. So the fix was to drop the header entirely, not relocate it to Vault. Full writeup: `workorder_broadcast_update_plan.md`.
+- [x] Fix applied: header-less trigger (`CREATE OR REPLACE TRIGGER`, single trigger covering INSERT/UPDATE/DELETE), tracked in `supabase/migrations/20260815000000_remove_workorder_broadcast_hardcoded_jwt.sql`.
+- [x] Tested in isolation on dev first — caught and fixed a bug in the migration itself there (three same-named single-event triggers were overwriting each other; corrected to one multi-event trigger) before touching prod.
+- [x] Deployed to production 2026-08-12, verified via `information_schema.triggers` and a live functional test (real `WorkOrder` writes flowing through cleanly, confirmed via logs).
+- [x] Old insecure trigger confirmed replaced (`CREATE OR REPLACE TRIGGER` is atomic, not a separate drop+create).
+- **Correction to this section's original framing:** "nothing on current-`main` consumes this broadcast" was wrong — re-checked `main`'s live `src/pages/WorkOrders.jsx` and it already subscribes to the `work_order_refresh`/`workorder-updated` channel today ("Zero Polling" live-refresh, no fallback). Turned out not to matter in practice: the webhook is async/non-blocking (`pg_net`), so it can't fail or delay the underlying `WorkOrder` write, and worst case during the deploy window was one missed live-refresh — nothing broke.
+- **Bonus find during dev testing (unrelated to this fix, separately fixed):** `src/lib/supabaseRealtimeClient.js` hardcodes production's Supabase URL/anon key for the realtime client, ignoring env vars — meaning dev's live-refresh could never have worked regardless of this trigger fix. Fixed on `development` to read from `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` like the regular client. `main`'s copy still has the old hardcode, but since `main` only ever runs against prod, it's a no-op there — will resolve naturally at cutover, not urgent before Aug 17.
 
 ### 2d. Edge Functions → production
 None of these share a name with anything currently live on `main` — confirmed no collision risk, safe to deploy any time before go-live:
