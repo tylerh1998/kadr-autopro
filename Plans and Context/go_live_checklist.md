@@ -1,0 +1,122 @@
+# AutoPRO Go-Live Checklist
+
+**Target date:** Monday, August 17, 2026 — tentative, delay if any item below isn't ready. Do not compress this list to hit the date; move the date instead.
+
+**What "go-live" means here:** cutting `autopro.kensauto.ca` over from the current Base44-hosted app to the native Supabase app (this repo's `development` branch, deployed via `main`). This is a full platform cutover, not a routine deploy — treat it with that level of care.
+
+> **LIVE DOCUMENT.** Update in place as items complete or new gaps are found. Don't delete history — check items off, annotate with dates/notes, and append new findings rather than rewriting past decisions.
+
+---
+
+## 1) Context & Key Decisions
+
+- **`main` is the live production repo today**, currently serving the Base44-hosted/hybrid app. `development` holds the fully native rewrite (231 commits ahead of `main`, confirmed 2026-08-11).
+- **Cutover mechanism:** replace `main`'s contents with `development`'s. This keeps Vercel's existing branch-watching config intact (confirm Vercel's production project actually builds from `main` before doing this).
+- **Standing rule on file, now deliberately superseded for this event only:** prior instruction was "never touch `main`, never merge `development` into it." That rule was written before a go-live was ever planned. It applies to *routine* work — it does not block this deliberate, planned cutover. Update the standing memory once this actually executes.
+- **The app today is a hybrid**: some tables are already fully native and already the live source of truth (Customer, Vehicle, WorkOrder, GLTransaction, WorkPRO tables, BankAccount/BankTransaction/BankReconciliation, InventoryReturn) — these need **no data movement**, production already has current data. Everything else still has **Base44 entities as the actual source of truth** even though a native table already exists for it — for those, dev's copy of the table is a stale one-time snapshot, not the live data. **Base44 is the only valid data source for those at go-live time.**
+- **DNS + Vercel hosting switch happens last**, by design — it's the one fully reversible, cleanly delayable single action in this whole plan. Everything before it is prep that can be checked and re-checked without consequence; this step is the actual point of no return (soft — DNS can be reverted).
+- **Go-live-time data pull happens after hours**, specifically to avoid extracting a moving target while staff are actively creating appointments/invoices/etc. in the still-live Base44 app.
+- **Export mechanism:** Base44 → CSV → Supabase upload. Native tables were deliberately designed to accept the same shape as the Base44 entities they replace, specifically to make this path work. ~30–45 min per the owner's estimate.
+
+---
+
+## 2) Pre-Go-Live Work (any time before Aug 17, low risk, no coordination with staff needed)
+
+### 2a. Schema / migrations
+- [ ] Deploy `get_supplier_reconcile_invoices_rpc` to production (tracked file exists: `supabase/migrations/20260812000000_get_supplier_reconcile_invoices_rpc.sql` — read-only RPC, additive, zero collision risk)
+- [ ] Deploy `add_cvip_odometer_to_customer_portal_work_order` to production (2 new nullable columns on `CustomerPortalWorkOrder` — additive, zero collision risk). **Needs a migration file written first** — currently untracked (live on dev only, no `.sql` file in repo).
+- [ ] `provision_supabase_functions_webhook_infra` (`WorkOrder_Broadcast` trigger + webhook) — **do not treat as a simple copy-over.** See Section 2c below; also currently untracked, needs a migration file written.
+
+### 2b. Static/config table data → production
+- [ ] `WorkOrderStatus` (8 rows on dev, 0 on prod)
+- [ ] `TagAlong` (13 rows on dev, 0 on prod)
+- [x] `OtherChargeList` already match 
+- [ ] GSTReturn - no changes happening until end of this quarter, we can port over now
+- [ ] LinesofCredit - just the list of the three credit cards we have. That's not changing, but LOC Transactions are dynamic.
+- [ ] Employee
+- [ ] FiscalPeriod
+- [ ] ReturnReason
+
+### 2c. `WorkOrder_Broadcast` — security fix, own mini-project
+Production's current `WorkOrder_Broadcast` trigger has a **live JWT hardcoded in plaintext** in the trigger definition (flagged Phase 1, never fixed). Dev has a newer implementation (`provision_supabase_functions_webhook_infra`) that should be built to avoid this.
+- [ ] Write the fix: move the secret into `supabase_vault`, have the trigger reference it via `vault.decrypted_secrets` at fire time (same pattern already used for `AUTOPRO_CRON_SECRET` this session) — no plaintext token in the trigger body.
+- [ ] Write a proper tracked migration file for this (closes the untracked-migration gap at the same time as the security fix).
+- [ ] Test in isolation on dev: confirm it fires correctly on WorkOrder insert/update/delete, confirm the broadcast payload is unchanged in shape from what `WorkOrders.jsx`'s realtime subscription expects.
+- [ ] Deploy the fixed version to production, replacing the insecure one. Safe to do *before* Aug 17 since nothing on current-`main` consumes this broadcast today (the realtime subscription is new-frontend-only) — but flag to Tyler before doing it, since it does touch a currently-firing production trigger.
+- [ ] Confirm old insecure trigger is actually replaced, not left running alongside the new one.
+
+### 2d. Edge Functions → production
+None of these share a name with anything currently live on `main` — confirmed no collision risk, safe to deploy any time before go-live:
+- [ ] `autopro-generateWorkOrderPdf`
+- [ ] `autopro-processCustomerARAccounting`
+- [ ] `autopro-getworkorderlist`
+- [ ] `autopro-createworkorderdata`
+- [ ] `autopro-sendEmailViaSMTP`
+- [ ] `autopro-sendSms`
+- [ ] `autopro-sendARReceiptEmail`
+- [ ] `autopro-returnCoreToWO`
+- [ ] `autopro-changeWorkOrderCustomer`
+- [ ] `autopro-calculateARInterest`
+- [ ] `autopro-getAppliedPaymentDetails`
+- [ ] `autopro-getNotesBoardData`
+- [ ] `autopro-getSupplierReconcileInvoices`
+- [ ] `autopro-processSupplierStatementOCR`
+
+---
+
+## 3) Go-Live Night Only (after hours, sequenced — do not run these in parallel/out of order)
+
+**Why after hours:** every table below has Base44 as its live source of truth today. Pulling any of them while staff are still using the Base44 app means the extraction is stale the moment it's taken.
+
+**Suggested internal order** (adjust as the actual runbook gets built closer to the date):
+
+1. **Confirm the shop is done for the day** — no in-progress appointments/WOs/invoices being actively edited.
+2. **Export + import the "regular" dynamic tables** from Base44 (CSV path, ~30–45 min per the owner's estimate; verify a few rows post-import for the known data-type traps — `jsonb` columns landing as real JSON not a stringified blob, stringy-boolean columns, no silent decimal truncation into a `bigint` field):
+   - [ ] Appointment
+   - [ ] Approvals
+   - [ ] LinesOfCreditTransaction
+   - [ ] CashFlowSummary 
+   - [ ] CashFlowEntry
+   - [ ] DepositSlipBreakdown
+   - [ ] CashDrawerAdjustment
+   - [ ] CustomerPortalAudit
+   - [ ] CustomerPortalStatement
+   - [ ] CustomerPortalWorkOrder
+   - [ ] InventoryAuditLog (base44 entity is called InventoryTxs - same data, just renamed)
+   - [ ] InventoryLocation - mostly static, but might have new locations added, placed on dynamic table list as precaution
+   - [ ] InventoryReturn
+   - [ ] Levies
+   - [ ] SentEmailLog
+3. **Pull `SystemSettings` last, as close to the DNS flip as possible.** `next_invoice_number`/`next_ro_number` are live counters controlling WO/invoice numbering — this project already hit a real bug once where a stale counter collided with real existing numbers on the very first write after a copy. Don't let anything happen between this pull and the DNS switch that could create a new WO/invoice in Base44.
+4. **DNS switch + Vercel hosting cutover** (repoint `autopro.kensauto.ca`, confirm Vercel production builds from `main`, confirm `main`'s contents have already been replaced with `development`'s ahead of this moment). **The one true point-of-no-return step — if anything upstream isn't ready, stop here and delay, don't push through.**
+5. **Immediate post-cutover smoke test** (see Section 4) before considering the shop open for business the next morning.
+
+---
+
+## 4) Post-Cutover Verification
+
+Nothing above has been tested against production itself yet — everything passed on dev only. Run through these live, on production, before calling it done:
+- [ ] Create a real appointment
+- [ ] Generate and email a Work Order PDF
+- [ ] Apply an AR payment
+- [ ] Run Supplier Statement Reconciliation end to end
+- [ ] Create a new WO/estimate and confirm the number doesn't collide with anything existing (direct check on the `SystemSettings` pull from step 3)
+- [ ] Confirm `WorkOrder_Broadcast` firing correctly (if not already deployed pre-go-live per 2c) and the old insecure trigger is gone
+
+---
+
+## 5) Rollback Plan
+
+`main` is genuinely live in production — have a real way back, not just an assumption:
+- [ ] Confirm exactly how to revert Vercel's production deployment to the prior state in one action if something is badly wrong day-of
+- [ ] Confirm DNS revert path/TTL — how fast can `autopro.kensauto.ca` point back at Base44 if needed, and how long does that take to actually propagate
+- [ ] Decide the go/no-go call criteria in advance (what specifically would trigger a rollback vs. "fix forward") rather than deciding under pressure that night
+
+---
+
+## 6) Open Items / Needs a Decision
+
+- [ ] Confirm Vercel's production project's branch setting is actually `main` before relying on the "replace main's contents" plan
+- [ ] Confirm production env vars (`VITE_SUPABASE_URL` etc.) are already pointed at `hbcrwkmgsazqrvsrmxyr`, not dev, ahead of the cutover
+- [ ] Decide `WorkOrder_Broadcast` fix timing: pre-go-live (recommended) vs. bundled into go-live night
+- [ ] Confirm remote support coverage for Aug 17 itself — who's physically at the shop if something needs a screen-share/hands
