@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle, ExternalLink, CheckCircle, Clock } from 'lucide-react';
 
 import SelectCustomerModal from './SelectCustomerModal';
 import SelectWorkOrderModal from './SelectWorkOrderModal';
@@ -117,6 +117,70 @@ export default function AppointmentForm({
         isPast
     });
   }, [formData.start_time, formData.reminders_email, formData.reminders_text, formData.reminder_days_before]);
+
+  // Look up whether a reminder for this appointment has actually been sent, instead of just
+  // guessing from the days-before math (which can't tell a successful send from one that never fired).
+  const [sentReminderLogs, setSentReminderLogs] = useState([]);
+
+  useEffect(() => {
+    if (!open || !appointment?.id) {
+      setSentReminderLogs([]);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('SentEmailLog')
+      .select('*')
+      .eq('appointment_id', appointment.id)
+      .order('sent_date', { ascending: false })
+      .then(({ data, error }) => {
+        if (!cancelled && !error) setSentReminderLogs(data || []);
+      });
+    return () => { cancelled = true; };
+  }, [open, appointment?.id]);
+
+  // Rows are sorted newest-first, so find() picks up the most recent attempt per channel.
+  // Email/SMS share this table with no dedicated channel column, so split on to_email's shape.
+  const emailReminderLog = sentReminderLogs.find(l => (l.to_email || '').includes('@'));
+  const textReminderLog = sentReminderLogs.find(l => l.to_email && !l.to_email.includes('@'));
+
+  const describeReminderLog = (log) => {
+    if (!log) return null;
+    const sentAt = log.sent_date ? format(new Date(log.sent_date), 'MMM d, h:mm a') : '';
+    if (['sent', 'delivered', 'opened', 'clicked'].includes(log.status)) {
+      return { tone: 'success', label: `Sent ${sentAt}` };
+    }
+    if (log.status === 'skipped_test_mode') {
+      return { tone: 'testmode', label: `Skipped (test mode) ${sentAt}` };
+    }
+    if (['failed', 'bounced'].includes(log.status)) {
+      return { tone: 'error', label: `Failed to send${log.status_message ? `: ${log.status_message}` : ''}` };
+    }
+    return { tone: 'neutral', label: `Status: ${log.status}` };
+  };
+
+  const emailReminderStatus = describeReminderLog(emailReminderLog);
+  const textReminderStatus = describeReminderLog(textReminderLog);
+  // Only treat the days-before math as an actionable warning when nothing was ever actually
+  // attempted - if we have a real log entry (success, test-mode, or failure) that's more accurate.
+  const reminderTrulyUnresolved = reminderInfo?.isPast && !emailReminderStatus && !textReminderStatus;
+
+  const reminderToneClasses = {
+    success: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/50',
+    testmode: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/50',
+    error: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50',
+    neutral: 'bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-400 border-gray-200 dark:border-slate-700',
+  };
+  const reminderToneIcons = { success: CheckCircle, testmode: Clock, error: AlertTriangle, neutral: Clock };
+  const renderReminderStatusLine = (tone, label) => {
+    const Icon = reminderToneIcons[tone] || AlertTriangle;
+    return (
+      <div className={`flex items-start gap-2 p-2 text-sm rounded border ${reminderToneClasses[tone]}`}>
+        <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <p>{label}</p>
+      </div>
+    );
+  };
 
   // Bay options with new names
   const bayOptions = ['Main Floor', 'Main Hoist', 'North Floor', 'North Hoist', 'Other'];
@@ -450,8 +514,8 @@ export default function AppointmentForm({
       }
     }
 
-    // Check for past reminder warning
-    if (reminderInfo?.isPast) {
+    // Check for past reminder warning - skip if a log shows a reminder actually went out already
+    if (reminderTrulyUnresolved) {
       const confirmed = window.confirm(
           "The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.\n\nDo you want to proceed anyway?"
       );
@@ -1219,22 +1283,24 @@ export default function AppointmentForm({
                         {reminderInfo && (
                           <div className="flex items-center gap-2 ml-2">
                             <span className="text-sm text-gray-500 dark:text-slate-400">Send Date:</span>
-                            <Input 
-                              readOnly 
-                              value={reminderInfo.displayDate} 
-                              className={`h-8 w-40 ${reminderInfo.isPast ? 'text-red-600 dark:text-red-400 border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30' : 'bg-gray-50 dark:bg-slate-800'}`}
+                            <Input
+                              readOnly
+                              value={reminderInfo.displayDate}
+                              className={`h-8 w-40 ${reminderTrulyUnresolved ? 'text-red-600 dark:text-red-400 border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30' : 'bg-gray-50 dark:bg-slate-800'}`}
                             />
                           </div>
                         )}
                       </div>
-                      {reminderInfo?.isPast && (
-                        <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm rounded border border-red-200 dark:border-red-900/50">
-                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <p>
-                            The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.
-                          </p>
-                        </div>
-                      )}
+                      <div className="space-y-1.5">
+                        {formData.reminders_email && emailReminderStatus &&
+                          renderReminderStatusLine(emailReminderStatus.tone, `Email reminder: ${emailReminderStatus.label}`)}
+                        {formData.reminders_email && !emailReminderStatus && reminderInfo?.isPast &&
+                          renderReminderStatusLine('error', 'Email reminder will not be sent - the Days Before field is set in the past. Correct it or remind the customer manually.')}
+                        {formData.reminders_text && textReminderStatus &&
+                          renderReminderStatusLine(textReminderStatus.tone, `Text reminder: ${textReminderStatus.label}`)}
+                        {formData.reminders_text && !textReminderStatus && reminderInfo?.isPast &&
+                          renderReminderStatusLine('error', 'Text reminder will not be sent - the Days Before field is set in the past. Correct it or remind the customer manually.')}
+                      </div>
                     </div>
                   )}
                 </div>
