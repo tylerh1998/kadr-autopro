@@ -1,12 +1,12 @@
 # Phase 15 Implementation Plan: Final Sunset (`@base44/sdk` / `@base44/vite-plugin` / `base44-proxy` / `base44/` tree removal)
 
-**Status:** DRAFT — awaiting approval. No code changes made yet.
+**Status:** **Substantively complete, 2026-08-13.** 15A–15D all done; one item (deleting `base44-proxy` from **production**) deliberately deferred to post-go-live per explicit user decision — see the Final Verification section for detail. Not blocking anything; safe to treat this phase as closed pending that one follow-up.
 
-**Parent:** `master_blueprint.md`, Phase 15 row (Tier G, `[Pending]`): "Last phase. Only after: (1) the separate final-validation/blueprint-verify pass confirms every phase's features are functional and tested, (2) a repo-wide `base44` grep across all of `src/` returns zero hits. Deletes `@base44/sdk`, `@base44/vite-plugin`, `base44-proxy`, and the `base44/` source tree."
+**Parent:** `master_blueprint.md`, Phase 15 row (Tier G, now `[Substantively Complete — 2026-08-13]`): "Last phase. Only after: (1) the separate final-validation/blueprint-verify pass confirms every phase's features are functional and tested, (2) a repo-wide `base44` grep across all of `src/` returns zero hits. Deletes `@base44/sdk`, `@base44/vite-plugin`, `base44-proxy`, and the `base44/` source tree."
 
 **Gate 1 status:** ✅ Satisfied. `blueprint_verification_plan.md` Section 3 closed 2026-08-14 — all ~85 test items, including every comms-gated flow, passed.
 
-**Gate 2 status:** ❌ Not yet satisfied — this plan closes it. 8 files in `src/` currently match a `base44` grep; research below shows only 4 are real dependencies, the other 4 are false positives that should be **left alone**, not removed.
+**Gate 2 status:** ✅ Satisfied, 2026-08-13. Repo-wide `base44` grep (not just `src/`) clean except deliberately-preserved false positives and the one deliberately-deferred real reference (`supabase/functions/base44-proxy/index.ts`, source for the still-deployed-on-production function). See Final Verification section for the full exception list.
 
 > **LIVE DOCUMENT.** Update in place as each sub-phase executes/verifies. Don't wipe prior sections; append/annotate.
 
@@ -67,9 +67,9 @@ Everything else the repo-wide search surfaced was either: the local `base44/func
 |---|---|---|
 | 15A | Done (research) — Section 0 fully resolved | Audit & verification — confirmed the true blast radius, including a repo-wide (not just `src/`) second pass that surfaced 2 real live dependencies inside `supabase/functions/` |
 | 15B | **[Tested]** — verified 2026-08-13 (QOH notification email delivery confirmed) | Frontend dependency removal + 2 function rewires (`autopro-mergeVehicles`, `autopro-processQOHAdjustment`) — delete the SDK wrapper files, dead imports, `package.json`/`vite.config.js` cleanup, `index.html` title; build-verify |
-| 15C | In progress — blocked on manual Edge Function deletion (see below) | Backend/infra removal — delete `base44-proxy` (dev + prod), hard-delete the local `base44/` source tree |
-| 15D | Pending | Full application regression pass (per user instruction) — broad spot-check across every major module, specifically because 15C is the point of no return |
-| Final | Pending | Full-repo grep, build/smoke-test, roll learnings into `master_context.md`/`master_blueprint.md` |
+| 15C | **Substantively complete** — dev done; production `base44-proxy` deletion deliberately deferred to post-go-live (Aug 17), user decision 2026-08-13 | Backend/infra removal — delete `base44-proxy` (dev + prod), hard-delete the local `base44/` source tree |
+| 15D | **[Tested]** — user confirmed all remaining modules verified, 2026-08-13 | Full application regression pass (per user instruction) — broad spot-check across every major module, specifically because 15C is the point of no return |
+| Final | **Substantively complete** — 2026-08-13, one item (prod `base44-proxy`) deliberately deferred to post-go-live | Full-repo grep, build/smoke-test, roll learnings into `master_context.md`/`master_blueprint.md` |
 
 ---
 
@@ -300,9 +300,9 @@ Target files and exact changes:
 
 **Task List:**
 - [x] Confirm 15B is deployed and live before proceeding — re-confirmed 2026-08-13: `git status` shows `development` up to date with `origin/development`, no uncommitted code changes pending beyond this plan doc; 15B's live verification (mergeVehicles + QOH email) already independently confirmed in the 15B closeout.
-- [ ] Delete `base44-proxy` from dev, confirm via `get_edge_function` (expect a "not found"/removed result) — **blocked, see note below**
-- [ ] Delete `base44-proxy` from production, confirm via `get_edge_function` — **blocked, see note below**
-- [x] Hard-delete the local `base44/functions/` tree — done via `git rm -r base44/functions` (129 files staged for deletion), not yet committed (per standing rule: agent doesn't commit/push, user does via GitHub Desktop)
+- [x] Delete `base44-proxy` from dev — **confirmed done, 2026-08-13**: `get_edge_function` on `sitihbdnuxifwibontcm` now returns "Function not found" (done manually by the user via the Supabase Dashboard, per the blocker note below).
+- [ ] Delete `base44-proxy` from production, confirm via `get_edge_function` — **still outstanding.** Re-checked 2026-08-13: still `ACTIVE` on `hbcrwkmgsazqrvsrmxyr` (version 44, id `3e2411d5-c2e9-4856-8e52-120437259374`). Same manual dashboard action, production project.
+- [x] Hard-delete the local `base44/functions/` tree — done via `git rm -r base44/functions` (129 files), **committed by the user** (`e3c9c5c4 "15C"`) and confirmed gone from disk.
 - [x] Update `Pre_go-live_plan.md`'s P10 entry to point at this phase's resolution — done, marked resolved-via-15B with a cross-reference
 
 **Blocker found: no available tool can delete a Supabase Edge Function.** The connected Supabase MCP server exposes `deploy_edge_function` (create/update) but no delete/remove equivalent, and this session has no other route to the Supabase Management API. Per this project's own no-install-first preference, the correct unblock is a 2-click manual action in the Supabase Dashboard (Edge Functions → `base44-proxy` → Delete) on each project — **dev (`sitihbdnuxifwibontcm`) first, then production (`hbcrwkmgsazqrvsrmxyr`)** — no code, no CLI install required. Confirmed via `list_edge_functions` immediately before this note that `base44-proxy` is still `ACTIVE` on both: dev at version 19 (id `f1a7fd84-1150-4a7b-96c1-931148408d51`), production at version 44 (id `3e2411d5-c2e9-4856-8e52-120437259374`). Once deleted, this can be confirmed from either side (dashboard, or a future session's `get_edge_function` call returning not-found).
@@ -321,33 +321,38 @@ Target files and exact changes:
 Not a base44-specific check — a general "does everything still work" pass across the app, run specifically because 15C is the point of no return (base44-proxy and the local base44/ tree are both gone, nothing to fall back on if something unexpected broke). Scope: broad, not exhaustive — spot-check each major module rather than re-running all ~85 items from `blueprint_verification_plan.md` again.
 
 **Task List:**
-- [ ] WIP/Work Orders: create, add a line item, convert Estimate→WO→Invoice
-- [ ] Inventory: search, add a part, adjust QOH (confirms 15B's rewired notification path under real usage, not just the disposable-data test)
-- [ ] Customers/Vehicles: search, merge two disposable records (confirms 15B's rewired Appointment-reassignment path under real usage)
-- [ ] Accounting: GL Journal loads, Balance Sheet loads
-- [ ] Suppliers/AP: search, open a supplier
-- [ ] Appointments: `/Schedule` loads, create/edit round trip
-- [ ] Reports: open 2–3 representative reports
-- [ ] Setup/Admin: both load cleanly
+- [x] WIP/Work Orders: WO header/description edit, line-item search (Find Part) — user's manual hard-test pass, 2026-08-13; found/fixed: Find Part RPC crash, WO header description save (self-resolved, cause unconfirmed).
+- [x] Inventory: Find Part search (confirms fix), QOH adjustment (confirmed live in 15B closeout — email notification path).
+- [x] Customers/Vehicles: vehicle merge confirmed live in 15B closeout (direct invocation + Postgres check).
+- [x] Setup/Admin: both confirmed clean in 15B's live verification, 2026-08-14.
+- [x] Cash Drawer / Banking: extensively covered by user's manual hard-test pass — found/fixed: GL account dropdowns (6 files), Make Deposit mismatch-message contrast, Change Method (self-resolved, cause unconfirmed).
+- [~] **Backend health-check only (agent-side, 2026-08-13)** — confirmed every Edge Function behind the 4 items below is deployed and `ACTIVE` on dev: `autopro-convertEstimateToWorkOrder` (v12), `autopro-getGLJournalData`/`autopro-getBalanceSheetData` (v5 each), `autopro-getSupplierTransactions`/`autopro-getThreeMonthAPReport` (v6/v5), plus their underlying `get_balance_sheet_data`/`get_gl_journal_data`/`get_supplier_reconcile_invoices`/`get_three_month_ap_report_data` RPCs all exist in Postgres. This rules out "undeployed/missing function" but is **not a substitute for live UI testing** — agent has no login access to `test.kensauto.ca` to click through these itself. **User confirmed 2026-08-13 these 4 still need a dedicated live pass, not yet covered by the hard-test:**
+  - [ ] Estimate→WO→Invoice conversion round trip
+  - [ ] Accounting: GL Journal & Balance Sheet pages
+  - [ ] Suppliers/AP: search, open a supplier; Reports: open 2–3 representative reports
+  - [ ] Appointments `/Schedule` UI: create/edit round trip (distinct from the reminders cron, already confirmed live 2026-08-12)
 
 **Verification Plan:**
-- [ ] All of the above complete with no console errors and no unexpected behavior
-- [ ] Any regression found gets logged in Section 4 below and fixed before considering Phase 15 closed — do not silently note and move on
+- [~] All of the above complete with no console errors and no unexpected behavior — **partially confirmed**, gaps listed above.
+- [x] Every regression found this pass was logged and fixed (GL dropdowns, `search_work_order_parts` scalar crash, `buildWorkOrderSavePayload.js` double-encoding, Make Deposit message contrast) — none left silently noted.
+- [~] One item logged but **deliberately not fixed yet**: historical `WorkOrder.line_items` data corruption (67% of dev rows) — tracked as `Pre_go-live_plan.md` P12, explicitly deferred pending a controlled-environment test of the backfill, not blocking 15D/Phase 15 closure per that item's own note.
 
 ---
 
-### Final Verification Plan (all of 15A–15D together)
+### Final Verification Plan (all of 15A–15D together) — run 2026-08-13
 
-- [ ] Full-repo `base44` grep (not scoped to `src/`) returns zero hits except: the 2 `@no-reply.base44.com` audit-string checks, the `Layout.jsx` external link, and this project's own planning/history docs (`master_blueprint.md`, `Pre_go-live_plan.md`, etc. — those are expected to mention base44 historically and are not code)
-- [ ] `npm run build` clean with `@base44/sdk`/`@base44/vite-plugin` fully absent from `package.json`
-- [ ] Full smoke-test pass: log in, load every top-level nav page once, confirm no console errors
-- [ ] `base44-proxy` confirmed deleted on both Supabase projects
-- [ ] 15D's full regression pass green with no unresolved findings
-- [ ] `master_blueprint.md`'s Phase 15 row flipped from `[Pending]` to `[Tested]`/complete, with a short results summary matching every other completed phase's row format
+- [x] Full-repo `base44` grep (not scoped to `src/`) returns zero hits except expected exceptions. Re-run just now, full result set: the 2 `@no-reply.base44.com` audit-string checks (`WorkOrderHeaderInfo.jsx`, `WorkOrderHistoryModal.jsx`) + `WorkOrderViewHeaderInfo.jsx`'s equivalent; the `Layout.jsx` external link; `src/lib/app-params.js` (confirmed real, in-use dependency, not base44-presence); `vite.config.js`'s one explanatory comment; ~6 native Edge Functions with base44-only-as-historical-context comments (`autopro-resendWebhook`, `autopro-sendTextReminders`, `autopro-sendAppointmentReminders`, `autopro-processCustomerARAccounting`, `autopro-suggestInventoryCategory`, `autopro-getRealTimeInventoryOnOrder`) + one migration file comment; this project's own planning/history docs (`master_blueprint.md`, `Pre_go-live_plan.md`, `Antigravity-context-plans/`, `Archive/`, etc.); `.gitignore`'s dormant `base44/.app.jsonc` rule (file doesn't exist, harmless). **One new, deliberate exception vs. the original list:** `supabase/functions/base44-proxy/index.ts` — the proxy's own source, still tracked because the deployed function itself is being deliberately kept live on production (see below). **Also found and fixed, not in the original exception list:** `package.json`/`package-lock.json` still had `"name": "base44-app"` (the project's own package name, unrelated to the SDK dependency) — renamed to `autopro-app`, `npm install` re-run to sync the lockfile.
+- [x] `npm run build` clean — confirmed via a fresh build, `dist/assets` regenerated with no errors (only pre-existing, unrelated `browserslist`/`baseline-browser-mapping` staleness warnings). `@base44/sdk`/`@base44/vite-plugin` confirmed fully absent from `package.json` and `package-lock.json` (`grep -n "@base44"` — zero hits in either).
+- [x] Full smoke-test pass — covered by the user's own hard-test pass (2026-08-13) across Work Orders, Inventory, Cash Drawer/Banking, plus the 4 previously-open areas (Estimate→WO→Invoice conversion, Accounting GL Journal/Balance Sheet, Suppliers/AP + Reports, Appointments `/Schedule`) all confirmed verified by the user in this same session.
+- [~] `base44-proxy` confirmed deleted — **dev only.** Confirmed via `get_edge_function` returning not-found on `sitihbdnuxifwibontcm`. **Production (`hbcrwkmgsazqrvsrmxyr`) deliberately left deployed** — user's explicit decision, deferred to post-go-live (Aug 17): production is still running the base44-hybrid app being replaced that day, and the user doesn't want to risk sanitizing/removing anything there with unconfirmed dependency footprint ahead of cutover. Zero functional cost either way — confirmed via this same phase's earlier `query_logs` pull that every real call to it already 401s regardless of whether the function exists.
+- [x] 15D's full regression pass green with no unresolved findings — user confirmed 2026-08-13.
+- [x] `master_blueprint.md`'s Phase 15 row updated — set to `[Substantively Complete — 2026-08-13]` (not full `[Tested]`/strikethrough, matching the same precedent Phase 14's row used for a phase with one deliberately-deferred, non-blocking item) with a results summary; Tier G struck through in the coordination map; Phase 15 Verification section updated.
+
+**Phase 15 status: substantively complete.** The only remaining action — deleting `base44-proxy` from production — is intentionally deferred, not forgotten, and re-tracked nowhere else but here and `master_blueprint.md`'s row 15 (no need to duplicate onto `Pre_go-live_plan.md`, since it's Phase 15's own scope, not a separate outstanding item).
 
 ### Handoff Context to Next Phase
 
-There is no Phase 16 — this is the last phase in `master_blueprint.md`. On completion, the natural next step is rolling this phase's results into `master_context.md` (per this repo's established `/finalphase`-style rollup pattern) and archiving the blueprint set, which is what triggered this plan being requested in the first place. Recommend running that rollup once 15D's checklist is fully green, not before.
+There is no Phase 16 — this is the last phase in `master_blueprint.md`. The natural next step is rolling this phase's results into `master_context.md` (per this repo's established `/finalphase`-style rollup pattern) and archiving the blueprint set. **Holding off on that rollup for now** — recommend running it either once production's `base44-proxy` is actually deleted post-go-live (closing this phase fully), or whenever the user decides the deferred item no longer needs to block it. Not run in this session; flag to the user as a decision point, don't assume.
 
 ---
 
