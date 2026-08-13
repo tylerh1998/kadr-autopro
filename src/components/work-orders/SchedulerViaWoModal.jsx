@@ -245,7 +245,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] flex flex-col p-6 rounded-xl dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden relative overflow-hidden">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] flex flex-col p-6 rounded-xl dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden overflow-hidden">
         <button
           onClick={onClose}
           className="absolute right-6 top-6 bg-red-600 hover:bg-red-700 text-white rounded p-1.5 transition-colors focus:outline-none z-50 flex items-center justify-center shadow-md border border-red-500"
