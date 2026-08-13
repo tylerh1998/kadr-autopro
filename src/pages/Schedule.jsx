@@ -20,42 +20,9 @@ export default function SchedulePage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [slotInfo, setSlotInfo] = useState(null);
-  const [techColors, setTechColors] = useState({});
 
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Color mappings
-  const bayColors = {
-    'Main Floor': '#3B82F6', // Blue
-    'Main Hoist': '#10B981', // Green
-    'North Floor': '#06b6d4', // Cyan
-    'North Hoist': '#F59E0B', // Amber
-    'Other': '#EF4444', // Red
-  };
-
-  // Generate tech colors dynamically with more distinct, vibrant colors
-  const generateTechColors = (techs) => {
-    const colors = [
-      '#DC2626', // Red
-      '#059669', // Emerald  
-      '#7C3AED', // Violet
-      '#EA580C', // Orange
-      '#0284C7', // Sky Blue
-      '#DB2777', // Pink
-      '#65A30D', // Lime
-      '#0891B2', // Cyan
-      '#7C2D12', // Brown
-      '#4338CA', // Indigo
-      '#BE185D', // Rose
-      '#166534', // Dark Green
-    ];
-    const colorMap = {};
-    techs.forEach((tech, index) => {
-      colorMap[tech.id] = colors[index % colors.length];
-    });
-    return colorMap;
-  };
 
   // Helper function to get customer display name
   const getCustomerDisplayName = (customer) => {
@@ -159,8 +126,6 @@ export default function SchedulePage() {
       });
 
       const availableTechs = employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice');
-      const generatedTechColors = generateTechColors(availableTechs);
-      setTechColors(generatedTechColors);
 
       setEvents(formattedEvents);
       setEmployees(availableTechs);
@@ -420,8 +385,6 @@ export default function SchedulePage() {
           loading={loading}
           onOpenWorkOrder={handleOpenWorkOrder}
           onDeleteAppointment={handleDeleteAppointment}
-          bayColors={bayColors}
-          techColors={techColors}
           employees={employees}
           onNewAppointment={() => {
             setSelectedAppointment(null);

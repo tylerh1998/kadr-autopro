@@ -148,7 +148,7 @@ Pulled from `master_blueprint.md` §7, filtered to what's load-bearing for this 
 | 14B | **Live-verified 2026-08-06** | Deprecate Admin.jsx's Database Query Tool + `RecordDetailsModal.jsx` |
 | 14D | **Fully live-verified 2026-08-07 — bug fix confirmed deployed and working** (`LankarWOView.jsx` double-unwrap fix live-verified against woid 46000) | Deprecate LANKAR bulk import + legacy AR/return modals; migrate `LankarWOView.jsx` |
 | 14E | **Fully live-verified 2026-08-06** — real emails sent end-to-end, both functions, `SentEmailLog` confirmed `status: 'sent'` with real Resend tracking IDs | AR cluster remainder: `StatementEmailModal.jsx` + `BatchSendWorkOrdersModal.jsx` |
-| 14F | **Partially live-verified — `localeCompare` fix confirmed deployed and working 2026-08-07; full upload/extract/create flow still genuinely blocked on a real legacy work-order PDF** | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
+| 14F | **Partially live-verified — `localeCompare` fix confirmed deployed and working 2026-08-07; full upload/extract/create flow still genuinely blocked on a real legacy work-order PDF. DEFERRED INDEFINITELY 2026-08-14 (user decision) — admin-only feature, revisit only if/when a real legacy work order actually needs uploading, not before.** | `LegacyWorkOrderImportModal.jsx` + `autopro-processLegacyWorkOrder` |
 | 14G | **Substantively complete 2026-08-07** — found and fixed one real production gap (`autopro-createStatement` missing on prod); 2 items remain genuinely open (14F full-flow needs a real PDF; production-UI re-confirmation of 4 dev-tested 14C managers), neither blocking rollup | Final verification stage — not sunset |
 
 ---

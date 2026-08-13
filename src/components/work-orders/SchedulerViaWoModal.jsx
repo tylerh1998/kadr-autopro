@@ -16,25 +16,6 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [slotInfo, setSlotInfo] = useState(null);
 
-  const bayColors = {
-    'Bay 1': '#3B82F6', 'Bay 2': '#10B981', 'Bay 3': '#F59E0B', 
-    'Alignment Rack': '#8B5CF6', 'Mobile': '#EF4444',
-  };
-
-  const [techColors, setTechColors] = useState({});
-
-  const generateTechColors = (techs) => {
-    const colors = [
-      '#DC2626', '#059669', '#7C3AED', '#EA580C', '#0284C7',
-      '#DB2777', '#65A30D', '#0891B2', '#7C2D12', '#4338CA',
-    ];
-    const colorMap = {};
-    techs.forEach((tech, index) => {
-      colorMap[tech.id] = colors[index % colors.length];
-    });
-    return colorMap;
-  };
-
   // Helper function to get customer display name
   const getCustomerDisplayName = (customer) => {
     if (!customer) return 'Unknown Customer';
@@ -97,7 +78,6 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       setEmployees(employeesData);
       setAllCustomers(customersList); // NEW: Set customers state
       setAllVehicles(vehiclesList); // NEW: Set vehicles state
-      setTechColors(generateTechColors(employeesData));
     } catch (error) {
       console.error('Error loading schedule data in modal:', error);
     } finally {
@@ -308,8 +288,6 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
                 onSelectSlot={handleSelectSlot}
                 loading={loading}
                 employees={employees}
-                bayColors={bayColors}
-                techColors={techColors}
                 onOpenWorkOrder={handleOpenWorkOrder}
                 onDeleteAppointment={handleDeleteAppointment}
                 onNewAppointment={() => {

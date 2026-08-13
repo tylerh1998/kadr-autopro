@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { sendViaResend } from "../_shared/resend.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,27 +80,6 @@ const formatPaymentMethod = (method: string) => {
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ');
 };
-
-async function sendViaResend(resendApiKey: string, fromAddress: string, recipients: string[], subject: string, htmlBody: string) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${resendApiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: fromAddress,
-      to: recipients,
-      subject: subject,
-      html: htmlBody
-    })
-  });
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(result.message || 'Failed to send email via Resend');
-  }
-  return result;
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

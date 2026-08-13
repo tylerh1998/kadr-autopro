@@ -1,6 +1,6 @@
 # WorkOrder_Broadcast Update Plan
 
-**Status:** Awaiting approval — no code or DB changes made yet.
+**Status:** Complete — deployed and verified on dev (2026-08-11) and prod (2026-08-12), user-confirmed working.
 
 ---
 

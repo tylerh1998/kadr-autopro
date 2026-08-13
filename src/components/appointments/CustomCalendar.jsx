@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users, Plus } 
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, differenceInMinutes, addMinutes } from 'date-fns';
 import CellAppointmentsModal from './CellAppointmentsModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
+import { getBayColorClass } from '@/lib/bayColors';
 
 // Constants for layout
 const SLOT_DURATION_MINUTES = 30;
@@ -17,8 +18,6 @@ export default function CustomCalendar({
   loading,
   onOpenWorkOrder,
   onDeleteAppointment,
-  bayColors,
-  techColors,
   employees,
   onNewAppointment,
 }) {
@@ -77,19 +76,6 @@ export default function CustomCalendar({
       };
     });
   }, [events, employees]);
-
-  const getBayColorClass = useCallback((bay) => {
-    const bayColorMap = {
-      'Floor': 'bg-orange-200 border-orange-400 text-orange-950 dark:bg-orange-900 dark:border-orange-500 dark:text-orange-100',
-      'Main Floor': 'bg-orange-200 border-orange-400 text-orange-950 dark:bg-orange-900 dark:border-orange-500 dark:text-orange-100',
-      'Main Hoist': 'bg-green-200 border-green-400 text-green-950 dark:bg-green-900 dark:border-green-500 dark:text-green-100',
-      'North Floor': 'bg-purple-200 border-purple-400 text-purple-950 dark:bg-purple-900 dark:border-purple-500 dark:text-purple-100',
-      'North Hoist': 'bg-yellow-250 border-yellow-450 text-yellow-950 dark:bg-yellow-800 dark:border-yellow-500 dark:text-yellow-100',
-      'Outside': 'bg-slate-200 border-slate-400 text-slate-950 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100',
-      'Other': 'bg-pink-200 border-pink-400 text-pink-950 dark:bg-pink-900 dark:border-pink-500 dark:text-pink-100',
-    };
-    return bayColorMap[bay] || 'bg-slate-200 border-slate-400 text-slate-950 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-100';
-  }, []);
 
   const timeSlots = useMemo(() => {
     const slots = [];
@@ -298,16 +284,6 @@ export default function CustomCalendar({
     setView('day');
   };
 
-  const getEventStyle = useCallback((event) => {
-    let backgroundColor = '#3174ad';
-    if (event.bayId) {
-      backgroundColor = bayColors[event.bayId] || backgroundColor;
-    } else if (event.employee_id) {
-      backgroundColor = techColors[event.employee_id] || backgroundColor;
-    }
-    return { backgroundColor };
-  }, [bayColors, techColors]);
-
   const debouncedUpdate = useCallback((event, updatedSlot) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -491,7 +467,7 @@ export default function CustomCalendar({
   }, [moveMode, appointmentToMove, isUpdating, onSelectSlot, handleMoveToCell, handleSelectEvent]);
 
   // Component for rendering a single appointment
-  const SingleAppointmentCard = ({ event, colorClass = null, useTechColors = false }) => {
+  const SingleAppointmentCard = ({ event, colorClass = null }) => {
     const customerName = event.customer 
       ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
       : event.displayTitle || 'Appointment';
@@ -506,19 +482,8 @@ export default function CustomCalendar({
     
     let cardClasses;
     let cardStyle = { height: '100%', width: '100%' };
-    
-    if (useTechColors && event.employee_id && techColors[event.employee_id]) {
-      const techColor = techColors[event.employee_id];
-      cardStyle = {
-        ...cardStyle,
-        backgroundColor: techColor + '20',
-        borderColor: techColor,
-        borderWidth: '1px'
-      };
-      cardClasses = `text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-start items-stretch ${
-        isCancelledOrNoShow ? 'opacity-50' : ''
-      }`;
-    } else if (colorClass) {
+
+    if (colorClass) {
       cardClasses = `text-xs px-2 py-1 rounded border truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-start items-stretch ${colorClass} ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
@@ -1468,11 +1433,6 @@ export default function CustomCalendar({
         onSelectAppointment={handleSelectEvent}
         onOpenWorkOrder={onOpenWorkOrder}
         onDeleteAppointment={onDeleteAppointment}
-        bayColors={bayColors}
-        techColors={techColors}
-        employees={employees}
-        getEventStyle={getEventStyle}
-        handleAppointmentClick={handleAppointmentClick}
         onNewAppointment={() => {
           if (selectedCellSlotInfo) {
             onSelectSlot({

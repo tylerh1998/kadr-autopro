@@ -11,6 +11,7 @@
 ## 1) Context & Key Decisions
 
 - **`main` is the live production repo today**, currently serving the Base44-hosted/hybrid app. `development` holds the fully native rewrite (231 commits ahead of `main`, confirmed 2026-08-11).
+- **The two git branches map to two separate Supabase projects — confirm this before any schema/function work, don't assume one implies the other:** `hbcrwkmgsazqrvsrmxyr` (Supabase's own branch metadata labels it `main`/production, `is_default: true`) vs. `sitihbdnuxifwibontcm` (labeled `development`) — this is what `test.kensauto.ca` actually runs against and where all real live-testing data lives (e.g. `blueprint_verification_plan.md`'s test records). **Mistake made and corrected 2026-08-10:** a schema gap found on `hbcrwkmgsazqrvsrmxyr` was initially assumed to also affect what was being tested on `test.kensauto.ca` — it didn't; `sitihbdnuxifwibontcm` already had the fix. Always state which of the two project IDs an action targets.
 - **Cutover mechanism:** replace `main`'s contents with `development`'s. This keeps Vercel's existing branch-watching config intact (confirm Vercel's production project actually builds from `main` before doing this).
 - **Standing rule on file, now deliberately superseded for this event only:** prior instruction was "never touch `main`, never merge `development` into it." That rule was written before a go-live was ever planned. It applies to *routine* work — it does not block this deliberate, planned cutover. Update the standing memory once this actually executes.
 - **The app today is a hybrid**: some tables are already fully native and already the live source of truth (Customer, Vehicle, WorkOrder, GLTransaction, WorkPRO tables, BankAccount/BankTransaction/BankReconciliation, InventoryReturn) — these need **no data movement**, production already has current data. Everything else still has **Base44 entities as the actual source of truth** even though a native table already exists for it — for those, dev's copy of the table is a stale one-time snapshot, not the live data. **Base44 is the only valid data source for those at go-live time.**
@@ -24,7 +25,7 @@
 
 ### 2a. Schema / migrations
 - [ ] Deploy `get_supplier_reconcile_invoices_rpc` to production (tracked file exists: `supabase/migrations/20260812000000_get_supplier_reconcile_invoices_rpc.sql` — read-only RPC, additive, zero collision risk)
-- [ ] Deploy `add_cvip_odometer_to_customer_portal_work_order` to production (2 new nullable columns on `CustomerPortalWorkOrder` — additive, zero collision risk). **Needs a migration file written first** — currently untracked (live on dev only, no `.sql` file in repo).
+- [x] Deploy `add_cvip_odometer_to_customer_portal_work_order` to production — **DONE 2026-08-10.** 2 new nullable columns (`cvip text`, `odometer integer`, matching `WorkOrder`'s own column types) added to `CustomerPortalWorkOrder` on `hbcrwkmgsazqrvsrmxyr` via `apply_migration`, confirmed live via `information_schema.columns`. Migration file now tracked: `supabase/migrations/20260816000000_add_cvip_odometer_to_customer_portal_workorder.sql`. Also redeployed `autopro-createPortalSnapshot` (v1→v2, `verify_jwt` unchanged) since its already-committed source depended on these columns existing — confirmed live via `get_edge_function`. Found and closed while verifying the new "View In-App"/printable customer-approval-snapshot feature; full detail in `blueprint_verification_plan.md` Section 2.
 - [ ] `provision_supabase_functions_webhook_infra` (`WorkOrder_Broadcast` trigger + webhook) — **do not treat as a simple copy-over.** See Section 2c below; also currently untracked, needs a migration file written.
 
 ### 2b. Static/config table data → production
@@ -62,6 +63,7 @@ None of these share a name with anything currently live on `main` — confirmed 
 - [ ] `autopro-getNotesBoardData`
 - [ ] `autopro-getSupplierReconcileInvoices`
 - [ ] `autopro-processSupplierStatementOCR`
+- [ ] Payroll's production frontend push + production Edge Function deploy — Phase 11's own doc noted these as "the user's own action," never confirmed done. **Before assuming this list above is complete: directly compare the full function list on dev (`sitihbdnuxifwibontcm`) vs. production (`hbcrwkmgsazqrvsrmxyr`) rather than relying on any single phase doc's memory of what it deployed** — this list was compiled from scattered per-phase notes, not a live diff.
 
 ---
 
@@ -103,6 +105,7 @@ Nothing above has been tested against production itself yet — everything passe
 - [ ] Run Supplier Statement Reconciliation end to end
 - [ ] Create a new WO/estimate and confirm the number doesn't collide with anything existing (direct check on the `SystemSettings` pull from step 3)
 - [ ] Confirm `WorkOrder_Broadcast` firing correctly (if not already deployed pre-go-live per 2c) and the old insecure trigger is gone
+- [ ] **Report baseline diff (closes the long-standing Phase 6 gap):** once the real data import (Section 3, step 2) has landed, compare native report outputs — Sales Analysis, Customer Report, Other Charges Breakdown, Technician Performance, WO Summary, Parts Movement/On Order — against their pre-cutover Base44 originals using the same real data. Totals/row counts/key figures should match exactly; this is the base44-vs-native baseline diff that was never done when these reports were originally ported.
 
 ---
 

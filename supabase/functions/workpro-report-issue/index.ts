@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sendViaResend } from "../_shared/resend.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,23 +44,9 @@ ${logsHtml}
       </pre>
     `;
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: emailTo,
-        subject: `[WorkPro Issue] [${severity.toUpperCase()}] ${title}`,
-        html: emailBody,
-      }),
-    });
-
-    const data = await res.json();
+    const data = await sendViaResend(resendApiKey, emailFrom, [emailTo], `[WorkPro Issue] [${severity.toUpperCase()}] ${title}`, emailBody);
     return new Response(JSON.stringify(data), {
-      status: res.status,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import twilio from "npm:twilio";
+import { createTwilioClient, sendViaTwilio } from "../_shared/twilio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,13 +37,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing "to" or "message" parameter' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-    if (!accountSid || !authToken || !fromNumber) {
+    const twilioSetup = createTwilioClient();
+    if (!twilioSetup) {
       return new Response(JSON.stringify({ error: 'Twilio credentials are not configured' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const twilioClient = new twilio(accountSid, authToken);
 
     const nowIso = new Date().toISOString();
     const newLogId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
@@ -76,11 +73,7 @@ serve(async (req) => {
     }
     logId = logInsert.data.id;
 
-    const result = await twilioClient.messages.create({
-      body: message,
-      from: fromNumber,
-      to: to
-    });
+    const result = await sendViaTwilio(twilioSetup, to, message);
 
     await supabaseAdmin
       .from('SentEmailLog')
